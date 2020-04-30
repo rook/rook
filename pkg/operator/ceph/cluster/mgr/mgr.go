@@ -199,7 +199,7 @@ func (c *Cluster) Start() error {
 	service := c.makeMetricsService(AppName)
 	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(service); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to create mgr service")
+			return errors.Wrap(err, "failed to create mgr service")
 		}
 		logger.Infof("mgr metrics service already exists")
 	} else {
@@ -255,7 +255,7 @@ func startModuleConfiguration(description string, configureModules func() error)
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
 func (c *Cluster) enablePrometheusModule() error {
 	if err := client.MgrEnableModule(c.context, c.Namespace, prometheusModuleName, true); err != nil {
-		return errors.Wrapf(err, "failed to enable mgr prometheus module")
+		return errors.Wrap(err, "failed to enable mgr prometheus module")
 	}
 	return nil
 }
@@ -263,7 +263,7 @@ func (c *Cluster) enablePrometheusModule() error {
 // Ceph docs about the crash module: https://docs.ceph.com/docs/master/mgr/crash/
 func (c *Cluster) enableCrashModule() error {
 	if err := client.MgrEnableModule(c.context, c.Namespace, crashModuleName, true); err != nil {
-		return errors.Wrapf(err, "failed to enable mgr crash module")
+		return errors.Wrap(err, "failed to enable mgr crash module")
 	}
 	return nil
 }
@@ -306,11 +306,11 @@ func (c *Cluster) configureMgrModules() error {
 				// Ceph Octopus will have that option enabled
 				err := monStore.Set("global", "osd_pool_default_pg_autoscale_mode", "on")
 				if err != nil {
-					return errors.Wrapf(err, "failed to enable pg autoscale mode for newly created pools")
+					return errors.Wrap(err, "failed to enable pg autoscale mode for newly created pools")
 				}
 				err = monStore.Set("global", "mon_pg_warn_min_per_osd", "0")
 				if err != nil {
-					return errors.Wrapf(err, "failed to set minimal number PGs per (in) osd before we warn the admin to")
+					return errors.Wrap(err, "failed to set minimal number PGs per (in) osd before we warn the admin to")
 				}
 			}
 
@@ -353,7 +353,7 @@ func (c *Cluster) enableServiceMonitor(service *v1.Service) error {
 	namespace := service.GetNamespace()
 	serviceMonitor, err := k8sutil.GetServiceMonitor(path.Join(monitoringPath, serviceMonitorFile))
 	if err != nil {
-		return errors.Wrapf(err, "service monitor could not be enabled")
+		return errors.Wrap(err, "service monitor could not be enabled")
 	}
 	serviceMonitor.SetName(name)
 	serviceMonitor.SetNamespace(namespace)
@@ -361,7 +361,7 @@ func (c *Cluster) enableServiceMonitor(service *v1.Service) error {
 	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{namespace}
 	serviceMonitor.Spec.Selector.MatchLabels = service.GetLabels()
 	if _, err := k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
-		return errors.Wrapf(err, "service monitor could not be enabled")
+		return errors.Wrap(err, "service monitor could not be enabled")
 	}
 	return nil
 }
@@ -374,14 +374,14 @@ func (c *Cluster) deployPrometheusRule(name, namespace string) error {
 	prometheusRuleFile = path.Join(monitoringPath, prometheusRuleFile)
 	prometheusRule, err := k8sutil.GetPrometheusRule(prometheusRuleFile)
 	if err != nil {
-		return errors.Wrapf(err, "prometheus rule could not be deployed")
+		return errors.Wrap(err, "prometheus rule could not be deployed")
 	}
 	prometheusRule.SetName(name)
 	prometheusRule.SetNamespace(namespace)
 	owners := append(prometheusRule.GetOwnerReferences(), c.ownerRef)
 	k8sutil.SetOwnerRefs(&prometheusRule.ObjectMeta, owners)
 	if _, err := k8sutil.CreateOrUpdatePrometheusRule(prometheusRule); err != nil {
-		return errors.Wrapf(err, "prometheus rule could not be deployed")
+		return errors.Wrap(err, "prometheus rule could not be deployed")
 	}
 	return nil
 }

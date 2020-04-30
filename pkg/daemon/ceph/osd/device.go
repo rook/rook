@@ -114,7 +114,7 @@ func getMonMap(context *clusterd.Context, clusterName string) ([]byte, error) {
 	args := []string{"mon", "getmap"}
 	buf, err := client.NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get mon map")
+		return nil, errors.Wrap(err, "failed to get mon map")
 	}
 	return buf, nil
 }

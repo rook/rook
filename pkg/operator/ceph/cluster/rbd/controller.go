@@ -201,13 +201,13 @@ func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cep
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
-			return reconcile.Result{}, errors.Wrapf(err, "refusing to run new crd")
+			return reconcile.Result{}, errors.Wrap(err, "refusing to run new crd")
 		}
 	}
 
 	err := r.start(cephRBDMirror)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to start rbd mirror")
+		return reconcile.Result{}, errors.Wrap(err, "failed to start rbd mirror")
 	}
 
 	return reconcile.Result{}, nil

@@ -154,7 +154,7 @@ func (c *Cluster) Start() error {
 				logger.Info("setting mds config flags")
 				err = c.setDefaultFlagsMonConfigStore(mdsConfig.DaemonID)
 				if err != nil {
-					return errors.Wrapf(err, "failed to set default mds config options")
+					return errors.Wrap(err, "failed to set default mds config options")
 				}
 			}
 		}

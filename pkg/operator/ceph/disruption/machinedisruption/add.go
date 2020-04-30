@@ -34,10 +34,10 @@ import (
 func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	mgrScheme := mgr.GetScheme()
 	if err := healthchecking.AddToScheme(mgrScheme); err != nil {
-		return errors.Wrapf(err, "failed to add to healthchecking scheme.")
+		return errors.Wrap(err, "failed to add to healthchecking scheme")
 	}
 	if err := cephv1.AddToScheme(mgrScheme); err != nil {
-		return errors.Wrapf(err, "failed to add to ceph scheme.")
+		return errors.Wrap(err, "failed to add to ceph scheme")
 	}
 
 	reconcileMachineDisruption := &MachineDisruptionReconciler{

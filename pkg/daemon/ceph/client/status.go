@@ -152,7 +152,7 @@ func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
 
 	var status CephStatus
 	if err := json.Unmarshal(buf, &status); err != nil {
-		return CephStatus{}, errors.Wrapf(err, "failed to unmarshal status response")
+		return CephStatus{}, errors.Wrap(err, "failed to unmarshal status response")
 	}
 
 	return status, nil
@@ -169,7 +169,7 @@ func StatusWithUser(context *clusterd.Context, clusterName, userName string) (Ce
 
 	var status CephStatus
 	if err := json.Unmarshal([]byte(buf), &status); err != nil {
-		return CephStatus{}, errors.Wrapf(err, "failed to unmarshal status response")
+		return CephStatus{}, errors.Wrap(err, "failed to unmarshal status response")
 	}
 
 	return status, nil
@@ -252,7 +252,7 @@ func getMDSRank(status CephStatus, clusterName, fsName string) (int, error) {
 func MdsActiveOrStandbyReplay(context *clusterd.Context, clusterName, fsName string) error {
 	status, err := Status(context, clusterName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get ceph status")
+		return errors.Wrap(err, "failed to get ceph status")
 	}
 
 	mdsRank, err := getMDSRank(status, clusterName, fsName)

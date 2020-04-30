@@ -124,7 +124,7 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 		[]string{"ceph"}, []string{"--version"},
 		rookImage, cephImage)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to set up ceph version job")
+		return nil, errors.Wrap(err, "failed to set up ceph version job")
 	}
 
 	job := versionReporter.Job()
@@ -135,7 +135,7 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 
 	stdout, stderr, retcode, err := versionReporter.Run(timeout)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to complete ceph version job")
+		return nil, errors.Wrap(err, "failed to complete ceph version job")
 	}
 	if retcode != 0 {
 		return nil, errors.Errorf(`ceph version job returned failure with retcode %d.
@@ -145,7 +145,7 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 
 	version, err := cephver.ExtractCephVersion(stdout)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to extract ceph version")
+		return nil, errors.Wrap(err, "failed to extract ceph version")
 	}
 	logger.Infof("detected ceph image version: %q", version)
 	return version, nil
@@ -189,7 +189,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	if c.Spec.External.Enable && c.Spec.CephVersion.Image != "" {
 		c.Info.CephVersion, err = controller.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, *version)
 		if err != nil {
-			return errors.Wrapf(err, "failed to validate ceph version between external and local")
+			return errors.Wrap(err, "failed to validate ceph version between external and local")
 		}
 	}
 

@@ -56,7 +56,7 @@ func FormatCsiClusterConfig(
 
 	ccJson, err := json.Marshal(cc)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to marshal csi cluster config")
+		return "", errors.Wrap(err, "failed to marshal csi cluster config")
 	}
 	return string(ccJson), nil
 }
@@ -65,7 +65,7 @@ func parseCsiClusterConfig(c string) (csiClusterConfig, error) {
 	var cc csiClusterConfig
 	err := json.Unmarshal([]byte(c), &cc)
 	if err != nil {
-		return cc, errors.Wrapf(err, "failed to parse csi cluster config")
+		return cc, errors.Wrap(err, "failed to parse csi cluster config")
 	}
 	return cc, nil
 }
@@ -73,7 +73,7 @@ func parseCsiClusterConfig(c string) (csiClusterConfig, error) {
 func formatCsiClusterConfig(cc csiClusterConfig) (string, error) {
 	ccJson, err := json.Marshal(cc)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to marshal csi cluster config")
+		return "", errors.Wrap(err, "failed to marshal csi cluster config")
 	}
 	return string(ccJson), nil
 }
@@ -98,7 +98,7 @@ func UpdateCsiClusterConfig(
 	)
 	cc, err := parseCsiClusterConfig(curr)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to parse current csi cluster config")
+		return "", errors.Wrap(err, "failed to parse current csi cluster config")
 	}
 
 	for i, centry := range cc {
@@ -145,7 +145,7 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerR
 
 func DeleteCsiConfigMap(namespace string, clientset kubernetes.Interface) error {
 	if err := clientset.CoreV1().ConfigMaps(namespace).Delete(ConfigName, &metav1.DeleteOptions{}); err != nil {
-		return errors.Wrapf(err, "failed to delete CSI driver configuration and deployments")
+		return errors.Wrap(err, "failed to delete CSI driver configuration and deployments")
 	}
 	return nil
 }
@@ -177,7 +177,7 @@ func SaveClusterConfig(
 	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(
 		ConfigName, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "failed to fetch current csi config map")
+		return errors.Wrap(err, "failed to fetch current csi config map")
 	}
 
 	// update ConfigMap contents for current cluster
@@ -188,7 +188,7 @@ func SaveClusterConfig(
 	newData, err := UpdateCsiClusterConfig(
 		currData, clusterNamespace, clusterInfo.Monitors)
 	if err != nil {
-		return errors.Wrapf(err, "failed to update csi config map data")
+		return errors.Wrap(err, "failed to update csi config map data")
 	}
 	configMap.Data[ConfigKey] = newData
 

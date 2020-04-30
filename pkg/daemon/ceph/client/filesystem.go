@@ -81,7 +81,7 @@ func ListFilesystems(context *clusterd.Context, clusterName string) ([]CephFiles
 	args := []string{"fs", "ls"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list filesystems")
+		return nil, errors.Wrap(err, "failed to list filesystems")
 	}
 
 	var filesystems []CephFilesystem
@@ -353,7 +353,7 @@ func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string, pre
 func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesystemDetails) error {
 	poolNames, err := GetPoolNamesByID(context, clusterName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get pool names")
+		return errors.Wrap(err, "failed to get pool names")
 	}
 
 	var lastErr error = nil

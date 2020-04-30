@@ -63,7 +63,7 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 	if len(username) == 0 {
 		username, err = p.genUserName()
 		if len(username) == 0 || err != nil {
-			return "", "", errors.Wrapf(err, "no user name provided and unable to generate a unique name")
+			return "", "", errors.Wrap(err, "no user name provided and unable to generate a unique name")
 		}
 	}
 	p.cephUserName = username

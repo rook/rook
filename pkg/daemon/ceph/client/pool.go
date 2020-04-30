@@ -85,7 +85,7 @@ func ListPoolSummaries(context *clusterd.Context, namespace string) ([]CephStora
 	args := []string{"osd", "lspools"}
 	output, err := NewCephCommand(context, namespace, args).Run()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list pools")
+		return nil, errors.Wrap(err, "failed to list pools")
 	}
 
 	var pools []CephStoragePoolSummary
@@ -100,7 +100,7 @@ func ListPoolSummaries(context *clusterd.Context, namespace string) ([]CephStora
 func GetPoolNamesByID(context *clusterd.Context, namespace string) (map[int]string, error) {
 	pools, err := ListPoolSummaries(context, namespace)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list pools")
+		return nil, errors.Wrap(err, "failed to list pools")
 	}
 	names := map[int]string{}
 	for _, p := range pools {
@@ -366,12 +366,12 @@ func GetPoolStats(context *clusterd.Context, namespace string) (*CephStoragePool
 	args := []string{"df", "detail"}
 	output, err := NewCephCommand(context, namespace, args).Run()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get pool stats")
+		return nil, errors.Wrap(err, "failed to get pool stats")
 	}
 
 	var poolStats CephStoragePoolStats
 	if err := json.Unmarshal(output, &poolStats); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal pool stats response")
+		return nil, errors.Wrap(err, "failed to unmarshal pool stats response")
 	}
 
 	return &poolStats, nil
@@ -383,12 +383,12 @@ func GetPoolStatistics(context *clusterd.Context, name, namespace string) (*Pool
 	cmd.JsonOutput = true
 	output, err := cmd.Run()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get pool stats")
+		return nil, errors.Wrap(err, "failed to get pool stats")
 	}
 
 	var poolStats PoolStatistics
 	if err := json.Unmarshal(output, &poolStats); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal pool stats response")
+		return nil, errors.Wrap(err, "failed to unmarshal pool stats response")
 	}
 
 	return &poolStats, nil

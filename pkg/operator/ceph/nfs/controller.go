@@ -226,7 +226,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	reconcileResponse, err = r.reconcileCreateCephNFS(cephNFS)
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph nfs deployments")
+		return reconcile.Result{}, errors.Wrap(err, "failed to create ceph nfs deployments")
 	}
 
 	// Set Ready status, we are done reconciling
@@ -244,7 +244,7 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
-			return reconcile.Result{}, errors.Wrapf(err, "refusing to run new crd")
+			return reconcile.Result{}, errors.Wrap(err, "refusing to run new crd")
 		}
 	}
 
@@ -257,7 +257,7 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph nfs %q", cephNFS.Name)
 			}
 		} else {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to list ceph nfs deployments")
+			return reconcile.Result{}, errors.Wrap(err, "failed to list ceph nfs deployments")
 		}
 	} else {
 		// Scale up case (CR value cephNFS.Spec.Server.Active changed)

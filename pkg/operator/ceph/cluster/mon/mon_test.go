@@ -87,7 +87,7 @@ func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monRe
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
-				return "", errors.Wrapf(err, "failed testing of start cluster without quorum response")
+				return "", errors.Wrap(err, "failed testing of start cluster without quorum response")
 			}
 			return "", nil
 		},

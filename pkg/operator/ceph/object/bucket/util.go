@@ -99,9 +99,9 @@ func getObjectStore(c cephclientset.CephV1Interface, namespace, name string) (*c
 	store, err := c.CephObjectStores(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return nil, errors.Wrapf(err, "cephObjectStore not found")
+			return nil, errors.Wrap(err, "cephObjectStore not found")
 		}
-		return nil, errors.Wrapf(err, "error getting cephObjectStore")
+		return nil, errors.Wrap(err, "error getting cephObjectStore")
 	}
 	return store, err
 }
@@ -111,9 +111,9 @@ func getService(c kubernetes.Interface, namespace, name string) (*v1.Service, er
 	svc, err := c.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return nil, errors.Wrapf(err, "cephObjectStore service not found")
+			return nil, errors.Wrap(err, "cephObjectStore service not found")
 		}
-		return nil, errors.Wrapf(err, "error getting cephObjectStore service")
+		return nil, errors.Wrap(err, "error getting cephObjectStore service")
 	}
 	return svc, nil
 }

@@ -125,12 +125,12 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 
 	configFile, err := createGlobalConfigFileSection(context, cluster, globalConfig)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to create global config section")
+		return "", errors.Wrap(err, "failed to create global config section")
 	}
 
 	qualifiedUser := getQualifiedUser(user)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
-		return "", errors.Wrapf(err, "failed to add admin client config section")
+		return "", errors.Wrap(err, "failed to add admin client config section")
 	}
 
 	if cluster.IsInitializedExternalCred(false) {
@@ -167,7 +167,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 	if cephVersionEnv != "" {
 		v, err := cephver.ExtractCephVersion(cephVersionEnv)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to extract ceph version")
+			return nil, errors.Wrap(err, "failed to extract ceph version")
 		}
 		cluster.CephVersion = *v
 	}
@@ -203,7 +203,7 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		var err error
 		ceph, err = CreateDefaultCephConfig(context, cluster)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create default ceph config")
+			return nil, errors.Wrap(err, "failed to create default ceph config")
 		}
 	}
 

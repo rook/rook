@@ -48,7 +48,7 @@ func CreateCrashCollectorSecret(context *clusterd.Context, clusterName string, o
 
 	// Create or update Kubernetes CSI secret
 	if err := createOrUpdateCrashCollectorSecret(clusterName, crashCollectorSecretKey, k, ownerRef); err != nil {
-		return errors.Wrapf(err, "failed to create kubernetes csi secret")
+		return errors.Wrap(err, "failed to create kubernetes csi secret")
 	}
 
 	return nil

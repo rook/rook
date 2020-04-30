@@ -59,13 +59,13 @@ type realmType struct {
 func deleteRealmAndPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	stores, err := getObjectStores(context)
 	if err != nil {
-		return errors.Wrapf(err, "failed to detect object stores during deletion")
+		return errors.Wrap(err, "failed to detect object stores during deletion")
 	}
 	logger.Infof("Found stores %v when deleting store %s", stores, context.Name)
 
 	err = deleteRealm(context)
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete realm")
+		return errors.Wrap(err, "failed to delete realm")
 	}
 
 	lastStore := false
@@ -76,7 +76,7 @@ func deleteRealmAndPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	if !spec.PreservePoolsOnDelete {
 		err = deletePools(context, spec, lastStore)
 		if err != nil {
-			return errors.Wrapf(err, "failed to delete object store pools")
+			return errors.Wrap(err, "failed to delete object store pools")
 		}
 	} else {
 		logger.Infof("PreservePoolsOnDelete is set in object store %s. Pools not deleted", context.Name)
@@ -93,7 +93,7 @@ func reconcileRealm(context *Context, serviceIP string, port int32) error {
 	defaultArg := ""
 	stores, err := getObjectStores(context)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get object stores")
+		return errors.Wrap(err, "failed to get object stores")
 	}
 	if len(stores) == 0 {
 		defaultArg = "--default"
@@ -111,7 +111,7 @@ func reconcileRealm(context *Context, serviceIP string, port int32) error {
 
 	realmID, err := decodeID(output)
 	if err != nil {
-		return errors.Wrapf(err, "failed to parse realm id")
+		return errors.Wrap(err, "failed to parse realm id")
 	}
 
 	// create the zonegroup if it doesn't exist yet
@@ -126,7 +126,7 @@ func reconcileRealm(context *Context, serviceIP string, port int32) error {
 
 	zoneGroupID, err := decodeID(output)
 	if err != nil {
-		return errors.Wrapf(err, "failed to parse zone group id")
+		return errors.Wrap(err, "failed to parse zone group id")
 	}
 
 	// create the zone if it doesn't exist yet
@@ -140,14 +140,14 @@ func reconcileRealm(context *Context, serviceIP string, port int32) error {
 	}
 	zoneID, err := decodeID(output)
 	if err != nil {
-		return errors.Wrapf(err, "failed to parse zone id")
+		return errors.Wrap(err, "failed to parse zone id")
 	}
 
 	if updatePeriod {
 		// the period will help notify other zones of changes if there are multi-zones
 		_, err := runAdminCommandNoRealm(context, "period", "update", "--commit")
 		if err != nil {
-			return errors.Wrapf(err, "failed to update period")
+			return errors.Wrap(err, "failed to update period")
 		}
 	}
 
@@ -179,7 +179,7 @@ func decodeID(data string) (string, error) {
 	var id idType
 	err := json.Unmarshal([]byte(data), &id)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to unmarshal json")
+		return "", errors.Wrap(err, "Failed to unmarshal json")
 	}
 
 	return id.ID, err
@@ -197,7 +197,7 @@ func getObjectStores(context *Context) ([]string, error) {
 	var r realmType
 	err = json.Unmarshal([]byte(output), &r)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to unmarshal realms")
+		return nil, errors.Wrap(err, "Failed to unmarshal realms")
 	}
 
 	return r.Realms, nil
@@ -267,7 +267,7 @@ func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	}
 
 	if err := createSimilarPools(context, append(metadataPools, rootPool), spec.MetadataPool, metadataPoolPGs, ""); err != nil {
-		return errors.Wrapf(err, "failed to create metadata pools")
+		return errors.Wrap(err, "failed to create metadata pools")
 	}
 
 	ecProfileName := ""
@@ -280,7 +280,7 @@ func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	}
 
 	if err := createSimilarPools(context, []string{dataPoolName}, spec.DataPool, ceph.DefaultPGCount, ecProfileName); err != nil {
-		return errors.Wrapf(err, "failed to create data pool")
+		return errors.Wrap(err, "failed to create data pool")
 	}
 
 	return nil
