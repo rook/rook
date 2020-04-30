@@ -25,7 +25,9 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -38,50 +40,49 @@ var (
 	healthCheckInterval = 300 * time.Second
 )
 
-// Monitor defines OSD process monitoring
-type Monitor struct {
+// OSDHealthMonitor defines OSD process monitoring
+type OSDHealthMonitor struct {
 	context                        *clusterd.Context
-	clusterName                    string
+	namespace                      string
 	removeOSDsIfOUTAndSafeToRemove bool
 	cephVersion                    cephver.CephVersion
 }
 
-// NewMonitor instantiates OSD monitoring
-func NewMonitor(context *clusterd.Context, clusterName string, removeOSDsIfOUTAndSafeToRemove bool, cephVersion cephver.CephVersion) *Monitor {
-	return &Monitor{context, clusterName, removeOSDsIfOUTAndSafeToRemove, cephVersion}
+// NewOSDHealthMonitor instantiates OSD monitoring
+func NewOSDHealthMonitor(context *clusterd.Context, namespace string, removeOSDsIfOUTAndSafeToRemove bool, cephVersion cephver.CephVersion) *OSDHealthMonitor {
+	return &OSDHealthMonitor{context, namespace, removeOSDsIfOUTAndSafeToRemove, cephVersion}
 }
 
 // Start runs monitoring logic for osds status at set intervals
-func (m *Monitor) Start(stopCh chan struct{}) {
+func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
 
 	for {
 		select {
 		case <-time.After(healthCheckInterval):
 			logger.Debug("Checking osd processes status.")
-			err := m.osdStatus()
+			err := m.checkOSDHealth()
 			if err != nil {
 				logger.Warningf("failed OSD status check. %v", err)
 			}
 
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of OSDs in namespace %s", m.clusterName)
+			logger.Infof("Stopping monitoring of OSDs in namespace %s", m.namespace)
 			return
 		}
 	}
 }
 
 // Update updates the removeOSDsIfOUTAndSafeToRemove
-func (m *Monitor) Update(removeOSDsIfOUTAndSafeToRemove bool) {
+func (m *OSDHealthMonitor) Update(removeOSDsIfOUTAndSafeToRemove bool) {
 	m.removeOSDsIfOUTAndSafeToRemove = removeOSDsIfOUTAndSafeToRemove
 }
 
-// OSDStatus validates osd dump output
-func (m *Monitor) osdStatus() error {
-	osdDump, err := client.GetOSDDump(m.context, m.clusterName)
+// checkOSDHealth takes action when needed if the OSDs are not healthy
+func (m *OSDHealthMonitor) checkOSDHealth() error {
+	osdDump, err := client.GetOSDDump(m.context, m.namespace)
 	if err != nil {
 		return err
 	}
-	logger.Debugf("osd dump %v", osdDump)
 
 	for _, osdStatus := range osdDump.OSDs {
 		id64, err := osdStatus.OSD.Int64()
@@ -107,8 +108,12 @@ func (m *Monitor) osdStatus() error {
 		if in != inStatus {
 			logger.Debugf("osd.%d is marked 'OUT'", id)
 			if m.removeOSDsIfOUTAndSafeToRemove {
-				if err := m.handleOSDMarkedOut(id); err != nil {
+				if err := m.removeOSDDeploymentIfSafeToDestroy(id); err != nil {
 					logger.Errorf("error handling marked out osd osd.%d. %v", id, err)
+				}
+			} else {
+				if err := m.restartOSDIfStuck(id); err != nil {
+					logger.Warningf("failed to restart OSD %d. %v", id, err)
 				}
 			}
 		}
@@ -117,9 +122,9 @@ func (m *Monitor) osdStatus() error {
 	return nil
 }
 
-func (m *Monitor) handleOSDMarkedOut(outOSDid int) error {
+func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) error {
 	label := fmt.Sprintf("ceph-osd-id=%d", outOSDid)
-	dp, err := k8sutil.GetDeployments(m.context.Clientset, m.clusterName, label)
+	dp, err := k8sutil.GetDeployments(m.context.Clientset, m.namespace, label)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil
@@ -127,7 +132,7 @@ func (m *Monitor) handleOSDMarkedOut(outOSDid int) error {
 		return errors.Wrapf(err, "failed to get osd deployment of osd id %d", outOSDid)
 	}
 	if len(dp.Items) != 0 {
-		safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.clusterName, outOSDid, m.cephVersion)
+		safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.namespace, outOSDid, m.cephVersion)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get osd deployment of osd id %d", outOSDid)
 		}
@@ -144,5 +149,47 @@ func (m *Monitor) handleOSDMarkedOut(outOSDid int) error {
 			}
 		}
 	}
+	return nil
+}
+
+// restartOSDIfStuck will check if a portable OSD is on a node that is not ready.
+// If the pod is stuck in terminating state, go ahead and force delete the pod so K8s
+// will free up the volume and allow the OSD to be restarted on another node.
+func (m *OSDHealthMonitor) restartOSDIfStuck(osdID int) error {
+	labels := fmt.Sprintf("ceph-osd-id=%d,portable=true", osdID)
+	pods, err := m.context.Clientset.CoreV1().Pods(m.namespace).List(metav1.ListOptions{LabelSelector: labels})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get OSD with ID %d", osdID)
+	}
+	return m.restartOSDPodsIfStuck(osdID, pods)
+}
+
+func (m *OSDHealthMonitor) restartOSDPodsIfStuck(osdID int, pods *v1.PodList) error {
+	for _, pod := range pods.Items {
+		logger.Debugf("checking if osd %d pod is stuck and should be force deleted", osdID)
+		if pod.DeletionTimestamp.IsZero() {
+			logger.Debugf("skipping restart of OSD %d since the pod is not deleted", osdID)
+			continue
+		}
+		node, err := m.context.Clientset.CoreV1().Nodes().Get(pod.Spec.NodeName, metav1.GetOptions{})
+		if err != nil {
+			logger.Warningf("skipping restart of OSD %d since the node status is not available. %v", osdID, err)
+			continue
+		}
+		if k8sutil.NodeIsReady(*node) {
+			logger.Debugf("skipping restart of OSD %d since the node status is ready", osdID)
+			continue
+		}
+
+		logger.Infof("force deleting pod %q that appears to be stuck terminating", pod.Name)
+		var gracePeriod int64
+		deleteOpts := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod}
+		if err := m.context.Clientset.CoreV1().Pods(m.namespace).Delete(pod.Name, deleteOpts); err != nil {
+			logger.Warningf("pod %q deletion failed. %v", pod.Name, err)
+			continue
+		}
+		logger.Infof("pod %q deletion succeeded", pod.Name)
+	}
+
 	return nil
 }

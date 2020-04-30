@@ -18,6 +18,7 @@ package osd
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -25,12 +26,14 @@ import (
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOSDStatus(t *testing.T) {
+func TestOSDHealthCheck(t *testing.T) {
 	clientset := testexec.New(t, 2)
 	cluster := "fake"
 
@@ -90,10 +93,10 @@ func TestOSDStatus(t *testing.T) {
 	}
 
 	// Initializing an OSD monitoring
-	osdMon := NewMonitor(context, cluster, true, cephVersion)
+	osdMon := NewOSDHealthMonitor(context, cluster, true, cephVersion)
 
 	// Run OSD monitoring routine
-	err := osdMon.osdStatus()
+	err := osdMon.checkOSDHealth()
 	assert.Nil(t, err)
 	// After creating an OSD, the dump has 1 mocked cmd and safe to destroy has 1 mocked cmd
 	assert.Equal(t, 2, execCount)
@@ -109,8 +112,70 @@ func TestMonitorStart(t *testing.T) {
 	}
 
 	stopCh := make(chan struct{})
-	osdMon := NewMonitor(&clusterd.Context{}, "cluster", true, cephVersion)
+	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, "cluster", true, cephVersion)
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(stopCh)
 	close(stopCh)
+}
+
+func TestOSDRestartIfStuck(t *testing.T) {
+	clientset := testexec.New(t, 1)
+	namespace := "test"
+	// Setting up objects needed to create OSD
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "osd0",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"ceph-osd-id": "23",
+				"portable":    "true",
+			},
+		},
+	}
+	pod.Spec.NodeName = "node0"
+	_, err := context.Clientset.CoreV1().Pods(namespace).Create(pod)
+	assert.NoError(t, err)
+
+	m := NewOSDHealthMonitor(context, namespace, false, cephver.CephVersion{})
+
+	podList := &v1.PodList{Items: []v1.Pod{*pod}}
+	assert.NoError(t, m.restartOSDPodsIfStuck(0, podList))
+
+	// The pod should still exist since it wasn't in a deleted state
+	p, err := context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, p)
+
+	// Add a deletion timestamp to the pod
+	pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	_, err = context.Clientset.CoreV1().Pods(namespace).Update(pod)
+	assert.NoError(t, err)
+
+	podList = &v1.PodList{Items: []v1.Pod{*pod}}
+	assert.NoError(t, m.restartOSDPodsIfStuck(0, podList))
+
+	// The pod should still exist since the node is ready
+	p, err = context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, p)
+
+	// Set the node to a not ready state
+	nodes, err := context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	for _, node := range nodes.Items {
+		node.Status.Conditions[0].Status = v1.ConditionFalse
+		_, err := context.Clientset.CoreV1().Nodes().Update(&node)
+		assert.NoError(t, err)
+	}
+
+	assert.NoError(t, m.restartOSDPodsIfStuck(0, podList))
+
+	// The pod should be deleted since the pod is marked as deleted and the node is not ready
+	_, err = context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
+	assert.Error(t, err)
+	assert.True(t, errors.IsNotFound(err))
 }
