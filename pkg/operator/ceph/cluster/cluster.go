@@ -224,7 +224,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 	if !cluster.Spec.External.Enable {
 		// Start the osd health checker only if running OSDs in the local ceph cluster
-		c.osdChecker = osd.NewMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Info.CephVersion)
+		c.osdChecker = osd.NewOSDHealthMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Info.CephVersion)
 		go c.osdChecker.Start(cluster.stopCh)
 	}
 
