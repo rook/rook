@@ -2,7 +2,7 @@
 
 ## Overview
 
-In its new releases, Ceph has introduced the bucket notifications feature. It allows to send messages to various endpoints when a new event occurs on a bucket (ref: <https://docs.ceph.com/docs/master/radosgw/notifications/)>
+In its new release, Ceph introduced the bucket notifications feature. It allows to send messages to various endpoints when a new event occurs on a bucket (ref: <https://docs.ceph.com/docs/master/radosgw/notifications/)>
 
 Setup of those notifications are normally done by sending HTTP requests to the RGW, either to create/delete topics pointing to specific endpoints, or create/delete bucket notifications based on those topics.
 
