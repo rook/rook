@@ -18,6 +18,9 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: rook-ceph-block
+# rook-ceph here is the namespace where your clusters is installed.
+# If you have your cluster setup in another namespace, please change
+# below to <ns-name>.rbd.csi.ceph.com
 provisioner: rook-ceph.rbd.csi.ceph.com
 parameters:
     # clusterID is the namespace where the rook cluster is running

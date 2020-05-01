@@ -3,6 +3,9 @@ apiVersion: snapshot.storage.k8s.io/v1alpha1
 kind: VolumeSnapshotClass
 metadata:
   name: csi-rbdplugin-snapclass
+# rook-ceph here is the namespace where your clusters is installed.
+# If you have your cluster setup in another namespace, please change
+# below to <ns-name>.rbd.csi.ceph.com
 snapshotter: rook-ceph.rbd.csi.ceph.com
 parameters:
   # Specify a string that identifies your cluster. Ceph CSI supports any
