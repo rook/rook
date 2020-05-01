@@ -39,6 +39,8 @@ const (
 	CryptType = "crypt"
 	// LVMType is an LVM type
 	LVMType = "lvm"
+	// MultiPath is for multipath devices
+	MultiPath = "mpath"
 	// LinearType is a linear type
 	LinearType = "linear"
 	sgdiskCmd  = "sgdisk"
