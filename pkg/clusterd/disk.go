@@ -34,9 +34,13 @@ var (
 	isRBD  = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
 )
 
+func supportedDeviceType(device string) bool {
+	return device == sys.DiskType || device == sys.SSDType || device == sys.LVMType || device == sys.MultiPath || device == sys.PartType || device == sys.LinearType
+}
+
 // GetDeviceEmpty check whether a device is completely empty
 func GetDeviceEmpty(device *sys.LocalDisk) bool {
-	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType || device.Type == sys.LVMType) && len(device.Partitions) == 0 && device.Filesystem == ""
+	return device.Parent == "" && supportedDeviceType(device.Type) && len(device.Partitions) == 0 && device.Filesystem == ""
 }
 
 func ignoreDevice(d string) bool {
@@ -107,12 +111,11 @@ func PopulateDeviceInfo(d string, executor exec.Executor) (*sys.LocalDisk, error
 	}
 
 	diskType, ok := diskProps["TYPE"]
-	if !ok || (diskType != sys.SSDType && diskType != sys.CryptType && diskType != sys.DiskType && diskType != sys.PartType && diskType != sys.LinearType && diskType != sys.LVMType) {
-		if !ok {
-			return nil, errors.New("diskType is empty")
-		} else {
-			return nil, fmt.Errorf("unsupported diskType %+s", diskType)
-		}
+	if !ok {
+		return nil, errors.New("diskType is empty")
+	}
+	if !supportedDeviceType(diskType) {
+		return nil, fmt.Errorf("unsupported diskType %+s", diskType)
 	}
 
 	// get the UUID for disks
