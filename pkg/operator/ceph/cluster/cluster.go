@@ -208,8 +208,14 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
 	clientController.StartWatch(cluster.stopCh)
 
+	clientToUse := client.AdminUsername
+	if cluster.Spec.External.Enable {
+		clientToUse = cluster.Info.ExternalCred.Username
+	}
 	// Start the object bucket provisioner
-	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace)
+	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace, clientToUse)
+	// If cluster is external, pass down the user to the bucket controller
+
 	// note: the error return below is ignored and is expected to be removed from the
 	//   bucket library's `NewProvisioner` function
 	bucketController, _ := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)

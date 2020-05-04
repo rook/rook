@@ -28,6 +28,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
@@ -46,18 +47,22 @@ type Provisioner struct {
 	accessKeyID     string
 	secretAccessKey string
 
+	// RunAsUser cephx user to use on radosgw-admin to create s3 users
+	RunRgwCmdAsUser string
+
 	s3Svc *s3.S3
 
 	objectStoreName      string
 	objectStoreNamespace string
+	endpoint             string
 	secretName           string
 	secretNamespace      string
 }
 
 var _ apibkt.Provisioner = &Provisioner{}
 
-func NewProvisioner(context *clusterd.Context, namespace string) *Provisioner {
-	return &Provisioner{context: context, namespace: namespace}
+func NewProvisioner(context *clusterd.Context, namespace, runRgwCmdAsUser string) *Provisioner {
+	return &Provisioner{context: context, namespace: namespace, RunRgwCmdAsUser: runRgwCmdAsUser}
 }
 
 const maxBuckets = 1
@@ -79,7 +84,6 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	}
 
 	s3svc, err := NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint())
-
 	if err != nil {
 		return nil, err
 	}
@@ -294,15 +298,16 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 	p.setObjectStoreName(sc)
 	p.setObjectStoreNamespace(sc)
 	p.setRegion(sc)
+	p.setEndpoint(sc)
 	err = p.setObjectContext()
 	if err != nil {
 		return err
 	}
-	if err = p.setObjectStoreDomainName(sc); err != nil {
-		return err
-	}
-	if err = p.setObjectStorePort(sc); err != nil {
-		return err
+
+	// If an endpoint is declared let's use it
+	err = p.populateDomainAndPort(sc)
+	if err != nil {
+		return errors.Wrap(err, "failed to set domain and port")
 	}
 
 	return nil
@@ -324,7 +329,9 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 	if err != nil {
 		return err
 	}
-	if err = p.setObjectStoreDomainName(sc); err != nil {
+
+	err = p.populateDomainAndPort(sc)
+	if err != nil {
 		return err
 	}
 
@@ -361,12 +368,15 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 
 func (p *Provisioner) setObjectContext() error {
 	msg := "error building object.Context: store %s cannot be empty"
-	if p.objectStoreName == "" {
+	// p.endpoint means we point to an external cluster
+	if p.objectStoreName == "" && p.endpoint == "" {
 		return errors.Errorf(msg, "name")
 	} else if p.objectStoreNamespace == "" {
 		return errors.Errorf(msg, "namespace")
 	}
 	p.objectContext = cephObject.NewContext(p.context, p.objectStoreName, p.objectStoreNamespace)
+	p.objectContext.RunAsUser = p.RunRgwCmdAsUser
+
 	return nil
 }
 
@@ -410,6 +420,10 @@ func (p *Provisioner) setBucketName(name string) {
 	p.bucketName = name
 }
 
+func (p *Provisioner) setEndpoint(sc *storagev1.StorageClass) {
+	p.endpoint = sc.Parameters[objectStoreEndpoint]
+}
+
 func (p *Provisioner) setRegion(sc *storagev1.StorageClass) {
 	const key = "region"
 	p.region = sc.Parameters[key]
@@ -417,4 +431,29 @@ func (p *Provisioner) setRegion(sc *storagev1.StorageClass) {
 
 func (p Provisioner) getObjectStoreEndpoint() string {
 	return fmt.Sprintf("%s:%d", p.storeDomainName, p.storePort)
+}
+
+func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
+	endpoint := getObjectStoreEndpoint(sc)
+	// if endpoint is present, let's introspect it
+	if endpoint != "" {
+		p.storeDomainName = cephutil.GetIPFromEndpoint(endpoint)
+		if p.storeDomainName == "" {
+			return errors.New("failed to discover endpoint IP (is empty)")
+		}
+		p.storePort = cephutil.GetPortFromEndpoint(endpoint)
+		if p.storePort == 0 {
+			return errors.New("failed to discover endpoint port (is empty)")
+		}
+		// If no endpoint exists let's see if CephObjectStore exists
+	} else {
+		if err := p.setObjectStoreDomainName(sc); err != nil {
+			return errors.Wrap(err, "failed to set object store domain name")
+		}
+		if err := p.setObjectStorePort(sc); err != nil {
+			return errors.Wrap(err, "failed to set object store port")
+		}
+	}
+
+	return nil
 }
