@@ -71,8 +71,8 @@ func InstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
 		return err
 	}
 
-	err = k8shelper.IsStorageClassPresent(hostPathStorageClassName)
-	if err != nil {
+	present, err := k8shelper.IsStorageClassPresent(hostPathStorageClassName)
+	if !present {
 		logger.Errorf("storageClass %s not found: %+v", hostPathStorageClassName, err)
 		k8shelper.PrintStorageClasses(true /*detailed*/)
 		return err

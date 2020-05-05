@@ -23,36 +23,36 @@ import (
 )
 
 // IsClusterHealthy determines if the Rook cluster is currently healthy or not.
-func IsClusterHealthy(testClient *TestClient, namespace string) error {
+func IsClusterHealthy(testClient *TestClient, namespace string) (bool, error) {
 
 	status, err := testClient.Status(namespace)
 	if err != nil {
-		return err
+		return false, err
 	}
 	logger.Infof("cluster status: %+v", status)
 
 	// verify all mons are in quorum
 	if len(status.Quorum) == 0 {
-		return fmt.Errorf("too few monitors: %+v", status)
+		return false, fmt.Errorf("too few monitors: %+v", status)
 	}
 	for _, mon := range status.MonMap.Mons {
 		if !monInQuorum(mon, status.Quorum) {
-			return fmt.Errorf("mon %s not in quorum: %v", mon.Name, status.Quorum)
+			return false, fmt.Errorf("mon %s not in quorum: %v", mon.Name, status.Quorum)
 		}
 	}
 
 	// verify there are OSDs and they are all up/in
 	totalOSDs := status.OsdMap.OsdMap.NumOsd
 	if totalOSDs == 0 {
-		return fmt.Errorf("no OSDs: %+v", status)
+		return false, fmt.Errorf("no OSDs: %+v", status)
 	}
 	if status.OsdMap.OsdMap.NumInOsd != totalOSDs || status.OsdMap.OsdMap.NumUpOsd != totalOSDs {
-		return fmt.Errorf("not all OSDs are up/in: %+v", status)
+		return false, fmt.Errorf("not all OSDs are up/in: %+v", status)
 	}
 
 	// verify MGRs are available
 	if !status.MgrMap.Available {
-		return fmt.Errorf("MGRs are not available: %+v", status)
+		return false, fmt.Errorf("MGRs are not available: %+v", status)
 	}
 
 	// verify that all PGs are in the active+clean state (0 PGs is OK because that means no pools
@@ -66,12 +66,12 @@ func IsClusterHealthy(testClient *TestClient, namespace string) error {
 			}
 		}
 		if activeCleanCount != status.PgMap.NumPgs {
-			return fmt.Errorf("not all PGs are active+clean: %+v", status.PgMap)
+			return false, fmt.Errorf("not all PGs are active+clean: %+v", status.PgMap)
 		}
 	}
 
 	// cluster passed all the basic health checks, seems healthy
-	return nil
+	return true, nil
 }
 
 func monInQuorum(mon client.MonMapEntry, quorum []int) bool {
