@@ -16,6 +16,9 @@ spec:
         contains: csi-rbdplugin-metrics
     spec:
       serviceAccount: rook-csi-rbd-plugin-sa
+      {{ if .PluginPriorityClassName }}
+      priorityClassName: {{ .PluginPriorityClassName }}
+      {{ end }}
       hostNetwork: true
       hostPID: true
       # to use e.g. Rook orchestrated cluster, and mons' FQDN is

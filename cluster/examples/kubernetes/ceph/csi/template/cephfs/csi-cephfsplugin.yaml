@@ -17,6 +17,9 @@ spec:
     spec:
       serviceAccount: rook-csi-cephfs-plugin-sa
       hostNetwork: true
+      {{ if .PluginPriorityClassName }}
+      priorityClassName: {{ .PluginPriorityClassName }}
+      {{ end }}
       # to use e.g. Rook orchestrated cluster, and mons' FQDN is
       # resolved through k8s service, set dns policy to cluster first
       dnsPolicy: ClusterFirstWithHostNet
