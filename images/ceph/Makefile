@@ -41,7 +41,7 @@ YQ := $(TOOLS_HOST_DIR)/yq
 # Build Rook
 
 do.build: generate-csv-ceph-templates
-	@echo === docker build $(CEPH_IMAGE)
+	@echo === container build $(CEPH_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp toolbox.sh $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)

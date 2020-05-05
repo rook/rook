@@ -26,7 +26,7 @@ TEMP := $(shell mktemp -d)
 # Build Rook Cassandra
 
 do.build:
-	@echo === docker build $(CASSANDRA_OPERATOR_IMAGE)
+	@echo === container build $(CASSANDRA_OPERATOR_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@$(DOCKERCMD) build $(BUILD_ARGS) \

@@ -25,7 +25,7 @@ TEMP := $(shell mktemp -d)
 # Build Rook CockroachDB
 
 do.build:
-	@echo === docker build $(COCKROACHDB_IMAGE)
+	@echo === container build $(COCKROACHDB_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@$(DOCKERCMD) build $(BUILD_ARGS) \

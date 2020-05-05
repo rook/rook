@@ -32,7 +32,7 @@ CURRENT_IMAGE_ID := $$($(DOCKERCMD) images -q $(EDGEFS_IMAGE))
 IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/edgefs.tar.gz
 
 do.build:
-	@echo === docker build $(EDGEFS_IMAGE)
+	@echo === container build $(EDGEFS_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@$(DOCKERCMD) build $(BUILD_ARGS) \

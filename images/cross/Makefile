@@ -20,7 +20,7 @@ CACHE_IMAGES = $(IMAGE)
 TEMP := $(shell mktemp -d)
 
 do.build:
-	@echo === docker build $(IMAGE)
+	@echo === container build $(IMAGE)
 	@cp -a . $(TEMP)
 	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
