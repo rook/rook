@@ -71,12 +71,14 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		}
 		go handleTerminate(context, lvPath, volumeGroupName)
 
-		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-an", volumeGroupName); err != nil {
-			return errors.Wrapf(err, "failed to deactivate volume group for lv %q", lvPath)
+		// It's fine to continue if deactivate fails since we will return error if activate fails
+		if op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", "vgchange", "-anvv", volumeGroupName); err != nil {
+			logger.Errorf("failed to deactivate volume group for lv %q. output: %s. %v", lvPath, op, err)
+			return nil
 		}
 
-		if err := context.Executor.ExecuteCommand(false, "", "vgchange", "-ay", volumeGroupName); err != nil {
-			return errors.Wrapf(err, "failed to activate volume group for lv %q", lvPath)
+		if op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", "vgchange", "-ayvv", volumeGroupName); err != nil {
+			return errors.Wrapf(err, "failed to activate volume group for lv %q. output: %s", lvPath, op)
 		}
 	}
 
@@ -94,7 +96,10 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 
 	if pvcBackedOSD && !lvBackedPV {
 		if err := releaseLVMDevice(context, volumeGroupName); err != nil {
-			return errors.Wrapf(err, "failed to release device from lvm")
+			// Let's just report the error and not fail as a best-effort since some drivers will force detach anyway
+			// Failing to release the device does not means the detach will fail so let's proceed
+			logger.Errorf("failed to release device from lvm. %v", err)
+			return nil
 		}
 	}
 
@@ -494,12 +499,12 @@ func getActiveDirs(currentDirList []string, savedDirMap map[string]int, configDi
 	return activeDirs
 }
 
-//releaseLVMDevice deactivates the LV to release the device.
+// releaseLVMDevice deactivates the LV to release the device.
 func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
-	if err := context.Executor.ExecuteCommand(false, "", "lvchange", "-an", volumeGroupName); err != nil {
-		return errors.Wrapf(err, "failed to deactivate LVM %s", volumeGroupName)
+	if op, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", "lvchange", "-anvv", volumeGroupName); err != nil {
+		return errors.Wrapf(err, "failed to deactivate LVM %s. output: %s", volumeGroupName, op)
 	}
-	logger.Info("Successfully released device from lvm")
+	logger.Info("successfully released device from lvm")
 	return nil
 }
 
