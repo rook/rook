@@ -36,9 +36,9 @@ var (
 // Monitors
 // - One mon
 // OSDs
-// - Bluestore running on a directory
+// - Bluestore running on a raw block device
 // Block
-// - Create a pool in each cluster
+// - Create a pool in the cluster
 // - Mount/unmount a block device through the dynamic provisioner
 // File system
 // - Create a file system via the CRD

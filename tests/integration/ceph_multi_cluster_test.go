@@ -36,7 +36,7 @@ import (
 // Monitors
 // - One mon in each cluster
 // OSDs
-// - Bluestore running on a directory
+// - Bluestore running on a raw block device
 // Block
 // - Create a pool in each cluster
 // - Mount/unmount a block device through the dynamic provisioner
