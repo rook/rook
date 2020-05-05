@@ -53,6 +53,7 @@ type Param struct {
 	ForceCephFSKernelClient    string
 	CephFSPluginUpdateStrategy string
 	RBDPluginUpdateStrategy    string
+	PluginPriorityClassName    string
 	LogLevel                   uint8
 	CephFSGRPCMetricsPort      uint16
 	CephFSLivenessMetricsPort  uint16
@@ -271,6 +272,12 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 	if !strings.EqualFold(enableSnap, "false") {
 		tp.EnableSnapshotter = "true"
+	}
+
+	// default value `system-node-critical` is the highest available priority
+	tp.PluginPriorityClassName, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PLUGIN_PRIORITY_CLASSNAME", "")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_PLUGIN_PRIORITY_CLASSNAME setting")
 	}
 
 	updateStrategy, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate)
