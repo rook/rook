@@ -15,6 +15,9 @@ spec:
         contains: csi-cephfsplugin-metrics
     spec:
       serviceAccount: rook-csi-cephfs-provisioner-sa
+      {{ if .ProvisionerPriorityClassName }}
+      priorityClassName: {{ .ProvisionerPriorityClassName }}
+      {{ end }}
       containers:
         - name: csi-attacher
           image: {{ .AttacherImage }}
