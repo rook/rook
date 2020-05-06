@@ -48,16 +48,21 @@ func GetOperatorSetting(clientset kubernetes.Interface, configMapName, settingNa
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if settingValue, ok := os.LookupEnv(settingName); ok {
+				logger.Infof("%s=%q (env var)", settingName, settingValue)
 				return settingValue, nil
 			}
+			logger.Infof("%s=%q (default)", settingName, defaultValue)
 			return defaultValue, nil
 		}
 		return defaultValue, fmt.Errorf("error reading ConfigMap %q. %v", configMapName, err)
 	}
 	if settingValue, ok := cm.Data[settingName]; ok {
+		logger.Infof("%s=%q (configmap)", settingName, settingValue)
 		return settingValue, nil
 	} else if settingValue, ok := os.LookupEnv(settingName); ok {
+		logger.Infof("%s=%q (env var)", settingName, settingValue)
 		return settingValue, nil
 	}
+	logger.Infof("%s=%q (default)", settingName, defaultValue)
 	return defaultValue, nil
 }
