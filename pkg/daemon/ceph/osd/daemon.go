@@ -31,7 +31,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -214,7 +213,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	logger.Info("creating and starting the osds")
 
 	// determine the set of devices that can/should be used for OSDs.
-	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.pvcBacked, agent.cluster.CephVersion)
+	devices, err := getAvailableDevices(context, agent)
 	if err != nil {
 		return errors.Wrap(err, "failed to get available devices")
 	}
@@ -282,8 +281,8 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevice, metadataDevice string, pvcBacked bool, cephVersion cephver.CephVersion) (*DeviceOsdMapping, error) {
-
+func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsdMapping, error) {
+	desiredDevices := agent.devices
 	logger.Debugf("desiredDevices are %+v", desiredDevices)
 	logger.Debugf("context.Devices are %+v", context.Devices)
 
@@ -307,7 +306,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		// If we detect a partition we have to make sure that ceph-volume will be able to consume it
 		// ceph-volume version 14.2.8 has the right code to support partitions
 		if device.Type == sys.PartType {
-			if !cephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
+			if !agent.cluster.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
 				logger.Infof("skipping device %q because it is a partition and ceph version is too old, you need at least ceph %q", device.Name, cephVolumeRawModeMinCephVersion.String())
 				continue
 			}
@@ -324,9 +323,26 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		//
 		// So earlier lsblk extracted the '/dev' path, hence the device.Name property
 		// device.Name can be 'xvdca', later this is formated to '/dev/xvdca'
-		isAvailable, rejectedReason, err := sys.CheckIfDeviceAvailable(context.Executor, device.RealPath, pvcBacked)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
+		var err error
+		var isAvailable bool
+		rejectedReason := ""
+		if agent.pvcBacked {
+			block := fmt.Sprintf("/mnt/%s", agent.nodeName)
+			rawOsds, err := getCephVolumeRawOSDs(context, agent.cluster.Name, agent.cluster.FSID, block, agent.metadataDevice, false)
+			if err != nil {
+				isAvailable = false
+				rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)
+			} else if len(rawOsds) > 0 {
+				isAvailable = false
+				rejectedReason = "already in use by a raw OSD, no need to reconfigure"
+			} else {
+				isAvailable = true
+			}
+		} else {
+			isAvailable, rejectedReason, err = sys.CheckIfDeviceAvailable(context.Executor, device.RealPath, agent.pvcBacked)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
+			}
 		}
 
 		if !isAvailable {
@@ -337,7 +353,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 		}
 
 		var deviceInfo *DeviceOsdIDEntry
-		if metadataDevice != "" && metadataDevice == device.Name {
+		if agent.metadataDevice != "" && agent.metadataDevice == device.Name {
 			// current device is desired as the metadata device
 			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}}
 		} else if len(desiredDevices) == 1 && desiredDevices[0].Name == "all" {
@@ -413,7 +429,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices []DesiredDevi
 			// So it's fine to name the first entry of the map "data" instead of the PVC name
 			// It is particularly useful when a metadata PVC is used because we need to identify it in the map
 			// So the entry must be named "metadata" so it can accessed later
-			if pvcBacked {
+			if agent.pvcBacked {
 				if device.Type == pvcDataTypeDevice {
 					available.Entries[pvcDataTypeDevice] = deviceInfo
 				} else if device.Type == pvcMetadataTypeDevice {
