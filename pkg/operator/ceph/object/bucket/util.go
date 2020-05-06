@@ -17,7 +17,9 @@ limitations under the License.
 package bucket
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -33,6 +35,8 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclientset "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
+	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-bucket-prov")
@@ -46,12 +50,24 @@ const (
 	secretSecretKeyKey   = "secretAccessKey"
 	objectStoreName      = "objectStoreName"
 	objectStoreNamespace = "objectStoreNamespace"
+	objectStoreEndpoint  = "endpoint"
 )
 
 func NewBucketController(cfg *rest.Config, p *Provisioner) (*provisioner.Provisioner, error) {
 	const allNamespaces = ""
-	logger.Infof("Ceph Bucket Provisioner launched")
-	return provisioner.NewProvisioner(cfg, provisionerName, p, allNamespaces)
+	provName := provisionerName
+
+	obcWatchOnNamespace, err := k8sutil.GetOperatorSetting(p.context.Clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_OBC_WATCH_OPERATOR_NAMESPACE", "false")
+	if err != nil {
+		logger.Warningf("failed to verify if obc should watch the operator namespace or all of them, watching all")
+	} else {
+		if strings.EqualFold(obcWatchOnNamespace, "true") {
+			provName = fmt.Sprintf("%s.%s", p.namespace, provisionerName)
+		}
+	}
+
+	logger.Infof("ceph bucket provisioner launched watching for provisioner %q", provName)
+	return provisioner.NewProvisioner(cfg, provName, p, allNamespaces)
 }
 
 // Return the secret namespace and name from the passed storage class.
@@ -78,6 +94,10 @@ func getObjectStoreName(sc *storagev1.StorageClass) string {
 
 func getObjectStoreNameSpace(sc *storagev1.StorageClass) string {
 	return sc.Parameters[objectStoreNamespace]
+}
+
+func getObjectStoreEndpoint(sc *storagev1.StorageClass) string {
+	return sc.Parameters[objectStoreEndpoint]
 }
 
 func getBucketName(ob *bktv1alpha1.ObjectBucket) string {

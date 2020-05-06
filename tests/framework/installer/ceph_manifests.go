@@ -1592,6 +1592,7 @@ data:
   ROOK_CSI_ENABLE_CEPHFS: "true"
   ROOK_CSI_ENABLE_RBD: "true"
   ROOK_CSI_ENABLE_GRPC_METRICS: "true"
+  ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
 `
 }
 
@@ -2150,7 +2151,7 @@ func (m *CephManifestsMaster) GetBucketStorageClass(storeNameSpace string, store
 kind: StorageClass
 metadata:
    name: ` + storageClassName + `
-provisioner: ceph.rook.io/bucket
+provisioner: ` + storeNameSpace + `.ceph.rook.io/bucket
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
     objectStoreName: ` + storeName + `

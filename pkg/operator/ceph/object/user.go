@@ -213,7 +213,7 @@ func LinkUser(c *Context, id, bucket string) (string, int, error) {
 }
 
 func UnlinkUser(c *Context, id, bucket string) (string, int, error) {
-	logger.Info("Unlinking (user: %s) (bucket: %s)", id, bucket)
+	logger.Infof("Unlinking (user: %s) (bucket: %s)", id, bucket)
 	args := []string{"bucket", "unlink", "--uid", id, "--bucket", bucket}
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
