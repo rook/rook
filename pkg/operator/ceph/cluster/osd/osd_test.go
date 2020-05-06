@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -299,6 +300,55 @@ func TestAddNodeFailure(t *testing.T) {
 	// verify orchestration failed (because the operator failed to create a job)
 	assert.True(t, startCompleted)
 	assert.NotNil(t, startErr)
+}
+
+func TestGetPVCHostName(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, Namespace: "ns"}
+	pvcName := "test-pvc"
+
+	// fail to get the host name when there is no pod or deployment
+	name, err := c.getPVCHostName(pvcName)
+	assert.Error(t, err)
+	assert.Equal(t, "", name)
+
+	// Create a sample osd deployment
+	osdDeployment := &apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "osd-23",
+			Namespace: c.Namespace,
+			Labels:    c.getOSDLabels(23, "", true),
+		},
+	}
+	k8sutil.AddLabelToDeployment(OSDOverPVCLabelKey, pvcName, osdDeployment)
+	osdDeployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: "testnode"}
+
+	_, err = clientset.AppsV1().Deployments(c.Namespace).Create(osdDeployment)
+	assert.NoError(t, err)
+
+	// get the host name based on the deployment
+	name, err = c.getPVCHostName(pvcName)
+	assert.NoError(t, err)
+	assert.Equal(t, "testnode", name)
+
+	// delete the deployment and get the host name based on the pod
+	err = clientset.AppsV1().Deployments(c.Namespace).Delete(osdDeployment.Name, &metav1.DeleteOptions{})
+	assert.NoError(t, err)
+	osdPod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "osd-23",
+			Namespace: c.Namespace,
+			Labels:    c.getOSDLabels(23, "", true),
+		},
+	}
+	osdPod.Labels = map[string]string{OSDOverPVCLabelKey: pvcName}
+	osdPod.Spec.NodeName = "testnode"
+	_, err = clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
+	assert.NoError(t, err)
+
+	name, err = c.getPVCHostName(pvcName)
+	assert.NoError(t, err)
+	assert.Equal(t, "testnode", name)
 }
 
 func TestGetOSDInfo(t *testing.T) {

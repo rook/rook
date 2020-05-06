@@ -654,7 +654,8 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				portable:            volumeSource.Portable,
 				tuneSlowDeviceClass: volumeSource.TuneSlowDeviceClass,
 			}
-			// If OSD isn't portable, we're getting the host name of the pod where the osd prepare job pod prepared the OSD.
+			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
+			// or from the osd prepare job from initial creation.
 			if !volumeSource.Portable {
 				var err error
 				osdProps.crushHostname, err = c.getPVCHostName(pvcName)
@@ -668,21 +669,46 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 	return osdProperties{}, errors.Errorf("no valid VolumeSource found for pvc %s", pvcName)
 }
 
+// getPVCHostName finds the node where an OSD pod should be assigned with a node selector.
+// First look for the node selector that was previously used for the OSD, or if a new OSD
+// check for the assignment of the OSD prepare job.
 func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OSDOverPVCLabelKey, pvcName)}
-	podList, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(listOpts)
+
+	// Check for the existence of the OSD deployment where the node selector was applied
+	// in a previous reconcile.
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(listOpts)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "failed to get deployment for osd with pvc %q", pvcName)
 	}
-	for _, pod := range podList.Items {
+	for _, d := range deployments.Items {
+		selectors := d.Spec.Template.Spec.NodeSelector
+		for label, value := range selectors {
+			if label == v1.LabelHostname {
+				return value, nil
+			}
+		}
+	}
+
+	// Since the deployment wasn't found it must be a new deployment so look at the node
+	// assignment of the OSD prepare pod
+	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(listOpts)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get pod for osd with pvc %q", pvcName)
+	}
+	for _, pod := range pods.Items {
 		name, err := k8sutil.GetNodeHostName(c.context.Clientset, pod.Spec.NodeName)
 		if err != nil {
 			logger.Warningf("falling back to node name %s since hostname not found for node", pod.Spec.NodeName)
 			name = pod.Spec.NodeName
 		}
+		if name == "" {
+			return "", errors.Errorf("node name not found on the osd pod %q", pod.Name)
+		}
 		return name, nil
 	}
-	return "", err
+
+	return "", errors.Errorf("node selector not found on deployment for osd with pvc %q", pvcName)
 }
 
 func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
