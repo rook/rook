@@ -98,11 +98,16 @@ func (m *OSDHealthMonitor) checkOSDHealth() error {
 			return err
 		}
 
-		if status != upStatus {
-			logger.Debugf("osd.%d is marked 'DOWN'", id)
-		} else {
+		if status == upStatus {
 			logger.Debugf("osd.%d is healthy.", id)
+			continue
+		}
 
+		logger.Debugf("osd.%d is marked 'DOWN'", id)
+
+		// check if the down osd is stuck terminating
+		if err := m.restartOSDIfStuck(id); err != nil {
+			logger.Warningf("failed to restart OSD %d. %v", id, err)
 		}
 
 		if in != inStatus {
@@ -110,10 +115,6 @@ func (m *OSDHealthMonitor) checkOSDHealth() error {
 			if m.removeOSDsIfOUTAndSafeToRemove {
 				if err := m.removeOSDDeploymentIfSafeToDestroy(id); err != nil {
 					logger.Errorf("error handling marked out osd osd.%d. %v", id, err)
-				}
-			} else {
-				if err := m.restartOSDIfStuck(id); err != nil {
-					logger.Warningf("failed to restart OSD %d. %v", id, err)
 				}
 			}
 		}
