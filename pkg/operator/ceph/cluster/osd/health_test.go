@@ -48,7 +48,7 @@ func TestOSDHealthCheck(t *testing.T) {
 		execCount++
 		if args[1] == "dump" {
 			// Mock executor for OSD Dump command, returning an osd in Down state
-			return `{"OSDs": [{"OSD": 0, "Up": 1, "In": 0}]}`, nil
+			return `{"OSDs": [{"OSD": 0, "Up": 0, "In": 0}]}`, nil
 		} else if args[1] == "safe-to-destroy" {
 			// Mock executor for OSD Dump command, returning an osd in Down state
 			return `{"safe_to_destroy":[0],"active":[],"missing_stats":[],"stored_pgs":[]}`, nil
