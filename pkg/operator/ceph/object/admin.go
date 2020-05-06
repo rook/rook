@@ -29,15 +29,16 @@ type Context struct {
 	Context     *clusterd.Context
 	Name        string
 	ClusterName string
+	RunAsUser   string
 }
 
 // NewContext creates a new object store context.
 func NewContext(context *clusterd.Context, name, clusterName string) *Context {
-	return &Context{Context: context, Name: name, ClusterName: clusterName}
+	return &Context{Context: context, Name: name, ClusterName: clusterName, RunAsUser: client.AdminUsername}
 }
 
 func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
-	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.Context.ConfigDir, c.ClusterName, client.AdminUsername)
+	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.Context.ConfigDir, c.ClusterName, c.RunAsUser)
 
 	// start the rgw admin command
 	output, err := c.Context.Executor.ExecuteCommandWithOutput(command, args...)
@@ -49,9 +50,17 @@ func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
 }
 
 func runAdminCommand(c *Context, args ...string) (string, error) {
-	options := []string{
-		fmt.Sprintf("--rgw-realm=%s", c.Name),
-		fmt.Sprintf("--rgw-zonegroup=%s", c.Name),
+	// If the objectStoreName is not passed in the storage class
+	// This means we are pointing to an external cluster so these commands are not needed
+	// simply because the external cluster mode does not support that yet
+	if c.Name != "" {
+		options := []string{
+			fmt.Sprintf("--rgw-realm=%s", c.Name),
+			fmt.Sprintf("--rgw-zonegroup=%s", c.Name),
+		}
+
+		return runAdminCommandNoRealm(c, append(args, options...)...)
 	}
-	return runAdminCommandNoRealm(c, append(args, options...)...)
+
+	return runAdminCommandNoRealm(c, args...)
 }

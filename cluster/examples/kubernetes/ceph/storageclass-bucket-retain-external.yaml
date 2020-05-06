@@ -1,12 +1,14 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: rook-ceph-retain-bucket
-provisioner: rook-ceph.ceph.rook.io/bucket
+   name: rook-ceph-retain-bucket-external
+provisioner: rook-ceph-external.ceph.rook.io/bucket
 # set the reclaim policy to retain the bucket when its OBC is deleted
 reclaimPolicy: Retain
 parameters:
-  objectStoreName: my-store # port 80 assumed
+  # represents the endpoint IP and Port
+  endpoint: # ip:port
+  # this is the namespace of the external cluster, identical to the namespace it is running on
   objectStoreNamespace: rook-ceph
   region: us-east-1
   # To accommodate brownfield cases reference the existing bucket name here instead
