@@ -40,24 +40,26 @@ import (
 )
 
 type Param struct {
-	CSIPluginImage             string
-	RegistrarImage             string
-	ProvisionerImage           string
-	AttacherImage              string
-	SnapshotterImage           string
-	ResizerImage               string
-	DriverNamePrefix           string
-	EnableSnapshotter          string
-	EnableCSIGRPCMetrics       string
-	KubeletDirPath             string
-	ForceCephFSKernelClient    string
-	CephFSPluginUpdateStrategy string
-	RBDPluginUpdateStrategy    string
-	LogLevel                   uint8
-	CephFSGRPCMetricsPort      uint16
-	CephFSLivenessMetricsPort  uint16
-	RBDGRPCMetricsPort         uint16
-	RBDLivenessMetricsPort     uint16
+	CSIPluginImage               string
+	RegistrarImage               string
+	ProvisionerImage             string
+	AttacherImage                string
+	SnapshotterImage             string
+	ResizerImage                 string
+	DriverNamePrefix             string
+	EnableSnapshotter            string
+	EnableCSIGRPCMetrics         string
+	KubeletDirPath               string
+	ForceCephFSKernelClient      string
+	CephFSPluginUpdateStrategy   string
+	RBDPluginUpdateStrategy      string
+	PluginPriorityClassName      string
+	ProvisionerPriorityClassName string
+	LogLevel                     uint8
+	CephFSGRPCMetricsPort        uint16
+	CephFSLivenessMetricsPort    uint16
+	RBDGRPCMetricsPort           uint16
+	RBDLivenessMetricsPort       uint16
 }
 
 type templateParam struct {
@@ -271,6 +273,19 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	}
 	if !strings.EqualFold(enableSnap, "false") {
 		tp.EnableSnapshotter = "true"
+	}
+
+	// default value `system-node-critical` is the highest available priority
+	tp.PluginPriorityClassName, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PLUGIN_PRIORITY_CLASSNAME", "")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_PLUGIN_PRIORITY_CLASSNAME setting")
+	}
+
+	// default value `system-cluster-critical` is applied for some
+	// critical pods in cluster but less priority than plugin pods
+	tp.ProvisionerPriorityClassName, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PROVISIONER_PRIORITY_CLASSNAME", "")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_PROVISIONER_PRIORITY_CLASSNAME setting")
 	}
 
 	updateStrategy, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate)

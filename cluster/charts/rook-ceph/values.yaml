@@ -58,6 +58,12 @@ csi:
   enableCephfsDriver: true
   enableGrpcMetrics: true
   enableSnapshotter: true
+  # (Optional) set user created priorityclassName for csi plugin pods.
+  # pluginPriorityClassName: system-node-critical
+
+  # (Optional) set user created priorityclassName for csi provisioner pods.
+  # provisionerPriorityClassName: system-cluster-critical
+
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   #logLevel: 0

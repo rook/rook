@@ -15,6 +15,9 @@ spec:
         contains: csi-rbdplugin-metrics
     spec:
       serviceAccount: rook-csi-rbd-provisioner-sa
+      {{ if .ProvisionerPriorityClassName }}
+      priorityClassName: {{ .ProvisionerPriorityClassName }}
+      {{ end }}
       containers:
         - name: csi-provisioner
           image: {{ .ProvisionerImage }}
