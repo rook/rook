@@ -108,6 +108,10 @@ spec:
           value: {{ .Values.csi.enableCephfsDriver | quote }}
         - name: CSI_ENABLE_SNAPSHOTTER
           value: {{ .Values.csi.enableSnapshotter | quote }}
+        - name: CSI_PLUGIN_PRIORITY_CLASSNAME
+          value: {{ .Values.csi.pluginPriorityClassName | quote }}
+        - name: CSI_PROVISIONER_PRIORITY_CLASSNAME
+          value: {{ .Values.csi.provisionerPriorityClassName | quote }}
 {{- if .Values.csi.cephFSPluginUpdateStrategy }}
         - name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
           value: {{ .Values.csi.cephFSPluginUpdateStrategy | quote }}
