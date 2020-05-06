@@ -28,9 +28,9 @@ The Rook operator also initializes the agents that are needed for consuming the 
 
 ![Rook Components on Kubernetes](media/kubernetes.png)
 
-The `rook/ceph` image includes all necessary tools to manage the cluster -- there are no changes to the data path.
+The `rook/ceph` image includes all necessary tools to manage the cluster -- there is no change to the data path.
 Rook does not attempt to maintain full fidelity with Ceph. Many of the Ceph concepts like placement groups and crush maps
-are hidden so you don't have to worry about them. Instead Rook creates a much simplified UX for admins that is in terms
+are hidden so you don't have to worry about them. Instead Rook creates a much simplified user experience for admins that is in terms
 of physical resources, pools, volumes, filesystems, and buckets. At the same time, advanced configuration can be applied when needed with the Ceph tools.
 
 Rook is implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
