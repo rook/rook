@@ -36,7 +36,7 @@ import (
 // Monitors
 // - One mon in each cluster
 // OSDs
-// - Bluestore running on a directory
+// - Bluestore running on a raw block device
 // Block
 // - Create a pool in each cluster
 // - Mount/unmount a block device through the dynamic provisioner
@@ -138,8 +138,8 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 	i := installer.NewCephInstaller(t, kh.Clientset, false, "", installer.VersionMaster, installer.NautilusVersion, cleanupHost)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), "", false}
-	p := kh.IsStorageClassPresent("manual")
-	if p == nil && kh.VersionAtLeast("v1.13.0") {
+	present, err := kh.IsStorageClassPresent("manual")
+	if present && kh.VersionAtLeast("v1.13.0") {
 		op.testOverPVC = true
 		op.storageClassName = "manual"
 	}

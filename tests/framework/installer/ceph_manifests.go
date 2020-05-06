@@ -1425,7 +1425,6 @@ spec:
     - hostPath
     - flexVolume
   # allowedHostPaths can be set to Rook's known host volume mount points when they are fully-known
-  # directory-based OSDs make this hard to nail down
   # allowedHostPaths:
   #   - /run/udev      # for OSD prep
   #   - /dev           # for OSD prep

@@ -992,13 +992,13 @@ func (k8sh *K8sHelper) GetServiceNodePort(serviceName string, namespace string) 
 }
 
 // IsStorageClassPresent returns true if storageClass is present, if not false
-func (k8sh *K8sHelper) IsStorageClassPresent(name string) error {
+func (k8sh *K8sHelper) IsStorageClassPresent(name string) (bool, error) {
 	args := []string{"get", "storageclass", "-o", "jsonpath='{.items[*].metadata.name}'"}
 	result, err := k8sh.Kubectl(args...)
 	if strings.Contains(result, name) {
-		return nil
+		return true, nil
 	}
-	return fmt.Errorf("Storageclass %s not found, err ->%v", name, err)
+	return false, fmt.Errorf("Storageclass %s not found, err ->%v", name, err)
 }
 
 func (k8sh *K8sHelper) IsDefaultStorageClassPresent() (bool, error) {
