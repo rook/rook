@@ -17,7 +17,7 @@ include image.mk
 PLATFORMS ?= linux_amd64 linux_arm64
 
 # tini's version
-export TINI_VERSION = v0.16.1
+export TINI_VERSION = v0.19.0
 
 # ====================================================================================
 # Image Targets
