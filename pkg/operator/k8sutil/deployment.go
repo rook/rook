@@ -220,7 +220,7 @@ func AddRookVersionLabelToObjectMeta(meta *metav1.ObjectMeta) {
 	addRookVersionLabel(meta.Labels)
 }
 
-func AddLabelToDeployement(key, value string, d *v1.Deployment) {
+func AddLabelToDeployment(key, value string, d *v1.Deployment) {
 	if d == nil {
 		return
 	}
