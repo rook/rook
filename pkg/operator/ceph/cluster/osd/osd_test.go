@@ -40,6 +40,23 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
+func TestOSDProperties(t *testing.T) {
+	osdProps := []osdProperties{
+		{pvc: v1.PersistentVolumeClaimVolumeSource{ClaimName: "claim"},
+			metadataPVC: v1.PersistentVolumeClaimVolumeSource{ClaimName: "claim"}},
+		{pvc: v1.PersistentVolumeClaimVolumeSource{ClaimName: ""},
+			metadataPVC: v1.PersistentVolumeClaimVolumeSource{ClaimName: ""}},
+	}
+	expected := [][2]bool{
+		{true, true},
+		{false, false},
+	}
+	for i, p := range osdProps {
+		actual := [2]bool{p.onPVC(), p.onPVCWithMetadata()}
+		assert.Equal(t, expected[i], actual, "detected a problem in `expected[%d]`", i)
+	}
+}
+
 func TestStart(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephconfig.ClusterInfo{

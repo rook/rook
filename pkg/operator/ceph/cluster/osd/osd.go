@@ -177,6 +177,14 @@ type osdProperties struct {
 	crushDeviceClass    string
 }
 
+func (osdProps osdProperties) onPVC() bool {
+	return osdProps.pvc.ClaimName != ""
+}
+
+func (osdProps osdProperties) onPVCWithMetadata() bool {
+	return osdProps.metadataPVC.ClaimName != ""
+}
+
 // Start the osd management
 func (c *Cluster) Start() error {
 	config := c.newProvisionConfig()
