@@ -155,11 +155,26 @@ type SMBSpec struct {
 	Placement rookv1.Placement `json:"placement"`
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	// AD joining section
+	Ads AdsSpec `json:"ads,omitempty"`
 	// The number of pods in the SMB replicaset
 	Instances         int32             `json:"instances"`
 	RelaxedDirUpdates bool              `json:"relaxedDirUpdates,omitempty"`
 	ResourceProfile   string            `json:"resourceProfile,omitempty"`
 	ChunkCacheSize    resource.Quantity `json:"chunkCacheSize,omitempty"`
+}
+
+type AdsSpec struct {
+	// AD Domain Name
+	DomainName string `json:"domainName"`
+	// Preferred Domain Controller Name
+	DcName string `json:"dcName"`
+	// NetBIOS Name of our SMB Gateway
+	ServerName string `json:"serverName"`
+	// The name of the secret that stores the username and password
+	UserSecret string `json:"userSecret"`
+	// Comma separated list of name servers IPv4 addresses
+	Nameservers string `json:"nameservers"`
 }
 
 // +genclient
