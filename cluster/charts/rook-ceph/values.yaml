@@ -321,3 +321,6 @@ discoverDaemonUdev:
 
 # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
 enableOBCWatchOperatorNamespace: true
+
+monitoring:
+  enable: false

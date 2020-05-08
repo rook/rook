@@ -1,0 +1,22 @@
+{{- if .Values.monitoring.enable }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rook-ceph-mgr
+  namespace: {{ .Release.Namespace }}
+  labels:
+    team: rook
+    release: prometheus-operator
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app: rook-ceph-mgr
+      rook_cluster: {{ .Release.Namespace }}
+  endpoints:
+  - port: http-metrics
+    path: /metrics
+    interval: 5s
+{{- end }}
