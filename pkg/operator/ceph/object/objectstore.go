@@ -24,16 +24,20 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 const (
 	rootPool = ".rgw.root"
 
 	// AppName is the name Rook uses for the object store's application
-	AppName = "rook-ceph-rgw"
+	AppName               = "rook-ceph-rgw"
+	bucketProvisionerName = "ceph.rook.io/bucket"
 )
 
 var (
@@ -332,4 +336,18 @@ func poolName(storeName, poolName string) string {
 	}
 	// the name of the pool is <instance>.<name>, except for the pool ".rgw.root" that spans object stores
 	return fmt.Sprintf("%s.%s", storeName, poolName)
+}
+
+// GetObjectBucketProvisioner returns the bucket provisioner name appended with operator namespace if OBC is watching on it
+func GetObjectBucketProvisioner(c *clusterd.Context, namespace string) string {
+	provName := bucketProvisionerName
+	obcWatchOnNamespace, err := k8sutil.GetOperatorSetting(c.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_OBC_WATCH_OPERATOR_NAMESPACE", "false")
+	if err != nil {
+		logger.Warningf("failed to verify if obc should watch the operator namespace or all of them, watching all")
+	} else {
+		if strings.EqualFold(obcWatchOnNamespace, "true") {
+			provName = fmt.Sprintf("%s.%s", namespace, bucketProvisionerName)
+		}
+	}
+	return provName
 }
