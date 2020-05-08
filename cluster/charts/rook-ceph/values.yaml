@@ -324,3 +324,9 @@ enableOBCWatchOperatorNamespace: true
 
 monitoring:
   enable: false
+  grafana:
+    # Labels to add to the Grafana Dashboard configmaps. Add labels so that Grafana can load the configmap as dashboard.
+    # e.g.:
+    # labels:
+    #   grafana_dashboard: "true"
+    # labels: {}
