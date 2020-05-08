@@ -155,6 +155,8 @@ The following tables lists the configurable parameters of the rook-operator char
 | `agent.tolerationKey`              | The specific key of the taint to tolerate                                                                                   | <none>                                                 |
 | `agent.tolerations`                | Array of tolerations in YAML format which will be added to agent deployment                                                 | <none>                                                 |
 | `agent.nodeAffinity`               | The node labels for affinity of `rook-agent` (***)                                                                          | <none>                                                 |
+| `monitoring.enable`                | Install monitoring configs like ServiceMonitor and PrometheusRules                                                          | `false`                                                |
+| `monitoring.grafana.labels`        | Labels to assign to the configmap that holds grafana dashboards                                                             | <none>                                                 |
 
 &ast; For information on what to set `agent.flexVolumeDirPath` to, please refer to the [Rook flexvolume documentation](flexvolume.md)
 
