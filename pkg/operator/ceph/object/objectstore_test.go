@@ -18,13 +18,18 @@ package object
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestReconcileRealm(t *testing.T) {
@@ -179,4 +184,35 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	assert.Equal(t, expectedPoolsDeleted, poolsDeleted)
 	assert.Equal(t, expectedDeleteRootPool, deletedRootPool)
 	assert.Equal(t, true, deletedErasureCodeProfile)
+}
+
+func TestGetObjectBucketProvisioner(t *testing.T) {
+	k8s := fake.NewSimpleClientset()
+	operatorSettingConfigMapName := "rook-ceph-operator-config"
+	testNamespace := "test-namespace"
+	watchOperatorNamespace := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "true"}
+	ignoreOperatorNamespace := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "false"}
+	context := &clusterd.Context{Clientset: k8s}
+	os.Setenv(k8sutil.PodNamespaceEnvVar, testNamespace)
+
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      operatorSettingConfigMapName,
+			Namespace: testNamespace,
+		},
+		Data: watchOperatorNamespace,
+	}
+
+	_, err := k8s.CoreV1().ConfigMaps(testNamespace).Create(cm)
+	assert.NoError(t, err)
+
+	bktprovisioner := GetObjectBucketProvisioner(context, testNamespace)
+	assert.Equal(t, fmt.Sprintf("%s.%s", testNamespace, bucketProvisionerName), bktprovisioner)
+
+	cm.Data = ignoreOperatorNamespace
+	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Update(cm)
+	assert.NoError(t, err)
+
+	bktprovisioner = GetObjectBucketProvisioner(context, testNamespace)
+	assert.Equal(t, bucketProvisionerName, bktprovisioner)
 }
