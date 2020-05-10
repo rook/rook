@@ -145,6 +145,18 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
   starting state.
 * All pods consuming Rook storage should be created, running, and in a steady state. No Rook
   persistent volumes should be in the act of being created or deleted.
+* Your Helm version should be newer than v3.2.0 for avoiding [this issue](https://github.com/helm/helm/issues/7697).
+* For the already deployed Rook cluster with the Helm older than v3.2.0, you also need to execute the following commands.
+
+```sh
+KIND=ClusterRole
+NAME=psp:rook
+RELEASE=your-apps-release-name
+NAMESPACE=your-apps-namespace
+kubectl annotate $KIND $NAME meta.helm.sh/release-name=$RELEASE
+kubectl annotate $KIND $NAME meta.helm.sh/release-namespace=$NAMESPACE
+kubectl label $KIND $NAME app.kubernetes.io/managed-by=Helm
+```
 
 ## Health Verification
 
