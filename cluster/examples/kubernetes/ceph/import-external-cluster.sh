@@ -124,8 +124,8 @@ function importCsiCephFSNodeSecret() {
     secret \
     generic \
     "$CSI_CEPHFS_NODE_SECRET_NAME" \
-    --from-literal=userID=csi-cephfs-node \
-    --from-literal=userKey="$CSI_CEPHFS_NODE_SECRET"
+    --from-literal=adminID=csi-cephfs-node \
+    --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET"
 }
 
 function importCsiCephFSProvisionerSecret() {
@@ -134,8 +134,8 @@ function importCsiCephFSProvisionerSecret() {
     secret \
     generic \
     "$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
-    --from-literal=userID=csi-cephfs-provisioner \
-    --from-literal=userKey="$CSI_CEPHFS_PROVISIONER_SECRET"
+    --from-literal=adminID=csi-cephfs-provisioner \
+    --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
 }
 
 ########
