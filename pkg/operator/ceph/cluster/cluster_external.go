@@ -86,10 +86,16 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		// If we don't do this, daemons will never start, waiting forever for this configmap to be present
 		//
 		// Only do this when doing a bit of management...
-		logger.Info("creating 'rook-ceph-config' configmap.")
-		err = populateConfigOverrideConfigMap(cluster.context, c.namespacedName.Namespace, cluster.ownerRef)
+		logger.Infof("creating %q configmap", k8sutil.ConfigOverrideName)
+		err = populateConfigOverrideConfigMap(c.context, c.namespacedName.Namespace, cluster.ownerRef)
 		if err != nil {
 			return errors.Wrap(err, "failed to populate config override config map")
+		}
+
+		logger.Infof("creating %q secret", config.StoreName)
+		err = config.GetStore(c.context, c.namespacedName.Namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
+		if err != nil {
+			return errors.Wrap(err, "failed to update the global config")
 		}
 	}
 
@@ -142,13 +148,12 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) erro
 	// Purge the config maps
 	cmsToDelete := []string{
 		mon.EndpointConfigMapName,
-		config.StoreName,
 		k8sutil.ConfigOverrideName,
 	}
 	for _, cm := range cmsToDelete {
 		err := clientset.CoreV1().ConfigMaps(namespace).Delete(cm, &metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to delete config map %+v. %v", cm, err)
+			logger.Errorf("failed to delete config map %q. %v", cm, err)
 		}
 	}
 
@@ -160,11 +165,12 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) erro
 		csi.CsiRBDProvisionerSecret,
 		csi.CsiCephFSNodeSecret,
 		csi.CsiCephFSProvisionerSecret,
+		config.StoreName,
 	}
 	for _, secret := range secretsToDelete {
 		err := clientset.CoreV1().Secrets(namespace).Delete(secret, &metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to delete config map %+v. %v", secret, err)
+			logger.Errorf("failed to delete secret %q. %v", secret, err)
 		}
 	}
 
