@@ -40,11 +40,12 @@ const (
 	// These versions are for running a minimal test suite for more efficient tests across different versions of K8s
 	// instead of running all suites on all versions
 	// To run on multiple versions, add a comma separate list such as 1.16.0,1.17.0
-	flexDriverMinimalTestVersion   = "1.14.0"
-	multiClusterMinimalTestVersion = "1.15.0"
-	helmMinimalTestVersion         = "1.16.0"
-	upgradeMinimalTestVersion      = "1.17.0"
-	smokeSuiteMinimalTestVersion   = "1.18.0"
+	flexDriverMinimalTestVersion      = "1.14.0"
+	cephMasterSuiteMinimalTestVersion = "1.15.0"
+	multiClusterMinimalTestVersion    = "1.15.0"
+	helmMinimalTestVersion            = "1.16.0"
+	upgradeMinimalTestVersion         = "1.17.0"
+	smokeSuiteMinimalTestVersion      = "1.18.0"
 )
 
 var (
@@ -110,6 +111,7 @@ type TestCluster struct {
 	mons                    int
 	rbdMirrorWorkers        int
 	rookCephCleanup         bool
+	skipOSDCreation         bool
 	minimalMatrixK8sVersion string
 	rookVersion             string
 	cephVersion             cephv1.CephVersionSpec
@@ -166,7 +168,7 @@ func (op *TestCluster) Setup() {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 
 	isRookInstalled, err := op.installer.InstallRook(op.namespace, op.storeType, op.usePVC, op.storageClassName,
-		cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
+		cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers, op.skipOSDCreation)
 
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)

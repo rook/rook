@@ -82,6 +82,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		mons:                    1,
 		rbdMirrorWorkers:        0,
 		rookCephCleanup:         false,
+		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: upgradeMinimalTestVersion,
 		rookVersion:             installer.Version1_2,
 		cephVersion:             installer.NautilusVersion,

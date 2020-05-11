@@ -91,6 +91,7 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 		mons:                    1,
 		rbdMirrorWorkers:        1,
 		rookCephCleanup:         false,
+		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: flexDriverMinimalTestVersion,
 		rookVersion:             installer.VersionMaster,
 		cephVersion:             installer.OctopusVersion,

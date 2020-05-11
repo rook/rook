@@ -40,6 +40,11 @@ func testStorageProvider() string {
 	return getEnvVarWithDefault("STORAGE_PROVIDER_TESTS", "")
 }
 
+// TestIsOfficialBuild gets the storage provider for which tests should be run
+func TestIsOfficialBuild() bool {
+	return os.Getenv("TEST_IS_OFFICIAL_BUILD") == "true"
+}
+
 // baseTestDir gets the base test directory
 func baseTestDir() string {
 	// If the base test directory is actively set to empty (as in CI), we use the current working directory.

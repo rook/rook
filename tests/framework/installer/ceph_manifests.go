@@ -62,6 +62,7 @@ type clusterSettings struct {
 	RBDMirrorWorkers int
 	UsePVCs          bool
 	StorageClassName string
+	skipOSDCreation  bool
 	CephVersion      cephv1.CephVersionSpec
 }
 
@@ -1924,9 +1925,9 @@ spec:
   skipUpgradeChecks: true
   metadataDevice:
   storage:
-    useAllNodes: true
-    useAllDevices: true
-    deviceFilter: ''
+    useAllNodes: ` + strconv.FormatBool(!settings.skipOSDCreation) + `
+    useAllDevices: ` + strconv.FormatBool(!settings.skipOSDCreation) + `
+    deviceFilter:  ''
     config:
       ` + store + `
       databaseSizeMB: "1024"
