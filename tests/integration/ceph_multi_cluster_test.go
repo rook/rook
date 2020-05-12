@@ -29,6 +29,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	localPathPVCmd = "tests/scripts/localPathPV.sh"
+)
+
 // *************************************************************
 // *** Major scenarios tested by the MultiClusterDeploySuite ***
 // Setup
@@ -150,6 +154,12 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 // SetUpRook is wrapper for setting up multiple rook clusters.
 func (o MCTestOperations) Setup() {
 	var err error
+	if o.testOverPVC {
+		cmdArgs := utils.CommandArgs{Command: localPathPVCmd, CmdArgs: []string{installer.TestScratchDevice()}}
+		cmdOut := utils.ExecuteCommand(cmdArgs)
+		require.NoError(o.T(), cmdOut.Err)
+	}
+
 	err = o.installer.CreateCephOperator(installer.SystemNamespace(o.namespace1))
 	require.NoError(o.T(), err)
 
