@@ -323,6 +323,9 @@ data:
   # Configure CSI RBD grpc and liveness metrics port
   # CSI_RBD_GRPC_METRICS_PORT: "9090"
   # CSI_RBD_LIVENESS_METRICS_PORT: "9080"
+
+  # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
+  ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
