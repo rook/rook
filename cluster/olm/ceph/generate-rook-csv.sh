@@ -98,6 +98,7 @@ CEPH_FILESYSTEMS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephfilesystems
 CEPH_NFS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephnfses.crd.yaml"
 CEPH_CLIENT_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephclients.crd.yaml"
 CEPH_RBD_MIRROR_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephrbdmirrors.crd.yaml"
+CEPH_EXTERNAL_SCRIPT_FILE="cluster/examples/kubernetes/ceph/create-external-cluster-resources.py"
 
 #############
 # FUNCTIONS #
@@ -117,6 +118,7 @@ function generate_csv(){
     popd &> /dev/null
     mv "$DEFAULT_CSV_FILE_NAME" "$DESIRED_CSV_FILE_NAME"
     "${YQ_CMD_MERGE_OVERWRITE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_COMMON"
+    "${YQ_CMD_WRITE[@]}" "$DESIRED_CSV_FILE_NAME" metadata.annotations.externalClusterScript "$(base64 <$CEPH_EXTERNAL_SCRIPT_FILE)"
 
     if [[ "$PLATFORM" == "k8s" ]]; then
         "${YQ_CMD_MERGE_OVERWRITE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_K8S"
