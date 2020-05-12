@@ -32,9 +32,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "testutil")
 // CommandArgs is a warpper for cmd args
 type CommandArgs struct {
 	Command             string
-	SubCommand          string
 	CmdArgs             []string
-	OptionalArgs        []string
 	PipeToStdIn         string
 	EnvironmentVariable []string
 }
