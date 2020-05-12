@@ -43,7 +43,7 @@ func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
 	// start the rgw admin command
 	output, err := c.Context.Executor.ExecuteCommandWithOutput(command, args...)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to run radosgw-admin")
+		return output, errors.Wrap(err, "failed to run radosgw-admin")
 	}
 
 	return output, nil
