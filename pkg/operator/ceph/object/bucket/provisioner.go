@@ -219,48 +219,55 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 
 	bucket, _, err := cephObject.GetBucket(p.objectContext, p.bucketName)
 	if err != nil {
-		return err
-	}
-	if bucket.Owner == "" {
-		return errors.New("cannot find bucket owner")
-	}
-
-	user, code, err := cephObject.GetUser(p.objectContext, bucket.Owner)
-	// The user may not exist.  Ignore this in order to ensure the PolicyStatement does not contain the
-	// stale user.
-	if err != nil && code != cephObject.RGWErrorNotFound {
-		return err
-	} else if user == nil {
-		return errors.Errorf("querying user %q returned nil", p.cephUserName)
-	}
-
-	s3svc, err := NewS3Agent(*user.AccessKey, *user.SecretKey, p.getObjectStoreEndpoint())
-	if err != nil {
-		return err
-	}
-
-	// Ignore cases where there is no bucket policy. This may have occurred if an error ended a Grant()
-	// call before the policy was attached to the bucket
-	policy, err := s3svc.GetBucketPolicy(p.bucketName)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchBucketPolicy" {
-			policy = nil
-			logger.Errorf("no bucket policy for bucket %q, so no need to drop policy", p.bucketName)
-
-		} else {
-			logger.Errorf("error getting policy for bucket %q. %v", p.bucketName, err)
-			return err
+		logger.Errorf("%v", err)
+	} else {
+		if bucket.Owner == "" {
+			return errors.New("cannot find bucket owner")
 		}
-	}
 
-	// drop policy if present
-	if policy != nil {
-		policy = policy.DropPolicyStatements(p.cephUserName)
-		output, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+		user, code, err := cephObject.GetUser(p.objectContext, bucket.Owner)
+		// The user may not exist.  Ignore this in order to ensure the PolicyStatement does not contain the
+		// stale user.
+		if err != nil && code != cephObject.RGWErrorNotFound {
+			return err
+		} else if user == nil {
+			logger.Errorf("querying user %q returned nil", p.cephUserName)
+			return nil
+		}
+
+		s3svc, err := NewS3Agent(*user.AccessKey, *user.SecretKey, p.getObjectStoreEndpoint())
 		if err != nil {
 			return err
 		}
-		logger.Infof("principal %q ejected from bucket %q policy. Output: %v", p.cephUserName, p.bucketName, output)
+
+		// Ignore cases where there is no bucket policy. This may have occurred if an error ended a Grant()
+		// call before the policy was attached to the bucket
+		policy, err := s3svc.GetBucketPolicy(p.bucketName)
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchBucketPolicy" {
+				policy = nil
+				logger.Errorf("no bucket policy for bucket %q, so no need to drop policy", p.bucketName)
+
+			} else {
+				logger.Errorf("error getting policy for bucket %q. %v", p.bucketName, err)
+				return err
+			}
+		}
+
+		// drop policy if present
+		if policy != nil {
+			policy = policy.DropPolicyStatements(p.cephUserName)
+			output, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+			if err != nil {
+				return err
+			}
+			logger.Infof("principal %q ejected from bucket %q policy. Output: %v", p.cephUserName, p.bucketName, output)
+		}
+	}
+
+	_, _, err = cephObject.UnlinkUser(p.objectContext, p.cephUserName, p.bucketName)
+	if err != nil {
+		return err
 	}
 
 	// finally, delete unlinked user
@@ -325,6 +332,7 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 	p.cephUserName = getCephUser(ob)
 	p.objectStoreName = getObjectStoreName(sc)
 	p.objectStoreNamespace = getObjectStoreNameSpace(sc)
+	p.setEndpoint(sc)
 	err = p.setObjectContext()
 	if err != nil {
 		return err
