@@ -28,12 +28,6 @@ except:
     ModuleNotFoundError = ImportError
 
 try:
-    import rados
-except ModuleNotFoundError as noModErr:
-    print("Error: %s\nExiting the script..." % noModErr)
-    sys.exit(1)
-
-try:
     # for 2.7.x
     from StringIO import StringIO
 except ModuleNotFoundError:
@@ -110,7 +104,7 @@ class RadosJSON:
                 "Out of range port number: {}".format(port))
         return False
 
-    def __init__(self, arg_list=None):
+    def __init__(self, arg_list=None, rados_obj=None):
         self.out_map = {}
         self._excluded_keys = set()
         self._arg_parser = self.gen_arg_parser(args_to_parse=arg_list)
@@ -119,7 +113,9 @@ class RadosJSON:
         self.run_as_user = self._arg_parser.run_as_user
         if not self.run_as_user:
             self.run_as_user = self.EXTERNAL_USER_NAME
-        if self.ceph_conf:
+        if rados_obj:
+            self.cluster = rados_obj
+        elif self.ceph_conf:
             self.cluster = rados.Rados(conffile=self.ceph_conf)
         else:
             self.cluster = rados.Rados()
@@ -305,8 +301,9 @@ class RadosJSON:
         self._invalid_endpoint(self._arg_parser.rgw_endpoint)
         if not self.cluster.pool_exists(self._arg_parser.rbd_data_pool_name):
             raise ExecutionFailureException(
-                "The provided 'rbd-data-pool-name': {}, don't exists".format(
-                    self._arg_parser.rbd_data_pool_name))
+                "The provided 'rbd-data-pool-name': {}, don't exists in the list: {}".format(
+                    self._arg_parser.rbd_data_pool_name,
+                    [str(pool) for pool in self.cluster.list_pools()]))
         self._excluded_keys.add('CLUSTER_NAME')
         self.get_cephfs_data_pool_details()
         self.out_map['NAMESPACE'] = self._arg_parser.namespace
@@ -442,6 +439,12 @@ class RadosJSON:
 ##################### MAIN #####################
 ################################################
 if __name__ == '__main__':
+    try:
+        import rados
+    except ModuleNotFoundError as noModErr:
+        print("Error: %s\nExiting the script..." % noModErr)
+        sys.exit(1)
+
     rjObj = RadosJSON()
     try:
         rjObj.main()
@@ -460,35 +463,47 @@ if __name__ == '__main__':
 ################################################
 # this is mainly for testing and could be used where 'rados' is not available
 class DummyRados(object):
+    DEFAULT_POOL_LIST = [u'device_health_metrics',
+                         u'myfs-metadata', u'myfs-data0']
+    ret_val = 0
+    err_message = ''
+    cmd_names = {}
+    cmd_output_map = {}
+
     def __init__(self):
-        self.return_val = 0
         self.err_message = ''
         self.state = 'connected'
-        self.cmd_output_map = {}
-        self.cmd_names = {}
-        self._init_cmd_output_map()
+        self.pool_list = self.__class__.DEFAULT_POOL_LIST
+        self.__class__._init_cmd_output_map()
 
-    def _init_cmd_output_map(self):
-        self.cmd_names['fs ls'] = '''{"format": "json", "prefix": "fs ls"}'''
-        self.cmd_names['quorum_status'] = '''{"format": "json", "prefix": "quorum_status"}'''
+    @classmethod
+    def _init_cmd_output_map(cls):
+        cls.cmd_names['fs ls'] = '''{"format": "json", "prefix": "fs ls"}'''
+        cls.cmd_names['quorum_status'] = '''{"format": "json", "prefix": "quorum_status"}'''
         # all the commands and their output
-        self.cmd_output_map[self.cmd_names['fs ls']] = \
+        cls.cmd_output_map[cls.cmd_names['fs ls']] = \
             '''[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":2,"data_pool_ids":[3],"data_pools":["myfs-data0"]}]'''
-        self.cmd_output_map[self.cmd_names['quorum_status']] = \
+        cls.cmd_output_map[cls.cmd_names['quorum_status']] = \
             '''{"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_leader_name":"a","quorum_age":14385,"features":{"quorum_con":"4540138292836696063","quorum_mon":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"]},"monmap":{"epoch":1,"fsid":"af4e1673-0b72-402d-990a-22d2919d0f1c","modified":"2020-05-07T03:36:39.918035Z","created":"2020-05-07T03:36:39.918035Z","min_mon_release":15,"min_mon_release_name":"octopus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.110.205.174:3300","nonce":0},{"type":"v1","addr":"10.110.205.174:6789","nonce":0}]},"addr":"10.110.205.174:6789/0","public_addr":"10.110.205.174:6789/0","priority":0,"weight":0}]}}'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = \
+        cls.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = \
             '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "profile rbd", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = \
+        cls.cmd_output_map['''{"caps": ["mon", "profile rbd", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = \
             '''[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd","osd":"profile rbd"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = \
+        cls.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = \
             '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = \
+        cls.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = \
             '''[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs *=*"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = \
+        cls.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = \
             '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
 
     def shutdown(self):
         pass
+
+    def pool_exists(self, pool_name):
+        return pool_name in self.pool_list
+
+    def list_pools(self):
+        return self.pool_list
 
     def get_fsid(self):
         return 'af4e1673-0b72-402d-990a-22d2919d0f1c'
@@ -503,7 +518,7 @@ class DummyRados(object):
         json_cmd = json.loads(cmd)
         json_cmd_str = json.dumps(json_cmd, sort_keys=True)
         cmd_output = self.cmd_output_map[json_cmd_str]
-        return self.return_val, \
+        return self.ret_val, \
             cmd_output, \
             "{}".format(self.err_message).encode('utf-8')
 
@@ -514,14 +529,19 @@ class DummyRados(object):
 
 # inorder to test the package,
 # cd <script_directory>
-# python -m unittest --verbose <script_name_without_dot_py>
+# python -m unittest --verbose <script_name_without_dot_py_extention>
 class TestRadosJSON(unittest.TestCase):
     def setUp(self):
         print("{}".format("I am in setup"))
-        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc',
-                                '--rgw-endpoint=10.10.212.122:9000', '--format=json'])
-        # for testing, we are using 'DummyRados' object
-        self.rjObj.cluster = DummyRados.Rados()
+        self.rjObj = RadosJSON(arg_list=[
+            '--rbd-data-pool-name=abc',
+            '--rgw-endpoint=10.10.212.122:9000'],
+            rados_obj=DummyRados())
+        # set the 'rbd_pool_name' to a valid one
+        self.rjObj._arg_parser.rbd_data_pool_name = str(
+            DummyRados.DEFAULT_POOL_LIST[0])
+        if DummyRados.cmd_output_map:
+            DummyRados._init_cmd_output_map()
 
     def tearDown(self):
         print("{}".format("I am tearing down the setup"))
@@ -547,8 +567,8 @@ class TestRadosJSON(unittest.TestCase):
         print("{}".format(csiKeyring))
 
     def test_non_zero_return_and_error(self):
-        self.rjObj.cluster.return_val = 1
-        self.rjObj.cluster.err_message = "Dummy Error"
+        DummyRados.ret_val = 1
+        DummyRados.err_message = "Dummy Error"
         try:
             self.rjObj.create_checkerKey()
             self.fail("Failed to raise an exception, 'ExecutionFailureException'")
@@ -556,13 +576,13 @@ class TestRadosJSON(unittest.TestCase):
             print("Successfully thrown error.\nError: {}".format(err))
 
     def test_multi_filesystem_scenario(self):
-        cmd_key = self.rjObj.cluster.cmd_names['fs ls']
-        cmd_out = self.rjObj.cluster.cmd_output_map[cmd_key]
+        cmd_key = DummyRados.cmd_names['fs ls']
+        cmd_out = DummyRados.cmd_output_map[cmd_key]
         cmd_json_out = json.loads(cmd_out)
         second_fs_details = dict(cmd_json_out[0])
         second_fs_details['name'] += '-2'
         cmd_json_out.append(second_fs_details)
-        self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
+        DummyRados.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
         # multiple filesystem present,
         # but no specific '--cephfs-filesystem-name' argument provided
         try:
@@ -585,22 +605,22 @@ class TestRadosJSON(unittest.TestCase):
             print("Successfully thrown error: {}".format(err))
         # empty file-system array
         try:
-            self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps([])
+            DummyRados.cmd_output_map[cmd_key] = json.dumps([])
             self.rjObj.get_cephfs_data_pool_details()
             self.fail("An Exception was expected to be thrown")
         except ExecutionFailureException as err:
             print("Successfully thrown error: {}".format(err))
 
     def test_multi_data_pool_scenario(self):
-        cmd_key = self.rjObj.cluster.cmd_names['fs ls']
-        cmd_out = self.rjObj.cluster.cmd_output_map[cmd_key]
+        cmd_key = DummyRados.cmd_names['fs ls']
+        cmd_out = DummyRados.cmd_output_map[cmd_key]
         cmd_json_out = json.loads(cmd_out)
         first_fs_details = cmd_json_out[0]
         new_data_pool_name = 'myfs-data1'
         first_fs_details['data_pools'].append(new_data_pool_name)
         print("Modified JSON Cmd Out: {}".format(cmd_json_out))
         self.rjObj._arg_parser.cephfs_data_pool_name = new_data_pool_name
-        self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
+        DummyRados.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
         self.rjObj.get_cephfs_data_pool_details()
         # use a non-existing data-pool-name
         bad_data_pool_name = 'myfs-data3'
@@ -612,9 +632,17 @@ class TestRadosJSON(unittest.TestCase):
             print("Successfully thrown error: {}".format(err))
         # empty data-pool scenario
         first_fs_details['data_pools'] = []
-        self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
+        DummyRados.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
         try:
             self.rjObj.get_cephfs_data_pool_details()
+            self.fail("An Exception was expected to be thrown")
+        except ExecutionFailureException as err:
+            print("Successfully thrown error: {}".format(err))
+
+    def test_rbd_data_pool_name_arg(self):
+        self.rjObj._arg_parser.rbd_data_pool_name = "unknown_pool"
+        try:
+            self.rjObj.main()
             self.fail("An Exception was expected to be thrown")
         except ExecutionFailureException as err:
             print("Successfully thrown error: {}".format(err))

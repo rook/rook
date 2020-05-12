@@ -121,6 +121,11 @@ function generate_csv(){
     mv "$DEFAULT_CSV_FILE_NAME" "$DESIRED_CSV_FILE_NAME"
     "${YQ_CMD_MERGE_OVERWRITE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_COMMON"
     "${YQ_CMD_WRITE[@]}" "$DESIRED_CSV_FILE_NAME" metadata.annotations.externalClusterScript "$(base64 <$CEPH_EXTERNAL_SCRIPT_FILE)"
+    if [ -f "$CEPH_EXTERNAL_SCRIPT_FILE" ];then
+        pushd $(dirname "$CEPH_EXTERNAL_SCRIPT_FILE") 1>/dev/null
+        python -m unittest --verbose "$(basename "$CEPH_EXTERNAL_SCRIPT_FILE" |sed -n 's@\.py$@@gp')"
+        popd 1>/dev/null 2>&1
+    fi
 
     if [[ "$PLATFORM" == "k8s" ]]; then
         "${YQ_CMD_MERGE_OVERWRITE[@]}" "$DESIRED_CSV_FILE_NAME" "$ASSEMBLE_FILE_K8S"
