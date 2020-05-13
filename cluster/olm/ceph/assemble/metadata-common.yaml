@@ -128,6 +128,11 @@ spec:
         version: v1
         displayName: Ceph Filesystem
         description: Represents a Ceph Filesystem.
+      - kind: CephRBDMirror
+        name: cephrbdmirrors.ceph.rook.io
+        version: v1
+        displayName: Ceph RBD Mirror
+        description: Represents a Ceph RBD Mirror.
   displayName: Rook-Ceph
   description: |
 
@@ -359,6 +364,22 @@ metadata:
               "resources": {}
             },
             "preservePoolsOnDelete": false
+          }
+        },
+        {
+          "apiVersion": "ceph.rook.io/v1",
+          "kind": "CephRBDMirror",
+          "metadata": {
+            "name": "my-rbd-mirror",
+            "namespace": "rook-ceph"
+          },
+          "spec": {
+            "annotations": null,
+            "count": 1,
+            "placement": {
+              "topologyKey": "kubernetes.io/hostname"
+            },
+            "resources": null
           }
         }
       ]
