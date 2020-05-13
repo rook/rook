@@ -123,6 +123,11 @@ spec:
         version: v1
         displayName: Ceph Client
         description: Represents a Ceph User.
+      - kind: CephFilesystem
+        name: cephfilesystems.ceph.rook.io
+        version: v1
+        displayName: Ceph Filesystem
+        description: Represents a Ceph Filesystem.
   displayName: Rook-Ceph
   description: |
 
@@ -289,7 +294,8 @@ metadata:
               "annotations": null,
               "resources": null
             }
-          },
+          }
+        },
         {
           "apiVersion": "ceph.rook.io/v1",
           "kind": "CephClient",
@@ -302,6 +308,57 @@ metadata:
               "mon": "profile rbd",
               "osd": "profile rbd pool=volumes, profile rbd pool=vms, profile rbd-read-only pool=images"
             }
+          }
+        },
+        {
+          "apiVersion": "ceph.rook.io/v1",
+          "kind": "CephFilesystem",
+          "metadata": {
+            "name": "myfs",
+            "namespace": "rook-ceph"
+          },
+          "spec": {
+            "dataPools": [
+              {
+                "compressionMode": "",
+                "crushRoot": "",
+                "deviceClass": "",
+                "erasureCoded": {
+                  "algorithm": "",
+                  "codingChunks": 0,
+                  "dataChunks": 0
+                },
+                "failureDomain": "host",
+                "replicated": {
+                  "requireSafeReplicaSize": false,
+                  "size": 1,
+                  "targetSizeRatio": 0.5
+                }
+              }
+            ],
+            "metadataPool": {
+              "compressionMode": "",
+              "crushRoot": "",
+              "deviceClass": "",
+              "erasureCoded": {
+                "algorithm": "",
+                "codingChunks": 0,
+                "dataChunks": 0
+              },
+              "failureDomain": "",
+              "replicated": {
+                "requireSafeReplicaSize": false,
+                "size": 1,
+                "targetSizeRatio": 0
+              }
+            },
+            "metadataServer": {
+              "activeCount": 1,
+              "activeStandby": true,
+              "placement": {},
+              "resources": {}
+            },
+            "preservePoolsOnDelete": false
           }
         }
       ]
