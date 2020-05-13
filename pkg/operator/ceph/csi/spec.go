@@ -417,6 +417,8 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, ownerRef)
+		antiAffinity := getPodAntiAffinity("app", "csi-rbdplugin-provisioner")
+		rbdProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		err = k8sutil.CreateDeployment("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner deployment: %+v", rbdProvisionerDeployment)
@@ -461,6 +463,8 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, ownerRef)
+		antiAffinity := getPodAntiAffinity("app", "csi-cephfsplugin-provisioner")
+		cephfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		err = k8sutil.CreateDeployment("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs provisioner deployment: %+v", cephfsProvisionerDeployment)
