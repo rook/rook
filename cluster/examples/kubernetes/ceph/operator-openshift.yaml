@@ -17,7 +17,7 @@ allowHostDirVolumePlugin: true
 priority:
 allowedCapabilities: []
 allowHostPorts: true
-allowHostPID: true
+allowHostPID: true # remove this once we drop support for Nautilus
 allowHostIPC: true
 readOnlyRootFilesystem: false
 requiredDropCapabilities: []
