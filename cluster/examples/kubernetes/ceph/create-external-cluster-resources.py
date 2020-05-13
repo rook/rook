@@ -57,7 +57,7 @@ class RadosJSON:
         argP.add_argument("--ceph-conf", "-c",
                           help="Provide a ceph conf file.", type=str)
         argP.add_argument("--run-as-user", "-u",
-                          help="Provides a user name to check the cluster's health status",
+                          help="Provides a user name to check the cluster's health status, must be prefixed by 'client.'",
                           default=cls.EXTERNAL_USER_NAME, type=str)
         argP.add_argument("--format", "-t", choices=["json", "bash"],
                           default='json', help="Provides the output format (json | bash)")
@@ -380,7 +380,6 @@ class RadosJSON:
                     "userID": 'csi-rbd-provisioner',
                     "userKey": self.out_map['CSI_RBD_PROVISIONER_SECRET']
                 },
-                "pool-name": self.out_map['RBD_POOL_NAME']
             },
             {
                 "name": "rook-csi-cephfs-node",
@@ -397,11 +396,24 @@ class RadosJSON:
                     "adminID": 'csi-cephfs-provisioner',
                     "adminKey": self.out_map['CSI_CEPHFS_PROVISIONER_SECRET']
                 },
-                "filesystem-name": self.out_map['CEPHFS_FS_NAME'],
-                "pool-name": self.out_map['CEPHFS_POOL_NAME']
             },
             {
-                "name": "rook-ceph-retain-bucket",
+                "name": "ceph-rbd",
+                "kind": "StorageClass",
+                "data": {
+                    "pool": self.out_map['RBD_POOL_NAME']
+                }
+            },
+            {
+                "name": "cephfs",
+                "kind": "StorageClass",
+                "data": {
+                    "fsName": self.out_map['CEPHFS_FS_NAME'],
+                    "pool": self.out_map['CEPHFS_POOL_NAME']
+                }
+            },
+            {
+                "name": "ceph-rgw",
                 "kind": "StorageClass",
                 "data": {
                     "endpoint": self.out_map['RGW_ENDPOINT']
