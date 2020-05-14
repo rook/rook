@@ -188,7 +188,8 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, nil
 		}
-		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v", request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReadyAfter.String(), err)
+		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
+			request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
 		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, nil
 	}
