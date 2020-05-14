@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 
@@ -145,7 +146,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 			assert.Equal(t, "create-replicated", args[3])
 			assert.Equal(t, "mypool", args[4])
 			if crushRoot == "" {
-				assert.Equal(t, "default", args[5])
+				assert.Equal(t, "cluster-crush-root", args[5])
 			} else {
 				assert.Equal(t, crushRoot, args[5])
 			}
@@ -171,7 +172,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	if compressionMode != "" {
 		p.CompressionMode = compressionMode
 	}
-	err := CreateReplicatedPoolForApp(context, AdminClusterInfo("mycluster"), "mypool", p, DefaultPGCount, "myapp")
+	err := CreateReplicatedPoolForApp(context, AdminClusterInfo("mycluster"), "mypool", p, DefaultPGCount, "myapp", cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}})
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
 	if compressionMode != "" {

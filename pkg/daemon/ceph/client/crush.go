@@ -24,7 +24,12 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+)
+
+const (
+	CrushRootConfigKey = "crushRoot"
 )
 
 // CrushMap is the go representation of a CRUSH map
@@ -149,6 +154,17 @@ func GetCrushHostName(context *clusterd.Context, clusterInfo *ClusterInfo, osdID
 // NormalizeCrushName replaces . with -
 func NormalizeCrushName(name string) string {
 	return strings.Replace(name, ".", "-", -1)
+}
+
+// Obtain the cluster-wide default crush root from the cluster spec
+func GetCrushRootFromSpec(c *cephv1.ClusterSpec) string {
+	if c.Storage.Config == nil {
+		return cephv1.DefaultCRUSHRoot
+	}
+	if v, ok := c.Storage.Config[CrushRootConfigKey]; ok {
+		return v
+	}
+	return cephv1.DefaultCRUSHRoot
 }
 
 // IsNormalizedCrushNameEqual returns true if normalized is either equal to or the normalized version of notNormalized

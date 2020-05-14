@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"gopkg.in/ini.v1"
@@ -42,6 +43,7 @@ const (
 	cvModeVarName                       = "ROOK_CV_MODE"
 	lvBackedPVVarName                   = "ROOK_LV_BACKED_PV"
 	CrushDeviceClassVarName             = "ROOK_OSD_CRUSH_DEVICE_CLASS"
+	CrushRootVarName                    = "ROOK_CRUSHMAP_ROOT"
 	tcmallocMaxTotalThreadCacheBytesEnv = "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES"
 )
 
@@ -69,6 +71,7 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 			},
 		}},
 		k8sutil.NodeEnvVar(),
+		{Name: CrushRootVarName, Value: client.GetCrushRootFromSpec(&c.spec)},
 	}
 
 	// Give a hint to the prepare pod for what the host in the CRUSH map should be

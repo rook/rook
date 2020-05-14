@@ -271,7 +271,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// CREATE/UPDATE
-	_, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName)
+	_, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName, cephCluster.Spec)
 	if err != nil {
 		return r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
 	}
@@ -284,7 +284,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName) (reconcile.Result, error) {
+func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName, cluster cephv1.ClusterSpec) (reconcile.Result, error) {
 	cfg := clusterConfig{
 		context:     r.context,
 		clusterInfo: r.clusterInfo,
@@ -351,7 +351,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		// Reconcile Pool Creation
 		if !cephObjectStore.Spec.IsMultisite() {
 			logger.Info("reconciling object store pools")
-			err = CreatePools(objContext, cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool)
+			err = CreatePools(objContext, cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool, cluster)
 			if err != nil {
 				return r.setFailedStatus(namespacedName, "failed to create object pools", err)
 			}

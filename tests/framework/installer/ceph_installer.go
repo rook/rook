@@ -276,6 +276,7 @@ osd_pool_default_size = 1
 	logger.Infof("Starting Rook Cluster with yaml")
 	settings := &clusterSettings{h.clusterName, namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, skipOSDCreation, cephVersion}
 	rookCluster := h.Manifests.GetRookCluster(settings)
+	logger.Info(rookCluster)
 	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 		return fmt.Errorf("Failed to create rook cluster : %v ", err)
 	}

@@ -246,7 +246,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// CREATE/UPDATE
-	reconcileResponse, err = r.reconcileCreatePool(clusterInfo, cephBlockPool)
+	reconcileResponse, err = r.reconcileCreatePool(clusterInfo, cephBlockPool, cephCluster.Spec)
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure, nil)
 		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
@@ -294,8 +294,8 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.ClusterInfo, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
-	err := createPool(r.context, clusterInfo, cephBlockPool)
+func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.ClusterInfo, cephBlockPool *cephv1.CephBlockPool, cluster cephv1.ClusterSpec) (reconcile.Result, error) {
+	err := createPool(r.context, clusterInfo, cephBlockPool, cluster)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
@@ -305,10 +305,10 @@ func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.Clu
 }
 
 // Create the pool
-func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.CephBlockPool) error {
+func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.CephBlockPool, cluster cephv1.ClusterSpec) error {
 	// create the pool
 	logger.Infof("creating pool %q in namespace %q", p.Name, p.Namespace)
-	if err := cephclient.CreatePoolWithProfile(context, clusterInfo, p.Name, p.Spec, poolApplicationNameRBD); err != nil {
+	if err := cephclient.CreatePoolWithProfile(context, clusterInfo, p.Name, p.Spec, poolApplicationNameRBD, cluster); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 

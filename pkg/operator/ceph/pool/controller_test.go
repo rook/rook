@@ -24,6 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -57,14 +58,14 @@ func TestCreatePool(t *testing.T) {
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
 
-	err := createPool(context, clusterInfo, p)
+	err := createPool(context, clusterInfo, p, cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{cephclient.CrushRootConfigKey: "cluster-crush-root"}}})
 	assert.Nil(t, err)
 
 	// succeed with EC
 	p.Spec.Replicated.Size = 0
 	p.Spec.ErasureCoded.CodingChunks = 1
 	p.Spec.ErasureCoded.DataChunks = 2
-	err = createPool(context, clusterInfo, p)
+	err = createPool(context, clusterInfo, p, cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{cephclient.CrushRootConfigKey: "cluster-crush-root"}}})
 	assert.Nil(t, err)
 }
 

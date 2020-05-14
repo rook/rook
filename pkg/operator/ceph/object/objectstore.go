@@ -605,7 +605,7 @@ func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) 
 	return nil
 }
 
-func CreatePools(context *Context, metadataPool, dataPool cephv1.PoolSpec) error {
+func CreatePools(context *Context, metadataPool, dataPool cephv1.PoolSpec, cluster cephv1.ClusterSpec) error {
 	if emptyPool(dataPool) && emptyPool(metadataPool) {
 		logger.Info("no pools specified for the CR, checking for their existence...")
 		pools := append(metadataPools, dataPoolName)
@@ -631,7 +631,7 @@ func CreatePools(context *Context, metadataPool, dataPool cephv1.PoolSpec) error
 		metadataPoolPGs = ceph.DefaultPGCount
 	}
 
-	if err := createSimilarPools(context, append(metadataPools, rootPool), metadataPool, metadataPoolPGs, ""); err != nil {
+	if err := createSimilarPools(context, append(metadataPools, rootPool), metadataPool, metadataPoolPGs, "", cluster); err != nil {
 		return errors.Wrap(err, "failed to create metadata pools")
 	}
 
@@ -644,14 +644,14 @@ func CreatePools(context *Context, metadataPool, dataPool cephv1.PoolSpec) error
 		}
 	}
 
-	if err := createSimilarPools(context, []string{dataPoolName}, dataPool, ceph.DefaultPGCount, ecProfileName); err != nil {
+	if err := createSimilarPools(context, []string{dataPoolName}, dataPool, ceph.DefaultPGCount, ecProfileName, cluster); err != nil {
 		return errors.Wrap(err, "failed to create data pool")
 	}
 
 	return nil
 }
 
-func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSpec, pgCount, ecProfileName string) error {
+func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSpec, pgCount, ecProfileName string, cluster cephv1.ClusterSpec) error {
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
 		name := poolName(context.Name, pool)
@@ -664,7 +664,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSp
 				// created with that property disabled to avoid unnecessary performance impact.
 				err = ceph.CreateECPoolForApp(context.Context, context.clusterInfo, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
 			} else {
-				err = ceph.CreateReplicatedPoolForApp(context.Context, context.clusterInfo, name, poolSpec, pgCount, AppName)
+				err = ceph.CreateReplicatedPoolForApp(context.Context, context.clusterInfo, name, poolSpec, pgCount, AppName, cluster)
 			}
 			if err != nil {
 				return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, context.Name)

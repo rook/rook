@@ -468,3 +468,54 @@ func TestOSDPlacement(t *testing.T) {
 	assert.Equal(t, 1, len(result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms))
 	assert.Equal(t, "label2", result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key)
 }
+
+func TestGetOSDInfoWithCustomRoot(t *testing.T) {
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	context := &clusterd.Context{}
+	spec := cephv1.ClusterSpec{
+		DataDirHostPath: "/rook",
+		Storage: rookv1.StorageScopeSpec{
+			Config: map[string]string{
+				"crushRoot": "custom-root",
+			},
+		},
+	}
+	c := New(context, clusterInfo, spec, "myversion")
+
+	node := "n1"
+	location := "root=custom-root host=myhost zone=myzone"
+	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
+	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true, Location: location}
+	osd3 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", Location: location}
+	osdProp := osdProperties{
+		crushHostname: node,
+		pvc:           v1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
+		selection:     rookv1.Selection{},
+		resources:     v1.ResourceRequirements{},
+		storeConfig:   config.StoreConfig{},
+	}
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, c.spec.DataDirHostPath),
+	}
+	d1, _ := c.makeDeployment(osdProp, osd1, dataPathMap)
+	osds1, _ := c.getOSDInfo(d1)
+	assert.Equal(t, 1, len(osds1))
+	assert.Equal(t, osd1.ID, osds1[0].ID)
+	assert.Equal(t, osd1.BlockPath, osds1[0].BlockPath)
+	assert.Equal(t, osd1.CVMode, osds1[0].CVMode)
+	assert.Equal(t, location, osds1[0].Location)
+
+	d2, _ := c.makeDeployment(osdProp, osd2, dataPathMap)
+	osds2, _ := c.getOSDInfo(d2)
+	assert.Equal(t, 1, len(osds2))
+	assert.Equal(t, osd2.ID, osds2[0].ID)
+	assert.Equal(t, osd2.BlockPath, osds2[0].BlockPath)
+	assert.Equal(t, osd2.CVMode, osds2[0].CVMode)
+	assert.Equal(t, osd2.LVBackedPV, osds2[0].LVBackedPV)
+	assert.Equal(t, location, osds2[0].Location)
+
+	d3, _ := c.makeDeployment(osdProp, osd3, dataPathMap)
+	osds3, err := c.getOSDInfo(d3)
+	assert.Equal(t, 0, len(osds3))
+	assert.NotNil(t, err)
+}

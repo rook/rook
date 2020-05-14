@@ -822,7 +822,7 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 	}
 
 	if !locationFound {
-		location, err := getLocationFromPod(c.context.Clientset, d)
+		location, err := getLocationFromPod(c.context.Clientset, d, client.GetCrushRootFromSpec(&c.spec))
 		if err != nil {
 			logger.Errorf("failed to get location. %v", err)
 		} else {
@@ -837,7 +837,7 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 	return []OSDInfo{osd}, nil
 }
 
-func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment) (string, error) {
+func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment, crushRoot string) (string, error) {
 	pods, err := clientset.CoreV1().Pods(d.Namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OsdIdLabelKey, d.Labels[OsdIdLabelKey])})
 	if err != nil || len(pods.Items) == 0 {
 		return "", err
@@ -854,10 +854,10 @@ func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment) (str
 			hostName = pvcName
 		}
 	}
-	return GetLocationWithNode(clientset, nodeName, hostName)
+	return GetLocationWithNode(clientset, nodeName, crushRoot, hostName)
 }
 
-func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushHostname string) (string, error) {
+func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushRoot, crushHostname string) (string, error) {
 
 	node, err := getNode(clientset, nodeName)
 	if err != nil {
@@ -876,7 +876,7 @@ func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushH
 	// Start with the host name in the CRUSH map
 	// Keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
 	hostName := client.NormalizeCrushName(crushHostname)
-	locArgs := []string{"root=default", fmt.Sprintf("host=%s", hostName)}
+	locArgs := []string{fmt.Sprintf("root=%s", crushRoot), fmt.Sprintf("host=%s", hostName)}
 
 	nodeLabels := node.GetLabels()
 	UpdateLocationWithNodeLabels(&locArgs, nodeLabels)
