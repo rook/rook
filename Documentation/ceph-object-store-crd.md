@@ -88,7 +88,7 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 The gateway settings correspond to the RGW daemon settings.
 
 * `type`: `S3` is supported
-* `sslCertificateRef`: If the certificate is not specified, SSL will not be configured. If specified, this is the name of the Kubernetes secret that contains the SSL certificate to be used for secure connections to the object store. Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be in the format expected by the [RGW service](http://docs.ceph.com/docs/master/install/install-ceph-gateway/#using-ssl-with-civetweb): "The server key, server certificate, and any other CA or intermediate certificates be supplied in one file. Each of these items must be in pem form."
+* `sslCertificateRef`: If the certificate is not specified, SSL will not be configured. If specified, this is the name of the Kubernetes secret that contains the SSL certificate to be used for secure connections to the object store. Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be in the format expected by the [RGW service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb): "The server key, server certificate, and any other CA or intermediate certificates be supplied in one file. Each of these items must be in pem form."
 * `port`: The port on which the RGW pods and the RGW service will be listening (not encrypted).
 * `securePort`: The secure port on which RGW pods will be listening. An SSL certificate must be specified.
 * `instances`: The number of pods that will be started to load balance this object store.

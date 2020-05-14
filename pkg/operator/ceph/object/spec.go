@@ -64,8 +64,6 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment 
 }
 
 func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec {
-	// Supplying ceph to FsGroup in SecurityContext of the pod
-	cephgid := int64(167)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			c.makeChownInitContainer(rgwConfig),
@@ -80,9 +78,6 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 		),
 		HostNetwork:       c.clusterSpec.Network.IsHost(),
 		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
-		SecurityContext: &v1.PodSecurityContext{
-			FSGroup: &cephgid,
-		},
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
@@ -90,7 +85,10 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 	// Set the ssl cert if specified
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
 		// Keep the SSL secret as secure as possible in the container. Give only user read perms.
-		userReadOnly := int32(0400)
+		// Because the Secret mount is owned by "root" and fsGroup breaks on OCP since we cannot predict it
+		// Also, we don't want to change the SCC for fsGroup to RunAsAny since it has a major broader impact
+		// Let's open the permissions a bit more so that everyone can read the cert.
+		userReadOnly := int32(0444)
 		certVol := v1.Volume{
 			Name: certVolumeName,
 			VolumeSource: v1.VolumeSource{
