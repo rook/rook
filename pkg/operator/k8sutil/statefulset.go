@@ -25,7 +25,7 @@ import (
 )
 
 // create a apps.statefulset
-func CreateStatefulSet(name, namespace string, clientset kubernetes.Interface, ss *apps.StatefulSet) error {
+func CreateStatefulSet(clientset kubernetes.Interface, name, namespace string, ss *apps.StatefulSet) error {
 	_, err := clientset.AppsV1().StatefulSets(namespace).Create(ss)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
