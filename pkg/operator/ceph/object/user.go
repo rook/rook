@@ -81,6 +81,8 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 	if len(user.Keys) > 0 {
 		rookUser.AccessKey = &user.Keys[0].AccessKey
 		rookUser.SecretKey = &user.Keys[0].SecretKey
+	} else {
+		return nil, RGWErrorBadData, errors.New("AccessKey and SecretKey are missing")
 	}
 
 	return &rookUser, RGWErrorNone, nil
