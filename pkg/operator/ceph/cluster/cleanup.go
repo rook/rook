@@ -49,9 +49,9 @@ var (
 	monitorSecret   = "ROOK_MON_SECRET"
 )
 
-func (c *ClusterController) startClusterCleanUp(cluster *cephv1.CephCluster, cephHosts []string, monSecret string) {
+func (c *ClusterController) startClusterCleanUp(stopCleanupCh chan struct{}, cluster *cephv1.CephCluster, cephHosts []string, monSecret string) {
 	logger.Infof("starting clean up for cluster %q", cluster.Name)
-	err := c.waitForCephDaemonCleanUp(cluster, time.Duration(clusterCleanUpPolicyRetryInterval)*time.Second)
+	err := c.waitForCephDaemonCleanUp(stopCleanupCh, cluster, time.Duration(clusterCleanUpPolicyRetryInterval)*time.Second)
 	if err != nil {
 		logger.Errorf("failed to wait till ceph daemons are destroyed. %v", err)
 		return
@@ -129,25 +129,28 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 	return podSpec
 }
 
-func (c *ClusterController) waitForCephDaemonCleanUp(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
+func (c *ClusterController) waitForCephDaemonCleanUp(stopCleanupCh chan struct{}, cluster *cephv1.CephCluster, retryInterval time.Duration) error {
 	logger.Infof("waiting for all the ceph daemons to be cleaned up in the cluster %q", cluster.Namespace)
 	for {
-		cephHosts, err := c.getCephHosts(cluster.Namespace)
-		if err != nil {
-			return errors.Wrap(err, "failed to list ceph daemon nodes")
-		}
+		select {
+		case <-time.After(retryInterval):
+			cephHosts, err := c.getCephHosts(cluster.Namespace)
+			if err != nil {
+				return errors.Wrap(err, "failed to list ceph daemon nodes")
+			}
 
-		if len(cephHosts) == 0 {
-			logger.Info("all ceph daemons are cleaned up")
+			if len(cephHosts) == 0 {
+				logger.Info("all ceph daemons are cleaned up")
+				return nil
+			}
+
+			logger.Debugf("waiting for ceph daemons in cluster %q to be cleaned up. Retrying in %q",
+				cluster.Namespace, retryInterval.String())
 			break
+		case <-stopCleanupCh:
+			return errors.New("cancelling the host cleanup job")
 		}
-
-		logger.Debugf("waiting for ceph daemons in cluster %q to be cleaned up. Retrying in %q",
-			cluster.Namespace, retryInterval.String())
-		<-time.After(retryInterval)
 	}
-
-	return nil
 }
 
 func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
