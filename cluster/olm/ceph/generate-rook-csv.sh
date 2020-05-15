@@ -5,6 +5,8 @@ set -e
 # INIT VARIABLES #
 ##################
 OLM_CATALOG_DIR=cluster/olm/ceph
+CEPH_EXAMPLES_DIR="cluster/examples/kubernetes/ceph"
+
 CSV_PATH="$OLM_CATALOG_DIR/deploy/olm-catalog"
 ASSEMBLE_FILE_COMMON="$OLM_CATALOG_DIR/assemble/metadata-common.yaml"
 ASSEMBLE_FILE_K8S="$OLM_CATALOG_DIR/assemble/metadata-k8s.yaml"
@@ -83,9 +85,9 @@ YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --append)
 YQ_CMD_MERGE=($yq merge --inplace --append)
 YQ_CMD_WRITE=($yq write --inplace)
 OP_SDK_CMD=($operator_sdk olm-catalog gen-csv --csv-version)
-OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
-OPERATOR_YAML_FILE_OCP="cluster/examples/kubernetes/ceph/operator-openshift.yaml"
-COMMON_YAML_FILE="cluster/examples/kubernetes/ceph/common.yaml"
+OPERATOR_YAML_FILE_K8S="$CEPH_EXAMPLES_DIR/operator.yaml"
+OPERATOR_YAML_FILE_OCP="$CEPH_EXAMPLES_DIR/operator-openshift.yaml"
+COMMON_YAML_FILE="$CEPH_EXAMPLES_DIR/common.yaml"
 OLM_OPERATOR_YAML_FILE="$OLM_CATALOG_DIR/deploy/operator.yaml"
 OLM_ROLE_YAML_FILE="$OLM_CATALOG_DIR/deploy/role.yaml"
 OLM_ROLE_BINDING_YAML_FILE="$OLM_CATALOG_DIR/deploy/role_binding.yaml"
@@ -98,7 +100,7 @@ CEPH_FILESYSTEMS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephfilesystems
 CEPH_NFS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephnfses.crd.yaml"
 CEPH_CLIENT_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephclients.crd.yaml"
 CEPH_RBD_MIRROR_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/rookcephrbdmirrors.crd.yaml"
-CEPH_EXTERNAL_SCRIPT_FILE="cluster/examples/kubernetes/ceph/create-external-cluster-resources.py"
+CEPH_EXTERNAL_SCRIPT_FILE="$CEPH_EXAMPLES_DIR/create-external-cluster-resources.py"
 
 #############
 # FUNCTIONS #
