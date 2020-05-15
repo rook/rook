@@ -269,18 +269,21 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 			monSecret, err := r.clusterController.getMonSecret(cephCluster.Namespace)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "failed to get mon secret, no cleanup")
-
 			}
 			cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
-
 			}
 			go r.clusterController.startClusterCleanUp(cephCluster, cephHosts, monSecret)
 		}
 
 		// Run delete sequence
-		r.clusterController.onDelete(cephCluster)
+		response, ok := r.clusterController.requestClusterDelete(cephCluster)
+		if !ok {
+			// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
+			// will eventually be satisfied such as the volumes being removed
+			return response, nil
+		}
 
 		// Remove finalizer
 		err = removeFinalizer(r.client, request.NamespacedName)
@@ -348,21 +351,22 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.Ow
 	c.initializeCluster(cluster, clusterObj)
 }
 
-func (c *ClusterController) onDelete(cluster *cephv1.CephCluster) {
+func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (reconcile.Result, bool) {
 	config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Cluster is deleting")
 
 	if existing, ok := c.clusterMap[cluster.Namespace]; ok && existing.crdName != cluster.Name {
 		logger.Errorf("skipping deletion of cluster cr %q in namespace %q. cluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
 			cluster.Name, cluster.Namespace, existing.crdName)
-		return
+		return reconcile.Result{}, true
 	}
 
 	logger.Infof("delete event for cluster %q in namespace %q", cluster.Name, cluster.Namespace)
 
-	err := c.handleDelete(cluster, time.Duration(clusterDeleteRetryInterval)*time.Second)
+	err := c.checkIfVolumesExist(cluster)
 	if err != nil {
 		config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to delete cluster")
-		logger.Errorf("failed to delete cluster. %v", err)
+		logger.Errorf("cannot delete cluster. %v", err)
+		return opcontroller.WaitForRequeueIfFinalizerBlocked, false
 	}
 
 	if cluster, ok := c.clusterMap[cluster.Namespace]; ok {
@@ -372,106 +376,72 @@ func (c *ClusterController) onDelete(cluster *cephv1.CephCluster) {
 
 	// Only valid when the cluster is not external
 	if cluster.Spec.External.Enable {
-		err := purgeExternalCluster(c.context.Clientset, cluster.Namespace)
-		if err != nil {
-			config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to purge external cluster resources")
-			logger.Errorf("failed to purge external cluster resources. %v", err)
-		}
-		return
+		purgeExternalCluster(c.context.Clientset, cluster.Namespace)
+		return reconcile.Result{}, true
 	}
 
-	return
+	return reconcile.Result{}, true
 }
 
-func (c *ClusterController) handleDelete(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
+func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) error {
 	if csi.CSIEnabled() {
-		err := c.waitForCSIVolumeCleanup(cluster, retryInterval)
+		err := c.csiVolumesAllowForDeletion(cluster)
 		if err != nil {
-			return errors.Wrap(err, "failed to wait for the csi volume cleanup")
+			return err
 		}
 	}
-	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	flexDriverEnabled := os.Getenv(enableFlexDriver) != "false"
 	if !flexDriverEnabled {
-		logger.Debugf("Flex driver disabled: no volume attachments for cluster %q (operator namespace: %q)",
-			cluster.Namespace, operatorNamespace)
+		logger.Debugf("Flex driver disabled, skipping check for volume attachments for cluster %q", cluster.Namespace)
 		return nil
 	}
-	err := c.waitForFlexVolumeCleanup(cluster, operatorNamespace, retryInterval)
-	return err
+	return c.flexVolumesAllowForDeletion(cluster)
 }
 
-func (c *ClusterController) waitForFlexVolumeCleanup(cluster *cephv1.CephCluster, operatorNamespace string, retryInterval time.Duration) error {
-	retryCount := 0
-	for {
-		// TODO: filter this List operation by cluster namespace on the server side
-		vols, err := c.volumeAttachment.List(operatorNamespace)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get volume attachments for operator namespace %q", operatorNamespace)
-		}
+func (c *ClusterController) flexVolumesAllowForDeletion(cluster *cephv1.CephCluster) error {
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	vols, err := c.volumeAttachment.List(operatorNamespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get volume attachments for operator namespace %q", operatorNamespace)
+	}
 
-		// find volume attachments in the deleted cluster
-		attachmentsExist := false
-	AttachmentLoop:
-		for _, vol := range vols.Items {
-			for _, a := range vol.Attachments {
-				if a.ClusterName == cluster.Namespace {
-					// there is still an outstanding volume attachment in the cluster that is being deleted.
-					attachmentsExist = true
-					break AttachmentLoop
-				}
+	// find volume attachments in the deleted cluster
+	attachmentsExist := false
+AttachmentLoop:
+	for _, vol := range vols.Items {
+		for _, a := range vol.Attachments {
+			if a.ClusterName == cluster.Namespace {
+				// there is still an outstanding volume attachment in the cluster that is being deleted.
+				attachmentsExist = true
+				break AttachmentLoop
 			}
 		}
-
-		if !attachmentsExist {
-			logger.Infof("no volume attachments for cluster %q to clean up.", cluster.Namespace)
-			break
-		}
-
-		retryCount++
-		if retryCount == clusterDeleteMaxRetries {
-			logger.Warningf(
-				"exceeded retry count while waiting for volume attachments for cluster %q to be cleaned up. vols: %+v",
-				cluster.Namespace,
-				vols.Items)
-			break
-		}
-
-		logger.Infof("waiting for volume attachments in cluster %q to be cleaned up. Retrying in %q.",
-			cluster.Namespace, retryInterval.String())
-		<-time.After(retryInterval)
 	}
-	return nil
+
+	if !attachmentsExist {
+		logger.Infof("no volume attachments for cluster %q to clean up.", cluster.Namespace)
+		return nil
+	}
+
+	return errors.Errorf("waiting for volume attachments in cluster %q to be cleaned up.", cluster.Namespace)
 }
 
-func (c *ClusterController) waitForCSIVolumeCleanup(cluster *cephv1.CephCluster, retryInterval time.Duration) error {
-	retryCount := 0
+func (c *ClusterController) csiVolumesAllowForDeletion(cluster *cephv1.CephCluster) error {
 	drivers := []string{csi.CephFSDriverName, csi.RBDDriverName}
-	for {
-		logger.Infof("checking any PVC created by drivers %q and %q with clusterID %q", csi.CephFSDriverName, csi.RBDDriverName, cluster.Namespace)
-		// check any PV is created in this cluster
-		attachmentsExist, err := c.checkPVPresentInCluster(drivers, cluster.Namespace)
-		if err != nil {
-			return errors.Wrapf(err, "failed to list PersistentVolumes")
-		}
-		// no PVC created in this cluster
-		if !attachmentsExist {
-			logger.Infof("no volume attachments for cluster %q", cluster.Namespace)
-			break
-		}
 
-		retryCount++
-		if retryCount == clusterDeleteMaxRetries {
-			logger.Warningf(
-				"exceeded retry count while waiting for volume attachments for cluster %s to be cleaned up", cluster.Namespace)
-			break
-		}
-
-		logger.Infof("waiting for volume attachments in cluster %q to be cleaned up. Retrying in %q",
-			cluster.Namespace, retryInterval.String())
-		<-time.After(retryInterval)
+	logger.Infof("checking any PVC created by drivers %q and %q with clusterID %q", csi.CephFSDriverName, csi.RBDDriverName, cluster.Namespace)
+	// check any PV is created in this cluster
+	attachmentsExist, err := c.checkPVPresentInCluster(drivers, cluster.Namespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to list PersistentVolumes")
 	}
-	return nil
+	// no PVC created in this cluster
+	if !attachmentsExist {
+		logger.Infof("no volume attachments for cluster %q", cluster.Namespace)
+		return nil
+	}
+
+	return errors.Errorf("waiting for csi volume attachments in cluster %q to be cleaned up", cluster.Namespace)
 }
 
 func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID string) (bool, error) {

@@ -19,7 +19,6 @@ package cluster
 import (
 	"os"
 	"testing"
-	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -91,11 +90,12 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 	// create the cluster controller and tell it that the cluster has been deleted
 	controller := NewClusterController(context, "", volumeAttachmentController, operatorConfigCallbacks, addCallbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
-	controller.handleDelete(clusterToDelete, time.Microsecond)
 
-	// listing of volume attachments should have been called twice.  the first time there were volume attachments
-	// that the controller needed to wait on to be cleaned up and the second time they were all cleaned up.
-	assert.Equal(t, 2, listCount)
+	// The test returns a volume on the first call
+	assert.Error(t, controller.checkIfVolumesExist(clusterToDelete))
+
+	// The test does not return volumes on the second call
+	assert.NoError(t, controller.checkIfVolumesExist(clusterToDelete))
 }
 
 func TestClusterDeleteFlexDisabled(t *testing.T) {
@@ -137,7 +137,7 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 	// create the cluster controller and tell it that the cluster has been deleted
 	controller := NewClusterController(context, "", volumeAttachmentController, operatorConfigCallbacks, addCallbacks)
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
-	controller.handleDelete(clusterToDelete, time.Microsecond)
+	assert.NoError(t, controller.checkIfVolumesExist(clusterToDelete))
 
 	// Ensure that the listing of volume attachments was never called.
 	assert.Equal(t, 0, listCount)

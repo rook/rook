@@ -144,7 +144,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	return nil
 }
 
-func purgeExternalCluster(clientset kubernetes.Interface, namespace string) error {
+func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
 	// Purge the config maps
 	cmsToDelete := []string{
 		mon.EndpointConfigMapName,
@@ -173,8 +173,6 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) erro
 			logger.Errorf("failed to delete secret %q. %v", secret, err)
 		}
 	}
-
-	return nil
 }
 
 func validateExternalClusterSpec(cluster *cluster) error {
