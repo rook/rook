@@ -362,6 +362,12 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 
 	logger.Infof("delete event for cluster %q in namespace %q", cluster.Name, cluster.Namespace)
 
+	if cluster, ok := c.clusterMap[cluster.Namespace]; ok && !cluster.closedStopCh {
+		// close the goroutines watching the health of the cluster (mons, osds, ceph status, etc)
+		close(cluster.stopCh)
+		cluster.closedStopCh = true
+	}
+
 	err := c.checkIfVolumesExist(cluster)
 	if err != nil {
 		config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to delete cluster")
@@ -370,7 +376,6 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 	}
 
 	if cluster, ok := c.clusterMap[cluster.Namespace]; ok {
-		close(cluster.stopCh)
 		delete(c.clusterMap, cluster.Namespace)
 	}
 

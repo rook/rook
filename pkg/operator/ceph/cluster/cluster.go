@@ -56,6 +56,7 @@ type cluster struct {
 	mons                 *mon.Cluster
 	initCompleted        bool
 	stopCh               chan struct{}
+	closedStopCh         bool
 	ownerRef             metav1.OwnerReference
 	orchestrationRunning bool
 	orchestrationNeeded  bool
