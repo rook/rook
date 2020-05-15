@@ -100,6 +100,11 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 	return o
 }
 
+func (o *Operator) cleanup(stopCh chan struct{}) {
+	close(stopCh)
+	o.clusterController.StopWatch()
+}
+
 // Run the operator instance
 func (o *Operator) Run() error {
 
@@ -149,7 +154,8 @@ func (o *Operator) Run() error {
 	}
 
 	// Start the controller-runtime Manager.
-	go o.startManager(namespaceToWatch, stopChan)
+	mgrErrorChan := make(chan error)
+	go o.startManager(namespaceToWatch, stopChan, mgrErrorChan)
 
 	// Start the operator setting watcher
 	go o.clusterController.StartOperatorSettingsWatch(namespaceToWatch, stopChan)
@@ -159,9 +165,12 @@ func (o *Operator) Run() error {
 		select {
 		case <-signalChan:
 			logger.Info("shutdown signal received, exiting...")
-			close(stopChan)
-			o.clusterController.StopWatch()
+			o.cleanup(stopChan)
 			return nil
+		case err := <-mgrErrorChan:
+			logger.Errorf("gave up to run the operator. %v", err)
+			o.cleanup(stopChan)
+			return err
 		}
 	}
 }
