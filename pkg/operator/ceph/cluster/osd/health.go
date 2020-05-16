@@ -62,7 +62,7 @@ func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
 			logger.Debug("Checking osd processes status.")
 			err := m.checkOSDHealth()
 			if err != nil {
-				logger.Warningf("failed OSD status check. %v", err)
+				logger.Debugf("failed OSD status check. %v", err)
 			}
 
 		case <-stopCh:
