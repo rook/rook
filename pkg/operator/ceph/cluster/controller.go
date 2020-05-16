@@ -303,7 +303,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 	// Do reconcile here!
 	if err := r.clusterController.onAdd(cephCluster, ref); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name))
+		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
 	}
 
 	// Return and do not requeue

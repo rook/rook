@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -88,12 +87,8 @@ func TestOSDHealthCheck(t *testing.T) {
 	dp, _ := context.Clientset.AppsV1().Deployments(cluster).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", OsdIdLabelKey, 0)})
 	assert.Equal(t, 1, len(dp.Items))
 
-	cephVersion := cephver.CephVersion{
-		Major: 14,
-	}
-
 	// Initializing an OSD monitoring
-	osdMon := NewOSDHealthMonitor(context, cluster, true, cephVersion)
+	osdMon := NewOSDHealthMonitor(context, cluster, true)
 
 	// Run OSD monitoring routine
 	err := osdMon.checkOSDHealth()
@@ -107,12 +102,8 @@ func TestOSDHealthCheck(t *testing.T) {
 }
 
 func TestMonitorStart(t *testing.T) {
-	cephVersion := cephver.CephVersion{
-		Major: 14,
-	}
-
 	stopCh := make(chan struct{})
-	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, "cluster", true, cephVersion)
+	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, "cluster", true)
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(stopCh)
 	close(stopCh)
@@ -140,7 +131,7 @@ func TestOSDRestartIfStuck(t *testing.T) {
 	_, err := context.Clientset.CoreV1().Pods(namespace).Create(pod)
 	assert.NoError(t, err)
 
-	m := NewOSDHealthMonitor(context, namespace, false, cephver.CephVersion{})
+	m := NewOSDHealthMonitor(context, namespace, false)
 
 	podList := &v1.PodList{Items: []v1.Pod{*pod}}
 	assert.NoError(t, m.restartOSDPodsIfStuck(0, podList))
