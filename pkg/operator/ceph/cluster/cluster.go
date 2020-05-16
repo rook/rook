@@ -191,13 +191,17 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		}
 	}
 
+	// The Ceph user the operator will use for management
+	cephUser := client.AdminUsername
+
 	// Depending on the cluster type choose the correct orchestation
 	if cluster.Spec.External.Enable {
 		err := c.configureExternalCephCluster(cluster)
 		if err != nil {
 			config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Failed to configure external ceph cluster")
-			return errors.Wrapf(err, "failed to configure external ceph cluster. %v")
+			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
+		cephUser = cluster.Info.ExternalCred.Username
 	} else {
 		// If the local cluster has already been configured, immediately start monitoring the cluster.
 		// Test if the cluster has already been configured if the mgr deployment has been created.
@@ -205,12 +209,12 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
 		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(opts)
 		if err == nil && len(mgrDeployments.Items) > 0 {
-			c.startClusterMonitoring(cluster)
+			c.startClusterMonitoring(cluster, cephUser)
 		}
 
-		err := c.configureLocalCephCluster(cluster, clusterObj)
+		err = c.configureLocalCephCluster(cluster, clusterObj)
 		if err != nil {
-			return errors.Wrapf(err, "failed to configure local ceph cluster. %v", err)
+			return errors.Wrap(err, "failed to configure local ceph cluster")
 		}
 	}
 
@@ -218,40 +222,27 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	cluster.mons.ClusterInfo = cluster.Info
 
 	// Start the monitoring if not already started
-	c.startClusterMonitoring(cluster)
+	c.startClusterMonitoring(cluster, cephUser)
+	return nil
 }
 
-func (c *ClusterController) startClusterMonitoring(cluster *cluster) error {
+func (c *ClusterController) startClusterMonitoring(cluster *cluster, cephUser string) {
 	if cluster.monitoringActivated == true {
 		// the cluster monitoring goroutines are already running
-		logger.Infof("cluster is already being monitored")
-		return nil
-	}
-
-	if cluster.Info == nil {
-		clusterInfo, _, _, err := mon.CreateOrLoadClusterInfo(c.context, cluster.Namespace, nil)
-		if err != nil {
-			return errors.Wrapf(err, "failed to start osd monitoring")
-		}
-		cluster.Info = clusterInfo
-		logger.Infof("cluster info loaded for monitoring: %+v", clusterInfo)
+		logger.Debugf("cluster is already being monitored for cluster %q", cluster.Namespace)
+		return
 	}
 
 	// enable the cluster monitoring goroutines once
-	logger.Infof("enabling cluster monitoring goroutines")
+	logger.Infof("enabling cluster monitoring goroutines for cluster %q", cluster.Namespace)
 	cluster.monitoringActivated = true
 
 	// Start client CRD watcher
 	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
 	clientController.StartWatch(cluster.stopCh)
 
-	clientToUse := client.AdminUsername
-	if cluster.Spec.External.Enable {
-		clientToUse = cluster.Info.ExternalCred.Username
-	}
-
 	// Start the object bucket provisioner
-	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace, clientToUse)
+	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace, cephUser)
 	// If cluster is external, pass down the user to the bucket controller
 
 	// note: the error return below is ignored and is expected to be removed from the
@@ -270,10 +261,8 @@ func (c *ClusterController) startClusterMonitoring(cluster *cluster) error {
 	}
 
 	// Start the ceph status checker
-	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cluster.mons.ClusterInfo.ExternalCred, c.namespacedName)
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cephUser, c.namespacedName)
 	go cephChecker.checkCephStatus(cluster.stopCh)
-
-	return nil
 }
 
 func (c *ClusterController) configureLocalCephCluster(cluster *cluster, clusterObj *cephv1.CephCluster) error {

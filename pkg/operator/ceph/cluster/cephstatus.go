@@ -26,7 +26,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/daemon/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -44,18 +43,18 @@ type cephStatusChecker struct {
 	context        *clusterd.Context
 	resourceName   string
 	interval       time.Duration
-	externalCred   config.ExternalCred
+	cephUser       string
 	client         client.Client
 	namespacedName types.NamespacedName
 }
 
 // newCephStatusChecker creates a new HealthChecker object
-func newCephStatusChecker(context *clusterd.Context, resourceName string, externalCred config.ExternalCred, namespacedName types.NamespacedName) *cephStatusChecker {
+func newCephStatusChecker(context *clusterd.Context, resourceName string, cephUser string, namespacedName types.NamespacedName) *cephStatusChecker {
 	c := &cephStatusChecker{
 		context:        context,
 		resourceName:   resourceName,
 		interval:       defaultStatusCheckInterval,
-		externalCred:   externalCred,
+		cephUser:       cephUser,
 		client:         context.Client,
 		namespacedName: namespacedName,
 	}
@@ -95,19 +94,8 @@ func (c *cephStatusChecker) checkStatus() {
 
 	logger.Debugf("checking health of cluster")
 
-	// Set the user health check to the admin user
-	healthCheckUser := cephclient.AdminUsername
-
-	// This is an external cluster OR if the admin keyring is not present
-	// As of 1.3 an external cluster is deployed it uses a different user to check ceph's status
-	if c.externalCred.Username != "" && c.externalCred.Secret != "" {
-		if c.externalCred.Username != cephclient.AdminUsername {
-			healthCheckUser = c.externalCred.Username
-		}
-	}
-
 	// Check ceph's status
-	status, err = cephclient.StatusWithUser(c.context, c.namespacedName.Namespace, healthCheckUser)
+	status, err = cephclient.StatusWithUser(c.context, c.namespacedName.Namespace, c.cephUser)
 	if err != nil {
 		logger.Errorf("failed to get ceph status. %v", err)
 		return
