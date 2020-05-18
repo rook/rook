@@ -460,7 +460,7 @@ func (c *ClusterController) configureLocalCephCluster(namespace, name string, cl
 				logger.Errorf(failedMessage)
 				if !canRetry {
 					// it may seem strange to exit true but we don't want to retry if the version is not supported
-					return true, nil
+					return true, err
 				}
 				return false, nil
 			}
