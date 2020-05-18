@@ -315,11 +315,11 @@ func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSp
 					}
 				}
 			}
-			if pgCount != ceph.DefaultPGCount {
-				err = ceph.SetPoolProperty(context.Context, context.ClusterName, name, "pg_num_min", pgCount)
-				if err != nil {
-					return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
-				}
+		}
+		// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count
+		if pgCount != ceph.DefaultPGCount {
+			if err := ceph.SetPoolProperty(context.Context, context.ClusterName, name, "pg_num_min", pgCount); err != nil {
+				return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
 			}
 		}
 	}
