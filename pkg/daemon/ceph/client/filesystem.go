@@ -25,7 +25,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -178,70 +177,14 @@ func IsMultiFSEnabled() bool {
 }
 
 // SetNumMDSRanks sets the number of mds ranks (max_mds) for a Ceph filesystem.
-func SetNumMDSRanks(context *clusterd.Context, cephVersion cephver.CephVersion, clusterName, fsName string, activeMDSCount int32) error {
-	// Noted sections 1 and 2 are necessary for reducing max_mds.
-	//   See more:   [1] http://docs.ceph.com/docs/nautilus/cephfs/upgrading/
-	//               [2] https://tracker.ceph.com/issues/23172
-
-	// * Noted section 1 - See note at top of function
-	fsAtStart, errAtStart := GetFilesystem(context, clusterName, fsName)
-	// collect information now, but don't check error yet
-	// * End of Noted section 1
+func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activeMDSCount int32) error {
 
 	// Always tell Ceph to set the new max_mds value
 	args := []string{"fs", "set", fsName, "max_mds", strconv.Itoa(int(activeMDSCount))}
 	if _, err := NewCephCommand(context, clusterName, args).Run(); err != nil {
 		return errors.Wrapf(err, "failed to set filesystem %s num mds ranks (max_mds) to %d", fsName, activeMDSCount)
 	}
-
-	// ** Noted section 2 - See note at top of function
-	// Now check the error to see if we can even determine whether we should reduce or not
-	if errAtStart != nil {
-		return errors.Wrapf(errAtStart, `failed to get filesystem %s info needed to ensure mds rank can be changed correctly,
-if num active mdses (max_mds) was lowered, USER should deactivate extra active mdses manually`,
-			fsName)
-	}
-	if int(activeMDSCount) > fsAtStart.MDSMap.MaxMDS {
-		return nil // No need to deactivate mdses if we are raising max_mds
-	}
-	logger.Debugf("deactivating some running mdses for filesystem %s", fsName)
-	// Deactivate all mdses except desired number (N); arbitrarily choose first N to live
-	fs, err := GetFilesystem(context, clusterName, fsName)
-	if err != nil {
-		logger.Warningf(
-			fmt.Sprintf("Failed to get filesystem %s info needed to deactivate running mdses. ", fsName) +
-				"using slightly stale info, this could (rarely) result in momentary loss of filesystem availability" +
-				fmt.Sprintf(": %v", err),
-		)
-		fs = fsAtStart // <-- Do the best we can to disable mdses that were active when we started
-		// Effects of stale info should be non-destructive, & unlikely the info is actually bad
-	}
-	// Deactivate any mdses with a higher rank than the desired max rank
-	// Ceph only allows mdses to be deactivated in reverse order starting with the highest rank
-	for gid := int(len(fs.MDSMap.In)) - 1; gid >= int(activeMDSCount); gid-- {
-		if err := deactivateMdsWithRetry(context, gid, clusterName, fsName); err != nil {
-			logger.Warningf("in luminous this is non-ideal but not necessarily critical: %v", err)
-		}
-	}
-	// ** End of noted section 2
-
 	return nil
-}
-
-func deactivateMdsWithRetry(context *clusterd.Context, mdsGid int, namespace, fsName string) error {
-	retries := 10
-	retrySleep := 5 * time.Second
-	var err error
-	for i := 1; i <= retries; i++ {
-		args := []string{"mds", "deactivate", fmt.Sprintf("%s:%d", fsName, mdsGid)}
-		if _, err = NewCephCommand(context, namespace, args).Run(); err == nil {
-			logger.Infof("successfully disabled mds with rank %d on attempt %d", mdsGid, i)
-			return nil
-		}
-		time.Sleep(retrySleep)
-	}
-	// report most recent error with additional err info
-	return errors.Wrapf(err, "failed to deactivate mds w/ gid %d for filesystem %q", mdsGid, fsName)
 }
 
 // WaitForActiveRanks waits for the filesystem's number of active ranks to equal the desired count.
