@@ -254,6 +254,28 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			}
 		}
 
+		if bucket.Owner == p.cephUserName {
+			statement := NewPolicyStatement().
+				WithSID(p.cephUserName).
+				ForPrincipals(p.cephUserName).
+				ForResources(p.bucketName).
+				ForSubResources(p.bucketName).
+				Denies().
+				Actions(AllowedActions...)
+			if policy == nil {
+				policy = NewBucketPolicy(*statement)
+			} else {
+				policy = policy.ModifyBucketPolicy(*statement)
+			}
+			out, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+			logger.Infof("PutBucketPolicy output: %v", out)
+			if err != nil {
+				return errors.Wrap(err, "failed to update policy")
+			} else {
+				return nil
+			}
+		}
+
 		// drop policy if present
 		if policy != nil {
 			policy = policy.DropPolicyStatements(p.cephUserName)
