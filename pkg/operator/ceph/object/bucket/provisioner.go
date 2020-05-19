@@ -94,11 +94,13 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	if err != nil {
 		err = errors.Wrapf(err, "error creating bucket %q", p.bucketName)
 		logger.Errorf(err.Error())
+		p.deleteOBCResource("")
 		return nil, err
 	}
 
 	_, errCode, err := cephObject.SetQuotaUserBucketMax(p.objectContext, p.cephUserName, maxBuckets)
 	if errCode > 0 {
+		p.deleteOBCResource(p.bucketName)
 		return nil, err
 	}
 	logger.Infof("set user %q bucket max to %d", p.cephUserName, maxBuckets)
@@ -131,21 +133,25 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	// need to quota into -1 for restricting creation of new buckets in rgw
 	_, _, err = cephObject.SetQuotaUserBucketMax(p.objectContext, p.cephUserName, -1)
 	if err != nil {
+		p.deleteOBCResource("")
 		return nil, err
 	}
 
 	// get the bucket's owner via the bucket metadata
 	stats, _, err := cephObject.GetBucket(p.objectContext, p.bucketName)
 	if err != nil {
+		p.deleteOBCResource("")
 		return nil, errors.Wrapf(err, "could not get bucket stats (bucket: %s)", p.bucketName)
 	}
 	objectUser, _, err := cephObject.GetUser(p.objectContext, stats.Owner)
 	if err != nil {
+		p.deleteOBCResource("")
 		return nil, errors.Wrapf(err, "could not get user (user: %s)", stats.Owner)
 	}
 
 	s3svc, err := NewS3Agent(*objectUser.AccessKey, *objectUser.SecretKey, p.getObjectStoreEndpoint())
 	if err != nil {
+		p.deleteOBCResource("")
 		return nil, err
 	}
 
@@ -154,6 +160,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() != "NoSuchBucketPolicy" {
+				p.deleteOBCResource("")
 				return nil, err
 			}
 		}
@@ -175,6 +182,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	logger.Infof("PutBucketPolicy output: %v", out)
 	if err != nil {
+		p.deleteOBCResource("")
 		return nil, err
 	}
 	// returned ob with connection info
