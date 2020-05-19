@@ -184,7 +184,6 @@ var AllowedActions = []action{
 	GetBucketLocation,
 	GetBucketLogging,
 	GetBucketNotification,
-	GetBucketPolicy,
 	GetBucketTagging,
 	GetBucketVersioning,
 	GetBucketWebsite,
