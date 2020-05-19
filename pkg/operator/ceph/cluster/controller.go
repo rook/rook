@@ -304,7 +304,9 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Do reconcile here!
-	r.clusterController.onAdd(cephCluster, ref)
+	if err := r.clusterController.onAdd(cephCluster, ref); err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
+	}
 
 	// Return and do not requeue
 	return reconcile.Result{}, nil
@@ -323,10 +325,10 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 	}
 }
 
-func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.OwnerReference) {
+func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.OwnerReference) error {
 	if hasCleanupPolicy(clusterObj) {
 		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
-		return
+		return nil
 	}
 
 	cluster, ok := c.clusterMap[clusterObj.Namespace]
@@ -350,7 +352,7 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.Ow
 	c.csiConfigMutex.Unlock()
 
 	// Start the main ceph cluster orchestration
-	c.initializeCluster(cluster, clusterObj)
+	return c.initializeCluster(cluster, clusterObj)
 }
 
 func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (reconcile.Result, bool) {

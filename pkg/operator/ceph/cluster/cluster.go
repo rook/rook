@@ -18,6 +18,7 @@ limitations under the License.
 package cluster
 
 import (
+	"fmt"
 	"path"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,6 +64,7 @@ type cluster struct {
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
 	isUpgrade            bool
+	monitoringActivated  bool
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex, ownerRef *metav1.OwnerReference) *cluster {
@@ -177,7 +180,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	return nil
 }
 
-func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) {
+func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) error {
 	cluster.Spec = &clusterObj.Spec
 
 	// Check if the dataDirHostPath is located in the disallowed paths list
@@ -185,36 +188,62 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	for _, b := range disallowedHostDirectories {
 		if cleanDataDirHostPath == b {
 			logger.Errorf("dataDirHostPath (given: %q) must not be used, conflicts with %q internal path", cluster.Spec.DataDirHostPath, b)
-			return
+			return nil
 		}
 	}
+
+	// The Ceph user the operator will use for management
+	cephUser := client.AdminUsername
 
 	// Depending on the cluster type choose the correct orchestation
 	if cluster.Spec.External.Enable {
 		err := c.configureExternalCephCluster(cluster)
 		if err != nil {
 			config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Failed to configure external ceph cluster")
-			logger.Errorf("failed to configure external ceph cluster. %v", err)
-			return
+			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
+		cephUser = cluster.Info.ExternalCred.Username
 	} else {
-		err := c.configureLocalCephCluster(cluster, clusterObj)
+		// If the local cluster has already been configured, immediately start monitoring the cluster.
+		// Test if the cluster has already been configured if the mgr deployment has been created.
+		// If the mgr does not exist, the mons have never been verified to be in quorum.
+		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
+		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(opts)
+		if err == nil && len(mgrDeployments.Items) > 0 {
+			c.startClusterMonitoring(cluster, cephUser)
+		}
+
+		err = c.configureLocalCephCluster(cluster, clusterObj)
 		if err != nil {
-			logger.Errorf("failed to configure local ceph cluster. %v", err)
-			return
+			return errors.Wrap(err, "failed to configure local ceph cluster")
 		}
 	}
+
+	// Populate ClusterInfo with the last value
+	cluster.mons.ClusterInfo = cluster.Info
+
+	// Start the monitoring if not already started
+	c.startClusterMonitoring(cluster, cephUser)
+	return nil
+}
+
+func (c *ClusterController) startClusterMonitoring(cluster *cluster, cephUser string) {
+	if cluster.monitoringActivated == true {
+		// the cluster monitoring goroutines are already running
+		logger.Debugf("cluster is already being monitored for cluster %q", cluster.Namespace)
+		return
+	}
+
+	// enable the cluster monitoring goroutines once
+	logger.Infof("enabling cluster monitoring goroutines for cluster %q", cluster.Namespace)
+	cluster.monitoringActivated = true
 
 	// Start client CRD watcher
 	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
 	clientController.StartWatch(cluster.stopCh)
 
-	clientToUse := client.AdminUsername
-	if cluster.Spec.External.Enable {
-		clientToUse = cluster.Info.ExternalCred.Username
-	}
 	// Start the object bucket provisioner
-	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace, clientToUse)
+	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace, cephUser)
 	// If cluster is external, pass down the user to the bucket controller
 
 	// note: the error return below is ignored and is expected to be removed from the
@@ -222,21 +251,18 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	bucketController, _ := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)
 	go bucketController.Run(cluster.stopCh)
 
-	// Populate ClusterInfo with the last value
-	cluster.mons.ClusterInfo = cluster.Info
-
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons, cluster.Spec)
 	go healthChecker.Check(cluster.stopCh)
 
 	if !cluster.Spec.External.Enable {
 		// Start the osd health checker only if running OSDs in the local ceph cluster
-		c.osdChecker = osd.NewOSDHealthMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Info.CephVersion)
+		c.osdChecker = osd.NewOSDHealthMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove)
 		go c.osdChecker.Start(cluster.stopCh)
 	}
 
 	// Start the ceph status checker
-	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cluster.mons.ClusterInfo.ExternalCred, c.namespacedName)
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cephUser, c.namespacedName)
 	go cephChecker.checkCephStatus(cluster.stopCh)
 }
 

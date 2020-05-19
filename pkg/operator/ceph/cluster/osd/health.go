@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,12 +44,11 @@ type OSDHealthMonitor struct {
 	context                        *clusterd.Context
 	namespace                      string
 	removeOSDsIfOUTAndSafeToRemove bool
-	cephVersion                    cephver.CephVersion
 }
 
 // NewOSDHealthMonitor instantiates OSD monitoring
-func NewOSDHealthMonitor(context *clusterd.Context, namespace string, removeOSDsIfOUTAndSafeToRemove bool, cephVersion cephver.CephVersion) *OSDHealthMonitor {
-	return &OSDHealthMonitor{context, namespace, removeOSDsIfOUTAndSafeToRemove, cephVersion}
+func NewOSDHealthMonitor(context *clusterd.Context, namespace string, removeOSDsIfOUTAndSafeToRemove bool) *OSDHealthMonitor {
+	return &OSDHealthMonitor{context, namespace, removeOSDsIfOUTAndSafeToRemove}
 }
 
 // Start runs monitoring logic for osds status at set intervals
@@ -62,7 +60,7 @@ func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
 			logger.Debug("Checking osd processes status.")
 			err := m.checkOSDHealth()
 			if err != nil {
-				logger.Warningf("failed OSD status check. %v", err)
+				logger.Debugf("failed OSD status check. %v", err)
 			}
 
 		case <-stopCh:
@@ -133,7 +131,7 @@ func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) erro
 		return errors.Wrapf(err, "failed to get osd deployment of osd id %d", outOSDid)
 	}
 	if len(dp.Items) != 0 {
-		safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.namespace, outOSDid, m.cephVersion)
+		safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.namespace, outOSDid)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get osd deployment of osd id %d", outOSDid)
 		}

@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 type OSDUsage struct {
@@ -253,7 +252,7 @@ func OSDOut(context *clusterd.Context, clusterName string, osdID int) (string, e
 	return string(buf), err
 }
 
-func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int, cephVersion cephver.CephVersion) (bool, error) {
+func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int) (bool, error) {
 	args := []string{"osd", "safe-to-destroy", strconv.Itoa(osdID)}
 	cmd := NewCephCommand(context, clusterName, args)
 	buf, err := cmd.Run()
