@@ -265,6 +265,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		logger.Infof("deleting ceph cluster %q", cephCluster.Name)
 
 		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
+		stopCleanupCh := make(chan struct{})
 		if hasCleanupPolicy(cephCluster) {
 			monSecret, err := r.clusterController.getMonSecret(cephCluster.Namespace)
 			if err != nil {
@@ -274,7 +275,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
 			}
-			go r.clusterController.startClusterCleanUp(cephCluster, cephHosts, monSecret)
+			go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret)
 		}
 
 		// Run delete sequence
@@ -282,6 +283,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		if !ok {
 			// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
 			// will eventually be satisfied such as the volumes being removed
+			close(stopCleanupCh)
 			return response, nil
 		}
 
@@ -362,6 +364,12 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 
 	logger.Infof("delete event for cluster %q in namespace %q", cluster.Name, cluster.Namespace)
 
+	if cluster, ok := c.clusterMap[cluster.Namespace]; ok && !cluster.closedStopCh {
+		// close the goroutines watching the health of the cluster (mons, osds, ceph status, etc)
+		close(cluster.stopCh)
+		cluster.closedStopCh = true
+	}
+
 	err := c.checkIfVolumesExist(cluster)
 	if err != nil {
 		config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to delete cluster")
@@ -370,7 +378,6 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 	}
 
 	if cluster, ok := c.clusterMap[cluster.Namespace]; ok {
-		close(cluster.stopCh)
 		delete(c.clusterMap, cluster.Namespace)
 	}
 
