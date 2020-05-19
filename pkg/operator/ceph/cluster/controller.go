@@ -1227,26 +1227,25 @@ func populateExternalClusterInfo(context *clusterd.Context, namespace string) *c
 			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
 			time.Sleep(externalConnectionRetry)
 			continue
-		} else {
-			// If an admin key was provided we don't need to load the other resources
-			// Some people might want to give the admin key
-			// The necessary users/keys/secrets will be created by Rook
-			// This is also done to allow backward compatibility
-			if isExternalHealthCheckUserAdmin(clusterInfo.AdminSecret) {
-				break
-			}
-			externalCred, err := mon.ValidateAndLoadExternalClusterSecrets(context, namespace)
-			if err != nil {
-				logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
-				logger.Debugf("%v", err)
-				time.Sleep(externalConnectionRetry)
-				continue
-			} else {
-				clusterInfo.ExternalCred = externalCred
-				logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.ExternalCred.Username, clusterInfo.Monitors)
-				break
-			}
 		}
+		// If an admin key was provided we don't need to load the other resources
+		// Some people might want to give the admin key
+		// The necessary users/keys/secrets will be created by Rook
+		// This is also done to allow backward compatibility
+		if isExternalHealthCheckUserAdmin(clusterInfo.AdminSecret) {
+			clusterInfo.ExternalCred = cephconfig.ExternalCred{Username: client.AdminUsername, Secret: clusterInfo.AdminSecret}
+			break
+		}
+		externalCred, err := mon.ValidateAndLoadExternalClusterSecrets(context, namespace)
+		if err != nil {
+			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+			logger.Debugf("%v", err)
+			time.Sleep(externalConnectionRetry)
+			continue
+		}
+		clusterInfo.ExternalCred = externalCred
+		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.ExternalCred.Username, clusterInfo.Monitors)
+		break
 	}
 
 	return clusterInfo
