@@ -17,6 +17,7 @@ limitations under the License.
 package operator
 
 import (
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
@@ -24,7 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{}) {
+func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{},
+	mgrErrorCh chan error) {
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
@@ -34,13 +36,13 @@ func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{})
 	logger.Info("setting up the controller-runtime manager")
 	kubeConfig, err := config.GetConfig()
 	if err != nil {
-		logger.Errorf("failed to get client config for controller-runtime manager. %v", err)
+		mgrErrorCh <- errors.Wrap(err, "failed to get client config for controller-runtime manager")
 		return
 	}
 
 	mgr, err := manager.New(kubeConfig, mgrOpts)
 	if err != nil {
-		logger.Errorf("failed to set up overall controller-runtime manager. %v", err)
+		mgrErrorCh <- errors.Wrap(err, "failed to set up overall controller-runtime manager")
 		return
 	}
 
@@ -54,12 +56,13 @@ func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{})
 	// Add the registered controllers to the manager (entrypoint for controllers)
 	err = cluster.AddToManager(mgr, controllerOpts, o.clusterController)
 	if err != nil {
-		logger.Errorf("failed to add controllers to controller-runtime manager. %v", err)
+		mgrErrorCh <- errors.Wrap(err, "failed to add controllers to controller-runtime manager")
+		return
 	}
 
 	logger.Info("starting the controller-runtime manager")
 	if err := mgr.Start(stopCh); err != nil {
-		logger.Errorf("unable to run the controller-runtime manager. %v", err)
+		mgrErrorCh <- errors.Wrap(err, "unable to run the controller-runtime manager")
 		return
 	}
 }
