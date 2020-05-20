@@ -74,7 +74,7 @@ func createFilesystem(
 
 	// set the number of active mds instances
 	if fs.Spec.MetadataServer.ActiveCount > 1 {
-		if err = client.SetNumMDSRanks(context, clusterInfo.CephVersion, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
+		if err = client.SetNumMDSRanks(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
 			logger.Warningf("failed setting active mds count to %d. %v", fs.Spec.MetadataServer.ActiveCount, err)
 		}
 	}
@@ -194,7 +194,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 		logger.Infof("filesystem %s already exists", f.Name)
 		// Even if the fs already exists, the num active mdses may have changed
 
-		if err := client.SetNumMDSRanks(context, cephVersion, f.Namespace, f.Name, spec.MetadataServer.ActiveCount); err != nil {
+		if err := client.SetNumMDSRanks(context, f.Namespace, f.Name, spec.MetadataServer.ActiveCount); err != nil {
 			logger.Errorf(
 				fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", spec.MetadataServer.ActiveCount, f.Name) +
 					"this error is not critical, but mdses may not be as failure tolerant as desired. " +

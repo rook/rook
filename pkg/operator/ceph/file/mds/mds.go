@@ -283,21 +283,15 @@ func prepareForDaemonUpgrade(
 	clusterName, fsName string,
 	timeout time.Duration,
 ) error {
+	// upgrade guide according to nautilus https://docs.ceph.com/docs/nautilus/cephfs/upgrading/#upgrading-the-mds-cluster
 	logger.Infof("preparing filesystem %s for daemon upgrade", fsName)
-	// * Beginning of noted section 1
-	// This section is necessary for upgrading to Mimic and to/past Luminous 12.2.3.
-	//   See more:  https://ceph.com/releases/v13-2-0-mimic-released/
-	//              http://docs.ceph.com/docs/mimic/cephfs/upgrading/
-	// As of Oct. 2018, this is only necessary for Luminous and Mimic.
-	if err := client.SetNumMDSRanks(context, cephVersion, clusterName, fsName, 1); err != nil {
-		return errors.Wrapf(err, "Could not Prepare filesystem %s for daemon upgrade", fsName)
+	if err := client.SetNumMDSRanks(context, clusterName, fsName, 1); err != nil {
+		return errors.Wrapf(err, "Could not prepare filesystem %q for daemon upgrade", fsName)
 	}
 	if err := client.WaitForActiveRanks(context, clusterName, fsName, 1, false, timeout); err != nil {
 		return err
 	}
-	// * End of Noted section 1
-
-	logger.Infof("Filesystem %s successfully prepared for mds daemon upgrade", fsName)
+	logger.Infof("Filesystem %q successfully prepared for MDS daemon upgrade", fsName)
 	return nil
 }
 
@@ -310,14 +304,11 @@ func finishedWithDaemonUpgrade(
 	activeMDSCount int32,
 ) error {
 	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
-	logger.Debugf("bringing num active mds daemons for fs %s back to %d", fsName, activeMDSCount)
-	// * Beginning of noted section 1
-	// This section is necessary for upgrading to Mimic and to/past Luminous 12.2.3.
-	//   See more:  https://ceph.com/releases/v13-2-0-mimic-released/
-	//              http://docs.ceph.com/docs/mimic/cephfs/upgrading/
-	// TODO: Unknown (Oct. 2018) if any parts can be removed once Rook no longer supports Mimic.
-	if err := client.SetNumMDSRanks(context, cephVersion, clusterName, fsName, activeMDSCount); err != nil {
+	logger.Debugf("bringing num active MDS daemons for fs %s back to %d", fsName, activeMDSCount)
+	// TODO: Unknown (Apr 2020) if this can be removed once Rook no longer supports Nautilus.
+	// upgrade guide according to nautilus https://docs.ceph.com/docs/nautilus/cephfs/upgrading/#upgrading-the-mds-cluster
+	if err := client.SetNumMDSRanks(context, clusterName, fsName, activeMDSCount); err != nil {
 		return errors.Wrapf(err, "Failed to restore filesystem %s following daemon upgrade", fsName)
-	} // * End of noted section 1
+	}
 	return nil
 }
