@@ -201,28 +201,33 @@ func (suite *SmokeSuite) TestPoolResize() {
 
 	require.Equal(suite.T(), true, poolFound, "pool not found")
 
-	err = suite.helper.PoolClient.Update(poolName, suite.namespace, 3)
+	err = suite.helper.PoolClient.Update(poolName, suite.namespace, 2)
 	require.Nil(suite.T(), err)
 
-	poolFound = false
+	poolResized := false
 	// Wait for pool resize to happen
 	for i := 0; i < 10; i++ {
-
 		details, err := suite.helper.PoolClient.GetCephPoolDetails(suite.namespace, poolName)
 		require.Nil(suite.T(), err)
 		if details.Size > 1 {
-			logger.Infof("pool %s size got updated", poolName)
-			require.Equal(suite.T(), 3, int(details.Size))
-			poolFound = true
+			logger.Infof("pool %s size was updated", poolName)
+			require.Equal(suite.T(), 2, int(details.Size))
+			poolResized = true
+
+			// resize the pool back to 1 to avoid hangs around not having enough OSDs to satisfy rbd
+			err = suite.helper.PoolClient.Update(poolName, suite.namespace, 1)
+			require.Nil(suite.T(), err)
+		} else if poolResized && details.Size == 1 {
+			logger.Infof("pool resized back to 1")
 			break
 		}
-		logger.Infof("pool %s size not updated yet. details: %+v", poolName, details)
 
+		logger.Debugf("pool %s size not updated yet. details: %+v", poolName, details)
 		logger.Infof("Waiting for pool %s resize to happen", poolName)
 		time.Sleep(2 * time.Second)
 	}
 
-	require.Equal(suite.T(), true, poolFound, fmt.Sprintf("pool %s not found", poolName))
+	require.Equal(suite.T(), true, poolResized, fmt.Sprintf("pool %s not found", poolName))
 
 	// clean up the pool
 	suite.helper.PoolClient.DeletePool(suite.helper.BlockClient, suite.namespace, poolName)
