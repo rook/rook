@@ -18,13 +18,13 @@ yq="${YQ_TOOL:-yq}"
 ##########
 # CHECKS #
 ##########
-if [ ! command -v operator-sdk &>/dev/null ] && [ ! -f $operator_sdk ]; then
+if ! command -v "$operator_sdk" >/dev/null && [ ! -f "$operator_sdk" ]; then
     echo "operator-sdk is not installed $operator_sdk"
     echo "follow instructions here: https://github.com/operator-framework/operator-sdk/#quick-start"
     exit 1
 fi
 
-if [ ! command -v yq &>/dev/null ] && [ ! -f $yq ]; then
+if ! command -v "$yq" >/dev/null && [ ! -f "$yq" ]; then
     echo "yq is not installed"
     echo "follow instructions here: https://github.com/mikefarah/yq#install"
     exit 1
