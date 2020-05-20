@@ -105,8 +105,10 @@ func (p *PoolOperation) CephPoolExists(namespace, name string) (bool, error) {
 	return false, nil
 }
 
+// DeletePool deletes a pool after deleting all the block images contained by the pool
 func (p *PoolOperation) DeletePool(blockClient *BlockOperation, namespace, poolName string) error {
 	// Delete all the images in a pool
+	logger.Infof("listing images in pool %q", poolName)
 	blockImagesList, _ := blockClient.ListImagesInPool(namespace, poolName)
 	for _, blockImage := range blockImagesList {
 		logger.Infof("force deleting block image %q in pool %q", blockImage, poolName)
