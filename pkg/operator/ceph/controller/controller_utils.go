@@ -39,6 +39,8 @@ var (
 	WaitForRequeueIfCephClusterNotReadyAfter = 10 * time.Second
 	// WaitForRequeueIfCephClusterNotReady waits for the CephCluster to be ready
 	WaitForRequeueIfCephClusterNotReady = reconcile.Result{Requeue: true, RequeueAfter: WaitForRequeueIfCephClusterNotReadyAfter}
+	// WaitForRequeueIfFinalizerBlocked waits for resources to be cleaned up before the finalizer can be removed
+	WaitForRequeueIfFinalizerBlocked = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 )
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
