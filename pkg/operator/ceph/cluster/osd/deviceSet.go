@@ -40,6 +40,11 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 				continue
 			}
 			for _, pvcTemplate := range storageClassDeviceSet.VolumeClaimTemplates {
+				if pvcTemplate.Name == "" {
+					// For backward compatibility a blank name must be treated as a data volume
+					pvcTemplate.Name = bluestorePVCBlock
+				}
+
 				pvc, err := c.createStorageClassDeviceSetPVC(storageClassDeviceSet.Name, pvcTemplate, i)
 				if err != nil {
 					config.addError("failed to create osd for storageClassDeviceSet %q for count %d. %v", storageClassDeviceSet.Name, i, err)
@@ -73,7 +78,7 @@ func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSetName strin
 	pvc := makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId, setIndex, pvcTemplate)
 	oldPresentPVCs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create pvc %s for storageClassDeviceSet %s", pvc.GetGenerateName(), storageClassDeviceSetName)
+		return nil, errors.Wrapf(err, "failed to list pvc %s for storageClassDeviceSet %s", pvcStorageClassDeviceSetPVCIdLabelSelector, storageClassDeviceSetName)
 	}
 
 	// return old labelled pvc, if we find any
@@ -87,7 +92,7 @@ func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSetName strin
 	pvc = makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId, setIndex, pvcTemplate)
 	presentPVCs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create pvc %s for storageClassDeviceSet %s", pvc.GetGenerateName(), storageClassDeviceSetName)
+		return nil, errors.Wrapf(err, "failed to list pvc %s for storageClassDeviceSet %s", pvcStorageClassDeviceSetPVCIdLabelSelector, storageClassDeviceSetName)
 	}
 
 	presentPVCsNum := len(presentPVCs.Items)
