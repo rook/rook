@@ -31,6 +31,6 @@ areas:
     reviewers:
     - rohan47
   yugabytedb:
-    approvers:
+    reviewers:
     - Arnav15
     - samkulkarni20
