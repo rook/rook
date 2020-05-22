@@ -24,7 +24,7 @@ CEPH_VERSION = v14.2.9-20200506
 endif
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
-OPERATOR_SDK_VERSION = v0.10.0
+OPERATOR_SDK_VERSION = v0.17.1
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 
 TEMP := $(shell mktemp -d)
@@ -69,7 +69,7 @@ generate-csv-ceph-templates: $(OPERATOR_SDK) $(YQ)
 $(YQ):
 	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
 		echo === installing yq $(GOHOST);\
-		curl -JL https://github.com/mikefarah/yq/releases/download/2.4.1/yq_$(HOST_PLATFORM) -o $(YQ);\
+		curl -JL https://github.com/mikefarah/yq/releases/download/3.3.0/yq_$(HOST_PLATFORM) -o $(YQ);\
 		chmod +x $(YQ);\
 	fi
 
