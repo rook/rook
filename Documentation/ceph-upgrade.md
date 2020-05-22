@@ -25,7 +25,7 @@ denoted by tags `vX.Y.Z` or `vX.Y.Z-stable`; these two formats are synonymous.
 
 For a guide to upgrade previous versions of Rook, please refer to the version of documentation for
 those releases.
-- [Upgrade 0.8 to 0.9](https://rook.io/docs/rook/v0.9/upgrade.html)
+- [Upgrade 0.8 to 0.9](https://rook.io/docs/rook/v0.9/ceph-upgrade.html)
 - [Upgrade 0.7 to 0.8](https://rook.io/docs/rook/v0.8/upgrade.html)
 - [Upgrade 0.6 to 0.7](https://rook.io/docs/rook/v0.7/upgrade.html)
 - [Upgrade 0.5 to 0.6](https://rook.io/docs/rook/v0.6/upgrade.html)
