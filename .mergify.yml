@@ -1,4 +1,11 @@
 pull_request_rules:
+  # if there is a conflict in a backport PR, ping the author to send a proper backport PR
+  - name: ping author on conflicts
+    conditions:
+      - conflict
+    actions:
+      comment:
+        message: This pull request has merge conflicts that must be resolved before it can be merged. @{{author}} please rebase it. https://rook.io/docs/rook/master/development-flow.html#updating-your-fork
   # automerge backports if CI successfully ran
   # release-1.1 branch
   - name: automerge backport release-1.1
