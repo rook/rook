@@ -37,27 +37,26 @@ import (
 )
 
 const (
-	osdStoreEnvVarName                          = "ROOK_OSD_STORE"
-	osdDatabaseSizeEnvVarName                   = "ROOK_OSD_DATABASE_SIZE"
-	osdWalSizeEnvVarName                        = "ROOK_OSD_WAL_SIZE"
-	osdJournalSizeEnvVarName                    = "ROOK_OSD_JOURNAL_SIZE"
-	osdsPerDeviceEnvVarName                     = "ROOK_OSDS_PER_DEVICE"
-	encryptedDeviceEnvVarName                   = "ROOK_ENCRYPTED_DEVICE"
-	osdMetadataDeviceEnvVarName                 = "ROOK_METADATA_DEVICE"
-	pvcBackedOSDVarName                         = "ROOK_PVC_BACKED_OSD"
-	blockPathVarName                            = "ROOK_BLOCK_PATH"
-	cvModeVarName                               = "ROOK_CV_MODE"
-	lvBackedPVVarName                           = "ROOK_LV_BACKED_PV"
-	CrushDeviceClassVarName                     = "ROOK_OSD_CRUSH_DEVICE_CLASS"
-	rookBinariesMountPath                       = "/rook"
-	rookBinariesVolumeName                      = "rook-binaries"
-	activateOSDVolumeName                       = "activate-osd"
-	activateOSDMountPath                        = "/var/lib/ceph/osd/ceph-"
-	blockPVCMapperInitContainer                 = "blkdevmapper"
-	blockPVCMetadataMapperInitContainer         = "blkdevmapper-metadata"
-	activatePVCOSDInitContainer                 = "activate"
-	expandPVCOSDInitContainer                   = "expand-bluefs"
-	osdMemoryTargetSafetyFactor         float32 = 0.8
+	osdStoreEnvVarName                  = "ROOK_OSD_STORE"
+	osdDatabaseSizeEnvVarName           = "ROOK_OSD_DATABASE_SIZE"
+	osdWalSizeEnvVarName                = "ROOK_OSD_WAL_SIZE"
+	osdJournalSizeEnvVarName            = "ROOK_OSD_JOURNAL_SIZE"
+	osdsPerDeviceEnvVarName             = "ROOK_OSDS_PER_DEVICE"
+	encryptedDeviceEnvVarName           = "ROOK_ENCRYPTED_DEVICE"
+	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
+	pvcBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
+	blockPathVarName                    = "ROOK_BLOCK_PATH"
+	cvModeVarName                       = "ROOK_CV_MODE"
+	lvBackedPVVarName                   = "ROOK_LV_BACKED_PV"
+	CrushDeviceClassVarName             = "ROOK_OSD_CRUSH_DEVICE_CLASS"
+	rookBinariesMountPath               = "/rook"
+	rookBinariesVolumeName              = "rook-binaries"
+	activateOSDVolumeName               = "activate-osd"
+	activateOSDMountPath                = "/var/lib/ceph/osd/ceph-"
+	blockPVCMapperInitContainer         = "blkdevmapper"
+	blockPVCMetadataMapperInitContainer = "blkdevmapper-metadata"
+	activatePVCOSDInitContainer         = "activate"
+	expandPVCOSDInitContainer           = "expand-bluefs"
 	// CephDeviceSetLabelKey is the Rook device set label key
 	CephDeviceSetLabelKey = "ceph.rook.io/DeviceSet"
 	// CephSetIndexLabelKey is the Rook label key index
@@ -243,12 +242,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to apply tuning on osd %q", strconv.Itoa(osd.ID))
 		}
-	}
-
-	// As of Nautilus Ceph auto-tunes its osd_memory_target on the fly so we don't need to force it
-	if !c.resources.Limits.Memory().IsZero() {
-		osdMemoryTargetValue := float32(c.resources.Limits.Memory().Value()) * osdMemoryTargetSafetyFactor
-		commonArgs = append(commonArgs, fmt.Sprintf("--osd-memory-target=%d", int(osdMemoryTargetValue)))
 	}
 
 	commonArgs = append(commonArgs, "--default-log-to-file", "false")
