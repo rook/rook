@@ -7,7 +7,7 @@ This document explores a design to add NFS to Rook. This is a part of the rook f
 ## Rook Architecture
 
 Rook turns distributed storage software into a self-managing, self-scaling, and self-healing storage services. It does this by automating deployment, bootstrapping, configuration, provisioning, scaling, upgrading, migration, disaster recovery, monitoring, and resource management. Rook uses the facilities provided by the underlying cloud-native container management, scheduling and orchestration platform to perform its duties.
-![Rook Architecture on Kubernetes](../Documentation/media/rook-architecture.png)
+![Rook Architecture on Kubernetes](../../Documentation/media/rook-architecture.png)
 
 ## Network File System (NFS)
 
@@ -63,7 +63,7 @@ EXPORT {
 the CRD instance will look like the following:
 ```yaml
 apiVersion: rook.io/v1alpha1
-kind: NetworkFileSystem
+kind: NFSServer
 metadata:
   name: nfs-vol
   namespace: rook
@@ -140,7 +140,7 @@ EXPORT {
 the CRD instance will look like the following:
 ```yaml
 apiVersion: rook.io/v1alpha1
-kind: NetworkFileSystem
+kind: NFSServer
 metadata:
   name: nfs-vol
   namespace: rook
@@ -200,7 +200,7 @@ EXPORT {
 the CRD instance will look like the following:
 ```yaml
 apiVersion: rook.io/v1alpha1
-kind: NetworkFileSystem
+kind: NFSServer
 metadata:
   name: nfs-multi-vol
   namespace: rook
