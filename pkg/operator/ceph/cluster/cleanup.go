@@ -18,6 +18,7 @@ package cluster
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -44,11 +45,16 @@ const (
 )
 
 var (
-	volumeName      = "cleanup-volume"
-	dataDirHostPath = "ROOK_DATA_DIR_HOST_PATH"
-	namespaceDir    = "ROOK_NAMESPACE_DIR"
-	monitorSecret   = "ROOK_MON_SECRET"
-	clusterFSID     = "ROOK_CLUSTER_FSID"
+	volumeName                     = "cleanup-volume"
+	dataDirHostPath                = "ROOK_DATA_DIR_HOST_PATH"
+	namespaceDir                   = "ROOK_NAMESPACE_DIR"
+	monitorSecret                  = "ROOK_MON_SECRET"
+	clusterFSID                    = "ROOK_CLUSTER_FSID"
+	sanitizeMethod                 = "ROOK_SANITIZE_METHOD"
+	sanitizeDataSource             = "ROOK_SANITIZE_DATA_SOURCE"
+	sanitizeLayer                  = "ROOK_SANITIZE_LAYER"
+	sanitizeIteration              = "ROOK_SANITIZE_ITERATION"
+	sanitizeIterationDefault int32 = 1
 )
 
 func (c *ClusterController) startClusterCleanUp(stopCleanupCh chan struct{}, cluster *cephv1.CephCluster, cephHosts []string, monSecret, clusterFSID string) {
@@ -94,6 +100,10 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 	volumeMounts := []v1.VolumeMount{}
 	envVars := []v1.EnvVar{}
 	if cluster.Spec.DataDirHostPath != "" {
+		if cluster.Spec.CleanupPolicy.SanitizeDisks.Iteration == 0 {
+			cluster.Spec.CleanupPolicy.SanitizeDisks.Iteration = sanitizeIterationDefault
+		}
+
 		hostPathVolumeMount := v1.VolumeMount{Name: volumeName, MountPath: cluster.Spec.DataDirHostPath}
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, hostPathVolumeMount)
@@ -105,6 +115,9 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 			{Name: clusterFSID, Value: cephFSID},
 			{Name: "ROOK_LOG_LEVEL", Value: "DEBUG"},
 			mon.PodNamespaceEnvVar(cluster.Namespace),
+			{Name: sanitizeMethod, Value: cluster.Spec.CleanupPolicy.SanitizeDisks.Method.String()},
+			{Name: sanitizeDataSource, Value: cluster.Spec.CleanupPolicy.SanitizeDisks.DataSource.String()},
+			{Name: sanitizeIteration, Value: strconv.Itoa(int(cluster.Spec.CleanupPolicy.SanitizeDisks.Iteration))},
 		}...)
 	}
 

@@ -179,7 +179,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	//
 	// Or keep doing this if the PV is backend by an LV already
 	if !a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) || lvBackedPV {
-		if err := updateLVMConfig(context, a.pvcBacked, lvBackedPV); err != nil {
+		if err := UpdateLVMConfig(context, a.pvcBacked, lvBackedPV); err != nil {
 			return nil, errors.Wrap(err, "failed to update lvm configuration file")
 		}
 	}
@@ -343,7 +343,8 @@ func getLVPath(op string) string {
 	return ""
 }
 
-func updateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
+// UpdateLVMConfig updates the lvm.conf file
+func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 
 	input, err := ioutil.ReadFile(lvmConfPath)
 	if err != nil {

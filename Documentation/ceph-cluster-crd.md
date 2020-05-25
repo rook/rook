@@ -149,30 +149,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
   * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the osds are `out` and `safe-to-destroy` when then would be removed.
-* `cleanupPolicy`: The section for confirming that cluster data should be forcibly deleted. The cleanupPolicy should only be added to the cluster when the cluster is about to be deleted. After any field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about to be destroyed in order to prevent these settings from being deployed unintentionally.
-  * `confirmation`: If `yes-really-destroy-data` the operator will automatically delete data on the hostpath of cluster nodes and clean devices with OSDs when a `delete cephcluster` command is issued. Only `yes-really-destroy-data` and an empty string are valid values for this field.
-* `healthCheck`: control period health status checks and livenessprobes, see the [health settings](#health-settings)
-
-To activate the cleanup, you can use the following command **AT YOUR OWN RISK**:
-
-```console
-kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-```
-
-When applied you will see the following from the Operator's logs:
-
-```text
-2020-05-27 13:24:04.267665 I | ceph-spec: CR has changed for "rook-ceph". diff=  v1.ClusterSpec{
-        ... // 16 identical fields
-        Mgr:                            v1.MgrSpec{},
-        RemoveOSDsIfOutAndSafeToRemove: false,
--       CleanupPolicy:                  v1.CleanupPolicySpec{},
-+       CleanupPolicy:                  v1.CleanupPolicySpec{Confirmation: "yes-really-destroy-data"},
-  }
-```
-
-Nothing will happen until the deletion of the CR is requested, so this can still be reverted.
-However, all new orchestration/reconciliation will be blocked with this cleanup policy enabled.
+* `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
 
 ### Ceph container images
 
@@ -1029,3 +1006,29 @@ spec:
   cephVersion:
     image: ceph/ceph:v15.2.4 # Should match external cluster version
 ```
+
+### Cleanup policy
+
+Rook has the ability to cleanup resources and data that were deployed.
+The policy represents the confirmation that cluster data should be forcibly deleted.
+The cleanupPolicy should only be added to the cluster when the cluster is about to be deleted.
+After the `confirmation` field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about to be destroyed in order to prevent these settings from being deployed unintentionally.
+The `cleanupPolicy` CR settings has different fields:
+
+* `confirmation`: If `yes-really-destroy-data` the operator will automatically delete data on the hostpath of cluster nodes and clean devices with OSDs when a `delete cephcluster` command is issued. Only `yes-really-destroy-data` and an empty string are valid values for this field.
+* `sanitizeDisks`: sanitizeDisks represents advanced settings that can be used to sanitize drives.
+By default if the `confirmation` is set, Rook will only remove Ceph's metadata, which allows a cluster re-installation if desired.
+However, the administrator might want to sanitize the drives in more depth with the following flags:
+  * `method`: indicates if the entire disk should be sanitized or simply ceph's metadata. Possible choices are 'quick' (default) or 'complete'
+  * `dataSource`: indicate where to get random bytes from to write on the disk. Possible choices are 'zero' (default) or 'random'.
+  Using random sources will consume entropy from the system and will take much more time then the zero source
+  * `iteration`: overwrite N times instead of the default (1). Takes an integer value
+
+To automate activation of the cleanup, you can use the following command. **WARNING: DATA WILL BE PERMANENTLY DELETED**:
+
+```console
+kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+```
+
+Nothing will happen until the deletion of the CR is requested, so this can still be reverted.
+However, all new configuration by the operator will be blocked with this cleanup policy enabled.

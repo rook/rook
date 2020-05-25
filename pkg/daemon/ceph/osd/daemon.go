@@ -55,7 +55,7 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 	}
 
 	// Update LVM config at runtime
-	if err := updateLVMConfig(context, pvcBackedOSD, lvBackedPV); err != nil {
+	if err := UpdateLVMConfig(context, pvcBackedOSD, lvBackedPV); err != nil {
 		return errors.Wrap(err, "failed to update lvm configuration file") // fail return here as validation provided by ceph-volume
 	}
 
