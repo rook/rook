@@ -39,7 +39,7 @@ func TestCleanUpJobSpec(t *testing.T) {
 		Spec: cephv1.ClusterSpec{
 			DataDirHostPath: expectedHostPath,
 			CleanupPolicy: cephv1.CleanupPolicySpec{
-				DeleteDataDirOnHosts: "yes-really-destroy-data",
+				Confirmation: "yes-really-destroy-data",
 			},
 		},
 	}
@@ -61,7 +61,7 @@ func TestCleanUpJobSpec(t *testing.T) {
 		},
 	}
 	controller := NewClusterController(context, "", &attachment.MockAttachment{}, operatorConfigCallbacks, addCallbacks)
-	podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster, "monSecret")
+	podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster, "monSecret", "28b87851-8dc1-46c8-b1ec-90ec51a47c89")
 	assert.Equal(t, expectedHostPath, podTemplateSpec.Spec.Containers[0].Env[0].Value)
 	assert.Equal(t, expectedNamespace, podTemplateSpec.Spec.Containers[0].Env[1].Value)
 }

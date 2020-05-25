@@ -40,6 +40,11 @@ func GetRGWAnnotations(a rook.AnnotationsSpec) rook.Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyRGW)
 }
 
+// GetCleanupAnnotations returns the Annotations for the cleanup job
+func GetCleanupAnnotations(a rook.AnnotationsSpec) rook.Annotations {
+	return mergeAllAnnotationsWithKey(a, KeyCleanup)
+}
+
 func mergeAllAnnotationsWithKey(a rook.AnnotationsSpec, name rook.KeyType) rook.Annotations {
 	all := a.All()
 	if all != nil {

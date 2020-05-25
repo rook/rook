@@ -154,7 +154,7 @@ spec:
             resources: {}
             cleanupPolicy:
               properties:
-                deleteDataDirOnHosts:
+                confirmation:
                   type: string
                   pattern: ^$|^yes-really-destroy-data$
   additionalPrinterColumns:

@@ -239,7 +239,7 @@ spec:
                   type: boolean
             cleanupPolicy:
               properties:
-                deleteDataDirOnHosts:
+                confirmation:
                   type: string
                   pattern: ^$|^yes-really-destroy-data$
             placement: {}

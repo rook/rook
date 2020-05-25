@@ -266,8 +266,11 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
 		stopCleanupCh := make(chan struct{})
-		if hasCleanupPolicy(cephCluster) {
-			monSecret, err := r.clusterController.getMonSecret(cephCluster.Namespace)
+		if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
+			// Set the deleting status
+			updateStatus(r.client, request.NamespacedName, cephv1.ConditionDeleting)
+
+			monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(cephCluster.Namespace)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "failed to get mon secret, no cleanup")
 			}
@@ -275,7 +278,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
 			}
-			go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret)
+			go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
 		}
 
 		// Run delete sequence
@@ -326,7 +329,7 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 }
 
 func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.OwnerReference) error {
-	if hasCleanupPolicy(clusterObj) {
+	if clusterObj.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
 		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
 		return nil
 	}
