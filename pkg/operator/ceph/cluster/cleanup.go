@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -47,9 +48,11 @@ var (
 	dataDirHostPath = "ROOK_DATA_DIR_HOST_PATH"
 	namespaceDir    = "ROOK_NAMESPACE_DIR"
 	monitorSecret   = "ROOK_MON_SECRET"
+	clusterFSID     = "ROOK_CLUSTER_FSID"
+	clusterName     = "ROOK_CLUSTER_NAME"
 )
 
-func (c *ClusterController) startClusterCleanUp(cluster *cephv1.CephCluster, cephHosts []string, monSecret string) {
+func (c *ClusterController) startClusterCleanUp(cluster *cephv1.CephCluster, cephHosts []string, monSecret, clusterFSID string) {
 	logger.Infof("starting clean up for cluster %q", cluster.Name)
 	err := c.waitForCephDaemonCleanUp(cluster, time.Duration(clusterCleanUpPolicyRetryInterval)*time.Second)
 	if err != nil {
@@ -57,14 +60,14 @@ func (c *ClusterController) startClusterCleanUp(cluster *cephv1.CephCluster, cep
 		return
 	}
 
-	c.startCleanUpJobs(cluster, cephHosts, monSecret)
+	c.startCleanUpJobs(cluster, cephHosts, monSecret, clusterFSID)
 }
 
-func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHosts []string, monSecret string) {
+func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHosts []string, monSecret, clusterFSID string) {
 	for _, hostName := range cephHosts {
 		logger.Infof("starting clean up job on node %q", hostName)
 		jobName := k8sutil.TruncateNodeName("cluster-cleanup-job-%s", hostName)
-		podSpec := c.cleanUpJobTemplateSpec(cluster, monSecret)
+		podSpec := c.cleanUpJobTemplateSpec(cluster, monSecret, clusterFSID)
 		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: hostName}
 		labels := controller.AppLabels(CleanupAppName, cluster.Namespace)
 		labels[CleanupAppName] = "true"
@@ -79,39 +82,50 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 			},
 		}
 
+		// Apply annotations
+		cephv1.GetCleanupAnnotations(cluster.Spec.Annotations).ApplyToObjectMeta(&job.ObjectMeta)
+
 		if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, true); err != nil {
 			logger.Errorf("failed to run cluster clean up job on node %q. %v", hostName, err)
 		}
 	}
 }
 
-func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, monSecret string) v1.Container {
+func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, monSecret, cephFSID string) v1.Container {
 	volumeMounts := []v1.VolumeMount{}
 	envVars := []v1.EnvVar{}
-	if cluster.Spec.CleanupPolicy.DeleteDataDirOnHosts != "" && cluster.Spec.DataDirHostPath != "" {
+	if cluster.Spec.DataDirHostPath != "" {
 		hostPathVolumeMount := v1.VolumeMount{Name: volumeName, MountPath: cluster.Spec.DataDirHostPath}
+		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, hostPathVolumeMount)
+		volumeMounts = append(volumeMounts, devMount)
 		envVars = append(envVars, []v1.EnvVar{
 			{Name: dataDirHostPath, Value: cluster.Spec.DataDirHostPath},
 			{Name: namespaceDir, Value: cluster.Namespace},
 			{Name: monitorSecret, Value: monSecret},
+			{Name: clusterFSID, Value: cephFSID},
+			{Name: clusterName, Value: cluster.Name},
+			{Name: "ROOK_LOG_LEVEL", Value: "DEBUG"},
 		}...)
 	}
-	container := v1.Container{
+
+	return v1.Container{
 		Name:            "host-cleanup",
 		Image:           c.rookImage,
 		SecurityContext: osd.PrivilegedContext(),
 		VolumeMounts:    volumeMounts,
 		Env:             envVars,
-		Args:            []string{"ceph", "clean"}}
-
-	return container
+		Args:            []string{"ceph", "clean"},
+		Resources:       cephv1.GetCleanupResources(cluster.Spec.Resources),
+	}
 }
 
-func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, monSecret string) v1.PodTemplateSpec {
+func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, monSecret, clusterFSID string) v1.PodTemplateSpec {
 	volumes := []v1.Volume{}
 	hostPathVolume := v1.Volume{Name: volumeName, VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: cluster.Spec.DataDirHostPath}}}
+	devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 	volumes = append(volumes, hostPathVolume)
+	volumes = append(volumes, devVolume)
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -119,12 +133,17 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
-				c.cleanUpJobContainer(cluster, monSecret),
+				c.cleanUpJobContainer(cluster, monSecret, clusterFSID),
 			},
-			Volumes:       volumes,
-			RestartPolicy: v1.RestartPolicyOnFailure,
+			Volumes:           volumes,
+			RestartPolicy:     v1.RestartPolicyOnFailure,
+			PriorityClassName: cephv1.GetCleanupPriorityClassName(cluster.Spec.PriorityClassNames),
 		},
 	}
+
+	// Apply placement
+	rookPlacement := rookv1.Placement(cephv1.GetCleanupPlacement(cluster.Spec.Placement))
+	rookPlacement.ApplyToPodSpec(&podSpec.Spec)
 
 	return podSpec
 }
@@ -185,11 +204,11 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 	return hostNameList, nil
 }
 
-func (c *ClusterController) getMonSecret(namespace string) (string, error) {
+func (c *ClusterController) getCleanUpDetails(namespace string) (string, string, error) {
 	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, namespace)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get cluster info")
+		return "", "", errors.Wrap(err, "failed to get cluster info")
 	}
 
-	return clusterInfo.MonitorSecret, nil
+	return clusterInfo.MonitorSecret, clusterInfo.FSID, nil
 }
