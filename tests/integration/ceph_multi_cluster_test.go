@@ -142,8 +142,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 	i := installer.NewCephInstaller(t, kh.Clientset, false, "", installer.VersionMaster, installer.NautilusVersion, cleanupHost)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), "", false}
-	present, err := kh.IsStorageClassPresent("manual")
-	if present && kh.VersionAtLeast("v1.13.0") {
+	if kh.VersionAtLeast("v1.13.0") {
 		op.testOverPVC = true
 		op.storageClassName = "manual"
 	}
