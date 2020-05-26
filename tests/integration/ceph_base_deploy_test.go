@@ -74,7 +74,7 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	retryCount := 0
 	for retryCount < utils.RetryLoop {
 		healthy, err := clients.IsClusterHealthy(testClient, clusterNamespace)
-		if !healthy {
+		if healthy {
 			logger.Infof("cluster %s is healthy", clusterNamespace)
 			return
 		}
