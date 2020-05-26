@@ -264,6 +264,20 @@ Closes: https://github.com/rook/rook/issues/<NUMBER>
 Signed-off-by: First Name Last Name <email address>
 ```
 
+The `component` **MUST** be one of the following:
+    - bot
+    - build
+    - cassandra
+    - ceph
+    - ci
+    - cockroachdb
+    - core
+    - docs
+    - edgefs
+    - nfs
+    - test
+    - yugabytedb
+
 Note: sometimes you will feel like there is not so much to say, for instance if you are fixing a typo in a text.
 In that case, it is acceptable to shorten the commit message.
 Also, you don't always need to close an issue, again for a very small fix.
