@@ -1,0 +1,16 @@
+name: Commitlint
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v1.6.0
+        with:
+          configFile: './.commitlintrc.json'
+          helpURL: https://rook.io/docs/rook/master/development-flow.html#commit-structure
