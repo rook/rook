@@ -4,29 +4,6 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: cephrbdmirrors.ceph.rook.io
-spec:
-  group: ceph.rook.io
-  names:
-    kind: CephRBDMirror
-    listKind: CephRBDMirrorList
-    plural: cephrbdmirrrors
-    singular: cephrbdmirror
-  scope: Namespaced
-  version: v1
-  validation:
-    openAPIV3Schema:
-      properties:
-        spec:
-          properties:
-            count:
-              type: integer
-  subresources:
-    status: {}
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
   name: cephclusters.ceph.rook.io
 spec:
   group: ceph.rook.io
@@ -37,19 +14,24 @@ spec:
     singular: cephcluster
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   validation:
     openAPIV3Schema:
+      type: object
       properties:
         spec:
+          type: object
           properties:
             annotations: {}
             cephVersion:
+              type: object
               properties:
                 allowUnsupported:
                   type: boolean
                 image:
                   type: string
             dashboard:
+              type: object
               properties:
                 enabled:
                   type: boolean
@@ -65,6 +47,7 @@ spec:
               pattern: ^/(\S+)
               type: string
             disruptionManagement:
+              type: object
               properties:
                 machineDisruptionBudgetNamespace:
                   type: string
@@ -79,6 +62,7 @@ spec:
             continueUpgradeAfterChecksEvenIfNotHealthy:
               type: boolean
             mon:
+              type: object
               properties:
                 allowMultiplePerNode:
                   type: boolean
@@ -88,15 +72,18 @@ spec:
                   type: integer
                 volumeClaimTemplate: {}
             mgr:
+              type: object
               properties:
                 modules:
                   items:
+                    type: object
                     properties:
                       name:
                         type: string
                       enabled:
                         type: boolean
             network:
+              type: object
               properties:
                 hostNetwork:
                   type: boolean
@@ -104,8 +91,10 @@ spec:
                   type: string
                 selectors: {}
             storage:
+              type: object
               properties:
                 disruptionManagement:
+                  type: object
                   properties:
                     machineDisruptionBudgetNamespace:
                       type: string
@@ -119,16 +108,18 @@ spec:
                   type: boolean
                 nodes:
                   items:
+                    type: object
                     properties:
                       name:
                         type: string
                       config:
+                        type: object
                         properties:
                           metadataDevice:
                             type: string
                           storeType:
                             type: string
-                            pattern: ^(filestore|bluestore)$
+                            pattern: ^(bluestore)$
                           databaseSizeMB:
                             type: string
                           walSizeMB:
@@ -149,6 +140,7 @@ spec:
                       devices:
                         type: array
                         items:
+                          type: object
                           properties:
                             name:
                               type: string
@@ -164,6 +156,7 @@ spec:
                 config: {}
                 storageClassDeviceSets: {}
             monitoring:
+              type: object
               properties:
                 enabled:
                   type: boolean
@@ -172,10 +165,12 @@ spec:
             removeOSDsIfOutAndSafeToRemove:
               type: boolean
             external:
+              type: object
               properties:
                 enable:
                   type: boolean
             cleanupPolicy:
+              type: object
               properties:
                 deleteDataDirOnHosts:
                   type: string
@@ -208,3 +203,449 @@ spec:
       type: string
       description: Ceph Health
       JSONPath: .status.ceph.health
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephclients.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephClient
+    listKind: CephClientList
+    plural: cephclients
+    singular: cephclient
+  scope: Namespaced
+  version: v1
+  preserveUnknownFields: false
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            caps:
+              type: object
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephrbdmirrors.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephRBDMirror
+    listKind: CephRBDMirrorList
+    plural: cephrbdmirrors
+    singular: cephrbdmirror
+  scope: Namespaced
+  version: v1
+  preserveUnknownFields: false
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            count:
+              type: integer
+              minimum: 1
+              maximum: 100
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephfilesystems.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephFilesystem
+    listKind: CephFilesystemList
+    plural: cephfilesystems
+    singular: cephfilesystem
+  scope: Namespaced
+  version: v1
+  preserveUnknownFields: false
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            metadataServer:
+              type: object
+              properties:
+                activeCount:
+                  minimum: 1
+                  maximum: 10
+                  type: integer
+                activeStandby:
+                  type: boolean
+                annotations: {}
+                placement: {}
+                resources: {}
+            metadataPool:
+              type: object
+              properties:
+                failureDomain:
+                  type: string
+                replicated:
+                  type: object
+                  properties:
+                    size:
+                      minimum: 0
+                      maximum: 10
+                      type: integer
+                    requireSafeReplicaSize:
+                      type: boolean
+                erasureCoded:
+                  type: object
+                  properties:
+                    dataChunks:
+                      minimum: 0
+                      maximum: 10
+                      type: integer
+                    codingChunks:
+                      minimum: 0
+                      maximum: 10
+                      type: integer
+                compressionMode:
+                  type: string
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
+            dataPools:
+              type: array
+              items:
+                type: object
+                properties:
+                  failureDomain:
+                    type: string
+                  replicated:
+                    type: object
+                    properties:
+                      size:
+                        minimum: 0
+                        maximum: 10
+                        type: integer
+                      requireSafeReplicaSize:
+                        type: boolean
+                  erasureCoded:
+                    type: object
+                    properties:
+                      dataChunks:
+                        minimum: 0
+                        maximum: 10
+                        type: integer
+                      codingChunks:
+                        minimum: 0
+                        maximum: 10
+                        type: integer
+                  compressionMode:
+                    type: string
+                    enum:
+                    - ""
+                    - none
+                    - passive
+                    - aggressive
+                    - force
+            preservePoolsOnDelete:
+              type: boolean
+  additionalPrinterColumns:
+    - name: ActiveMDS
+      type: string
+      description: Number of desired active MDS daemons
+      JSONPath: .spec.metadataServer.activeCount
+    - name: Age
+      type: date
+      JSONPath: .metadata.creationTimestamp
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephnfses.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephNFS
+    listKind: CephNFSList
+    plural: cephnfses
+    singular: cephnfs
+    shortNames:
+    - nfs
+  scope: Namespaced
+  version: v1
+  preserveUnknownFields: false
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            rados:
+              type: object
+              properties:
+                pool:
+                  type: string
+                namespace:
+                  type: string
+            server:
+              type: object
+              properties:
+                active:
+                  type: integer
+                annotations: {}
+                placement: {}
+                resources: {}
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephobjectstores.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephObjectStore
+    listKind: CephObjectStoreList
+    plural: cephobjectstores
+    singular: cephobjectstore
+  scope: Namespaced
+  version: v1
+  preserveUnknownFields: false
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            gateway:
+              type: object
+              properties:
+                type:
+                  type: string
+                sslCertificateRef: {}
+                port:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+                securePort: {}
+                instances:
+                  type: integer
+                annotations: {}
+                placement: {}
+                resources: {}
+            metadataPool:
+              type: object
+              properties:
+                failureDomain:
+                  type: string
+                replicated:
+                  type: object
+                  properties:
+                    size:
+                      type: integer
+                    requireSafeReplicaSize:
+                      type: boolean
+                erasureCoded:
+                  type: object
+                  properties:
+                    dataChunks:
+                      type: integer
+                    codingChunks:
+                      type: integer
+                compressionMode:
+                  type: string
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
+            dataPool:
+              type: object
+              properties:
+                failureDomain:
+                  type: string
+                replicated:
+                  type: object
+                  properties:
+                    size:
+                      type: integer
+                    requireSafeReplicaSize:
+                      type: boolean
+                erasureCoded:
+                  type: object
+                  properties:
+                    dataChunks:
+                      type: integer
+                    codingChunks:
+                      type: integer
+                compressionMode:
+                  type: string
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
+            preservePoolsOnDelete:
+              type: boolean
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephobjectstoreusers.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephObjectStoreUser
+    listKind: CephObjectStoreUserList
+    plural: cephobjectstoreusers
+    singular: cephobjectstoreuser
+    shortNames:
+    - rcou
+    - objectuser
+  scope: Namespaced
+  version: v1
+  preserveUnknownFields: false
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephblockpools.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephBlockPool
+    listKind: CephBlockPoolList
+    plural: cephblockpools
+    singular: cephblockpool
+  scope: Namespaced
+  version: v1
+  preserveUnknownFields: false
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            failureDomain:
+                type: string
+            replicated:
+              type: object
+              properties:
+                size:
+                  type: integer
+                  minimum: 0
+                  maximum: 9
+                targetSizeRatio:
+                  type: number
+                requireSafeReplicaSize:
+                  type: boolean
+            erasureCoded:
+              type: object
+              properties:
+                dataChunks:
+                  type: integer
+                  minimum: 0
+                  maximum: 9
+                codingChunks:
+                  type: integer
+                  minimum: 0
+                  maximum: 9
+            compressionMode:
+              type: string
+              enum:
+              - ""
+              - none
+              - passive
+              - aggressive
+              - force
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: volumes.rook.io
+spec:
+  group: rook.io
+  names:
+    kind: Volume
+    listKind: VolumeList
+    plural: volumes
+    singular: volume
+    shortNames:
+    - rv
+  scope: Namespaced
+  version: v1alpha2
+  preserveUnknownFields: false
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectbuckets.objectbucket.io
+spec:
+  group: objectbucket.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  preserveUnknownFields: false
+  names:
+    kind: ObjectBucket
+    listKind: ObjectBucketList
+    plural: objectbuckets
+    singular: objectbucket
+    shortNames:
+      - ob
+      - obs
+  scope: Cluster
+  subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectbucketclaims.objectbucket.io
+spec:
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+  preserveUnknownFields: false
+  group: objectbucket.io
+  names:
+    kind: ObjectBucketClaim
+    listKind: ObjectBucketClaimList
+    plural: objectbucketclaims
+    singular: objectbucketclaim
+    shortNames:
+      - obc
+      - obcs
+  scope: Namespaced
+  subresources:
+    status: {}

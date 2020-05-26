@@ -103,19 +103,24 @@ spec:
     singular: cephcluster
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   validation:
     openAPIV3Schema:
+      type: object
       properties:
         spec:
+          type: object
           properties:
             annotations: {}
             cephVersion:
+              type: object
               properties:
                 allowUnsupported:
                   type: boolean
                 image:
                   type: string
             dashboard:
+              type: object
               properties:
                 enabled:
                   type: boolean
@@ -131,6 +136,7 @@ spec:
               pattern: ^/(\S+)
               type: string
             disruptionManagement:
+              type: object
               properties:
                 machineDisruptionBudgetNamespace:
                   type: string
@@ -143,6 +149,7 @@ spec:
             skipUpgradeChecks:
               type: boolean
             mon:
+              type: object
               properties:
                 allowMultiplePerNode:
                   type: boolean
@@ -152,15 +159,18 @@ spec:
                   type: integer
                 volumeClaimTemplate: {}
             mgr:
+              type: object
               properties:
                 modules:
                   items:
+                    type: object
                     properties:
                       name:
                         type: string
                       enabled:
                         type: boolean
             network:
+              type: object
               properties:
                 hostNetwork:
                   type: boolean
@@ -168,8 +178,10 @@ spec:
                   type: string
                 selectors: {}
             storage:
+              type: object
               properties:
                 disruptionManagement:
+                  type: object
                   properties:
                     machineDisruptionBudgetNamespace:
                       type: string
@@ -183,10 +195,12 @@ spec:
                   type: boolean
                 nodes:
                   items:
+                    type: object
                     properties:
                       name:
                         type: string
                       config:
+                        type: object
                         properties:
                           metadataDevice:
                             type: string
@@ -210,6 +224,7 @@ spec:
                       devices:
                         type: array
                         items:
+                          type: object
                           properties:
                             name:
                               type: string
@@ -222,22 +237,26 @@ spec:
                 config: {}
                 storageClassDeviceSets: {}
             monitoring:
+              type: object
               properties:
                 enabled:
                   type: boolean
                 rulesNamespace:
                   type: string
             rbdMirroring:
+              type: object
               properties:
                 workers:
                   type: integer
             removeOSDsIfOutAndSafeToRemove:
               type: boolean
             external:
+              type: object
               properties:
                 enable:
                   type: boolean
             cleanupPolicy:
+              type: object
               properties:
                 deleteDataDirOnHosts:
                   type: string
@@ -278,12 +297,16 @@ spec:
     singular: cephfilesystem
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   validation:
     openAPIV3Schema:
+      type: object
       properties:
         spec:
+          type: object
           properties:
             metadataServer:
+              type: object
               properties:
                 activeCount:
                   minimum: 1
@@ -295,10 +318,12 @@ spec:
                 placement: {}
                 resources: {}
             metadataPool:
+              type: object
               properties:
                 failureDomain:
                   type: string
                 replicated:
+                  type: object
                   properties:
                     size:
                       minimum: 0
@@ -307,6 +332,7 @@ spec:
                     requireSafeReplicaSize:
                       type: boolean
                 erasureCoded:
+                  type: object
                   properties:
                     dataChunks:
                       minimum: 0
@@ -327,10 +353,12 @@ spec:
             dataPools:
               type: array
               items:
+                type: object
                 properties:
                   failureDomain:
                     type: string
                   replicated:
+                    type: object
                     properties:
                       size:
                         minimum: 0
@@ -339,6 +367,7 @@ spec:
                       requireSafeReplicaSize:
                         type: boolean
                   erasureCoded:
+                    type: object
                     properties:
                       dataChunks:
                         minimum: 0
@@ -384,18 +413,23 @@ spec:
     - nfs
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   validation:
     openAPIV3Schema:
+      type: object
       properties:
         spec:
+          type: object
           properties:
             rados:
+              type: object
               properties:
                 pool:
                   type: string
                 namespace:
                   type: string
             server:
+              type: object
               properties:
                 active:
                   type: integer
@@ -418,12 +452,16 @@ spec:
     singular: cephobjectstore
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   validation:
     openAPIV3Schema:
+      type: object
       properties:
         spec:
+          type: object
           properties:
             gateway:
+              type: object
               properties:
                 type:
                   type: string
@@ -439,16 +477,19 @@ spec:
                 placement: {}
                 resources: {}
             metadataPool:
+              type: object
               properties:
                 failureDomain:
                   type: string
                 replicated:
+                  type: object
                   properties:
                     size:
                       type: integer
                     requireSafeReplicaSize:
                       type: boolean
                 erasureCoded:
+                  type: object
                   properties:
                     dataChunks:
                       type: integer
@@ -463,16 +504,19 @@ spec:
                   - aggressive
                   - force
             dataPool:
+              type: object
               properties:
                 failureDomain:
                   type: string
                 replicated:
+                  type: object
                   properties:
                     size:
                       type: integer
                     requireSafeReplicaSize:
                       type: boolean
                 erasureCoded:
+                  type: object
                   properties:
                     dataChunks:
                       type: integer
@@ -507,6 +551,7 @@ spec:
     - objectuser
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   subresources:
     status: {}
 ---
@@ -523,14 +568,18 @@ spec:
     singular: cephblockpool
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   validation:
     openAPIV3Schema:
+      type: object
       properties:
         spec:
+          type: object
           properties:
             failureDomain:
                 type: string
             replicated:
+              type: object
               properties:
                 size:
                   type: integer
@@ -541,6 +590,7 @@ spec:
                 requireSafeReplicaSize:
                   type: boolean
             erasureCoded:
+              type: object
               properties:
                 dataChunks:
                   type: integer
@@ -576,6 +626,7 @@ spec:
     - rv
   scope: Namespaced
   version: v1alpha2
+  preserveUnknownFields: false
   subresources:
     status: {}
 ---
@@ -589,6 +640,7 @@ spec:
     - name: v1alpha1
       served: true
       storage: true
+  preserveUnknownFields: false
   names:
     kind: ObjectBucket
     listKind: ObjectBucketList
@@ -610,6 +662,7 @@ spec:
     - name: v1alpha1
       served: true
       storage: true
+  preserveUnknownFields: false
   group: objectbucket.io
   names:
     kind: ObjectBucketClaim
@@ -636,12 +689,16 @@ spec:
     singular: cephclient
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   validation:
     openAPIV3Schema:
+      type: object
       properties:
         spec:
+          type: object
           properties:
             caps:
+              type: object
               properties:
                 mon:
                   type: string
@@ -665,10 +722,13 @@ spec:
     singular: cephrbdmirror
   scope: Namespaced
   version: v1
+  preserveUnknownFields: false
   validation:
     openAPIV3Schema:
+      type: object
       properties:
         spec:
+          type: object
           properties:
             count:
               type: integer
