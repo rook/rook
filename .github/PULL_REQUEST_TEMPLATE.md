@@ -9,7 +9,7 @@ Resolves #
 
 **Checklist:**
 
-- [ ] **CommitLint Bot**: Commit titles and messages follow guidelines in the [developer guide](https://rook.io/docs/rook/master/development-flow.html#commit-structure).
+- [ ] **Commit Message Formatting**: Commit titles and messages follow guidelines in the [developer guide](https://rook.io/docs/rook/master/development-flow.html#commit-structure).
 - [ ] **Skip Tests for Docs**: Add the flag for skipping the build if this is only a documentation change. See [here](https://github.com/rook/rook/blob/master/INSTALL.md#skip-ci) for the flag.
 - [ ] **Skip Unrelated Tests**: Add a flag to run tests for a specific storage provider. See [test options](https://github.com/rook/rook/blob/master/INSTALL.md#test-storage-provider).
 - [ ] Reviewed the developer guide on [Submitting a Pull Request](https://rook.io/docs/rook/master/development-flow.html#submitting-a-pull-request)
