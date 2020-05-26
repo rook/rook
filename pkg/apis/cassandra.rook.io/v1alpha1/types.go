@@ -59,7 +59,7 @@ type ClusterList struct {
 // ClusterSpec is the desired state for a Cassandra Cluster.
 type ClusterSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rookv1.Annotations
+	Annotations rookv1.Annotations `json:"annotations"`
 	// Version of Cassandra to use.
 	Version string `json:"version"`
 	// Repository to pull the image from.
@@ -100,7 +100,7 @@ type RackSpec struct {
 	// Storage describes the underlying storage that Cassandra will consume.
 	Storage rookv1.StorageScopeSpec `json:"storage"`
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rookv1.Annotations
+	Annotations rookv1.Annotations `json:"annotations"`
 	// Placement describes restrictions for the nodes Cassandra is scheduled on.
 	Placement *rookv1.Placement `json:"placement,omitempty"`
 	// Resources the Cassandra Pods will use.
