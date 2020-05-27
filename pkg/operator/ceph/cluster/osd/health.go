@@ -25,7 +25,6 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -162,35 +161,10 @@ func (m *OSDHealthMonitor) restartOSDIfStuck(osdID int) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get OSD with ID %d", osdID)
 	}
-	return m.restartOSDPodsIfStuck(osdID, pods)
-}
-
-func (m *OSDHealthMonitor) restartOSDPodsIfStuck(osdID int, pods *v1.PodList) error {
 	for _, pod := range pods.Items {
-		logger.Debugf("checking if osd %d pod is stuck and should be force deleted", osdID)
-		if pod.DeletionTimestamp.IsZero() {
-			logger.Debugf("skipping restart of OSD %d since the pod is not deleted", osdID)
-			continue
+		if err := k8sutil.ForceDeletePodIfStuck(m.context, pod); err != nil {
+			logger.Warningf("skipping restart of OSD %d. %v", osdID, err)
 		}
-		node, err := m.context.Clientset.CoreV1().Nodes().Get(pod.Spec.NodeName, metav1.GetOptions{})
-		if err != nil {
-			logger.Warningf("skipping restart of OSD %d since the node status is not available. %v", osdID, err)
-			continue
-		}
-		if k8sutil.NodeIsReady(*node) {
-			logger.Debugf("skipping restart of OSD %d since the node status is ready", osdID)
-			continue
-		}
-
-		logger.Infof("force deleting pod %q that appears to be stuck terminating", pod.Name)
-		var gracePeriod int64
-		deleteOpts := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod}
-		if err := m.context.Clientset.CoreV1().Pods(m.namespace).Delete(pod.Name, deleteOpts); err != nil {
-			logger.Warningf("pod %q deletion failed. %v", pod.Name, err)
-			continue
-		}
-		logger.Infof("pod %q deletion succeeded", pod.Name)
 	}
-
 	return nil
 }
