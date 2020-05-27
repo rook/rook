@@ -74,6 +74,8 @@ func UpdateDeploymentAndWait(context *clusterd.Context, modifiedDeployment *apps
 
 	// If deployments are different, let's update!
 	if !patchResult.IsEmpty() {
+		logger.Infof("updating deployment %q after verifying it is safe to stop", modifiedDeployment.Name)
+
 		// Let's verify the deployment can be stopped
 		// retry for 5 times, every minute
 		err = util.Retry(5, 60*time.Second, func() error {
@@ -89,7 +91,6 @@ func UpdateDeploymentAndWait(context *clusterd.Context, modifiedDeployment *apps
 			return nil, fmt.Errorf("failed to set hash annotation on deployment %q. %v", modifiedDeployment.Name, err)
 		}
 
-		logger.Infof("updating deployment %q", modifiedDeployment.Name)
 		if _, err := context.Clientset.AppsV1().Deployments(namespace).Update(modifiedDeployment); err != nil {
 			return nil, fmt.Errorf("failed to update deployment %q. %v", modifiedDeployment.Name, err)
 		}
