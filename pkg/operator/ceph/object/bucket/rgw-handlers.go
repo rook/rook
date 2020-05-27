@@ -7,26 +7,6 @@ import (
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
-// The bucket (and objects) could be deleted via an s3 iterator, but since radosgw
-// supports the `buket rm` command, this is the approch we'll use.
-func (p *Provisioner) deleteBucket(bktName string) error {
-
-	// delete bucket with purge option to remove all objects
-	errCode, err := cephObject.DeleteBucket(p.objectContext, p.bucketName, true)
-	if errCode == cephObject.RGWErrorNone {
-		logger.Infof("Bucket %s successfully deleted", bktName)
-		return nil
-	}
-
-	// opinion: "not found" is not an error
-	if errCode == cephObject.RGWErrorNotFound {
-		logger.Infof("Bucket %s does not exist", bktName)
-		return nil
-	}
-
-	return errors.Wrapf(err, "failed to delete bucket %q: errCode: %d", bktName, errCode)
-}
-
 func (p *Provisioner) bucketExists(name string) (bool, error) {
 	_, errCode, err := cephObject.GetBucket(p.objectContext, name)
 	if errCode != 0 {
@@ -81,26 +61,6 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 
 	logger.Infof("successfully created Ceph user %q with access keys", username)
 	return *u.AccessKey, *u.SecretKey, nil
-}
-
-// Delete the Ceph user associated to the passed-in bucket.
-func (p *Provisioner) deleteCephUser(username string) error {
-
-	logger.Infof("deleting Ceph user %s for bucket %q", username, p.bucketName)
-	_, errCode, err := cephObject.DeleteUser(p.objectContext, username)
-
-	if errCode == cephObject.RGWErrorNone {
-		logger.Infof("User %s successfully deleted", username)
-		return nil
-	}
-
-	// opinion: "not found" is not an error
-	if errCode == cephObject.RGWErrorNotFound {
-		logger.Infof("User %s does not exist", username)
-		return nil
-	}
-
-	return errors.Wrapf(err, "failed to delete user %q: errCode: %d", username, errCode)
 }
 
 // returns "" if unable to generate a unique name.
