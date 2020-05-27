@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	healthCheckInterval = 300 * time.Second
+	healthCheckInterval = 60 * time.Second
 )
 
 // OSDHealthMonitor defines OSD process monitoring
