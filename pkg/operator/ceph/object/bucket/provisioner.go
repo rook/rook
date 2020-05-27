@@ -197,11 +197,7 @@ func (p Provisioner) Delete(ob *bktv1alpha1.ObjectBucket) error {
 		return err
 	}
 
-	err = p.deleteCephUser(p.cephUserName)
-	if err != nil {
-		return err
-	}
-	err = p.deleteBucket(p.bucketName)
+	err = p.deleteOBCResource(p.bucketName)
 	if err != nil {
 		return err
 	}
@@ -294,10 +290,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 	}
 
 	// finally, delete unlinked user
-	err = p.deleteCephUser(p.cephUserName)
-	if err != nil {
-		return err
-	}
+	p.deleteOBCResource("")
 	return nil
 }
 
