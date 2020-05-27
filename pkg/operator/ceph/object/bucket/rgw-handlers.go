@@ -122,3 +122,38 @@ func (p *Provisioner) genUserName() (genName string, err error) {
 	}
 	return genName, nil
 }
+
+// Delete the user and bucket created by OBC with help of radosgw-admin commands
+// If delete user failed, error is no longer returned since its permission is
+// already revoked and hence user is no longer able to access the bucket
+// Empty string is passed for bucketName only if user needs to be removed, ex Revoke()
+func (p *Provisioner) deleteOBCResource(bucketName string) error {
+
+	logger.Infof("deleting Ceph user %s and bucket %q", p.cephUserName, bucketName)
+	if len(p.cephUserName) > 0 {
+		_, errCode, _ := cephObject.DeleteUser(p.objectContext, p.cephUserName)
+
+		if errCode == cephObject.RGWErrorNone {
+			logger.Infof("user %q successfully deleted", p.cephUserName)
+		} else if errCode == cephObject.RGWErrorNotFound {
+			// opinion: "not found" is not an error
+			logger.Infof("user %q does not exist", p.cephUserName)
+		} else {
+			logger.Warningf("failed to delete user %q: errCode: %d", p.cephUserName, errCode)
+		}
+	}
+	if len(bucketName) > 0 {
+		// delete bucket with purge option to remove all objects
+		errCode, err := cephObject.DeleteBucket(p.objectContext, bucketName, true)
+
+		if errCode == cephObject.RGWErrorNone {
+			logger.Infof("bucket %q successfully deleted", p.bucketName)
+		} else if errCode == cephObject.RGWErrorNotFound {
+			// opinion: "not found" is not an error
+			logger.Infof("bucket %q does not exist", p.bucketName)
+		} else {
+			return errors.Wrapf(err, "failed to delete bucket %q: errCode: %d", bucketName, errCode)
+		}
+	}
+	return nil
+}
