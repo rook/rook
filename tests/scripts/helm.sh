@@ -4,6 +4,7 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 temp="/tmp/rook-tests-scripts-helm"
 
 HELM="helm"
+helm_version="${HELM_VERSION:-"v3.2.1"}"
 arch="${ARCH:-}"
 
 detectArch() {
@@ -33,43 +34,13 @@ install() {
         dist="$(uname -s)"
         dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
         mkdir -p "${temp}"
-        wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
+        wget "https://get.helm.sh/helm-${helm_version}-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
         tar -C "${temp}" -zxvf "${temp}/helm.tar.gz"
         HELM="${temp}/${dist}-${arch}/helm"
     fi
 
-    # set up RBAC for helm
-    kubectl --namespace kube-system create sa tiller
-    kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
-    kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
-
-    # Init helm
-    "${HELM}" init --service-account tiller --output yaml | \
-       sed 's@apiVersion: extensions/v1beta1@apiVersion: apps/v1@' | \
-       sed 's@strategy: {}@selector: {"matchLabels": {"app": "helm", "name": "tiller"}}@' | \
-       kubectl apply -f -
-    "${HELM}" init --client-only
-
-    sleep 5
-
-    helm_ready=$(kubectl get pods -l app=helm -n kube-system -o jsonpath='{.items[0].status.phase}')
-    INC=0
-    until [[ "${helm_ready}" == "Running" || $INC -gt 20 ]]; do
-        sleep 10
-        (( ++INC ))
-        helm_ready=$(kubectl get pods -l app=helm -n kube-system -o jsonpath='{.items[0].status.phase}')
-        echo "helm pod status: ${helm_ready}"
-    done
-
-    if [ "${helm_ready}" != "Running" ]; then
-        echo "Helm init not successful"
-        exit 1
-    fi
-
-    echo "Helm init successful"
-
     # set up local repo for helm and add local/rook-ceph
-    "${HELM}" repo remove local
+    "${HELM}" repo remove local || true
     "${HELM}" repo remove stable
 
     "${HELM}" repo index _output/charts/ --url http://127.0.0.1:8879

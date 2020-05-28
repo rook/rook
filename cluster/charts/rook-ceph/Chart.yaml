@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: v2
 description: File, Block, and Object Storage Services for your Cloud-Native Environment
 name: rook-ceph
 version: 0.0.1
