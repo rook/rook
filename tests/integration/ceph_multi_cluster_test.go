@@ -157,7 +157,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 func (o MCTestOperations) Setup() {
 	var err error
 	if o.testOverPVC {
-		root, err := installer.FindRookRoot()
+		root, err := utils.FindRookRoot()
 		require.NoError(o.T(), err, "failed to get rook root")
 		cmdArgs := utils.CommandArgs{Command: filepath.Join(root, localPathPVCmd),
 			CmdArgs: []string{installer.TestScratchDevice()}}

@@ -1,3 +1,4 @@
+{{- if .Values.crds.enabled }}
 {{- if semverCompare ">=1.16.0" .Capabilities.KubeVersion.GitVersion }}
 ---
 apiVersion: apiextensions.k8s.io/v1
@@ -2049,4 +2050,5 @@ spec:
                   type: array
   subresources:
     status: {}
+{{- end }}
 {{- end }}

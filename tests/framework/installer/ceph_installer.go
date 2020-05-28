@@ -23,7 +23,6 @@ import (
 	"math/rand"
 	"os"
 	"path"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -34,7 +33,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -47,8 +46,6 @@ const (
 	octopusTestImage = "ceph/ceph:v15"
 	// test with the latest master image
 	masterTestImage    = "ceph/daemon-base:latest-master-devel"
-	helmChartName      = "local/rook-ceph"
-	helmDeployName     = "rook-ceph"
 	cephOperatorLabel  = "app=rook-ceph-operator"
 	defaultclusterName = "test-cluster"
 )
@@ -100,7 +97,7 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 
 	err = h.k8shelper.CreateNamespace(namespace)
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
+		if kerrors.IsAlreadyExists(err) {
 			logger.Warningf("Namespace %q already exists!!!", namespace)
 		} else {
 			return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
@@ -127,7 +124,7 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 func (h *CephInstaller) startAdmissionController(namespace string) error {
 	err := h.k8shelper.CreateNamespace(namespace)
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
+		if kerrors.IsAlreadyExists(err) {
 			logger.Warningf("Namespace %q already exists!!!", namespace)
 		} else {
 			return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
@@ -136,7 +133,7 @@ func (h *CephInstaller) startAdmissionController(namespace string) error {
 	if !h.k8shelper.VersionAtLeast("v1.15.0") {
 		return nil
 	}
-	rootPath, err := FindRookRoot()
+	rootPath, err := utils.FindRookRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find rook root. %v", err)
 	}
@@ -144,7 +141,8 @@ func (h *CephInstaller) startAdmissionController(namespace string) error {
 	if err != nil {
 		return fmt.Errorf("failed to find user home directory. %v", err)
 	}
-	err = h.k8shelper.MakeContext().Executor.ExecuteCommandWithEnv([]string{fmt.Sprintf("NAMESPACE=%s", namespace), fmt.Sprintf("HOME=%s", userHome)}, "bash", fmt.Sprintf("%s/tests/scripts/deploy_admission_controller_test.sh", rootPath))
+	scriptPath := path.Join(rootPath, "tests/scripts/deploy_admission_controller_test.sh")
+	err = h.k8shelper.MakeContext().Executor.ExecuteCommandWithEnv([]string{fmt.Sprintf("NAMESPACE=%s", namespace), fmt.Sprintf("HOME=%s", userHome)}, "bash", scriptPath)
 	if err != nil {
 		return err
 	}
@@ -152,52 +150,19 @@ func (h *CephInstaller) startAdmissionController(namespace string) error {
 	return nil
 }
 
-func FindRookRoot() (string, error) {
-	const folderToFind = "tests"
-	workingDirectory, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to find current working directory. %v", err)
-	}
-	parentPath := workingDirectory
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to find user home directory. %v", err)
-	}
-	for parentPath != userHome {
-		fmt.Printf("parent path = %s\n", parentPath)
-		_, err := os.Stat(path.Join(parentPath, folderToFind))
-		if os.IsNotExist(err) {
-			parentPath = filepath.Dir(parentPath)
-			continue
-		}
-		return parentPath, nil
-	}
-
-	return "", fmt.Errorf("rook root not found above directory %s", workingDirectory)
-}
-
 // CreateRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
 func (h *CephInstaller) CreateRookOperatorViaHelm(namespace, chartSettings string) error {
 	// creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
-	helmTag, err := h.helmHelper.GetLocalRookHelmChartVersion(helmChartName)
-
-	if err != nil {
-		return fmt.Errorf("Failed to get Version of helm chart %v, err : %v", helmChartName, err)
-	}
-
 	if !utils.IsPlatformOpenShift() {
-		err = h.startAdmissionController(namespace)
-		if err != nil {
+		if err := h.startAdmissionController(namespace); err != nil {
 			return fmt.Errorf("Failed to start admission controllers: %v", err)
 		}
 	}
 
-	err = h.helmHelper.InstallLocalRookHelmChart(helmChartName, helmDeployName, helmTag, namespace, chartSettings)
-	if err != nil {
+	if err := h.helmHelper.InstallLocalRookHelmChart(namespace, chartSettings); err != nil {
 		return fmt.Errorf("failed to install rook operator via helm, err : %v", err)
-
 	}
 
 	return nil
@@ -249,7 +214,7 @@ func (h *CephInstaller) CreateRookCluster(namespace, systemNamespace, storeType 
 	logger.Infof("Creating namespace %s", namespace)
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err = h.k8shelper.Clientset.CoreV1().Namespaces().Create(ns)
-	if err != nil && !errors.IsAlreadyExists(err) {
+	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create namespace %s. %+v", namespace, err)
 	}
 
@@ -321,7 +286,7 @@ func (h *CephInstaller) CreateRookExternalCluster(namespace, firstClusterNamespa
 	logger.Infof("Creating namespace %s", namespace)
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err = h.k8shelper.Clientset.CoreV1().Namespaces().Create(ns)
-	if err != nil && !errors.IsAlreadyExists(err) {
+	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
 	}
 
@@ -467,7 +432,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	// Create rook operator
 	if h.useHelm {
 		// disable the discovery daemonset with the helm chart
-		settings := "enableDiscoveryDaemon=false"
+		settings := "enableDiscoveryDaemon=false,image.tag=master"
 		startDiscovery = false
 		err = h.CreateRookOperatorViaHelm(namespace, settings)
 		if err != nil {
@@ -505,7 +470,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 		assert.NotNil(h.T(), discovery)
 	} else {
 		assert.Error(h.T(), err)
-		assert.True(h.T(), errors.IsNotFound(err))
+		assert.True(h.T(), kerrors.IsNotFound(err))
 	}
 
 	// Create rook client
@@ -592,6 +557,12 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
 		checkError(h.T(), err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
 
+		if h.useHelm {
+			err = h.helmHelper.DeleteLocalRookHelmChart(namespace, utils.HelmDeployName)
+			checkError(h.T(), err, "cannot uninstall helm chart")
+		}
+
+		// delete the entire namespace
 		err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
 		checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
 	}
@@ -618,15 +589,13 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		"cephrbdmirrors.ceph.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
-	if h.useHelm {
-		err = h.helmHelper.DeleteLocalRookHelmChart(helmDeployName)
-	} else {
+	if !h.useHelm {
 		logger.Infof("Deleting all the resources in the operator manifest")
 		rookOperator := h.Manifests.GetRookOperator(systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(rookOperator, deleteFromStdinArgs...)
 		logger.Infof("DONE deleting all the resources in the operator manifest")
+		checkError(h.T(), err, "cannot uninstall rook-operator")
 	}
-	checkError(h.T(), err, "cannot uninstall rook-operator")
 
 	err = h.k8shelper.Clientset.AdmissionregistrationV1beta1().ValidatingWebhookConfigurations().Delete("rook-ceph-webhook", nil)
 	checkError(h.T(), err, "failed to delete webhook configuration")
@@ -718,7 +687,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	// wait a bit longer for the system namespace to be cleaned up after their deletion
 	for i := 0; i < 15; i++ {
 		_, err := h.k8shelper.Clientset.CoreV1().Namespaces().Get(systemNamespace, metav1.GetOptions{})
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && kerrors.IsNotFound(err) {
 			logger.Infof("system namespace %q removed", systemNamespace)
 			break
 		}
