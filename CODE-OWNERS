@@ -16,6 +16,9 @@ areas:
     - travisn
     - BlaineEXE
     - leseb
+    reviewers:
+    - satoru-takeuchi
+    - Madhu-1
   edgefs:
     approvers:
     - dyusupov
@@ -28,6 +31,6 @@ areas:
     reviewers:
     - rohan47
   yugabytedb:
-    approvers:
+    reviewers:
     - Arnav15
     - samkulkarni20
