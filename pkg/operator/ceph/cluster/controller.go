@@ -260,7 +260,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		return
 	}
 
-	if hasCleanupPolicy(clusterObj) {
+	if clusterObj.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
 		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
 		return
 	}
@@ -645,8 +645,8 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		logger.Infof("cluster %q has a deletion timestamp", newClust.Namespace)
 
 		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
-		if hasCleanupPolicy(newClust) {
-			monSecret, err := c.getMonSecret(newClust.Namespace)
+		if newClust.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
+			monSecret, clusterFSID, err := c.getCleanUpDetails(newClust.Namespace)
 			if err != nil {
 				logger.Errorf("failed to clean up cluster. %v", err)
 				return
@@ -656,7 +656,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 				logger.Errorf("failed to find valid ceph hosts in the cluster %q. %v", newClust.Namespace, err)
 				return
 			}
-			go c.startClusterCleanUp(newClust, cephHosts, monSecret)
+			go c.startClusterCleanUp(newClust, cephHosts, monSecret, clusterFSID)
 		}
 
 		err = c.handleDelete(newClust, time.Duration(clusterDeleteRetryInterval)*time.Second)
@@ -670,7 +670,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	if hasCleanupPolicy(newClust) {
+	if newClust.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
 		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", newClust.Name, newClust.Namespace)
 		return
 	}
@@ -1274,9 +1274,4 @@ func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string
 	}
 
 	return nil
-}
-
-func hasCleanupPolicy(cephCluster *cephv1.CephCluster) bool {
-	policy := cephCluster.Spec.CleanupPolicy
-	return policy.DeleteDataDirOnHosts != ""
 }

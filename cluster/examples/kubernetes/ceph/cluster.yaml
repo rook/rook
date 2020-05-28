@@ -90,12 +90,13 @@ spec:
   crashCollector:
     disable: false
   cleanupPolicy:
-    # cleanupPolicy should only be added to the cluster when the cluster is about to be deleted.
+    # cleanup should only be added to the cluster when the cluster is about to be deleted.
     # After any field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about
     # to be destroyed in order to prevent these settings from being deployed unintentionally.
     # To signify that automatic deletion is desired, use the value "yes-really-destroy-data". Only this and an empty
     # string are valid values for this field.
-    deleteDataDirOnHosts: ""
+    confirmation: ""
+
   # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
   # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage-node' and
   # tolerate taints with a key of 'storage-node'.
@@ -123,10 +124,12 @@ spec:
 # preferred rule with weight: 50.
 #    osd:
 #    mgr:
+#    cleanup:
   annotations:
 #    all:
 #    mon:
 #    osd:
+#    cleanup:
 # If no mgr annotations are set, prometheus scrape annotations will be set by default.
 #   mgr:
   resources:
@@ -143,6 +146,7 @@ spec:
 #    osd:
 #    prepareosd:
 #    crashcollector:
+#    cleanup:
   # The option to automatically remove OSDs that are out and are safe to destroy.
   removeOSDsIfOutAndSafeToRemove: false
 #  priorityClassNames:

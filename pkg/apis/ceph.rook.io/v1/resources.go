@@ -34,6 +34,8 @@ const (
 	ResourcesKeyRBDMirror = "rbdmirror"
 	// ResourcesKeyCrashCollector represents the name of resource in the CR for the crash
 	ResourcesKeyCrashCollector = "crashcollector"
+	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
+	ResourcesKeyCleanup = "cleanup"
 )
 
 // GetMgrResources returns the placement for the MGR service
@@ -64,4 +66,9 @@ func GetRBDMirrorResources(p rook.ResourceSpec) v1.ResourceRequirements {
 // GetCrashCollectorResources returns the placement for the crash daemon
 func GetCrashCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
+}
+
+// GetCleanupResources returns the placement for the cleanup job
+func GetCleanupResources(p rook.ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyCleanup]
 }

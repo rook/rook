@@ -51,3 +51,11 @@ func GetRBDMirrorPriorityClassName(p rook.PriorityClassNamesSpec) string {
 	}
 	return p[KeyRBDMirror]
 }
+
+// GetCleanupPriorityClassName returns the priority class name for the cleanup job
+func GetCleanupPriorityClassName(p rook.PriorityClassNamesSpec) string {
+	if _, ok := p[KeyCleanup]; !ok {
+		return p.All()
+	}
+	return p[KeyCleanup]
+}

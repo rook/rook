@@ -859,7 +859,7 @@ func (h *CephInstaller) addCleanupPolicy(namespace string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get ceph cluster. %+v", err)
 	}
-	cluster.Spec.CleanupPolicy.DeleteDataDirOnHosts = "yes-really-destroy-data"
+	cluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
 	_, err = h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Update(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to add clean up policy to the cluster. %+v", err)

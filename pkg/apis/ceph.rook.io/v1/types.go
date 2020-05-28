@@ -552,5 +552,7 @@ type ClientSpec struct {
 }
 
 type CleanupPolicySpec struct {
-	DeleteDataDirOnHosts string `json:"deleteDataDirOnHosts"`
+	Confirmation CleanupConfirmationProperty `json:"confirmation,omitempty"`
 }
+
+type CleanupConfirmationProperty string
