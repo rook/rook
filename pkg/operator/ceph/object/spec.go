@@ -278,7 +278,7 @@ func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephOb
 
 	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, cephObjectStore.Namespace, endpoint)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create or update object store %q service", cephObjectStore.Name)
+		return errors.Wrapf(err, "failed to create or update object store %q endpoint", cephObjectStore.Name)
 	}
 
 	return nil

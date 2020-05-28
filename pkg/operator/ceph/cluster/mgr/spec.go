@@ -39,7 +39,10 @@ import (
 )
 
 const (
-	podIPEnvVar = "ROOK_POD_IP"
+	podIPEnvVar               = "ROOK_POD_IP"
+	serviceMetricName         = "http-metrics"
+	ExternalMgrAppName        = "rook-ceph-mgr-external"
+	ServiceExternalMetricName = "http-external-metrics"
 )
 
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
@@ -263,7 +266,8 @@ func getDefaultMgrLivenessProbe() *v1.Probe {
 	}
 }
 
-func (c *Cluster) makeMetricsService(name string) *v1.Service {
+// MakeMetricsService generates the Kubernetes service object for the monitoring service
+func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) *v1.Service {
 	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -276,7 +280,7 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
-					Name:     "http-metrics",
+					Name:     servicePortMetricName,
 					Port:     int32(metricsPort),
 					Protocol: v1.ProtocolTCP,
 				},
@@ -343,4 +347,32 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 		k8sutil.PodIPEnvVar(podIPEnvVar),
 	}
 	return envVars
+}
+
+// CreateExternalMetricsEndpoints creates external metric endpoint
+func CreateExternalMetricsEndpoints(namespace string, externalMgrEndpoints []v1.EndpointAddress, ownerRef metav1.OwnerReference) *v1.Endpoints {
+	labels := controller.AppLabels(AppName, namespace)
+
+	endpoints := &v1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ExternalMgrAppName,
+			Namespace: namespace,
+			Labels:    labels,
+		},
+		Subsets: []v1.EndpointSubset{
+			{
+				Addresses: externalMgrEndpoints,
+				Ports: []v1.EndpointPort{
+					{
+						Name:     ServiceExternalMetricName,
+						Port:     int32(metricsPort),
+						Protocol: v1.ProtocolTCP,
+					},
+				},
+			},
+		},
+	}
+
+	k8sutil.SetOwnerRef(&endpoints.ObjectMeta, &ownerRef)
+	return endpoints
 }

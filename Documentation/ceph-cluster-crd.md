@@ -987,6 +987,12 @@ spec:
     enable: true
   crashCollector:
     disable: true
+  # optionally, the ceph-mgr IP address can be pass to gather metric from the prometheus exporter
+  #monitoring:
+    #enabled: true
+    #rulesNamespace: rook-ceph
+    #externalMgrEndpoints:
+      #- ip: 192.168.39.182
 ```
 
 Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.

@@ -83,7 +83,7 @@ func TestServiceSpec(t *testing.T) {
 	clusterSpec := cephv1.ClusterSpec{}
 	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
 
-	s := c.makeMetricsService("rook-mgr")
+	s := c.MakeMetricsService("rook-mgr", serviceMetricName)
 	assert.NotNil(t, s)
 	assert.Equal(t, "rook-mgr", s.Name)
 	assert.Equal(t, 1, len(s.Spec.Ports))
