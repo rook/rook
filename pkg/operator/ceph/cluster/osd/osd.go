@@ -556,7 +556,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 		_, createErr := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(dp)
 		if createErr != nil {
 			if kerrors.IsAlreadyExists(createErr) {
-				logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
+				logger.Debugf("deployment for osd %d already exists. updating if needed", osd.ID)
 				if err = updateDeploymentAndWait(c.context, dp, c.Namespace, opconfig.OsdType, strconv.Itoa(osd.ID), c.skipUpgradeChecks, c.continueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 					logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
 				}
@@ -565,8 +565,9 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 				logger.Warningf("failed to create osd deployment for node %q, osd %+v. %v", n.Name, osd, createErr)
 				continue
 			}
+		} else {
+			logger.Infof("created deployment for osd %d", osd.ID)
 		}
-		logger.Infof("started deployment for osd %d", osd.ID)
 	}
 }
 

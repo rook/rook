@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -133,13 +135,13 @@ func (c *Cluster) checkHealth() error {
 			// when the mon isn't in the clusterInfo, but is in quorum and there are
 			// enough mons, remove it else remove it on the next run
 			if inQuorum && len(quorumStatus.MonMap.Mons) > desiredMonCount {
-				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
+				logger.Warningf("mon %q not in source of truth but in quorum, removing", mon.Name)
 				if err := c.removeMon(mon.Name); err != nil {
 					logger.Warningf("failed to remove mon %q. %v", mon.Name, err)
 				}
 			} else {
 				logger.Warningf(
-					"mon %s not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
+					"mon %q not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
 					mon.Name,
 					desiredMonCount,
 					len(quorumStatus.MonMap.Mons),
@@ -148,38 +150,42 @@ func (c *Cluster) checkHealth() error {
 		}
 
 		if inQuorum {
-			logger.Debugf("mon %s found in quorum", mon.Name)
+			logger.Debugf("mon %q found in quorum", mon.Name)
 			// delete the "timeout" for a mon if the pod is in quorum again
 			if _, ok := c.monTimeoutList[mon.Name]; ok {
 				delete(c.monTimeoutList, mon.Name)
-				logger.Infof("mon %s is back in quorum, removed from mon out timeout list", mon.Name)
+				logger.Infof("mon %q is back in quorum, removed from mon out timeout list", mon.Name)
 			}
-		} else {
-			logger.Debugf("mon %s NOT found in quorum. Mon quorum status: %+v", mon.Name, quorumStatus)
-			allMonsInQuorum = false
-
-			// If not yet set, add the current time, for the timeout
-			// calculation, to the list
-			if _, ok := c.monTimeoutList[mon.Name]; !ok {
-				c.monTimeoutList[mon.Name] = time.Now()
-			}
-
-			// when the timeout for the mon has been reached, continue to the
-			// normal failover/delete mon pod part of the code
-			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
-				timeToFailover := int(MonOutTimeout.Seconds() - time.Since(c.monTimeoutList[mon.Name]).Seconds())
-				logger.Warningf("mon %s not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
-				continue
-			}
-
-			logger.Warningf("mon %s NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
-			c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name)
-			// only deal with one unhealthy mon per health check
-			return nil
+			continue
 		}
+
+		logger.Debugf("mon %q NOT found in quorum. Mon quorum status: %+v", mon.Name, quorumStatus)
+		allMonsInQuorum = false
+
+		// If not yet set, add the current time, for the timeout
+		// calculation, to the list
+		if _, ok := c.monTimeoutList[mon.Name]; !ok {
+			c.monTimeoutList[mon.Name] = time.Now()
+		}
+
+		// when the timeout for the mon has been reached, continue to the
+		// normal failover/delete mon pod part of the code
+		if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
+			timeToFailover := int(MonOutTimeout.Seconds() - time.Since(c.monTimeoutList[mon.Name]).Seconds())
+			logger.Warningf("mon %q not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
+
+			// Restart the mon if it is stuck on a failed node
+			c.restartMonIfStuckTerminating(mon.Name)
+			continue
+		}
+
+		logger.Warningf("mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
+		c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name)
+		// only deal with one unhealthy mon per health check
+		return nil
 	}
 
-	// after all unhealthy mons have been removed/failovered
+	// after all unhealthy mons have been removed or failed over
 	// handle all mons that haven't been in the Ceph mon map
 	for mon := range monsNotFound {
 		logger.Warningf("mon %s NOT found in ceph mon map, failover", mon)
@@ -421,4 +427,22 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 
 	logger.Debugf("ClusterInfo.Monitors is %+v", c.ClusterInfo.Monitors)
 	return changed, nil
+}
+
+// restartMonIfStuckTerminating will check if a mon is on a node that is not ready.
+// If the pod is stuck in terminating state, go ahead and force delete the pod so K8s
+// will allow the mon to be restarted on another node.
+func (c *Cluster) restartMonIfStuckTerminating(monName string) error {
+	logger.Debugf("Checking for a stuck mon %q pod", monName)
+	labels := fmt.Sprintf("app=%s,mon=%s", AppName, monName)
+	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(metav1.ListOptions{LabelSelector: labels})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get pod for mon %q", monName)
+	}
+	for _, pod := range pods.Items {
+		if err := k8sutil.ForceDeletePodIfStuck(c.context, pod); err != nil {
+			logger.Warningf("skipping forced restart of mon %q. %v", monName, err)
+		}
+	}
+	return nil
 }
