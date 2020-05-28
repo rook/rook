@@ -1,0 +1,33 @@
+{
+  "extends": [
+    "@commitlint/config-conventional"
+  ],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "build",
+        "bot",
+        "cassandra",
+        "ceph",
+        "ci",
+        "cockroachdb",
+        "core",
+        "docs",
+        "edgefs",
+        "nfs",
+        "test",
+        "yugabytedb"
+      ]
+    ],
+    "body-leading-blank": [
+      2,
+      "always"
+    ],
+    "footer-leading-blank": [
+      2,
+      "always"
+    ]
+  }
+}
