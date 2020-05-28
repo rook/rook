@@ -101,7 +101,7 @@ metadata:
   name: rook-ceph-bucket
   labels:
     aws-s3/object [1]
-provisioner: ceph.rook.io/bucket [2]
+provisioner: rook-ceph.ceph.rook.io/bucket [2]
 parameters: [3]
   objectStoreName: my-store
   objectStoreNamespace: rook-ceph
