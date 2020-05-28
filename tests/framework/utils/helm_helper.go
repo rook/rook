@@ -18,10 +18,16 @@ package utils
 
 import (
 	"fmt"
-	"strings"
+	"os"
+	"path"
+	"path/filepath"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/util/exec"
-	"github.com/rook/rook/pkg/util/sys"
+)
+
+const (
+	HelmDeployName = "rook-ceph"
 )
 
 // HelmHelper is wrapper for running helm commands
@@ -49,33 +55,14 @@ func (h *HelmHelper) Execute(args ...string) (string, error) {
 
 }
 
-// GetLocalRookHelmChartVersion returns helm chart version for a given chart
-func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, error) {
-	cmdArgs := []string{"search", chartName}
-	result, err := h.Execute(cmdArgs...)
-	if err != nil {
-		logger.Errorf("cannot find helm chart %v : %v", chartName, err)
-		return "", fmt.Errorf("Failed to find helm chart  %v : %v", chartName, err)
-	}
-
-	if strings.Contains(result, "No results found") {
-		return "", fmt.Errorf("Failed to find helm chart  %v ", chartName)
-	}
-
-	version := ""
-	slice := strings.Fields(sys.Grep(result, chartName))
-	if len(slice) >= 2 {
-		version = slice[1]
-	}
-	if version == "" {
-		return "", fmt.Errorf("Failed to find version for helm chart %v", chartName)
-	}
-	return version, nil
-}
-
 // InstallLocalRookHelmChart installs a give helm chart
-func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName string, chartVersion string, namespace, chartSettings string) error {
-	cmdArgs := []string{"install", chartName, "--name", deployName, "--version", chartVersion}
+func (h *HelmHelper) InstallLocalRookHelmChart(namespace, chartSettings string) error {
+	rootDir, err := FindRookRoot()
+	if err != nil {
+		return errors.Wrap(err, "failed to find rook root")
+	}
+	chartDir := path.Join(rootDir, "cluster/charts/rook-ceph/")
+	cmdArgs := []string{"install", HelmDeployName, chartDir, "-f", path.Join(chartDir, "values.yaml")}
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, "--namespace", namespace)
 	}
@@ -83,28 +70,18 @@ func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName stri
 		cmdArgs = append(cmdArgs, "--set", chartSettings)
 	}
 	var result string
-	var err error
-
 	result, err = h.Execute(cmdArgs...)
 	if err == nil {
 		return nil
 	}
 
-	logger.Infof("helm install for %s failed %v, err ->%v", chartName, result, err)
-	ls, _ := h.Execute([]string{"ls"}...)
-	logger.Infof("Helm ls result : %v", ls)
-	ss, _ := h.Execute([]string{"search"}...)
-	logger.Infof("Helm search result : %v", ss)
-	rl, _ := h.Execute([]string{"repo", "list"}...)
-	logger.Infof("Helm repo list result : %v", rl)
-
-	logger.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v  - %v , err: %v", chartName, chartVersion, namespace, result, err)
-	return fmt.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v - %v, err: %v", chartName, chartVersion, namespace, result, err)
+	logger.Errorf("cannot install helm chart with name : %v, namespace: %v  - %v , err: %v", HelmDeployName, namespace, result, err)
+	return fmt.Errorf("cannot install helm chart with name : %v, namespace: %v - %v, err: %v", HelmDeployName, namespace, result, err)
 }
 
 // DeleteLocalRookHelmChart uninstalls a give helm deploy
-func (h *HelmHelper) DeleteLocalRookHelmChart(deployName string) error {
-	cmdArgs := []string{"delete", "--purge", deployName}
+func (h *HelmHelper) DeleteLocalRookHelmChart(namespace, deployName string) error {
+	cmdArgs := []string{"delete", "-n", namespace, deployName}
 	_, err := h.Execute(cmdArgs...)
 	if err != nil {
 		logger.Errorf("cannot delete helm chart with name  %v : %v", deployName, err)
@@ -112,4 +89,28 @@ func (h *HelmHelper) DeleteLocalRookHelmChart(deployName string) error {
 	}
 
 	return nil
+}
+
+func FindRookRoot() (string, error) {
+	const folderToFind = "tests"
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to find current working directory. %v", err)
+	}
+	parentPath := workingDirectory
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to find user home directory. %v", err)
+	}
+	for parentPath != userHome {
+		fmt.Printf("parent path = %s\n", parentPath)
+		_, err := os.Stat(path.Join(parentPath, folderToFind))
+		if os.IsNotExist(err) {
+			parentPath = filepath.Dir(parentPath)
+			continue
+		}
+		return parentPath, nil
+	}
+
+	return "", fmt.Errorf("rook root not found above directory %s", workingDirectory)
 }
