@@ -33,3 +33,8 @@ func GetMonPlacement(p rookv1.PlacementSpec) rookv1.Placement {
 func GetOSDPlacement(p rookv1.PlacementSpec) rookv1.Placement {
 	return p.All().Merge(p[KeyOSD])
 }
+
+// GetCleanupPlacement returns the placement the cleanup job
+func GetCleanupPlacement(p rookv1.PlacementSpec) rookv1.Placement {
+	return p.All().Merge(p[KeyCleanup])
+}

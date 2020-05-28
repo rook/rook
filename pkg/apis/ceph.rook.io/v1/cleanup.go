@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2020 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,15 +16,16 @@ limitations under the License.
 
 package v1
 
-import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
+const (
+	// DeleteDataDirOnHostsConfirmation represents the validation to destry dataDirHostPath
+	DeleteDataDirOnHostsConfirmation CleanupConfirmationProperty = "yes-really-destroy-data"
 )
 
-const (
-	KeyMon       rook.KeyType = "mon"
-	KeyMgr       rook.KeyType = "mgr"
-	KeyOSD       rook.KeyType = "osd"
-	KeyRBDMirror rook.KeyType = "rbdmirror"
-	KeyRGW       rook.KeyType = "rgw"
-	KeyCleanup   rook.KeyType = "cleanup"
-)
+// HasDataDirCleanPolicy returns whether the cluster has a data dir policy
+func (c *CleanupPolicySpec) HasDataDirCleanPolicy() bool {
+	return c.Confirmation == DeleteDataDirOnHostsConfirmation
+}
+
+func (c *CleanupConfirmationProperty) String() string {
+	return string(*c)
+}

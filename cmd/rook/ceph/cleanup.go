@@ -17,14 +17,8 @@ limitations under the License.
 package ceph
 
 import (
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-
-	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	cleanup "github.com/rook/rook/pkg/daemon/ceph/cleanup"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -33,6 +27,8 @@ var (
 	dataDirHostPath string
 	namespaceDir    string
 	monSecret       string
+	clusterFSID     string
+	clusterName     string
 )
 
 var cleanUpCmd = &cobra.Command{
@@ -44,6 +40,8 @@ func init() {
 	cleanUpCmd.Flags().StringVar(&dataDirHostPath, "data-dir-host-path", "", "dataDirHostPath on the node")
 	cleanUpCmd.Flags().StringVar(&namespaceDir, "namespace-dir", "", "dataDirHostPath on the node")
 	cleanUpCmd.Flags().StringVar(&monSecret, "mon-secret", "", "monitor secret from the keyring")
+	cleanUpCmd.Flags().StringVar(&clusterFSID, "cluster-fsid", "", "ceph cluster fsid")
+	cleanUpCmd.Flags().StringVar(&clusterName, "cluster-name", "", "ceph cluster name")
 	flags.SetFlagsFromEnv(cleanUpCmd.Flags(), rook.RookEnvVarPrefix)
 	cleanUpCmd.RunE = startCleanUp
 }
@@ -55,65 +53,18 @@ func startCleanUp(cmd *cobra.Command, args []string) error {
 	logger.Info("starting cluster clean up")
 	// Delete dataDirHostPath
 	if dataDirHostPath != "" {
-		cleanupDirPath := path.Join(dataDirHostPath, namespaceDir)
-		if err := os.RemoveAll(cleanupDirPath); err != nil {
-			logger.Errorf("failed to clean up %q directory. %v", cleanupDirPath, err)
-		} else {
-			logger.Infof("successfully cleaned up %q directory", cleanupDirPath)
-		}
-		// Remove all the mon directories.
-		cleanMonDirs()
+		// Remove both dataDirHostPath and monitor store
+		cleanup.StartHostPathCleanup(namespaceDir, dataDirHostPath, monSecret)
 	}
+
+	// Build Sanitizer
+	s := cleanup.NewDiskSanitizer(createContext(),
+		clusterName,
+		clusterFSID,
+	)
+
+	// Start OSD wipe process
+	cleanup.StartSanitizeDisks(s)
 
 	return nil
-}
-
-func cleanMonDirs() {
-	monDirs, err := filepath.Glob(path.Join(dataDirHostPath, "mon-*"))
-	if err != nil {
-		logger.Errorf("failed to find the mon directories on the dataDirHostPath %q. %v", dataDirHostPath, err)
-		return
-	}
-
-	if len(monDirs) == 0 {
-		logger.Infof("no mon directories are available for clean up in the dataDirHostPath %q", dataDirHostPath)
-		return
-	}
-
-	for _, monDir := range monDirs {
-		// Clean up mon directory only if mon secret matches with that in the keyring file.
-		deleteMonDir, err := secretKeyMatch(monDir, monSecret)
-		if err != nil {
-			logger.Errorf("failed to clean up the mon directory %q on the dataDirHostPath %q. %v", monDir, dataDirHostPath, err)
-			continue
-		}
-		if deleteMonDir {
-			if err := os.RemoveAll(monDir); err != nil {
-				logger.Errorf("failed to clean up the mon directory %q on the dataDirHostPath %q. %v", monDir, dataDirHostPath, err)
-			} else {
-				logger.Infof("successfully cleaned up the mon directory %q on the dataDirHostPath %q", monDir, dataDirHostPath)
-			}
-		} else {
-			logger.Infof("skipped clean up of the mon directory %q as the secret key did not match", monDir)
-		}
-	}
-
-	return
-}
-
-func secretKeyMatch(monDir, monSecret string) (bool, error) {
-	keyringDirPath := path.Join(monDir, "/data/keyring")
-	if _, err := os.Stat(keyringDirPath); os.IsNotExist(err) {
-		return false, errors.Wrapf(err, "failed to read keyring %q for the mon directory %q", keyringDirPath, monDir)
-	}
-	contents, err := ioutil.ReadFile(filepath.Clean(keyringDirPath))
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to read keyring %q for the mon directory %q", keyringDirPath, monDir)
-	}
-	extractedKey, err := mon.ExtractKey(string(contents))
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to extract secret key from the keyring %q for the mon directory %q", keyringDirPath, monDir)
-	}
-
-	return monSecret == extractedKey, nil
 }
