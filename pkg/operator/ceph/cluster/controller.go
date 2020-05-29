@@ -34,6 +34,7 @@ import (
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	cephclient "github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -505,8 +506,20 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 			return
 		}
 	}
+
+	monitoringActivated := false
 	config.ConditionInitialize(c.context, clusterObj.Namespace, clusterObj.Name)
 	if !cluster.Spec.External.Enable {
+		// If the local cluster has already been configured, immediately start monitoring the cluster.
+		// Test if the cluster has already been configured if the mgr deployment has been created.
+		// If the mgr does not exist, the mons have never been verified to be in quorum.
+		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
+		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(opts)
+		if err == nil && len(mgrDeployments.Items) > 0 {
+			c.startClusterMonitoring(cluster)
+			monitoringActivated = true
+		}
+
 		if err := c.configureLocalCephCluster(clusterObj.Namespace, clusterObj.Name, cluster, clusterObj); err != nil {
 			logger.Errorf("failed to configure local ceph cluster. %v", err)
 			return
@@ -519,6 +532,31 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 			return
 		}
 	}
+
+	// add the finalizer to the crd
+	err := c.addFinalizer(clusterObj.Namespace, clusterObj.Name)
+	if err != nil {
+		logger.Errorf("failed to add finalizer to cluster crd. %v", err)
+	}
+
+	if !monitoringActivated {
+		c.startClusterMonitoring(cluster)
+	}
+}
+
+func (c *ClusterController) startClusterMonitoring(cluster *cluster) {
+	if cluster.Info == nil {
+		clusterInfo, _, _, err := mon.CreateOrLoadClusterInfo(c.context, cluster.Namespace, nil)
+		if err != nil {
+			logger.Errorf("failed to start osd monitoring. %v", err)
+			return
+		}
+		cluster.Info = clusterInfo
+		logger.Infof("cluster info loaded for monitoring: %+v", clusterInfo)
+	}
+
+	// enable the cluster monitoring goroutines once
+	logger.Infof("enabling cluster monitoring goroutines")
 
 	// Start client CRD watcher
 	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
@@ -538,9 +576,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	go bucketController.Run(cluster.stopCh)
 
 	// Populate ClusterInfo
-	if cluster.Spec.External.Enable {
-		cluster.mons.ClusterInfo = cluster.Info
-	}
+	cluster.mons.ClusterInfo = cluster.Info
 
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons, cluster.Spec)
@@ -553,14 +589,8 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	}
 
 	// Start the ceph status checker
-	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, clusterObj.Name, cluster.Info.ExternalCred)
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cluster.crdName, cluster.Info.ExternalCred)
 	go cephChecker.checkCephStatus(cluster.stopCh)
-
-	// add the finalizer to the crd
-	err := c.addFinalizer(clusterObj.Namespace, clusterObj.Name)
-	if err != nil {
-		logger.Errorf("failed to add finalizer to cluster crd. %v", err)
-	}
 }
 
 // ************************************************************************************************
