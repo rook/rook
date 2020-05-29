@@ -344,7 +344,7 @@ class RadosJSON:
                 "data": {
                     "data": self.out_map['ROOK_EXTERNAL_CEPH_MON_DATA'],
                     "maxMonId": "0",
-                    "mapping": {}
+                    "mapping": "{}"
                 }
             },
             {
