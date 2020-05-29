@@ -499,13 +499,6 @@ func StartCSIDrivers(namespace string, clientset kubernetes.Interface, ver *vers
 	return nil
 }
 
-func StopCSIDrivers(namespace string, clientset kubernetes.Interface) error {
-	logger.Warning("Skipped removing the CSI driver")
-
-	// FIX: Restore the ownerRefs for all CSI resources in order to delegate entirely to the ConfigMap deletion.
-	return DeleteCsiConfigMap(namespace, clientset)
-}
-
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
 func createCSIDriverInfo(clientset kubernetes.Interface, name string, ownerRef *metav1.OwnerReference) error {
 	attach := true
