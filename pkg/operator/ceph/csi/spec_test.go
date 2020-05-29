@@ -44,6 +44,6 @@ func TestStartCSI(t *testing.T) {
 	if err != nil {
 		assert.Nil(t, err)
 	}
-	err = StartCSIDrivers("ns", clientset, serverVersion)
+	err = startDrivers("ns", clientset, serverVersion, nil)
 	assert.Nil(t, err)
 }
