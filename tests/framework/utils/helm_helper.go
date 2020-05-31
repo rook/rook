@@ -74,13 +74,16 @@ func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, err
 }
 
 // InstallLocalRookHelmChart installs a give helm chart
-func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName string, chartVersion string, namespace, chartSettings string) error {
-	cmdArgs := []string{"install", chartName, "--name", deployName, "--version", chartVersion}
+func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName string, chartVersion string, namespace, chartSettings, clusterNamespaces string) error {
+	cmdArgs := []string{"install", chartName, "--name", deployName, "--version", chartVersion, "--debug"}
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, "--namespace", namespace)
 	}
 	if chartSettings != "" {
 		cmdArgs = append(cmdArgs, "--set", chartSettings)
+	}
+	if clusterNamespaces != "" {
+		cmdArgs = append(cmdArgs, "--set", clusterNamespaces)
 	}
 	var result string
 	var err error

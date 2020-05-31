@@ -84,7 +84,8 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 	s.pvcNameRWX = "block-persistent-rwx"
 
 	flexTestCluster := TestCluster{
-		namespace:               s.namespace,
+		operatorNamespace:       s.namespace,
+		clusterNamespaces:       []string{s.namespace},
 		storeType:               "bluestore",
 		storageClassName:        "",
 		useHelm:                 false,

@@ -1,10 +1,15 @@
+{{- $clusterNamespaces := .Values.clusterNamespaces}}
+{{ if not .Values.clusterNamespaces }}
+   {{- $clusterNamespaces = list .Release.Namespace }}
+{{- end -}}
+
 {{- if .Values.rbacEnable }}
 # The role for the operator to manage resources in its own namespace
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: rook-ceph-system
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{  .Release.Namespace }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -56,11 +61,12 @@ rules:
   - update
   - delete
 ---
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
@@ -69,12 +75,15 @@ rules:
   resources: ["cephclusters", "cephclusters/finalizers"]
   verbs: [ "get", "list", "create", "update", "delete" ]
 ---
+{{- end }}
+
 # Aspects of ceph-mgr that operate within the cluster's namespace
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 rules:
 - apiGroups:
   - ""
@@ -105,11 +114,14 @@ rules:
   verbs:
   - "*"
 ---
+{{- end }}
+
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 rules:
 - apiGroups:
   - ""
@@ -124,11 +136,14 @@ rules:
   - update
   - delete
 ---
+{{- end }}
+
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-external-provisioner-cfg
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]
@@ -140,11 +155,14 @@ rules:
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
 ---
+{{- end }}
+
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-cfg
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]
@@ -155,4 +173,6 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+{{- end }}
 {{- end }}

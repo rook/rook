@@ -313,3 +313,8 @@ discoverDaemonUdev:
 
 # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
 enableOBCWatchOperatorNamespace: true
+
+# clusterNamespaces option allowes to create necessary resources in order to create Ceph clusters in the specified namespaces.
+# clusterNamespaces:
+# - cluster-ns1
+# - cluster-ns2

@@ -1,3 +1,8 @@
+{{- $clusterNamespaces := .Values.clusterNamespaces}}
+{{ if not .Values.clusterNamespaces }}
+    {{- $clusterNamespaces = list .Release.Namespace }}
+{{- end -}}
+
 {{- if .Values.rbacEnable }}
 # Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace
 kind: RoleBinding
@@ -18,11 +23,12 @@ subjects:
   namespace: {{ .Release.Namespace }}
 ---
   # Allow the operator to create resources in this cluster's namespace
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -30,14 +36,16 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
 ---
+{{- end }}
 # Allow the osd pods in this namespace to work with configmaps
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -45,14 +53,17 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-osd
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 ---
+{{- end }}
+
 # Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -60,14 +71,17 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 ---
+{{- end }}
+
 # Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -75,13 +89,16 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-mgr
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 ---
+{{- end }}
+
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -89,33 +106,41 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-cmd-reporter
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 ---
+{{- end }}
+
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-provisioner-role-cfg
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: {{ .Release.Namespace }}
+    namespace: {{ $clusterNamespace }}
 roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
 ---
+{{- end }}
+
+{{- range  $_, $clusterNamespace := $clusterNamespaces }}
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-provisioner-role-cfg
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $clusterNamespace }}
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: {{ .Release.Namespace }}
+    namespace: {{ $clusterNamespace }}
 roleRef:
   kind: Role
   name: rbd-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
+---
+{{- end }}
 {{- end }}

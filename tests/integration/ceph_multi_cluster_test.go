@@ -29,6 +29,8 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -71,6 +73,7 @@ type MultiClusterDeploySuite struct {
 	namespace2 string
 	op         *MCTestOperations
 	poolName   string
+	useHelm    bool
 }
 
 // Deploy Multiple Rook clusters
@@ -79,7 +82,7 @@ func (mrc *MultiClusterDeploySuite) SetupSuite() {
 	mrc.namespace1 = "mrc-n1"
 	mrc.namespace2 = "mrc-n2"
 
-	mrc.op, mrc.k8sh = NewMCTestOperations(mrc.T, mrc.namespace1, mrc.namespace2)
+	mrc.op, mrc.k8sh = NewMCTestOperations(mrc.T, installer.SystemNamespace(mrc.namespace1), mrc.namespace1, mrc.namespace2, false, true)
 	mrc.testClient = clients.CreateTestClient(mrc.k8sh, mrc.op.installer.Manifests)
 	mrc.createPools()
 }
@@ -114,7 +117,8 @@ func (mrc *MultiClusterDeploySuite) TearDownSuite() {
 // Test to make sure all rook components are installed and Running
 func (mrc *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
 	// Check if Rook cluster 1 is deployed successfully
-	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), mrc.namespace1, 1)
+	targetClusterNamespaces := []string{mrc.namespace1}
+	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), targetClusterNamespaces, 1)
 	checkIfRookClusterIsHealthy(mrc.Suite, mrc.testClient, mrc.namespace1)
 
 	// Check if Rook external cluster is deployed successfully
@@ -132,19 +136,34 @@ type MCTestOperations struct {
 	systemNamespace  string
 	storageClassName string
 	testOverPVC      bool
+	// This value is not necessary
+	useHelm         bool
+	externalCluster bool
 }
 
 // NewMCTestOperations creates new instance of TestCluster struct
-func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 string) (*MCTestOperations, *utils.K8sHelper) {
+func NewMCTestOperations(t func() *testing.T, systemNamespace string, namespace1 string, namespace2 string, useHelm bool, useExternalCluster bool) (*MCTestOperations, *utils.K8sHelper) {
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 	checkIfShouldRunForMinimalTestMatrix(t, kh, multiClusterMinimalTestVersion)
 
 	cleanupHost := false
-	i := installer.NewCephInstaller(t, kh.Clientset, false, "", installer.VersionMaster, installer.NautilusVersion, cleanupHost)
+	i := installer.NewCephInstaller(t, kh.Clientset, useHelm, "", installer.VersionMaster, installer.NautilusVersion, cleanupHost)
 
-	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), "", false}
+	op := &MCTestOperations{
+		installer:        i,
+		kh:               kh,
+		T:                t,
+		namespace1:       namespace1,
+		namespace2:       namespace2,
+		systemNamespace:  systemNamespace,
+		storageClassName: "",
+		testOverPVC:      false,
+		useHelm:          useHelm,
+		externalCluster:  useExternalCluster,
+	}
+
 	if kh.VersionAtLeast("v1.13.0") {
 		op.testOverPVC = true
 		op.storageClassName = "manual"
@@ -160,19 +179,36 @@ func (o MCTestOperations) Setup() {
 		root, err := installer.FindRookRoot()
 		require.NoError(o.T(), err, "failed to get rook root")
 		cmdArgs := utils.CommandArgs{Command: filepath.Join(root, localPathPVCmd),
-			CmdArgs: []string{installer.TestScratchDevice()}}
+			CmdArgs: []string{installer.TestScratchDevice(), installer.TestScratchDevice2()}}
 		cmdOut := utils.ExecuteCommand(cmdArgs)
 		require.NoError(o.T(), cmdOut.Err)
 	}
 
-	err = o.installer.CreateCephOperator(installer.SystemNamespace(o.namespace1))
-	require.NoError(o.T(), err)
+	if o.useHelm {
+		var err error
+		k8sversion := o.kh.GetK8sServerVersion()
+		logger.Infof("Installing rook on k8s %s", k8sversion)
+
+		// disable the discovery daemonset with the helm chart
+		settings := "enableDiscoveryDaemon=false"
+		clusterNamespaces := "clusterNamespaces[0]=cluster-ns1,clusterNamespaces[1]=cluster-ns2"
+		err = o.installer.CreateRookOperatorViaHelm(o.systemNamespace, settings, clusterNamespaces)
+		require.NoError(o.T(), err)
+	} else {
+		err = o.installer.CreateCephOperator(installer.SystemNamespace(o.namespace1))
+		require.NoError(o.T(), err)
+	}
 
 	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-operator", o.systemNamespace, "Running"),
 		"Make sure rook-operator is in running state")
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", o.systemNamespace, "Running"),
-		"Make sure rook-discover is in running state")
+	if o.useHelm {
+		_, err := o.kh.Clientset.AppsV1().DaemonSets(o.systemNamespace).Get("rook-discover", metav1.GetOptions{})
+		require.True(o.T(), errors.IsNotFound(err))
+	} else {
+		require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", o.systemNamespace, "Running"),
+			"Make sure rook-discover is in running state")
+	}
 
 	time.Sleep(10 * time.Second)
 
@@ -184,9 +220,16 @@ func (o MCTestOperations) Setup() {
 	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-mon", o.namespace1, "Running"),
 		"Make sure rook-ceph-mon is in running state")
 
-	// create an external cluster
-	err = o.startExternalCluster(o.namespace2)
-	require.NoError(o.T(), err)
+	if o.externalCluster {
+		// create an external cluster
+		err = o.startExternalCluster(o.namespace2)
+		require.NoError(o.T(), err)
+	} else {
+		err = o.startCluster(o.namespace2, "bluestore")
+		require.NoError(o.T(), err)
+		require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-mon", o.namespace2, "Running"),
+			"Make sure rook-ceph-mon is in running state")
+	}
 
 	logger.Infof("finished starting clusters")
 }

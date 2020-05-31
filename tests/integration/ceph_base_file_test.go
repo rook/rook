@@ -342,26 +342,28 @@ func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 }
 
 // Test File System Creation on Rook that was installed on a custom namespace i.e. Namespace != "rook" and delete it again
-func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
-	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
-	logger.Infof("Running on Rook Cluster %s", namespace)
-	activeCount := 1
-	createFilesystem(helper, k8sh, s, namespace, filesystemName, activeCount)
-	// Create a test pod where CephFS is consumed without user creds
-	storageClassName := "cephfs-storageclass"
-	err := helper.FSClient.CreateStorageClass(filesystemName, namespace, namespace, storageClassName)
-	assert.NoError(s.T(), err)
-	assert.NoError(s.T(), err)
-	if !skipSnapshotTest(k8sh) {
-		fileSystemCSISnapshotTest(helper, k8sh, s, storageClassName, namespace)
-	}
+func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespaces []string, filesystemName string) {
+	for _, namespace := range clusterNamespaces {
+		logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
+		logger.Infof("Running on Rook Cluster %s", namespace)
+		activeCount := 1
+		createFilesystem(helper, k8sh, s, namespace, filesystemName, activeCount)
+		// Create a test pod where CephFS is consumed without user creds
+		storageClassName := "cephfs-storageclass"
+		err := helper.FSClient.CreateStorageClass(filesystemName, namespace, namespace, storageClassName)
+		assert.NoError(s.T(), err)
+		assert.NoError(s.T(), err)
+		if !skipSnapshotTest(k8sh) {
+			fileSystemCSISnapshotTest(helper, k8sh, s, storageClassName, namespace)
+		}
 
-	if !skipCloneTest(k8sh) {
-		fileSystemCSICloneTest(helper, k8sh, s, storageClassName, namespace)
+		if !skipCloneTest(k8sh) {
+			fileSystemCSICloneTest(helper, k8sh, s, storageClassName, namespace)
+		}
+		cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
+		err = helper.FSClient.DeleteStorageClass(storageClassName)
+		assertNoErrorUnlessNotFound(s, err)
 	}
-	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
-	err = helper.FSClient.DeleteStorageClass(storageClassName)
-	assertNoErrorUnlessNotFound(s, err)
 }
 
 func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string, activeCount int) {

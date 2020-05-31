@@ -92,7 +92,8 @@ func (suite *CephMgrSuite) SetupSuite() {
 
 	mgrTestCluster := TestCluster{
 		clusterName:             suite.namespace,
-		namespace:               suite.namespace,
+		operatorNamespace:       suite.namespace,
+		clusterNamespaces:       []string{suite.namespace},
 		storeType:               "bluestore",
 		storageClassName:        "",
 		useHelm:                 false,

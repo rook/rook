@@ -224,30 +224,31 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 }
 
 // Test Object StoreCreation on Rook that was installed via helm
-func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, name string, replicaSize int, deleteStore bool) {
-	logger.Infof("Object Storage End To End Integration Test - Create Object Store and check if rgw service is Running")
-	logger.Infof("Running on Rook Cluster %s", namespace)
+func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespaces []string, name string, replicaSize int, deleteStore bool) {
+	for _, clusterNamespace := range clusterNamespaces {
+		logger.Infof("Object Storage End To End Integration Test - Create Object Store and check if rgw service is Running")
+		logger.Infof("Running on Rook Cluster %s", clusterNamespace)
 
-	logger.Infof("Step 1 : Create Object Store")
-	err := helper.ObjectClient.Create(namespace, name, int32(replicaSize))
-	require.Nil(s.T(), err)
-
-	logger.Infof("Step 2 : check rook-ceph-rgw service status and count")
-	require.True(s.T(), k8sh.IsPodInExpectedState("rook-ceph-rgw", namespace, "Running"),
-		"Make sure rook-ceph-rgw is in running state")
-
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, replicaSize, "Running"),
-		"Make sure all rook-ceph-rgw pods are in Running state")
-
-	require.True(s.T(), k8sh.IsServiceUp("rook-ceph-rgw-"+name, namespace))
-
-	if deleteStore {
-		logger.Infof("Delete Object Store")
-		err = helper.ObjectClient.Delete(namespace, name)
+		logger.Infof("Step 1 : Create Object Store")
+		err := helper.ObjectClient.Create(clusterNamespace, name, int32(replicaSize))
 		require.Nil(s.T(), err)
-		logger.Infof("Done deleting object store")
-	}
 
+		logger.Infof("Step 2 : check rook-ceph-rgw service status and count")
+		require.True(s.T(), k8sh.IsPodInExpectedState("rook-ceph-rgw", clusterNamespace, "Running"),
+			"Make sure rook-ceph-rgw is in running state")
+
+		assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-rgw", clusterNamespace, replicaSize, "Running"),
+			"Make sure all rook-ceph-rgw pods are in Running state")
+
+		require.True(s.T(), k8sh.IsServiceUp("rook-ceph-rgw-"+name, clusterNamespace))
+
+		if deleteStore {
+			logger.Infof("Delete Object Store")
+			err = helper.ObjectClient.Delete(clusterNamespace, name)
+			require.Nil(s.T(), err)
+			logger.Infof("Done deleting object store")
+		}
+	}
 }
 
 func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {

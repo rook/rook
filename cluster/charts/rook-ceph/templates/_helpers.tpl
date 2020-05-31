@@ -19,8 +19,8 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 Define imagePullSecrets option to pass to all service accounts
 */}}
 {{- define "imagePullSecrets" }}
-{{- if .Values.imagePullSecrets -}}
+{{- if $.Values.imagePullSecrets -}}
 imagePullSecrets:
-{{ toYaml .Values.imagePullSecrets }}
+{{ toYaml $.Values.imagePullSecrets }}
 {{- end -}}
 {{- end -}}

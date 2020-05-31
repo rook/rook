@@ -75,7 +75,8 @@ func (s *UpgradeSuite) SetupSuite() {
 	s.namespace = "upgrade-ns"
 	upgradeTestCluster := TestCluster{
 		clusterName:             s.namespace,
-		namespace:               s.namespace,
+		operatorNamespace:       s.namespace,
+		clusterNamespaces:       []string{s.namespace},
 		storeType:               "",
 		storageClassName:        "",
 		useHelm:                 false,
@@ -125,7 +126,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	logger.Infof("Initializing object before the upgrade")
 	objectStoreName := "upgraded-object"
-	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.namespace, objectStoreName, 1, false)
+	clusterNamespaces := []string{s.namespace}
+	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, clusterNamespaces, objectStoreName, 1, false)
 
 	// verify that we're actually running the right pre-upgrade image
 	s.verifyOperatorImage(installer.Version1_2)
