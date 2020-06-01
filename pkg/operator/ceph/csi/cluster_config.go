@@ -143,13 +143,6 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerR
 	return nil
 }
 
-func DeleteCsiConfigMap(namespace string, clientset kubernetes.Interface) error {
-	if err := clientset.CoreV1().ConfigMaps(namespace).Delete(ConfigName, &metav1.DeleteOptions{}); err != nil {
-		return errors.Wrap(err, "failed to delete CSI driver configuration and deployments")
-	}
-	return nil
-}
-
 // SaveClusterConfig updates the config map used to provide ceph-csi with
 // basic cluster configuration. The clusterNamespace and clusterInfo are
 // used to determine what "cluster" in the config map will be updated and
