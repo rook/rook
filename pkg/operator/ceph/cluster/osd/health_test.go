@@ -126,7 +126,7 @@ func TestOSDRestartIfStuck(t *testing.T) {
 		Clientset: clientset,
 	}
 
-	pod := &v1.Pod{
+	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "osd0",
 			Namespace: namespace,
@@ -137,13 +137,12 @@ func TestOSDRestartIfStuck(t *testing.T) {
 		},
 	}
 	pod.Spec.NodeName = "node0"
-	_, err := context.Clientset.CoreV1().Pods(namespace).Create(pod)
+	_, err := context.Clientset.CoreV1().Pods(namespace).Create(&pod)
 	assert.NoError(t, err)
 
 	m := NewOSDHealthMonitor(context, namespace, false, cephver.CephVersion{})
 
-	podList := &v1.PodList{Items: []v1.Pod{*pod}}
-	assert.NoError(t, m.restartOSDPodsIfStuck(0, podList))
+	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
 
 	// The pod should still exist since it wasn't in a deleted state
 	p, err := context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
@@ -152,11 +151,10 @@ func TestOSDRestartIfStuck(t *testing.T) {
 
 	// Add a deletion timestamp to the pod
 	pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-	_, err = context.Clientset.CoreV1().Pods(namespace).Update(pod)
+	_, err = context.Clientset.CoreV1().Pods(namespace).Update(&pod)
 	assert.NoError(t, err)
 
-	podList = &v1.PodList{Items: []v1.Pod{*pod}}
-	assert.NoError(t, m.restartOSDPodsIfStuck(0, podList))
+	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
 
 	// The pod should still exist since the node is ready
 	p, err = context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
@@ -172,7 +170,7 @@ func TestOSDRestartIfStuck(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	assert.NoError(t, m.restartOSDPodsIfStuck(0, podList))
+	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
 
 	// The pod should be deleted since the pod is marked as deleted and the node is not ready
 	_, err = context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})

@@ -22,18 +22,23 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 func TestCheckHealth(t *testing.T) {
@@ -283,4 +288,78 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	assert.True(t, changed)
 	// ClusterInfo should now have 2 monitors
 	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
+}
+
+func TestForceDeleteFailedMon(t *testing.T) {
+	clientset := test.New(t, 1)
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+	c := &Cluster{
+		context:   context,
+		Namespace: "ns",
+	}
+
+	failedMonName := "a"
+	monToFail := createTestMonPod(t, clientset, c.Namespace, failedMonName)
+	createTestMonPod(t, clientset, c.Namespace, "b")
+	createTestMonPod(t, clientset, c.Namespace, "c")
+
+	assert.NoError(t, c.restartMonIfStuckTerminating(failedMonName))
+
+	// The mon should still exist since it wasn't in a deleted state
+	p, err := context.Clientset.CoreV1().Pods(c.Namespace).Get(monToFail.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, p)
+
+	// Add a deletion timestamp to the pod
+	monToFail.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	_, err = context.Clientset.CoreV1().Pods(c.Namespace).Update(&monToFail)
+	assert.NoError(t, err)
+
+	assert.NoError(t, c.restartMonIfStuckTerminating(failedMonName))
+
+	// The pod should still exist since the node is ready
+	p, err = context.Clientset.CoreV1().Pods(c.Namespace).Get(monToFail.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, p)
+
+	// Set the node to a not ready state
+	nodes, err := context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	for _, node := range nodes.Items {
+		node.Status.Conditions[0].Status = v1.ConditionFalse
+		_, err := context.Clientset.CoreV1().Nodes().Update(&node)
+		assert.NoError(t, err)
+	}
+
+	assert.NoError(t, c.restartMonIfStuckTerminating(failedMonName))
+
+	// The pod should be deleted since the pod is marked as deleted and the node is not ready
+	_, err = context.Clientset.CoreV1().Pods(c.Namespace).Get(monToFail.Name, metav1.GetOptions{})
+	assert.Error(t, err)
+	assert.True(t, errors.IsNotFound(err))
+
+	// mons b and c should still exist
+	_, err = context.Clientset.CoreV1().Pods(c.Namespace).Get("b-test", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, err = context.Clientset.CoreV1().Pods(c.Namespace).Get("c-test", metav1.GetOptions{})
+	assert.NoError(t, err)
+}
+
+func createTestMonPod(t *testing.T, clientset kubernetes.Interface, namespace, name string) v1.Pod {
+	pod := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name + "-test",
+			Namespace: namespace,
+			Labels: map[string]string{
+				k8sutil.AppAttr: AppName,
+				"mon":           name,
+			},
+		},
+	}
+	pod.Spec.NodeName = "node0"
+	_, err := clientset.CoreV1().Pods(namespace).Create(&pod)
+	assert.NoError(t, err)
+	return pod
 }
