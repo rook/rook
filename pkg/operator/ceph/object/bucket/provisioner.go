@@ -57,6 +57,7 @@ type Provisioner struct {
 	endpoint             string
 	secretName           string
 	secretNamespace      string
+	additionalConfigData map[string]string
 }
 
 var _ apibkt.Provisioner = &Provisioner{}
@@ -305,6 +306,7 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 	p.setObjectStoreName(sc)
 	p.setObjectStoreNamespace(sc)
 	p.setRegion(sc)
+	p.setAdditionalConfigData(obc.Spec.AdditionalConfig)
 	p.setEndpoint(sc)
 	err = p.setObjectContext()
 	if err != nil {
@@ -351,10 +353,11 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 
 	conn := &bktv1alpha1.Connection{
 		Endpoint: &bktv1alpha1.Endpoint{
-			BucketHost: p.storeDomainName,
-			BucketPort: int(p.storePort),
-			BucketName: p.bucketName,
-			Region:     p.region,
+			BucketHost:           p.storeDomainName,
+			BucketPort:           int(p.storePort),
+			BucketName:           p.bucketName,
+			Region:               p.region,
+			AdditionalConfigData: p.additionalConfigData,
 		},
 		Authentication: &bktv1alpha1.Authentication{
 			AccessKeys: &bktv1alpha1.AccessKeys{
@@ -426,6 +429,13 @@ func (p *Provisioner) setObjectStoreNamespace(sc *storagev1.StorageClass) {
 
 func (p *Provisioner) setBucketName(name string) {
 	p.bucketName = name
+}
+
+func (p *Provisioner) setAdditionalConfigData(additionalConfigData map[string]string) {
+	if len(additionalConfigData) == 0 {
+		additionalConfigData = make(map[string]string)
+	}
+	p.additionalConfigData = additionalConfigData
 }
 
 func (p *Provisioner) setEndpoint(sc *storagev1.StorageClass) {
