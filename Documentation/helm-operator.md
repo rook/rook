@@ -46,7 +46,7 @@ The release channel is the most recent release of Rook that is considered stable
 
 ```console
 helm repo add rook-release https://charts.rook.io/release
-helm install --namespace rook-ceph rook-release/rook-ceph
+helm install --namespace rook-ceph rook-release/rook-ceph --generate-name
 ```
 
 ### Master
