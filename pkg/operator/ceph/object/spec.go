@@ -99,7 +99,9 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 					}}}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
-	preferredDuringScheduling := false
+
+	// If host networking is not enabled, preferred pod anti-affinity is added to the rgw daemons
+	preferredDuringScheduling := true
 	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.store.Spec.Gateway.Placement, c.clusterSpec.Network.IsHost(), preferredDuringScheduling, getLabels(c.store.Name, c.store.Namespace),
 		nil)
 
