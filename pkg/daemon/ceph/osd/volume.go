@@ -280,6 +280,13 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				}
 			} else {
 				deviceArg = device.Config.Name
+				logger.Info("devlink names:")
+				for _, devlink := range device.PersistentDevicePaths {
+					logger.Info(devlink)
+					if strings.HasPrefix(devlink, "/dev/mapper") {
+						deviceArg = devlink
+					}
+				}
 			}
 
 			immediateExecuteArgs := append(baseArgs, []string{

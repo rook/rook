@@ -195,6 +195,12 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get device info for %q", agent.devices[0].Name)
 		}
+
+		rawDevice, err = clusterd.PopulateDeviceUdevInfo(rawDevice.KernelName, context.Executor, rawDevice)
+		if err != nil {
+			logger.Warningf("failed to get udev info for device %q. %v", agent.devices[0].Name, err)
+		}
+
 		rawDevice.Type = pvcDataTypeDevice
 		rawDevices = append(rawDevices, rawDevice)
 
