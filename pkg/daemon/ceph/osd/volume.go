@@ -262,10 +262,6 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				devices.Entries["metadata"].Config.Name,
 			}...)
 
-			crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
-			if crushDeviceClass != "" {
-				metadataArg = append(metadataArg, []string{crushDeviceClassFlag, crushDeviceClass}...)
-			}
 			metadataBlockPath = devices.Entries["metadata"].Config.Name
 		}
 
@@ -273,6 +269,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			logger.Infof("configuring new device %q", device.Config.Name)
 			var err error
 			var deviceArg string
+
 			if lvBackedPV {
 				// pass 'vg/lv' to ceph-volume
 				deviceArg, err = sys.GetLVName(context.Executor, device.Config.Name)
@@ -287,6 +284,11 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				"--data",
 				deviceArg,
 			}...)
+
+			crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
+			if crushDeviceClass != "" {
+				immediateExecuteArgs = append(immediateExecuteArgs, []string{crushDeviceClassFlag, crushDeviceClass}...)
+			}
 
 			// Add the cli argument for the metadata device
 			if metadataDev {
