@@ -5,26 +5,32 @@ go 1.13
 require (
 	github.com/aws/aws-sdk-go v1.16.26
 	github.com/banzaicloud/k8s-objectmatcher v1.1.0
-	github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
+	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/coreos/prometheus-operator v0.34.0
 	github.com/corpix/uarand v0.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ini/ini v1.51.1
 	github.com/go-sql-driver/mysql v1.4.1
-	github.com/google/go-cmp v0.3.1
+	github.com/google/go-cmp v0.4.0
+	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200401090632-ee27f62faef8
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20200610144127-e2eec875d6d1
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
-	github.com/pkg/errors v0.8.1
-	github.com/spf13/cobra v0.0.5
+	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.5.0 // indirect
+	github.com/smartystreets/goconvey v1.6.4 // indirect
+	github.com/spf13/cobra v0.0.6
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
+	golang.org/x/net v0.0.0-20200301022130-244492dfa37a // indirect
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/tools v0.0.0-20200319210407-521f4a0cd458 // indirect
+	google.golang.org/grpc v1.26.0 // indirect
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	k8s.io/api v0.17.2
 	k8s.io/apiextensions-apiserver v0.17.2
@@ -34,9 +40,10 @@ require (
 	k8s.io/code-generator v0.17.2
 	k8s.io/kube-controller-manager v0.0.0
 	k8s.io/kubernetes v1.17.2
-	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6
-	sigs.k8s.io/controller-runtime v0.5.1
+	k8s.io/utils v0.0.0-20200229041039-0a110f9eb7ab
+	sigs.k8s.io/controller-runtime v0.5.2
 	sigs.k8s.io/sig-storage-lib-external-provisioner v4.1.0+incompatible
+	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
 // This looks "horrible", but is due to the Rook including k8s.io/kubernetes directly which is not recommended,

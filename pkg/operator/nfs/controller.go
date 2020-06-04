@@ -14,470 +14,282 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package nfs to manage an NFS export.
 package nfs
 
 import (
+	"context"
 	"fmt"
-	"reflect"
-	s "strings"
+	"strings"
+	"time"
 
-	"github.com/coreos/pkg/capnslog"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+
+	"github.com/coreos/pkg/capnslog"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
-	customResourceName       = "nfsserver"
-	customResourceNamePlural = "nfsservers"
-	NFSConfigMapPath         = "/nfs-ganesha/config"
-	nfsPort                  = 2049
-	rpcPort                  = 111
-	noneMode                 = "none"
+	nfsConfigMapPath = "/nfs-ganesha/config"
+	nfsPort          = 2049
+	rpcPort          = 111
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "nfs-operator")
-
-// NFSResource represents the nfs export custom resource
-var NFSResource = k8sutil.CustomResource{
-	Name:    customResourceName,
-	Plural:  customResourceNamePlural,
-	Group:   nfsv1alpha1.CustomResourceGroup,
-	Version: nfsv1alpha1.Version,
-	Kind:    reflect.TypeOf(nfsv1alpha1.NFSServer{}).Name(),
+type NFSServerReconciler struct {
+	client.Client
+	Context  *clusterd.Context
+	Scheme   *runtime.Scheme
+	Log      *capnslog.PackageLogger
+	Recorder record.EventRecorder
 }
 
-// Controller represents a controller object for nfs server custom resources
-type Controller struct {
-	context        *clusterd.Context
-	containerImage string
-}
+func (r *NFSServerReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reterr error) {
+	ctx := context.Background()
 
-// NewController create controller for watching nfsserver custom resources created
-func NewController(context *clusterd.Context, containerImage string) *Controller {
-	return &Controller{
-		context:        context,
-		containerImage: containerImage,
-	}
-}
-
-// StartWatch watches for instances of nfsserver custom resources and acts on them
-func (c *Controller) StartWatch(namespace string, stopCh chan struct{}) {
-	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
-		AddFunc:    c.onAdd,
-		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
-	}
-
-	logger.Infof("start watching nfs server resources in namespace %s", namespace)
-	go k8sutil.WatchCR(NFSResource, namespace, resourceHandlerFuncs, c.context.RookClientset.NfsV1alpha1().RESTClient(), &nfsv1alpha1.NFSServer{}, stopCh)
-}
-
-type nfsServer struct {
-	name      string
-	context   *clusterd.Context
-	namespace string
-	spec      nfsv1alpha1.NFSServerSpec
-	ownerRef  metav1.OwnerReference
-}
-
-func newNfsServer(c *nfsv1alpha1.NFSServer, context *clusterd.Context) *nfsServer {
-	return &nfsServer{
-		name:      c.Name,
-		context:   context,
-		namespace: c.Namespace,
-		spec:      c.Spec,
-		ownerRef:  nfsOwnerRef(c.Name, string(c.UID)),
-	}
-}
-
-func nfsOwnerRef(name, nfsServerID string) metav1.OwnerReference {
-	blockOwner := true
-	return metav1.OwnerReference{
-		APIVersion:         fmt.Sprintf("%s/%s", NFSResource.Group, NFSResource.Version),
-		Kind:               NFSResource.Kind,
-		Name:               name,
-		UID:                types.UID(nfsServerID),
-		BlockOwnerDeletion: &blockOwner,
-	}
-}
-
-func getServerConfig(exports []nfsv1alpha1.ExportsSpec) map[string]map[string]string {
-	claimConfigOpt := make(map[string]map[string]string)
-	configOpt := make(map[string]string)
-
-	for _, export := range exports {
-		claimName := export.PersistentVolumeClaim.ClaimName
-		if claimName != "" {
-			configOpt["accessMode"] = export.Server.AccessMode
-			configOpt["squash"] = export.Server.Squash
-			claimConfigOpt[claimName] = configOpt
+	instance := &nfsv1alpha1.NFSServer{}
+	if err := r.Client.Get(ctx, req.NamespacedName, instance); err != nil {
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
 		}
+
+		return reconcile.Result{}, err
 	}
 
-	return claimConfigOpt
-}
-
-func createAppLabels(nfsServer *nfsServer) map[string]string {
-	return map[string]string{
-		k8sutil.AppAttr: nfsServer.name,
-	}
-}
-
-func createServicePorts() []v1.ServicePort {
-	return []v1.ServicePort{
-		{
-			Name:       "nfs",
-			Port:       int32(nfsPort),
-			TargetPort: intstr.FromInt(int(nfsPort)),
-		},
-		{
-			Name:       "rpc",
-			Port:       int32(rpcPort),
-			TargetPort: intstr.FromInt(int(rpcPort)),
-		},
-	}
-}
-
-func (c *Controller) createNFSService(nfsServer *nfsServer) (*v1.Service, error) {
-	// This service is meant to be used by clients to access NFS.
-	nfsService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            nfsServer.name,
-			Namespace:       nfsServer.namespace,
-			OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
-			Labels:          createAppLabels(nfsServer),
-		},
-		Spec: v1.ServiceSpec{
-			Selector: createAppLabels(nfsServer),
-			Type:     v1.ServiceTypeClusterIP,
-			Ports:    createServicePorts(),
-		},
-	}
-
-	svc, err := c.context.Clientset.CoreV1().Services(nfsServer.namespace).Create(nfsService)
+	patcher, err := k8sutil.NewPatcher(instance, r.Client)
 	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return nil, err
-		}
-		logger.Infof("nfs service %s already exists in namespace %s", nfsService.Name, nfsService.Namespace)
-	} else {
-		logger.Infof("nfs service %s started in namespace %s", nfsService.Name, nfsService.Namespace)
+		return reconcile.Result{}, err
 	}
 
-	return svc, nil
+	defer func() {
+		if err := patcher.Patch(ctx, instance); err != nil && reterr == nil {
+			reterr = err
+		}
+	}()
+
+	controllerutil.AddFinalizer(instance, nfsv1alpha1.Finalizer)
+	if instance.Status.State == "" {
+		instance.Status.State = nfsv1alpha1.StateInitializing
+		return reconcile.Result{Requeue: true}, nil
+	}
+
+	if !instance.DeletionTimestamp.IsZero() {
+		r.Log.Infof("Deleting NFSServer %s in %s namespace", instance.Name, instance.Namespace)
+
+		// no operation since we don't need do anything when nfsserver deleted.
+		controllerutil.RemoveFinalizer(instance, nfsv1alpha1.Finalizer)
+	}
+
+	if err := r.reconcileNFSServerConfig(ctx, instance); err != nil {
+		r.Recorder.Eventf(instance, corev1.EventTypeWarning, nfsv1alpha1.EventFailed, "Failed reconciling nfsserver config: %+v", err)
+		r.Log.Errorf("Error reconciling nfsserver config: %+v", err)
+		return reconcile.Result{}, err
+	}
+
+	if err := r.reconcileNFSServer(ctx, instance); err != nil {
+		r.Recorder.Eventf(instance, corev1.EventTypeWarning, nfsv1alpha1.EventFailed, "Failed reconciling nfsserver: %+v", err)
+		r.Log.Errorf("Error reconciling nfsserver: %+v", err)
+		return reconcile.Result{}, err
+	}
+
+	// Reconcile status state based on statefulset ready replicas.
+	sts := &appsv1.StatefulSet{}
+	if err := r.Client.Get(ctx, req.NamespacedName, sts); err != nil {
+		return reconcile.Result{}, client.IgnoreNotFound(err)
+	}
+
+	switch int(sts.Status.ReadyReplicas) {
+	case instance.Spec.Replicas:
+		instance.Status.State = nfsv1alpha1.StateRunning
+		return reconcile.Result{}, nil
+	default:
+		instance.Status.State = nfsv1alpha1.StatePending
+		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
+	}
 }
 
-func createCephNFSExport(id int, path string, access string, squash string) string {
-	var accessType string
-	// validateNFSServerSpec guarantees `access` will be one of these values at this point
-	switch s.ToLower(access) {
-	case "readwrite":
-		accessType = "RW"
-	case "readonly":
-		accessType = "RO"
-	case noneMode:
-		accessType = "None"
-	}
+func (r *NFSServerReconciler) reconcileNFSServerConfig(ctx context.Context, cr *nfsv1alpha1.NFSServer) error {
+	var exportsList []string
 
-	idStr := fmt.Sprintf("%v", id)
-	nfsGaneshaConfig := `
+	id := 10
+	for _, export := range cr.Spec.Exports {
+		claimName := export.PersistentVolumeClaim.ClaimName
+		var accessType string
+		// validateNFSServerSpec guarantees `access` will be one of these values at this point
+		switch strings.ToLower(export.Server.AccessMode) {
+		case "readwrite":
+			accessType = "RW"
+		case "readonly":
+			accessType = "RO"
+		case "none":
+			accessType = "None"
+		}
+
+		nfsGaneshaConfig := `
 EXPORT {
-	Export_Id = ` + idStr + `;
-	Path = /` + path + `;
-	Pseudo = /` + path + `;
+	Export_Id = ` + fmt.Sprintf("%v", id) + `;
+	Path = /` + claimName + `;
+	Pseudo = /` + claimName + `;
 	Protocols = 4;
 	Transports = TCP;
 	Sectype = sys;
 	Access_Type = ` + accessType + `;
-	Squash = ` + s.ToLower(squash) + `;
+	Squash = ` + strings.ToLower(export.Server.Squash) + `;
 	FSAL {
 		Name = VFS;
 	}
 }`
 
-	return nfsGaneshaConfig
-}
-
-func createCephNFSConfig(spec *nfsv1alpha1.NFSServerSpec) string {
-	serverConfig := getServerConfig(spec.Exports)
-
-	exportsList := make([]string, 0)
-	id := 10
-	for claimName, claimConfig := range serverConfig {
-		exportsList = append(exportsList, createCephNFSExport(id, claimName, claimConfig["accessMode"], claimConfig["squash"]))
+		exportsList = append(exportsList, nfsGaneshaConfig)
 		id++
 	}
 
-	// fsid_device parameter is important as in case of an overlayfs there is a chance that the fsid of the mounted share is same as that of the fsid of "/"
-	// so setting this to true uses device number as fsid
-	// related issue https://github.com/nfs-ganesha/nfs-ganesha/issues/140
-	exportsList = append(exportsList, `NFS_Core_Param
-{
+	nfsGaneshaAdditionalConfig := `
+NFS_Core_Param {
 	fsid_device = true;
-}`)
-	nfsGaneshaConfig := s.Join(exportsList, "\n")
-
-	return nfsGaneshaConfig
 }
+`
 
-func (c *Controller) createNFSConfigMap(nfsServer *nfsServer) error {
-	nfsGaneshaConfig := createCephNFSConfig(&nfsServer.spec)
+	exportsList = append(exportsList, nfsGaneshaAdditionalConfig)
+	configdata := make(map[string]string)
+	configdata[cr.Name] = strings.Join(exportsList, "\n")
+	cm := newConfigMapForNFSServer(cr)
+	cmop, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+		if err := controllerutil.SetOwnerReference(cr, cm, r.Scheme); err != nil {
+			return err
+		}
 
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            nfsServer.name,
-			Namespace:       nfsServer.namespace,
-			OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
-			Labels:          createAppLabels(nfsServer),
-		},
-		Data: map[string]string{
-			nfsServer.name: nfsGaneshaConfig,
-		},
-	}
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(nfsServer.namespace).Create(configMap)
+		cm.Data = configdata
+		return nil
+	})
+
 	if err != nil {
 		return err
 	}
 
-	return nil
+	r.Log.Info("Reconciling NFSServer ConfigMap", "Operation.Result ", cmop)
+	switch cmop {
+	case controllerutil.OperationResultCreated:
+		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventCreated, "%s nfs-server config configmap: %s", strings.Title(string(cmop)), cm.Name)
+		return nil
+	case controllerutil.OperationResultUpdated:
+		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventUpdated, "%s nfs-server config configmap: %s", strings.Title(string(cmop)), cm.Name)
+		return nil
+	default:
+		return nil
+	}
 }
 
-func getPVCMount(spec *nfsv1alpha1.NFSServerSpec) map[string]string {
-	pvcMounts := map[string]string{}
-	for _, export := range spec.Exports {
-		claimName := export.PersistentVolumeClaim.ClaimName
-		if claimName != "" {
-			pvcMounts[export.Name] = export.PersistentVolumeClaim.ClaimName
+func (r *NFSServerReconciler) reconcileNFSServer(ctx context.Context, cr *nfsv1alpha1.NFSServer) error {
+	svc := newServiceForNFSServer(cr)
+	svcop, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
+		if !svc.ObjectMeta.CreationTimestamp.IsZero() {
+			return nil
 		}
-	}
-	return pvcMounts
-}
 
-func createPVCSpecList(nfsServer *nfsServer) []v1.Volume {
-	pvcSpecList := make([]v1.Volume, 0)
-	pvcNameList := getPVCMount(&nfsServer.spec)
-	for shareName, claimName := range pvcNameList {
-		pvcSpecList = append(pvcSpecList, v1.Volume{
-			Name: shareName,
-			VolumeSource: v1.VolumeSource{
-				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-					ClaimName: claimName,
-				},
-			},
-		})
+		if err := controllerutil.SetControllerReference(cr, svc, r.Scheme); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
-	configMapSrc := &v1.ConfigMapVolumeSource{
-		Items: []v1.KeyToPath{
+	r.Log.Info("Reconciling NFSServer Service", "Operation.Result ", svcop)
+	switch svcop {
+	case controllerutil.OperationResultCreated:
+		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventCreated, "%s nfs-server service: %s", strings.Title(string(svcop)), svc.Name)
+	case controllerutil.OperationResultUpdated:
+		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventUpdated, "%s nfs-server service: %s", strings.Title(string(svcop)), svc.Name)
+	}
+
+	sts := newStatefulSetForNFSServer(cr)
+	stsop, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
+		if sts.ObjectMeta.CreationTimestamp.IsZero() {
+			sts.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: newLabels(cr),
+			}
+		}
+
+		if err := controllerutil.SetControllerReference(cr, sts, r.Scheme); err != nil {
+			return err
+		}
+
+		volumes := []corev1.Volume{
 			{
-				Key:  nfsServer.name,
-				Path: nfsServer.name,
-			},
-		},
-	}
-	configMapSrc.Name = nfsServer.name
-	configMapVol := v1.Volume{
-		Name: nfsServer.name,
-		VolumeSource: v1.VolumeSource{
-			ConfigMap: configMapSrc,
-		},
-	}
-	pvcSpecList = append(pvcSpecList, configMapVol)
-
-	return pvcSpecList
-}
-
-func createVolumeMountList(nfsServer *nfsServer) []v1.VolumeMount {
-	volumeMountList := make([]v1.VolumeMount, 0)
-	pvcMount := getPVCMount(&nfsServer.spec)
-	for shareName, claimName := range pvcMount {
-		volumeMountList = append(volumeMountList, v1.VolumeMount{
-			Name:      shareName,
-			MountPath: "/" + claimName,
-		})
-	}
-
-	configMapVolMount := v1.VolumeMount{
-		Name:      nfsServer.name,
-		MountPath: NFSConfigMapPath,
-	}
-	volumeMountList = append(volumeMountList, configMapVolMount)
-
-	return volumeMountList
-}
-
-func (c *Controller) createNfsPodSpec(nfsServer *nfsServer, service *v1.Service) v1.PodTemplateSpec {
-	nfsPodSpec := v1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nfsServer.name,
-			Namespace: nfsServer.namespace,
-			Labels:    createAppLabels(nfsServer),
-		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
-				{
-					ImagePullPolicy: "IfNotPresent",
-					Name:            nfsServer.name,
-					Image:           c.containerImage,
-					Args:            []string{"nfs", "server", "--ganeshaConfigPath=" + NFSConfigMapPath + "/" + nfsServer.name},
-					Ports: []v1.ContainerPort{
-						{
-							Name:          "nfs-port",
-							ContainerPort: int32(nfsPort),
+				Name: cr.Name,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: cr.Name,
 						},
-						{
-							Name:          "rpc-port",
-							ContainerPort: int32(rpcPort),
-						},
-					},
-					VolumeMounts: createVolumeMountList(nfsServer),
-					SecurityContext: &v1.SecurityContext{
-						Capabilities: &v1.Capabilities{
-							Add: []v1.Capability{
-								"SYS_ADMIN",
-								"DAC_READ_SEARCH",
+						Items: []corev1.KeyToPath{
+							{
+								Key:  cr.Name,
+								Path: cr.Name,
 							},
 						},
+						DefaultMode: pointer.Int32Ptr(corev1.ConfigMapVolumeSourceDefaultMode),
 					},
 				},
 			},
-			Volumes: createPVCSpecList(nfsServer),
-		},
-	}
-
-	return nfsPodSpec
-}
-
-func (c *Controller) createNfsStatefulSet(nfsServer *nfsServer, replicas int32, service *v1.Service) error {
-	appsClient := c.context.Clientset.AppsV1()
-
-	nfsPodSpec := c.createNfsPodSpec(nfsServer, service)
-
-	statefulSet := appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            nfsServer.name,
-			Namespace:       nfsServer.namespace,
-			Labels:          createAppLabels(nfsServer),
-			OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
-		},
-		Spec: appsv1.StatefulSetSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: createAppLabels(nfsServer),
+		}
+		volumeMounts := []corev1.VolumeMount{
+			{
+				Name:      cr.Name,
+				MountPath: nfsConfigMapPath,
 			},
-			Template:    nfsPodSpec,
-			ServiceName: nfsServer.name,
-		},
-	}
-	nfsServer.spec.Annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
-	nfsServer.spec.Annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
-
-	if _, err := appsClient.StatefulSets(nfsServer.namespace).Create(&statefulSet); err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return err
 		}
-		logger.Infof("stateful set %s already exists in namespace %s", statefulSet.Name, statefulSet.Namespace)
-	} else {
-		logger.Infof("stateful set %s created in namespace %s", statefulSet.Name, statefulSet.Namespace)
-	}
+		for _, export := range cr.Spec.Exports {
+			shareName := export.Name
+			claimName := export.PersistentVolumeClaim.ClaimName
+			volumes = append(volumes, corev1.Volume{
+				Name: shareName,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: claimName,
+					},
+				},
+			})
 
-	return nil
-}
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      shareName,
+				MountPath: "/" + claimName,
+			})
+		}
 
-func (c *Controller) onAdd(obj interface{}) {
-	nfsObj, ok := obj.(*nfsv1alpha1.NFSServer)
-	if !ok {
-		return
-	}
-	nfsObj = nfsObj.DeepCopy()
+		sts.Spec.Template.Spec.Volumes = volumes
+		sts.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
-	nfsServer := newNfsServer(nfsObj, c.context)
+		return nil
+	})
 
-	logger.Infof("new NFS server %s added to namespace %s", nfsObj.Name, nfsServer.namespace)
-
-	logger.Infof("validating nfs server spec in namespace %s", nfsServer.namespace)
-	if err := validateNFSServerSpec(nfsServer.spec); err != nil {
-		logger.Errorf("Invalid NFS Server spec: %+v", err)
-		return
-	}
-
-	logger.Infof("creating nfs server service in namespace %s", nfsServer.namespace)
-	svc, err := c.createNFSService(nfsServer)
 	if err != nil {
-		logger.Errorf("Unable to create NFS service %+v", err)
+		return err
 	}
 
-	logger.Infof("creating nfs server configuration in namespace %s", nfsServer.namespace)
-	if err := c.createNFSConfigMap(nfsServer); err != nil {
-		logger.Errorf("Unable to create NFS ConfigMap %+v", err)
-	}
-
-	logger.Infof("creating nfs server stateful set in namespace %s", nfsServer.namespace)
-	if err := c.createNfsStatefulSet(nfsServer, int32(nfsServer.spec.Replicas), svc); err != nil {
-		logger.Errorf("Unable to create NFS stateful set %+v", err)
-	}
-}
-
-func (c *Controller) onUpdate(oldObj, newObj interface{}) {
-	oldNfsServ, ok := oldObj.(*nfsv1alpha1.NFSServer)
-	if !ok {
-		return
-	}
-	oldNfsServ = oldNfsServ.DeepCopy()
-
-	logger.Infof("Received update on NFS server %s in namespace %s. This is currently unsupported.", oldNfsServ.Name, oldNfsServ.Namespace)
-}
-
-func (c *Controller) onDelete(obj interface{}) {
-	cluster, ok := obj.(*nfsv1alpha1.NFSServer)
-	if !ok {
-		return
-	}
-	cluster = cluster.DeepCopy()
-	logger.Infof("cluster %s deleted from namespace %s", cluster.Name, cluster.Namespace)
-}
-
-func validateNFSServerSpec(spec nfsv1alpha1.NFSServerSpec) error {
-	serverConfig := spec.Exports
-	for _, export := range serverConfig {
-		if err := validateAccessMode(export.Server.AccessMode); err != nil {
-			return err
-		}
-		if err := validateSquashMode(export.Server.Squash); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func validateAccessMode(mode string) error {
-	switch s.ToLower(mode) {
-	case "readonly":
-	case "readwrite":
-	case noneMode:
+	r.Log.Info("Reconciling NFSServer StatefulSet", "Operation.Result ", stsop)
+	switch stsop {
+	case controllerutil.OperationResultCreated:
+		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventCreated, "%s nfs-server statefulset: %s", strings.Title(string(stsop)), sts.Name)
+		return nil
+	case controllerutil.OperationResultUpdated:
+		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventUpdated, "%s nfs-server statefulset: %s", strings.Title(string(stsop)), sts.Name)
+		return nil
 	default:
-		return fmt.Errorf("Invalid value (%s) for accessMode, valid values are (ReadOnly, ReadWrite, none)", mode)
+		return nil
 	}
-	return nil
-}
-
-func validateSquashMode(mode string) error {
-	switch s.ToLower(mode) {
-	case "rootid":
-	case "root":
-	case "all":
-	case noneMode:
-	default:
-		return fmt.Errorf("Invalid value (%s) for squash, valid values are (none, rootId, root, all)", mode)
-	}
-	return nil
 }

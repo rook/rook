@@ -18,48 +18,61 @@ limitations under the License.
 package nfs
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
+	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+var (
+	scheme         = runtime.NewScheme()
+	controllerName = "nfs-operator"
+	logger         = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 )
 
 // Operator type for managing NFS Server.
 type Operator struct {
-	context        *clusterd.Context
-	containerImage string
-	controller     *Controller
+	context *clusterd.Context
+}
+
+func init() {
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = nfsv1alpha1.AddToScheme(scheme)
 }
 
 // New creates an operator instance.
-func New(context *clusterd.Context, containerImage string) *Operator {
-	controller := NewController(context, containerImage)
-
+func New(context *clusterd.Context) *Operator {
 	return &Operator{
-		context:        context,
-		containerImage: containerImage,
-		controller:     controller,
+		context: context,
 	}
 }
 
 // Run the operator instance.
 func (o *Operator) Run() error {
-	signalChan := make(chan os.Signal, 1)
-	stopChan := make(chan struct{})
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// Watch for changes to the nfs server.
-	o.controller.StartWatch(v1.NamespaceAll, stopChan)
-	logger.Infof("Started watch for NFS Servers")
-
-	for {
-		select {
-		case <-signalChan:
-			logger.Infof("shutdown signal received, exiting...")
-			close(stopChan)
-			return nil
-		}
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return err
 	}
+
+	reconciler := &NFSServerReconciler{
+		Client:   mgr.GetClient(),
+		Context:  o.context,
+		Log:      logger,
+		Scheme:   scheme,
+		Recorder: mgr.GetEventRecorderFor(controllerName),
+	}
+
+	if err := ctrl.NewControllerManagedBy(mgr).
+		For(&nfsv1alpha1.NFSServer{}).
+		Complete(reconciler); err != nil {
+		return err
+	}
+
+	logger.Info("starting manager")
+	return mgr.Start(ctrl.SetupSignalHandler())
 }

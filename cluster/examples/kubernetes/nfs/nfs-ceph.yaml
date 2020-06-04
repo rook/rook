@@ -36,6 +36,6 @@ spec:
     # Create a ceph PVC after creating the rook ceph cluster using ceph-pvc.yaml
     persistentVolumeClaim:
       claimName: nfs-ceph-claim
-  # A key value list of annotations
+  # A key/value list of annotations
   annotations:
-  #  key: value
+    rook: nfs

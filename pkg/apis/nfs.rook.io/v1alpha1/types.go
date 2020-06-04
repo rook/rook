@@ -27,18 +27,48 @@ import (
 // `make codegen` to generate the new types under the client/clientset folder.
 // ***************************************************************************
 
+const (
+	Finalizer = "nfsserver.nfs.rook.io"
+)
+
+const (
+	EventCreated = "Created"
+	EventUpdated = "Updated"
+	EventFailed  = "Failed"
+)
+
+type NFSServerState string
+
+const (
+	StateInitializing NFSServerState = "Initializing"
+	StatePending      NFSServerState = "Pending"
+	StateRunning      NFSServerState = "Running"
+	StateError        NFSServerState = "Error"
+)
+
+// NFSServerStatus defines the observed state of NFSServer
+type NFSServerStatus struct {
+	State   NFSServerState `json:"state,omitempty"`
+	Message string         `json:"message,omitempty"`
+	Reason  string         `json:"reason,omitempty"`
+}
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// NFSServer is the Schema for the nfsservers API
 type NFSServer struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
-	Spec              NFSServerSpec `json:"spec"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   NFSServerSpec   `json:"spec,omitempty"`
+	Status NFSServerStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// NFSServerList contains a list of NFSServer
 type NFSServerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`

@@ -25,6 +25,8 @@ First deploy the Rook NFS operator using the following commands:
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/nfs
+kubectl create -f common.yaml
+kubectl create -f provisioner.yaml
 kubectl create -f operator.yaml
 ```
 
@@ -94,7 +96,7 @@ spec:
       claimName: nfs-default-claim
   # A key/value list of annotations
   annotations:
-  #  key: value
+    rook: nfs
 ```
 
 With the `nfs.yaml` file saved, now create the NFS server as shown:
@@ -282,6 +284,8 @@ kubectl delete -f pv.yaml
 kubectl delete -f nfs.yaml
 kubectl delete -f nfs-ceph.yaml
 kubectl delete -f operator.yaml
+kubectl delete -f provisioner.yaml
+kubectl delete -f common.yaml
 ```
 
 ## Troubleshooting

@@ -45,8 +45,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	logger.Infof("starting NFS operator")
 	context := rook.NewContext()
-	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
-	op := operator.New(context, rookImage)
+	op := operator.New(context)
 	err := op.Run()
 	rook.TerminateOnError(err, "failed to run operator")
 
