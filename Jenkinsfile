@@ -20,6 +20,11 @@ pipeline {
                 script {
                     pr_number = sh (script: "echo ${env.BRANCH_NAME} | grep -o -E '[0-9]+' ",returnStdout: true)
                     def json = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${pr_number}", returnStdout: true).trim()
+                    def draft = evaluateJson(json,'${json.draft}')
+                    if (draft.contains("true")) {
+                        echo ("This is a draft PR. Aborting")
+                        env.shouldBuild = "false"
+                    }
                     def body = evaluateJson(json,'${json.body}')
                     if (body.contains("[skip ci]")) {
                          echo ("'[skip ci]' spotted in PR body text. Aborting.")
