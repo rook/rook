@@ -212,7 +212,11 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 
 	var info *NodeInfo
 	info, err = getNodeInfoFromNode(*node)
-	assert.Nil(t, err)
+	assert.NotNil(t, err)
 
-	assert.Equal(t, "1.1.1.1", info.Address)
+	node.Status.Addresses[0].Type = v1.NodeInternalIP
+	node.Status.Addresses[0].Address = "172.17.0.1"
+	info, err = getNodeInfoFromNode(*node)
+	assert.Nil(t, err)
+	assert.Equal(t, "172.17.0.1", info.Address)
 }

@@ -52,14 +52,14 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 	}
 
 	for _, ip := range n.Status.Addresses {
-		if ip.Type == v1.NodeExternalIP || ip.Type == v1.NodeInternalIP {
-			logger.Debugf("using IP %s for node %s", ip.Address, n.Name)
+		if ip.Type == v1.NodeInternalIP {
+			logger.Debugf("using internal IP %s for node %s", ip.Address, n.Name)
 			nr.Address = ip.Address
 			break
 		}
 	}
 	if nr.Address == "" {
-		return nil, errors.Errorf("couldn't get IP of node %s", nr.Name)
+		return nil, errors.Errorf("failed to find any internal IP on node %s", nr.Name)
 	}
 	return nr, nil
 }
