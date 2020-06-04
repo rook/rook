@@ -128,6 +128,8 @@ spec:
       #     volumeMode: Block
       #     accessModes:
       #       - ReadWriteOnce
+      # Scheduler name for OSD pod placement
+      # schedulerName: osd-scheduler
   disruptionManagement:
     managePodBudgets: false
     osdMaintenanceTimeout: 30

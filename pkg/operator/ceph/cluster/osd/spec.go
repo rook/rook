@@ -437,7 +437,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
 				},
 			},
-			Volumes: volumes,
+			Volumes:       volumes,
+			SchedulerName: osdProps.schedulerName,
 		},
 	}
 
@@ -582,6 +583,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		Volumes:           volumes,
 		HostNetwork:       c.Network.IsHost(),
 		PriorityClassName: c.priorityClassName,
+		SchedulerName:     osdProps.schedulerName,
 	}
 	if c.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet

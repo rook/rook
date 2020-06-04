@@ -175,6 +175,7 @@ type osdProperties struct {
 	location            string
 	portable            bool
 	tuneSlowDeviceClass bool
+	schedulerName       string
 	crushDeviceClass    string
 }
 
@@ -269,6 +270,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			placement:        volume.Placement,
 			portable:         volume.Portable,
 			crushDeviceClass: volume.CrushDeviceClass,
+			schedulerName:    volume.SchedulerName,
 		}
 
 		logger.Debugf("osdProps are %+v", osdProps)
@@ -624,6 +626,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				portable:            volumeSource.Portable,
 				tuneSlowDeviceClass: volumeSource.TuneSlowDeviceClass,
 				pvcSize:             volumeSource.Size,
+				schedulerName:       volumeSource.SchedulerName,
 			}
 			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
 			// or from the osd prepare job from initial creation.
