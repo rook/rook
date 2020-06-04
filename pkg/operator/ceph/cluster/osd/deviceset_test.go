@@ -41,6 +41,7 @@ func TestPrepareDeviceSets(t *testing.T) {
 		Count:                1,
 		Portable:             true,
 		VolumeClaimTemplates: []v1.PersistentVolumeClaim{claim},
+		SchedulerName:        "custom-scheduler",
 	}
 	desired := rookv1.StorageScopeSpec{StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{deviceSet}}
 	cluster := &Cluster{
@@ -57,6 +58,7 @@ func TestPrepareDeviceSets(t *testing.T) {
 	assert.True(t, volumeSources[0].Portable)
 	_, dataOK := volumeSources[0].PVCSources["data"]
 	assert.True(t, dataOK)
+	assert.Equal(t, "custom-scheduler", volumeSources[0].SchedulerName)
 
 	// Verify that the PVC has the expected generated name with the default of "data" in the name
 	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.Namespace).List(metav1.ListOptions{})

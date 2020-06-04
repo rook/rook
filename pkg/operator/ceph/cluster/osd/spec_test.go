@@ -43,6 +43,7 @@ func TestPodContainer(t *testing.T) {
 		devices:       []rookv1.Device{},
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
+		schedulerName: "custom-scheduler",
 	}
 	dataPathMap := &provisionConfig{
 		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(cluster.Namespace, "/var/lib/rook"),
@@ -52,6 +53,7 @@ func TestPodContainer(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(c.Spec.InitContainers))
 	assert.Equal(t, 1, len(c.Spec.Containers))
+	assert.Equal(t, "custom-scheduler", c.Spec.SchedulerName)
 	container := c.Spec.InitContainers[0]
 	logger.Infof("container: %+v", container)
 	assert.Equal(t, "copy-binaries", container.Args[0])
@@ -103,6 +105,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		selection:     n.Selection,
 		resources:     v1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
+		schedulerName: "custom-scheduler",
 	}
 
 	dataPathMap := &provisionConfig{
@@ -129,6 +132,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	if !devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Volumes))
 	}
+	assert.Equal(t, "custom-scheduler", deployment.Spec.Template.Spec.SchedulerName)
 
 	assert.Equal(t, "rook-data", deployment.Spec.Template.Spec.Volumes[0].Name)
 
