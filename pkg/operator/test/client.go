@@ -42,7 +42,7 @@ func New(t *testing.T, nodes int) *fake.Clientset {
 				},
 				Addresses: []v1.NodeAddress{
 					{
-						Type:    v1.NodeExternalIP,
+						Type:    v1.NodeInternalIP,
 						Address: fmt.Sprintf("%d.%d.%d.%d", i, i, i, i),
 					},
 				},
