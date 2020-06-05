@@ -34,11 +34,13 @@ import (
 const (
 	// ConfigInitContainerName is the name which is given to the config initialization container
 	// in all Ceph pods.
-	ConfigInitContainerName = "config-init"
-	logVolumeName           = "rook-ceph-log"
-	volumeMountSubPath      = "data"
-	crashVolumeName         = "rook-ceph-crash"
-	daemonSocketDir         = "/run/ceph"
+	ConfigInitContainerName               = "config-init"
+	logVolumeName                         = "rook-ceph-log"
+	volumeMountSubPath                    = "data"
+	crashVolumeName                       = "rook-ceph-crash"
+	daemonSocketDir                       = "/run/ceph"
+	initialDelaySecondsNonOSDDaemon int32 = 10
+	initialDelaySecondsOSDDaemon    int32 = 45
 )
 
 type daemonConfig struct {
@@ -467,6 +469,10 @@ func StoredLogAndCrashVolumeMount(varLogCephDir, varLibCephCrashDir string) []v1
 // GenerateLivenessProbeExecDaemon makes sure a daemon has a socket and that it can be called and returns 0
 func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 	confDaemon := getDaemonConfig(daemonType, daemonID)
+	initialDelaySeconds := initialDelaySecondsNonOSDDaemon
+	if daemonType == config.OsdType {
+		initialDelaySeconds = initialDelaySecondsOSDDaemon
+	}
 
 	return &v1.Probe{
 		Handler: v1.Handler{
@@ -475,7 +481,7 @@ func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 				// This avoids conflict with the CEPH_ARGS env
 				//
 				// Example:
-				// env -i sh -c ceph --admin-daemon /run/ceph/ceph-osd.0.asok status
+				// env -i sh -c "ceph --admin-daemon /run/ceph/ceph-osd.0.asok status"
 				Command: []string{
 					"env",
 					"-i",
@@ -485,7 +491,7 @@ func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 				},
 			},
 		},
-		InitialDelaySeconds: 10,
+		InitialDelaySeconds: initialDelaySeconds,
 	}
 }
 
