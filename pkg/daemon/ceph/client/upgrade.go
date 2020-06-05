@@ -390,10 +390,9 @@ func osdDoNothing(context *clusterd.Context, clusterName string) bool {
 	// aio means all in one
 	aio, err := allOSDsSameHost(context, clusterName)
 	if err != nil {
-		// That's tricky, we are about to perform an update so it's difficult to break the update for this
-		// let's consider this is not a problem but log what happened
-		logger.Warningf("not able to determine if all OSDs are running on the same host, not performing upgrade check, running in best-effort")
-		return true
+		// If calling osd list fails, we assume there are more than 3 OSDs and we check if ok-to-stop
+		logger.Warningf("failed to determine if all osds are running on the same host, performing upgrade check anyways. %v", err)
+		return false
 	}
 
 	if aio {
