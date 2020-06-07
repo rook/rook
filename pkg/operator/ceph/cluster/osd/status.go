@@ -119,10 +119,6 @@ func (c *Cluster) completeProvision(config *provisionConfig) bool {
 	return c.completeOSDsForAllNodes(config, true, completeProvisionTimeout)
 }
 
-func (c *Cluster) completeProvisionSkipOSDStart(config *provisionConfig) bool {
-	return c.completeOSDsForAllNodes(config, false, completeProvisionSkipOSDTimeout)
-}
-
 func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, configOSDs bool) (int, *util.Set, bool, *v1.ConfigMapList, error) {
 	opts := metav1.ListOptions{
 		LabelSelector: selector,
