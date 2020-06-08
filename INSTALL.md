@@ -184,6 +184,8 @@ These options should **not** be used if there are any changes to code which is s
 storage providers. If there is any risk of affecting another storage provider, all tests should
 be executed in the CI.
 
+> Note that if the pull request title follows Rook's [contribution guidelines](https://rook.io/docs/rook/master/development-flow.html#commit-structure), the CI will automatically run the appropriate test scenario. For example if a pull request title is "ceph: add a feature", then the tests for the Ceph storage provider will run.
+
 ### [test full]
 
 In master and release builds, all test suites will run on all supported versions of K8s.
