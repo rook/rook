@@ -36,7 +36,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name: "msgr1",
+					Name: "tcp-msgr1",
 					Port: mon.Port,
 					// --public-bind-addr=IP with no IP:port has the mon listen on port 6789
 					// regardless of what port the mon advertises (--public-addr) to the outside.
@@ -50,7 +50,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	k8sutil.SetOwnerRef(&svcDef.ObjectMeta, &c.ownerRef)
 
 	// If deploying Nautilus or newer we need a new port for the monitor service
-	addServicePort(svcDef, "msgr2", DefaultMsgr2Port)
+	addServicePort(svcDef, "tcp-msgr2", DefaultMsgr2Port)
 
 	s, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.Namespace, svcDef)
 	if err != nil {
