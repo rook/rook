@@ -157,6 +157,12 @@ To add a feature or to make a bug fix, you will need to create a branch in your 
 ### Design Document
 
 For new features of significant scope and complexity, a design document is recommended before work begins on the implementation.
+So create a design document if:
+
+* Adding a new storage provider
+* Adding a new CRD
+* Adding a significant feature to an existing storage provider. If the design is simple enough to describe in a github issue, you likely don't need a full design doc.
+
 For smaller, straightforward features and bug fixes, there is no need for a design document.
 Authoring a design document for big features has many advantages:
 
@@ -167,6 +173,7 @@ Authoring a design document for big features has many advantages:
 Note that writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
 
 A design document should be written as a markdown file in the [design folder](/design).
+You can follow the process outlined in the [design template](/design/design_template.md).
 You will see many examples of previous design documents in that folder.
 Submit a pull request for the design to be discussed and approved by the community before being merged into master, just like any other change to the repository.
 
