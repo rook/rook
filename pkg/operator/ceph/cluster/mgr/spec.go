@@ -283,7 +283,7 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 	labels := controller.AppLabels(AppName, c.Namespace)
 	portName := "https-dashboard"
 	if !c.dashboard.SSL {
-		portName = "dashboard"
+		portName = "http-dashboard"
 	}
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
