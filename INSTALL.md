@@ -4,35 +4,36 @@ Rook is composed of golang project and can be built directly with standard `gola
 and storage software (like Ceph) that are built inside containers. We currently support
 three different platforms for building:
 
-  * Linux: most modern distros should work although most testing has been done on Ubuntu
-  * Mac: macOS 10.6+ is supported
+* Linux: most modern distributions should work although most testing has been done on Ubuntu
+* Mac: macOS 10.6+ is supported
 
 ## Build Requirements
 
 An Intel-based machine (recommend 2+ cores, 8+ GB of memory and 128GB of SSD). Inside your build environment (Docker for Mac or a VM), 6+ GB memory is also recommended.
 
 The following tools are need on the host:
-  - curl
-  - docker (1.12+) or Docker for Mac (17+)
-  - git
-  - make
-  - golang
-  - rsync (if you're using the build container on mac)
+
+* curl
+* docker (1.12+) or Docker for Mac (17+)
+* git
+* make
+* golang
+* rsync (if you're using the build container on mac)
 
 ## Build
 
 You can build the Rook binaries and all container images for the host platform by simply running the
 command below. Building in parallel with the `-j` option is recommended.
 
-```
+```console
 make -j4
 ```
 
 Developers may often wish to make only images for a particular backend in their testing. This can
 be done by specifying the `IMAGES` environment variable with `make` as exemplified below. Possible
-values for are as defined by subdir names in the `/rook/images/` dir. Multiple images can be separated by a space.
+values for are as defined by sub-directory names in the `/rook/images/` dir. Multiple images can be separated by a space.
 
-```
+```console
 make -j4 IMAGES='ceph' build
 ```
 
@@ -42,7 +43,7 @@ Run `make help` for more options.
 
 Official Rook builds are done inside a build container. This ensures that we get a consistent build, test and release environment. To run the build inside the cross container run:
 
-```
+```console
 > build/run make -j4
 ```
 
@@ -54,7 +55,7 @@ minutes to complete.
 If you're running the build container on the Mac using Docker for Mac, the build
 container will rely on rsync to copy source to and from the host. To reset the build container and it's persistent volumes, you can run the below command. You shouldn't have to do this often unless something is broken or stale with your build container:
 
-```
+```console
 build/reset
 ```
 
@@ -62,13 +63,13 @@ build/reset
 
 You can also run the build for all supported platforms:
 
-```
+```console
 make -j4 build.all
 ```
 
 Or from the cross container:
 
-```
+```console
 build/run make -j4 build.all
 ```
 
@@ -81,7 +82,7 @@ platform, but if you do want to build those `arm{32,64}` binaries and images on 
 with `build.all` command, please make sure the multi-arch feature is supported. To test run the
 following:
 
-```
+```console
 > docker run --rm -ti arm32v7/ubuntu uname -a
 Linux bad621a75757 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 armv7l armv7l armv7l GNU/Linux
 
@@ -96,7 +97,7 @@ the linux host. If you are using a recent Docker for Mac build you can skip this
 
 On an Ubuntu machine with a 4.8+ kernel you need to run install the following:
 
-```
+```console
 DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
     binfmt-support
     qemu-user-static
@@ -104,13 +105,13 @@ DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
 
 You also need to run the following on every boot:
 
-```
+```console
 docker run --rm --privileged hypriot/qemu-register
 ```
 
 you can install a systemd unit to help with this if you'd like, for example:
 
-```
+```console
 cat <<EOF > /etc/systemd/system/update-binfmt.service
 [Unit]
 After=docker.service
@@ -132,14 +133,14 @@ systemctl enable update-binfmt.service
 
 ## Image Caching and Pruning
 
-Doing a complete build of Rook and the dependent packages can take a long time (more than an hour on a typical macbook). To speed things up we rely heavily on image caching in docker. Docker support content-addressable images by default and we use that effectively when building images. Images are factored to increase reusability across builds. We also tag and timestamp images that should remain in the cache to help future builds.
+Doing a complete build of Rook and the dependent packages can take a long time (more than an hour on a standard laptop). To speed things up we rely heavily on image caching in docker. Docker support content-addressable images by default and we use that effectively when building images. Images are factored to increase reusability across builds. We also tag and timestamp images that should remain in the cache to help future builds.
 
 ### Pruning the cache
 
 To prune the number of cached images run `make prune`. There are two options that control the level of pruning performed:
 
-- `PRUNE_HOURS` - the number of hours from when an image was last used (a cache hit) for it to be considered for pruning. The default is 48 hrs.
-- `PRUNE_KEEP` - the minimum number of cached images to keep in the cache. Default is 24 images.
+* `PRUNE_HOURS` - the number of hours from when an image was last used (a cache hit) for it to be considered for pruning. The default is 48 hrs.
+* `PRUNE_KEEP` - the minimum number of cached images to keep in the cache. Default is 24 images.
 
 ## CI workflow and options
 
@@ -170,11 +171,12 @@ to unblock the CI and merge the PR. This should be used with extreme care so reg
 
 Jenkins will only run the tests for an individual storage provider if specified. There is a keyword for each
 storage provider that has integration tests:
-- `[test cassandra]`
-- `[test ceph]`
-- `[test cockroachdb]`
-- `[test edgefs]`
-- `[test nfs]`
+
+* `[test cassandra]`
+* `[test ceph]`
+* `[test cockroachdb]`
+* `[test edgefs]`
+* `[test nfs]`
 
 Since the majority of effort for a PR generally focuses on a single storage provider it will save time
 in the CI if you only trigger the tests for your provider. If this key phrase is not found in the PR,
@@ -189,7 +191,8 @@ be executed in the CI.
 In master and release builds, all test suites will run on all supported versions of K8s.
 In PR builds, all the test suites will run on some version of K8s. For bigger changes,
 it is recommended to run all test suites on all versions of K8s by using the tag:
-```
+
+```text
 [test full]
 ```
 
