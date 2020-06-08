@@ -370,30 +370,26 @@ func buildHostListFromTree(tree OsdTree) (OsdTree, error) {
 // it checks for various cluster info like number of OSD and their placement
 // it returns 'true' if we need to do nothing and false and we should pre-check/post-check
 func osdDoNothing(context *clusterd.Context, clusterName string) bool {
-	versions, err := GetAllCephDaemonVersions(context, clusterName)
+	osds, err := OsdListNum(context, clusterName)
 	if err != nil {
-		logger.Warningf("failed to get ceph daemons versions, this likely means there is no cluster yet. %v", err)
-		return true
+		logger.Warningf("failed to determine the total number of osds. will check if the osd is ok-to-stop anyways. %v", err)
+		// If calling osd list fails, we assume there are more than 3 OSDs and we check if ok-to-stop
+		// If there are less than 3 OSDs, the ok-to-stop call will fail
+		// this can still be controlled by setting continueUpgradeAfterChecksEvenIfNotHealthy
+		// At least this will happen for a single OSD only, which means 2 OSDs will restart in a small interval
+		return false
 	}
-
-	if len(versions.Osd) == 1 {
-		// now trying to parse and find how many osds are presents
-		// if we have less than 3 osds we skip the check and do best-effort
-		for _, osdCount := range versions.Osd {
-			if osdCount < 3 {
-				logger.Warningf("the cluster has less than 3 OSDs, not performing upgrade check, running in best-effort")
-				return true
-			}
-		}
+	if len(osds) < 3 {
+		logger.Warningf("the cluster has less than 3 osds, not performing upgrade check, running in best-effort")
+		return true
 	}
 
 	// aio means all in one
 	aio, err := allOSDsSameHost(context, clusterName)
 	if err != nil {
-		// That's tricky, we are about to perform an update so it's difficult to break the update for this
-		// let's consider this is not a problem but log what happened
-		logger.Warningf("not able to determine if all OSDs are running on the same host, not performing upgrade check, running in best-effort")
-		return true
+		// If calling osd list fails, we assume there are more than 3 OSDs and we check if ok-to-stop
+		logger.Warningf("failed to determine if all osds are running on the same host, performing upgrade check anyways. %v", err)
+		return false
 	}
 
 	if aio {
