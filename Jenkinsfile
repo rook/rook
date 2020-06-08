@@ -40,7 +40,7 @@ pipeline {
                     // Get changed files
                     def json_changed_files = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${env.CHANGE_ID}/files", returnStdout: true).trim()
                     def list = new groovy.json.JsonSlurper().parseText(json_changed_files)
-                    def changed_files = list.filename
+                    def changed_files = list.filename.join(",")
                      echo ("changed files are: ${changed_files}")
 
                     // Get PR title
@@ -59,6 +59,23 @@ pipeline {
                         env.testProvider = "nfs"
                     } else if (body.contains("[test yugabytedb]") || title.contains("yugabytedb:")) {
                         env.testProvider = "yugabytedb"
+                    } else if (body.contains("[test]")) {
+                        env.shouldBuild = "true"
+                    } else if (!changed_files.contains(".go")) {
+                        echo ("No golang changes detected! Looking for .md, .yaml and .txt now.")
+                        if (changed_files.contains(".md")) {
+                            echo ("Documentation changes detected! Aborting.")
+                            env.shouldBuild = "false"
+                        } else if (changed_files.contains(".yaml")) {
+                            echo ("YAML changes detected! Aborting.")
+                            env.shouldBuild = "false"
+                        } else if (changed_files.contains(".txt")) {
+                            echo ("Text changes detected! Aborting.")
+                            env.shouldBuild = "false"
+                        }
+                    } else if (!changed_files.contains(".go")) {
+                        echo ("No code changes detected! Just building.")
+                        env.shouldTest = "false"
                     }
                     echo ("integration test provider: ${env.testProvider}")
                 }
