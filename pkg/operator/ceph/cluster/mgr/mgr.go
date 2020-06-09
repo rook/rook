@@ -236,9 +236,12 @@ func (c *Cluster) configureModules(daemonIDs []string) {
 	startModuleConfiguration("http bind settings", c.clearHTTPBindFix)
 	startModuleConfiguration("orchestrator modules", c.configureOrchestratorModules)
 	startModuleConfiguration("prometheus", c.enablePrometheusModule)
-	startModuleConfiguration("crash", c.enableCrashModule)
-	startModuleConfiguration("mgr module(s) from the spec", c.configureMgrModules)
 	startModuleConfiguration("dashboard", c.configureDashboardModules)
+	// "crash" is part of the "always_on_modules" list as of Octopus
+	if !c.clusterInfo.CephVersion.IsAtLeastOctopus() {
+		startModuleConfiguration("crash", c.enableCrashModule)
+	}
+	startModuleConfiguration("mgr module(s) from the spec", c.configureMgrModules)
 }
 
 func startModuleConfiguration(description string, configureModules func() error) {
