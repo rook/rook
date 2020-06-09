@@ -124,4 +124,5 @@ type VolumeSource struct {
 	TuneSlowDeviceClass         bool                                 `json:"tuneDeviceClass,omitempty"`  // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
 	Type                        string                               `json:"type,omitempty"`             // Type represents the device type for an OSD, possible values are "data": the bluestore 'block' data and "metadata": the bluestore 'block.db' device
 	CrushDeviceClass            string                               `json:"crushDeviceClass,omitempty"` // CrushDeviceClass represents the crush device class for an OSD
+	Size                        string                               `json:"size,omitempty"`             // Size represents the size requested for the PVC
 }

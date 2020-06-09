@@ -166,6 +166,7 @@ type osdProperties struct {
 	devices             []rookv1.Device
 	pvc                 v1.PersistentVolumeClaimVolumeSource
 	metadataPVC         v1.PersistentVolumeClaimVolumeSource
+	pvcSize             string
 	selection           rookv1.Selection
 	resources           v1.ResourceRequirements
 	storeConfig         osdconfig.StoreConfig
@@ -636,6 +637,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				placement:           volumeSource.Placement,
 				portable:            volumeSource.Portable,
 				tuneSlowDeviceClass: volumeSource.TuneSlowDeviceClass,
+				pvcSize:             volumeSource.Size,
 			}
 			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
 			// or from the osd prepare job from initial creation.
