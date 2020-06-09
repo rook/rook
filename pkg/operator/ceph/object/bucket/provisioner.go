@@ -292,12 +292,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		}
 	}
 
-	_, _, err = cephObject.UnlinkUser(p.objectContext, p.cephUserName, p.bucketName)
-	if err != nil {
-		return err
-	}
-
-	// finally, delete unlinked user
+	// finally, delete the user
 	p.deleteOBCResource("")
 	return nil
 }
