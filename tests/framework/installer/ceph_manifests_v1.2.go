@@ -1747,7 +1747,9 @@ spec:
     size: ` + replicaSize + `
     targetSizeRatio: .5
     requireSafeReplicaSize: false
-  compressionMode: aggressive`
+  compressionMode: aggressive
+  poolProperties:
+    pg_autoscale_mode: on`
 }
 
 func (m *CephManifestsV1_2) GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string {

@@ -9,6 +9,7 @@
 - Added a [toolbox job](Documentation/ceph-toolbox.md#toolbox-job) for running a script with Ceph commands, similar to running commands in the Rook toolbox.
 - Ceph RBD Mirror daemon has been extracted to its own CRD, it has been removed from the `CephCluster` CRD, see the [rbd-mirror crd](Documentation/ceph-rbd-mirror-crd.html).
 - CephCluster CRD has been converted to use the controller-runtime framework.
+- CephBlockPool CRD has a new field called `parameters` which allows to set any property on a given [pool](Documentation/ceph-pool-crd.html#add-specific-pool-properties)
 
 ### EdgeFS
 

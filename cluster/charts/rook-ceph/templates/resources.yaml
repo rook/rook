@@ -528,6 +528,8 @@ spec:
               - passive
               - aggressive
               - force
+            parameters:
+              type: object
   subresources:
     status: {}
 ---

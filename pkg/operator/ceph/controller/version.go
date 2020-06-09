@@ -18,6 +18,7 @@ package controller
 
 import (
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -33,4 +34,16 @@ func ValidateCephVersionsBetweenLocalAndExternalClusters(context *clusterd.Conte
 	}
 
 	return *externalVersion, cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, *externalVersion)
+}
+
+// GetImageVersion returns the CephVersion registered for a specified image (if any) and whether any image was found.
+func GetImageVersion(cephCluster cephv1.CephCluster) (*cephver.CephVersion, error) {
+	// If the Ceph cluster has not yet recorded the image and version for the current image in its spec, then the Crash
+	// controller should wait for the version to be detected.
+	if cephCluster.Status.CephVersion != nil && cephCluster.Spec.CephVersion.Image == cephCluster.Status.CephVersion.Image {
+		logger.Debugf("ceph version found %q", cephCluster.Status.CephVersion.Version)
+		return ExtractCephVersionFromLabel(cephCluster.Status.CephVersion.Version)
+	}
+
+	return nil, errors.New("attempt to determine ceph version for the current cluster image timed out")
 }

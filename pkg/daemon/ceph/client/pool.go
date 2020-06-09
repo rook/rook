@@ -28,8 +28,12 @@ import (
 )
 
 const (
-	confirmFlag       = "--yes-i-really-mean-it"
-	reallyConfirmFlag = "--yes-i-really-really-mean-it"
+	confirmFlag             = "--yes-i-really-mean-it"
+	reallyConfirmFlag       = "--yes-i-really-really-mean-it"
+	targetSizeRatioProperty = "target_size_ratio"
+	compressionModeProperty = "compression_mode"
+	PgAutoscaleModeProperty = "pg_autoscale_mode"
+	PgAutoscaleModeOn       = "on"
 )
 
 type CephStoragePoolSummary struct {
@@ -232,11 +236,23 @@ func givePoolAppTag(context *clusterd.Context, namespace string, poolName string
 }
 
 func setCommonPoolProperties(context *clusterd.Context, pool cephv1.PoolSpec, namespace, poolName, appName string) error {
-	compressionModeProperty := "compression_mode"
-	if pool.CompressionMode != "" {
-		err := SetPoolProperty(context, namespace, poolName, compressionModeProperty, pool.CompressionMode)
+	if len(pool.Parameters) == 0 {
+		pool.Parameters = make(map[string]string)
+	}
+
+	if pool.Replicated.IsTargetRatioEnabled() {
+		pool.Parameters[targetSizeRatioProperty] = strconv.FormatFloat(pool.Replicated.TargetSizeRatio, 'f', -1, 32)
+	}
+
+	if pool.IsCompressionEnabled() {
+		pool.Parameters[compressionModeProperty] = pool.CompressionMode
+	}
+
+	// Apply properties
+	for propName, propValue := range pool.Parameters {
+		err := SetPoolProperty(context, namespace, poolName, propName, propValue)
 		if err != nil {
-			return errors.Wrapf(err, "failed to set property %q on pool %q to %q", compressionModeProperty, poolName, pool.CompressionMode)
+			logger.Errorf("failed to set property %q to pool %q to %q. %v", propName, poolName, propValue, err)
 		}
 	}
 
@@ -289,16 +305,8 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, namespace, poolName s
 	}
 
 	// the pool is type replicated, set the size for the pool now that it's been created
-	if err = SetPoolReplicatedSizeProperty(context, namespace, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
+	if err := SetPoolReplicatedSizeProperty(context, namespace, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
 		return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolName, pool.Replicated.Size)
-	}
-
-	targetSizeRatioProperty := "target_size_ratio"
-	if pool.Replicated.TargetSizeRatio != 0 {
-		err = SetPoolProperty(context, namespace, poolName, targetSizeRatioProperty, strconv.FormatFloat(pool.Replicated.TargetSizeRatio, 'f', -1, 32))
-		if err != nil {
-			return errors.Wrapf(err, "failed to set property %q to replicated pool %q to %.2f", targetSizeRatioProperty, poolName, pool.Replicated.TargetSizeRatio)
-		}
 	}
 
 	if err = setCommonPoolProperties(context, pool, namespace, poolName, appName); err != nil {
@@ -339,9 +347,10 @@ func createReplicationCrushRule(context *clusterd.Context, namespace, ruleName s
 // SetPoolProperty sets a property to a given pool
 func SetPoolProperty(context *clusterd.Context, namespace, name, propName, propVal string) error {
 	args := []string{"osd", "pool", "set", name, propName, propVal}
+	logger.Infof("setting pool property %q to %q on pool %q", propName, propVal, name)
 	_, err := NewCephCommand(context, namespace, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to set pool property %s on pool %s", propName, name)
+		return errors.Wrapf(err, "failed to set pool property %q on pool %q", propName, name)
 	}
 	return nil
 }

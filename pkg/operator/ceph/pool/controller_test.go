@@ -320,6 +320,9 @@ func TestCephBlockPoolController(t *testing.T) {
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
+			CephVersion: &cephv1.ClusterVersion{
+				Version: "14.2.9-0",
+			},
 		},
 	}
 
