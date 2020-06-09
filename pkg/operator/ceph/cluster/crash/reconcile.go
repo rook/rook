@@ -18,7 +18,6 @@ package crash
 
 import (
 	"context"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
@@ -27,10 +26,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/object"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 
 	"github.com/coreos/pkg/capnslog"
 
@@ -42,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -170,7 +168,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		}
 
 		clusterImage := cephCluster.Spec.CephVersion.Image
-		cephVersion, err := getImageVersion(cephCluster)
+		cephVersion, err := opcontroller.GetImageVersion(cephCluster)
 		if err != nil {
 			logger.Errorf("ceph version not found for image %q used by cluster %q. %v", clusterImage, cephCluster.Name, err)
 			return reconcile.Result{}, nil
@@ -217,20 +215,6 @@ func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 	}
 
 	return cephPods, nil
-}
-
-// getImageVersion returns the CephVersion registered for a specified image (if any) and whether any image was found.
-func getImageVersion(cephCluster cephv1.CephCluster) (*version.CephVersion, error) {
-	for i := 0; i < getVersionMaxRetries; i++ {
-		// If the Ceph cluster has not yet recorded the image and version for the current image in its spec, then the Crash
-		// controller should wait for the version to be detected.
-		if cephCluster.Status.CephVersion != nil && cephCluster.Spec.CephVersion.Image == cephCluster.Status.CephVersion.Image {
-			logger.Debugf("ceph version found %q", cephCluster.Status.CephVersion.Version)
-			return controller.ExtractCephVersionFromLabel(cephCluster.Status.CephVersion.Version)
-		}
-		<-time.After(time.Second * getVersionRetryInterval)
-	}
-	return nil, errors.New("attempt to determine ceph version for the current cluster image timed out")
 }
 
 func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error {

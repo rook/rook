@@ -155,7 +155,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephClusterSpec, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteFilesystem() function since everything is gone already
@@ -175,7 +175,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		}
 		return reconcileResponse, nil
 	}
-	r.cephClusterSpec = &cephClusterSpec
+	r.cephClusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo
 	// Always populate it during each reconcile

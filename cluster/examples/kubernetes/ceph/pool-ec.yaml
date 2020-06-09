@@ -16,8 +16,11 @@ spec:
   erasureCoded:
     dataChunks: 2
     codingChunks: 1
-  # Inline compression mode for the data pool
-  compressionMode: none
+  # Set any property on a given pool
+  # see https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
+  parameters:
+    # Inline compression mode for the data pool
+    compression_mode: none
   # A key/value list of annotations
   annotations:
   #  key: value

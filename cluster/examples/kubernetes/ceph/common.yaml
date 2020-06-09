@@ -536,6 +536,8 @@ spec:
               - passive
               - aggressive
               - force
+            parameters:
+              type: object
   subresources:
     status: {}
 # OLM: END CEPH BLOCK POOL CRD

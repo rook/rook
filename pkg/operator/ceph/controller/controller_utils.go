@@ -44,7 +44,7 @@ var (
 )
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
-func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.ClusterSpec, bool, bool, reconcile.Result) {
+func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.CephCluster, bool, bool, reconcile.Result) {
 	cephClusterExists := false
 
 	// Running ceph commands won't work and the controller will keep re-queuing so I believe it's fine not to check
@@ -54,11 +54,11 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 	err := c.List(context.TODO(), clusterList, client.InNamespace(namespacedName.Namespace))
 	if err != nil {
 		logger.Errorf("%q:failed to fetch CephCluster %v", controllerName, err)
-		return cephv1.ClusterSpec{}, false, cephClusterExists, ImmediateRetryResult
+		return cephCluster, false, cephClusterExists, ImmediateRetryResult
 	}
 	if len(clusterList.Items) == 0 {
 		logger.Errorf("%q: no CephCluster resource found in namespace %q", controllerName, namespacedName.Namespace)
-		return cephv1.ClusterSpec{}, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 	}
 	cephClusterExists = true
 	cephCluster = clusterList.Items[0]
@@ -72,19 +72,19 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 	if err != nil {
 		if strings.Contains(err.Error(), "error calling conf_read_file") {
 			logger.Infof("%q: operator is not ready to run ceph command, cannot reconcile yet.", controllerName)
-			return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+			return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		}
 		// We should not arrive there
 		logger.Errorf("%q: ceph command error %v", controllerName, err)
-		return cephCluster.Spec, false, cephClusterExists, ImmediateRetryResult
+		return cephCluster, false, cephClusterExists, ImmediateRetryResult
 	}
 
 	// If Ceph status is ok we can reconcile
 	if status.Health.Status == "HEALTH_OK" || status.Health.Status == "HEALTH_WARN" {
 		logger.Debugf("%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, status.Health.Status)
-		return cephCluster.Spec, true, cephClusterExists, reconcile.Result{}
+		return cephCluster, true, cephClusterExists, reconcile.Result{}
 	}
 
 	logger.Infof("%s: CephCluster %q found but skipping reconcile since Ceph health is %q", controllerName, cephCluster.Name, status.Health.Status)
-	return cephCluster.Spec, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+	return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }
