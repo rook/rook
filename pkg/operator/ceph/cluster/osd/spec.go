@@ -236,11 +236,16 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	var commonArgs []string
 
 	// If the OSD runs on PVC
-	if osdProps.onPVC() && osdProps.tuneSlowDeviceClass {
+	if osdProps.onPVC() {
+		// add the PVC size to the pod spec so that if the size changes the OSD will be restarted and pick up the change
+		envVars = append(envVars, v1.EnvVar{Name: "ROOK_OSD_PVC_SIZE", Value: osdProps.pvcSize})
+
 		// Append tuning flag if necessary
-		err := c.osdRunFlagTuningOnPVC(osd.ID)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to apply tuning on osd %q", strconv.Itoa(osd.ID))
+		if osdProps.tuneSlowDeviceClass {
+			err := c.osdRunFlagTuningOnPVC(osd.ID)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to apply tuning on osd %q", strconv.Itoa(osd.ID))
+			}
 		}
 	}
 
