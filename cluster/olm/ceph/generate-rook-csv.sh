@@ -7,9 +7,10 @@ set -e
 OLM_CATALOG_DIR=cluster/olm/ceph
 ASSEMBLE_FILE_COMMON="$OLM_CATALOG_DIR/assemble/metadata-common.yaml"
 ASSEMBLE_FILE_K8S="$OLM_CATALOG_DIR/assemble/metadata-k8s.yaml"
-ASSEMBLE_FILE_OCP="$OLM_CATALOG_DIR/assemble/metadata-openshift.yaml"
+ASSEMBLE_FILE_OCP="$OLM_CATALOG_DIR/assemble/metadata-ocp.yaml"
+ASSEMBLE_FILE_OKD="$OLM_CATALOG_DIR/assemble/metadata-okd.yaml"
 PACKAGE_FILE="$OLM_CATALOG_DIR/assemble/rook-ceph.package.yaml"
-SUPPORTED_PLATFORMS='k8s|ocp'
+SUPPORTED_PLATFORMS='k8s|ocp|okd'
 
 operator_sdk="${OPERATOR_SDK:-operator-sdk}"
 yq="${YQ_TOOL:-yq}"
@@ -138,6 +139,12 @@ function generate_csv(){
         "${YQ_CMD_MERGE[@]}" "$CSV_FILE_NAME" "$ASSEMBLE_FILE_OCP"
     fi
 
+    if [[ "$PLATFORM" == "okd" ]]; then
+        "${YQ_CMD_MERGE[@]}" "$CSV_FILE_NAME" "$ASSEMBLE_FILE_OKD"
+        "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.name "rook-ceph.v${VERSION}"
+        "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" spec.displayName "Rook-Ceph"
+        "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
+    fi
 }
 
 function generate_operator_yaml() {
