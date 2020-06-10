@@ -28,8 +28,14 @@ type CephFilesystemExpansion interface{}
 
 type CephNFSExpansion interface{}
 
+type CephObjectRealmExpansion interface{}
+
 type CephObjectStoreExpansion interface{}
 
 type CephObjectStoreUserExpansion interface{}
+
+type CephObjectZoneExpansion interface{}
+
+type CephObjectZoneGroupExpansion interface{}
 
 type CephRBDMirrorExpansion interface{}

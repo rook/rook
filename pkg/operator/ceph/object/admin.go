@@ -19,7 +19,6 @@ package object
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
@@ -37,13 +36,13 @@ func NewContext(context *clusterd.Context, name, clusterName string) *Context {
 	return &Context{Context: context, Name: name, ClusterName: clusterName, RunAsUser: client.AdminUsername}
 }
 
-func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
+func RunAdminCommandNoRealm(c *Context, args ...string) (string, error) {
 	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.Context.ConfigDir, c.ClusterName, c.RunAsUser)
 
 	// start the rgw admin command
 	output, err := c.Context.Executor.ExecuteCommandWithOutput(command, args...)
 	if err != nil {
-		return output, errors.Wrap(err, "failed to run radosgw-admin")
+		return "", err
 	}
 
 	return output, nil
@@ -59,8 +58,8 @@ func runAdminCommand(c *Context, args ...string) (string, error) {
 			fmt.Sprintf("--rgw-zonegroup=%s", c.Name),
 		}
 
-		return runAdminCommandNoRealm(c, append(args, options...)...)
+		return RunAdminCommandNoRealm(c, append(args, options...)...)
 	}
 
-	return runAdminCommandNoRealm(c, args...)
+	return RunAdminCommandNoRealm(c, args...)
 }

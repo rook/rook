@@ -66,6 +66,8 @@ spec:
     #  requests:
     #    cpu: "500m"
     #    memory: "1024Mi"
+  #zone:
+    #name: zone-a
 ```
 
 ## Object Store Settings
@@ -96,6 +98,12 @@ The gateway settings correspond to the RGW daemon settings.
 * `placement`: The Kubernetes placement settings to determine where the RGW pods should be started in the cluster.
 * `resources`: Set resource requests/limits for the Gateway Pod(s), see [Resource Requirements/Limits](ceph-cluster-crd.md#resource-requirementslimits).
 * `priorityClassName`: Set priority class name for the Gateway Pod(s)
+
+## Zone Settings
+
+The [zone](ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-multisite-crd.md).
+
+* `name`: the name of the ceph-object-zone the object stores should be in.
 
 ## Runtime settings
 

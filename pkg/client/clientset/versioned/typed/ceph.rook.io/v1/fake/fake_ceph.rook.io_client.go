@@ -48,12 +48,24 @@ func (c *FakeCephV1) CephNFSes(namespace string) v1.CephNFSInterface {
 	return &FakeCephNFSes{c, namespace}
 }
 
+func (c *FakeCephV1) CephObjectRealms(namespace string) v1.CephObjectRealmInterface {
+	return &FakeCephObjectRealms{c, namespace}
+}
+
 func (c *FakeCephV1) CephObjectStores(namespace string) v1.CephObjectStoreInterface {
 	return &FakeCephObjectStores{c, namespace}
 }
 
 func (c *FakeCephV1) CephObjectStoreUsers(namespace string) v1.CephObjectStoreUserInterface {
 	return &FakeCephObjectStoreUsers{c, namespace}
+}
+
+func (c *FakeCephV1) CephObjectZones(namespace string) v1.CephObjectZoneInterface {
+	return &FakeCephObjectZones{c, namespace}
+}
+
+func (c *FakeCephV1) CephObjectZoneGroups(namespace string) v1.CephObjectZoneGroupInterface {
+	return &FakeCephObjectZoneGroups{c, namespace}
 }
 
 func (c *FakeCephV1) CephRBDMirrors(namespace string) v1.CephRBDMirrorInterface {

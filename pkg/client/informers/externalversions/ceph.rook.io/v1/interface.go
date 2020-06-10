@@ -34,10 +34,16 @@ type Interface interface {
 	CephFilesystems() CephFilesystemInformer
 	// CephNFSes returns a CephNFSInformer.
 	CephNFSes() CephNFSInformer
+	// CephObjectRealms returns a CephObjectRealmInformer.
+	CephObjectRealms() CephObjectRealmInformer
 	// CephObjectStores returns a CephObjectStoreInformer.
 	CephObjectStores() CephObjectStoreInformer
 	// CephObjectStoreUsers returns a CephObjectStoreUserInformer.
 	CephObjectStoreUsers() CephObjectStoreUserInformer
+	// CephObjectZones returns a CephObjectZoneInformer.
+	CephObjectZones() CephObjectZoneInformer
+	// CephObjectZoneGroups returns a CephObjectZoneGroupInformer.
+	CephObjectZoneGroups() CephObjectZoneGroupInformer
 	// CephRBDMirrors returns a CephRBDMirrorInformer.
 	CephRBDMirrors() CephRBDMirrorInformer
 }
@@ -78,6 +84,11 @@ func (v *version) CephNFSes() CephNFSInformer {
 	return &cephNFSInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
+// CephObjectRealms returns a CephObjectRealmInformer.
+func (v *version) CephObjectRealms() CephObjectRealmInformer {
+	return &cephObjectRealmInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // CephObjectStores returns a CephObjectStoreInformer.
 func (v *version) CephObjectStores() CephObjectStoreInformer {
 	return &cephObjectStoreInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
@@ -86,6 +97,16 @@ func (v *version) CephObjectStores() CephObjectStoreInformer {
 // CephObjectStoreUsers returns a CephObjectStoreUserInformer.
 func (v *version) CephObjectStoreUsers() CephObjectStoreUserInformer {
 	return &cephObjectStoreUserInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephObjectZones returns a CephObjectZoneInformer.
+func (v *version) CephObjectZones() CephObjectZoneInformer {
+	return &cephObjectZoneInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephObjectZoneGroups returns a CephObjectZoneGroupInformer.
+func (v *version) CephObjectZoneGroups() CephObjectZoneGroupInformer {
+	return &cephObjectZoneGroupInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // CephRBDMirrors returns a CephRBDMirrorInformer.

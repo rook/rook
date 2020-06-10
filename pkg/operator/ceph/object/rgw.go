@@ -56,6 +56,9 @@ type clusterConfig struct {
 type rgwConfig struct {
 	ResourceName string
 	DaemonID     string
+	Realm        string
+	ZoneGroup    string
+	Zone         string
 }
 
 const (
@@ -64,10 +67,10 @@ const (
 
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
-func (c *clusterConfig) createOrUpdateStore() error {
+func (c *clusterConfig) createOrUpdateStore(realmName string, zoneGroupName string, zoneName string) error {
 	logger.Infof("creating object store %q in namespace %q", c.store.Name, c.store.Namespace)
 
-	if err := c.startRGWPods(); err != nil {
+	if err := c.startRGWPods(realmName, zoneGroupName, zoneName); err != nil {
 		return errors.Wrap(err, "failed to start rgw pods")
 	}
 
@@ -75,7 +78,7 @@ func (c *clusterConfig) createOrUpdateStore() error {
 	return nil
 }
 
-func (c *clusterConfig) startRGWPods() error {
+func (c *clusterConfig) startRGWPods(realmName string, zoneGroupName string, zoneName string) error {
 	// backward compatibility, triggered during updates
 	if c.store.Spec.Gateway.AllNodes {
 		// log we don't support that anymore
@@ -111,6 +114,9 @@ func (c *clusterConfig) startRGWPods() error {
 		rgwConfig := &rgwConfig{
 			ResourceName: resourceName,
 			DaemonID:     daemonName,
+			Realm:        realmName,
+			ZoneGroup:    zoneGroupName,
+			Zone:         zoneName,
 		}
 
 		// We set the owner reference of the Secret to the Object controller instead of the replicaset

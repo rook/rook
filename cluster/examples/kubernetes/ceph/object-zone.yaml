@@ -1,0 +1,12 @@
+#################################################################################################################
+# Create a multisite zone for a collection of object stores
+#  kubectl create -f object-zone.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: zone-a
+  namespace: rook-ceph
+spec:
+  zoneGroup: zonegroup-a

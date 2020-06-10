@@ -386,33 +386,9 @@ type ObjectStoreSpec struct {
 
 	// The rgw pod info
 	Gateway GatewaySpec `json:"gateway"`
-}
 
-// +genclient
-// +genclient:noStatus
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-type CephObjectStoreUser struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
-	Spec              ObjectStoreUserSpec `json:"spec"`
-	Status            *Status             `json:"status"`
-}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-type CephObjectStoreUserList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-	Items           []CephObjectStoreUser `json:"items"`
-}
-
-// ObjectStoreUserSpec represent the spec of an Objectstoreuser
-type ObjectStoreUserSpec struct {
-	//The store the user will be created in
-	Store string `json:"store,omitempty"`
-	//The display name for the ceph users
-	DisplayName string `json:"displayName,omitempty"`
+	// The multisite info
+	Zone ZoneSpec `json:"zone"`
 }
 
 type GatewaySpec struct {
@@ -442,6 +418,111 @@ type GatewaySpec struct {
 
 	// PriorityClassName sets priority classes on the rgw pods
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
+type ZoneSpec struct {
+	// RGW Zone the Object Store is in
+	Name string `json:"name"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephObjectStoreUser struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ObjectStoreUserSpec `json:"spec"`
+	Status            *Status             `json:"status"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephObjectStoreUserList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephObjectStoreUser `json:"items"`
+}
+
+// ObjectStoreUserSpec represent the spec of an Objectstoreuser
+type ObjectStoreUserSpec struct {
+	//The store the user will be created in
+	Store string `json:"store,omitempty"`
+	//The display name for the ceph users
+	DisplayName string `json:"displayName,omitempty"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephObjectRealm struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ObjectRealmSpec `json:"spec"`
+	Status            *Status         `json:"status"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephObjectRealmList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephObjectRealm `json:"items"`
+}
+
+// ObjectRealmSpec represent the spec of an ObjectRealm
+type ObjectRealmSpec struct {
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephObjectZoneGroup struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ObjectZoneGroupSpec `json:"spec"`
+	Status            *Status             `json:"status"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephObjectZoneGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephObjectZoneGroup `json:"items"`
+}
+
+// ObjectZoneGroupSpec represent the spec of an ObjecZoneGroup
+type ObjectZoneGroupSpec struct {
+	//The display name for the ceph users
+	Realm string `json:"realm"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephObjectZone struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ObjectZoneSpec `json:"spec"`
+	Status            *Status        `json:"status"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephObjectZoneList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephObjectZone `json:"items"`
+}
+
+// ObjectZoneSpec represent the spec of an ObjectZone
+type ObjectZoneSpec struct {
+	//The display name for the ceph users
+	ZoneGroup string `json:"zoneGroup"`
 }
 
 // +genclient

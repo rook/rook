@@ -106,6 +106,63 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
 
+			case *cephv1.CephObjectRealm:
+				objNew := e.ObjectNew.(*cephv1.CephObjectRealm)
+				logger.Debug("update event on CephObjectRealm")
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
+				if isDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+				}
+
+			case *cephv1.CephObjectZoneGroup:
+				objNew := e.ObjectNew.(*cephv1.CephObjectZoneGroup)
+				logger.Debug("update event on CephObjectZoneGroup")
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
+				if isDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+				}
+
+			case *cephv1.CephObjectZone:
+				objNew := e.ObjectNew.(*cephv1.CephObjectZone)
+				logger.Debug("update event on CephObjectZone")
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
+				if isDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+				}
+
 			case *cephv1.CephBlockPool:
 				objNew := e.ObjectNew.(*cephv1.CephBlockPool)
 				logger.Debug("update event on CephBlockPool CR")
