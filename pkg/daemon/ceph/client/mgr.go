@@ -125,8 +125,8 @@ func setBalancerMode(context *clusterd.Context, clusterName, mode string) error 
 	return nil
 }
 
-// SetMinCompatClientLuminous set the minimum compatibility for clients to Luminous
-func SetMinCompatClientLuminous(context *clusterd.Context, clusterName string) error {
+// setMinCompatClientLuminous set the minimum compatibility for clients to Luminous
+func setMinCompatClientLuminous(context *clusterd.Context, clusterName string) error {
 	args := []string{"osd", "set-require-min-compat-client", "luminous", "--yes-i-really-mean-it"}
 	_, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
@@ -136,8 +136,8 @@ func SetMinCompatClientLuminous(context *clusterd.Context, clusterName string) e
 	return nil
 }
 
-// MgrSetBalancerMode sets the given mode to the balancer module
-func MgrSetBalancerMode(context *clusterd.Context, clusterName, balancerModuleMode string) error {
+// mgrSetBalancerMode sets the given mode to the balancer module
+func mgrSetBalancerMode(context *clusterd.Context, clusterName, balancerModuleMode string) error {
 	retryCount := 5
 	for i := 0; i < retryCount; i++ {
 		err := setBalancerMode(context, clusterName, balancerModuleMode)
@@ -151,6 +151,23 @@ func MgrSetBalancerMode(context *clusterd.Context, clusterName, balancerModuleMo
 			}
 		}
 		break
+	}
+
+	return nil
+}
+
+// ConfigureBalancerModule configures the balancer module
+func ConfigureBalancerModule(context *clusterd.Context, clusterName, balancerModuleMode string) error {
+	// Set min compat client to luminous before enabling the balancer mode "upmap"
+	err := setMinCompatClientLuminous(context, clusterName)
+	if err != nil {
+		return errors.Wrap(err, "failed to set minimum compatibility client")
+	}
+
+	// Set balancer module mode
+	err = mgrSetBalancerMode(context, clusterName, balancerModuleMode)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set balancer module mode to %q", balancerModuleMode)
 	}
 
 	return nil

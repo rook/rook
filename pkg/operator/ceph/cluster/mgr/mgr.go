@@ -242,9 +242,17 @@ func (c *Cluster) configureModules(daemonIDs []string) {
 	startModuleConfiguration("http bind settings", c.clearHTTPBindFix)
 	startModuleConfiguration("orchestrator modules", c.configureOrchestratorModules)
 	startModuleConfiguration("prometheus", c.enablePrometheusModule)
-	startModuleConfiguration("crash", c.enableCrashModule)
-	startModuleConfiguration("mgr module(s) from the spec", c.configureMgrModules)
 	startModuleConfiguration("dashboard", c.configureDashboardModules)
+	// "crash" is part of the "always_on_modules" list as of Octopus
+	if !c.clusterInfo.CephVersion.IsAtLeastOctopus() {
+		startModuleConfiguration("crash", c.enableCrashModule)
+	} else {
+		// The balancer module must be configured on Octopus
+		// It is a bit confusing but as of Octopus modules that are in the "always_on_modules" list
+		// are "just" enabled, but still they must be configured to work properly
+		startModuleConfiguration("balancer", c.enableBalancerModule)
+	}
+	startModuleConfiguration("mgr module(s) from the spec", c.configureMgrModules)
 }
 
 func startModuleConfiguration(description string, configureModules func() error) {
@@ -274,6 +282,24 @@ func (c *Cluster) enableCrashModule() error {
 	return nil
 }
 
+func (c *Cluster) enableBalancerModule() error {
+	// The order MATTERS, always configure this module first, then turn it on
+
+	// This sets min compat client to luminous and the balancer module mode
+	err := client.ConfigureBalancerModule(c.context, c.Namespace, balancerModuleMode)
+	if err != nil {
+		return errors.Wrapf(err, "failed to configure module %q", balancerModuleName)
+	}
+
+	// This turns "on" the balancer
+	err = client.MgrEnableModule(c.context, c.Namespace, balancerModuleName, false)
+	if err != nil {
+		return errors.Wrapf(err, "failed to turn on mgr %q module", balancerModuleName)
+	}
+
+	return nil
+}
+
 func (c *Cluster) configureMgrModules() error {
 	// Enable mgr modules from the spec
 	for _, module := range c.mgrSpec.Modules {
@@ -290,15 +316,10 @@ func (c *Cluster) configureMgrModules() error {
 
 		if module.Enabled {
 			if module.Name == balancerModuleName {
-				// Set min compat client to luminous before enabling the balancer mode "upmap"
-				err := client.SetMinCompatClientLuminous(c.context, c.Namespace)
+				// Configure balancer module mode
+				err := client.ConfigureBalancerModule(c.context, c.Namespace, balancerModuleMode)
 				if err != nil {
-					return errors.Wrap(err, "failed to set minimum compatibility client")
-				}
-				// Set balancer module mode
-				err = client.MgrSetBalancerMode(c.context, c.Namespace, balancerModuleMode)
-				if err != nil {
-					return errors.Wrapf(err, "failed to set module %q mode to %q", module.Name, balancerModuleMode)
+					return errors.Wrapf(err, "failed to configure module %q", module.Name)
 				}
 			}
 
