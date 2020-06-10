@@ -70,7 +70,7 @@ const (
 	portableKey                         = "portable"
 	cephOsdPodMinimumMemory      uint64 = 2048 // minimum amount of memory in MB to run the pod
 	bluestorePVCMetadata                = "metadata"
-	bluestorePVCBlock                   = "data"
+	bluestorePVCData                    = "data"
 )
 
 // Cluster keeps track of the OSDs
@@ -245,44 +245,26 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 		return
 	}
 
-	for i, volume := range c.ValidStorage.VolumeSources {
-		// If the metadata template is first, we fail and assume we cannot build the data/metadata block relationship
-		if i == 0 && volume.Type == bluestorePVCMetadata {
-			config.addError("wrong template ordering, the %q device must be declared after the %q device.", bluestorePVCMetadata, bluestorePVCBlock)
-			return
-		}
+	for _, volume := range c.ValidStorage.VolumeSources {
+		dataSource, dataOK := volume.PVCSources[bluestorePVCData]
 
-		metadataDevicePVCSource := v1.PersistentVolumeClaimVolumeSource{}
-
-		// If the volumeTemplate is unknown we do nothing
-		if volume.Type != bluestorePVCMetadata && volume.Type != bluestorePVCBlock {
-			logger.Errorf("unknown PVC template type %q, valid names are %q for the main OSD block and %q for a metadata device to back the OSD.", volume.Type, bluestorePVCBlock, bluestorePVCMetadata)
+		// The data PVC template is required.
+		if !dataOK {
+			config.addError("failed to create osd for storageClassDeviceSet %q, missing the data template", volume.Name)
 			continue
 		}
 
-		// We don't need to use the metadata devices as OSDs
-		// They are just attached to OSD and field in their property
-		if volume.Type == bluestorePVCMetadata {
-			logger.Infof("PVC %q is not an OSD but a %q device", volume.PersistentVolumeClaimSource.ClaimName, volume.Type)
-			continue
-		}
-
-		// Let's see how the next PVC looks like
-		// If the next PVC has been identified as a PVC let's attached to this OSD property
-		//
-		// The logic will get a bit more complex if we plan support for a third device for "block.wal"
-		m := i + 1
-		if m < len(c.ValidStorage.VolumeSources) {
-			if c.ValidStorage.VolumeSources[m].Type == bluestorePVCMetadata {
-				logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", volume.PersistentVolumeClaimSource.ClaimName, c.ValidStorage.VolumeSources[m].PersistentVolumeClaimSource.ClaimName)
-				metadataDevicePVCSource = c.ValidStorage.VolumeSources[m].PersistentVolumeClaimSource
-			}
+		metadataSource, metadataOK := volume.PVCSources[bluestorePVCMetadata]
+		if metadataOK {
+			logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", dataSource.ClaimName, metadataSource.ClaimName)
+		} else {
+			logger.Infof("OSD will have its main bluestore block on %q", dataSource.ClaimName)
 		}
 
 		osdProps := osdProperties{
-			crushHostname:    volume.PersistentVolumeClaimSource.ClaimName,
-			pvc:              volume.PersistentVolumeClaimSource,
-			metadataPVC:      metadataDevicePVCSource,
+			crushHostname:    dataSource.ClaimName,
+			pvc:              dataSource,
+			metadataPVC:      metadataSource,
 			resources:        volume.Resources,
 			placement:        volume.Placement,
 			portable:         volume.Portable,
@@ -298,7 +280,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 		// Skip OSD prepare if deployment already exists for the PVC
 		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s=%s",
 			k8sutil.AppAttr, AppName,
-			OSDOverPVCLabelKey, volume.PersistentVolumeClaimSource.ClaimName,
+			OSDOverPVCLabelKey, dataSource.ClaimName,
 		)}
 
 		osdDeployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(listOpts)
@@ -633,23 +615,27 @@ func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {
 }
 
 func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
-	var metadataDevicePVCSource v1.PersistentVolumeClaimVolumeSource
 
-	for i, volumeSource := range c.ValidStorage.VolumeSources {
-		// volumeSource should be consistent and the order always identical so doing the +1 thing shouldn't be too dangerous
-		if pvcName == volumeSource.PersistentVolumeClaimSource.ClaimName {
-			m := i + 1
-			if m < len(c.ValidStorage.VolumeSources) {
-				if c.ValidStorage.VolumeSources[m].Type == bluestorePVCMetadata {
-					logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", volumeSource.PersistentVolumeClaimSource.ClaimName, c.ValidStorage.VolumeSources[m].PersistentVolumeClaimSource.ClaimName)
-					metadataDevicePVCSource = c.ValidStorage.VolumeSources[m].PersistentVolumeClaimSource
-				}
+	for _, volumeSource := range c.ValidStorage.VolumeSources {
+		// The data PVC template is required.
+		dataSource, dataOK := volumeSource.PVCSources[bluestorePVCData]
+		if !dataOK {
+			logger.Warningf("failed to find data source daemon for device set %q, missing the data template", volumeSource.Name)
+			continue
+		}
+
+		if pvcName == dataSource.ClaimName {
+			metadataSource, metadataOK := volumeSource.PVCSources[bluestorePVCMetadata]
+			if metadataOK {
+				logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", dataSource.ClaimName, metadataSource.ClaimName)
+			} else {
+				logger.Infof("OSD will have its main bluestore block on %q", dataSource.ClaimName)
 			}
 
 			osdProps := osdProperties{
-				crushHostname:       volumeSource.PersistentVolumeClaimSource.ClaimName,
-				pvc:                 volumeSource.PersistentVolumeClaimSource,
-				metadataPVC:         metadataDevicePVCSource,
+				crushHostname:       dataSource.ClaimName,
+				pvc:                 dataSource,
+				metadataPVC:         metadataSource,
 				resources:           volumeSource.Resources,
 				placement:           volumeSource.Placement,
 				portable:            volumeSource.Portable,
