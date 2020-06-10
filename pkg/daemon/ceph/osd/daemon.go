@@ -37,6 +37,7 @@ import (
 const (
 	pvcDataTypeDevice     = "data"
 	pvcMetadataTypeDevice = "metadata"
+	lvmCommandToCheck     = "lvm"
 )
 
 var (
@@ -145,6 +146,17 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 
 // Provision provisions an OSD
 func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
+
+	// Check for the presence of LVM on the host when NOT running on PVC
+	// since this scenario is still using LVM
+	if !agent.pvcBacked {
+		ne := NewNsenter(context, lvmCommandToCheck, []string{"--help"})
+		err := ne.checkIfBinaryExistsOnHost()
+		if err != nil {
+			return errors.Wrapf(err, "binary %q does not exist on the host, make sure lvm2 package is installed", lvmCommandToCheck)
+		}
+	}
+
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
 	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
