@@ -150,6 +150,7 @@ clean: ## Remove all files that are created by building.
 	@$(MAKE) go.mod.clean
 	@$(MAKE) -C images clean
 	@rm -fr $(OUTPUT_DIR) $(WORK_DIR)
+	@rm -fr cluster/olm/ceph/deploy/*
 
 distclean: clean ## Remove all files that are created by building or configuring.
 	@rm -fr $(CACHE_DIR)
