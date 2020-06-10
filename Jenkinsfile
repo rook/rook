@@ -37,19 +37,45 @@ pipeline {
                         env.testArgs = "min-test-matrix"
                     }
 
+                    // Get changed files
+                    def json_changed_files = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${env.CHANGE_ID}/files", returnStdout: true).trim()
+                    def list = new groovy.json.JsonSlurper().parseText(json_changed_files)
+                    def changed_files = list.filename.join(",")
+                     echo ("changed files are: ${changed_files}")
+
+                    // Get PR title
+                    def title = evaluateJson(json,'${json.title}')
+
                     // extract which specific storage provider to test
-                    if (body.contains("[test cassandra]")) {
+                    if (body.contains("[test cassandra]") || title.contains("cassandra:")) {
                         env.testProvider = "cassandra"
-                    } else if (body.contains("[test ceph]")) {
+                    } else if (body.contains("[test ceph]") || title.contains("ceph:")) {
                         env.testProvider = "ceph"
-                    } else if (body.contains("[test cockroachdb]")) {
+                    } else if (body.contains("[test cockroachdb]") || title.contains("cockroachdb:")) {
                         env.testProvider = "cockroachdb"
-                    } else if (body.contains("[test edgefs]")) {
+                    } else if (body.contains("[test edgefs]") || title.contains("edgefs:")) {
                         env.testProvider = "edgefs"
-                    } else if (body.contains("[test nfs]")) {
+                    } else if (body.contains("[test nfs]") || title.contains("nfs:")) {
                         env.testProvider = "nfs"
-                    } else if (body.contains("[test yugabytedb]")) {
+                    } else if (body.contains("[test yugabytedb]") || title.contains("yugabytedb:")) {
                         env.testProvider = "yugabytedb"
+                    } else if (body.contains("[test]")) {
+                        env.shouldBuild = "true"
+                    } else if (!changed_files.contains(".go")) {
+                        echo ("No golang changes detected! Looking for .md, .yaml and .txt now.")
+                        if (changed_files.contains(".md")) {
+                            echo ("Documentation changes detected! Aborting.")
+                            env.shouldBuild = "false"
+                        } else if (changed_files.contains(".yaml")) {
+                            echo ("YAML changes detected! Aborting.")
+                            env.shouldBuild = "false"
+                        } else if (changed_files.contains(".txt")) {
+                            echo ("Text changes detected! Aborting.")
+                            env.shouldBuild = "false"
+                        }
+                    } else if (!changed_files.contains(".go")) {
+                        echo ("No code changes detected! Just building.")
+                        env.shouldTest = "false"
                     }
                     echo ("integration test provider: ${env.testProvider}")
                 }
