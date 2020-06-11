@@ -25,7 +25,7 @@ import (
 
 const (
 	ganeshaLog     = "/dev/stdout"
-	ganeshaOptions = "NIV_DEBUG"
+	ganeshaOptions = "NIV_INFO"
 )
 
 // Setup sets up various prerequisites and settings for the server. If an error
@@ -70,7 +70,6 @@ func Run(ganeshaConfig string) error {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ganesha.nfsd failed with error: %v, output: %s", err, out)
 	}
-
 	return nil
 }
 
