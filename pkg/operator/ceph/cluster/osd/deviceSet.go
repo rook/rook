@@ -39,10 +39,15 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 				logger.Warningf("no PVC available for storageClassDeviceSet %q", storageClassDeviceSet.Name)
 				continue
 			}
+
+			// Create the PVC source for each of the data, metadata, and other types of templates if defined.
+			pvcSources := map[string]v1.PersistentVolumeClaimVolumeSource{}
+			var dataSize string
+			var crushDeviceClass string
 			for _, pvcTemplate := range storageClassDeviceSet.VolumeClaimTemplates {
 				if pvcTemplate.Name == "" {
 					// For backward compatibility a blank name must be treated as a data volume
-					pvcTemplate.Name = bluestorePVCBlock
+					pvcTemplate.Name = bluestorePVCData
 				}
 
 				pvc, err := c.createStorageClassDeviceSetPVC(storageClassDeviceSet.Name, pvcTemplate, i)
@@ -50,24 +55,30 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 					config.addError("failed to create osd for storageClassDeviceSet %q for count %d. %v", storageClassDeviceSet.Name, i, err)
 					continue
 				}
-				pvcSize := pvc.Spec.Resources.Requests[v1.ResourceStorage]
-				volumeSources = append(volumeSources, rookv1.VolumeSource{
-					Name:      storageClassDeviceSet.Name,
-					Resources: storageClassDeviceSet.Resources,
-					Placement: storageClassDeviceSet.Placement,
-					Config:    storageClassDeviceSet.Config,
-					Size:      pvcSize.String(),
-					Type:      pvcTemplate.GetName(),
-					PersistentVolumeClaimSource: v1.PersistentVolumeClaimVolumeSource{
-						ClaimName: pvc.GetName(),
-						ReadOnly:  false,
-					},
-					Portable:            storageClassDeviceSet.Portable,
-					TuneSlowDeviceClass: storageClassDeviceSet.TuneSlowDeviceClass,
-					CrushDeviceClass:    pvcTemplate.Annotations["crushDeviceClass"],
-				})
+
+				if pvcTemplate.Name == bluestorePVCData {
+					pvcSize := pvc.Spec.Resources.Requests[v1.ResourceStorage]
+					dataSize = pvcSize.String()
+					crushDeviceClass = pvcTemplate.Annotations["crushDeviceClass"]
+				}
+				pvcSources[pvcTemplate.Name] = v1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvc.GetName(),
+					ReadOnly:  false,
+				}
 				logger.Infof("successfully provisioned pvc %q for VolumeClaimTemplates %q for storageClassDeviceSet %q of set %v", pvc.GetName(), pvcTemplate.GetName(), storageClassDeviceSet.Name, i)
 			}
+
+			volumeSources = append(volumeSources, rookv1.VolumeSource{
+				Name:                storageClassDeviceSet.Name,
+				Resources:           storageClassDeviceSet.Resources,
+				Placement:           storageClassDeviceSet.Placement,
+				Config:              storageClassDeviceSet.Config,
+				Size:                dataSize,
+				PVCSources:          pvcSources,
+				Portable:            storageClassDeviceSet.Portable,
+				TuneSlowDeviceClass: storageClassDeviceSet.TuneSlowDeviceClass,
+				CrushDeviceClass:    crushDeviceClass,
+			})
 		}
 	}
 

@@ -54,8 +54,9 @@ func TestPrepareDeviceSets(t *testing.T) {
 	assert.Equal(t, 1, len(volumeSources))
 	assert.Equal(t, 0, len(config.errorMessages))
 	assert.Equal(t, "mydata", volumeSources[0].Name)
-	assert.Equal(t, "data", volumeSources[0].Type)
 	assert.True(t, volumeSources[0].Portable)
+	_, dataOK := volumeSources[0].PVCSources["data"]
+	assert.True(t, dataOK)
 
 	// Verify that the PVC has the expected generated name with the default of "data" in the name
 	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.Namespace).List(metav1.ListOptions{})
