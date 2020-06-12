@@ -310,6 +310,11 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 				logger.Infof("skipping device %q because it is a partition and ceph version is too old, you need at least ceph %q", device.Name, cephVolumeRawModeMinCephVersion.String())
 				continue
 			}
+			device, err := clusterd.PopulateDeviceUdevInfo(device.Name, context.Executor, device)
+			if err != nil {
+				logger.Errorf("failed to get udev info of partition %q. %v", device.Name, err)
+				continue
+			}
 		}
 
 		// Check if the desired device is available
