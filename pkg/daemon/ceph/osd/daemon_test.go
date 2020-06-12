@@ -161,7 +161,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				return "MY-PART", nil
 			}
 		} else if command == "udevadm" {
-			if strings.Index(args[3], "sdc") != -1 {
+			if strings.Index(args[2], "sdc") != -1 {
 				// /dev/sdc has a file system
 				return udevFSOutput, nil
 			}
@@ -247,7 +247,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 6, len(mapping.Entries))
 
 	// Do not skip partition anymore
-	version = cephver.Octopus
+	agent.cluster.CephVersion = cephver.Octopus
 
 	// select no devices both using and not using a filter
 	agent.metadataDevice = ""
