@@ -66,28 +66,48 @@ func (r *NFSServerReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reterr
 		return reconcile.Result{}, err
 	}
 
+	// Initialize patcher utility and store the initial cr object state to be compare later.
 	patcher, err := k8sutil.NewPatcher(instance, r.Client)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	defer func() {
+		// Always patch the cr object if any changes at the end of each reconciliation.
 		if err := patcher.Patch(ctx, instance); err != nil && reterr == nil {
 			reterr = err
 		}
 	}()
 
+	// Add Finalizer if not present
 	controllerutil.AddFinalizer(instance, nfsv1alpha1.Finalizer)
-	if instance.Status.State == "" {
-		instance.Status.State = nfsv1alpha1.StateInitializing
-		return reconcile.Result{Requeue: true}, nil
-	}
 
+	// Handle for deletion. Just remove finalizer
 	if !instance.DeletionTimestamp.IsZero() {
 		r.Log.Infof("Deleting NFSServer %s in %s namespace", instance.Name, instance.Namespace)
 
 		// no operation since we don't need do anything when nfsserver deleted.
 		controllerutil.RemoveFinalizer(instance, nfsv1alpha1.Finalizer)
+	}
+
+	// Check status state. if it's empty then initialize it
+	// otherwise if has error state then skip reconciliation to prevent requeue on error.
+	switch instance.Status.State {
+	case "":
+		instance.Status.State = nfsv1alpha1.StateInitializing
+		r.Log.Info("Initialize status state")
+		return reconcile.Result{Requeue: true}, nil
+	case nfsv1alpha1.StateError:
+		r.Log.Info("Error state detected, skip reconciliation")
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	// Validate cr spec and give warning event when validation fail.
+	if err := instance.ValidateSpec(); err != nil {
+		r.Recorder.Eventf(instance, corev1.EventTypeWarning, nfsv1alpha1.EventFailed, "Invalid NFSServer spec: %+v", err)
+		r.Log.Errorf("Invalid NFSServer spec: %+v", err)
+		instance.Status.State = nfsv1alpha1.StateError
+		return reconcile.Result{}, err
 	}
 
 	if err := r.reconcileNFSServerConfig(ctx, instance); err != nil {

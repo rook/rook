@@ -23,7 +23,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.5.0 // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect
-	github.com/spf13/cobra v0.0.6
+	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
@@ -42,6 +42,7 @@ require (
 	k8s.io/kubernetes v1.17.2
 	k8s.io/utils v0.0.0-20200229041039-0a110f9eb7ab
 	sigs.k8s.io/controller-runtime v0.5.2
+	sigs.k8s.io/kustomize/kyaml v0.2.0
 	sigs.k8s.io/sig-storage-lib-external-provisioner v4.1.0+incompatible
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )

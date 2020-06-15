@@ -40,6 +40,44 @@ rook-nfs-operator-879f5bf8b-gnwht       1/1     Running   0          29m
 rook-nfs-provisioner-65f4874c8f-kkz6b   1/1     Running   0          29m
 ```
 
+## Deploy NFS Admission Webhook (Optional)
+
+To enable admission webhook on NFS such as validating admission webhook, you need to do as following:
+
+Install cert-manager (if not installed yet). You can install cert-manager as like in the cert-manager [installation](https://cert-manager.io/docs/installation/kubernetes/) documentation. Or simply
+
+```console
+kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.15.1/cert-manager.yaml
+```
+
+to install current cert-manager latest version. Make sure the cert-manager component deployed properly and in running status.
+
+```console
+kubectl get -n cert-manager pod
+
+NAME                                      READY   STATUS    RESTARTS   AGE
+cert-manager-7747db9d88-jmw2f             1/1     Running   0          2m1s
+cert-manager-cainjector-87c85c6ff-dhtl8   1/1     Running   0          2m1s
+cert-manager-webhook-64dc9fff44-5g565     1/1     Running   0          2m1s
+```
+
+Once cert-manager is running. deploy the nfs webhook.
+
+```console
+kubectl create -f webhook.yaml
+```
+
+Verify the webhook is up and running:
+
+```console
+kubectl -n rook-nfs-system get pod
+
+NAME                                    READY   STATUS    RESTARTS   AGE
+rook-nfs-operator-78d86bf969-k7lqp      1/1     Running   0          102s
+rook-nfs-provisioner-7b5ff479f6-688dm   1/1     Running   0          102s
+rook-nfs-webhook-74749cbd46-6jw2w       1/1     Running   0          102s
+```
+
 ## Create and Initialize NFS Server
 
 Now that the operator is running, we can create an instance of a NFS server by creating an instance of the `nfsservers.nfs.rook.io` resource.
@@ -285,6 +323,7 @@ kubectl delete -f nfs.yaml
 kubectl delete -f nfs-ceph.yaml
 kubectl delete -f operator.yaml
 kubectl delete -f provisioner.yaml
+kubectl delete -f webhook.yaml # if deployed
 kubectl delete -f common.yaml
 ```
 
