@@ -534,8 +534,12 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		"objectbuckets.objectbucket.io",
 		"objectbucketclaims.objectbucket.io",
 		"cephrbdmirrors.ceph.rook.io")
-	checkError(h.T(), err, "cannot delete CRDs")
 
+	checkError(h.T(), err, "cannot delete CRDs")
+	logger.Infof("--------Now wil check if CRD are deleted or not------")
+	if err != nil {
+		logger.Infof("----Cannot delete CRDs-----")
+	}
 	if h.useHelm {
 		err = h.helmHelper.DeleteLocalRookHelmChart(helmDeployName)
 	} else {

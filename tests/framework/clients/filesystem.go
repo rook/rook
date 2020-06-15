@@ -57,6 +57,7 @@ func (f *FilesystemOperation) Create(name, namespace string, activeCount int) er
 
 // CreateStorageClass creates a storage class for CephFS clients
 func (f *FilesystemOperation) CreateStorageClass(fsName, namespace, storageClassName string) error {
+	logger.Infof("In CreateStorageCLass Function")
 	return f.k8sh.ResourceOperation("apply", f.manifests.GetFileStorageClassDef(fsName, storageClassName, namespace))
 }
 
