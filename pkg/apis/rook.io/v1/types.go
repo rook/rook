@@ -111,6 +111,7 @@ type StorageClassDeviceSet struct {
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
 	Portable             bool                       `json:"portable,omitempty"`             // OSD portability across the hosts
 	TuneSlowDeviceClass  bool                       `json:"tuneDeviceClass,omitempty"`      // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	SchedulerName        string                     `json:"schedulerName,omitempty"`        // Scheduler name for OSD pod placement
 }
 
 // VolumeSource is a volume source spec for Rook
@@ -122,6 +123,7 @@ type VolumeSource struct {
 	Config              map[string]string                               `json:"config,omitempty"`
 	Portable            bool                                            `json:"portable,omitempty"`         // Portable OSD portability across the hosts
 	TuneSlowDeviceClass bool                                            `json:"tuneDeviceClass,omitempty"`  // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	SchedulerName       string                                          `json:"schedulerName,omitempty"`    // Scheduler name for OSD pod placement
 	CrushDeviceClass    string                                          `json:"crushDeviceClass,omitempty"` // CrushDeviceClass represents the crush device class for an OSD
 	Size                string                                          `json:"size,omitempty"`             // Size represents the size requested for the PVC
 }

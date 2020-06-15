@@ -77,6 +77,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 				PVCSources:          pvcSources,
 				Portable:            storageClassDeviceSet.Portable,
 				TuneSlowDeviceClass: storageClassDeviceSet.TuneSlowDeviceClass,
+				SchedulerName:       storageClassDeviceSet.SchedulerName,
 				CrushDeviceClass:    crushDeviceClass,
 			})
 		}

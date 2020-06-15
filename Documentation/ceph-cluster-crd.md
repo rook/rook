@@ -336,6 +336,7 @@ The following are the settings for Storage Class Device Sets which can be config
   * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device, multipath device, or logical volume. Other types are not supported.
   * `volumeMode`: The volume mode to be set for the PVC. Which should be Block
   * `accessModes`: The access mode for the PVC to be bound by OSD.
+* `schedulerName`: Scheduler name for OSD pod placement. (Optional)
 
 ### OSD Configuration Settings
 
