@@ -40,7 +40,6 @@ func addCommands() {
 	rook.RootCmd.AddCommand(
 		version.VersionCmd,
 		discoverCmd,
-
 		// backend commands
 		ceph.Cmd,
 		cockroachdb.Cmd,

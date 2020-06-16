@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -95,19 +96,13 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 		h.k8shelper.ChangeHostnames()
 	}
 
-	err = h.k8shelper.CreateNamespace(namespace)
+	err = h.startAdmissionController(namespace)
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
-			logger.Warningf("Namespace %q already exists!!!", namespace)
-		} else {
-			return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
-		}
+		return fmt.Errorf("Failed to start admission controllers: %v", err)
 	}
-
 	if err = h.WipeDisks(namespace, 2); err != nil {
 		return err
 	}
-
 	rookOperator := h.Manifests.GetRookOperator(namespace)
 	_, err = h.k8shelper.KubectlWithStdin(rookOperator, createFromStdinArgs...)
 	if err != nil {
@@ -117,6 +112,58 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 	logger.Infof("Rook Operator started")
 
 	return nil
+}
+
+func (h *CephInstaller) startAdmissionController(namespace string) error {
+	err := h.k8shelper.CreateNamespace(namespace)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			logger.Warningf("Namespace %q already exists!!!", namespace)
+		} else {
+			return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
+		}
+	}
+	currDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to find current working directory. %v", err)
+	}
+	rootPath, err := findRookRoot(currDir)
+	if err != nil {
+		return fmt.Errorf("failed to find rook root. %v", err)
+	}
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to find user home directory. %v", err)
+	}
+	err = h.k8shelper.MakeContext().Executor.ExecuteCommandWithEnv([]string{fmt.Sprintf("NAMESPACE=%s", namespace), fmt.Sprintf("HOME=%s", userHome)}, "bash", fmt.Sprintf("%s/tests/scripts/deploy_admission_controller_test.sh", rootPath))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func findRookRoot(workingDir string) (string, error) {
+	const folderToFind = "tests"
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to find current working directory. %v", err)
+	}
+	parentPath := workingDirectory
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to find user home directory. %v", err)
+	}
+	for parentPath != userHome {
+		fmt.Printf("parent path = %s\n", parentPath)
+		_, err := os.Stat(path.Join(parentPath, folderToFind))
+		if os.IsNotExist(err) {
+			parentPath = filepath.Dir(parentPath)
+			continue
+		}
+		return parentPath, nil
+	}
+
+	return "", fmt.Errorf("rook root not found above directory %s", workingDir)
 }
 
 // CreateRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
@@ -130,6 +177,11 @@ func (h *CephInstaller) CreateRookOperatorViaHelm(namespace, chartSettings strin
 		return fmt.Errorf("Failed to get Version of helm chart %v, err : %v", helmChartName, err)
 	}
 
+	err = h.startAdmissionController(namespace)
+	if err != nil {
+		return fmt.Errorf("Failed to start admission controllers: %v", err)
+	}
+
 	err = h.helmHelper.InstallLocalRookHelmChart(helmChartName, helmDeployName, helmTag, namespace, chartSettings)
 	if err != nil {
 		return fmt.Errorf("failed to install rook operator via helm, err : %v", err)
@@ -139,7 +191,6 @@ func (h *CephInstaller) CreateRookOperatorViaHelm(namespace, chartSettings strin
 	if err = h.WipeDisks(namespace, 2); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -388,7 +439,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 
 // InstallRook installs rook on k8s
 func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, storageClassName string,
-	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, skipOSDCreation bool) (bool, error) {
+	mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, skipOSDCreation bool, rookVersion string) (bool, error) {
 
 	var err error
 	k8sversion := h.k8shelper.GetK8sServerVersion()
@@ -410,7 +461,6 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 		}
 	} else {
 		onamespace = SystemNamespace(namespace)
-
 		err := h.CreateCephOperator(onamespace)
 		if err != nil {
 			logger.Errorf("Rook Operator not installed ,error -> %v", err)
@@ -449,6 +499,13 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 		return false, err
 	}
 	logger.Infof("installed rook operator and cluster : %s on k8s %s", namespace, h.k8sVersion)
+
+	if rookVersion != Version1_2 {
+		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", onamespace, "Running") {
+			assert.Fail(h.T(), "admission controller is not running")
+		}
+	}
+
 	return true, nil
 }
 
@@ -546,6 +603,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	}
 	checkError(h.T(), err, "cannot uninstall rook-operator")
 
+	h.k8shelper.Clientset.AdmissionregistrationV1beta1().ValidatingWebhookConfigurations().Delete("rook-ceph-webhook", nil)
 	h.k8shelper.Clientset.RbacV1beta1().RoleBindings(systemNamespace).Delete("rook-ceph-system", nil)
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-ceph-global", nil)
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-ceph-mgr-cluster", nil)

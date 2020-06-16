@@ -166,9 +166,8 @@ func StartTestCluster(t func() *testing.T, cluster *TestCluster) (*TestCluster, 
 func (op *TestCluster) Setup() {
 	// Turn on DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-
 	isRookInstalled, err := op.installer.InstallRook(op.namespace, op.storeType, op.usePVC, op.storageClassName,
-		cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers, op.skipOSDCreation)
+		cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers, op.skipOSDCreation, op.rookVersion)
 
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)

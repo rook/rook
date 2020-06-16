@@ -221,7 +221,8 @@ func getPortFromConfig(clientset kubernetes.Interface, env string, defaultPort u
 	return uint16(p), nil
 }
 
-func getPodAntiAffinity(key, value string) corev1.PodAntiAffinity {
+// Get PodAntiAffinity from a key and value pair
+func GetPodAntiAffinity(key, value string) corev1.PodAntiAffinity {
 	return corev1.PodAntiAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 			{

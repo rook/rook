@@ -400,7 +400,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, ownerRef)
-		antiAffinity := getPodAntiAffinity("app", "csi-rbdplugin-provisioner")
+		antiAffinity := GetPodAntiAffinity("app", "csi-rbdplugin-provisioner")
 		rbdProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		rbdProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
 			Type: apps.RecreateDeploymentStrategyType,
@@ -450,7 +450,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, ownerRef)
-		antiAffinity := getPodAntiAffinity("app", "csi-cephfsplugin-provisioner")
+		antiAffinity := GetPodAntiAffinity("app", "csi-cephfsplugin-provisioner")
 		cephfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		cephfsProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
 			Type: apps.RecreateDeploymentStrategyType,

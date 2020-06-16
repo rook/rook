@@ -1,0 +1,22 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: ${WEBHOOK_CONFIG_NAME}
+  namespace: ${NAMESPACE}
+webhooks:
+  - name: ${SERVICE_NAME}.${NAMESPACE}.svc
+    rules:
+      - apiGroups:   ["ceph.rook.io"]
+        apiVersions: ["v1"]
+        operations:  ["CREATE","UPDATE","DELETE"]
+        resources:   ["*"]
+    clientConfig:
+      service:
+        name: ${SERVICE_NAME}
+        namespace: ${NAMESPACE}
+        path: /validate
+      caBundle: ${CA_BUNDLE}
+    admissionReviewVersions: ["v1beta1"]
+    sideEffects: None
+    timeoutSeconds: 5
+
