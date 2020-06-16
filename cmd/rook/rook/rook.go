@@ -23,6 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	netclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
+	"github.com/pkg/errors"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -219,12 +220,11 @@ func TerminateFatal(reason error) {
 }
 
 // GetOperatorBaseImageCephVersion returns the Ceph version of the operator image
-func GetOperatorBaseImageCephVersion(context *clusterd.Context) string {
+func GetOperatorBaseImageCephVersion(context *clusterd.Context) (string, error) {
 	output, err := context.Executor.ExecuteCommandWithOutput("ceph", "--version")
 	if err != nil {
-		logger.Errorf("failed to discover ceph base image version. %v", err)
-		return ""
+		return "", errors.Wrapf(err, "failed to execute command to detect ceph version")
 	}
 
-	return output
+	return output, nil
 }
