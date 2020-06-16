@@ -17,6 +17,8 @@ limitations under the License.
 package ceph
 
 import (
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
@@ -31,7 +33,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const containerName = "rook-ceph-operator"
+const (
+	containerName                = "rook-ceph-operator"
+	operatorCephBaseImageVersion = "ROOK_CEPH_BASE_IMAGE_VERSION"
+)
 
 var operatorCmd = &cobra.Command{
 	Use:   "operator",
@@ -79,6 +84,8 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	}
 
 	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
+	rookBaseImageCephVersion := rook.GetOperatorBaseImageCephVersion(context)
+	os.Setenv(operatorCephBaseImageVersion, rookBaseImageCephVersion)
 	serviceAccountName := rook.GetOperatorServiceAccount(context.Clientset)
 	op := operator.New(context, volumeAttachment, rookImage, serviceAccountName)
 	err = op.Run()

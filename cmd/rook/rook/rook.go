@@ -217,3 +217,14 @@ func TerminateFatal(reason error) {
 
 	os.Exit(1)
 }
+
+// GetOperatorBaseImageCephVersion returns the Ceph version of the operator image
+func GetOperatorBaseImageCephVersion(context *clusterd.Context) string {
+	output, err := context.Executor.ExecuteCommandWithOutput("ceph", "--version")
+	if err != nil {
+		logger.Errorf("failed to discover ceph base image version. %v", err)
+		return ""
+	}
+
+	return output
+}
