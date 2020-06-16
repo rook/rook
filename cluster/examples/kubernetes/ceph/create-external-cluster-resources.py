@@ -99,7 +99,7 @@ class RadosJSON:
                 raise ExecutionFailureException(
                     "IP address parts should be numbers: {}".format(ipv4))
             intPart = int(eachPart)
-            if intPart < 1 or intPart > 254:
+            if intPart < 0 or intPart > 254:
                 raise ExecutionFailureException(
                     "Out of range IP addresses: {}".format(ipv4))
         if not port.isdigit():
