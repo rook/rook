@@ -146,11 +146,10 @@ codegen: ## Run code generators.
 mod.check: go.mod.check ## Check if any go modules changed.
 mod.update: go.mod.update ## Update all go modules.
 
-clean: ## Remove all files that are created by building.
+clean: csv-clean ## Remove all files that are created by building.
 	@$(MAKE) go.mod.clean
 	@$(MAKE) -C images clean
 	@rm -fr $(OUTPUT_DIR) $(WORK_DIR)
-	@rm -fr cluster/olm/ceph/deploy/*
 
 distclean: clean ## Remove all files that are created by building or configuring.
 	@rm -fr $(CACHE_DIR)
@@ -160,6 +159,9 @@ prune: ## Prune cached artifacts.
 
 csv-ceph: ## Generate a CSV file for OLM.
 	@cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
+
+csv-clean: ## Remove existing OLM files.
+	@rm -fr cluster/olm/ceph/deploy/* cluster/olm/ceph/templates/*
 
 .PHONY: all build.common cross.build.parallel
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
