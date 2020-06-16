@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200401090632-ee27f62faef8
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20200107223247-51020689f1fb
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20200610144127-e2eec875d6d1
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
 	github.com/pkg/errors v0.8.1

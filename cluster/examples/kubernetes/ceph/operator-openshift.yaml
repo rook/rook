@@ -492,6 +492,11 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+
+        #  Uncomment it to run lib bucket provisioner in multithreaded mode
+        #- name: LIB_BUCKET_PROVISIONER_THREADS
+        #  value: "5"
+
       volumes:
       - name: rook-config
         emptyDir: {}
