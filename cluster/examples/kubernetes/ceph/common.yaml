@@ -431,6 +431,12 @@ spec:
                 securePort: {}
                 instances:
                   type: integer
+                externalRgwEndpoints:
+                  type: array
+                  items:
+                    properties:
+                      ip:
+                        type: string
                 annotations: {}
                 placement: {}
                 resources: {}
@@ -484,6 +490,14 @@ spec:
                   - force
             preservePoolsOnDelete:
               type: boolean
+            healthCheck:
+              properties:
+                bucket:
+                  properties:
+                    enabled:
+                      type: boolean
+                    interval:
+                      type: string
   subresources:
     status: {}
 # OLM: END CEPH OBJECT STORE CRD

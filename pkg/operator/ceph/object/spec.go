@@ -233,10 +233,55 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	}
 
 	destPort := c.generateLiveProbePort()
+
+	// When the cluster is external we must use the same one as the gateways are listening on
+	if c.clusterSpec.External.Enable {
+		destPort.IntVal = cephObjectStore.Spec.Gateway.Port
+	}
 	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port, destPort.IntVal)
 	addPort(svc, "https", cephObjectStore.Spec.Gateway.SecurePort, cephObjectStore.Spec.Gateway.SecurePort)
 
 	return svc
+}
+
+func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *v1.Endpoints {
+	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace)
+
+	endpoints := &v1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instanceName(cephObjectStore.Name),
+			Namespace: cephObjectStore.Namespace,
+			Labels:    labels,
+		},
+		Subsets: []v1.EndpointSubset{
+			{
+				Addresses: cephObjectStore.Spec.Gateway.ExternalRgwEndpoints,
+			},
+		},
+	}
+
+	addPortToEndpoint(endpoints, "http", cephObjectStore.Spec.Gateway.Port)
+	addPortToEndpoint(endpoints, "https", cephObjectStore.Spec.Gateway.SecurePort)
+
+	return endpoints
+}
+
+func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephObjectStore) error {
+	logger.Info("reconciling external object store service")
+
+	endpoint := c.generateEndpoint(cephObjectStore)
+	// Set owner ref to the parent object
+	err := controllerutil.SetControllerReference(cephObjectStore, endpoint, c.scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to set owner reference to ceph object store endpoint")
+	}
+
+	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, cephObjectStore.Namespace, endpoint)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create or update object store %q service", cephObjectStore.Name)
+	}
+
+	return nil
 }
 
 func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore) (string, error) {
@@ -244,7 +289,7 @@ func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore
 	// Set owner ref to the parent object
 	err := controllerutil.SetControllerReference(cephObjectStore, service, c.scheme)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to set owner reference to ceph object store")
+		return "", errors.Wrap(err, "failed to set owner reference to ceph object store service")
 	}
 
 	svc, err := k8sutil.CreateOrUpdateService(c.context.Clientset, cephObjectStore.Namespace, service)
@@ -266,6 +311,18 @@ func addPort(service *v1.Service, name string, port, destPort int32) {
 		TargetPort: intstr.FromInt(int(destPort)),
 		Protocol:   v1.ProtocolTCP,
 	})
+}
+
+func addPortToEndpoint(endpoints *v1.Endpoints, name string, port int32) {
+	if port == 0 {
+		return
+	}
+	endpoints.Subsets[0].Ports = append(endpoints.Subsets[0].Ports, v1.EndpointPort{
+		Name:     name,
+		Port:     port,
+		Protocol: v1.ProtocolTCP,
+	},
+	)
 }
 
 func getLabels(name, namespace string) map[string]string {

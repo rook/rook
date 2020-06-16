@@ -73,7 +73,7 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 	var user rgwUserInfo
 	err := json.Unmarshal([]byte(data), &user)
 	if err != nil {
-		return nil, RGWErrorParse, errors.Wrap(err, "Failed to unmarshal json")
+		return nil, RGWErrorParse, errors.Wrapf(err, "failed to unmarshal json. %s", data)
 	}
 
 	rookUser := ObjectUser{UserID: user.UserID, DisplayName: &user.DisplayName, Email: &user.Email}
@@ -88,7 +88,7 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 
 // GetUser returns the user with the given ID.
 func GetUser(c *Context, id string) (*ObjectUser, int, error) {
-	logger.Infof("Getting user: %s", id)
+	logger.Infof("getting s3 user %q", id)
 
 	// note: err is set for non-existent user but result output is also empty
 	result, err := runAdminCommand(c, "user", "info", "--uid", id)
@@ -103,7 +103,7 @@ func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 
 // CreateUser creates a new user with the information given.
 func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
-	logger.Debugf("Creating user: %s", user.UserID)
+	logger.Debugf("creating s3 user %q", user.UserID)
 
 	if strings.TrimSpace(user.UserID) == "" {
 		return nil, RGWErrorBadData, errors.New("userId cannot be empty")
@@ -126,15 +126,16 @@ func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrap(err, "failed to create user")
-	}
+		if strings.Contains(result, "could not create user: unable to create user, user: ") {
+			return nil, ErrorCodeFileExists, errors.New("s3 user already exists")
+		}
 
-	if strings.HasPrefix(result, "could not create user: unable to create user, user: ") && strings.HasSuffix(result, " exists") {
-		return nil, ErrorCodeFileExists, errors.New("user already exists")
-	}
+		if strings.Contains(result, "could not create user: unable to create user, email: ") && strings.Contains(result, " is the email address an existing user") {
+			return nil, RGWErrorBadData, errors.New("email already in use")
+		}
 
-	if strings.HasPrefix(result, "could not create user: unable to create user, email: ") && strings.HasSuffix(result, " is the email address an existing user") {
-		return nil, RGWErrorBadData, errors.New("email already in use")
+		// We don't know what happened
+		return nil, RGWErrorUnknown, errors.Wrap(err, "failed to create s3 user")
 	}
 
 	return decodeUser(result)
@@ -142,7 +143,7 @@ func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 // UpdateUser updates the user whose ID matches the user.
 func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
-	logger.Infof("Updating user: %s", user.UserID)
+	logger.Infof("updating s3 user %q", user.UserID)
 
 	args := []string{"user", "modify", "--uid", user.UserID}
 
@@ -155,11 +156,11 @@ func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 	body, err := runAdminCommand(c, args...)
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrap(err, "failed to update user")
+		return nil, RGWErrorUnknown, errors.Wrap(err, "failed to update s3 user")
 	}
 
 	if body == "could not modify user: unable to modify user, user not found" {
-		return nil, RGWErrorNotFound, errors.New("user not found")
+		return nil, RGWErrorNotFound, errors.New("s3 user not found")
 	}
 
 	return decodeUser(body)
@@ -179,7 +180,7 @@ func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 		}
 	}
 
-	return result, errors.Wrap(err, "failed to delete user")
+	return result, errors.Wrap(err, "failed to delete s3 user")
 }
 
 func SetQuotaUserBucketMax(c *Context, id string, max int) (string, int, error) {

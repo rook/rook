@@ -197,7 +197,12 @@ func TestCephObjectStoreController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClientWithScheme(s, object...)
 	// Create a ReconcileCephObjectStore object with the scheme and fake client.
-	r := &ReconcileCephObjectStore{client: cl, scheme: s, context: c}
+	r := &ReconcileCephObjectStore{
+		client:              cl,
+		scheme:              s,
+		context:             c,
+		objectStoreChannels: make(map[string]*objectStoreHealth),
+	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -234,7 +239,12 @@ func TestCephObjectStoreController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)
 	// Create a ReconcileCephObjectStore object with the scheme and fake client.
-	r = &ReconcileCephObjectStore{client: cl, scheme: s, context: c}
+	r = &ReconcileCephObjectStore{
+		client:              cl,
+		scheme:              s,
+		context:             c,
+		objectStoreChannels: make(map[string]*objectStoreHealth),
+	}
 	logger.Info("STARTING PHASE 2")
 	res, err = r.Reconcile(req)
 	assert.NoError(t, err)
@@ -305,7 +315,12 @@ func TestCephObjectStoreController(t *testing.T) {
 	c.Executor = executor
 
 	// Create a ReconcileCephObjectStore object with the scheme and fake client.
-	r = &ReconcileCephObjectStore{client: cl, scheme: s, context: c}
+	r = &ReconcileCephObjectStore{
+		client:              cl,
+		scheme:              s,
+		context:             c,
+		objectStoreChannels: make(map[string]*objectStoreHealth),
+	}
 
 	logger.Info("STARTING PHASE 3")
 	res, err = r.Reconcile(req)
@@ -313,6 +328,6 @@ func TestCephObjectStoreController(t *testing.T) {
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
 	assert.NoError(t, err)
-	assert.Equal(t, "Ready", objectStore.Status.Phase, objectStore)
+	assert.Equal(t, cephv1.ConditionReady, objectStore.Status.Phase, objectStore)
 	logger.Info("PHASE 3 DONE")
 }

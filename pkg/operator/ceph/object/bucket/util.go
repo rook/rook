@@ -41,7 +41,6 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-bucket-prov")
 const (
 	genUserLen           = 8
 	cephUser             = "cephUser"
-	prefixObjectStoreSvc = "rook-ceph-rgw"
 	accessKeyIdKey       = "accessKeyID"
 	secretSecretKeyKey   = "secretAccessKey"
 	objectStoreName      = "objectStoreName"

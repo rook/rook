@@ -29,6 +29,7 @@ type Context struct {
 	Name        string
 	ClusterName string
 	RunAsUser   string
+	UID         string
 }
 
 // NewContext creates a new object store context.
@@ -52,7 +53,11 @@ func runAdminCommand(c *Context, args ...string) (string, error) {
 	// If the objectStoreName is not passed in the storage class
 	// This means we are pointing to an external cluster so these commands are not needed
 	// simply because the external cluster mode does not support that yet
-	if c.Name != "" {
+	//
+	// The following conditions tries to determine if the cluster is external
+	// When connecting to an external cluster, the Ceph user is different than client.admin
+	// This is not perfect though since "client.admin" is somehow supported...
+	if c.Name != "" && c.RunAsUser == client.AdminUsername {
 		options := []string{
 			fmt.Sprintf("--rgw-realm=%s", c.Name),
 			fmt.Sprintf("--rgw-zonegroup=%s", c.Name),

@@ -208,3 +208,103 @@ spec:
       type: string
       description: Ceph Health
       JSONPath: .status.ceph.health
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephobjectstores.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephObjectStore
+    listKind: CephObjectStoreList
+    plural: cephobjectstores
+    singular: cephobjectstore
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            gateway:
+              properties:
+                type:
+                  type: string
+                sslCertificateRef: {}
+                port:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+                securePort: {}
+                instances:
+                  type: integer
+                externalRgwEndpoints:
+                  type: array
+                  items:
+                    properties:
+                      ip:
+                        type: string
+                annotations: {}
+                placement: {}
+                resources: {}
+            metadataPool:
+              properties:
+                failureDomain:
+                  type: string
+                replicated:
+                  properties:
+                    size:
+                      type: integer
+                    requireSafeReplicaSize:
+                      type: boolean
+                erasureCoded:
+                  properties:
+                    dataChunks:
+                      type: integer
+                    codingChunks:
+                      type: integer
+                compressionMode:
+                  type: string
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
+            dataPool:
+              properties:
+                failureDomain:
+                  type: string
+                replicated:
+                  properties:
+                    size:
+                      type: integer
+                    requireSafeReplicaSize:
+                      type: boolean
+                erasureCoded:
+                  properties:
+                    dataChunks:
+                      type: integer
+                    codingChunks:
+                      type: integer
+                compressionMode:
+                  type: string
+                  enum:
+                  - ""
+                  - none
+                  - passive
+                  - aggressive
+                  - force
+            preservePoolsOnDelete:
+              type: boolean
+            healthCheck:
+              properties:
+                bucket:
+                  properties:
+                    enabled:
+                      type: boolean
+                    interval:
+                      type: string
+  subresources:
+    status: {}

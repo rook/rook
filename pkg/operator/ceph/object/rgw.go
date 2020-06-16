@@ -267,25 +267,27 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 func (c *clusterConfig) deleteStore() error {
 	logger.Infof("deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
 
-	// Delete rgw CephX keys and configuration in centralized mon database
-	for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
-		daemonLetterID := k8sutil.IndexToName(i)
-		depNameToRemove := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
+	if !c.clusterSpec.External.Enable {
+		// Delete rgw CephX keys and configuration in centralized mon database
+		for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
+			daemonLetterID := k8sutil.IndexToName(i)
+			depNameToRemove := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
 
-		err := c.deleteRgwCephObjects(depNameToRemove)
+			err := c.deleteRgwCephObjects(depNameToRemove)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Delete the realm and pools
+		objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
+		err := deleteRealmAndPools(objContext, c.store.Spec)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to delete the realm and pools")
 		}
 	}
 
-	// Delete the realm and pools
-	objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
-	err := deleteRealmAndPools(objContext, c.store.Spec)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete the realm and pools")
-	}
-
-	logger.Infof("completed deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
+	logger.Infof("successfully deleted object store %q from namespace %q", c.store.Name, c.store.Namespace)
 	return nil
 }
 
@@ -316,7 +318,7 @@ func (c *clusterConfig) storeLabelSelector() string {
 }
 
 // Validate the object store arguments
-func validateStore(context *clusterd.Context, s *cephv1.CephObjectStore) error {
+func (r *ReconcileCephObjectStore) validateStore(s *cephv1.CephObjectStore) error {
 	if s.Name == "" {
 		return errors.New("missing name")
 	}
@@ -331,13 +333,20 @@ func validateStore(context *clusterd.Context, s *cephv1.CephObjectStore) error {
 	// Validate the pool settings, but allow for empty pools specs in case they have already been created
 	// such as by the ceph mgr
 	if !emptyPool(s.Spec.MetadataPool) {
-		if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
+		if err := pool.ValidatePoolSpec(r.context, s.Namespace, &s.Spec.MetadataPool); err != nil {
 			return errors.Wrap(err, "invalid metadata pool spec")
 		}
 	}
 	if !emptyPool(s.Spec.DataPool) {
-		if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.DataPool); err != nil {
+		if err := pool.ValidatePoolSpec(r.context, s.Namespace, &s.Spec.DataPool); err != nil {
 			return errors.Wrap(err, "invalid data pool spec")
+		}
+	}
+
+	// Fail if we detected an external CephCluster CR and the list of endpoints is empty
+	if r.cephClusterSpec.External.Enable {
+		if len(s.Spec.Gateway.ExternalRgwEndpoints) == 0 {
+			return errors.New("ceph cluster is external but externalRgwEndpoints list is empty")
 		}
 	}
 
@@ -350,4 +359,9 @@ func (c *clusterConfig) generateSecretName(id string) string {
 
 func emptyPool(pool cephv1.PoolSpec) bool {
 	return reflect.DeepEqual(pool, cephv1.PoolSpec{})
+}
+
+// BuildDomainName build the dns name to reach out the service endpoint
+func BuildDomainName(name, namespace string) string {
+	return fmt.Sprintf("%s-%s.%s", AppName, name, namespace)
 }

@@ -133,34 +133,56 @@ func TestSSLPodSpec(t *testing.T) {
 
 func TestValidateSpec(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
+	r := &ReconcileCephObjectStore{
+		context: context,
+		cephClusterSpec: &cephv1.ClusterSpec{
+			External: cephv1.ExternalSpec{
+				Enable: false,
+			},
+		},
+	}
 
 	// valid store
 	s := simpleStore()
-	err := validateStore(context, s)
+	err := r.validateStore(s)
 	assert.Nil(t, err)
 
 	// no name
 	s.Name = ""
-	err = validateStore(context, s)
+	err = r.validateStore(s)
 	assert.NotNil(t, err)
 	s.Name = "default"
-	err = validateStore(context, s)
+	err = r.validateStore(s)
 	assert.Nil(t, err)
 
 	// no namespace
 	s.Namespace = ""
-	err = validateStore(context, s)
+	err = r.validateStore(s)
 	assert.NotNil(t, err)
 	s.Namespace = "mycluster"
-	err = validateStore(context, s)
+	err = r.validateStore(s)
 	assert.Nil(t, err)
 
 	// no replication or EC is valid
 	s.Spec.MetadataPool.Replicated.Size = 0
-	err = validateStore(context, s)
+	err = r.validateStore(s)
 	assert.Nil(t, err)
 	s.Spec.MetadataPool.Replicated.Size = 1
-	err = validateStore(context, s)
+	err = r.validateStore(s)
+	assert.Nil(t, err)
+
+	// external with no endpoints, failure
+	r.cephClusterSpec.External.Enable = true
+	err = r.validateStore(s)
+	assert.NotNil(t, err)
+
+	// external with endpoints, success
+	s.Spec.Gateway.ExternalRgwEndpoints = []v1.EndpointAddress{
+		{
+			IP: "192.168.0.1",
+		},
+	}
+	err = r.validateStore(s)
 	assert.Nil(t, err)
 }
 

@@ -56,7 +56,7 @@ data:
 
   # (Optional) set user created priorityclassName for csi provisioner pods.
   # CSI_PROVISIONER_PRIORITY_CLASSNAME: "system-cluster-critical"
- 
+
   # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   # CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: "OnDelete"

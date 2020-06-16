@@ -289,6 +289,7 @@ class RadosJSON:
                              "osd", ("allow rwx pool={0}.rgw.meta, " +
                                      "allow r pool=.rgw.root, " +
                                      "allow rw pool={0}.rgw.control, " +
+                                     "allow rx pool={0}.rgw.log, " +
                                      "allow x pool={0}.rgw.buckets.index").format(self._arg_parser.rgw_pool_prefix)],
                     "format": "json"}
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
