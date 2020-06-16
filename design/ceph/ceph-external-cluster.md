@@ -121,3 +121,39 @@ they could simply create them with unique CRD names.
 
 Assuming the object store can be shared with the external cluster, similarly to pools, the owner of the object store is the external cluster.
 If the local cluster attempts to change the pool settings such as replication, they will be ignored.
+
+## Monitoring (prometheus)
+
+Rook already creates and injects service monitoring configuration, consuming what the ceph-mgr prometheus exporter module generates.
+This enables the capability of a Kubernetes cluster to gather metrics from the external cluster and feed them in Prometheus.
+
+The idea is to allow Rook-Ceph to connect to an external ceph-mgr prometheus module exporter.
+
+1. Enhance external cluster script:
+    1. the script tries to discover the list of managers IP addresses
+    2. if provided by the user, the list of ceph-mgr IPs in the script is accepted via the new `--prometheus-exporter-endpoint` flag
+
+2. Add a new entry in the monitoring spec of the `CephCluster` CR:
+
+```go
+// ExternalMgrEndpoints point to existing Ceph prometheus exporter endpoints
+ExternalMgrEndpoints []v1.EndpointAddress `json:"externalMgrEndpoints,omitempty"`
+}
+```
+
+So the CephCluster CR will look like:
+
+```yaml
+monitoring:
+  # requires Prometheus to be pre-installed
+  enabled: true
+  externalMgrEndpoints:
+    - ip: "192.168.0.2"
+    - ip: "192.168.0.3"
+```
+
+3. Configure monitoring as part of `configureExternalCephCluster()` method
+
+4. Create a new metric Service
+
+5. Create an Endpoint resource based out of the IP addresses either discovered or provided by the user in the script
