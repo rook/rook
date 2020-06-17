@@ -281,7 +281,7 @@ rules:
   verbs:
   - get
   - list
-{{- if ((.Values.agent) and .Values.agent.mountSecurityMode) and ne .Values.agent.mountSecurityMode "Any" }}
+{{- if and (and (.Values.agent) .Values.agent.mountSecurityMode) (ne .Values.agent.mountSecurityMode "Any") }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
