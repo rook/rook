@@ -183,23 +183,23 @@ func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 	return result, errors.Wrap(err, "failed to delete s3 user")
 }
 
-func SetQuotaUserBucketMax(c *Context, id string, max int) (string, int, error) {
+func SetQuotaUserBucketMax(c *Context, id string, max int) (string, error) {
 	logger.Infof("Setting user %q max buckets to %d", id, max)
 	args := []string{"--quota-scope", "user", "--max-buckets", strconv.Itoa(max)}
-	result, errCode, err := setUserQuota(c, id, args)
-	if errCode != RGWErrorNone {
+	result, err := setUserQuota(c, id, args)
+	if err != nil {
 		err = errors.Wrap(err, "failed setting bucket max")
 	}
-	return result, errCode, err
+	return result, err
 }
 
-func setUserQuota(c *Context, id string, args []string) (string, int, error) {
+func setUserQuota(c *Context, id string, args []string) (string, error) {
 	args = append([]string{"quota", "set", "--uid", id}, args...)
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
 		err = errors.Wrap(err, "failed to set max buckets for user")
 	}
-	return result, RGWErrorNone, err
+	return result, err
 }
 
 func LinkUser(c *Context, id, bucket string) (string, int, error) {
