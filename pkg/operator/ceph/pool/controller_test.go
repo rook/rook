@@ -323,6 +323,9 @@ func TestCephBlockPoolController(t *testing.T) {
 			CephVersion: &cephv1.ClusterVersion{
 				Version: "14.2.9-0",
 			},
+			CephStatus: &cephv1.CephStatus{
+				Health: "",
+			},
 		},
 	}
 
@@ -346,6 +349,8 @@ func TestCephBlockPoolController(t *testing.T) {
 	// SUCCESS! The CephCluster is ready
 	//
 	cephCluster.Status.Phase = k8sutil.ReadyStatus
+	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
+
 	objects := []runtime.Object{
 		pool,
 		cephCluster,

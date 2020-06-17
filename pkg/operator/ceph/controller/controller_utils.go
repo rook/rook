@@ -18,12 +18,10 @@ package controller
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -65,26 +63,14 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 
 	logger.Debugf("%q: CephCluster resource %q found in namespace %q", controllerName, cephCluster.Name, namespacedName.Namespace)
 
-	// If the cluster is healthy
-	// Test a Ceph command to verify the Operator is ready
-	// This is done to silence errors when the operator just started and cannot reconcile yet
-	status, err := cephclient.Status(clustercontext, namespacedName.Namespace)
-	if err != nil {
-		if strings.Contains(err.Error(), "error calling conf_read_file") {
-			logger.Infof("%q: operator is not ready to run ceph command, cannot reconcile yet.", controllerName)
-			return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+	// read the CR status of the cluster
+	if cephCluster.Status.CephStatus != nil {
+		if cephCluster.Status.CephStatus.Health == "HEALTH_OK" || cephCluster.Status.CephStatus.Health == "HEALTH_WARN" {
+			logger.Debugf("%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, cephCluster.Status.CephStatus.Health)
+			return cephCluster, true, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		}
-		// We should not arrive there
-		logger.Errorf("%q: ceph command error %v", controllerName, err)
-		return cephCluster, false, cephClusterExists, ImmediateRetryResult
+		logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %q", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
 	}
 
-	// If Ceph status is ok we can reconcile
-	if status.Health.Status == "HEALTH_OK" || status.Health.Status == "HEALTH_WARN" {
-		logger.Debugf("%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, status.Health.Status)
-		return cephCluster, true, cephClusterExists, reconcile.Result{}
-	}
-
-	logger.Infof("%s: CephCluster %q found but skipping reconcile since Ceph health is %q", controllerName, cephCluster.Name, status.Health.Status)
 	return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }

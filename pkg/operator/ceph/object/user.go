@@ -172,7 +172,7 @@ func DeleteUser(c *Context, id string, opts ...string) (string, int, error) {
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
 		if strings.Contains(result, "user does not exist") {
-			return "", RGWErrorNotFound, errors.Wrapf(err, "user %q does not exist so cannot delete", id)
+			return "", RGWErrorNotFound, errors.Wrapf(err, "user %q does not exist so cannot delete. %s", id, result)
 		}
 
 		return "", RGWErrorUnknown, errors.Wrap(err, "failed to delete user")
