@@ -17,10 +17,8 @@ limitations under the License.
 package mon
 
 import (
-	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -42,21 +40,16 @@ func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 
 // convert the mon name to the numeric mon ID
 func fullNameToIndex(name string) (int, error) {
-	prefix := AppName + "-"
-	if strings.Index(name, prefix) != -1 && len(prefix) < len(name) {
-		return k8sutil.NameToIndex(name[len(prefix)+1:])
+	// remove the "rook-ceph-mon" prefix
+	if strings.HasPrefix(name, AppName) {
+		name = name[len(AppName):]
+	}
+	// remove the "-" prefix
+	if strings.HasPrefix(name, "-") {
+		name = name[1:]
 	}
 
-	// attempt to parse the legacy mon name
-	legacyPrefix := AppName
-	if strings.Index(name, legacyPrefix) == -1 || len(name) < len(AppName) {
-		return -1, errors.New("unexpected mon name")
-	}
-	id, err := strconv.Atoi(name[len(legacyPrefix):])
-	if err != nil {
-		return -1, err
-	}
-	return id, nil
+	return k8sutil.NameToIndex(name)
 }
 
 // addServicePort adds a port to a service
