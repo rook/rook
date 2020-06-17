@@ -138,6 +138,9 @@ func TestCephRBDMirrorController(t *testing.T) {
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
+			CephStatus: &cephv1.CephStatus{
+				Health: "",
+			},
 		},
 	}
 	object = append(object, cephCluster)
@@ -177,22 +180,10 @@ func TestCephRBDMirrorController(t *testing.T) {
 
 	// Add ready status to the CephCluster
 	cephCluster.Status.Phase = k8sutil.ReadyStatus
+	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)
-
-	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
-			if args[0] == "status" {
-				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			if args[0] == "auth" && args[1] == "get-or-create-key" {
-				return cephAuthGetOrCreateKey, nil
-			}
-			return "", nil
-		},
-	}
-	c.Executor = executor
 
 	// Create a ReconcileCephRBDMirror object with the scheme and fake client.
 	r = &ReconcileCephRBDMirror{client: cl, scheme: s, context: c}

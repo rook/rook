@@ -25,11 +25,13 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/test"
 
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -123,9 +125,12 @@ func TestCephObjectStoreUserController(t *testing.T) {
 			return "", nil
 		},
 	}
+	clientset := test.New(t, 3)
 	c := &clusterd.Context{
 		Executor:      executor,
-		RookClientset: rookclient.NewSimpleClientset()}
+		RookClientset: rookclient.NewSimpleClientset(),
+		Clientset:     clientset,
+	}
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
@@ -162,6 +167,9 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
+			CephStatus: &cephv1.CephStatus{
+				Health: "",
+			},
 		},
 	}
 	object = append(object, cephCluster)
@@ -180,7 +188,29 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	//
 	// FAILURE! The CephCluster is ready but NO rgw object
 	//
+
+	// Mock clusterInfo
+	secrets := map[string][]byte{
+		"cluster-name": []byte("foo-cluster"),
+		"fsid":         []byte(name),
+		"mon-secret":   []byte("monsecret"),
+		"admin-secret": []byte("adminsecret"),
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon",
+			Namespace: namespace,
+		},
+		Data: secrets,
+		Type: k8sutil.RookType,
+	}
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	assert.NoError(t, err)
+
+	// Add ready status to the CephCluster
 	cephCluster.Status.Phase = k8sutil.ReadyStatus
+	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
+
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)
 
