@@ -146,7 +146,7 @@ var (
 	namespace = "rook-ceph"
 )
 
-func TestCephObjectStoreController(t *testing.T) {
+func TestCephFilesystemController(t *testing.T) {
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -231,6 +231,9 @@ func TestCephObjectStoreController(t *testing.T) {
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
+			CephStatus: &cephv1.CephStatus{
+				Health: "",
+			},
 		},
 	}
 	object = append(object, cephCluster)
@@ -270,6 +273,7 @@ func TestCephObjectStoreController(t *testing.T) {
 
 	// Add ready status to the CephCluster
 	cephCluster.Status.Phase = k8sutil.ReadyStatus
+	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)

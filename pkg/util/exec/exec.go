@@ -258,14 +258,18 @@ func logOutput(stdout, stderr io.ReadCloser) {
 func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 	var output []byte
 	var err error
+	var out string
 
 	if combinedOutput {
 		output, err = cmd.CombinedOutput()
 	} else {
 		output, err = cmd.Output()
+		if err != nil {
+			out = fmt.Sprintf("%s. %s", string(output), string(err.(*exec.ExitError).Stderr))
+		}
 	}
 
-	out := strings.TrimSpace(string(output))
+	out = strings.TrimSpace(string(output))
 
 	if err != nil {
 		return out, err

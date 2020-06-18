@@ -56,7 +56,6 @@ const (
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	enableFlexDriver         = "ROOK_ENABLE_FLEX_DRIVER"
 	detectCephVersionTimeout = 15 * time.Minute
-	externalConnectionRetry  = 60 * time.Second
 )
 
 const (

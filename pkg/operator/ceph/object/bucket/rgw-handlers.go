@@ -91,15 +91,11 @@ func (p *Provisioner) deleteOBCResource(bucketName string) error {
 
 	logger.Infof("deleting Ceph user %s and bucket %q", p.cephUserName, bucketName)
 	if len(p.cephUserName) > 0 {
-		_, errCode, _ := cephObject.DeleteUser(p.objectContext, p.cephUserName)
-
-		if errCode == cephObject.RGWErrorNone {
-			logger.Infof("user %q successfully deleted", p.cephUserName)
-		} else if errCode == cephObject.RGWErrorNotFound {
-			// opinion: "not found" is not an error
-			logger.Infof("user %q does not exist", p.cephUserName)
+		output, err := cephObject.DeleteUser(p.objectContext, p.cephUserName)
+		if err != nil {
+			logger.Warningf("failed to delete user %q. %s. %v", p.cephUserName, output, err)
 		} else {
-			logger.Warningf("failed to delete user %q: errCode: %d", p.cephUserName, errCode)
+			logger.Infof("user %q successfully deleted", p.cephUserName)
 		}
 	}
 	if len(bucketName) > 0 {

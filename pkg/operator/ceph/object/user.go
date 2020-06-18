@@ -20,8 +20,10 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -164,21 +166,20 @@ func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 }
 
 // DeleteUser deletes the user with the given ID.
-func DeleteUser(c *Context, id string, opts ...string) (string, int, error) {
+func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 	args := []string{"user", "rm", "--uid", id}
 	if opts != nil {
 		args = append(args, opts...)
 	}
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
-		if strings.Contains(result, "user does not exist") {
-			return "", RGWErrorNotFound, errors.Wrapf(err, "user %q does not exist so cannot delete", id)
+		// If User does not exist return success
+		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+			return result, nil
 		}
-
-		return "", RGWErrorUnknown, errors.Wrap(err, "failed to delete user")
 	}
 
-	return result, RGWErrorNone, nil
+	return result, errors.Wrap(err, "failed to delete user")
 }
 
 func SetQuotaUserBucketMax(c *Context, id string, max int) (string, int, error) {

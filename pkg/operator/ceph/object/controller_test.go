@@ -225,6 +225,9 @@ func TestCephObjectStoreController(t *testing.T) {
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
+			CephStatus: &cephv1.CephStatus{
+				Health: "",
+			},
 		},
 	}
 	object = append(object, cephCluster)
@@ -261,6 +264,10 @@ func TestCephObjectStoreController(t *testing.T) {
 	}
 	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
 	assert.NoError(t, err)
+
+	// Add ready status to the CephCluster
+	cephCluster.Status.Phase = k8sutil.ReadyStatus
+	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClientWithScheme(s, object...)

@@ -42,7 +42,7 @@ func RunAdminCommandNoRealm(c *Context, args ...string) (string, error) {
 	// start the rgw admin command
 	output, err := c.Context.Executor.ExecuteCommandWithOutput(command, args...)
 	if err != nil {
-		return "", err
+		return output, err
 	}
 
 	return output, nil
