@@ -26,12 +26,15 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
-const containerName = "rook-ceph-operator"
+const (
+	containerName = "rook-ceph-operator"
+)
 
 var operatorCmd = &cobra.Command{
 	Use:   "operator",
@@ -79,6 +82,13 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	}
 
 	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
+	rookBaseImageCephVersion, err := rook.GetOperatorBaseImageCephVersion(context)
+	if err != nil {
+		logger.Errorf("failed to get operator base image ceph version. %v", err)
+	}
+	opcontroller.OperatorCephBaseImageVersion = rookBaseImageCephVersion
+	logger.Infof("base ceph version inside the rook operator image is %q", opcontroller.OperatorCephBaseImageVersion)
+
 	serviceAccountName := rook.GetOperatorServiceAccount(context.Clientset)
 	op := operator.New(context, volumeAttachment, rookImage, serviceAccountName)
 	err = op.Run()

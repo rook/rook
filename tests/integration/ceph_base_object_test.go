@@ -120,11 +120,12 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	rgwcontext := rgw.NewContext(context, storeName, namespace)
 	var bkt rgw.ObjectBucket
 	for i = 0; i < 4; i++ {
-		b, _, err := rgw.GetBucket(rgwcontext, bucketname)
+		b, code, err := rgw.GetBucket(rgwcontext, bucketname)
 		if b != nil && err == nil {
 			bkt = *b
 			break
 		}
+		logger.Warningf("cannot get bucket %q, retrying... bucket: %v. code: %d, err: %v", bucketname, b, code, err)
 		logger.Infof("(%d) check bucket exists, sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
 	}

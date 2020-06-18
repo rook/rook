@@ -39,10 +39,15 @@ const OperatorSettingConfigMapName string = "rook-ceph-operator-config"
 var (
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
+
 	// WaitForRequeueIfCephClusterNotReady waits for the CephCluster to be ready
 	WaitForRequeueIfCephClusterNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+
 	// WaitForRequeueIfFinalizerBlocked waits for resources to be cleaned up before the finalizer can be removed
 	WaitForRequeueIfFinalizerBlocked = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+
+	// OperatorCephBaseImageVersion is the ceph version in the operator image
+	OperatorCephBaseImageVersion string
 )
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
