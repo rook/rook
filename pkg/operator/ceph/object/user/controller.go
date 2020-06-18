@@ -452,13 +452,9 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 
 // Delete the user
 func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
-	_, rgwerr, err := object.DeleteUser(r.objContext, u.Name)
+	output, err := object.DeleteUser(r.objContext, u.Name)
 	if err != nil {
-		if rgwerr == 2 {
-			logger.Infof("ceph object user %q does not exist in store %q", u.Name, u.Spec.Store)
-		} else {
-			return errors.Wrapf(err, "failed to delete ceph object user %q", u.Name)
-		}
+		return errors.Wrapf(err, "failed to delete ceph object user %q. %v", u.Name, output)
 	}
 
 	logger.Infof("ceph object user %q deleted successfully", u.Name)
