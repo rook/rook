@@ -276,6 +276,9 @@ type PoolSpec struct {
 
 	// The erasure code settings
 	ErasureCoded ErasureCodedSpec `json:"erasureCoded"`
+
+	// Parameters is a list of properties to enable on a given pool
+	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
 type Status struct {

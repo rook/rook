@@ -18,18 +18,21 @@ spec:
     # Disallow setting pool with replica 1, this could lead to data loss without recovery.
     # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
     requireSafeReplicaSize: true
-    # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
-    # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
-    #targetSizeRatio: .5
   # Ceph CRUSH root location of the rule
   # For reference: https://docs.ceph.com/docs/nautilus/rados/operations/crush-map/#types-and-buckets
   #crushRoot: my-root
   # The Ceph CRUSH device class associated with the CRUSH replicated rule
   # For reference: https://docs.ceph.com/docs/nautilus/rados/operations/crush-map/#device-classes
   #deviceClass: my-class
-  # Inline compression mode for the data pool
-  # Further reference: https://docs.ceph.com/docs/nautilus/rados/configuration/bluestore-config-ref/#inline-compression
-  compressionMode: none
+  # Set any property on a given pool
+  # see https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
+  parameters:
+    # Inline compression mode for the data pool
+    # Further reference: https://docs.ceph.com/docs/nautilus/rados/configuration/bluestore-config-ref/#inline-compression
+    compression_mode: none
+    # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
+    # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
+    #target_size_ratio: .5
   # A key/value list of annotations
   annotations:
   #  key: value

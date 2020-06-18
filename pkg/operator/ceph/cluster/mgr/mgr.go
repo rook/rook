@@ -52,7 +52,7 @@ const (
 	serviceAccountName     = "rook-ceph-mgr"
 	prometheusModuleName   = "prometheus"
 	crashModuleName        = "crash"
-	pgautoscalerModuleName = "pg_autoscaler"
+	PgautoscalerModuleName = "pg_autoscaler"
 	balancerModuleName     = "balancer"
 	balancerModuleMode     = "upmap"
 	metricsPort            = 9283
@@ -328,7 +328,7 @@ func (c *Cluster) configureMgrModules() error {
 			}
 
 			// Configure special settings for individual modules that are enabled
-			if module.Name == pgautoscalerModuleName {
+			if module.Name == PgautoscalerModuleName {
 				monStore := config.GetMonStore(c.context, c.Namespace)
 				// Ceph Octopus will have that option enabled
 				err := monStore.Set("global", "osd_pool_default_pg_autoscale_mode", "on")
@@ -411,4 +411,15 @@ func (c *Cluster) deployPrometheusRule(name, namespace string) error {
 		return errors.Wrapf(err, "prometheus rule could not be deployed")
 	}
 	return nil
+}
+
+// IsModuleInSpec returns whether a module is present in the CephCluster manager spec
+func IsModuleInSpec(modules []cephv1.Module, moduleName string) bool {
+	for _, v := range modules {
+		if v.Name == moduleName {
+			return true
+		}
+	}
+
+	return false
 }

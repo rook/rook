@@ -23,3 +23,11 @@ func (p *PoolSpec) IsReplicated() bool {
 func (p *PoolSpec) IsErasureCoded() bool {
 	return p.ErasureCoded.CodingChunks > 0 || p.ErasureCoded.DataChunks > 0
 }
+
+func (p *PoolSpec) IsCompressionEnabled() bool {
+	return p.CompressionMode != ""
+}
+
+func (p *ReplicatedSpec) IsTargetRatioEnabled() bool {
+	return p.TargetSizeRatio != 0
+}

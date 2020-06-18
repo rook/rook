@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -136,7 +137,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deletePool() function since everything is gone already
@@ -187,6 +188,24 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
+
+	// Get CephCluster version
+	cephVersion, err := opcontroller.GetImageVersion(cephCluster)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to fetch ceph version from cephcluster %q", cephCluster.Name)
+	}
+
+	// If the CephCluster has enabled the "pg_autoscaler" module and is running Nautilus
+	// we force the pg_autoscale_mode to "on"
+	_, propertyExists := cephBlockPool.Spec.Parameters[cephclient.PgAutoscaleModeProperty]
+	if mgr.IsModuleInSpec(cephCluster.Spec.Mgr.Modules, mgr.PgautoscalerModuleName) &&
+		!cephVersion.IsAtLeastOctopus() &&
+		!propertyExists {
+		if len(cephBlockPool.Spec.Parameters) == 0 {
+			cephBlockPool.Spec.Parameters = make(map[string]string)
+		}
+		cephBlockPool.Spec.Parameters[cephclient.PgAutoscaleModeProperty] = cephclient.PgAutoscaleModeOn
+	}
 
 	// CREATE/UPDATE
 	reconcileResponse, err = r.reconcileCreatePool(cephBlockPool)
