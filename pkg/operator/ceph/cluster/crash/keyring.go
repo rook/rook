@@ -37,8 +37,8 @@ const (
 )
 
 // CreateCrashCollectorSecret creates the Kubernetes Crash Collector Secret
-func CreateCrashCollectorSecret(context *clusterd.Context, clusterName string, ownerRef *metav1.OwnerReference) error {
-	k := keyring.GetSecretStore(context, clusterName, ownerRef)
+func CreateCrashCollectorSecret(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) error {
+	k := keyring.GetSecretStore(context, namespace, ownerRef)
 
 	// Create CrashCollector Ceph key
 	crashCollectorSecretKey, err := createCrashCollectorKeyring(k)
@@ -47,7 +47,7 @@ func CreateCrashCollectorSecret(context *clusterd.Context, clusterName string, o
 	}
 
 	// Create or update Kubernetes CSI secret
-	if err := createOrUpdateCrashCollectorSecret(clusterName, crashCollectorSecretKey, k, ownerRef); err != nil {
+	if err := createOrUpdateCrashCollectorSecret(namespace, crashCollectorSecretKey, k, ownerRef); err != nil {
 		return errors.Wrap(err, "failed to create kubernetes csi secret")
 	}
 
