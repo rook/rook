@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -52,6 +53,8 @@ const (
 	caps mon = "allow *"
 
 %s`
+
+	externalConnectionRetry = 60 * time.Second
 )
 
 func (c *Cluster) genMonSharedKeyring() string {
@@ -318,4 +321,43 @@ func ExtractKey(contents string) (string, error) {
 		return "", errors.New("failed to parse secret")
 	}
 	return secret, nil
+}
+
+// PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no OSDs keep waiting
+func PopulateExternalClusterInfo(context *clusterd.Context, namespace string) *cephconfig.ClusterInfo {
+	var clusterInfo *cephconfig.ClusterInfo
+	for {
+		var err error
+		clusterInfo, _, _, err = LoadClusterInfo(context, namespace)
+		if err != nil {
+			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+			time.Sleep(externalConnectionRetry)
+			continue
+		}
+		// If an admin key was provided we don't need to load the other resources
+		// Some people might want to give the admin key
+		// The necessary users/keys/secrets will be created by Rook
+		// This is also done to allow backward compatibility
+		if IsExternalHealthCheckUserAdmin(clusterInfo.AdminSecret) {
+			clusterInfo.ExternalCred = cephconfig.ExternalCred{Username: client.AdminUsername, Secret: clusterInfo.AdminSecret}
+			break
+		}
+		externalCred, err := ValidateAndLoadExternalClusterSecrets(context, namespace)
+		if err != nil {
+			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+			logger.Debugf("%v", err)
+			time.Sleep(externalConnectionRetry)
+			continue
+		}
+		clusterInfo.ExternalCred = externalCred
+		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.ExternalCred.Username, clusterInfo.Monitors)
+		break
+	}
+
+	return clusterInfo
+}
+
+// IsExternalHealthCheckUserAdmin returns whether the external ceph user is admin or not
+func IsExternalHealthCheckUserAdmin(adminSecret string) bool {
+	return adminSecret != AdminSecretName
 }

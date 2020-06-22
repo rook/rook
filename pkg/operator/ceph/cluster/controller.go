@@ -64,7 +64,6 @@ const (
 	updateClusterInterval    = 30 * time.Second
 	updateClusterTimeout     = 1 * time.Hour
 	detectCephVersionTimeout = 15 * time.Minute
-	externalConnectionRetry  = 60 * time.Second
 )
 
 const (
@@ -303,12 +302,12 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
-	cluster.Info = populateExternalClusterInfo(c.context, namespace)
+	cluster.Info = mon.PopulateExternalClusterInfo(c.context, namespace)
 
 	// If the user to check the ceph health and status is not the admin,
 	// we validate that ExternalCred has been populated correctly,
 	// then we check if the key (whether admin or not) is encoded in base64
-	if !isExternalHealthCheckUserAdmin(cluster.Info.AdminSecret) {
+	if !mon.IsExternalHealthCheckUserAdmin(cluster.Info.AdminSecret) {
 		if !cluster.Info.IsInitializedExternalCred(true) {
 			return errors.New("invalid user health checker credentials")
 		}
@@ -1245,44 +1244,6 @@ func validateExternalClusterSpec(cluster *cluster) error {
 	}
 
 	return nil
-}
-
-// Add validation in the code to fail if the external cluster has no OSDs keep waiting
-func populateExternalClusterInfo(context *clusterd.Context, namespace string) *cephconfig.ClusterInfo {
-	var clusterInfo *cephconfig.ClusterInfo
-	for {
-		var err error
-		clusterInfo, _, _, err = mon.LoadClusterInfo(context, namespace)
-		if err != nil {
-			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
-			time.Sleep(externalConnectionRetry)
-			continue
-		}
-		// If an admin key was provided we don't need to load the other resources
-		// Some people might want to give the admin key
-		// The necessary users/keys/secrets will be created by Rook
-		// This is also done to allow backward compatibility
-		if isExternalHealthCheckUserAdmin(clusterInfo.AdminSecret) {
-			clusterInfo.ExternalCred = cephconfig.ExternalCred{Username: client.AdminUsername, Secret: clusterInfo.AdminSecret}
-			break
-		}
-		externalCred, err := mon.ValidateAndLoadExternalClusterSecrets(context, namespace)
-		if err != nil {
-			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
-			logger.Debugf("%v", err)
-			time.Sleep(externalConnectionRetry)
-			continue
-		}
-		clusterInfo.ExternalCred = externalCred
-		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.ExternalCred.Username, clusterInfo.Monitors)
-		break
-	}
-
-	return clusterInfo
-}
-
-func isExternalHealthCheckUserAdmin(adminSecret string) bool {
-	return adminSecret != mon.AdminSecretName
 }
 
 func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {

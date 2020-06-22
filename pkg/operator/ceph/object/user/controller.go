@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,6 +37,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
@@ -63,11 +65,13 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileObjectStoreUser reconciles a ObjectStoreUser object
 type ReconcileObjectStoreUser struct {
-	client     client.Client
-	scheme     *runtime.Scheme
-	context    *clusterd.Context
-	objContext *object.Context
-	userConfig object.ObjectUser
+	client          client.Client
+	scheme          *runtime.Scheme
+	context         *clusterd.Context
+	objContext      *object.Context
+	userConfig      object.ObjectUser
+	cephClusterSpec *cephv1.ClusterSpec
+	clusterInfo     *cephconfig.ClusterInfo
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -147,7 +151,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteUser() function since everything is gone already
@@ -167,12 +171,26 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		}
 		return reconcileResponse, nil
 	}
+	r.cephClusterSpec = &cephCluster.Spec
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStoreUser)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
+
+	// Populate clusterInfo
+	// Always populate it during each reconcile
+	var clusterInfo *cephconfig.ClusterInfo
+	if r.cephClusterSpec.External.Enable {
+		clusterInfo = mon.PopulateExternalClusterInfo(r.context, request.NamespacedName.Namespace)
+	} else {
+		clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		}
+	}
+	r.clusterInfo = clusterInfo
 
 	// validate isObjectStoreInitialized
 	objContext, err := r.isObjectStoreInitialized(cephObjectStoreUser)
@@ -198,10 +216,15 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	userConfig := generateUserConfig(cephObjectStoreUser)
 	r.userConfig = userConfig
 
+	// Set the cephx external username if the CephCluster is external
+	if r.cephClusterSpec.External.Enable {
+		r.objContext.RunAsUser = r.clusterInfo.ExternalCred.Username
+	}
+
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting pool %q", cephObjectStoreUser.Name)
-		err := deleteUser(r.context, cephObjectStoreUser)
+		err := r.deleteUser(cephObjectStoreUser)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph object user %q", cephObjectStoreUser.Name)
 		}
@@ -217,7 +240,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// validate the user settings
-	err = ValidateUser(cephObjectStoreUser)
+	err = r.validateUser(cephObjectStoreUser)
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
@@ -283,6 +306,13 @@ func (r *ReconcileObjectStoreUser) createCephUser(u *cephv1.CephObjectStoreUser)
 
 func (r *ReconcileObjectStoreUser) isObjectStoreInitialized(u *cephv1.CephObjectStoreUser) (*object.Context, error) {
 	objContext := object.NewContext(r.context, u.Spec.Store, u.Namespace)
+
+	// If the cluster is external just return
+	// we don't need to validate u.Spec.Store
+	if r.cephClusterSpec.External.Enable {
+		return objContext, nil
+	}
+
 	err := r.objectStoreInitialized(u)
 	if err != nil {
 		return objContext, errors.Wrap(err, "failed to detect if object store is initialized")
@@ -354,12 +384,14 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 }
 
 func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *cephv1.CephObjectStoreUser) error {
-	err := r.getObjectStore(cephObjectStoreUser)
+	err := r.getObjectStore(cephObjectStoreUser.Spec.Store)
 	if err != nil {
 		return err
 	}
 	logger.Debug("CephObjectStore exists")
 
+	// There are no pods running when the cluster is external
+	// Unless you pass the admin key...
 	pods, err := r.getRgwPodList(cephObjectStoreUser)
 	if err != nil {
 		return err
@@ -374,18 +406,25 @@ func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *c
 	return errors.New("no rgw pod found")
 }
 
-func (r *ReconcileObjectStoreUser) getObjectStore(cephObjectStoreUser *cephv1.CephObjectStoreUser) error {
+func (r *ReconcileObjectStoreUser) getObjectStore(storeName string) error {
 	// check if CephObjectStore CR is created
 	objectStores := &cephv1.CephObjectStoreList{}
 	err := r.client.List(context.TODO(), objectStores)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "CephObjectStore %q could not be found", cephObjectStoreUser.Name)
+			return errors.Wrapf(err, "CephObjectStore %q could not be found", storeName)
 		}
 		return errors.Wrap(err, "failed to get CephObjectStore")
 	}
 
-	return nil
+	for _, store := range objectStores.Items {
+		if store.Name == storeName {
+			logger.Infof("CephObjectStore %q found", storeName)
+			return nil
+		}
+	}
+
+	return errors.Errorf("CephObjectStore %q could not be found", storeName)
 }
 
 func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.CephObjectStoreUser) (*corev1.PodList, error) {
@@ -410,31 +449,28 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 }
 
 // Delete the user
-func deleteUser(context *clusterd.Context, u *cephv1.CephObjectStoreUser) error {
-	objContext := object.NewContext(context, u.Spec.Store, u.Namespace)
-	_, rgwerr, err := object.DeleteUser(objContext, u.Name)
+func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
+	output, err := object.DeleteUser(r.objContext, u.Name)
 	if err != nil {
-		if rgwerr == 3 {
-			logger.Infof("ceph object user %q does not exist in store %q", u.Name, u.Spec.Store)
-		} else {
-			return errors.Wrapf(err, "failed to delete ceph object user %q", u.Name)
-		}
+		return errors.Wrapf(err, "failed to delete ceph object user %q. %v", u.Name, output)
 	}
 
 	logger.Infof("ceph object user %q deleted successfully", u.Name)
 	return nil
 }
 
-// ValidateUser validates the user arguments
-func ValidateUser(u *cephv1.CephObjectStoreUser) error {
+// validateUser validates the user arguments
+func (r *ReconcileObjectStoreUser) validateUser(u *cephv1.CephObjectStoreUser) error {
 	if u.Name == "" {
 		return errors.New("missing name")
 	}
 	if u.Namespace == "" {
 		return errors.New("missing namespace")
 	}
-	if u.Spec.Store == "" {
-		return errors.New("missing store")
+	if !r.cephClusterSpec.External.Enable {
+		if u.Spec.Store == "" {
+			return errors.New("missing store")
+		}
 	}
 	return nil
 }
