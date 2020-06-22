@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -181,6 +182,11 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
 		}
 
+		// disable RBD stats collection if cephBlockPool was deleted
+		if err := configureRBDStats(r.context, clusterInfo); err != nil {
+			logger.Errorf("failed to disable stats collection for pool(s). %v", err)
+		}
+
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.client, cephBlockPool)
 		if err != nil {
@@ -221,6 +227,11 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
+	}
+
+	// enable/disable RBD stats collection based on cephBlockPool spec
+	if err := configureRBDStats(r.context, clusterInfo); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to enable/disable stats collection for pool(s)")
 	}
 
 	// Set Ready status, we are done reconciling
@@ -295,4 +306,28 @@ func updateStatus(client client.Client, poolName types.NamespacedName, status st
 		return
 	}
 	logger.Debugf("pool %q status updated to %q", poolName, status)
+}
+
+func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
+	logger.Debug("configuring RBD per-image IO statistics collection")
+	namespaceListOpt := client.InNamespace(clusterInfo.Namespace)
+	cephBlockPoolList := &cephv1.CephBlockPoolList{}
+	var enableStatsForPools []string
+	err := clusterContext.Client.List(context.TODO(), cephBlockPoolList, namespaceListOpt)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve list of CephBlockPool")
+	}
+	for _, cephBlockPool := range cephBlockPoolList.Items {
+		if cephBlockPool.GetDeletionTimestamp() == nil && cephBlockPool.Spec.EnableRBDStats {
+			// list of CephBlockPool with enableRBDStats set to true and not marked for deletion
+			enableStatsForPools = append(enableStatsForPools, cephBlockPool.Name)
+		}
+	}
+	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
+	_, err = cephclient.MgrSetConfig(clusterContext, clusterInfo, "", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","), false)
+	if err != nil {
+		return errors.Wrapf(err, "failed to enable rbd_stats_pools")
+	}
+	logger.Debug("configured RBD per-image IO statistics collection")
+	return nil
 }
