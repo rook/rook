@@ -236,27 +236,40 @@ spec:
     rules:
     - alert: CephClusterNearFull
       annotations:
-        description: Storage cluster utilization has crossed 75%. Free up some space
-          or expand the storage cluster.
+        description: Storage cluster utilization has crossed 75% and will become read-only
+          at 85%. Free up some space or expand the storage cluster.
         message: Storage cluster is nearing full. Data deletion or cluster expansion
           is required.
         severity_level: warning
         storage_type: ceph
       expr: |
-        sum(ceph_osd_stat_bytes_used) / sum(ceph_osd_stat_bytes) > 0.75
-      for: 30s
+        ceph_cluster_total_used_raw_bytes / ceph_cluster_total_bytes > 0.75
+      for: 5s
       labels:
         severity: warning
     - alert: CephClusterCriticallyFull
       annotations:
-        description: Storage cluster utilization has crossed 85%. Free up some space
-          or expand the storage cluster immediately.
+        description: Storage cluster utilization has crossed 80% and will become read-only
+          at 85%. Free up some space or expand the storage cluster immediately.
         message: Storage cluster is critically full and needs immediate data deletion
           or cluster expansion.
         severity_level: error
         storage_type: ceph
       expr: |
-        sum(ceph_osd_stat_bytes_used) / sum(ceph_osd_stat_bytes) > 0.85
-      for: 30s
+        ceph_cluster_total_used_raw_bytes / ceph_cluster_total_bytes > 0.80
+      for: 5s
+      labels:
+        severity: critical
+    - alert: CephClusterReadOnly
+      annotations:
+        description: Storage cluster utilization has crossed 85% and will become read-only
+          now. Free up some space or expand the storage cluster immediately.
+        message: Storage cluster is read-only now and needs immediate data deletion
+          or cluster expansion.
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        ceph_cluster_total_used_raw_bytes / ceph_cluster_total_bytes >= 0.85
+      for: 0s
       labels:
         severity: critical
