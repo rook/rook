@@ -19,16 +19,22 @@ For documentation on consuming the storage:
 * RBD: See the [Block Storage](ceph-block.md) topic
 * CephFS: See the [Shared Filesystem](ceph-filesystem.md) topic
 
+## Configure CSI Drivers in non-default namespace
+
+If you've deployed the Rook operator in a namespace other than "rook-ceph",
+change the prefix in the provisioner to match the namespace you used. For
+example, if the Rook operator is running in the namespace "my-namespace" the
+provisioner value should be "my-namespace.rbd.csi.ceph.com". The same provisioner
+name needs to be set in both the storageclass and snapshotclass.
+
 ## RBD Snapshots
 
-Since this feature is still in [alpha
-stage](https://kubernetes.io/blog/2018/10/09/introducing-volume-snapshot-alpha-for-kubernetes/)
-(k8s 1.12+), make sure to enable the `VolumeSnapshotDataSource` feature gate on
-your Kubernetes cluster API server.
+### Prerequisites
 
-```console
---feature-gates=VolumeSnapshotDataSource=true
-```
+1. Requires kubernetes v1.17+ which supports snapshot beta.
+
+2. Install the new snapshot controller and snapshot beta CRD. More info can be found
+[here](https://github.com/kubernetes-csi/external-snapshotter/tree/master#usage)
 
 ### SnapshotClass
 
@@ -58,8 +64,9 @@ kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml
 ### Volumesnapshot
 
 In [snapshot](/cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml),
-`snapshotClassName` should be the name of the `VolumeSnapshotClass` previously
-created. The source name should be the name of the PVC you created earlier.
+`volumeSnapshotClassName` should be the name of the `VolumeSnapshotClass`
+previously created. The `persistentVolumeClaimName` should be the name of the
+PVC you created earlier.
 
 ```console
 kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml
@@ -69,21 +76,16 @@ kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml
 
 ```console
 $ kubectl get volumesnapshotclass
-NAME                      AGE
-csi-rbdplugin-snapclass   4s
+NAME                      DRIVER             DELETIONPOLICY   AGE
+csi-rbdplugin-snapclass   rbd.csi.ceph.com   Delete           3h55m
+
 $ kubectl get volumesnapshot
-NAME               AGE
-rbd-pvc-snapshot   6s
+NAME               READYTOUSE   SOURCEPVC   SOURCESNAPSHOTCONTENT   RESTORESIZE   SNAPSHOTCLASS             SNAPSHOTCONTENT                                    CREATIONTIME   AGE
+rbd-pvc-snapshot   true         rbd-pvc                             1Gi           csi-rbdplugin-snapclass   snapcontent-79090db0-7c66-4b18-bf4a-634772c7cac7   3h50m          3h51m
 ```
 
-In the toolbox pod, run `rbd snap ls [name-of-your-pvc]`.
-The output should be similar to this:
-
-```console
-$ rbd snap ls pvc-c20495c0d5de11e8
-SNAPID NAME                                                                      SIZE TIMESTAMP
-     4 csi-rbd-pvc-c20495c0d5de11e8-snap-4c0b455b-d5fe-11e8-bebb-525400123456 1024 MB Mon Oct 22 13:28:03 2018
-```
+The snapshot will be ready to restore to a new PVC when `READYTOUSE` field of the
+volumesnapshot is set to true
 
 ### Restore the snapshot to a new PVC
 
@@ -100,7 +102,7 @@ kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-restore.yaml
 
 ### Verify RBD Clone PVC Creation
 
-```yaml
+```bash
 $ kubectl get pvc
 NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
 rbd-pvc           Bound    pvc-84294e34-577a-11e9-b34f-525400581048   1Gi        RWO            csi-rbd        34m
