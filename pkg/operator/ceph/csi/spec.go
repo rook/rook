@@ -101,9 +101,9 @@ var (
 	// image names
 	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v2.1.2"
 	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
-	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.4.0"
+	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.6.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
-	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.2.2"
+	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v2.1.1"
 	defaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
 )
 
