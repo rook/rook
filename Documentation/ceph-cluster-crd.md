@@ -117,7 +117,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
   * `urlPrefix`: Allows to serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
   * `port`: Allows to change the default port where the dashboard is served
   * `ssl`: Whether to serve the dashboard via SSL, ignored on Ceph versions older than `13.2.2`
-* `monitoring`: Settings for monitoring Ceph using Prometheus. To enable monitoring on your cluster see the [monitoring guide](Documentation/ceph-monitoring.md#prometheus-alerts).
+* `monitoring`: Settings for monitoring Ceph using Prometheus. To enable monitoring on your cluster see the [monitoring guide](ceph-monitoring.md#prometheus-alerts).
   * `enabled`: Whether to enable prometheus based monitoring for this cluster
   * `rulesNamespace`: Namespace to deploy prometheusRule. If empty, namespace of the cluster will be used.
       Recommended:
