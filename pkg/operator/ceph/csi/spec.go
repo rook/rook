@@ -111,6 +111,7 @@ const (
 	KubeMinMajor                   = "1"
 	KubeMinMinor                   = "13"
 	provDeploymentSuppVersion      = "14"
+	snapshotDeploymentSuppVersion  = "17"
 	kubeMinVerForFilesystemRestore = "15"
 	kubeMinVerForBlockRestore      = "16"
 
@@ -254,8 +255,14 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_ENABLE_SNAPSHOTTER setting")
 	}
+
 	if !strings.EqualFold(enableSnap, "false") {
-		tp.EnableSnapshotter = "true"
+		// disable snapshotter sidecar deployment if kubernetes version is less than 1.17
+		if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < snapshotDeploymentSuppVersion) {
+			tp.EnableSnapshotter = ""
+		} else {
+			tp.EnableSnapshotter = "true"
+		}
 	}
 
 	// default value `system-node-critical` is the highest available priority
