@@ -69,7 +69,7 @@ spec:
     - name: set1
       count: 3
       portable: false
-      tuneSlowDeviceClass: false
+      tuneDeviceClass: false
       volumeClaimTemplates:
       - metadata:
           name: data
@@ -330,7 +330,7 @@ The following are the settings for Storage Class Device Sets which can be config
   However, if there are more OSDs than nodes, this anti-affinity will not be effective. Another placement scheme to consider is to add labels to the nodes in such a way that the OSDs can be grouped on those nodes, create multiple storageClassDeviceSets, and add node affinity to each of the device sets that will place the OSDs in those sets of nodes.
 
 * `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
-* `tuneSlowDeviceClass`: If `true`, because the OSD can be on a slow device class, Rook will adapt to that by tuning the OSD process. This will make Ceph perform better under that slow device.
+* `tuneDeviceClass`: If `true`, because the OSD can be on a slow device class, Rook will adapt to that by tuning the OSD process. This will make Ceph perform better under that slow device.
 * `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
   * `resources.requests.storage`: The desired capacity for the underlying storage devices.
   * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device, multipath device, or logical volume. Other types are not supported.
@@ -737,7 +737,7 @@ spec:
     - name: set1
       count: 3
       portable: false
-      tuneSlowDeviceClass: false
+      tuneDeviceClass: false
       resources:
         limits:
           cpu: "500m"
@@ -791,7 +791,7 @@ So just taking the `storage` section this will give something like:
     - name: set1
       count: 3
       portable: false
-      tuneSlowDeviceClass: false
+      tuneDeviceClass: false
       volumeClaimTemplates:
       - metadata:
           name: data
