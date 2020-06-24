@@ -312,6 +312,15 @@ func (c *Cluster) removeMon(daemonName string) error {
 		}
 	}
 
+	// Remove the PVC backing the mon if it existed
+	if err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(resourceName, &metav1.DeleteOptions{}); err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Infof("mon pvc did not exist %q", resourceName)
+		} else {
+			logger.Errorf("failed to remove dead mon pvc %q. %v", resourceName, err)
+		}
+	}
+
 	if err := c.saveMonConfig(); err != nil {
 		return errors.Wrapf(err, "failed to save mon config after failing over mon %s", daemonName)
 	}
