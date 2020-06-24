@@ -1937,7 +1937,7 @@ spec:
     - name: set1
       count: 1
       portable: false
-      tuneSlowDeviceClass: true
+      tuneDeviceClass: true
       volumeClaimTemplates:
       - metadata:
           name: data
