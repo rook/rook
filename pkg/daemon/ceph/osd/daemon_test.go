@@ -62,6 +62,43 @@ TAGS=:systemd:
 USEC_INITIALIZED=15981915740802
 `
 
+	udevPartOutput = `
+DEVNAME=/dev/sdt1
+DEVLINKS=/dev/disk/by-partlabel/test
+DEVPATH=/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/VMBUS:00/763a35b7-6c97-461e-a494-c92c785255d0/host0/target0:0:0/0:0:0:0/block/sdt/sdt1
+DEVTYPE=partition
+ID_BUS=scsi
+ID_MODEL=Virtual_Disk
+ID_MODEL_ENC=Virtual\x20Disk\x20\x20\x20\x20
+ID_PART_ENTRY_DISK=8:0
+ID_PART_ENTRY_NUMBER=2
+ID_PART_ENTRY_OFFSET=1050624
+ID_PART_ENTRY_SCHEME=gpt
+ID_PART_ENTRY_SIZE=535818240
+ID_PART_ENTRY_TYPE=0fc63daf-8483-4772-8e79-3d69d8477de4
+ID_PART_ENTRY_UUID=ce8b0ba3-b2b6-48f8-8ffb-4231fef4a5b5
+ID_PART_TABLE_TYPE=gpt
+ID_PART_TABLE_UUID=4180a289-da60-4d28-b951-91456d8848ed
+ID_PATH=acpi-VMBUS:00-scsi-0:0:0:0
+ID_PATH_TAG=acpi-VMBUS_00-scsi-0_0_0_0
+ID_REVISION=1.0
+ID_SCSI=1
+ID_SERIAL=3600224807a025e35d9994b5f1d81cf8f
+ID_SERIAL_SHORT=600224807a025e35d9994b5f1d81cf8f
+ID_TYPE=disk
+ID_VENDOR=Msft
+ID_VENDOR_ENC=Msft\x20\x20\x20\x20
+ID_WWN=0x600224807a025e35
+ID_WWN_VENDOR_EXTENSION=0xd9994b5f1d81cf8f
+ID_WWN_WITH_EXTENSION=0x600224807a025e35d9994b5f1d81cf8f
+MAJOR=8
+MINOR=2
+PARTN=2
+SUBSYSTEM=block
+TAGS=:systemd:
+USEC_INITIALIZED=1128667
+`
+
 	cvInventoryOutputAvailable = `
 	{
 		"available":true,
@@ -161,10 +198,13 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				return "MY-PART", nil
 			}
 		} else if command == "udevadm" {
-			if strings.Index(args[3], "sdc") != -1 {
+			if strings.Index(args[2], "sdc") != -1 {
 				// /dev/sdc has a file system
 				return udevFSOutput, nil
+			} else if strings.Index(args[2], "sdt1") != -1 {
+				return udevPartOutput, nil
 			}
+
 			return "", nil
 		} else if command == "dmsetup" && args[0] == "info" {
 			if strings.Index(args[5], "vg1-lv1") != -1 {
@@ -247,7 +287,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 6, len(mapping.Entries))
 
 	// Do not skip partition anymore
-	version = cephver.Octopus
+	agent.cluster.CephVersion = cephver.Octopus
 
 	// select no devices both using and not using a filter
 	agent.metadataDevice = ""
@@ -284,7 +324,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
 	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
 
-	// select the sd* devices by path names
+	// select the sd* devices by devicePathFilter
 	agent.devices = []DesiredDevice{{Name: "^/dev/sd.$", IsDevicePathFilter: true}}
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
@@ -292,13 +332,18 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
-	// select the SCSI devices
+	// select the devices that have udev persistent names by devicePathFilter
 	agent.devices = []DesiredDevice{{Name: "^/dev/disk/by-path/.*-scsi-.*", IsDevicePathFilter: true}}
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+	agent.devices = []DesiredDevice{{Name: "^/dev/disk/by-partlabel/te.*", IsDevicePathFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["sdt1"].Data)
 
 	// select a device by explicit link
 	agent.devices = []DesiredDevice{{Name: "/dev/disk/by-id/sde-0x0000"}}
@@ -306,6 +351,11 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sde"].Data)
+	agent.devices = []DesiredDevice{{Name: "/dev/disk/by-partlabel/test"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["sdt1"].Data)
 
 	// test on PVC
 	context.Devices = []*sys.LocalDisk{
