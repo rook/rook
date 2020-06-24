@@ -56,6 +56,10 @@ type NFSServerStatus struct {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="NFS Server instance state"
 
 // NFSServer is the Schema for the nfsservers API
 type NFSServer struct {
@@ -67,6 +71,7 @@ type NFSServer struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
 
 // NFSServerList contains a list of NFSServer
 type NFSServerList struct {
@@ -103,13 +108,16 @@ type ExportsSpec struct {
 type ServerSpec struct {
 	// Reading and Writing permissions on the export
 	// Valid values are "ReadOnly", "ReadWrite" and "none"
+	// +kubebuilder:validation:Enum=ReadOnly;ReadWrite;none
 	AccessMode string `json:"accessMode,omitempty"`
 
 	// This prevents the root users connected remotely from having root privileges
 	// Valid values are "none", "rootid", "root", and "all"
+	// +kubebuilder:validation:Enum=none;rootid;root;all
 	Squash string `json:"squash,omitempty"`
 
 	// The clients allowed to access the NFS export
+	// +optional
 	AllowedClients []AllowedClientsSpec `json:"allowedClients,omitempty"`
 }
 
@@ -126,10 +134,12 @@ type AllowedClientsSpec struct {
 	// Reading and Writing permissions for the client to access the NFS export
 	// Valid values are "ReadOnly", "ReadWrite" and "none"
 	// Gets overridden when ServerSpec.accessMode is specified
+	// +kubebuilder:validation:Enum=ReadOnly;ReadWrite;none
 	AccessMode string `json:"accessMode,omitempty"`
 
 	// Squash options for clients
 	// Valid values are "none", "rootid", "root", and "all"
 	// Gets overridden when ServerSpec.squash is specified
+	// +kubebuilder:validation:Enum=none;rootid;root;all
 	Squash string `json:"squash,omitempty"`
 }

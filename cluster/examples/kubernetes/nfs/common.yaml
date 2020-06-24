@@ -6,9 +6,15 @@ metadata:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
   name: nfsservers.nfs.rook.io
 spec:
   additionalPrinterColumns:
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   - JSONPath: .status.state
     description: NFS Server instance state
     name: State
@@ -39,7 +45,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: NFSServerSpec defines the desired state of NFSServer
+          description: NFSServerSpec represents the spec of NFS daemon
           properties:
             annotations:
               additionalProperties:
