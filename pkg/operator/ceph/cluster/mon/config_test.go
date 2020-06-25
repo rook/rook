@@ -57,12 +57,26 @@ func TestCreateClusterSecrets(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, -1, maxID)
 	require.NotNil(t, info)
-	assert.Equal(t, adminSecret, info.AdminSecret)
+	assert.Equal(t, "client.admin", info.CephCred.Username)
+	assert.Equal(t, adminSecret, info.CephCred.Secret)
 	assert.NotEqual(t, "", info.FSID)
 	assert.NotNil(t, mapping)
 
 	// check for the cluster secret
 	secret, err := clientset.CoreV1().Secrets(namespace).Get("rook-ceph-mon", metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, adminSecret, string(secret.Data["admin-secret"]))
+	assert.Equal(t, adminSecret, string(secret.Data["ceph-secret"]))
+
+	// For backward compatibility check that the admin secret can be loaded as previously specified
+	// Update the secret as if created in an old cluster
+	delete(secret.Data, cephUserSecretKey)
+	secret.Data[adminSecretNameKey] = []byte(adminSecret)
+	_, err = clientset.CoreV1().Secrets(namespace).Update(secret)
+	assert.NoError(t, err)
+
+	// Check that the cluster info can now be loaded
+	info, _, _, err = CreateOrLoadClusterInfo(context, namespace, ownerRef)
+	assert.NoError(t, err)
+	assert.Equal(t, "client.admin", info.CephCred.Username)
+	assert.Equal(t, adminSecret, info.CephCred.Secret)
 }

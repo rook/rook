@@ -5,7 +5,6 @@ set -e
 # VARIABLES #
 #############
 MON_SECRET_NAME=rook-ceph-mon
-OPERATOR_CREDS=rook-ceph-operator-creds
 CSI_RBD_NODE_SECRET_NAME=rook-csi-rbd-node
 CSI_RBD_PROVISIONER_SECRET_NAME=rook-csi-rbd-provisioner
 CSI_CEPHFS_NODE_SECRET_NAME=rook-csi-cephfs-node
@@ -14,6 +13,8 @@ MON_SECRET_CLUSTER_NAME_KEYNAME=cluster-name
 MON_SECRET_FSID_KEYNAME=fsid
 MON_SECRET_ADMIN_KEYRING_KEYNAME=admin-secret
 MON_SECRET_MON_KEYRING_KEYNAME=mon-secret
+MON_SECRET_CEPH_USERNAME_KEYNAME=ceph-username
+MON_SECRET_CEPH_SECRET_KEYNAME=ceph-secret
 MON_ENDPOINT_CONFIGMAP_NAME=rook-ceph-mon-endpoints
 ROOK_EXTERNAL_CLUSTER_NAME=$NAMESPACE
 ROOK_EXTERNAL_MAX_MON_ID=2
@@ -75,7 +76,9 @@ function importSecret() {
     --from-literal="$MON_SECRET_CLUSTER_NAME_KEYNAME"="$ROOK_EXTERNAL_CLUSTER_NAME" \
     --from-literal="$MON_SECRET_FSID_KEYNAME"="$ROOK_EXTERNAL_FSID" \
     --from-literal="$MON_SECRET_ADMIN_KEYRING_KEYNAME"="$ROOK_EXTERNAL_ADMIN_SECRET" \
-    --from-literal="$MON_SECRET_MON_KEYRING_KEYNAME"="$ROOK_EXTERNAL_MONITOR_SECRET"
+    --from-literal="$MON_SECRET_MON_KEYRING_KEYNAME"="$ROOK_EXTERNAL_MONITOR_SECRET" \
+    --from-literal="$MON_SECRET_CEPH_USERNAME_KEYNAME"="$ROOK_EXTERNAL_USERNAME" \
+    --from-literal="$MON_SECRET_CEPH_SECRET_KEYNAME"="$ROOK_EXTERNAL_USER_SECRET"
 }
 
 function importConfigMap() {
@@ -86,16 +89,6 @@ function importConfigMap() {
     --from-literal=data="$ROOK_EXTERNAL_CEPH_MON_DATA" \
     --from-literal=mapping="$ROOK_EXTERNAL_MAPPING" \
     --from-literal=maxMonId="$ROOK_EXTERNAL_MAX_MON_ID"
-}
-
-function importCheckerSecret() {
-    kubectl -n "$NAMESPACE" \
-    create \
-    secret \
-    generic \
-    "$OPERATOR_CREDS" \
-    --from-literal=userID="$ROOK_EXTERNAL_USERNAME" \
-    --from-literal=userKey="$ROOK_EXTERNAL_USER_SECRET"
 }
 
 function importCsiRBDNodeSecret() {

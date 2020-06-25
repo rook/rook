@@ -152,7 +152,7 @@ func verifyConfigFlags(configCmd *cobra.Command) error {
 	if err := flags.VerifyRequiredFlags(configCmd, required); err != nil {
 		return err
 	}
-	required = []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}
+	required = []string{"cluster-name", "mon-endpoints", "mon-secret", "ceph-username", "ceph-secret"}
 	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
 		return err
 	}

@@ -131,7 +131,7 @@ func newCluster(context *clusterd.Context, namespace string, network cephv1.Netw
 
 // setCommonMonProperties is a convenience helper for setting common test properties
 func setCommonMonProperties(c *Cluster, currentMons int, mon cephv1.MonSpec, rookVersion string) {
-	c.ClusterInfo = test.CreateConfigDir(currentMons)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(currentMons)
 	c.spec.Mon.Count = mon.Count
 	c.spec.Mon.AllowMultiplePerNode = mon.AllowMultiplePerNode
 	c.rookVersion = rookVersion
@@ -169,7 +169,7 @@ func TestOperatorRestart(t *testing.T) {
 	context, err := newTestStartCluster(t, namespace)
 	assert.Nil(t, err)
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 
 	// start a basic cluster
 	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -197,7 +197,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 
 	// cluster without host networking
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, false, v1.ResourceRequirements{})
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 
 	// start a basic cluster
 	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -220,7 +220,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 func validateStart(t *testing.T, c *Cluster) {
 	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(AppName, metav1.GetOptions{})
 	assert.NoError(t, err) // there shouldn't be an error due the secret existing
-	assert.Equal(t, 4, len(s.Data))
+	assert.Equal(t, 5, len(s.Data))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
 	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
@@ -318,7 +318,8 @@ func TestWaitForQuorum(t *testing.T) {
 	context, err := newTestStartClusterWithQuorumResponse(t, namespace, quorumResponse)
 	requireAllInQuorum := false
 	expectedMons := []string{"a"}
-	err = waitForQuorumWithMons(context, namespace, expectedMons, 0, requireAllInQuorum)
+	clusterInfo := &cephconfig.ClusterInfo{Name: namespace}
+	err = waitForQuorumWithMons(context, clusterInfo, expectedMons, 0, requireAllInQuorum)
 	assert.Nil(t, err)
 }
 

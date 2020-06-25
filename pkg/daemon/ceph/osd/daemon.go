@@ -156,7 +156,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	}
 
 	// write the latest config to the config dir
-	confFilePath, err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig)
+	confFilePath, err := cephconfig.GenerateConnectionConfigWithSettings(context, agent.cluster, cephConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to write connection config")
 	}

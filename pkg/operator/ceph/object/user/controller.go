@@ -218,7 +218,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// Set the cephx external username if the CephCluster is external
 	if r.cephClusterSpec.External.Enable {
-		r.objContext.RunAsUser = r.clusterInfo.ExternalCred.Username
+		r.objContext.RunAsUser = r.clusterInfo.CephCred.Username
 	}
 
 	// DELETE: the CR was deleted

@@ -49,6 +49,6 @@ func (s *SecretStore) Admin() *AdminStore {
 
 // CreateOrUpdate creates or updates the admin keyring secret with cluster information.
 func (a *AdminStore) CreateOrUpdate(c *cephconfig.ClusterInfo) error {
-	keyring := fmt.Sprintf(adminKeyringTemplate, c.AdminSecret)
+	keyring := fmt.Sprintf(adminKeyringTemplate, c.CephCred.Secret)
 	return a.secretStore.CreateOrUpdate(adminKeyringResourceName, keyring)
 }

@@ -17,7 +17,6 @@ limitations under the License.
 package config
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -40,22 +39,19 @@ const (
 	caps mgr = "allow *"
 `
 
-	// ExternalUserKeyringTemplate is a string template of Ceph keyring settings which allow connection
-	// as admin. The key value must be filled in by the admin auth key for the cluster.
-	ExternalUserKeyringTemplate = `
+	// UserKeyringTemplate is a string template of Ceph keyring settings which allow connection.
+	UserKeyringTemplate = `
 [%s]
 	key = %s
 `
 )
 
-// AdminKeyring returns the filled-out admin keyring
-func AdminKeyring(c *ClusterInfo) string {
-	return fmt.Sprintf(AdminKeyringTemplate, c.AdminSecret)
-}
-
-// ExternalUserKeyring returns the filled-out external checker user keyring
-func ExternalUserKeyring(userName, keyring string) string {
-	return fmt.Sprintf(ExternalUserKeyringTemplate, userName, keyring)
+// CephKeyring returns the filled-out user keyring
+func CephKeyring(cred CephCred) string {
+	if cred.Username == client.AdminUsername {
+		return fmt.Sprintf(AdminKeyringTemplate, cred.Secret)
+	}
+	return fmt.Sprintf(UserKeyringTemplate, cred.Username, cred.Secret)
 }
 
 // WriteKeyring calls the generate contents function with auth key as an argument then saves the
@@ -100,16 +96,4 @@ func writeKeyring(keyring, keyringPath string) error {
 		return errors.Wrapf(err, "failed to write monitor keyring to %s", keyringPath)
 	}
 	return nil
-}
-
-// IsKeyringBase64Encoded returns whether the keyring is valid
-func IsKeyringBase64Encoded(keyring string) bool {
-	// If the keyring is not base64 we fail
-	_, err := base64.StdEncoding.DecodeString(keyring)
-	if err != nil {
-		logger.Errorf("key is not base64 encoded. %v", err)
-		return false
-	}
-
-	return true
 }

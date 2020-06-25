@@ -49,7 +49,7 @@ func TestStartRGW(t *testing.T) {
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	info := testop.CreateConfigDir(1)
+	info := config.CreateTestClusterInfo(1)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
 	store := simpleStore()
 	store.Spec.Gateway.Instances = 1
@@ -100,7 +100,7 @@ func TestCreateObjectStore(t *testing.T) {
 	store := simpleStore()
 	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
-	info := testop.CreateConfigDir(1)
+	info := config.CreateTestClusterInfo(1)
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
 	// create the pools

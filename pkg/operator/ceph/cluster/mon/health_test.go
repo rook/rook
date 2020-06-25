@@ -245,7 +245,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 
 	// populate fake ClusterInfo
 	c := &Cluster{ClusterInfo: &cephconfig.ClusterInfo{}}
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 
 	//
 	// TEST 1
@@ -262,7 +262,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	// Now let's test the case where mon disappeared from the external cluster
 	// ClusterInfo still has them but they are gone from the monmap.
 	// Thus they should be removed from ClusterInfo
-	c.ClusterInfo = test.CreateConfigDir(3)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(3)
 	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
 	assert.NoError(t, err)
 	assert.True(t, changed)
@@ -283,7 +283,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 		},
 	}
 	fakeResp.MonMap.Mons[1].PublicAddr = "172.17.0.5:3300"
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
 	assert.NoError(t, err)
 	assert.True(t, changed)

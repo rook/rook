@@ -34,7 +34,6 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 	clusterInfo := &ClusterInfo{
 		FSID:          "id",
 		MonitorSecret: "monsecret",
-		AdminSecret:   "adminsecret",
 		Name:          "foo-cluster",
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
@@ -91,19 +90,19 @@ func TestGenerateConfigFile(t *testing.T) {
 	clusterInfo := &ClusterInfo{
 		FSID:          "myfsid",
 		MonitorSecret: "monsecret",
-		AdminSecret:   "adminsecret",
 		Name:          "foo-cluster",
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
 		CephVersion: cephver.Nautilus,
+		CephCred:    CephCred{Username: "admin", Secret: "mysecret"},
 	}
 
 	isInitialized := clusterInfo.IsInitialized(true)
 	assert.True(t, isInitialized)
 
 	// generate the config file to disk now
-	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), nil, nil)
+	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, filepath.Join(configDir, "mykeyring"), nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, filepath.Join(configDir, "foo-cluster.config"), configFilePath)
 

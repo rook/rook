@@ -777,7 +777,8 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 		opmon.ClusterNameEnvVar(c.Namespace),
 		opmon.EndpointEnvVar(),
 		opmon.SecretEnvVar(),
-		opmon.AdminSecretEnvVar(),
+		opmon.CephUsernameEnvVar(),
+		opmon.CephSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(dataDir),
 		k8sutil.ConfigOverrideEnvVar(),
 		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{

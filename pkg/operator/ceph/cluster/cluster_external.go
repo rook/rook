@@ -21,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -45,23 +44,6 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
 	cluster.Info = mon.PopulateExternalClusterInfo(c.context, c.namespacedName.Namespace)
-
-	// If the user to check the ceph health and status is not the admin,
-	// we validate that ExternalCred has been populated correctly,
-	// then we check if the key (whether admin or not) is encoded in base64
-	if !mon.IsExternalHealthCheckUserAdmin(cluster.Info.AdminSecret) {
-		if !cluster.Info.IsInitializedExternalCred(true) {
-			return errors.New("invalid user health checker credentials")
-		}
-		if !cephconfig.IsKeyringBase64Encoded(cluster.Info.ExternalCred.Secret) {
-			return errors.Errorf("invalid user health checker key %q", cluster.Info.ExternalCred.Username)
-		}
-	} else {
-		// If the client.admin is used
-		if !cephconfig.IsKeyringBase64Encoded(cluster.Info.AdminSecret) {
-			return errors.Errorf("invalid user health checker key %q", client.AdminUsername)
-		}
-	}
 
 	// Write connection info (ceph config file and keyring) for ceph commands
 	if cluster.Spec.CephVersion.Image == "" {
@@ -103,7 +85,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	logger.Info("external cluster identity established")
 
 	// Create CSI Secrets only if the user has provided the admin key
-	if cluster.Info.AdminSecret != mon.AdminSecretName {
+	if cluster.Info.CephCred.Username == client.AdminUsername {
 		err = csi.CreateCSISecrets(c.context, c.namespacedName.Namespace, &cluster.ownerRef)
 		if err != nil {
 			return errors.Wrap(err, "failed to create csi kubernetes secrets")

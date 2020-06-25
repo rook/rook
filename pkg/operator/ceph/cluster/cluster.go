@@ -235,7 +235,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 			config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Failed to configure external ceph cluster")
 			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
-		cephUser = cluster.Info.ExternalCred.Username
+		cephUser = cluster.Info.CephCred.Username
 	} else {
 		// If the local cluster has already been configured, immediately start monitoring the cluster.
 		// Test if the cluster has already been configured if the mgr deployment has been created.

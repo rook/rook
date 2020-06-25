@@ -48,7 +48,7 @@ func getCephMonVersionString(context *clusterd.Context, clusterName string) (str
 	args := []string{"version"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to run 'ceph version")
+		return "", errors.Wrap(err, "failed to run 'ceph version'")
 	}
 	output := string(buf)
 	logger.Debug(output)
@@ -60,7 +60,7 @@ func getAllCephDaemonVersionsString(context *clusterd.Context, clusterName strin
 	args := []string{"versions"}
 	buf, err := NewCephCommand(context, clusterName, args).Run()
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to run 'ceph versions. %s", string(buf))
+		return "", errors.Wrapf(err, "failed to run 'ceph versions'. %s", string(buf))
 	}
 	output := string(buf)
 	logger.Debug(output)

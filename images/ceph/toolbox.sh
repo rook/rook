@@ -63,8 +63,8 @@ watch_endpoints() {
 
 # create the keyring file
 cat <<EOF > ${KEYRING_FILE}
-[client.admin]
-key = ${ROOK_ADMIN_SECRET}
+[${ROOK_CEPH_USERNAME}]
+key = ${ROOK_CEPH_SECRET}
 EOF
 
 # write the initial config file

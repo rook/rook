@@ -61,15 +61,17 @@ const (
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
 	AppName = "rook-ceph-mon"
 	// OperatorCreds is the name of the secret
-	OperatorCreds  = "rook-ceph-operator-creds"
-	monNodeAttr    = "mon_node"
-	monClusterAttr = "mon_cluster"
-	tprName        = "mon.rook.io"
-	fsidSecretName = "fsid"
-	monSecretName  = "mon-secret"
+	OperatorCreds     = "rook-ceph-operator-creds"
+	monNodeAttr       = "mon_node"
+	monClusterAttr    = "mon_cluster"
+	tprName           = "mon.rook.io"
+	fsidSecretNameKey = "fsid"
+	monSecretNameKey  = "mon-secret"
 	// AdminSecretName is the name of the admin secret
-	AdminSecretName   = "admin-secret"
-	clusterSecretName = "cluster-name"
+	adminSecretNameKey   = "admin-secret"
+	cephUsernameKey      = "ceph-username"
+	cephUserSecretKey    = "ceph-secret"
+	clusterSecretNameKey = "cluster-name"
 
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
@@ -735,7 +737,7 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 
 	// wait for the monitors to join quorum
 	sleepTime := 5
-	err := waitForQuorumWithMons(c.context, c.ClusterInfo.Name, starting, sleepTime, requireAllInQuorum)
+	err := waitForQuorumWithMons(c.context, c.ClusterInfo, starting, sleepTime, requireAllInQuorum)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for mon quorum")
 	}
@@ -940,7 +942,7 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	return nil
 }
 
-func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons []string, sleepTime int, requireAllInQuorum bool) error {
+func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo, mons []string, sleepTime int, requireAllInQuorum bool) error {
 	logger.Infof("waiting for mon quorum with %v", mons)
 
 	// wait for monitors to establish quorum
@@ -961,7 +963,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 		allPodsRunning := true
 		var runningMonNames []string
 		for _, m := range mons {
-			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, fmt.Sprintf("app=%s,mon=%s", AppName, m))
+			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterInfo.Name, fmt.Sprintf("app=%s,mon=%s", AppName, m))
 			if err != nil {
 				logger.Infof("failed to query mon pod status, trying again. %v", err)
 				continue
@@ -981,7 +983,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 
 		// get the quorum_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterName)
+		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterInfo.Name, clusterInfo.CephCred.Username)
 		if err != nil {
 			logger.Debugf("failed to get quorum_status. %v", err)
 			continue

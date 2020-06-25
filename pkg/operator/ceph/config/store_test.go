@@ -60,8 +60,8 @@ func TestStore(t *testing.T) {
 		}
 	}
 
-	i1 := testop.CreateConfigDir(1) // cluster w/ one mon
-	i3 := testop.CreateConfigDir(3) // same cluster w/ 3 mons
+	i1 := cephconfig.CreateTestClusterInfo(1) // cluster w/ one mon
+	i3 := cephconfig.CreateTestClusterInfo(3) // same cluster w/ 3 mons
 
 	s.CreateOrUpdate(i1)
 	assertConfigStore(i1)
@@ -79,7 +79,7 @@ func TestEnvVarsAndFlags(t *testing.T) {
 	owner := metav1.OwnerReference{}
 
 	s := GetStore(ctx, ns, &owner)
-	s.CreateOrUpdate(testop.CreateConfigDir(3))
+	s.CreateOrUpdate(cephconfig.CreateTestClusterInfo(3))
 
 	v := StoredMonHostEnvVars()
 	f := StoredMonHostEnvVarFlags()

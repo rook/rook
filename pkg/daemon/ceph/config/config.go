@@ -81,33 +81,24 @@ func GetConfFilePath(root, clusterName string) string {
 	return fmt.Sprintf("%s/%s.config", root, clusterName)
 }
 
-// GenerateAdminConnectionConfig calls GenerateAdminConnectionConfigWithSettings with no settings
+// GenerateConnectionConfig calls GenerateConnectionConfigWithSettings with no settings
 // overridden.
-func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) (string, error) {
-	return GenerateAdminConnectionConfigWithSettings(context, cluster, nil)
+func GenerateConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) (string, error) {
+	return GenerateConnectionConfigWithSettings(context, cluster, nil)
 }
 
-// GenerateAdminConnectionConfigWithSettings generates a Ceph config and keyring which will allow
-// the daemon to connect as an admin. Default config file settings can be overridden by specifying
+// GenerateConnectionConfigWithSettings generates a Ceph config and keyring which will allow
+// the daemon to connect. Default config file settings can be overridden by specifying
 // some subset of settings.
-func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig) (string, error) {
+func GenerateConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig) (string, error) {
 	root := path.Join(context.ConfigDir, cluster.Name)
-	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
-	err := writeKeyring(AdminKeyring(cluster), keyringPath)
+	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", cluster.CephCred.Username))
+	err := writeKeyring(CephKeyring(cluster.CephCred), keyringPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to write admin keyring to %s", root)
+		return "", errors.Wrapf(err, "failed to write keyring %q to %s", cluster.CephCred.Username, root)
 	}
 
-	// If this is an external cluster
-	if cluster.IsInitializedExternalCred(false) {
-		keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", cluster.ExternalCred.Username))
-		err := writeKeyring(ExternalUserKeyring(cluster.ExternalCred.Username, cluster.ExternalCred.Secret), keyringPath)
-		if err != nil {
-			return "", errors.Wrapf(err, "failed to write keyring %q to %s", cluster.ExternalCred.Username, root)
-		}
-	}
-
-	filePath, err := GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil)
+	filePath, err := GenerateConfigFile(context, cluster, root, keyringPath, settings, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to write config to %s", root)
 	}
@@ -116,7 +107,7 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 }
 
 // GenerateConfigFile generates and writes a config file to disk.
-func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
+func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
 
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
@@ -128,17 +119,9 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 		return "", errors.Wrap(err, "failed to create global config section")
 	}
 
-	qualifiedUser := getQualifiedUser(user)
+	qualifiedUser := getQualifiedUser(cluster.CephCred.Username)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
 		return "", errors.Wrap(err, "failed to add admin client config section")
-	}
-
-	if cluster.IsInitializedExternalCred(false) {
-		keyringPath = path.Join(path.Join(context.ConfigDir, cluster.Name), fmt.Sprintf("%s.keyring", cluster.ExternalCred.Username))
-		qualifiedUser := getQualifiedUser(cluster.ExternalCred.Username)
-		if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
-			return "", errors.Wrap(err, "failed to add user client config section")
-		}
 	}
 
 	// write the entire config to disk
@@ -257,4 +240,28 @@ func PopulateMonHostMembers(monitors map[string]*MonInfo) ([]string, []string) {
 	}
 
 	return monMembers, monHosts
+}
+
+// CreateTestClusterInfo creates a test cluster info
+// This would be best in a test package, but is included here to avoid cyclic dependencies
+func CreateTestClusterInfo(monCount int) *ClusterInfo {
+	c := &ClusterInfo{
+		FSID:          "12345",
+		Name:          "default",
+		MonitorSecret: "monsecret",
+		CephCred: CephCred{
+			Username: client.AdminUsername,
+			Secret:   "adminkey",
+		},
+		Monitors: map[string]*MonInfo{},
+	}
+	mons := []string{"a", "b", "c", "d", "e"}
+	for i := 0; i < monCount; i++ {
+		id := mons[i]
+		c.Monitors[id] = &MonInfo{
+			Name:     id,
+			Endpoint: fmt.Sprintf("1.2.3.%d:6789", (i + 1)),
+		}
+	}
+	return c
 }

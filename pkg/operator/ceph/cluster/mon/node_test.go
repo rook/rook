@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -76,7 +77,7 @@ func TestHostNetworkSameNode(t *testing.T) {
 	assert.Nil(t, err)
 	// cluster host networking
 	c := newCluster(context, namespace, cephv1.NetworkSpec{HostNetwork: true}, true, v1.ResourceRequirements{})
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -95,7 +96,7 @@ func TestPodMemory(t *testing.T) {
 	}
 
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Error(t, err)
@@ -111,7 +112,7 @@ func TestPodMemory(t *testing.T) {
 	}
 
 	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Error(t, err)
@@ -127,7 +128,7 @@ func TestPodMemory(t *testing.T) {
 	}
 
 	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Error(t, err)
@@ -143,7 +144,7 @@ func TestPodMemory(t *testing.T) {
 	}
 
 	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
@@ -151,7 +152,7 @@ func TestPodMemory(t *testing.T) {
 	// Test no resources were specified on the pod
 	r = v1.ResourceRequirements{}
 	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
-	c.ClusterInfo = test.CreateConfigDir(1)
+	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
