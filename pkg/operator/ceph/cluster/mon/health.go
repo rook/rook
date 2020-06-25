@@ -275,6 +275,7 @@ func (c *Cluster) failoverMon(name string) error {
 	return c.removeMon(name)
 }
 
+// make a best effort to remove the mon and all its resources
 func (c *Cluster) removeMon(daemonName string) error {
 	logger.Infof("ensuring removal of unhealthy monitor %s", daemonName)
 
@@ -288,13 +289,13 @@ func (c *Cluster) removeMon(daemonName string) error {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("dead mon %s was already gone", resourceName)
 		} else {
-			return errors.Wrapf(err, "failed to remove dead mon deployment %s", resourceName)
+			logger.Errorf("failed to remove dead mon deployment %q. %v", resourceName, err)
 		}
 	}
 
 	// Remove the bad monitor from quorum
 	if err := removeMonitorFromQuorum(c.context, c.ClusterInfo.Name, daemonName); err != nil {
-		return errors.Wrapf(err, "failed to remove mon %s from quorum", daemonName)
+		logger.Errorf("failed to remove mon %q from quorum. %v", daemonName, err)
 	}
 	delete(c.ClusterInfo.Monitors, daemonName)
 	// check if a mapping exists for the mon
@@ -307,7 +308,16 @@ func (c *Cluster) removeMon(daemonName string) error {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("dead mon service %s was already gone", resourceName)
 		} else {
-			return errors.Wrapf(err, "failed to remove dead mon service %s", resourceName)
+			logger.Errorf("failed to remove dead mon service %q. %v", resourceName, err)
+		}
+	}
+
+	// Remove the PVC backing the mon if it existed
+	if err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(resourceName, &metav1.DeleteOptions{}); err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Infof("mon pvc did not exist %q", resourceName)
+		} else {
+			logger.Errorf("failed to remove dead mon pvc %q. %v", resourceName, err)
 		}
 	}
 
