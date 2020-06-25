@@ -62,6 +62,17 @@ func UpdateService(
 	return clientset.CoreV1().Services(namespace).Update(serviceDefinition)
 }
 
+// DeleteService deletes a Service and returns the error if any
+func DeleteService(clientset kubernetes.Interface, namespace, name string) error {
+	err := clientset.CoreV1().Services(namespace).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+	}
+	return err
+}
+
 // ParseServiceType parses a string and returns a*v1.ServiceType. If the ServiceType is invalid,
 // this should be considered an error.
 func ParseServiceType(serviceString string) v1.ServiceType {

@@ -27,17 +27,17 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func ValidateAndStartDrivers(clientset kubernetes.Interface, namespace, rookImage, securityAccount string, serverVersion *version.Info, ownerRef *metav1.OwnerReference) {
+func ValidateAndConfigureDrivers(clientset kubernetes.Interface, namespace, rookImage, securityAccount string, serverVersion *version.Info, ownerRef *metav1.OwnerReference) {
 	if err := validateCSIVersion(clientset, namespace, rookImage, securityAccount, ownerRef); err != nil {
 		logger.Errorf("invalid csi version. %+v", err)
 		return
 	}
 
-	if err := startDrivers(namespace, clientset, serverVersion, ownerRef); err != nil {
+	if err := startDrivers(clientset, namespace, serverVersion, ownerRef); err != nil {
 		logger.Errorf("failed to start Ceph csi drivers. %v", err)
 		return
 	}
-	logger.Infof("successfully started Ceph CSI driver(s)")
+	stopDrivers(clientset, namespace, serverVersion)
 }
 
 func SetParams(clientset kubernetes.Interface) error {
