@@ -120,6 +120,11 @@ func (o *Operator) Run() error {
 		}
 	}
 
+	logger.Debug("checking for admission controller secrets")
+	err := StartControllerIfSecretPresent(o.context, o.rookImage)
+	if err != nil {
+		return errors.Wrap(err, "failed to start webhook")
+	}
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return errors.Wrap(err, "failed to get server version")

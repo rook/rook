@@ -56,6 +56,7 @@ func init() {
 	Cmd.AddCommand(cleanUpCmd,
 		operatorCmd,
 		agentCmd,
+		admissionCmd,
 		osdCmd,
 		configCmd)
 }

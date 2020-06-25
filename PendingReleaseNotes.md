@@ -12,6 +12,9 @@
 - CephBlockPool CRD has a new field called `parameters` which allows to set any property on a given [pool](Documentation/ceph-pool-crd.html#add-specific-pool-properties)
 - OSD changes:
   - OSD on PVC now supports multipath device.
+- Added [admission controller](Documentation/admission-controller-usage.md) support for CRD validations.
+    - Support for Ceph CRDs is provided. Some validations for CephClusters are included and additional validations can be added for other CRDs
+    - Can be extended to add support for other providers 
 
 ### EdgeFS
 
