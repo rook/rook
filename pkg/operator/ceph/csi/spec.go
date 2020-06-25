@@ -251,18 +251,9 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
 	}
 
-	enableSnap, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_SNAPSHOTTER", "true")
-	if err != nil {
-		return errors.Wrap(err, "failed to load CSI_ENABLE_SNAPSHOTTER setting")
-	}
-
-	if !strings.EqualFold(enableSnap, "false") {
-		// disable snapshotter sidecar deployment if kubernetes version is less than 1.17
-		if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < snapshotDeploymentSuppVersion) {
-			tp.EnableSnapshotter = ""
-		} else {
-			tp.EnableSnapshotter = "true"
-		}
+	// Enable snapshotter sidecar deployment if kubernetes version is >= 1.17
+	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= snapshotDeploymentSuppVersion) {
+		tp.EnableSnapshotter = "true"
 	}
 
 	// default value `system-node-critical` is the highest available priority
