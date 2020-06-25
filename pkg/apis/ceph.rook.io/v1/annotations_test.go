@@ -46,9 +46,6 @@ func TestAnnotationMerge(t *testing.T) {
 	a = GetOSDAnnotations(testAnnotations)
 	assert.Equal(t, "osdval", a["osdkey"])
 	assert.Equal(t, 1, len(a))
-	a = GetRGWAnnotations(testAnnotations)
-	assert.Equal(t, "rgwval", a["rgwkey"])
-	assert.Equal(t, 1, len(a))
 
 	// No annotations matching the component
 	testAnnotations = rook.AnnotationsSpec{

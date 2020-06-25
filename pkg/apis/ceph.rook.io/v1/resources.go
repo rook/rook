@@ -30,8 +30,6 @@ const (
 	ResourcesKeyOSD = "osd"
 	// ResourcesKeyPrepareOSD represents the name of resource in the CR for the osd prepare job
 	ResourcesKeyPrepareOSD = "prepareosd"
-	// ResourcesKeyRBDMirror represents the name of resource in the CR for the rbdmirror
-	ResourcesKeyRBDMirror = "rbdmirror"
 	// ResourcesKeyCrashCollector represents the name of resource in the CR for the crash
 	ResourcesKeyCrashCollector = "crashcollector"
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
