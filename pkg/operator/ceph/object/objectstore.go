@@ -56,6 +56,10 @@ type idType struct {
 	ID string `json:"id"`
 }
 
+type masterZoneIDType struct {
+	MasterZoneID string `json:"master_zone"`
+}
+
 type realmType struct {
 	Realms []string `json:"realms"`
 }
@@ -88,6 +92,32 @@ func deleteRealmAndPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	return nil
 }
 
+func checkZoneIsMaster(context *Context, realmArg string, zoneGroupArg string, zoneArg string) (bool, error) {
+	zoneGroupOutput, err := RunAdminCommandNoRealm(context, "zonegroup", "get", realmArg, zoneGroupArg)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get rgw zone group")
+	}
+	masterZoneID, err := decodeMasterZoneID(zoneGroupOutput)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to parse master zone id")
+	}
+
+	zoneOutput, err := RunAdminCommandNoRealm(context, "zone", "get", realmArg, zoneGroupArg, zoneArg)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get rgw zone")
+	}
+	zoneID, err := decodeID(zoneOutput)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to parse zone id")
+	}
+
+	if zoneID == masterZoneID {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func setMultisite(context *Context, serviceIP string, spec cephv1.ObjectStoreSpec, realmName string, zoneGroupName string, zoneName string) error {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zoneGroupName)
@@ -97,9 +127,17 @@ func setMultisite(context *Context, serviceIP string, spec cephv1.ObjectStoreSpe
 
 	if spec.IsMultisite() {
 		updatePeriod = true
-		_, err := RunAdminCommandNoRealm(context, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+		zoneIsMaster, err := checkZoneIsMaster(context, realmArg, zoneGroupArg, zoneArg)
 		if err != nil {
-			return errors.Wrapf(err, "failed to add object store %q in rgw zone group %q", context.Name, zoneGroupName)
+			return err
+		}
+
+		if zoneIsMaster {
+			_, err := RunAdminCommandNoRealm(context, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+			if err != nil {
+				return errors.Wrapf(err, "failed to add object store %q in rgw zone group %q", context.Name, zoneGroupName)
+			}
+			logger.Debugf("Added object store endpoint %s:%d to zonegroup %q", serviceIP, spec.Gateway.Port, zoneGroupName)
 		}
 		_, err = RunAdminCommandNoRealm(context, "zone", "modify", realmArg, zoneGroupArg, zoneArg, endpointArg)
 		if err != nil {
@@ -194,6 +232,16 @@ func decodeID(data string) (string, error) {
 	}
 
 	return id.ID, err
+}
+
+func decodeMasterZoneID(data string) (string, error) {
+	var config masterZoneIDType
+	err := json.Unmarshal([]byte(data), &config)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to unmarshal json")
+	}
+
+	return config.MasterZoneID, err
 }
 
 func getObjectStores(context *Context) ([]string, error) {
