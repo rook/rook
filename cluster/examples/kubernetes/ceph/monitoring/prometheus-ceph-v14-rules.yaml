@@ -189,9 +189,9 @@ spec:
     - alert: PersistentVolumeUsageNearFull
       annotations:
         description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed
-          75%. Free up some space.
+          75%. Free up some space or expand the PVC.
         message: PVC {{ $labels.persistentvolumeclaim }} is nearing full. Data deletion
-          is required.
+          or PVC expansion is required.
         severity_level: warning
         storage_type: ceph
       expr: |
@@ -202,9 +202,9 @@ spec:
     - alert: PersistentVolumeUsageCritical
       annotations:
         description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed
-          85%. Free up some space immediately.
+          85%. Free up some space or expand the PVC immediately.
         message: PVC {{ $labels.persistentvolumeclaim }} is critically full. Data
-          deletion is required.
+          deletion or PVC expansion is required.
         severity_level: error
         storage_type: ceph
       expr: |
