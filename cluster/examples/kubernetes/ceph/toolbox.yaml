@@ -26,8 +26,8 @@ spec:
           - name: ROOK_ADMIN_SECRET
             valueFrom:
               secretKeyRef:
-                name: rook-ceph-mon
-                key: admin-secret
+                name: rook-ceph-operator-creds
+                key: userKey
         volumeMounts:
           - mountPath: /etc/ceph
             name: ceph-config
