@@ -92,11 +92,11 @@ func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 
 	// note: err is set for non-existent user but result output is also empty
 	result, err := runAdminCommand(c, "user", "info", "--uid", id)
-	if len(result) == 0 {
-		return nil, RGWErrorNotFound, errors.New("warn: user not found")
+	if strings.Contains(result, "no user info saved") {
+		return nil, RGWErrorNotFound, errors.New("warn: s3 user not found")
 	}
 	if err != nil {
-		return nil, RGWErrorUnknown, errors.Wrapf(err, "radosgw-admin command err")
+		return nil, RGWErrorUnknown, errors.Wrapf(err, "radosgw-admin command err. %s", result)
 	}
 	return decodeUser(result)
 }
