@@ -251,7 +251,7 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "invalid csi params")
 	}
 
-	go csi.ValidateAndConfigureDrivers(o.context.Clientset, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerRef)
+	go csi.ValidateAndConfigureDrivers(o.context.Clientset, o.context.RookClientset, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerRef)
 	return nil
 }
 

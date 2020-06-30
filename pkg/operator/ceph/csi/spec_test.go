@@ -19,6 +19,7 @@ package csi
 import (
 	"testing"
 
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
@@ -40,10 +41,11 @@ func TestStartCSI(t *testing.T) {
 		SnapshotterImage: "image",
 	}
 	clientset := test.New(t, 3)
+	var rookclientset rookclient.Interface
 	serverVersion, err := clientset.Discovery().ServerVersion()
 	if err != nil {
 		assert.Nil(t, err)
 	}
-	err = startDrivers(clientset, "ns", serverVersion, nil)
+	err = startDrivers(clientset, rookclientset, "ns", serverVersion, nil)
 	assert.Nil(t, err)
 }
