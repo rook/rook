@@ -17,24 +17,9 @@ limitations under the License.
 package zone
 
 import (
-	"encoding/json"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
-
-type masterZoneType struct {
-	MasterZone string `json:"master_zone"`
-}
-
-func decodeMasterZone(data string) (string, error) {
-	var zoneGroupGet masterZoneType
-	err := json.Unmarshal([]byte(data), &zoneGroupGet)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to unmarshal json")
-	}
-
-	return zoneGroupGet.MasterZone, err
-}
 
 // validateZoneCR validates the zone arguments
 func validateZoneCR(u *cephv1.CephObjectZone) error {

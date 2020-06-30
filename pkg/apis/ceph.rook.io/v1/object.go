@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2020 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,4 +18,8 @@ package v1
 
 func (s *ObjectStoreSpec) IsMultisite() bool {
 	return s.Zone.Name != ""
+}
+
+func (s *ObjectRealmSpec) IsPullRealm() bool {
+	return s.Pull.Endpoint != ""
 }

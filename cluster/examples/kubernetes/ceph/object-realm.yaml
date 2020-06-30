@@ -8,3 +8,6 @@ kind: CephObjectRealm
 metadata:
   name: realm-a
   namespace: rook-ceph
+#spec:
+#  pull:
+#    endpoint: http://10.103.133.16:80

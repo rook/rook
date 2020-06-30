@@ -219,14 +219,14 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 		}
 	}
 
-	// check if master zone group does not exist yet for period
-	masterZone, err := decodeMasterZone(output)
+	// check if master zone does not exist yet for period
+	zoneGroupJson, err := object.DecodeZoneGroupConfig(output)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to parse `radosgw-admin zonegroup get` output")
+		return reconcile.Result{}, errors.Wrap(err, "failed to parse `radosgw-admin zonegroup get` output")
 	}
 
 	zoneIsMaster := false
-	if masterZone == "" {
+	if zoneGroupJson.MasterZoneID == "" {
 		zoneIsMaster = true
 	}
 
@@ -235,17 +235,23 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			logger.Debugf("ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
+			accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.context, realmName, zone.Namespace)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to get keys for realm")
+			}
+
 			if zoneIsMaster {
 				// master zone does not exist yet for zone group
 				masterArg := "--master"
-				_, err = object.RunAdminCommandNoRealm(objContext, "zone", "create", realmArg, zoneGroupArg, zoneArg, masterArg)
+				_, err = object.RunAdminCommandNoRealm(objContext, "zone", "create", realmArg, zoneGroupArg, zoneArg, accessKeyArg, secretKeyArg, masterArg)
 			} else {
-				_, err = object.RunAdminCommandNoRealm(objContext, "zone", "create", realmArg, zoneGroupArg, zoneArg)
+				_, err = object.RunAdminCommandNoRealm(objContext, "zone", "create", realmArg, zoneGroupArg, zoneArg, accessKeyArg, secretKeyArg)
 			}
 
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph zone %q", zone.Name)
 			}
+
 		} else {
 			return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin zone get failed with code %d", code)
 		}

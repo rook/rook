@@ -7,6 +7,9 @@ kind: CephObjectRealm
 metadata:
   name: realm-a
   namespace: rook-ceph
+#spec:
+#  pull:
+#    endpoint: http://10.103.133.16:80
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectZoneGroup

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -30,6 +31,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -38,6 +42,8 @@ const (
 	// AppName is the name Rook uses for the object store's application
 	AppName               = "rook-ceph-rgw"
 	bucketProvisionerName = "ceph.rook.io/bucket"
+	AccessKeyName         = "access-key"
+	SecretKeyName         = "secret-key"
 )
 
 var (
@@ -57,11 +63,12 @@ type idType struct {
 }
 
 type zoneGroupType struct {
-	MasterZoneID string      `json:"master_zone"`
-	Zones        []zonesType `json:"zones"`
+	MasterZoneID string     `json:"master_zone"`
+	IsMaster     string     `json:"is_master"`
+	Zones        []zoneType `json:"zones"`
 }
 
-type zonesType struct {
+type zoneType struct {
 	Name      string   `json:"name"`
 	Endpoints []string `json:"endpoints"`
 }
@@ -98,14 +105,14 @@ func deleteRealmAndPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	return nil
 }
 
-func checkZoneIsMaster(context *Context, realmArg string, zoneGroupArg string, zoneArg string) (bool, error) {
+func checkZoneIsMaster(context *Context, realmArg, zoneGroupArg, zoneArg string) (bool, error) {
 	zoneGroupOutput, err := RunAdminCommandNoRealm(context, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get rgw zone group")
 	}
-	masterZoneID, err := decodeMasterZoneID(zoneGroupOutput)
+	zoneGroupJson, err := DecodeZoneGroupConfig(zoneGroupOutput)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to parse master zone id")
+		return false, errors.Wrap(err, "failed to parse zonegroup get json")
 	}
 
 	zoneOutput, err := RunAdminCommandNoRealm(context, "zone", "get", realmArg, zoneGroupArg, zoneArg)
@@ -117,49 +124,223 @@ func checkZoneIsMaster(context *Context, realmArg string, zoneGroupArg string, z
 		return false, errors.Wrap(err, "failed to parse zone id")
 	}
 
-	if zoneID == masterZoneID {
+	if zoneID == zoneGroupJson.MasterZoneID {
 		return true, nil
 	}
 
 	return false, nil
 }
 
-func getZoneEndpoints(context *Context, realmArg string, zoneGroupArg string, zoneName string, serviceEndpoint string) (string, error) {
+func checkZoneGroupIsMaster(context *Context, realmArg, zoneGroupArg string) (bool, error) {
+	zoneGroupOutput, err := RunAdminCommandNoRealm(context, "zonegroup", "get", realmArg, zoneGroupArg)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get rgw zone group")
+	}
+	zoneGroupJson, err := DecodeZoneGroupConfig(zoneGroupOutput)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to parse master zone id")
+	}
+
+	zoneGroupIsMaster, err := strconv.ParseBool(zoneGroupJson.IsMaster)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to parse is_master from zone group json into bool")
+	}
+
+	return zoneGroupIsMaster, nil
+}
+
+func DecodeSecret(secret *v1.Secret, keyName string) (string, error) {
+	realmKey, ok := secret.Data[keyName]
+
+	if !ok {
+		return "", errors.New("key was not in secret data")
+	}
+
+	return string(realmKey), nil
+}
+
+func GetRealmKeyArgs(context *clusterd.Context, realmName, namespace string) (string, string, error) {
+	// get realm's access and secret keys
+	realmSecretName := realmName + "-keys"
+	realmSecret, err := context.Clientset.CoreV1().Secrets(namespace).Get(realmSecretName, metav1.GetOptions{})
+	if err != nil {
+		return "", "", errors.Wrapf(err, "failed to get realm %q keys secret", realmName)
+	}
+
+	accessKey, err := DecodeSecret(realmSecret, AccessKeyName)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "failed to decode realm %q access key", realmName)
+	}
+	secretKey, err := DecodeSecret(realmSecret, SecretKeyName)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "failed to decode realm %q access key", realmName)
+	}
+
+	accessKeyArg := fmt.Sprintf("--access-key=%s", accessKey)
+	secretKeyArg := fmt.Sprintf("--secret-key=%s", secretKey)
+
+	return accessKeyArg, secretKeyArg, nil
+}
+
+func getZoneEndpoints(context *Context, realmArg, zoneGroupArg, zoneName, serviceEndpoint string) (string, error) {
 	zoneGroupOutput, err := RunAdminCommandNoRealm(context, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get rgw zone group")
 	}
-	zones, err := decodeZonesList(zoneGroupOutput)
+	zoneGroupJson, err := DecodeZoneGroupConfig(zoneGroupOutput)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse zones list")
 	}
 
-	numZones := len(zones)
-	zoneEndpoints := ""
-	for i := 0; i < numZones; i++ {
-		if zones[i].Name == zoneName {
-			numEndpoints := len(zones[i].Endpoints)
-			for j := 0; j < numEndpoints; j++ {
+	zoneEndpoints := []string{}
+	for _, zone := range zoneGroupJson.Zones {
+		if zone.Name == zoneName {
+			for _, endpoint := range zone.Endpoints {
 				// in case object-store operator code is rereconciled, zone modify could get run again with serviceEndpoint added again
-				if zones[i].Endpoints[j] != serviceEndpoint {
-					zoneEndpoints += zones[i].Endpoints[j] + ","
+				if endpoint != serviceEndpoint {
+					zoneEndpoints = append(zoneEndpoints, endpoint)
 				}
 			}
 			break
 		}
 	}
 
-	zoneEndpoints += serviceEndpoint
+	zoneEndpoints = append(zoneEndpoints, serviceEndpoint)
 
-	return zoneEndpoints, nil
+	return strings.Join(zoneEndpoints, ","), nil
 }
 
-func setMultisite(context *Context, serviceIP string, spec cephv1.ObjectStoreSpec, realmName string, zoneGroupName string, zoneName string) error {
+func createMultisite(context *Context, endpointArg, realmArg, zoneGroupArg, zoneArg string) error {
+	updatePeriod := false
+	// create the realm if it doesn't exist yet
+	output, err := runAdminCommand(context, "realm", "get")
+	if err != nil {
+		updatePeriod = true
+		output, err = runAdminCommand(context, "realm", "create")
+		if err != nil {
+			return errors.Wrapf(err, "failed to create rgw realm %q", context.Name)
+		}
+	}
+
+	realmID, err := decodeID(output)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse realm id")
+	}
+
+	// create the zonegroup if it doesn't exist yet
+	output, err = runAdminCommand(context, "zonegroup", "get")
+	if err != nil {
+		updatePeriod = true
+		output, err = runAdminCommand(context, "zonegroup", "create", "--master", endpointArg)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create rgw zonegroup for %q", context.Name)
+		}
+	}
+
+	zoneGroupID, err := decodeID(output)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse zone group id")
+	}
+
+	// create the zone if it doesn't exist yet
+	output, err = runAdminCommand(context, "zone", "get", zoneArg)
+	if err != nil {
+		updatePeriod = true
+		output, err = runAdminCommand(context, "zone", "create", "--master", endpointArg, zoneArg)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create rgw zonegroup for %q", context.Name)
+		}
+	}
+
+	zoneID, err := decodeID(output)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse zone id")
+	}
+
+	logger.Infof("RGW: realm=%s, zonegroup=%s, zone=%s", realmID, zoneGroupID, zoneID)
+
+	if updatePeriod {
+		// the period will help notify other zones of changes if there are multi-zones
+		_, err := RunAdminCommandNoRealm(context, "period", "update", "--commit", realmArg, zoneGroupArg, zoneArg)
+		if err != nil {
+			return errors.Wrap(err, "failed to update period")
+		}
+	}
+
+	return nil
+}
+
+func joinMultisite(context *Context, endpointArg, realmArg, zoneGroupArg, zoneArg, realmName, zoneGroupName, zoneName, zoneEndpoints, namespace string) error {
+	zoneIsMaster, err := checkZoneIsMaster(context, realmArg, zoneGroupArg, zoneArg)
+	if err != nil {
+		return err
+	}
+	zoneGroupIsMaster := false
+
+	if zoneIsMaster {
+		// endpoints that are part of a master zone are supposed to be the endpoints for a zone group
+		_, err := RunAdminCommandNoRealm(context, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+		if err != nil {
+			return errors.Wrapf(err, "failed to add object store %q in rgw zone group %q", context.Name, zoneGroupName)
+		}
+		logger.Debugf("endpoints for zonegroup %q are now %q", zoneGroupName, zoneEndpoints)
+
+		// check if zone group is master only if zone is master for creating the system user
+		zoneGroupIsMaster, err = checkZoneGroupIsMaster(context, realmArg, zoneGroupArg)
+		if err != nil {
+			return errors.Wrapf(err, "failed to find out whether zone group %q in is the master zone group", zoneGroupName)
+		}
+	}
+	_, err = RunAdminCommandNoRealm(context, "zone", "modify", realmArg, zoneGroupArg, zoneArg, endpointArg)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add object store %q in rgw zone %q", context.Name, zoneName)
+	}
+
+	// the period will help notify other zones of changes if there are multi-zones
+	_, err = RunAdminCommandNoRealm(context, "period", "update", "--commit", realmArg, zoneGroupArg, zoneArg)
+	if err != nil {
+		return errors.Wrap(err, "failed to update period")
+	}
+	logger.Infof("added object store %q to realm %q, zonegroup %q, zone %q", context.Name, realmName, zoneGroupName, zoneName)
+
+	// create system user for realm for master zone in master zonegorup for multisite scenario
+	if zoneIsMaster && zoneGroupIsMaster {
+		uid := realmName + "-system-user"
+		uidArg := fmt.Sprintf("--uid=%s", uid)
+		output, err := RunAdminCommandNoRealm(context, "user", "info", uidArg)
+		if err != nil {
+			if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
+				logger.Debugf("realm system user %q not found, running `radosgw-admin user create`", uid)
+				accessKeyArg, secretKeyArg, err := GetRealmKeyArgs(context.Context, realmName, namespace)
+				if err != nil {
+					return errors.Wrap(err, "failed to get keys for realm")
+				}
+				systemArg := "--system"
+				displayNameArg := fmt.Sprintf("--display-name=%s.user", realmName)
+				output, err = RunAdminCommandNoRealm(context, "user", "create", realmArg, zoneGroupArg, zoneArg, uidArg, displayNameArg, accessKeyArg, secretKeyArg, systemArg)
+				if err != nil {
+					return errors.Wrapf(err, "failed to create realm system user %q for reason: %q", uid, output)
+				}
+			} else {
+				return errors.Wrapf(err, "radosgw-admin user info failed with code %d and output %q", code, output)
+			}
+		} else {
+			logger.Debugf("realm system user %q has already been created", uid)
+		}
+	}
+
+	return nil
+}
+
+func setMultisite(context *Context, spec cephv1.ObjectStoreSpec, serviceIP, realmName, zoneGroupName, zoneName, namespace string) error {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zoneGroupName)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", zoneName)
-	updatePeriod := false
-	serviceEndpoint := fmt.Sprintf("%s:%d", serviceIP, spec.Gateway.Port)
+
+	serviceEndpoint := fmt.Sprintf("http://%s:%d", serviceIP, spec.Gateway.Port)
+	if spec.Gateway.SecurePort != 0 {
+		serviceEndpoint = fmt.Sprintf("https://%s:%d", serviceIP, spec.Gateway.SecurePort)
+	}
 
 	zoneEndpoints, err := getZoneEndpoints(context, realmArg, zoneGroupArg, zoneName, serviceEndpoint)
 	if err != nil {
@@ -169,78 +350,14 @@ func setMultisite(context *Context, serviceIP string, spec cephv1.ObjectStoreSpe
 	endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
 
 	if spec.IsMultisite() {
-		updatePeriod = true
-		zoneIsMaster, err := checkZoneIsMaster(context, realmArg, zoneGroupArg, zoneArg)
+		err = joinMultisite(context, endpointArg, realmArg, zoneGroupArg, zoneArg, realmName, zoneGroupName, zoneName, zoneEndpoints, namespace)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed join ceph multisite in zone %q", zoneName)
 		}
-
-		if zoneIsMaster {
-			_, err := RunAdminCommandNoRealm(context, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
-			if err != nil {
-				return errors.Wrapf(err, "failed to add object store %q in rgw zone group %q", context.Name, zoneGroupName)
-			}
-			logger.Debugf("Added endpoints %q to zonegroup %q", zoneEndpoints, zoneGroupName)
-		}
-		_, err = RunAdminCommandNoRealm(context, "zone", "modify", realmArg, zoneGroupArg, zoneArg, endpointArg)
-		if err != nil {
-			return errors.Wrapf(err, "failed to add object store %q in rgw zone %q", context.Name, zoneName)
-		}
-		logger.Infof("Added object store %q to realm %q, zonegroup %q, zone %q", context.Name, realmName, zoneGroupName, zoneName)
 	} else {
-		// create the realm if it doesn't exist yet
-		output, err := runAdminCommand(context, "realm", "get")
+		err = createMultisite(context, endpointArg, realmArg, zoneGroupArg, zoneArg)
 		if err != nil {
-			updatePeriod = true
-			output, err = runAdminCommand(context, "realm", "create")
-			if err != nil {
-				return errors.Wrapf(err, "failed to create rgw realm %q", context.Name)
-			}
-		}
-
-		realmID, err := decodeID(output)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse realm id")
-		}
-
-		// create the zonegroup if it doesn't exist yet
-		output, err = runAdminCommand(context, "zonegroup", "get")
-		if err != nil {
-			updatePeriod = true
-			output, err = runAdminCommand(context, "zonegroup", "create", "--master", endpointArg)
-			if err != nil {
-				return errors.Wrapf(err, "failed to create rgw zonegroup for %q", context.Name)
-			}
-		}
-
-		zoneGroupID, err := decodeID(output)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse zone group id")
-		}
-
-		// create the zone if it doesn't exist yet
-		output, err = runAdminCommand(context, "zone", "get", zoneArg)
-		if err != nil {
-			updatePeriod = true
-			output, err = runAdminCommand(context, "zone", "create", "--master", endpointArg, zoneArg)
-			if err != nil {
-				return errors.Wrapf(err, "failed to create rgw zonegroup for %q", context.Name)
-			}
-		}
-
-		zoneID, err := decodeID(output)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse zone id")
-		}
-
-		logger.Infof("RGW: realm=%s, zonegroup=%s, zone=%s", realmID, zoneGroupID, zoneID)
-	}
-
-	if updatePeriod {
-		// the period will help notify other zones of changes if there are multi-zones
-		_, err := RunAdminCommandNoRealm(context, "period", "update", "--commit", realmArg, zoneGroupArg, zoneArg)
-		if err != nil {
-			return errors.Wrap(err, "failed to update period")
+			return errors.Wrapf(err, "failed create ceph multisite for object-store %q", context.Name)
 		}
 	}
 
@@ -271,30 +388,20 @@ func decodeID(data string) (string, error) {
 	var id idType
 	err := json.Unmarshal([]byte(data), &id)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to unmarshal json")
+		return "", errors.Wrap(err, "failed to unmarshal json")
 	}
 
 	return id.ID, err
 }
 
-func decodeMasterZoneID(data string) (string, error) {
+func DecodeZoneGroupConfig(data string) (zoneGroupType, error) {
 	var config zoneGroupType
 	err := json.Unmarshal([]byte(data), &config)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to unmarshal json")
+		return config, errors.Wrap(err, "failed to unmarshal json")
 	}
 
-	return config.MasterZoneID, err
-}
-
-func decodeZonesList(data string) ([]zonesType, error) {
-	var config zoneGroupType
-	err := json.Unmarshal([]byte(data), &config)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal json")
-	}
-
-	return config.Zones, err
+	return config, err
 }
 
 func getObjectStores(context *Context) ([]string, error) {

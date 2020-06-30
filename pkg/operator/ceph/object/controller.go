@@ -335,7 +335,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// RECONCILE SERVICE
 		logger.Debug("reconciling object store service")
-		serviceIP, err := cfg.reconcileService(cephObjectStore)
+		serviceIP, err = cfg.reconcileService(cephObjectStore)
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
 		}
@@ -349,7 +349,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// RECONCILE REALM
 		logger.Infof("setting multisite settings for object store %q", cephObjectStore.Name)
-		err = setMultisite(objContext, serviceIP, cephObjectStore.Spec, realmName, zoneGroupName, zoneName)
+		err = setMultisite(objContext, cephObjectStore.Spec, serviceIP, realmName, zoneGroupName, zoneName, cephObjectStore.Namespace)
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to configure multisite for object store", err)
 		}
