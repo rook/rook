@@ -51,7 +51,7 @@ const (
 	controllerName = "ceph-object-zone-controller"
 )
 
-var waitForRequeueIfObjectZoneNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+var waitForRequeueIfObjectZoneGroupNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
@@ -259,9 +259,9 @@ func (r *ReconcileObjectZone) reconcileObjectZoneGroup(zone *cephv1.CephObjectZo
 	zoneGroup, err := r.context.RookClientset.CephV1().CephObjectZoneGroups(zone.Namespace).Get(zone.Spec.ZoneGroup, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return "", waitForRequeueIfObjectZoneNotReady, err
+			return "", waitForRequeueIfObjectZoneGroupNotReady, err
 		}
-		return "", waitForRequeueIfObjectZoneNotReady, errors.Wrapf(err, "error getting cephObjectZoneGroup %v", zone.Spec.ZoneGroup)
+		return "", waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "error getting cephObjectZoneGroup %v", zone.Spec.ZoneGroup)
 	}
 
 	logger.Infof("CephObjectZoneGroup %v found", zoneGroup.Name)
@@ -276,9 +276,9 @@ func (r *ReconcileObjectZone) reconcileCephZoneGroup(zone *cephv1.CephObjectZone
 	_, err := object.RunAdminCommandNoRealm(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			return waitForRequeueIfObjectZoneNotReady, errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)
+			return waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)
 		} else {
-			return waitForRequeueIfObjectZoneNotReady, errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d", code)
+			return waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d", code)
 		}
 	}
 
