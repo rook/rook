@@ -223,9 +223,9 @@ func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObj
 		return reconcile.Result{}, errors.Wrapf(err, "failed to parse `radosgw-admin period get` output")
 	}
 
-	masterArg := ""
+	zoneGroupIsMaster := false
 	if masterZoneGroup == "" {
-		masterArg = "--master"
+		zoneGroupIsMaster = true
 	}
 
 	// create zone group
@@ -233,7 +233,14 @@ func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObj
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			logger.Debugf("ceph zone group %q not found, running `radosgw-admin zonegroup create`", zoneGroup.Name)
-			_, err := object.RunAdminCommandNoRealm(objContext, "zonegroup", "create", realmArg, zoneGroupArg, masterArg)
+
+			if zoneGroupIsMaster {
+				masterArg := "--master"
+				_, err = object.RunAdminCommandNoRealm(objContext, "zonegroup", "create", realmArg, zoneGroupArg, masterArg)
+			} else {
+				_, err = object.RunAdminCommandNoRealm(objContext, "zonegroup", "create", realmArg, zoneGroupArg)
+			}
+
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph zone group %q", zoneGroup.Name)
 			}
