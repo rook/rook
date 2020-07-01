@@ -45,6 +45,7 @@ ConfigMap can be used in mix with the already existing Env Vars defined in opera
 ### Cassandra
 
 - Added [JMX Prometheus exporter](https://github.com/prometheus/jmx_exporter) support.
+- Updated Base image from Alpine 3.8 to 3.12 due to CVEs.
 
 ## Breaking Changes
 
