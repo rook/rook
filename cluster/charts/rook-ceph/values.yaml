@@ -57,7 +57,6 @@ csi:
   enableRbdDriver: true
   enableCephfsDriver: true
   enableGrpcMetrics: true
-  enableSnapshotter: true
   # (Optional) set user created priorityclassName for csi plugin pods.
   # pluginPriorityClassName: system-node-critical
 
@@ -251,9 +250,9 @@ csi:
   #registrar:
     #image: quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
   #provisioner:
-    #image: quay.io/k8scsi/csi-provisioner:v1.4.0
+    #image: quay.io/k8scsi/csi-provisioner:v1.6.0
   #snapshotter:
-    #image: quay.io/k8scsi/csi-snapshotter:v1.2.2
+    #image: quay.io/k8scsi/csi-snapshotter:v2.1.1
   #attacher:
     #image: quay.io/k8scsi/csi-attacher:v2.1.0
   #resizer:

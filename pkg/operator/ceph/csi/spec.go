@@ -101,9 +101,9 @@ var (
 	// image names
 	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v2.1.2"
 	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
-	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.4.0"
+	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.6.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
-	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v1.2.2"
+	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v2.1.1"
 	defaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
 )
 
@@ -111,6 +111,7 @@ const (
 	KubeMinMajor                   = "1"
 	KubeMinMinor                   = "13"
 	provDeploymentSuppVersion      = "14"
+	snapshotDeploymentSuppVersion  = "17"
 	kubeMinVerForFilesystemRestore = "15"
 	kubeMinVerForBlockRestore      = "16"
 
@@ -250,11 +251,8 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
 	}
 
-	enableSnap, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_SNAPSHOTTER", "true")
-	if err != nil {
-		return errors.Wrap(err, "failed to load CSI_ENABLE_SNAPSHOTTER setting")
-	}
-	if !strings.EqualFold(enableSnap, "false") {
+	// Enable snapshotter sidecar deployment if kubernetes version is >= 1.17
+	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= snapshotDeploymentSuppVersion) {
 		tp.EnableSnapshotter = "true"
 	}
 

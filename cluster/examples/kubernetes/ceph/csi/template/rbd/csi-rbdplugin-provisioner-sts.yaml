@@ -47,21 +47,6 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-        {{ if .EnableSnapshotter }}
-        - name: csi-snapshotter
-          image:  {{ .SnapshotterImage }}
-          args:
-            - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
-            - "--timeout=150s"
-          env:
-            - name: ADDRESS
-              value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
-        {{ end }}
         - name: csi-rbdplugin
           image: {{ .CSIPluginImage }}
           args :

@@ -60,6 +60,43 @@ Rook v1.3 has several breaking changes that must be considered **before** upgrad
    - If you see **three partitions** on a device running an OSD, this is a legacy OSD. See below for [converting legacy OSDs](#converting-legacy-osds).
    - If you see a single partition or LV with the `ceph` prefix, the OSD is **not** a legacy OSD and you will not need to convert the OSDs.
 
+### CSI Snapshots
+
+CSI snapshot is moved from Alpha to Beta and is not backward compatible. The snapshots
+created with the Alpha version must be deleted before the upgrade.
+
+1. List all the volumesnapshots created
+
+```bash
+kubectl get volumesnapshot
+NAME               AGE
+rbd-pvc-snapshot   22s
+```
+
+2. Delete all volumesnapshots
+
+```bash
+kubectl delete volumesnapshot rbd-pvc-snapshot
+volumesnapshot.snapshot.storage.k8s.io "rbd-pvc-snapshot" deleted
+```
+
+3. List all volumesnapshotclasses created
+
+```bash
+kubectl get volumesnapshotclass
+NAME                      AGE
+csi-rbdplugin-snapclass   86s
+```
+
+4. Delete all volumesnapshotclasses
+
+```bash
+kubectl delete volumesnapshotclass csi-rbdplugin-snapclass
+volumesnapshotclass.snapshot.storage.k8s.io "csi-rbdplugin-snapclass" deleted
+```
+
+*Note:* The underlying snapshots on the storage system will be deleted by ceph-csi
+
 ### Converting Legacy OSDs
 
 If you have legacy OSDs as described in the previous section, it is recommended to migrate the OSDs before the upgrade,
@@ -472,6 +509,51 @@ periodically. If this is the case, it is easiest to `kubectl edit` the Operator 
 modify everything needed at once. You can switch between using Rook-Ceph's default CSI images and
 custom CSI images as you wish.
 
+### Update snapshot CRD from Alpha to Beta
+
+Since CSI snapshot has a breaking change, we need to delete the snapshotter Alpha CRD
+created by external-snapshotter sidecar container.
+
+As we are updating the snapshot resources from `Alpha` to `Beta` we need to
+delete the old `alphav1` snapshot CRD created by external-snapshotter sidecar container
+
+Check if we have any `v1alpha1` CRD created in our kubernetes cluster
+
+```bash
+[$]kubectl get crd volumesnapshotclasses.snapshot.storage.k8s.io -o yaml |grep v1alpha1
+  - name: v1alpha1
+  - v1alpha1
+[$]kubectl get crd volumesnapshotcontents.snapshot.storage.k8s.io -o yaml |grep v1alpha1
+  - name: v1alpha1
+  - v1alpha1
+[$]kubectl get crd volumesnapshots.snapshot.storage.k8s.io -o yaml |grep v1alpha1
+  - name: v1alpha1
+  - v1alpha1
+```
+
+As we have `v1alpha1` CRD created in our kubernetes cluster, we need to delete
+the Alpha CRD
+
+```bash
+[$]kubectl delete crd volumesnapshotclasses.snapshot.storage.k8s.io
+customresourcedefinition.apiextensions.k8s.io "volumesnapshotclasses.snapshot.storage.k8s.io" deleted
+[$]kubectl delete crd volumesnapshotcontents.snapshot.storage.k8s.io
+customresourcedefinition.apiextensions.k8s.io "volumesnapshotcontents.snapshot.storage.k8s.io" deleted
+[$]kubectl delete crd volumesnapshots.snapshot.storage.k8s.io
+customresourcedefinition.apiextensions.k8s.io "volumesnapshots.snapshot.storage.k8s.io" deleted
+```
+
+We need to ensure [prerequisites](ceph-csi-drivers.md#Prerequisites) are met for snapshotter
+
+### Update the RBAC required for external-snapshotter
+
+The RBAC required for snapshotter beta is sightly changes,we need to apply new
+RBAC for snapshotter to work.
+
+```sh
+kubectl apply -f upgrade-from-v1.3-apply.yaml
+```
+
 ### Use default images
 If you would like Rook to use the inbuilt default upstream images, then you may simply remove all
 `env` variables matching `ROOK_CSI_*_IMAGE` from the Rook-Ceph operator deployment.
@@ -489,9 +571,9 @@ located.
   - name: ROOK_CSI_REGISTRAR_IMAGE
     value: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
   - name: ROOK_CSI_PROVISIONER_IMAGE
-    value: "quay.io/k8scsi/csi-provisioner:v1.4.0"
+    value: "quay.io/k8scsi/csi-provisioner:v1.6.0"
   - name: ROOK_CSI_SNAPSHOTTER_IMAGE
-    value: "quay.io/k8scsi/csi-snapshotter:v1.2.2"
+    value: "quay.io/k8scsi/csi-snapshotter:v2.1.1"
   - name: ROOK_CSI_ATTACHER_IMAGE
     value: "quay.io/k8scsi/csi-attacher:v2.1.0"
   - name: ROOK_CSI_RESIZER_IMAGE
@@ -508,8 +590,8 @@ are updated.
 quay.io/cephcsi/cephcsi:v2.1.2
 quay.io/k8scsi/csi-attacher:v2.1.0
 quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
-quay.io/k8scsi/csi-provisioner:v1.4.0
+quay.io/k8scsi/csi-provisioner:v1.6.0
 quay.io/k8scsi/csi-resizer:v0.4.0
-quay.io/k8scsi/csi-snapshotter:v1.2.2
+quay.io/k8scsi/csi-snapshotter:v2.1.1
 quay.io/k8scsi/csi-resizer:v0.4.0
 ```
