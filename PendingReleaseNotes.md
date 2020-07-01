@@ -24,6 +24,8 @@
 
 ### Cassandra
 
+- Updated Base image from Alpine 3.8 to 3.12 due to CVEs.
+
 ## Breaking Changes
 
 ### Ceph
