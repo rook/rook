@@ -26,7 +26,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -68,7 +67,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
 			ConfigConfigMap: configName,
 			DataPathMap: &config.DataPathMap{
 				HostDataDir:        "",                          // nfs daemon does not store data on host, ...
-				ContainerDataDir:   cephconfig.DefaultConfigDir, // does share data in containers using emptyDir, ...
+				ContainerDataDir:   cephclient.DefaultConfigDir, // does share data in containers using emptyDir, ...
 				HostLogAndCrashDir: "",                          // and does not log to /var/log/ceph dir
 			},
 		}

@@ -31,7 +31,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -61,7 +61,7 @@ func (c *Cluster) genMonSharedKeyring() string {
 	return fmt.Sprintf(
 		keyringTemplate,
 		c.ClusterInfo.MonitorSecret,
-		cephconfig.CephKeyring(c.ClusterInfo.CephCred),
+		cephclient.CephKeyring(c.ClusterInfo.CephCred),
 	)
 }
 
@@ -77,13 +77,13 @@ func dataDirRelativeHostPath(monName string) string {
 }
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephconfig.ClusterInfo, int, *Mapping, error) {
+func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephclient.ClusterInfo, int, *Mapping, error) {
 	return CreateOrLoadClusterInfo(context, namespace, nil)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephconfig.ClusterInfo, int, *Mapping, error) {
-	var clusterInfo *cephconfig.ClusterInfo
+func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephclient.ClusterInfo, int, *Mapping, error) {
+	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
@@ -108,7 +108,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 			return nil, maxMonID, monMapping, err
 		}
 	} else {
-		clusterInfo = &cephconfig.ClusterInfo{
+		clusterInfo = &cephclient.ClusterInfo{
 			Name:          string(secrets.Data[clusterSecretNameKey]),
 			FSID:          string(secrets.Data[fsidSecretNameKey]),
 			MonitorSecret: string(secrets.Data[monSecretNameKey]),
@@ -166,9 +166,9 @@ func ValidateCephCSIConnectionSecrets(context *clusterd.Context, namespace strin
 }
 
 // WriteConnectionConfig save monitor connection config to disk
-func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
+func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
 	// write the latest config to the config dir
-	if _, err := cephconfig.GenerateConnectionConfig(context, clusterInfo); err != nil {
+	if _, err := cephclient.GenerateConnectionConfig(context, clusterInfo); err != nil {
 		return errors.Wrap(err, "failed to write connection config")
 	}
 
@@ -176,8 +176,8 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.Cl
 }
 
 // loadMonConfig returns the monitor endpoints and maxMonID
-func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephconfig.MonInfo, int, *Mapping, error) {
-	monEndpointMap := map[string]*cephconfig.MonInfo{}
+func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephclient.MonInfo, int, *Mapping, error) {
+	monEndpointMap := map[string]*cephclient.MonInfo{}
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
@@ -222,7 +222,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 
-func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {
+func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephclient.ClusterInfo, ownerRef *metav1.OwnerReference) error {
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
 
@@ -251,7 +251,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 }
 
 // create new cluster info (FSID, shared keys)
-func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cephconfig.ClusterInfo, error) {
+func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cephclient.ClusterInfo, error) {
 	fsid, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -279,11 +279,11 @@ func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cep
 		return nil, err
 	}
 
-	return &cephconfig.ClusterInfo{
+	return &cephclient.ClusterInfo{
 		FSID:          fsid.String(),
 		MonitorSecret: monSecret,
 		Name:          clusterName,
-		CephCred: cephconfig.CephCred{
+		CephCred: cephclient.CephCred{
 			Username: client.AdminUsername,
 			Secret:   adminSecret,
 		},
@@ -326,8 +326,8 @@ func ExtractKey(contents string) (string, error) {
 }
 
 // PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no OSDs keep waiting
-func PopulateExternalClusterInfo(context *clusterd.Context, namespace string) *cephconfig.ClusterInfo {
-	var clusterInfo *cephconfig.ClusterInfo
+func PopulateExternalClusterInfo(context *clusterd.Context, namespace string) *cephclient.ClusterInfo {
+	var clusterInfo *cephclient.ClusterInfo
 	for {
 		var err error
 		clusterInfo, _, _, err = LoadClusterInfo(context, namespace)

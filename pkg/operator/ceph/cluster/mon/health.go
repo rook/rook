@@ -25,7 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -272,7 +272,7 @@ func (c *Cluster) failoverMon(name string) error {
 		}
 		m.PublicIP = serviceIP
 	}
-	c.ClusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
+	c.ClusterInfo.Monitors[m.DaemonName] = cephclient.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 
 	// Start the deployment
 	if err := c.startDeployments(mConf, true); err != nil {
@@ -375,7 +375,7 @@ func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error
 
 func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
 	var changed bool
-	oldClusterInfoMonitors := map[string]*cephconfig.MonInfo{}
+	oldClusterInfoMonitors := map[string]*cephclient.MonInfo{}
 	// clearing the content of clusterinfo monitors
 	// and populate oldClusterInfoMonitors with monitors from clusterinfo
 	// later c.ClusterInfo.Monitors get populated again
@@ -411,7 +411,7 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 				monIP := cephutil.GetIPFromEndpoint(endpoint)
 				monPort := cephutil.GetPortFromEndpoint(endpoint)
 				logger.Infof("new external mon %q found: %s, adding it", mon.Name, endpoint)
-				c.ClusterInfo.Monitors[mon.Name] = cephconfig.NewMonInfo(mon.Name, monIP, monPort)
+				c.ClusterInfo.Monitors[mon.Name] = cephclient.NewMonInfo(mon.Name, monIP, monPort)
 			} else {
 				logger.Debugf("mon %q is not in quorum and not in ClusterInfo", mon.Name)
 			}

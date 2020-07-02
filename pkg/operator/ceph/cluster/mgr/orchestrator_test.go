@@ -21,7 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -61,7 +61,7 @@ func TestOrchestratorModules(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 

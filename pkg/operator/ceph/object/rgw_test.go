@@ -25,8 +25,9 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 
-	config "github.com/rook/rook/pkg/daemon/ceph/config"
-	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -49,12 +50,12 @@ func TestStartRGW(t *testing.T) {
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	info := config.CreateTestClusterInfo(1)
+	info := clienttest.CreateTestClusterInfo(1)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
 	store := simpleStore()
 	store.Spec.Gateway.Instances = 1
 	version := "v1.1.0"
-	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
+	data := config.NewStatelessDaemonDataPathMap(config.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
 	s := scheme.Scheme
 	object := []runtime.Object{&cephv1.CephObjectStore{}}
@@ -100,8 +101,8 @@ func TestCreateObjectStore(t *testing.T) {
 	store := simpleStore()
 	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
-	info := config.CreateTestClusterInfo(1)
-	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
+	info := clienttest.CreateTestClusterInfo(1)
+	data := config.NewStatelessDaemonDataPathMap(config.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
 	// create the pools
 	s := scheme.Scheme
@@ -128,13 +129,13 @@ func TestGenerateSecretName(t *testing.T) {
 	cl := fake.NewFakeClient([]runtime.Object{}...)
 
 	// start a basic cluster
-	c := &clusterConfig{&config.ClusterInfo{},
+	c := &clusterConfig{&cephclient.ClusterInfo{},
 		&clusterd.Context{},
 		&cephv1.CephObjectStore{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"}},
 		"v1.1.0",
 		&cephv1.ClusterSpec{},
 		&metav1.OwnerReference{},
-		&cephconfig.DataPathMap{},
+		&config.DataPathMap{},
 		false,
 		cl,
 		scheme.Scheme,

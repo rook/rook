@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/config"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +36,7 @@ func TestAdminKeyringStore(t *testing.T) {
 	}
 	ns := "rook-ceph"
 	owner := metav1.OwnerReference{}
-	clusterInfo := config.CreateTestClusterInfo(1)
+	clusterInfo := clienttest.CreateTestClusterInfo(1)
 	k := GetSecretStore(ctx, ns, &owner)
 
 	assertKeyringData := func(expectedKeyring string) {
@@ -65,7 +65,7 @@ func TestAdminVolumeAndMount(t *testing.T) {
 	}
 	ns := "rook-ceph"
 	owner := metav1.OwnerReference{}
-	clusterInfo := config.CreateTestClusterInfo(1)
+	clusterInfo := clienttest.CreateTestClusterInfo(1)
 	s := GetSecretStore(ctx, ns, &owner)
 
 	clusterInfo.CephCred.Secret = "adminsecretkey"

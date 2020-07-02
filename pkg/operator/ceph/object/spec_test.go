@@ -22,7 +22,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/config"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -45,7 +45,7 @@ func TestPodSpecs(t *testing.T) {
 		},
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
-	info := config.CreateTestClusterInfo(1)
+	info := clienttest.CreateTestClusterInfo(1)
 	info.CephVersion = cephver.Nautilus
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 
@@ -96,7 +96,7 @@ func TestSSLPodSpec(t *testing.T) {
 		},
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
-	info := config.CreateTestClusterInfo(1)
+	info := clienttest.CreateTestClusterInfo(1)
 	info.CephVersion = cephver.Nautilus
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 	store.Spec.Gateway.SSLCertificateRef = "mycert"

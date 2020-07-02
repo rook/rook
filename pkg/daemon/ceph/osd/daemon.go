@@ -29,7 +29,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/util/sys"
 )
@@ -150,13 +150,13 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	// create the ceph.conf with the default settings
-	cephConfig, err := cephconfig.CreateDefaultCephConfig(context, agent.cluster)
+	cephConfig, err := cephclient.CreateDefaultCephConfig(context, agent.cluster)
 	if err != nil {
 		return errors.Wrap(err, "failed to create default ceph config")
 	}
 
 	// write the latest config to the config dir
-	confFilePath, err := cephconfig.GenerateConnectionConfigWithSettings(context, agent.cluster, cephConfig)
+	confFilePath, err := cephclient.GenerateConnectionConfigWithSettings(context, agent.cluster, cephConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to write connection config")
 	}
@@ -164,15 +164,15 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	if err != nil {
 		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}
-	err = ioutil.WriteFile(cephconfig.DefaultConfigFilePath(), src, 0444)
+	err = ioutil.WriteFile(cephclient.DefaultConfigFilePath(), src, 0444)
 	if err != nil {
-		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", cephconfig.DefaultConfigFilePath())
+		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", cephclient.DefaultConfigFilePath())
 	}
-	dst, err := ioutil.ReadFile(cephconfig.DefaultConfigFilePath())
+	dst, err := ioutil.ReadFile(cephclient.DefaultConfigFilePath())
 	if err == nil {
-		logger.Debugf("config file @ %s: %s", cephconfig.DefaultConfigFilePath(), dst)
+		logger.Debugf("config file @ %s: %s", cephclient.DefaultConfigFilePath(), dst)
 	} else {
-		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %v", cephconfig.DefaultConfigFilePath(), err)
+		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %v", cephclient.DefaultConfigFilePath(), err)
 	}
 
 	logger.Infof("discovering hardware")

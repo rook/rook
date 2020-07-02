@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package config provides methods for creating and formatting Ceph configuration files for daemons.
-package config
+// Package client provides methods for creating and formatting Ceph configuration files for daemons.
+package client
 
 import (
 	"fmt"
@@ -29,12 +29,11 @@ import (
 	"github.com/go-ini/ini"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephclient")
 
 const (
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
@@ -76,8 +75,8 @@ func DefaultConfigFilePath() string {
 	return path.Join(DefaultConfigDir, DefaultConfigFile)
 }
 
-// GetConfFilePath gets the path of a given cluster's config file
-func GetConfFilePath(root, clusterName string) string {
+// getConfFilePath gets the path of a given cluster's config file
+func getConfFilePath(root, clusterName string) string {
 	return fmt.Sprintf("%s/%s.config", root, clusterName)
 }
 
@@ -98,7 +97,7 @@ func GenerateConnectionConfigWithSettings(context *clusterd.Context, cluster *Cl
 		return "", errors.Wrapf(err, "failed to write keyring %q to %s", cluster.CephCred.Username, root)
 	}
 
-	filePath, err := GenerateConfigFile(context, cluster, root, keyringPath, settings, nil)
+	filePath, err := generateConfigFile(context, cluster, root, keyringPath, settings, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to write config to %s", root)
 	}
@@ -106,8 +105,8 @@ func GenerateConnectionConfigWithSettings(context *clusterd.Context, cluster *Cl
 	return filePath, nil
 }
 
-// GenerateConfigFile generates and writes a config file to disk.
-func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
+// generateConfigFile generates and writes a config file to disk.
+func generateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
 
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
@@ -125,7 +124,7 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 	}
 
 	// write the entire config to disk
-	filePath := GetConfFilePath(pathRoot, cluster.Name)
+	filePath := getConfFilePath(pathRoot, cluster.Name)
 	logger.Infof("writing config file %s", filePath)
 	if err := configFile.SaveTo(filePath); err != nil {
 		return "", errors.Wrapf(err, "failed to save config file %s", filePath)
@@ -240,28 +239,4 @@ func PopulateMonHostMembers(monitors map[string]*MonInfo) ([]string, []string) {
 	}
 
 	return monMembers, monHosts
-}
-
-// CreateTestClusterInfo creates a test cluster info
-// This would be best in a test package, but is included here to avoid cyclic dependencies
-func CreateTestClusterInfo(monCount int) *ClusterInfo {
-	c := &ClusterInfo{
-		FSID:          "12345",
-		Name:          "default",
-		MonitorSecret: "monsecret",
-		CephCred: CephCred{
-			Username: client.AdminUsername,
-			Secret:   "adminkey",
-		},
-		Monitors: map[string]*MonInfo{},
-	}
-	mons := []string{"a", "b", "c", "d", "e"}
-	for i := 0; i < monCount; i++ {
-		id := mons[i]
-		c.Monitors[id] = &MonInfo{
-			Name:     id,
-			Endpoint: fmt.Sprintf("1.2.3.%d:6789", (i + 1)),
-		}
-	}
-	return c
 }

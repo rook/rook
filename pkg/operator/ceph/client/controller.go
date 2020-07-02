@@ -28,7 +28,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -208,7 +208,7 @@ func (c *ClientController) onUpdate(oldObj, newObj interface{}) {
 	}
 }
 
-func (c *ClientController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephconfig.ClusterInfo) {
+func (c *ClientController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephclient.ClusterInfo) {
 	logger.Debugf("No need to update the client after the parent cluster changed")
 }
 

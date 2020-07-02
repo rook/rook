@@ -22,7 +22,7 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 )
 
@@ -34,7 +34,7 @@ var Cmd = &cobra.Command{
 
 var (
 	cfg         = &config{}
-	clusterInfo cephconfig.ClusterInfo
+	clusterInfo cephclient.ClusterInfo
 	logger      = capnslog.NewPackageLogger("github.com/rook/rook", "cephcmd")
 )
 

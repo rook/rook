@@ -28,7 +28,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -47,7 +46,7 @@ const (
 )
 
 type cluster struct {
-	Info                 *cephconfig.ClusterInfo
+	Info                 *client.ClusterInfo
 	context              *clusterd.Context
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec

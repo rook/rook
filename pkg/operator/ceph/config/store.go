@@ -23,7 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -63,7 +63,7 @@ func GetStore(context *clusterd.Context, namespace string, ownerRef *metav1.Owne
 }
 
 // CreateOrUpdate creates or updates the stored Ceph config based on the cluster info.
-func (s *Store) CreateOrUpdate(clusterInfo *cephconfig.ClusterInfo) error {
+func (s *Store) CreateOrUpdate(clusterInfo *cephclient.ClusterInfo) error {
 	// these are used for all ceph daemons on the commandline and must *always* be stored
 	if err := s.createOrUpdateMonHostSecrets(clusterInfo); err != nil {
 		return errors.Wrap(err, "failed to store mon host configs")
@@ -73,11 +73,11 @@ func (s *Store) CreateOrUpdate(clusterInfo *cephconfig.ClusterInfo) error {
 }
 
 // update "mon_host" and "mon_initial_members" in the stored config
-func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephconfig.ClusterInfo) error {
+func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephclient.ClusterInfo) error {
 
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// and "mon hosts" global config field
-	members, hosts := cephconfig.PopulateMonHostMembers(clusterInfo.Monitors)
+	members, hosts := cephclient.PopulateMonHostMembers(clusterInfo.Monitors)
 
 	// store these in a secret instead of the configmap; secrets are required by CSI drivers
 	secret := &v1.Secret{

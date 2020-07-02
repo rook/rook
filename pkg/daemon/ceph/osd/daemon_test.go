@@ -21,7 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
@@ -266,7 +266,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		devices:        []DesiredDevice{{Name: "all"}},
 		metadataDevice: "nvme01",
 		pvcBacked:      pvcBackedOSD,
-		cluster:        &cephconfig.ClusterInfo{},
+		cluster:        &cephclient.ClusterInfo{},
 	}
 	agent.cluster.CephVersion = version
 	mapping, err := getAvailableDevices(context, agent)

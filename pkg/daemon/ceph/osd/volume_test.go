@@ -24,7 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -281,7 +281,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 
 	// Test with CephVersion{Major: 14, Minor: 2, Extra: 8} for argument raw  without flag --crush-device-class.
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
 	a := &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
@@ -298,7 +298,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 
 	// Test for failure scenario by giving CephVersion{Major: 14, Minor: 2, Extra: 7}
 	// instead of CephVersion{Major: 14, Minor: 2, Extra: 8}.
-	clusterInfo = &cephconfig.ClusterInfo{
+	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 7},
 	}
 	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
@@ -321,7 +321,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	}
 
 	// Test with CephVersion{Major: 14, Minor: 2, Extra: 7} for argument lvm  without flag --crush-device-class.
-	clusterInfo = &cephconfig.ClusterInfo{
+	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 7},
 	}
 	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
@@ -338,7 +338,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 
 	// Test for failure scenario by giving CephVersion{Major: 14, Minor: 2, Extra: 8}
 	// instead of cephver.CephVersion{Major: 14, Minor: 2, Extra: 7}.
-	clusterInfo = &cephconfig.ClusterInfo{
+	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
 	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
@@ -362,7 +362,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	// Test with CephVersion{Major: 14, Minor: 2, Extra: 8} for argument raw  with flag --crush-device-class.
 	os.Setenv(oposd.CrushDeviceClassVarName, "foo")
 	defer os.Unsetenv(oposd.CrushDeviceClassVarName)
-	clusterInfo = &cephconfig.ClusterInfo{
+	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
 	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
@@ -402,7 +402,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 
 	// Test with CephVersion{Major: 14, Minor: 2, Extra: 8} for argument raw with flag --block.db and without --crush-device-class flag.
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
 	a := &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
@@ -428,7 +428,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	}
 
 	// Test with CephVersion{Major: 14, Minor: 2, Extra: 7} for argument lvm with flag --block.db and without --crush-device-class  flag.
-	clusterInfo = &cephconfig.ClusterInfo{
+	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 7},
 	}
 	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
@@ -458,7 +458,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	os.Setenv(oposd.CrushDeviceClassVarName, "foo")
 	defer os.Unsetenv(oposd.CrushDeviceClassVarName)
 	context = &clusterd.Context{Executor: executor}
-	clusterInfo = &cephconfig.ClusterInfo{
+	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
 	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}

@@ -37,7 +37,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
@@ -71,7 +71,7 @@ type ReconcileObjectStoreUser struct {
 	objContext      *object.Context
 	userConfig      object.ObjectUser
 	cephClusterSpec *cephv1.ClusterSpec
-	clusterInfo     *cephconfig.ClusterInfo
+	clusterInfo     *cephclient.ClusterInfo
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -182,7 +182,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// Populate clusterInfo
 	// Always populate it during each reconcile
-	var clusterInfo *cephconfig.ClusterInfo
+	var clusterInfo *cephclient.ClusterInfo
 	if r.cephClusterSpec.External.Enable {
 		clusterInfo = mon.PopulateExternalClusterInfo(r.context, request.NamespacedName.Namespace)
 	} else {

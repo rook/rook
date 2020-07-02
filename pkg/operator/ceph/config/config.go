@@ -28,7 +28,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-config")
@@ -103,7 +103,7 @@ func NewFlag(key, value string) string {
 func SetDefaultConfigs(
 	context *clusterd.Context,
 	namespace string,
-	clusterInfo *cephconfig.ClusterInfo,
+	clusterInfo *cephclient.ClusterInfo,
 	networkSpec cephv1.NetworkSpec,
 ) error {
 	// ceph.conf is never used. All configurations are made in the centralized mon config database,

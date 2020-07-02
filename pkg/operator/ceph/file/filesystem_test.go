@@ -27,8 +27,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -83,7 +83,7 @@ func TestCreateFilesystem(t *testing.T) {
 		},
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				err := cephtest.CreateConfigDir(path.Join(configDir, "ns"))
+				err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
 				assert.Nil(t, err)
 			}
 
@@ -114,7 +114,7 @@ func TestCreateFilesystem(t *testing.T) {
 			},
 		},
 	}
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
 
 	// start a basic cluster
 	err := createFilesystem(clusterInfo, context, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
@@ -161,7 +161,7 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 		},
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				err := cephtest.CreateConfigDir(path.Join(configDir, "ns"))
+				err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
 				assert.Nil(t, err)
 			}
 
@@ -181,7 +181,7 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 			},
 		},
 	}
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
 
 	// start a basic cluster
 	err := createFilesystem(clusterInfo, context, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)

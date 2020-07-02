@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package client
 
 import (
 	"io/ioutil"
@@ -102,7 +102,7 @@ func TestGenerateConfigFile(t *testing.T) {
 	assert.True(t, isInitialized)
 
 	// generate the config file to disk now
-	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, filepath.Join(configDir, "mykeyring"), nil, nil)
+	configFilePath, err := generateConfigFile(context, clusterInfo, configDir, filepath.Join(configDir, "mykeyring"), nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, filepath.Join(configDir, "foo-cluster.config"), configFilePath)
 

@@ -30,7 +30,7 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -64,7 +64,7 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
-	clusterInfo       *cephconfig.ClusterInfo
+	clusterInfo       *cephclient.ClusterInfo
 	Namespace         string
 	Replicas          int
 	placement         rookv1.Placement
@@ -89,7 +89,7 @@ type Cluster struct {
 
 // New creates an instance of the mgr
 func New(
-	clusterInfo *cephconfig.ClusterInfo,
+	clusterInfo *cephclient.ClusterInfo,
 	context *clusterd.Context,
 	namespace, rookVersion string,
 	cephVersion cephv1.CephVersionSpec,

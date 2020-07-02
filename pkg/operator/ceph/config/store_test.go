@@ -22,7 +22,8 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +39,7 @@ func TestStore(t *testing.T) {
 
 	s := GetStore(ctx, ns, &owner)
 
-	assertConfigStore := func(ci *cephconfig.ClusterInfo) {
+	assertConfigStore := func(ci *cephclient.ClusterInfo) {
 		sec, e := clientset.CoreV1().Secrets(ns).Get(StoreName, metav1.GetOptions{})
 		assert.NoError(t, e)
 		mh := strings.Split(sec.StringData["mon_host"], ",")                    // list of mon ip:port pairs in cluster
@@ -60,8 +61,8 @@ func TestStore(t *testing.T) {
 		}
 	}
 
-	i1 := cephconfig.CreateTestClusterInfo(1) // cluster w/ one mon
-	i3 := cephconfig.CreateTestClusterInfo(3) // same cluster w/ 3 mons
+	i1 := clienttest.CreateTestClusterInfo(1) // cluster w/ one mon
+	i3 := clienttest.CreateTestClusterInfo(3) // same cluster w/ 3 mons
 
 	s.CreateOrUpdate(i1)
 	assertConfigStore(i1)
@@ -79,7 +80,7 @@ func TestEnvVarsAndFlags(t *testing.T) {
 	owner := metav1.OwnerReference{}
 
 	s := GetStore(ctx, ns, &owner)
-	s.CreateOrUpdate(cephconfig.CreateTestClusterInfo(3))
+	s.CreateOrUpdate(clienttest.CreateTestClusterInfo(3))
 
 	v := StoredMonHostEnvVars()
 	f := StoredMonHostEnvVarFlags()

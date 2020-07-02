@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -36,7 +35,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
-	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -86,7 +84,7 @@ func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monRe
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				err := clienttest.CreateConfigDir(path.Join(configDir, namespace))
 				return "", errors.Wrap(err, "failed testing of start cluster without quorum response")
 			}
 			return "", nil
@@ -131,7 +129,7 @@ func newCluster(context *clusterd.Context, namespace string, network cephv1.Netw
 
 // setCommonMonProperties is a convenience helper for setting common test properties
 func setCommonMonProperties(c *Cluster, currentMons int, mon cephv1.MonSpec, rookVersion string) {
-	c.ClusterInfo = cephconfig.CreateTestClusterInfo(currentMons)
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(currentMons)
 	c.spec.Mon.Count = mon.Count
 	c.spec.Mon.AllowMultiplePerNode = mon.AllowMultiplePerNode
 	c.rookVersion = rookVersion
@@ -169,7 +167,7 @@ func TestOperatorRestart(t *testing.T) {
 	context, err := newTestStartCluster(t, namespace)
 	assert.Nil(t, err)
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
-	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
 	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -197,7 +195,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 
 	// cluster without host networking
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, false, v1.ResourceRequirements{})
-	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
 	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -304,7 +302,7 @@ func TestWaitForQuorum(t *testing.T) {
 	namespace := "ns"
 	quorumChecks := 0
 	quorumResponse := func() (string, error) {
-		mons := map[string]*cephconfig.MonInfo{
+		mons := map[string]*client.MonInfo{
 			"a": {},
 		}
 		quorumChecks++
@@ -318,7 +316,7 @@ func TestWaitForQuorum(t *testing.T) {
 	context, err := newTestStartClusterWithQuorumResponse(t, namespace, quorumResponse)
 	requireAllInQuorum := false
 	expectedMons := []string{"a"}
-	clusterInfo := &cephconfig.ClusterInfo{Name: namespace}
+	clusterInfo := &client.ClusterInfo{Name: namespace}
 	err = waitForQuorumWithMons(context, clusterInfo, expectedMons, 0, requireAllInQuorum)
 	assert.Nil(t, err)
 }

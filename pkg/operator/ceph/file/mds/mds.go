@@ -29,7 +29,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -57,7 +57,7 @@ const (
 
 // Cluster represents a Ceph mds cluster.
 type Cluster struct {
-	clusterInfo     *cephconfig.ClusterInfo
+	clusterInfo     *cephclient.ClusterInfo
 	context         *clusterd.Context
 	rookVersion     string
 	clusterSpec     *cephv1.ClusterSpec
@@ -76,7 +76,7 @@ type mdsConfig struct {
 
 // NewCluster creates a Ceph mds cluster representation.
 func NewCluster(
-	clusterInfo *cephconfig.ClusterInfo,
+	clusterInfo *cephclient.ClusterInfo,
 	context *clusterd.Context,
 	clusterSpec *cephv1.ClusterSpec,
 	fs cephv1.CephFilesystem,

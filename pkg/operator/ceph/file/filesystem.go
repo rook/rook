@@ -25,7 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -46,7 +46,7 @@ type Filesystem struct {
 
 // createFilesystem creates a Ceph filesystem with metadata servers
 func createFilesystem(
-	clusterInfo *cephconfig.ClusterInfo,
+	clusterInfo *cephclient.ClusterInfo,
 	context *clusterd.Context,
 	fs cephv1.CephFilesystem,
 	clusterSpec *cephv1.ClusterSpec,
@@ -91,7 +91,7 @@ func createFilesystem(
 
 // deleteFileSystem deletes the filesystem from Ceph
 func deleteFilesystem(
-	clusterInfo *cephconfig.ClusterInfo,
+	clusterInfo *cephclient.ClusterInfo,
 	context *clusterd.Context,
 	fs cephv1.CephFilesystem,
 	clusterSpec *cephv1.ClusterSpec,

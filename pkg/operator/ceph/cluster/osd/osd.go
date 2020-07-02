@@ -32,7 +32,7 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -75,7 +75,7 @@ const (
 
 // Cluster keeps track of the OSDs
 type Cluster struct {
-	clusterInfo                                *cephconfig.ClusterInfo
+	clusterInfo                                *cephclient.ClusterInfo
 	context                                    *clusterd.Context
 	Namespace                                  string
 	placement                                  rookv1.Placement
@@ -100,7 +100,7 @@ type Cluster struct {
 
 // New creates an instance of the OSD manager
 func New(
-	clusterInfo *cephconfig.ClusterInfo,
+	clusterInfo *cephclient.ClusterInfo,
 	context *clusterd.Context,
 	namespace string,
 	rookVersion string,

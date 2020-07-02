@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 const (
@@ -54,5 +54,5 @@ func createOSDBootstrapKeyring(context *clusterd.Context, clusterName, rootDir s
 		return fmt.Sprintf(bootstrapOSDKeyringTemplate, key)
 	}
 
-	return cephconfig.CreateKeyring(context, clusterName, username, keyringPath, access, keyringEval)
+	return cephclient.CreateKeyring(context, clusterName, username, keyringPath, access, keyringEval)
 }

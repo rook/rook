@@ -33,7 +33,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
@@ -112,7 +112,7 @@ var (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
-	ClusterInfo         *cephconfig.ClusterInfo
+	ClusterInfo         *cephclient.ClusterInfo
 	context             *clusterd.Context
 	spec                cephv1.ClusterSpec
 	Namespace           string
@@ -187,7 +187,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath string, network c
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephconfig.ClusterInfo, error) {
+func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephclient.ClusterInfo, error) {
 
 	// Only one goroutine can orchestrate the mons at a time
 	c.acquireOrchestrationLock()
@@ -557,7 +557,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 			}
 			m.PublicIP = serviceIP
 		}
-		c.ClusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
+		c.ClusterInfo.Monitors[m.DaemonName] = cephclient.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 	}
 
 	return nil
@@ -942,7 +942,7 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	return nil
 }
 
-func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo, mons []string, sleepTime int, requireAllInQuorum bool) error {
+func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, mons []string, sleepTime int, requireAllInQuorum bool) error {
 	logger.Infof("waiting for mon quorum with %v", mons)
 
 	// wait for monitors to establish quorum

@@ -25,7 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -55,7 +55,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: clientset}
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
 		context,
@@ -162,7 +162,7 @@ func TestConfigureModules(t *testing.T) {
 
 	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
-	clusterInfo := &cephconfig.ClusterInfo{}
+	clusterInfo := &cephclient.ClusterInfo{}
 	c := &Cluster{
 		clusterInfo: clusterInfo,
 		context:     context,

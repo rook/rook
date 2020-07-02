@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -48,7 +48,7 @@ func TestProvisionImage(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				err := clienttest.CreateConfigDir(path.Join(configDir, namespace))
 				assert.Nil(t, err)
 			}
 
@@ -115,7 +115,7 @@ func TestReclaimPolicyForProvisionedImages(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				err := cephtest.CreateConfigDir(path.Join(configDir, namespace))
+				err := clienttest.CreateConfigDir(path.Join(configDir, namespace))
 				assert.Nil(t, err)
 			}
 

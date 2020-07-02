@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package client
 
 import (
 	"fmt"
@@ -24,7 +24,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 const (
@@ -48,7 +47,7 @@ const (
 
 // CephKeyring returns the filled-out user keyring
 func CephKeyring(cred CephCred) string {
-	if cred.Username == client.AdminUsername {
+	if cred.Username == AdminUsername {
 		return fmt.Sprintf(AdminKeyringTemplate, cred.Secret)
 	}
 	return fmt.Sprintf(UserKeyringTemplate, cred.Username, cred.Secret)
@@ -77,7 +76,7 @@ func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath
 	}
 
 	// get-or-create-key for the user account
-	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
+	key, err := AuthGetOrCreateKey(context, clusterName, username, access)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get or create auth key for %s", username)
 	}

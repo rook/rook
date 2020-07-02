@@ -25,7 +25,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
@@ -99,7 +99,7 @@ func (m *DeviceOsdMapping) String() string {
 	return string(b)
 }
 
-func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephconfig.ClusterInfo) error {
+func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephclient.ClusterInfo) error {
 	// add auth privileges for the OSD, the bootstrap-osd privileges were very limited
 	if err := addOSDAuth(context, cluster.Name, config.id, config.rootPath); err != nil {
 		return err

@@ -22,7 +22,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -103,7 +103,7 @@ func TestStartSecureDashboard(t *testing.T) {
 		return executor.MockExecuteCommandWithOutputFile(command, outfileArg, arg...)
 	}
 
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor}, Namespace: "myns",

@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util/sys"
@@ -130,7 +129,7 @@ func (vm *VolumeManager) Attach(image, pool, id, key, clusterNamespace string) (
 			r := fmt.Sprintf(keyringTemplate, id, key)
 			return r
 		}
-		if err = cephconfig.WriteKeyring(keyring, key, keyringEval); err != nil {
+		if err = cephclient.WriteKeyring(keyring, key, keyringEval); err != nil {
 			return "", errors.Wrapf(err, "failed writing custom keyring for id %s", id)
 		}
 	}
@@ -204,7 +203,7 @@ func (vm *VolumeManager) Detach(image, pool, id, key, clusterNamespace string, f
 			return r
 		}
 
-		if err = cephconfig.WriteKeyring(keyring, key, keyringEval); err != nil {
+		if err = cephclient.WriteKeyring(keyring, key, keyringEval); err != nil {
 			return errors.Wrapf(err, "failed writing custom keyring for id %s", id)
 		}
 	}
@@ -238,7 +237,7 @@ func getClusterInfo(context *clusterd.Context, clusterNamespace string) (string,
 		return "", "", err
 	}
 
-	keyring := cephconfig.CephKeyring(clusterInfo.CephCred)
+	keyring := cephclient.CephKeyring(clusterInfo.CephCred)
 	if err := ioutil.WriteFile(keyringFile.Name(), []byte(keyring), 0644); err != nil {
 		return "", "", errors.Errorf("failed to write monitor keyring to %s", keyringFile.Name())
 	}

@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
@@ -244,8 +243,8 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	fakeResp.MonMap.Mons[0].PublicAddr = "172.17.0.4:3300"
 
 	// populate fake ClusterInfo
-	c := &Cluster{ClusterInfo: &cephconfig.ClusterInfo{}}
-	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
+	c := &Cluster{ClusterInfo: &client.ClusterInfo{}}
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	//
 	// TEST 1
@@ -262,7 +261,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	// Now let's test the case where mon disappeared from the external cluster
 	// ClusterInfo still has them but they are gone from the monmap.
 	// Thus they should be removed from ClusterInfo
-	c.ClusterInfo = cephconfig.CreateTestClusterInfo(3)
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(3)
 	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
 	assert.NoError(t, err)
 	assert.True(t, changed)
@@ -283,7 +282,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 		},
 	}
 	fakeResp.MonMap.Mons[1].PublicAddr = "172.17.0.5:3300"
-	c.ClusterInfo = cephconfig.CreateTestClusterInfo(1)
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	changed, err = c.addOrRemoveExternalMonitor(fakeResp)
 	assert.NoError(t, err)
 	assert.True(t, changed)

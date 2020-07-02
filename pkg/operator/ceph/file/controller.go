@@ -27,7 +27,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -73,7 +72,7 @@ type ReconcileCephFilesystem struct {
 	scheme          *runtime.Scheme
 	context         *clusterd.Context
 	cephClusterSpec *cephv1.ClusterSpec
-	clusterInfo     *cephconfig.ClusterInfo
+	clusterInfo     *cephclient.ClusterInfo
 }
 
 // Add creates a new CephFilesystem Controller and adds it to the Manager. The Manager will set fields on the Controller

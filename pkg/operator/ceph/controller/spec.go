@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -261,7 +261,7 @@ func AddVolumeMountSubPath(podSpec *v1.PodSpec, volumeMountName string) {
 }
 
 // DaemonFlags returns the command line flags used by all Ceph daemons.
-func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
+func DaemonFlags(cluster *cephclient.ClusterInfo, daemonID string) []string {
 	return append(
 		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
 		config.NewFlag("id", daemonID),
@@ -275,7 +275,7 @@ func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 }
 
 // AdminFlags returns the command line flags used for Ceph commands requiring admin authentication.
-func AdminFlags(cluster *cephconfig.ClusterInfo) []string {
+func AdminFlags(cluster *cephclient.ClusterInfo) []string {
 	return append(
 		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath()),
 		config.NewFlag("setuser", "ceph"),
@@ -401,7 +401,7 @@ func GenerateMinimalCephConfInitContainer(
 	resources v1.ResourceRequirements,
 	securityContext *v1.SecurityContext,
 ) v1.Container {
-	cfgPath := cephconfig.DefaultConfigFilePath()
+	cfgPath := cephclient.DefaultConfigFilePath()
 	// Note that parameters like $(PARAM) will be replaced by Kubernetes with env var content before
 	// container creation.
 	confScript := `

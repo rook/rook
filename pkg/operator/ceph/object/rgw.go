@@ -26,7 +26,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -40,7 +39,7 @@ import (
 )
 
 type clusterConfig struct {
-	clusterInfo       *cephconfig.ClusterInfo
+	clusterInfo       *cephclient.ClusterInfo
 	context           *clusterd.Context
 	store             *cephv1.CephObjectStore
 	rookVersion       string

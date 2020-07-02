@@ -23,7 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -37,7 +37,7 @@ import (
 )
 
 func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{Namespace: "myosd", rookVersion: "23", cephVersion: cephv1.CephVersionSpec{}, clusterInfo: &cephconfig.ClusterInfo{}}
+	cluster := &Cluster{Namespace: "myosd", rookVersion: "23", cephVersion: cephv1.CephVersionSpec{}, clusterInfo: &cephclient.ClusterInfo{}}
 	osdProps := osdProperties{
 		crushHostname: "node",
 		devices:       []rookv1.Device{},
@@ -85,7 +85,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	clientset := fake.NewSimpleClientset()
 	cephVersion := cephv1.CephVersionSpec{Image: "ceph/ceph:v15"}
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
@@ -265,7 +265,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	driveGroups := cephv1.DriveGroupsSpec{}
 
 	clientset := fake.NewSimpleClientset()
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
@@ -316,7 +316,7 @@ func TestHostNetwork(t *testing.T) {
 	driveGroups := cephv1.DriveGroupsSpec{}
 
 	clientset := fake.NewSimpleClientset()
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
@@ -361,7 +361,7 @@ func TestOsdOnSDNFlag(t *testing.T) {
 
 func TestOsdPrepareResources(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
+	c := New(&cephclient.ClusterInfo{}, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
 		rookv1.StorageScopeSpec{}, cephv1.DriveGroupsSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
 
 	// TEST 2: NOT running on PVC and some prepareResources are specificied

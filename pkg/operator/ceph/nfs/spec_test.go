@@ -23,7 +23,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
@@ -96,7 +96,7 @@ func TestDeploymentSpec(t *testing.T) {
 		client:  cl,
 		scheme:  scheme.Scheme,
 		context: c,
-		clusterInfo: &cephconfig.ClusterInfo{
+		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
 			CephVersion: cephver.Nautilus,
 		},
@@ -114,7 +114,7 @@ func TestDeploymentSpec(t *testing.T) {
 		ConfigConfigMap: configName,
 		DataPathMap: &config.DataPathMap{
 			HostDataDir:        "",                          // nfs daemon does not store data on host, ...
-			ContainerDataDir:   cephconfig.DefaultConfigDir, // does share data in containers using emptyDir, ...
+			ContainerDataDir:   cephclient.DefaultConfigDir, // does share data in containers using emptyDir, ...
 			HostLogAndCrashDir: "",                          // and does not log to /var/log/ceph dir nor creates crash dumps
 		},
 	}

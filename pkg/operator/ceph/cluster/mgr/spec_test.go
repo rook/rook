@@ -22,7 +22,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -35,7 +35,7 @@ import (
 
 func TestPodSpec(t *testing.T) {
 	clientset := optest.New(t, 1)
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
 		&clusterd.Context{Clientset: clientset},
@@ -90,7 +90,7 @@ func TestPodSpec(t *testing.T) {
 
 func TestServiceSpec(t *testing.T) {
 	clientset := optest.New(t, 1)
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
 		&clusterd.Context{Clientset: clientset},
@@ -119,7 +119,7 @@ func TestServiceSpec(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := optest.New(t, 1)
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
 		&clusterd.Context{Clientset: clientset},
@@ -155,7 +155,7 @@ func TestHostNetwork(t *testing.T) {
 
 func TestHttpBindFix(t *testing.T) {
 	clientset := optest.New(t, 1)
-	clusterInfo := &cephconfig.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
 	c := New(
 		clusterInfo,
 		&clusterd.Context{Clientset: clientset},
@@ -194,7 +194,7 @@ func TestHttpBindFix(t *testing.T) {
 func TestApplyPrometheusAnnotations(t *testing.T) {
 	clientset := optest.New(t, 1)
 	c := New(
-		&cephconfig.ClusterInfo{FSID: "myfsid"},
+		&cephclient.ClusterInfo{FSID: "myfsid"},
 		&clusterd.Context{Clientset: clientset},
 		"ns",
 		"myversion",

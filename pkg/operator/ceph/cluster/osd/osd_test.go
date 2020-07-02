@@ -23,7 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -60,7 +60,7 @@ func TestOSDProperties(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
@@ -137,7 +137,7 @@ func TestAddRemoveNode(t *testing.T) {
 	statusMapWatcher := watch.NewFake()
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 	generateKey := "expected key"
@@ -280,7 +280,7 @@ func TestAddNodeFailure(t *testing.T) {
 	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
 	assert.Nil(t, cmErr)
 
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
@@ -352,7 +352,7 @@ func TestGetPVCHostName(t *testing.T) {
 }
 
 func TestGetOSDInfo(t *testing.T) {
-	c := New(&cephconfig.ClusterInfo{}, &clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{},
+	c := New(&cephclient.ClusterInfo{}, &clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{},
 		rookv1.StorageScopeSpec{}, cephv1.DriveGroupsSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{},
 		v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
 

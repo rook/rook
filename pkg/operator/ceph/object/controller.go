@@ -31,7 +31,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -81,7 +80,7 @@ type ReconcileCephObjectStore struct {
 	scheme              *runtime.Scheme
 	context             *clusterd.Context
 	cephClusterSpec     *cephv1.ClusterSpec
-	clusterInfo         *cephconfig.ClusterInfo
+	clusterInfo         *cephclient.ClusterInfo
 	objectStoreChannels map[string]*objectStoreHealth
 }
 
@@ -208,7 +207,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// Populate clusterInfo
 	// Always populate it during each reconcile
-	var clusterInfo *cephconfig.ClusterInfo
+	var clusterInfo *cephclient.ClusterInfo
 	if r.cephClusterSpec.External.Enable {
 		clusterInfo = mon.PopulateExternalClusterInfo(r.context, request.NamespacedName.Namespace)
 	} else {
@@ -318,9 +317,6 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	var err error
 
 	if r.cephClusterSpec.External.Enable {
-		// Assign the cephx user to run Ceph commands with
-		objContext.RunAsUser = r.clusterInfo.ExternalCred.Username
-
 		logger.Info("reconciling external object store")
 
 		// RECONCILE SERVICE
