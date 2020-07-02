@@ -43,26 +43,8 @@ sudo cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF
 
-#install kubeadm and kubelet
 sudo apt-get update
 wait_for_dpkg_unlock
 sleep 5
 wait_for_dpkg_unlock
-sudo apt-get install -y --allow-downgrades kubernetes-cni="0.6.0-00"
-sudo apt-get install -y --allow-downgrades kubelet="${KUBE_INSTALL_VERSION}"  && sudo apt-get install -y --allow-downgrades kubeadm="${KUBE_INSTALL_VERSION}"
-
-#get matching kubectl
-case ${ARCH} in
-    amd64|arm64)
-        wget "https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/${ARCH}/kubectl"
-        ;;
-    *)
-        echo "[ERROR] Unsupported build ARCH ${ARCH}"
-        exit 1
-        ;;
-esac
-
-chmod +x kubectl
-sudo cp kubectl /usr/local/bin
-
-sudo apt-get install -y nfs-common
+sudo apt-get install -y kubelet="${KUBE_INSTALL_VERSION}" kubeadm="${KUBE_INSTALL_VERSION}" nfs-common
