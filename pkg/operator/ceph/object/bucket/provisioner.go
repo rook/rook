@@ -84,7 +84,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	s3svc, err := NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint())
+	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint())
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrapf(err, "could not get user (user: %s)", stats.Owner)
 	}
 
-	s3svc, err := NewS3Agent(*objectUser.AccessKey, *objectUser.SecretKey, p.getObjectStoreEndpoint())
+	s3svc, err := cephObject.NewS3Agent(*objectUser.AccessKey, *objectUser.SecretKey, p.getObjectStoreEndpoint())
 	if err != nil {
 		p.deleteOBCResource("")
 		return nil, err
@@ -166,15 +166,15 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		}
 	}
 
-	statement := NewPolicyStatement().
+	statement := cephObject.NewPolicyStatement().
 		WithSID(p.cephUserName).
 		ForPrincipals(p.cephUserName).
 		ForResources(p.bucketName).
 		ForSubResources(p.bucketName).
 		Allows().
-		Actions(AllowedActions...)
+		Actions(cephObject.AllowedActions...)
 	if policy == nil {
-		policy = NewBucketPolicy(*statement)
+		policy = cephObject.NewBucketPolicy(*statement)
 	} else {
 		policy = policy.ModifyBucketPolicy(*statement)
 	}
@@ -240,7 +240,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return nil
 		}
 
-		s3svc, err := NewS3Agent(*user.AccessKey, *user.SecretKey, p.getObjectStoreEndpoint())
+		s3svc, err := cephObject.NewS3Agent(*user.AccessKey, *user.SecretKey, p.getObjectStoreEndpoint())
 		if err != nil {
 			return err
 		}
@@ -260,15 +260,15 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		}
 
 		if bucket.Owner == p.cephUserName {
-			statement := NewPolicyStatement().
+			statement := cephObject.NewPolicyStatement().
 				WithSID(p.cephUserName).
 				ForPrincipals(p.cephUserName).
 				ForResources(p.bucketName).
 				ForSubResources(p.bucketName).
 				Denies().
-				Actions(AllowedActions...)
+				Actions(cephObject.AllowedActions...)
 			if policy == nil {
-				policy = NewBucketPolicy(*statement)
+				policy = cephObject.NewBucketPolicy(*statement)
 			} else {
 				policy = policy.ModifyBucketPolicy(*statement)
 			}
@@ -420,13 +420,13 @@ func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error
 	if err != nil {
 		return err
 	}
-	p.storeDomainName = fmt.Sprintf("%s-%s.%s", prefixObjectStoreSvc, name, namespace)
+	p.storeDomainName = cephObject.BuildDomainName(name, namespace)
 	return nil
 }
 
 func (p *Provisioner) setObjectStorePort(sc *storagev1.StorageClass) error {
 	name := getObjectStoreName(sc)
-	name = fmt.Sprintf("%s-%s", prefixObjectStoreSvc, name)
+	name = fmt.Sprintf("%s-%s", cephObject.AppName, name)
 	namespace := getObjectStoreNameSpace(sc)
 	// also ensure the service exists and get the appropriate clusterIP port
 	svc, err := getService(p.context.Clientset, namespace, name)

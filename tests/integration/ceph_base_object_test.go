@@ -21,12 +21,14 @@ import (
 
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -70,14 +72,20 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object store created successfully")
 
 	// check that ObjectUser is created
-	logger.Infof("Waiting 10 seconds to ensure user was created")
-	time.Sleep(10 * time.Second)
+	logger.Infof("Waiting 15 seconds to ensure user was created")
+	time.Sleep(15 * time.Second)
 	logger.Infof("Checking to see if the user secret has been created")
 	i = 0
 	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
 		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
 	}
+
+	// Check object store status
+	objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(storeName, metav1.GetOptions{})
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), cephv1.ConditionHealthy, objectStore.Status.BucketStatus.Health)
+
 	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
 	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
 	require.NoError(s.T(), err)
@@ -136,7 +144,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
 	s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 	s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
-	s3client := utils.CreateNewS3Helper(s3endpoint, s3AccessKey, s3SecretKey)
+	s3client, err := rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint)
+	require.Nil(s.T(), err)
 	logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
 	logger.Infof("Step 5 : Put Object on bucket")

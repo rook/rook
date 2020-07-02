@@ -407,6 +407,15 @@ spec:
                   - force
             preservePoolsOnDelete:
               type: boolean
+            healthCheck:
+              properties:
+                bucket:
+                  properties:
+                    enabled:
+                      type: boolean
+                    interval:
+                      type: string
+  subresources:
   subresources:
     status: {}
 ---

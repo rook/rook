@@ -488,6 +488,15 @@ spec:
                   - force
             preservePoolsOnDelete:
               type: boolean
+            healthCheck:
+              properties:
+                bucket:
+                  properties:
+                    enabled:
+                      type: boolean
+                    interval:
+                      type: string
+  subresources:
   subresources:
     status: {}
 ---
@@ -2209,6 +2218,10 @@ spec:
     securePort:
     instances: ` + strconv.Itoa(replicaCount) + `
     allNodes: false
+  healthCheck:
+    bucket:
+      enabled: true
+      interval: 10s
 `
 }
 

@@ -211,7 +211,7 @@ func GetBucket(c *Context, bucket string) (*ObjectBucket, int, error) {
 	return &ObjectBucket{Name: bucket, ObjectBucketMetadata: ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: *stat}, RGWErrorNone, nil
 }
 
-func DeleteBucket(c *Context, bucketName string, purge bool) (int, error) {
+func DeleteObjectBucket(c *Context, bucketName string, purge bool) (int, error) {
 	options := []string{"bucket", "rm", "--bucket", bucketName}
 	if purge {
 		options = append(options, "--purge-objects")

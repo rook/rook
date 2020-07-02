@@ -154,3 +154,10 @@ func TestEmptyPoolSpec(t *testing.T) {
 	p = cephv1.PoolSpec{ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 1}}
 	assert.False(t, emptyPool(p))
 }
+
+func TestBuildDomainName(t *testing.T) {
+	name := "my-store"
+	ns := "rook-ceph"
+	dns := BuildDomainName(name, ns)
+	assert.Equal(t, "rook-ceph-rgw-my-store.rook-ceph", dns)
+}

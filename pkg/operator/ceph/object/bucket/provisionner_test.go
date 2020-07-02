@@ -24,6 +24,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -85,7 +86,7 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	}
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", prefixObjectStoreSvc, store),
+			Name:      fmt.Sprintf("%s-%s", object.AppName, store),
 			Namespace: namespace,
 		},
 		Spec: v1.ServiceSpec{

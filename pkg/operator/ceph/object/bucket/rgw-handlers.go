@@ -100,7 +100,7 @@ func (p *Provisioner) deleteOBCResource(bucketName string) error {
 	}
 	if len(bucketName) > 0 {
 		// delete bucket with purge option to remove all objects
-		errCode, err := cephObject.DeleteBucket(p.objectContext, bucketName, true)
+		errCode, err := cephObject.DeleteObjectBucket(p.objectContext, bucketName, true)
 
 		if errCode == cephObject.RGWErrorNone {
 			logger.Infof("bucket %q successfully deleted", p.bucketName)

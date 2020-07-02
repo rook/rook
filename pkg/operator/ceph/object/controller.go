@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -34,7 +35,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -76,12 +76,18 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileCephObjectStore reconciles a cephObjectStore object
 type ReconcileCephObjectStore struct {
-	client          client.Client
-	bktclient       bktclient.Interface
-	scheme          *runtime.Scheme
-	context         *clusterd.Context
-	cephClusterSpec *cephv1.ClusterSpec
-	clusterInfo     *cephconfig.ClusterInfo
+	client              client.Client
+	bktclient           bktclient.Interface
+	scheme              *runtime.Scheme
+	context             *clusterd.Context
+	cephClusterSpec     *cephv1.ClusterSpec
+	clusterInfo         *cephconfig.ClusterInfo
+	objectStoreChannels map[string]*objectStoreHealth
+}
+
+type objectStoreHealth struct {
+	stopChan          chan struct{}
+	monitoringRunning bool
 }
 
 // Add creates a new cephObjectStore Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -97,10 +103,11 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Rec
 	cephv1.AddToScheme(mgr.GetScheme())
 
 	return &ReconcileCephObjectStore{
-		client:    mgr.GetClient(),
-		scheme:    mgrScheme,
-		context:   context,
-		bktclient: bktclient.NewForConfigOrDie(context.KubeConfig),
+		client:              mgr.GetClient(),
+		scheme:              mgrScheme,
+		context:             context,
+		bktclient:           bktclient.NewForConfigOrDie(context.KubeConfig),
+		objectStoreChannels: make(map[string]*objectStoreHealth),
 	}
 }
 
@@ -161,7 +168,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// The CR was just created, initializing status fields
 	if cephObjectStore.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
+		updateStatusPhase(r.client, request.NamespacedName, cephv1.ConditionProgressing)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -188,20 +195,39 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 	r.cephClusterSpec = &cephCluster.Spec
 
+	// Initialize the channel for this object store
+	// This allows us to track multiple ObjectStores in the same namespace
+	_, ok := r.objectStoreChannels[cephObjectStore.Name]
+	if !ok {
+		r.objectStoreChannels[cephObjectStore.Name] = &objectStoreHealth{
+			stopChan:          make(chan struct{}),
+			monitoringRunning: false,
+		}
+	}
+
 	// Populate clusterInfo
 	// Always populate it during each reconcile
-	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+	var clusterInfo *cephconfig.ClusterInfo
+	if r.cephClusterSpec.External.Enable {
+		clusterInfo = mon.PopulateExternalClusterInfo(r.context, request.NamespacedName.Namespace)
+	} else {
+		clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		}
 	}
 	r.clusterInfo = clusterInfo
 
 	// Populate CephVersion
-	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, opconfig.MonType)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
+	// This only needed when bootstrapping rgw pods
+	// Might improve if we set the version by running a 'ceph version' command on a goroutine and update it every now and then
+	if !r.cephClusterSpec.External.Enable {
+		currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, opconfig.MonType)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
+		}
+		r.clusterInfo.CephVersion = currentCephVersion
 	}
-	r.clusterInfo.CephVersion = currentCephVersion
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStore)
@@ -220,7 +246,17 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			return response, nil
 		}
 
-		cfg := clusterConfig{context: r.context, store: cephObjectStore}
+		// Close the channel to stop the healthcheck of the endpoint
+		close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
+
+		// Remove object store from the map
+		delete(r.objectStoreChannels, cephObjectStore.Name)
+
+		cfg := clusterConfig{
+			context:     r.context,
+			store:       cephObjectStore,
+			clusterSpec: r.cephClusterSpec,
+		}
 		err = cfg.deleteStore()
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete store %q", cephObjectStore.Name)
@@ -237,35 +273,25 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// validate the store settings
-	if err := validateStore(r.context, cephObjectStore); err != nil {
+	if err := r.validateStore(cephObjectStore); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "invalid object store %q arguments", cephObjectStore.Name)
 	}
 
 	// CREATE/UPDATE
-	logger.Info("reconciling object store deployments")
 	reconcileResponse, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName)
 	if err != nil {
 		return r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
 	}
 
 	// Set Ready status, we are done reconciling
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	updateStatusPhase(r.client, request.NamespacedName, cephv1.ConditionReady)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, name types.NamespacedName) (reconcile.Result, error) {
-	if r.cephClusterSpec.External.Enable {
-		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, cephObjectStore.Namespace, r.clusterInfo.CephVersion)
-		if err != nil {
-			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
-			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
-			return reconcile.Result{}, errors.Wrap(err, "refusing to run new crd")
-		}
-	}
-
+func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName) (reconcile.Result, error) {
 	cfg := clusterConfig{
 		context:           r.context,
 		clusterInfo:       r.clusterInfo,
@@ -277,47 +303,80 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		scheme:            r.scheme,
 		skipUpgradeChecks: r.cephClusterSpec.SkipUpgradeChecks,
 	}
+	objContext := NewContext(r.context, cephObjectStore.Name, cephObjectStore.Namespace)
+	objContext.UID = string(cephObjectStore.UID)
 
-	// Reconcile realm/zonegroup/zone CRs & update their names
-	realmName, zoneGroupName, zoneName, reconcileResponse, err := r.reconcileMultisiteCRs(cephObjectStore)
-	if err != nil {
-		return reconcileResponse, err
-	}
+	var serviceIP string
+	var err error
 
-	// Reconcile Ceph Zone if Multisite
-	if cephObjectStore.Spec.IsMultisite() {
-		reconcileResponse, err := r.reconcileCephZone(cephObjectStore, zoneGroupName, realmName)
+	if r.cephClusterSpec.External.Enable {
+		// Assign the cephx user to run Ceph commands with
+		objContext.RunAsUser = r.clusterInfo.ExternalCred.Username
+
+		logger.Info("reconciling external object store")
+
+		// RECONCILE SERVICE
+		logger.Info("reconciling object store service")
+		serviceIP, err = cfg.reconcileService(cephObjectStore)
+		if err != nil {
+			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
+		}
+
+		// RECONCILE ENDPOINTS
+		// Always add the endpoint AFTER the service otherwise it will get overridden
+		logger.Info("reconciling external object store endpoint")
+		err = cfg.reconcileExternalEndpoint(cephObjectStore)
+		if err != nil {
+			return r.setFailedStatus(namespacedName, "failed to reconcile external endpoint", err)
+		}
+
+	} else {
+		logger.Info("reconciling object store deployments")
+
+		// Reconcile realm/zonegroup/zone CRs & update their names
+		realmName, zoneGroupName, zoneName, reconcileResponse, err := r.reconcileMultisiteCRs(cephObjectStore)
 		if err != nil {
 			return reconcileResponse, err
 		}
+
+		// Reconcile Ceph Zone if Multisite
+		if cephObjectStore.Spec.IsMultisite() {
+			reconcileResponse, err := r.reconcileCephZone(cephObjectStore, zoneGroupName, realmName)
+			if err != nil {
+				return reconcileResponse, err
+			}
+		}
+
+		// RECONCILE SERVICE
+		logger.Debug("reconciling object store service")
+		serviceIP, err := cfg.reconcileService(cephObjectStore)
+		if err != nil {
+			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
+		}
+
+		// RECONCILE POOLS
+		logger.Info("reconciling object store pools")
+		err = createPools(objContext, cephObjectStore.Spec)
+		if err != nil {
+			return r.setFailedStatus(namespacedName, "failed to create object pools", err)
+		}
+
+		// RECONCILE REALM
+		logger.Infof("setting multisite settings for object store %q", cephObjectStore.Name)
+		err = setMultisite(objContext, serviceIP, cephObjectStore.Spec, realmName, zoneGroupName, zoneName)
+		if err != nil {
+			return r.setFailedStatus(namespacedName, "failed to configure multisite for object store", err)
+		}
+
+		err = cfg.createOrUpdateStore(realmName, zoneGroupName, zoneName)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)
+		}
 	}
 
-	// RECONCILE SERVICE
-	logger.Debug("reconciling object store service")
-	serviceIP, err := cfg.reconcileService(cephObjectStore)
-	if err != nil {
-		return r.setFailedStatus(name, "failed to reconcile service", err)
-	}
-
-	objContext := NewContext(r.context, cephObjectStore.Name, cephObjectStore.Namespace)
-
-	// RECONCILE POOLS
-	logger.Info("reconciling object store pools")
-	err = createPools(objContext, cephObjectStore.Spec)
-	if err != nil {
-		return r.setFailedStatus(name, "failed to create object pools", err)
-	}
-
-	// RECONCILE REALM
-	logger.Infof("setting multisite settings for object store %q", cephObjectStore.Name)
-	err = setMultisite(objContext, serviceIP, cephObjectStore.Spec, realmName, zoneGroupName, zoneName)
-	if err != nil {
-		return r.setFailedStatus(name, "failed to configure multisite for object store", err)
-	}
-
-	err = cfg.createOrUpdateStore(realmName, zoneGroupName, zoneName)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)
+	// Start monitoring
+	if cephObjectStore.Spec.HealthCheck.Bucket.Enabled {
+		r.startMonitoring(cephObjectStore, objContext, serviceIP, namespacedName)
 	}
 
 	return reconcile.Result{}, nil
@@ -378,38 +437,10 @@ func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1
 	return cephObjectStore.Name, cephObjectStore.Name, cephObjectStore.Name, reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephObjectStore) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
-	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
-}
-
-// updateStatus updates an object with a given status
-func updateStatus(client client.Client, name types.NamespacedName, status string) {
-	objectStore := &cephv1.CephObjectStore{}
-	if err := client.Get(context.TODO(), name, objectStore); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectStore resource not found. Ignoring since object must be deleted.")
-			return
-		}
-		logger.Warningf("failed to retrieve object store %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if objectStore.Status == nil {
-		objectStore.Status = &cephv1.Status{}
-	}
-
-	objectStore.Status.Phase = status
-	if err := opcontroller.UpdateStatus(client, objectStore); err != nil {
-		logger.Errorf("failed to set object store %q status to %q. %v", name, status, err)
-		return
-	}
-	logger.Debugf("object store %q status updated to %q", name, status)
-}
-
 func (r *ReconcileCephObjectStore) verifyObjectBucketCleanup(objectstore *cephv1.CephObjectStore) (reconcile.Result, bool) {
-	bktProvsioner := GetObjectBucketProvisioner(r.context, objectstore.Namespace)
-	bktProvsioner = strings.Replace(bktProvsioner, "/", "-", -1)
-	selector := fmt.Sprintf("bucket-provisioner=%s", bktProvsioner)
+	bktProvisioner := GetObjectBucketProvisioner(r.context, objectstore.Namespace)
+	bktProvisioner = strings.Replace(bktProvisioner, "/", "-", -1)
+	selector := fmt.Sprintf("bucket-provisioner=%s", bktProvisioner)
 	objectBuckets, err := r.bktclient.ObjectbucketV1alpha1().ObjectBuckets().List(metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		logger.Errorf("failed to delete object store. failed to list buckets for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
@@ -428,4 +459,27 @@ func (r *ReconcileCephObjectStore) verifyObjectBucketCleanup(objectstore *cephv1
 
 	logger.Errorf("failed to delete object store. buckets for objectstore %q in namespace %q are not cleaned up. remaining buckets: %+v", objectstore.Name, objectstore.Namespace, bucketNames)
 	return opcontroller.WaitForRequeueIfFinalizerBlocked, false
+}
+
+func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, serviceIP string, namespacedName types.NamespacedName) {
+	// Start monitoring object store
+	if r.objectStoreChannels[objectstore.Name].monitoringRunning {
+		logger.Debug("external rgw endpoint monitoring go routine already running!")
+		return
+	}
+
+	// Set the monitoring flag so we don't start more than one go routine
+	r.objectStoreChannels[objectstore.Name].monitoringRunning = true
+
+	var port string
+
+	if objectstore.Spec.Gateway.Port != 0 {
+		port = strconv.Itoa(int(objectstore.Spec.Gateway.Port))
+	} else if objectstore.Spec.Gateway.SecurePort != 0 {
+		port = strconv.Itoa(int(objectstore.Spec.Gateway.SecurePort))
+	}
+
+	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck)
+	logger.Info("starting rgw healthcheck")
+	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
 }

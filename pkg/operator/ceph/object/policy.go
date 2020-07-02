@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2020 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,112 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package bucket
+package object
 
 import (
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	oerrors "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api/errors"
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/json"
 )
-
-// S3Agent wraps the s3.S3 structure to allow for wrapper methods
-type S3Agent struct {
-	client *s3.S3
-}
-
-func NewS3Agent(accessKey, secretKey, endpoint string) (*S3Agent, error) {
-	const cephRegion = "us-east-1"
-
-	sess, err := session.NewSession(
-		aws.NewConfig().
-			WithRegion(cephRegion).
-			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
-			WithEndpoint(endpoint).
-			WithS3ForcePathStyle(true).
-			WithMaxRetries(20).
-			WithDisableSSL(true))
-	if err != nil {
-		return nil, err
-	}
-	svc := s3.New(sess)
-	return &S3Agent{
-		client: svc,
-	}, nil
-}
-
-// CreateBucket creates a bucket with the given name
-func (s S3Agent) CreateBucket(name string) error {
-	logger.Infof("creating bucket %q", name)
-	bucketInput := &s3.CreateBucketInput{
-		Bucket: &name,
-	}
-	_, err := s.client.CreateBucket(bucketInput)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			logger.Infof("DEBUG: after s3 call, ok=%v, aerr=%v", ok, aerr)
-			switch aerr.Code() {
-			case s3.ErrCodeBucketAlreadyExists:
-				msg := fmt.Sprintf("Bucket %q already exists", name)
-				logger.Errorf(msg)
-				return oerrors.NewBucketExistsError(msg)
-			case s3.ErrCodeBucketAlreadyOwnedByYou:
-				msg := fmt.Sprintf("Bucket %q already owned by you", name)
-				logger.Errorf(msg)
-				return oerrors.NewBucketExistsError(msg)
-			}
-		}
-		return errors.Wrapf(err, "bucket %q could not be created", name)
-	}
-
-	logger.Infof("successfully created bucket %q", name)
-	return nil
-}
-
-// PutBucketPolicy applies the policy to the bucket
-func (s S3Agent) PutBucketPolicy(bucket string, policy BucketPolicy) (*s3.PutBucketPolicyOutput, error) {
-
-	confirmRemoveSelfBucketAccess := false
-	serializedPolicy, _ := json.Marshal(policy)
-	consumablePolicy := string(serializedPolicy)
-
-	p := &s3.PutBucketPolicyInput{
-		Bucket:                        &bucket,
-		ConfirmRemoveSelfBucketAccess: &confirmRemoveSelfBucketAccess,
-		Policy:                        &consumablePolicy,
-	}
-	out, err := s.client.PutBucketPolicy(p)
-	if err != nil {
-		return out, err
-	}
-	return out, nil
-}
-
-func (s S3Agent) GetBucketPolicy(bucket string) (*BucketPolicy, error) {
-	out, err := s.client.GetBucketPolicy(&s3.GetBucketPolicyInput{
-		Bucket: &bucket,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	policy := &BucketPolicy{}
-	err = json.Unmarshal([]byte(*out.Policy), policy)
-	if err != nil {
-		return nil, err
-	}
-	return policy, nil
-}
-
-// //////////////
-// Policy
-// //////////////
 
 type action string
 
@@ -256,6 +158,41 @@ func NewBucketPolicy(ps ...PolicyStatement) *BucketPolicy {
 		Statement: append([]PolicyStatement{}, ps...),
 	}
 	return bp
+}
+
+// PutBucketPolicy applies the policy to the bucket
+func (s *S3Agent) PutBucketPolicy(bucket string, policy BucketPolicy) (*s3.PutBucketPolicyOutput, error) {
+
+	confirmRemoveSelfBucketAccess := false
+	serializedPolicy, _ := json.Marshal(policy)
+	consumablePolicy := string(serializedPolicy)
+
+	p := &s3.PutBucketPolicyInput{
+		Bucket:                        &bucket,
+		ConfirmRemoveSelfBucketAccess: &confirmRemoveSelfBucketAccess,
+		Policy:                        &consumablePolicy,
+	}
+	out, err := s.Client.PutBucketPolicy(p)
+	if err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (s *S3Agent) GetBucketPolicy(bucket string) (*BucketPolicy, error) {
+	out, err := s.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
+		Bucket: &bucket,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	policy := &BucketPolicy{}
+	err = json.Unmarshal([]byte(*out.Policy), policy)
+	if err != nil {
+		return nil, err
+	}
+	return policy, nil
 }
 
 // ModifyBucketPolicy new and old statement SIDs and overwrites on a match.

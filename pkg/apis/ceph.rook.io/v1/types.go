@@ -190,6 +190,7 @@ const (
 	ConditionFailure     ConditionType = "Failure"
 	ConditionUpgrading   ConditionType = "Upgrading"
 	ConditionDeleting    ConditionType = "Deleting"
+	ConditionHealthy     ConditionType = "Healthy"
 	// DefaultFailureDomain for PoolSpec
 	DefaultFailureDomain = "host"
 )
@@ -364,8 +365,8 @@ type MetadataServerSpec struct {
 type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              ObjectStoreSpec `json:"spec"`
-	Status            *Status         `json:"status"`
+	Spec              ObjectStoreSpec    `json:"spec"`
+	Status            *ObjectStoreStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -392,6 +393,18 @@ type ObjectStoreSpec struct {
 
 	// The multisite info
 	Zone ZoneSpec `json:"zone"`
+
+	// The rgw endpoint healthcheck
+	HealthCheck HealthCheckSpec `json:"healthCheck"`
+}
+
+type HealthCheckSpec struct {
+	Bucket BucketHealthCheckSpec `json:"bucket,omitempty"`
+}
+
+type BucketHealthCheckSpec struct {
+	Enabled  bool   `json:"enabled,omitempty"`
+	Interval string `json:"interval,omitempty"`
 }
 
 type GatewaySpec struct {
@@ -421,11 +434,27 @@ type GatewaySpec struct {
 
 	// PriorityClassName sets priority classes on the rgw pods
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// ExternalRgwEndpoints points to external rgw endpoint(s)
+	ExternalRgwEndpoints []v1.EndpointAddress `json:"externalRgwEndpoints,omitempty"`
 }
 
 type ZoneSpec struct {
 	// RGW Zone the Object Store is in
 	Name string `json:"name"`
+}
+
+type ObjectStoreStatus struct {
+	Phase        ConditionType `json:"phase,omitempty"`
+	Message      string        `json:"message,omitempty"`
+	BucketStatus *BucketStatus `json:"bucketStatus,omitempty"`
+}
+
+type BucketStatus struct {
+	Health      ConditionType `json:"health,omitempty"`
+	Details     string        `json:"details,omitempty"`
+	LastChecked string        `json:"lastChecked,omitempty"`
+	LastChanged string        `json:"lastChanged,omitempty"`
 }
 
 // +genclient
