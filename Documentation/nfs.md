@@ -25,6 +25,8 @@ First deploy the Rook NFS operator using the following commands:
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/nfs
+kubectl create -f common.yaml
+kubectl create -f provisioner.yaml
 kubectl create -f operator.yaml
 ```
 
@@ -36,6 +38,46 @@ kubectl -n rook-nfs-system get pod
 NAME                                    READY   STATUS    RESTARTS   AGE
 rook-nfs-operator-879f5bf8b-gnwht       1/1     Running   0          29m
 rook-nfs-provisioner-65f4874c8f-kkz6b   1/1     Running   0          29m
+```
+
+## Deploy NFS Admission Webhook (Optional)
+
+Admission webhooks are HTTP callbacks that receive admission requests to the API server. Two types of admission webhooks is validating admission webhook and mutating admission webhook. NFS Operator support validating admission webhook which validate the NFSServer object sent to the API server before stored in the etcd (persisted).
+
+To enable admission webhook on NFS such as validating admission webhook, you need to do as following:
+
+First, ensure that `cert-manager` is installed.  If it is not installed yet, you can install it as described in the `cert-manager` [installation](https://cert-manager.io/docs/installation/kubernetes/) documentation. Alternatively, you can simply just run the single command below:
+
+```console
+kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.15.1/cert-manager.yaml
+```
+
+This will easily get the latest version (`v0.15.1`) of `cert-manager`  installed. After that completes, make sure the cert-manager component deployed properly and is in the `Running` status:
+
+```console
+kubectl get -n cert-manager pod
+
+NAME                                      READY   STATUS    RESTARTS   AGE
+cert-manager-7747db9d88-jmw2f             1/1     Running   0          2m1s
+cert-manager-cainjector-87c85c6ff-dhtl8   1/1     Running   0          2m1s
+cert-manager-webhook-64dc9fff44-5g565     1/1     Running   0          2m1s
+```
+
+Once `cert-manager` is running, you can now deploy the NFS webhook:
+
+```console
+kubectl create -f webhook.yaml
+```
+
+Verify the webhook is up and running:
+
+```console
+kubectl -n rook-nfs-system get pod
+
+NAME                                    READY   STATUS    RESTARTS   AGE
+rook-nfs-operator-78d86bf969-k7lqp      1/1     Running   0          102s
+rook-nfs-provisioner-7b5ff479f6-688dm   1/1     Running   0          102s
+rook-nfs-webhook-74749cbd46-6jw2w       1/1     Running   0          102s
 ```
 
 ## Create and Initialize NFS Server
@@ -94,7 +136,7 @@ spec:
       claimName: nfs-default-claim
   # A key/value list of annotations
   annotations:
-  #  key: value
+    rook: nfs
 ```
 
 With the `nfs.yaml` file saved, now create the NFS server as shown:
@@ -108,8 +150,8 @@ We can verify that a Kubernetes object has been created that represents our new 
 ```console
 kubectl -n rook-nfs get nfsservers.nfs.rook.io
 
-NAME       AGE
-rook-nfs   1m
+NAME       AGE   STATE
+rook-nfs   32s   Running
 ```
 
 Verify that the NFS server pod is up and running:
@@ -146,6 +188,12 @@ reclaimPolicy: Delete
 volumeBindingMode: Immediate
 ```
 
+You can save it as a file, eg: called `sc.yaml` Then create storageclass with following command.
+
+```console
+kubectl create -f sc.yaml
+```
+
 > **NOTE**: The StorageClass need to have the following 3 parameters passed.
 >
 1. `exportName`: It tells the provisioner which export to use for provisioning the volumes.
@@ -167,6 +215,8 @@ spec:
     requests:
       storage: 1Mi
 ```
+
+You can also save it as a file, eg: called `pvc.yaml` Then create PV claim with following command.
 
 ```console
 kubectl create -f pvc.yaml
@@ -282,6 +332,9 @@ kubectl delete -f pv.yaml
 kubectl delete -f nfs.yaml
 kubectl delete -f nfs-ceph.yaml
 kubectl delete -f operator.yaml
+kubectl delete -f provisioner.yaml
+kubectl delete -f webhook.yaml # if deployed
+kubectl delete -f common.yaml
 ```
 
 ## Troubleshooting

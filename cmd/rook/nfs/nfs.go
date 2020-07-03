@@ -32,6 +32,7 @@ var (
 
 func init() {
 	Cmd.AddCommand(operatorCmd)
+	Cmd.AddCommand(webhookCmd)
 	Cmd.AddCommand(provisonerCmd)
 	Cmd.AddCommand(serverCmd)
 }

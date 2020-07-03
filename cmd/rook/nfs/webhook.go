@@ -19,35 +19,33 @@ package nfs
 import (
 	"github.com/rook/rook/cmd/rook/rook"
 	operator "github.com/rook/rook/pkg/operator/nfs"
-	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
-const containerName = "rook-nfs-operator"
+var (
+	port    int
+	certDir string
+)
 
-var operatorCmd = &cobra.Command{
-	Use:   "operator",
-	Short: "Runs the NFS operator to deploy and manage NFS server in kubernetes clusters",
-	Long: `Runs the NFS operator to deploy and manage NFS server in kubernetes clusters.
-https://github.com/rook/rook`,
+var webhookCmd = &cobra.Command{
+	Use:   "webhook",
+	Short: "Runs the NFS webhook admission",
 }
 
 func init() {
-	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
-	flags.SetLoggingFlags(operatorCmd.Flags())
-
-	operatorCmd.RunE = startOperator
+	webhookCmd.Flags().IntVar(&port, "port", 9443, "port that the webhook server serves at")
+	webhookCmd.Flags().StringVar(&certDir, "cert-dir", "", "directory that contains the server key and certificate. if not set will use default controller-runtime wwebhook directory")
+	webhookCmd.RunE = startWebhook
 }
 
-func startOperator(cmd *cobra.Command, args []string) error {
+func startWebhook(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
-	rook.LogStartupInfo(operatorCmd.Flags())
+	rook.LogStartupInfo(webhookCmd.Flags())
 
-	logger.Infof("starting NFS operator")
-	context := rook.NewContext()
-	op := operator.New(context)
-	err := op.Run()
-	rook.TerminateOnError(err, "failed to run operator")
+	logger.Infof("starting NFS webhook")
+	webhook := operator.NewWebhook(port, certDir)
+	err := webhook.Run()
+	rook.TerminateOnError(err, "failed to run wbhook")
 
 	return nil
 }
