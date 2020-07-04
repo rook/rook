@@ -18,6 +18,7 @@ package test
 
 import (
 	"fmt"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,7 @@ import (
 )
 
 func NewSimpleCluster(members int32) *cassandrav1alpha1.Cluster {
+	configName := "test-config"
 	return &cassandrav1alpha1.Cluster{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: cassandrav1alpha1.APIVersion,
@@ -42,8 +44,9 @@ func NewSimpleCluster(members int32) *cassandrav1alpha1.Cluster {
 				Name: "test-dc",
 				Racks: []cassandrav1alpha1.RackSpec{
 					{
-						Name:    "test-rack",
-						Members: members,
+						Name:          "test-rack",
+						Members:       members,
+						ConfigMapName: &configName,
 					},
 				},
 			},

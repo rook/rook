@@ -92,6 +92,84 @@ cluster = Cluster(['rook-cassandra-client.rook-cassandra.svc.cluster.local'])
 session = cluster.connect()
 ```
 
+## Configuring Cassandra
+
+In order to overwrite the `cassandra.yaml` configuration values you can specify a configmap using `RackSpec.configMapName`.
+You can add key-value pairs to the data section of the ConfigMap.
+
+### Configuration Options
+
+| Name     |     type    | default |
+|----------|-------------|---------|
+| cluster_name | string | the name of your cluster as specified in the cluster crd |
+| listen_address | string | POD_IP environment variable |
+| num_tokens | string  | 256 |
+| rpc_address | string  | 0.0.0.0 |
+| broadcast_address | string  | - |
+| broadcast_rpc_address | string  | member service ip address |
+| endpoint_snitch | string  | GossipingPropertyFileSnitch |
+| disk_failure_policy | string  | stop |
+| commit_failure_policy | string  | stop |
+| seed_provider | yaml  | SimpleSeedProvider with member service IPs |
+
+You can use go templates to reference Pod IP, service IP, DC, Rack and other variables using a TemplateData Object:
+
+```go
+type TemplateData struct {
+	// ClusterName is the name of the cluster
+	ClusterName string
+	// Datacenter is the cassandra dc in our topology
+	Datacenter string
+	// Rack is the cassandra rack in our topology
+	Rack string
+	// MemberName is the name of the cassandra member
+	MemberName string
+	// Namespace is the namspace in which the cluster runs
+	Namespace string
+	// MemberServiceIP holds the Service IP address of this member
+	MemberServiceIP string
+	// LocalIP holds the Pod IP
+	LocalIP string
+}
+```
+
+Example usage:
+
+Specify the `configMapName` in the `RackSpec`.
+```yaml
+apiVersion: cassandra.rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-cassandra
+  namespace: rook-cassandra
+spec:
+  ...
+  datacenter:
+    name: my-datacenter
+    racks:
+    - name: my-rack
+      members: 3
+      configMapName: "my-cassandra-config"
+      # ...
+```
+
+Create a ConfigMap with your overwrites:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cassandra-config
+data:
+  # simple value
+  disk_failure_policy: "die"
+  # use go template to use runtime variables from the sidecar
+  rpc_address: "{{ .LocalIP }}"
+  # specify yaml to configure the seed provider
+  seed_provider: |
+    - class_name: org.apache.cassandra.locator.SimpleSeedProvider
+      parameters: [{ seeds: "1.2.3.4,5.4.3.2" }]
+```
+
 ## Scale Up
 
 The operator supports scale up of a rack as well as addition of new racks. To make the changes, you can use:

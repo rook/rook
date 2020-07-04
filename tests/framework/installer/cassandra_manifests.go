@@ -205,6 +205,12 @@ rules:
   - apiGroups:
       - ""
     resources:
+      - configmaps
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
       - services
     verbs:
       - get
@@ -243,6 +249,15 @@ subjects:
   namespace: %[1]s
 
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cassandra-config-map
+  namespace: %[1]s
+data:
+  num_tokens: "512"
+  disk_failure_policy: "die"
+---
 
 # Cassandra Cluster
 apiVersion: cassandra.rook.io/v1alpha1
@@ -258,6 +273,7 @@ spec:
     racks:
       - name: "us-east-1a"
         members: %[2]d
+        configMapName: "cassandra-config-map"
         storage:
           volumeClaimTemplates:
                 - metadata:

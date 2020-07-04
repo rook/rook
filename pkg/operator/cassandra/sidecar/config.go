@@ -18,17 +18,19 @@ package sidecar
 
 import (
 	"fmt"
-	"github.com/ghodss/yaml"
-	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
-	"github.com/rook/rook/pkg/operator/cassandra/constants"
-	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ghodss/yaml"
+	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/operator/cassandra/constants"
+	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
+	"github.com/rook/rook/pkg/operator/cassandra/sidecar/config"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -82,20 +84,13 @@ func (m *MemberController) generateCassandraConfigFiles() error {
 	/////////////////////////////
 	// Generate cassandra.yaml //
 	/////////////////////////////
-
-	// Read default cassandra.yaml
-	cassandraYAML, err := ioutil.ReadFile(cassandraYAMLPath)
-	if err != nil {
-		return fmt.Errorf("unexpected error trying to open cassandra.yaml: %s", err.Error())
-	}
-
-	customCassandraYAML, err := m.overrideConfigValues(cassandraYAML)
+	configYAML, err := m.generateCassandraConfig()
 	if err != nil {
 		return fmt.Errorf("error trying to override config values: %s", err.Error())
 	}
 
 	// Write result to file
-	if err = ioutil.WriteFile(cassandraYAMLPath, customCassandraYAML, os.ModePerm); err != nil {
+	if err = ioutil.WriteFile(cassandraYAMLPath, configYAML, os.ModePerm); err != nil {
 		m.logger.Errorf("error trying to write cassandra.yaml: %s", err.Error())
 		return err
 	}
@@ -179,20 +174,13 @@ func (m *MemberController) generateScyllaConfigFiles() error {
 	/////////////////////////////
 	// Generate scylla.yaml    //
 	/////////////////////////////
-
-	// Read default scylla.yaml
-	scyllaYAML, err := ioutil.ReadFile(scyllaYAMLPath)
-	if err != nil {
-		return fmt.Errorf("unexpected error trying to open scylla.yaml: %s", err.Error())
-	}
-
-	customScyllaYAML, err := m.overrideConfigValues(scyllaYAML)
+	configYAML, err := m.generateCassandraConfig()
 	if err != nil {
 		return fmt.Errorf("error trying to override config values: %s", err.Error())
 	}
 
 	// Write result to file
-	if err = ioutil.WriteFile(scyllaYAMLPath, customScyllaYAML, os.ModePerm); err != nil {
+	if err = ioutil.WriteFile(scyllaYAMLPath, configYAML, os.ModePerm); err != nil {
 		m.logger.Errorf("error trying to write scylla.yaml: %s", err.Error())
 		return err
 	}
@@ -320,15 +308,11 @@ func (m *MemberController) scyllaEntrypoint() (string, error) {
 	return entrypoint, nil
 }
 
-// overrideConfigValues overrides the default config values with
+// generateCassandraConfig overrides the default config values with
 // our custom values, for the fields that are of interest to us
-func (m *MemberController) overrideConfigValues(configText []byte) ([]byte, error) {
+func (m *MemberController) generateCassandraConfig() ([]byte, error) {
 
-	var config map[string]interface{}
-
-	if err := yaml.Unmarshal(configText, &config); err != nil {
-		return nil, fmt.Errorf("error unmarshalling cassandra.yaml: %s", err.Error())
-	}
+	cfg := config.NewDefault()
 
 	seeds, err := m.getSeeds()
 	if err != nil {
@@ -340,26 +324,44 @@ func (m *MemberController) overrideConfigValues(configText []byte) ([]byte, erro
 		return nil, fmt.Errorf("POD_IP environment variable not set")
 	}
 
-	seedProvider := []map[string]interface{}{
+	// set defaults
+	// they can be overridden by the userConfig
+	cfg.ClusterName = m.cluster
+	cfg.ListenAddress = localIP
+	cfg.BroadcastAddress = m.ip
+	cfg.RPCAddress = "0.0.0.0"
+	cfg.BroadcastRPCAddress = m.ip
+	cfg.EndpointSnitch = "GossipingPropertyFileSnitch"
+	cfg.SeedProvider = []config.SeedProvider{
 		{
-			"class_name": "org.apache.cassandra.locator.SimpleSeedProvider",
-			"parameters": []map[string]interface{}{
+			ClassName: "org.apache.cassandra.locator.SimpleSeedProvider",
+			Parameters: []config.SeedProviderParameter{
 				{
-					"seeds": seeds,
+					Seeds: seeds,
 				},
 			},
 		},
 	}
 
-	config["cluster_name"] = m.cluster
-	config["listen_address"] = localIP
-	config["broadcast_address"] = m.ip
-	config["rpc_address"] = "0.0.0.0"
-	config["broadcast_rpc_address"] = m.ip
-	config["endpoint_snitch"] = "GossipingPropertyFileSnitch"
-	config["seed_provider"] = seedProvider
+	if m.userConfig == nil {
+		return yaml.Marshal(cfg)
+	}
 
-	return yaml.Marshal(config)
+	templateData := config.TemplateData{
+		ClusterName:     m.cluster,
+		Datacenter:      m.datacenter,
+		Rack:            m.rack,
+		MemberName:      m.name,
+		Namespace:       m.namespace,
+		MemberServiceIP: m.ip,
+		LocalIP:         localIP,
+	}
+	m.logger.Infof("merging config with user-defined configmap %s", m.userConfig.ObjectMeta.Name)
+	err = config.MergeConfig(m.userConfig.Data, &cfg, templateData)
+	if err != nil {
+		return nil, fmt.Errorf("could not merge user config: %s", err)
+	}
+	return yaml.Marshal(cfg)
 }
 
 // getSeeds gets the IPs of the instances acting as Seeds

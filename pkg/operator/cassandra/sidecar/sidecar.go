@@ -31,6 +31,8 @@ import (
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	"github.com/yanniszark/go-nodetool/nodetool"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -48,6 +50,7 @@ type MemberController struct {
 	// Metadata of the specific Member
 	name, namespace, ip       string
 	cluster, datacenter, rack string
+	userConfig                *v1.ConfigMap
 	mode                      cassandrav1alpha1.ClusterMode
 
 	// Clients and listers to handle Kubernetes Objects
@@ -105,6 +108,18 @@ func New(
 		return nil, err
 	}
 
+	var userConfig *v1.ConfigMap
+	for _, r := range cluster.Spec.Datacenter.Racks {
+		if r.Name != pod.Labels[constants.RackNameLabel] {
+			continue
+		}
+		// ignore if configmap does not exist
+		userConfig, err = kubeClient.CoreV1().ConfigMaps(namespace).Get(*r.ConfigMapName, metav1.GetOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return nil, fmt.Errorf("error getting cluster configmap: %s", err)
+		}
+	}
+
 	m := &MemberController{
 		name:                name,
 		namespace:           namespace,
@@ -112,6 +127,7 @@ func New(
 		cluster:             pod.Labels[constants.ClusterNameLabel],
 		datacenter:          pod.Labels[constants.DatacenterNameLabel],
 		rack:                pod.Labels[constants.RackNameLabel],
+		userConfig:          userConfig,
 		mode:                cluster.Spec.Mode,
 		kubeClient:          kubeClient,
 		rookClient:          rookClient,

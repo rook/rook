@@ -175,4 +175,10 @@ SELECT key,value FROM map WHERE key='test_key';`,
 	assert.NoError(s.T(), err)
 	assert.True(s.T(), strings.Contains(result, "test_key"))
 	assert.True(s.T(), strings.Contains(result, "test_value"))
+
+	// check user-defined config
+	result, err = s.k8sHelper.Exec(s.namespace, podName, "cat", []string{"/etc/cassandra/cassandra.yaml"})
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), strings.Contains(result, "num_tokens: 512"))
+	assert.True(s.T(), strings.Contains(result, "disk_failure_policy: die"))
 }
