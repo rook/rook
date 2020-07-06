@@ -47,4 +47,10 @@ sudo apt-get update
 wait_for_dpkg_unlock
 sleep 5
 wait_for_dpkg_unlock
+
+# We install the specific version of kubernetes-cni for aws_1.11.x test.
+# kubelet in this test requires the version. If the newer versions are
+# necessary in the tests of other Kubernetes versions, kubernetes-cni is
+# updated in the kubelet installation.
+sudo apt-get install -y kubernetes-cni="0.7.5-00"
 sudo apt-get install -y kubelet="${KUBE_INSTALL_VERSION}" kubeadm="${KUBE_INSTALL_VERSION}" nfs-common
