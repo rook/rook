@@ -159,7 +159,7 @@ Ceph has a dashboard in which you can view the status of your cluster. Please se
 
 ## Tools
 
-We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](ceph-toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
+We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](ceph-toolbox.md) for setup and usage information. Also see our [advanced configuration](ceph-advanced-configuration.md) document for helpful maintenance and tuning examples.
 
 ## Monitoring
 
