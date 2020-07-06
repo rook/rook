@@ -41,8 +41,6 @@ import (
 )
 
 const (
-	// test with the latest mimic build
-	mimicTestImage = "ceph/ceph:v13"
 	// test with the latest nautilus build
 	nautilusTestImage = "ceph/ceph:v14"
 	// test with the latest octopus build
@@ -56,7 +54,6 @@ const (
 )
 
 var (
-	MimicVersion       = cephv1.CephVersionSpec{Image: mimicTestImage}
 	NautilusVersion    = cephv1.CephVersionSpec{Image: nautilusTestImage}
 	OctopusVersion     = cephv1.CephVersionSpec{Image: octopusTestImage}
 	MasterVersion      = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
