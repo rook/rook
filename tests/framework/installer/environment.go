@@ -42,7 +42,7 @@ func testStorageProvider() string {
 
 // TestIsOfficialBuild gets the storage provider for which tests should be run
 func TestIsOfficialBuild() bool {
-	return os.Getenv("TEST_IS_OFFICIAL_BUILD") == "true"
+	return getEnvVarWithDefault("TEST_IS_OFFICIAL_BUILD", "") == "true"
 }
 
 // baseTestDir gets the base test directory
