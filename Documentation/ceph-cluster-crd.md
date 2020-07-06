@@ -31,7 +31,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v14.2.9
+    image: ceph/ceph:v14.2.10
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -54,7 +54,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v14.2.9
+    image: ceph/ceph:v14.2.10
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -465,7 +465,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.9
+    image: ceph/ceph:v14.2.10
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -497,7 +497,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.9
+    image: ceph/ceph:v14.2.10
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -538,7 +538,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.9
+    image: ceph/ceph:v14.2.10
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -585,7 +585,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.9
+    image: ceph/ceph:v14.2.10
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -688,7 +688,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.9
+    image: ceph/ceph:v14.2.10
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -734,7 +734,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v14.2.9
+    image: ceph/ceph:v14.2.10
     allowUnsupported: false
   dashboard:
     enabled: true
@@ -937,5 +937,5 @@ spec:
     enable: true
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: ceph/ceph:v14.2.9 # Should match external cluster version
+    image: ceph/ceph:v14.2.10 # Should match external cluster version
 ```
