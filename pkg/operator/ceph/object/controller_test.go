@@ -330,4 +330,28 @@ func TestCephObjectStoreController(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, cephv1.ConditionReady, objectStore.Status.Phase, objectStore)
 	logger.Info("PHASE 3 DONE")
+
+	// Test the functionality of verifyObjectUserCleanup
+	// Here two tests are performed, first check with no CephObjectStoreUser
+	// then a CephObjectStoreUser will be created and repeat the same test
+	logger.Info("STARTING PHASE 4 testing verifyObjectUserCleanup")
+	_, okToDelete := r.verifyObjectUserCleanup(objectStore)
+	assert.True(t, okToDelete)
+	logger.Infof("Creating user %v", name)
+	objectUser := &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: cephv1.ObjectStoreUserSpec{
+			Store: store,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephObjectStoreUser",
+		},
+	}
+	objectUser, _ = r.context.RookClientset.CephV1().CephObjectStoreUsers(objectStore.Namespace).Create(objectUser)
+	_, okToDelete = r.verifyObjectUserCleanup(objectStore)
+	assert.False(t, okToDelete)
+	logger.Info("PHASE 4 DONE")
 }

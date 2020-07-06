@@ -239,10 +239,17 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting store %q", cephObjectStore.Name)
 
-		response, ok := r.verifyObjectBucketCleanup(cephObjectStore)
-		if !ok {
+		response, okToDelete := r.verifyObjectBucketCleanup(cephObjectStore)
+		if !okToDelete {
 			// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
 			// will eventually be satisfied such as the object buckets being removed
+			return response, nil
+		}
+
+		response, okToDelete = r.verifyObjectUserCleanup(cephObjectStore)
+		if !okToDelete {
+			// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
+			// will eventually be satisfied such as the object users being removed
 			return response, nil
 		}
 
@@ -482,4 +489,25 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck)
 	logger.Info("starting rgw healthcheck")
 	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
+}
+
+func (r *ReconcileCephObjectStore) verifyObjectUserCleanup(objectstore *cephv1.CephObjectStore) (reconcile.Result, bool) {
+	cephObjectUsers, err := r.context.RookClientset.CephV1().CephObjectStoreUsers(objectstore.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to delete object store. failed to list user for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
+		return opcontroller.WaitForRequeueIfFinalizerBlocked, false
+	}
+
+	if len(cephObjectUsers.Items) == 0 {
+		logger.Infof("no users found for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
+		return reconcile.Result{}, true
+	}
+
+	userNames := make([]string, 0)
+	for _, user := range cephObjectUsers.Items {
+		userNames = append(userNames, user.Name)
+	}
+
+	logger.Errorf("failed to delete object store. users for objectstore %q in namespace %q are not cleaned up. remaining users: %+v", objectstore.Name, objectstore.Namespace, userNames)
+	return opcontroller.WaitForRequeueIfFinalizerBlocked, false
 }
