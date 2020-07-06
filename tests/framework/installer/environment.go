@@ -63,7 +63,9 @@ func TestScratchDevice() string {
 func getEnvVarWithDefault(env, defaultValue string) string {
 	val := os.Getenv(env)
 	if val == "" {
+		logger.Infof("test environment variable (default) %q=%q", env, defaultValue)
 		return defaultValue
 	}
+	logger.Infof("test environment variable %q=%q", env, val)
 	return val
 }
