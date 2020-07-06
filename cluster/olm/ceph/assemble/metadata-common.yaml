@@ -201,7 +201,7 @@ metadata:
           },
           "spec": {
             "cephVersion": {
-              "image": "ceph/ceph:v14.2.9"
+              "image": "ceph/ceph:v15.2.4"
             },
             "dataDirHostPath": "/var/lib/rook",
             "mon": {

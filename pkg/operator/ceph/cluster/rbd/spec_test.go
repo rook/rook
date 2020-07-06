@@ -48,7 +48,7 @@ func TestPodSpec(t *testing.T) {
 		},
 		Spec: cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
-				Image: "ceph/ceph:v14",
+				Image: "ceph/ceph:v15",
 			},
 		},
 	}

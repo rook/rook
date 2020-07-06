@@ -54,7 +54,7 @@ func TestPodSpecs(t *testing.T) {
 		store:       store,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"},
+			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
 			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
@@ -107,7 +107,7 @@ func TestSSLPodSpec(t *testing.T) {
 		store:       store,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"},
+			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
 			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},

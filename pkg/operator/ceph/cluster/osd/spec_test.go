@@ -83,7 +83,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	cephVersion := cephv1.CephVersionSpec{Image: "ceph/ceph:v12.2.8"}
+	cephVersion := cephv1.CephVersionSpec{Image: "ceph/ceph:v15"}
 	clusterInfo := &cephconfig.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
@@ -143,7 +143,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
-	assert.Equal(t, "ceph/ceph:v12.2.8", initCont.Image)
+	assert.Equal(t, "ceph/ceph:v15", initCont.Image)
 	assert.Equal(t, "activate", initCont.Name)
 	assert.Equal(t, 3, len(initCont.VolumeMounts))
 

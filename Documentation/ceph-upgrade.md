@@ -451,7 +451,7 @@ The majority of the upgrade will be handled by the Rook operator. Begin the upgr
 Ceph image field in the cluster CRD (`spec:cephVersion:image`).
 
 ```sh
-NEW_CEPH_IMAGE='ceph/ceph:v15.2.0-20200324'
+NEW_CEPH_IMAGE='ceph/ceph:v15.2.4-20200630'
 CLUSTER_NAME="$ROOK_NAMESPACE"  # change if your cluster name is not the Rook namespace
 kubectl -n $ROOK_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
