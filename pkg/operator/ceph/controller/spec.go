@@ -263,7 +263,7 @@ func AddVolumeMountSubPath(podSpec *v1.PodSpec, volumeMountName string) {
 // DaemonFlags returns the command line flags used by all Ceph daemons.
 func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 	return append(
-		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath(), cluster.CephVersion),
+		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
 		config.NewFlag("id", daemonID),
 		// Ceph daemons in Rook will run as 'ceph' instead of 'root'
 		// If we run on a version of Ceph does not these flags it will simply ignore them
@@ -272,13 +272,12 @@ func DaemonFlags(cluster *cephconfig.ClusterInfo, daemonID string) []string {
 		// run ceph daemon process under the 'ceph' group
 		config.NewFlag("setgroup", "ceph"),
 	)
-
 }
 
 // AdminFlags returns the command line flags used for Ceph commands requiring admin authentication.
 func AdminFlags(cluster *cephconfig.ClusterInfo) []string {
 	return append(
-		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath(), cluster.CephVersion),
+		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().AdminKeyringFilePath()),
 		config.NewFlag("setuser", "ceph"),
 		config.NewFlag("setgroup", "ceph"),
 	)
