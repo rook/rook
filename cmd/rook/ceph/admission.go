@@ -18,7 +18,6 @@ package ceph
 
 import (
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/daemon/admission"
 	operator "github.com/rook/rook/pkg/operator/ceph"
 	"github.com/spf13/cobra"
 )
@@ -36,11 +35,9 @@ func init() {
 
 func startAdmissionController(cmd *cobra.Command, args []string) {
 	rook.SetLogLevel()
-
 	rook.LogStartupInfo(admissionCmd.Flags())
-
-	context := rook.NewContext()
-
-	a := admission.New(context, "ceph", operator.ValidateCephResource)
-	a.StartServer()
+	err := operator.StartAdmissionController()
+	if err != nil {
+		rook.TerminateFatal(err)
+	}
 }

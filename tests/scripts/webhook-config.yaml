@@ -9,12 +9,27 @@ webhooks:
       - apiGroups:   ["ceph.rook.io"]
         apiVersions: ["v1"]
         operations:  ["CREATE","UPDATE","DELETE"]
-        resources:   ["*"]
+        resources:   ["cephclusters"]
     clientConfig:
       service:
         name: ${SERVICE_NAME}
         namespace: ${NAMESPACE}
-        path: /validate
+        path: /validate-ceph-rook-io-v1-cephcluster
+      caBundle: ${CA_BUNDLE}
+    admissionReviewVersions: ["v1beta1"]
+    sideEffects: None
+    timeoutSeconds: 5
+  - name: ${SERVICE_NAME}.${NAMESPACE}.svc
+    rules:
+      - apiGroups:   ["ceph.rook.io"]
+        apiVersions: ["v1"]
+        operations:  ["CREATE","UPDATE","DELETE"]
+        resources:   ["cephblockpools"]
+    clientConfig:
+      service:
+        name: ${SERVICE_NAME}
+        namespace: ${NAMESPACE}
+        path: /validate-ceph-rook-io-v1-cephblockpool
       caBundle: ${CA_BUNDLE}
     admissionReviewVersions: ["v1beta1"]
     sideEffects: None
