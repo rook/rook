@@ -332,6 +332,16 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) object.ObjectUser {
 	return userConfig
 }
 
+func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
+	return fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name)
+}
+
+func generateStatusInfo(u *cephv1.CephObjectStoreUser) map[string]string {
+	m := make(map[string]string)
+	m["secretName"] = generateCephUserSecretName(u)
+	return m
+}
+
 func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser) *v1.Secret {
 	// Store the keys in a secret
 	secrets := map[string]string{
@@ -339,11 +349,9 @@ func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectSt
 		"SecretKey": *r.userConfig.SecretKey,
 		"Endpoint":  r.objContext.Endpoint,
 	}
-
-	secretName := fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name)
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
+			Name:      generateCephUserSecretName(u),
 			Namespace: u.Namespace,
 			Labels: map[string]string{
 				"app":               appName,
@@ -355,7 +363,6 @@ func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectSt
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-
 	return secret
 }
 
@@ -494,10 +501,13 @@ func updateStatus(client client.Client, name types.NamespacedName, status string
 		return
 	}
 	if user.Status == nil {
-		user.Status = &cephv1.Status{}
+		user.Status = &cephv1.ObjectStoreUserStatus{}
 	}
 
 	user.Status.Phase = status
+	if user.Status.Phase == k8sutil.ReadyStatus {
+		user.Status.Info = generateStatusInfo(user)
+	}
 	if err := opcontroller.UpdateStatus(client, user); err != nil {
 		logger.Errorf("failed to set object store user %q status to %q. %v", name, status, err)
 		return

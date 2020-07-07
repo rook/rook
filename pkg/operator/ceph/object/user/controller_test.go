@@ -296,3 +296,18 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	assert.Equal(t, "Ready", objectUser.Status.Phase, objectUser)
 	logger.Info("PHASE 5 DONE")
 }
+
+func TestBuildUpdateStatusInfo(t *testing.T) {
+	cephObjectStoreUser := &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: cephv1.ObjectStoreUserSpec{
+			Store: store,
+		},
+	}
+
+	statusInfo := generateStatusInfo(cephObjectStoreUser)
+	assert.NotEmpty(t, statusInfo["secretName"])
+	assert.Equal(t, "rook-ceph-object-user-my-store-my-user", statusInfo["secretName"])
+}
