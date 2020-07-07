@@ -21,6 +21,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -36,6 +37,19 @@ func CreateStatefulSet(clientset kubernetes.Interface, name, namespace string, s
 		}
 	}
 	return nil
+}
+
+// DeleteStatefulset makes a best effort at deleting a statefulset and its pods, then waits for them to be deleted
+func DeleteStatefulset(clientset kubernetes.Interface, namespace, name string) error {
+	logger.Debugf("removing %s statefulset if it exists", name)
+	deleteAction := func(options *metav1.DeleteOptions) error {
+		return clientset.AppsV1().StatefulSets(namespace).Delete(name, options)
+	}
+	getAction := func() error {
+		_, err := clientset.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{})
+		return err
+	}
+	return deleteResourceAndWait(namespace, name, "statefulset", deleteAction, getAction)
 }
 
 // AddRookVersionLabelToStatefulSet adds or updates a label reporting the Rook version which last

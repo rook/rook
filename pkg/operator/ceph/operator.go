@@ -223,11 +223,6 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "failed to configure CSI parameters")
 	}
 
-	if !csi.CSIEnabled() {
-		logger.Infof("CSI driver is not enabled")
-		return nil
-	}
-
 	if serverVersion.Major < csi.KubeMinMajor || serverVersion.Major == csi.KubeMinMajor && serverVersion.Minor < csi.KubeMinMinor {
 		logger.Infof("CSI drivers only supported in K8s 1.13 or newer. version=%s", serverVersion.String())
 		// disable csi control variables to disable other csi functions
@@ -256,7 +251,7 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "invalid csi params")
 	}
 
-	go csi.ValidateAndStartDrivers(o.context.Clientset, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerRef)
+	go csi.ValidateAndConfigureDrivers(o.context.Clientset, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerRef)
 	return nil
 }
 

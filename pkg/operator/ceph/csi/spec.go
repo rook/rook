@@ -156,6 +156,14 @@ const (
 	// update strategy
 	rollingUpdate = "RollingUpdate"
 	onDelete      = "OnDelete"
+
+	// driver daemonset names
+	csiRBDPlugin    = "csi-rbdplugin"
+	csiCephFSPlugin = "csi-cephfsplugin"
+
+	// driver deployment names
+	csiRBDProvisioner    = "csi-rbdplugin-provisioner"
+	csiCephFSProvisioner = "csi-cephfsplugin-provisioner"
 )
 
 func CSIEnabled() bool {
@@ -197,7 +205,7 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func startDrivers(namespace string, clientset kubernetes.Interface, ver *version.Info, ownerRef *metav1.OwnerReference) error {
+func startDrivers(clientset kubernetes.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
 	var (
 		err                                                   error
 		rbdPlugin, cephfsPlugin                               *apps.DaemonSet
@@ -343,6 +351,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbd plugin service template")
 		}
+		logger.Info("successfully started CSI Ceph RBD")
 	}
 	if EnableCephFS {
 		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath, tp)
@@ -364,7 +373,9 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		if err != nil {
 			return errors.Wrap(err, "failed to load cephfs plugin service template")
 		}
+		logger.Info("successfully started CSI CephFS driver")
 	}
+
 	// get provisioner toleration and node affinity
 	provisionerTolerations := getToleration(clientset, true)
 	provisionerNodeAffinity := getNodeAffinity(clientset, true)
@@ -376,7 +387,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to rbdplugin containers
 		applyResourcesToContainers(clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, ownerRef)
-		err = k8sutil.CreateDaemonSet("csi-rbdplugin", namespace, clientset, rbdPlugin)
+		err = k8sutil.CreateDaemonSet(csiRBDPlugin, namespace, clientset, rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbdplugin daemonset: %+v", rbdPlugin)
 		}
@@ -388,7 +399,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerSTS.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerSTS.ObjectMeta, ownerRef)
-		err = k8sutil.CreateStatefulSet(clientset, "csi-rbdplugin-provisioner", namespace, rbdProvisionerSTS)
+		err = k8sutil.CreateStatefulSet(clientset, csiRBDProvisioner, namespace, rbdProvisionerSTS)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner statefulset: %+v", rbdProvisionerSTS)
 		}
@@ -398,13 +409,13 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, ownerRef)
-		antiAffinity := GetPodAntiAffinity("app", "csi-rbdplugin-provisioner")
+		antiAffinity := GetPodAntiAffinity("app", csiRBDProvisioner)
 		rbdProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		rbdProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
-		err = k8sutil.CreateDeployment(clientset, "csi-rbdplugin-provisioner", namespace, rbdProvisionerDeployment)
+		err = k8sutil.CreateDeployment(clientset, csiRBDProvisioner, namespace, rbdProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
@@ -424,7 +435,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to cephfs plugin containers
 		applyResourcesToContainers(clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, ownerRef)
-		err = k8sutil.CreateDaemonSet("csi-cephfsplugin", namespace, clientset, cephfsPlugin)
+		err = k8sutil.CreateDaemonSet(csiCephFSPlugin, namespace, clientset, cephfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs plugin daemonset: %+v", cephfsPlugin)
 		}
@@ -436,7 +447,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerSTS.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerSTS.ObjectMeta, ownerRef)
-		err = k8sutil.CreateStatefulSet(clientset, "csi-cephfsplugin-provisioner", namespace, cephfsProvisionerSTS)
+		err = k8sutil.CreateStatefulSet(clientset, csiCephFSProvisioner, namespace, cephfsProvisionerSTS)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs provisioner statefulset: %+v", cephfsProvisionerSTS)
 		}
@@ -448,12 +459,12 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, ownerRef)
-		antiAffinity := GetPodAntiAffinity("app", "csi-cephfsplugin-provisioner")
+		antiAffinity := GetPodAntiAffinity("app", csiCephFSProvisioner)
 		cephfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		cephfsProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
 			Type: apps.RecreateDeploymentStrategyType,
 		}
-		err = k8sutil.CreateDeployment(clientset, "csi-cephfsplugin-provisioner", namespace, cephfsProvisionerDeployment)
+		err = k8sutil.CreateDeployment(clientset, csiCephFSProvisioner, namespace, cephfsProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}
@@ -468,16 +479,79 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 	}
 
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
-		err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
-		if err != nil {
-			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
+		if EnableRBD {
+			err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
+			if err != nil {
+				return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
+			}
 		}
-		err = createCSIDriverInfo(clientset, CephFSDriverName, ownerRef)
-		if err != nil {
-			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
+		if EnableCephFS {
+			err = createCSIDriverInfo(clientset, CephFSDriverName, ownerRef)
+			if err != nil {
+				return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
+			}
 		}
 	}
 	return nil
+}
+
+func stopDrivers(clientset kubernetes.Interface, namespace string, ver *version.Info) {
+	if !EnableRBD {
+		logger.Info("CSI Ceph RBD driver disabled")
+		succeeded := deleteCSIDriverResources(clientset, ver, namespace, csiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
+		if succeeded {
+			logger.Info("successfully removed CSI Ceph RBD driver")
+		} else {
+			logger.Error("failed to remove CSI Ceph RBD driver")
+		}
+	}
+
+	if !EnableCephFS {
+		logger.Info("CSI CephFS driver disabled")
+		succeeded := deleteCSIDriverResources(clientset, ver, namespace, csiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
+		if succeeded {
+			logger.Info("successfully removed CSI CephFS driver")
+		} else {
+			logger.Error("failed to remove CSI CephFS driver")
+		}
+	}
+}
+
+func deleteCSIDriverResources(
+	clientset kubernetes.Interface, ver *version.Info, namespace, daemonset, deployment, service, driverName string) bool {
+	succeeded := true
+	err := k8sutil.DeleteDaemonset(clientset, namespace, daemonset)
+	if err != nil {
+		logger.Errorf("failed to delete the %q. %v", daemonset, err)
+		succeeded = false
+	}
+
+	if ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion {
+		err = k8sutil.DeleteStatefulset(clientset, namespace, deployment)
+		if err != nil {
+			logger.Errorf("failed to delete the %q. %v", deployment, err)
+			succeeded = false
+		}
+	} else {
+		err = k8sutil.DeleteDeployment(clientset, namespace, deployment)
+		if err != nil {
+			logger.Errorf("failed to delete the %q. %v", deployment, err)
+			succeeded = false
+		}
+	}
+
+	err = k8sutil.DeleteService(clientset, namespace, service)
+	if err != nil {
+		logger.Errorf("failed to delete the %q. %v", service, err)
+		succeeded = false
+	}
+
+	err = deleteCSIDriverInfo(clientset, driverName)
+	if err != nil {
+		logger.Errorf("failed to delete %q Driver Info. %v", driverName, err)
+		succeeded = false
+	}
+	return succeeded
 }
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
@@ -506,6 +580,17 @@ func createCSIDriverInfo(clientset kubernetes.Interface, name string, ownerRef *
 		return nil
 	}
 
+	return err
+}
+
+// deleteCSIDriverInfo deletes CSIDriverInfo and returns the error if any
+func deleteCSIDriverInfo(clientset kubernetes.Interface, name string) error {
+	err := clientset.StorageV1beta1().CSIDrivers().Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+	}
 	return err
 }
 
