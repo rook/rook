@@ -101,6 +101,13 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	}
 	logger.Infof("set user %q bucket max to %d", p.cephUserName, maxBuckets)
 
+	// setting quota limit if it is enabled
+	err = p.setAdditionalSettings(options)
+	if err != nil {
+		p.deleteOBCResource(p.bucketName)
+		return nil, err
+	}
+
 	return p.composeObjectBucket(), nil
 }
 
@@ -181,6 +188,14 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
+
+	// setting quota limit if it is enabled
+	err = p.setAdditionalSettings(options)
+	if err != nil {
+		p.deleteOBCResource("")
+		return nil, err
+	}
+
 	// returned ob with connection info
 	return p.composeObjectBucket(), nil
 }
@@ -493,4 +508,34 @@ func (p *Provisioner) deleteOBCResourceLogError(name string) {
 	if err := p.deleteOBCResource(""); err != nil {
 		logger.Warningf("error deleting OBC resource. %v", err)
 	}
+}
+
+// Check for additional options mentioned in OBC and set them accordingly
+func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error {
+	maxObjects := MaxObjectQuota(options)
+	maxSize := MaxSizeQuota(options)
+	if maxObjects == "" && maxSize == "" {
+		return nil
+	}
+
+	var err error
+	if maxObjects != "" {
+		if _, err = cephObject.SetQuotaUserObjectMax(p.objectContext, p.cephUserName, maxObjects); err != nil {
+			logger.Errorf("Setting MaxObject failed %v", err)
+			return err
+		}
+	}
+	if maxSize != "" {
+		_, err = cephObject.SetQuotaUserMaxSize(p.objectContext, p.cephUserName, maxSize)
+		if _, err = cephObject.SetQuotaUserMaxSize(p.objectContext, p.cephUserName, maxSize); err != nil {
+			logger.Errorf("Setting MaxSize failed %v", err)
+			return err
+		}
+	}
+	if _, err = cephObject.EnableUserQuota(p.objectContext, p.cephUserName); err != nil {
+		logger.Errorf("Enabling user quota for obc failed %v", err)
+		return err
+	}
+
+	return nil
 }
