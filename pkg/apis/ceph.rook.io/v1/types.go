@@ -445,9 +445,10 @@ type ZoneSpec struct {
 }
 
 type ObjectStoreStatus struct {
-	Phase        ConditionType `json:"phase,omitempty"`
-	Message      string        `json:"message,omitempty"`
-	BucketStatus *BucketStatus `json:"bucketStatus,omitempty"`
+	Phase        ConditionType     `json:"phase,omitempty"`
+	Message      string            `json:"message,omitempty"`
+	BucketStatus *BucketStatus     `json:"bucketStatus,omitempty"`
+	Info         map[string]string `json:"info,omitempty"`
 }
 
 type BucketStatus struct {

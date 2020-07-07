@@ -155,9 +155,12 @@ func TestEmptyPoolSpec(t *testing.T) {
 	assert.False(t, emptyPool(p))
 }
 
-func TestBuildDomainName(t *testing.T) {
+func TestBuildDomainNameAndEndpoint(t *testing.T) {
 	name := "my-store"
 	ns := "rook-ceph"
 	dns := BuildDomainName(name, ns)
 	assert.Equal(t, "rook-ceph-rgw-my-store.rook-ceph", dns)
+	var port int32 = 80
+	ep := buildDNSEndpoint(dns, port)
+	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", ep)
 }

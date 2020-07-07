@@ -29,12 +29,12 @@ import (
 )
 
 func (r *ReconcileCephObjectStore) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	updateStatusPhase(r.client, name, cephv1.ConditionFailure)
+	updateStatus(r.client, name, cephv1.ConditionFailure, map[string]string{})
 	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
 }
 
-// updateStatusPhase updates an object with a given status
-func updateStatusPhase(client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType) {
+// updateStatus updates an object with a given status
+func updateStatus(client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
 	objectStore := &cephv1.CephObjectStore{}
 	if err := client.Get(context.TODO(), namespacedName, objectStore); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -49,6 +49,9 @@ func updateStatusPhase(client client.Client, namespacedName types.NamespacedName
 	}
 
 	objectStore.Status.Phase = status
+	if len(info) != 0 {
+		objectStore.Status.Info = info
+	}
 	if err := opcontroller.UpdateStatus(client, objectStore); err != nil {
 		logger.Errorf("failed to set object store %q status to %q. %v", namespacedName, status, err)
 		return
@@ -75,4 +78,11 @@ func updateStatusBucket(client client.Client, name types.NamespacedName, phase c
 	}
 
 	logger.Debugf("object store %q status updated to %v", name, phase)
+}
+
+func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string {
+	m := make(map[string]string)
+	m["endpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port)
+
+	return m
 }
