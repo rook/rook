@@ -56,6 +56,7 @@ import (
 // - Create/delete buckets
 // - Create/delete users
 // - PUT/GET objects
+// - Quota limit wrt no of objects
 // ************************************************
 func TestCephSmokeSuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CephTestSuite) {

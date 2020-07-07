@@ -28,7 +28,8 @@ spec:
   generateBucketName: photo-booth [4]
   storageClassName: rook-ceph-bucket [4]
   additionalConfig: [5]
-    ANY_KEY: VALUE ...
+    maxObjects: "1000"
+    maxSize: "2G"
 ```
 1. `name` of the `ObjectBucketClaim`. This name becomes the name of the Secret and ConfigMap.
 1. `namespace`(optional) of the `ObjectBucketClaim`, which is also the namespace of the ConfigMap and Secret.
@@ -39,7 +40,9 @@ an entire object store.
 If both `bucketName` and `generateBucketName` are supplied then `BucketName` has precedence and `GenerateBucketName` is ignored.
 If both `bucketName` and `generateBucketName` are blank or omitted then the storage class is expected to contain the name of an _existing_ bucket. It's an error if all three bucket related names are blank or omitted.
 1. `storageClassName` which defines the StorageClass which contains the names of the bucket provisioner, the object-store and specifies the bucket retention policy.
-1. `additionalConfig` is an optional list of key-value pairs used to define attributes specific to the bucket being provisioned by this OBC. This information is typically tuned to a particular bucket provisioner and may limit application portability. Examples can include config values such as tenant, user and policy settings, etc.
+1. `additionalConfig` is an optional list of key-value pairs used to define attributes specific to the bucket being provisioned by this OBC. This information is typically tuned to a particular bucket provisioner and may limit application portability. Options supported:
+  - `maxObjects`: The maximum number of objects in the bucket
+  - `maxSize`: The maximum size of the bucket, please note minimum recommended value is 4K.
 
 ### OBC Custom Resource after Bucket Provisioning
 ```yaml
