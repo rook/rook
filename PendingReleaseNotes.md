@@ -18,9 +18,11 @@
 - OBC changes:
   - Updated lib bucket provisioner version to support multithread and required change can be found in [operator.yaml](cluster/examples/kubernetes/ceph/operator.yaml#L449)
     - Can be extended to add support for other providers
-- The Rook operator reflects the health of the CephObjectStore in its status field
-- The CephObjectStore CR supports connecting to external Ceph Rados Gateways, refer to the [external object section](Documentation/ceph-object.html#connect-to-external-object-store)
-- The CephObjectStore CR runs health checks on the object store endpoint, refer to the [health check section](Documentation/ceph-object-store-crd.html#health-settings)
+- CephObjectStore CRD changes:
+  - Health displayed in the Status field
+  - Supports connecting to external Ceph Rados Gateways, refer to the [external object section](Documentation/ceph-object.html#connect-to-external-object-store)
+  - The CephObjectStore CR runs health checks on the object store endpoint, refer to the [health check section](Documentation/ceph-object-store-crd.html#health-settings)
+  - The endpoint is now displayed in the Status field
 
 ### EdgeFS
 

@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+
 	config "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -160,7 +161,14 @@ func TestBuildDomainNameAndEndpoint(t *testing.T) {
 	ns := "rook-ceph"
 	dns := BuildDomainName(name, ns)
 	assert.Equal(t, "rook-ceph-rgw-my-store.rook-ceph", dns)
+
+	// non-secure endpoint
 	var port int32 = 80
-	ep := buildDNSEndpoint(dns, port)
+	ep := buildDNSEndpoint(dns, port, false)
 	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", ep)
+
+	// Secure endpoint
+	var securePort int32 = 443
+	ep = buildDNSEndpoint(dns, securePort, true)
+	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph:443", ep)
 }

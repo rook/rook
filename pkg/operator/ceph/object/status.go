@@ -49,9 +49,8 @@ func updateStatus(client client.Client, namespacedName types.NamespacedName, sta
 	}
 
 	objectStore.Status.Phase = status
-	if len(info) != 0 {
-		objectStore.Status.Info = info
-	}
+	objectStore.Status.Info = info
+
 	if err := opcontroller.UpdateStatus(client, objectStore); err != nil {
 		logger.Errorf("failed to set object store %q status to %q. %v", namespacedName, status, err)
 		return
@@ -82,7 +81,11 @@ func updateStatusBucket(client client.Client, name types.NamespacedName, phase c
 
 func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string {
 	m := make(map[string]string)
-	m["endpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port)
+	m["endpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port, false)
+
+	if cephObjectStore.Spec.Gateway.SecurePort != 0 {
+		m["secureEndpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.SecurePort, true)
+	}
 
 	return m
 }

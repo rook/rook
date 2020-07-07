@@ -85,6 +85,9 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(storeName, metav1.GetOptions{})
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), cephv1.ConditionHealthy, objectStore.Status.BucketStatus.Health)
+	// Info field has the endpoint in it
+	assert.NotEmpty(s.T(), objectStore.Status.Info)
+	assert.NotEmpty(s.T(), objectStore.Status.Info["endpoint"])
 
 	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
 	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userid)

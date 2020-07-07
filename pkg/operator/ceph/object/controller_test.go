@@ -165,6 +165,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		TypeMeta: controllerTypeMeta,
 	}
 	cephCluster := &cephv1.CephCluster{}
+	objectStore.Spec.Gateway.Port = 80
 
 	// Objects to track in the fake client.
 	object := []runtime.Object{
@@ -329,5 +330,7 @@ func TestCephObjectStoreController(t *testing.T) {
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
 	assert.NoError(t, err)
 	assert.Equal(t, cephv1.ConditionReady, objectStore.Status.Phase, objectStore)
+	assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
+	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", objectStore.Status.Info["endpoint"], objectStore)
 	logger.Info("PHASE 3 DONE")
 }

@@ -367,6 +367,10 @@ func BuildDomainName(name, namespace string) string {
 }
 
 // buildDNSEndpoint build the dns name to reach out the service endpoint
-func buildDNSEndpoint(domainName string, port int32) string {
-	return fmt.Sprintf("http://%s:%d", domainName, port)
+func buildDNSEndpoint(domainName string, port int32, secure bool) string {
+	httpPrefix := "http"
+	if secure {
+		httpPrefix = "https"
+	}
+	return fmt.Sprintf("%s://%s:%d", httpPrefix, domainName, port)
 }

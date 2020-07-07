@@ -194,7 +194,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	r.clusterInfo = clusterInfo
 
 	// validate isObjectStoreInitialized
-	objContext, err := r.isObjectStoreInitialized(cephObjectStoreUser)
+	err = r.isObjectStoreInitialized(cephObjectStoreUser)
 	if err != nil {
 		if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
 			// Remove finalizer
@@ -211,8 +211,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, nil
 	}
-	// Set the object store context
-	r.objContext = objContext
 
 	// Generate user config
 	userConfig := generateUserConfig(cephObjectStoreUser)
@@ -306,21 +304,16 @@ func (r *ReconcileObjectStoreUser) createCephUser(u *cephv1.CephObjectStoreUser)
 	return nil
 }
 
-func (r *ReconcileObjectStoreUser) isObjectStoreInitialized(u *cephv1.CephObjectStoreUser) (*object.Context, error) {
+func (r *ReconcileObjectStoreUser) isObjectStoreInitialized(u *cephv1.CephObjectStoreUser) error {
 	objContext := object.NewContext(r.context, u.Spec.Store, u.Namespace)
-
-	// If the cluster is external just return
-	// we don't need to validate u.Spec.Store
-	if r.cephClusterSpec.External.Enable {
-		return objContext, nil
-	}
+	r.objContext = objContext
 
 	err := r.objectStoreInitialized(u)
 	if err != nil {
-		return objContext, errors.Wrap(err, "failed to detect if object store is initialized")
+		return errors.Wrap(err, "failed to detect if object store is initialized")
 	}
 
-	return objContext, nil
+	return nil
 }
 
 func generateUserConfig(user *cephv1.CephObjectStoreUser) object.ObjectUser {
@@ -344,6 +337,7 @@ func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectSt
 	secrets := map[string]string{
 		"AccessKey": *r.userConfig.AccessKey,
 		"SecretKey": *r.userConfig.SecretKey,
+		"Endpoint":  r.objContext.Endpoint,
 	}
 
 	secretName := fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name)
@@ -392,6 +386,12 @@ func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *c
 	}
 	logger.Debug("CephObjectStore exists")
 
+	// If the cluster is external just return
+	// since there are no pods running
+	if r.cephClusterSpec.External.Enable {
+		return nil
+	}
+
 	// There are no pods running when the cluster is external
 	// Unless you pass the admin key...
 	pods, err := r.getRgwPodList(cephObjectStoreUser)
@@ -422,6 +422,7 @@ func (r *ReconcileObjectStoreUser) getObjectStore(storeName string) error {
 	for _, store := range objectStores.Items {
 		if store.Name == storeName {
 			logger.Infof("CephObjectStore %q found", storeName)
+			r.objContext.Endpoint = store.Status.Info["endpoint"]
 			return nil
 		}
 	}
