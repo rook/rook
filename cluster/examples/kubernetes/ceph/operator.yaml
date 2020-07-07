@@ -34,9 +34,10 @@ data:
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   # CSI_LOG_LEVEL: "0"
 
-  # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
+  # Enable cephfs kernel driver instead of ceph-fuse.
   # If you disable the kernel client, your application may be disrupted during upgrade.
   # See the upgrade guide: https://rook.io/docs/rook/master/ceph-upgrade.html
+  # NOTE! cephfs quota is not supported in kernel version < 4.17
   CSI_FORCE_CEPHFS_KERNEL_CLIENT: "true"
 
   # (Optional) Allow starting unsupported ceph-csi image
