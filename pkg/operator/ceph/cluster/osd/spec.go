@@ -233,8 +233,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		{Name: "ROOK_IS_DEVICE", Value: "true"},
 	}...)
 
-	var commonArgs []string
-
 	// If the OSD runs on PVC
 	if osdProps.onPVC() {
 		// add the PVC size to the pod spec so that if the size changes the OSD will be restarted and pick up the change
@@ -248,9 +246,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			}
 		}
 	}
-
-	commonArgs = append(commonArgs, "--default-log-to-file", "false")
-	commonArgs = append(commonArgs, osdOnSDNFlag(c.Network)...)
 
 	var command []string
 	var args []string
@@ -319,7 +314,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
 	}
 
-	args = append(args, commonArgs...)
+	args = append(args, opconfig.LoggingFlags()...)
+	args = append(args, osdOnSDNFlag(c.Network)...)
 
 	osdDataDirPath := activateOSDMountPath + osdID
 	if osdProps.onPVC() && osd.CVMode == "lvm" {
