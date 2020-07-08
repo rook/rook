@@ -273,6 +273,8 @@ spec:
                   - passive
                   - aggressive
                   - force
+                parameters:
+                  type: object
             dataPools:
               type: array
               items:
@@ -305,6 +307,8 @@ spec:
                     - passive
                     - aggressive
                     - force
+                parameters:
+                  type: object
             preservePoolsOnDelete:
               type: boolean
   additionalPrinterColumns:
@@ -411,6 +415,8 @@ spec:
                   - passive
                   - aggressive
                   - force
+                parameters:
+                  type: object
             dataPool:
               properties:
                 failureDomain:
@@ -435,6 +441,8 @@ spec:
                   - passive
                   - aggressive
                   - force
+                parameters:
+                  type: object
             preservePoolsOnDelete:
               type: boolean
   subresources:
@@ -507,6 +515,8 @@ spec:
               - passive
               - aggressive
               - force
+            parameters:
+              type: object
   subresources:
     status: {}
 ---
