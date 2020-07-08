@@ -81,6 +81,11 @@ type Placement struct {
 
 type ResourceSpec map[string]v1.ResourceRequirements
 
+type ProbeSpec struct {
+	Disabled bool      `json:"disabled,omitempty"`
+	Probe    *v1.Probe `json:"probe,omitempty"`
+}
+
 // PriorityClassNamesSpec is a map of priority class names to be assigned to components
 type PriorityClassNamesSpec map[KeyType]string
 

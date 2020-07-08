@@ -94,6 +94,7 @@ type Cluster struct {
 	kv                                         *k8sutil.ConfigMapKVStore
 	skipUpgradeChecks                          bool
 	continueUpgradeAfterChecksEvenIfNotHealthy bool
+	healthCheck                                cephv1.CephClusterHealthCheckSpec
 }
 
 // New creates an instance of the OSD manager
@@ -114,6 +115,7 @@ func New(
 	ownerRef metav1.OwnerReference,
 	skipUpgradeChecks bool,
 	continueUpgradeAfterChecksEvenIfNotHealthy bool,
+	healthCheck cephv1.CephClusterHealthCheckSpec,
 ) *Cluster {
 	return &Cluster{
 		clusterInfo:       clusterInfo,
@@ -133,6 +135,7 @@ func New(
 		kv:                k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerRef),
 		skipUpgradeChecks: skipUpgradeChecks,
 		continueUpgradeAfterChecksEvenIfNotHealthy: continueUpgradeAfterChecksEvenIfNotHealthy,
+		healthCheck: healthCheck,
 	}
 }
 

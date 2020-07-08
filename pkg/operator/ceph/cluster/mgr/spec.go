@@ -194,6 +194,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 }
 
 func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
+
 	container := v1.Container{
 		Name: "mgr",
 		Command: []string{
@@ -230,18 +231,13 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			controller.DaemonEnvVars(c.cephVersion.Image),
 			c.cephMgrOrchestratorModuleEnvs()...,
 		),
-		Resources: c.resources,
-		LivenessProbe: &v1.Probe{
-			Handler: v1.Handler{
-				HTTPGet: &v1.HTTPGetAction{
-					Path: "/",
-					Port: intstr.FromInt(metricsPort),
-				},
-			},
-			InitialDelaySeconds: 60,
-		},
+		Resources:       c.resources,
 		SecurityContext: mon.PodSecurityContext(),
+		LivenessProbe:   getDefaultMgrLivenessProbe(),
 	}
+
+	// If the liveness probe is enabled
+	container = config.ConfigureLivenessProbe(rookcephv1.KeyMgr, container, c.healthCheck)
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
 	if !c.Network.IsHost() {
@@ -252,6 +248,18 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	}
 
 	return container
+}
+
+func getDefaultMgrLivenessProbe() *v1.Probe {
+	return &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path: "/",
+				Port: intstr.FromInt(metricsPort),
+			},
+		},
+		InitialDelaySeconds: 60,
+	}
 }
 
 func (c *Cluster) makeMetricsService(name string) *v1.Service {

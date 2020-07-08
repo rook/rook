@@ -20,3 +20,8 @@ spec:
     enable: true
   crashCollector:
     disable: true
+  healthCheck:
+    daemonHealth:
+      mon:
+        disabled: false
+        interval: 45s

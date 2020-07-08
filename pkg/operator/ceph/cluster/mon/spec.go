@@ -278,6 +278,9 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 		LivenessProbe: controller.GenerateLivenessProbeExecDaemon(config.MonType, monConfig.DaemonName),
 	}
 
+	// If the liveness probe is enabled
+	container = config.ConfigureLivenessProbe(cephv1.KeyMon, container, c.spec.HealthCheck)
+
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
 	if !c.Network.IsHost() {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous

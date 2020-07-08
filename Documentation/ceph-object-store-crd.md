@@ -145,7 +145,7 @@ Here is a complete example:
 ```yaml
 healthCheck:
   bucket:
-    enabled: true
+    disabled: false
     interval: 60s
 ```
 

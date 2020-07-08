@@ -412,13 +412,6 @@ spec:
         # The logging level for the operator: INFO | DEBUG
         - name: ROOK_LOG_LEVEL
           value: "INFO"
-        # The interval to check if every mon is in the quorum.
-        - name: ROOK_MON_HEALTHCHECK_INTERVAL
-          value: "45s"
-        # The duration to wait before trying to failover or remove/replace the
-        # current mon with a new mon (useful for compensating flapping network).
-        - name: ROOK_MON_OUT_TIMEOUT
-          value: "600s"
         # The duration between discovering devices in the rook-discover daemonset.
         - name: ROOK_DISCOVER_DEVICES_INTERVAL
           value: "60m"

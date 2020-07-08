@@ -62,6 +62,7 @@ func TestPodSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		cephv1.CephClusterHealthCheckSpec{},
 	)
 
 	mgrTestConfig := mgrConfig{
@@ -107,6 +108,7 @@ func TestServiceSpec(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		cephv1.CephClusterHealthCheckSpec{},
 	)
 
 	s := c.makeMetricsService("rook-mgr")
@@ -135,6 +137,7 @@ func TestHostNetwork(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		cephv1.CephClusterHealthCheckSpec{},
 	)
 
 	mgrTestConfig := mgrConfig{
@@ -170,6 +173,7 @@ func TestHttpBindFix(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		cephv1.CephClusterHealthCheckSpec{},
 	)
 
 	mgrTestConfig := mgrConfig{
@@ -206,6 +210,7 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		cephv1.CephClusterHealthCheckSpec{},
 	)
 
 	mgrTestConfig := mgrConfig{

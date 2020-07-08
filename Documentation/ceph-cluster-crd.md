@@ -151,6 +151,7 @@ For more details on the mons and when to choose a number other than `3`, see the
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the osds are `out` and `safe-to-destroy` when then would be removed.
 * `cleanupPolicy`: The section for confirming that cluster data should be forcibly deleted. The cleanupPolicy should only be added to the cluster when the cluster is about to be deleted. After any field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about to be destroyed in order to prevent these settings from being deployed unintentionally.
   * `confirmation`: If `yes-really-destroy-data` the operator will automatically delete data on the hostpath of cluster nodes and clean devices with OSDs when a `delete cephcluster` command is issued. Only `yes-really-destroy-data` and an empty string are valid values for this field.
+* `healthCheck`: control period health status checks and livenessprobes, see the [health settings](#health-settings)
 
 To activate the cleanup, you can use the following command **AT YOUR OWN RISK**:
 
@@ -205,10 +206,7 @@ A specific will contain a specific release of Ceph as well as security fixes fro
 
 If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
 
-To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being long enough to ignore network blips where mons are failed over too often.
-
-* `ROOK_MON_HEALTHCHECK_INTERVAL`: The frequency with which to check if mons are in quorum (default is 45 seconds)
-* `ROOK_MON_OUT_TIMEOUT`: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quorum (default is 600 seconds)
+To change the defaults that the operator uses to determine the mon health and whether to failover a mon, refer to the [health settings](#health-settings). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being long enough to ignore network blips where mons are failed over too often.
 
 ### Mgr Settings
 
@@ -446,6 +444,62 @@ You can set priority class names for Rook components for the list of key value p
 * `osd`: Set priority class names for OSDs.
 
 The specific component keys will act as overrides to `all`.
+
+### Health settings
+
+Rook-Ceph will monitor the state of the CephCluster on various components by default.
+The following CRD settings are available:
+
+* `healthCheck`: main ceph cluster health monitoring section
+
+Currently three health checks are implemented:
+
+* `mon`: health check on the ceph monitors, basically check whether monitors are members of the quorum. If after a certain timeout a given monitor has not joined the quorum back it will be failed over and replace by a new monitor.
+* `osd`: health check on the ceph osds
+* `status`: ceph health status check, periodically check the Ceph health state and reflects it in the CephCluster CR status field.
+
+The liveness probe of each daemon can also be controlled via `livenessProbe`, the setting is valid for `mon`, `mgr` and `osd`.
+Here is a complete example for both `daemonHealth` and `livenessProbe`:
+
+```yaml
+healthCheck:
+  daemonHealth:
+    mon:
+      disabled: false
+      interval: 45s
+      timeout: 600s
+    osd:
+      disabled: false
+      interval: 60s
+    status:
+      disabled: false
+  livenessProbe:
+    mon:
+      disabled: false
+    mgr:
+      disabled: false
+    osd:
+      disabled: false
+```
+
+The probe itself can also be overridden, refer to the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-a-liveness-command).
+
+For example, you could change the `mgr` probe by applying:
+
+```yaml
+healthCheck:
+  livenessProbe:
+    mgr:
+      disabled: false
+      probe:
+        httpGet:
+          path: /
+          port: 9283
+        initialDelaySeconds: 3
+        periodSeconds: 3
+```
+
+Changing the liveness probe is an advanced operation and should rarely be necessary. If you want to change these settings, start with the probe spec Rook generates by default and then modify the desired settings.
 
 ## Samples
 

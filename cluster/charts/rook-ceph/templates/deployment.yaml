@@ -240,20 +240,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-{{- if .Values.cephStatusCheckInterval }}
-        - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
-          value: {{ .Values.cephStatusCheckInterval }}
-{{- end }}
-{{- if .Values.mon }}
-{{- if .Values.mon.healthCheckInterval }}
-        - name: ROOK_MON_HEALTHCHECK_INTERVAL
-          value: {{ .Values.mon.healthCheckInterval }}
-{{- end }}
-{{- if .Values.mon.monOutTimeout }}
-        - name: ROOK_MON_OUT_TIMEOUT
-          value: {{ .Values.mon.monOutTimeout }}
-{{- end }}
-{{- end }}
 {{- if .Values.unreachableNodeTolerationSeconds }}
         - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
           value: {{ .Values.unreachableNodeTolerationSeconds | quote }}

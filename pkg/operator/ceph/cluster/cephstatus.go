@@ -49,7 +49,7 @@ type cephStatusChecker struct {
 }
 
 // newCephStatusChecker creates a new HealthChecker object
-func newCephStatusChecker(context *clusterd.Context, resourceName string, cephUser string, namespacedName types.NamespacedName) *cephStatusChecker {
+func newCephStatusChecker(context *clusterd.Context, resourceName string, cephUser string, namespacedName types.NamespacedName, healthCheck cephv1.CephClusterHealthCheckSpec) *cephStatusChecker {
 	c := &cephStatusChecker{
 		context:        context,
 		resourceName:   resourceName,
@@ -60,13 +60,26 @@ func newCephStatusChecker(context *clusterd.Context, resourceName string, cephUs
 	}
 
 	// allow overriding the check interval with an env var on the operator
-	checkInterval := os.Getenv("ROOK_CEPH_STATUS_CHECK_INTERVAL")
+	// Keep the existing behavior
+	var checkInterval string
+	checkIntervalCRSetting := healthCheck.DaemonHealth.Status.Interval
+	checkIntervalEnv := os.Getenv("ROOK_CEPH_STATUS_CHECK_INTERVAL")
+	if checkIntervalEnv != "" {
+		checkInterval = checkIntervalEnv
+	}
+
+	if checkIntervalCRSetting != "" && checkIntervalEnv == "" {
+		checkInterval = checkIntervalCRSetting
+	}
+
+	// Set duration
 	if checkInterval != "" {
 		if duration, err := time.ParseDuration(checkInterval); err == nil {
 			logger.Infof("ceph status check interval is %s", checkInterval)
 			c.interval = duration
 		}
 	}
+
 	return c
 }
 
@@ -78,7 +91,7 @@ func (c *cephStatusChecker) checkCephStatus(stopCh chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of ceph status")
+			logger.Infof("stopping monitoring of ceph status")
 			return
 
 		case <-time.After(c.interval):
@@ -101,7 +114,7 @@ func (c *cephStatusChecker) checkStatus() {
 		return
 	}
 
-	logger.Debugf("Cluster status: %+v", status)
+	logger.Debugf("cluster status: %+v", status)
 	if err := c.updateCephStatus(&status); err != nil {
 		logger.Errorf("failed to query cluster status in namespace %q. %v", c.namespacedName.Namespace, err)
 	}

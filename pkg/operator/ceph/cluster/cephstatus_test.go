@@ -18,17 +18,20 @@ limitations under the License.
 package cluster
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestCephStatus(t *testing.T) {
-	newStatus := &client.CephStatus{
-		Health: client.HealthStatus{Status: "HEALTH_OK"},
+	newStatus := &cephclient.CephStatus{
+		Health: cephclient.HealthStatus{Status: "HEALTH_OK"},
 	}
 
 	// Empty initial status will have no previous health
@@ -67,11 +70,11 @@ func TestCephStatus(t *testing.T) {
 	assert.Equal(t, 0, len(aggregateStatus.Details))
 
 	// Add some details to the warning
-	osdDownMsg := client.CheckMessage{Severity: "HEALTH_WARN"}
+	osdDownMsg := cephclient.CheckMessage{Severity: "HEALTH_WARN"}
 	osdDownMsg.Summary.Message = "1 osd down"
-	pgAvailMsg := client.CheckMessage{Severity: "HEALTH_ERR"}
+	pgAvailMsg := cephclient.CheckMessage{Severity: "HEALTH_ERR"}
 	pgAvailMsg.Summary.Message = "'Reduced data availability: 100 pgs stale'"
-	newStatus.Health.Checks = map[string]client.CheckMessage{
+	newStatus.Health.Checks = map[string]cephclient.CheckMessage{
 		"OSD_DOWN":        osdDownMsg,
 		"PG_AVAILABILITY": pgAvailMsg,
 	}
@@ -87,4 +90,35 @@ func TestCephStatus(t *testing.T) {
 	assert.Equal(t, osdDownMsg.Severity, aggregateStatus.Details["OSD_DOWN"].Severity)
 	assert.Equal(t, pgAvailMsg.Summary.Message, aggregateStatus.Details["PG_AVAILABILITY"].Message)
 	assert.Equal(t, pgAvailMsg.Severity, aggregateStatus.Details["PG_AVAILABILITY"].Severity)
+}
+
+func TestNewCephStatusChecker(t *testing.T) {
+	c := &clusterd.Context{}
+	n := "rook-ceph"
+	u := "client.admin"
+	nsName := types.NamespacedName{Name: n, Namespace: n}
+	time10s, _ := time.ParseDuration("10s")
+
+	type args struct {
+		context        *clusterd.Context
+		resourceName   string
+		cephUser       string
+		namespacedName types.NamespacedName
+		healthCheck    cephv1.CephClusterHealthCheckSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want *cephStatusChecker
+	}{
+		{"default-interval", args{c, n, u, nsName, cephv1.CephClusterHealthCheckSpec{}}, &cephStatusChecker{c, n, defaultStatusCheckInterval, u, c.Client, nsName}},
+		{"default-interval", args{c, n, u, nsName, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: "10s"}}}}, &cephStatusChecker{c, n, time10s, u, c.Client, nsName}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := newCephStatusChecker(tt.args.context, tt.args.resourceName, tt.args.cephUser, tt.args.namespacedName, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("newCephStatusChecker() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

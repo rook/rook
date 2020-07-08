@@ -383,7 +383,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	}
 
 	// Start monitoring
-	if cephObjectStore.Spec.HealthCheck.Bucket.Enabled {
+	if !cephObjectStore.Spec.HealthCheck.Bucket.Disabled {
 		r.startMonitoring(cephObjectStore, objContext, serviceIP, namespacedName)
 	}
 

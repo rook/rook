@@ -73,6 +73,7 @@ func TestStartMGR(t *testing.T) {
 		metav1.OwnerReference{},
 		"/var/lib/rook/",
 		false,
+		cephv1.CephClusterHealthCheckSpec{},
 	)
 	defer os.RemoveAll(c.dataDir)
 

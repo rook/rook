@@ -44,14 +44,34 @@ var (
 type HealthChecker struct {
 	monCluster  *Cluster
 	clusterSpec *cephv1.ClusterSpec
+	interval    time.Duration
 }
 
 // NewHealthChecker creates a new HealthChecker object
 func NewHealthChecker(monCluster *Cluster, clusterSpec *cephv1.ClusterSpec) *HealthChecker {
-	return &HealthChecker{
+	h := &HealthChecker{
 		monCluster:  monCluster,
 		clusterSpec: clusterSpec,
+		interval:    HealthCheckInterval,
 	}
+
+	monCRDTimeoutSetting := clusterSpec.HealthCheck.DaemonHealth.Monitor.Timeout
+	if monCRDTimeoutSetting != "" {
+		if monTimeout, err := time.ParseDuration(monCRDTimeoutSetting); err == nil {
+			MonOutTimeout = monTimeout
+		}
+	}
+
+	checkInterval := clusterSpec.HealthCheck.DaemonHealth.Monitor.Interval
+	// allow overriding the check interval
+	if checkInterval != "" {
+		if duration, err := time.ParseDuration(checkInterval); err == nil {
+			logger.Infof("ceph mon status in namespace %q check interval %q", monCluster.Namespace, checkInterval)
+			h.interval = duration
+		}
+	}
+
+	return h
 }
 
 // Check periodically checks the health of the monitors
@@ -64,10 +84,10 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of mons in namespace %s", hc.monCluster.Namespace)
+			logger.Infof("stopping monitoring of mons in namespace %q", hc.monCluster.Namespace)
 			return
 
-		case <-time.After(HealthCheckInterval):
+		case <-time.After(hc.interval):
 			logger.Debugf("checking health of mons")
 			err := hc.monCluster.checkHealth()
 			if err != nil {

@@ -84,6 +84,7 @@ type Cluster struct {
 	dataDirHostPath   string
 	skipUpgradeChecks bool
 	appliedHttpBind   bool
+	healthCheck       cephv1.CephClusterHealthCheckSpec
 }
 
 // New creates an instance of the mgr
@@ -103,6 +104,7 @@ func New(
 	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
 	skipUpgradeChecks bool,
+	healthCheck cephv1.CephClusterHealthCheckSpec,
 ) *Cluster {
 	return &Cluster{
 		clusterInfo:       clusterInfo,
@@ -124,6 +126,7 @@ func New(
 		exitCode:          exec.ExitStatus,
 		dataDirHostPath:   dataDirHostPath,
 		skipUpgradeChecks: skipUpgradeChecks,
+		healthCheck:       healthCheck,
 	}
 }
 
