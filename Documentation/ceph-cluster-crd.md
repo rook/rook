@@ -233,6 +233,9 @@ Configure the network that will be enabled for the cluster and services.
 * `provider`: Specifies the network provider that will be used to connect the network interface. You can choose between `host`, and `multus`.
 * `selectors`: List the network selector(s) that will be used associated by a key.
 
+> **NOTE:** Changing networking configuration after a Ceph cluster has been deployed is NOT
+> supported and will result in a non-functioning cluster.
+
 #### Host Networking
 
 To use host networking, set `provider: host`.
