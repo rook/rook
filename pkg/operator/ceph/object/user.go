@@ -183,6 +183,7 @@ func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 	return result, errors.Wrap(err, "failed to delete s3 user")
 }
 
+// SetQuotaUserBucketMax will set maximum bucket quota for a user
 func SetQuotaUserBucketMax(c *Context, id string, max int) (string, error) {
 	logger.Infof("Setting user %q max buckets to %d", id, max)
 	args := []string{"--quota-scope", "user", "--max-buckets", strconv.Itoa(max)}
@@ -202,6 +203,7 @@ func setUserQuota(c *Context, id string, args []string) (string, error) {
 	return result, err
 }
 
+// LinkUser will link a user to a bucket
 func LinkUser(c *Context, id, bucket string) (string, int, error) {
 	logger.Infof("Linking (user: %s) (bucket: %s)", id, bucket)
 	args := []string{"bucket", "link", "--uid", id, "--bucket", bucket}
@@ -215,6 +217,7 @@ func LinkUser(c *Context, id, bucket string) (string, int, error) {
 	return result, RGWErrorNone, nil
 }
 
+// UnlinkUser will unlink the user from a bucket
 func UnlinkUser(c *Context, id, bucket string) (string, int, error) {
 	logger.Infof("Unlinking (user: %s) (bucket: %s)", id, bucket)
 	args := []string{"bucket", "unlink", "--uid", id, "--bucket", bucket}
