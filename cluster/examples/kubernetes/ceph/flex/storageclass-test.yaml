@@ -22,4 +22,4 @@ allowVolumeExpansion: true
 parameters:
   blockPool: replicapool
   clusterNamespace: rook-ceph
-  fstype: xfs
+  fstype: ext4

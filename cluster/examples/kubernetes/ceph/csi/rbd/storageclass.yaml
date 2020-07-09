@@ -47,7 +47,8 @@ parameters:
     csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
     csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
     # Specify the filesystem type of the volume. If not specified, csi-provisioner
-    # will set default as `ext4`.
+    # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
+    # in hyperconverged settings where the volume is mounted on the same node as the osds.
     csi.storage.k8s.io/fstype: ext4
 # uncomment the following to use rbd-nbd as mounter on supported nodes
 # **IMPORTANT**: If you are using rbd-nbd as the mounter, during upgrade you will be hit a ceph-csi
