@@ -99,18 +99,18 @@ You can add key-value pairs to the data section of the ConfigMap.
 
 ### Configuration Options
 
-| Name     |     type    | default |
+| Name     | Type    | Default |
 |----------|-------------|---------|
-| cluster_name | string | the name of your cluster as specified in the cluster crd |
-| listen_address | string | POD_IP environment variable |
-| num_tokens | string  | 256 |
-| rpc_address | string  | 0.0.0.0 |
-| broadcast_address | string  | - |
-| broadcast_rpc_address | string  | member service ip address |
-| endpoint_snitch | string  | GossipingPropertyFileSnitch |
-| disk_failure_policy | string  | stop |
-| commit_failure_policy | string  | stop |
-| seed_provider | yaml  | SimpleSeedProvider with member service IPs |
+| `cluster_name` | string | the name of your cluster as specified in the cluster crd |
+| `listen_address` | string | POD_IP environment variable |
+| `num_tokens` | string  | 256 |
+| `rpc_address` | string  | 0.0.0.0 |
+| `broadcast_address` | string  | - |
+| `broadcast_rpc_address` | string  | member service ip address |
+| `endpoint_snitch` | string  | GossipingPropertyFileSnitch |
+| `disk_failure_policy` | string  | stop |
+| `commit_failure_policy` | string  | stop |
+| `seed_provider` | yaml  | SimpleSeedProvider with member service IPs |
 
 You can use go templates to reference Pod IP, service IP, DC, Rack and other variables using a TemplateData Object:
 

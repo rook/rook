@@ -1,7 +1,8 @@
 package config
 
 // Configuration represents the content of cassandra.yaml file
-// see http://wiki.apache.org/cassandra/StorageConfiguration for full explanations
+// see https://cassandra.apache.org/doc/latest/configuration/cassandra_config_file.html for full explanations
+// This struct was generated from a cassandra 3.11 config file
 type Configuration struct {
 	ClusterName                string `json:"cluster_name"`
 	NumTokens                  int    `json:"num_tokens"`
