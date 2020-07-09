@@ -27,7 +27,7 @@ parameters:
   # This is also the namespace where the cluster will be
   clusterNamespace: rook-ceph
   # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
-  fstype: xfs
+  fstype: ext4
   # (Optional) Specify an existing Ceph user that will be used for mounting storage with this StorageClass.
   #mountUser: user1
   # (Optional) Specify an existing Kubernetes secret name containing just one key holding the Ceph user secret.
