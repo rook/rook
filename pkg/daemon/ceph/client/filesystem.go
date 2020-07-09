@@ -97,7 +97,7 @@ func GetFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName s
 	args := []string{"fs", "get", fsName}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get file system %s", fsName)
+		return nil, err
 	}
 
 	var fs CephFilesystemDetails
