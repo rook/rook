@@ -45,4 +45,4 @@ parameters:
   # This is also the namespace where the cluster will be
   clusterNamespace: rook-ceph
   # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
-  fstype: xfs
+  fstype: ext4
