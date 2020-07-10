@@ -22,6 +22,7 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -32,6 +33,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestOSDHealthCheck(t *testing.T) {
@@ -93,7 +96,7 @@ func TestOSDHealthCheck(t *testing.T) {
 	osdMon := NewOSDHealthMonitor(context, clusterInfo, true, cephv1.CephClusterHealthCheckSpec{})
 
 	// Run OSD monitoring routine
-	err := osdMon.checkOSDHealth()
+	err := osdMon.checkOSDDump()
 	assert.Nil(t, err)
 	// After creating an OSD, the dump has 1 mocked cmd and safe to destroy has 1 mocked cmd
 	assert.Equal(t, 2, execCount)
@@ -195,4 +198,48 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDeviceClasses(t *testing.T) {
+	clusterInfo := client.AdminClusterInfo("fake")
+	clusterInfo.SetName("rook-ceph")
+
+	var execCount = 0
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command string, outFileArg string, args ...string) (string, error) {
+		logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
+		execCount++
+		if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
+			// Mock executor for OSD crush class list command, returning ssd as available device class
+			return `["ssd"]`, nil
+		}
+		return "", nil
+	}
+
+	cephCluster := &cephv1.CephCluster{}
+	// Objects to track in the fake client.
+	object := []runtime.Object{
+		cephCluster,
+	}
+	s := scheme.Scheme
+	// Create a fake client to mock API calls.
+	cl := fake.NewFakeClientWithScheme(s, object...)
+
+	context := &clusterd.Context{
+		Executor: executor,
+		Client:   cl,
+	}
+
+	// Initializing an OSD monitoring
+	osdMon := NewOSDHealthMonitor(context, clusterInfo, true, cephv1.CephClusterHealthCheckSpec{})
+
+	// Run OSD monitoring routine
+	err := osdMon.checkDeviceClasses()
+	assert.Nil(t, err)
+	// checkDeviceClasses has 1 mocked cmd for fetching the device classes
+	assert.Equal(t, 1, execCount)
 }

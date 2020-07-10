@@ -185,6 +185,7 @@ type ClusterStatus struct {
 	Message     string          `json:"message,omitempty"`
 	Conditions  []Condition     `json:"conditions,omitempty"`
 	CephStatus  *CephStatus     `json:"ceph,omitempty"`
+	CephStorage *CephStorage    `json:"storage,omitempty"`
 	CephVersion *ClusterVersion `json:"version,omitempty"`
 }
 
@@ -194,6 +195,14 @@ type CephStatus struct {
 	LastChecked    string                       `json:"lastChecked,omitempty"`
 	LastChanged    string                       `json:"lastChanged,omitempty"`
 	PreviousHealth string                       `json:"previousHealth,omitempty"`
+}
+
+type CephStorage struct {
+	DeviceClasses []DeviceClasses `json:"deviceClasses,omitempty"`
+}
+
+type DeviceClasses struct {
+	Name string `json:"name,omitempty"`
 }
 
 type ClusterVersion struct {
