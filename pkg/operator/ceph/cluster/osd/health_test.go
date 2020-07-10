@@ -17,19 +17,20 @@ package osd
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestOSDHealthCheck(t *testing.T) {
@@ -88,7 +89,7 @@ func TestOSDHealthCheck(t *testing.T) {
 	assert.Equal(t, 1, len(dp.Items))
 
 	// Initializing an OSD monitoring
-	osdMon := NewOSDHealthMonitor(context, cluster, true)
+	osdMon := NewOSDHealthMonitor(context, cluster, true, cephv1.CephClusterHealthCheckSpec{})
 
 	// Run OSD monitoring routine
 	err := osdMon.checkOSDHealth()
@@ -103,7 +104,7 @@ func TestOSDHealthCheck(t *testing.T) {
 
 func TestMonitorStart(t *testing.T) {
 	stopCh := make(chan struct{})
-	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, "cluster", true)
+	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, "cluster", true, cephv1.CephClusterHealthCheckSpec{})
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(stopCh)
 	close(stopCh)
@@ -131,7 +132,7 @@ func TestOSDRestartIfStuck(t *testing.T) {
 	_, err := context.Clientset.CoreV1().Pods(namespace).Create(&pod)
 	assert.NoError(t, err)
 
-	m := NewOSDHealthMonitor(context, namespace, false)
+	m := NewOSDHealthMonitor(context, namespace, false, cephv1.CephClusterHealthCheckSpec{})
 
 	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
 
@@ -166,5 +167,32 @@ func TestOSDRestartIfStuck(t *testing.T) {
 	// The pod should be deleted since the pod is marked as deleted and the node is not ready
 	_, err = context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
 	assert.Error(t, err)
-	assert.True(t, errors.IsNotFound(err))
+	assert.True(t, kerrors.IsNotFound(err))
+}
+
+func TestNewOSDHealthMonitor(t *testing.T) {
+	ns := "rook-ceph"
+	c := &clusterd.Context{}
+	time10s, _ := time.ParseDuration("10s")
+	type args struct {
+		context                        *clusterd.Context
+		namespace                      string
+		removeOSDsIfOUTAndSafeToRemove bool
+		healthCheck                    cephv1.CephClusterHealthCheckSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want *OSDHealthMonitor
+	}{
+		{"default-interval", args{c, ns, false, cephv1.CephClusterHealthCheckSpec{}}, &OSDHealthMonitor{c, ns, false, defaultHealthCheckInterval}},
+		{"10s-interval", args{c, ns, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: "10s"}}}}, &OSDHealthMonitor{c, ns, false, time10s}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewOSDHealthMonitor(tt.args.context, tt.args.namespace, tt.args.removeOSDsIfOUTAndSafeToRemove, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewOSDHealthMonitor() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

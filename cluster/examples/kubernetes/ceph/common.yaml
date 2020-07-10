@@ -176,6 +176,7 @@ spec:
                   pattern: ^$|^yes-really-destroy-data$
             placement: {}
             resources: {}
+            healthCheck: {}
   subresources:
     status: {}
   additionalPrinterColumns:

@@ -1655,12 +1655,6 @@ spec:
         env:
         - name: ROOK_LOG_LEVEL
           value: INFO
-        - name: ROOK_CEPH_STATUS_CHECK_INTERVAL
-          value: "5s"
-        - name: ROOK_MON_HEALTHCHECK_INTERVAL
-          value: "10s"
-        - name: ROOK_MON_OUT_TIMEOUT
-          value: "15s"
         - name: NODE_NAME
           valueFrom:
             fieldRef:
@@ -2029,7 +2023,16 @@ spec:
   mgr:
     modules:
     - name: pg_autoscaler
-      enabled: true`
+      enabled: true
+  healthCheck:
+    daemonHealth:
+      mon:
+        interval: 10s
+        timeout: 15s
+      osd:
+        interval: 10s
+      status:
+        interval: 5s`
 }
 
 // GetRookToolBox returns rook-toolbox manifest

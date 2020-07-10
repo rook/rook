@@ -41,6 +41,17 @@ type CephCluster struct {
 	Status            ClusterStatus `json:"status,omitempty"`
 }
 
+type CephClusterHealthCheckSpec struct {
+	DaemonHealth  DaemonHealthSpec                     `json:"daemonHealth,omitempty"`
+	LivenessProbe map[rookv1.KeyType]*rookv1.ProbeSpec `json:"livenessProbe,omitempty"`
+}
+
+type DaemonHealthSpec struct {
+	Status              HealthCheckSpec `json:"status,omitempty"`
+	Monitor             HealthCheckSpec `json:"mon,omitempty"`
+	ObjectStorageDaemon HealthCheckSpec `json:"osd,omitempty"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type CephClusterList struct {
@@ -108,6 +119,9 @@ type ClusterSpec struct {
 	// Indicates user intent when deleting a cluster; blocks orchestration and should not be set if cluster
 	// deletion is not imminent.
 	CleanupPolicy CleanupPolicySpec `json:"cleanupPolicy,omitempty"`
+
+	// Internal daemon healthchecks and liveness probe
+	HealthCheck CephClusterHealthCheckSpec `json:"healthCheck"`
 }
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
@@ -395,16 +409,17 @@ type ObjectStoreSpec struct {
 	Zone ZoneSpec `json:"zone"`
 
 	// The rgw endpoint healthcheck
-	HealthCheck HealthCheckSpec `json:"healthCheck"`
-}
-
-type HealthCheckSpec struct {
-	Bucket BucketHealthCheckSpec `json:"bucket,omitempty"`
+	HealthCheck BucketHealthCheckSpec `json:"healthCheck"`
 }
 
 type BucketHealthCheckSpec struct {
-	Enabled  bool   `json:"enabled,omitempty"`
+	Bucket HealthCheckSpec `json:"bucket,omitempty"`
+}
+
+type HealthCheckSpec struct {
+	Disabled bool   `json:"disabled,omitempty"`
 	Interval string `json:"interval,omitempty"`
+	Timeout  string `json:"timeout,omitempty"`
 }
 
 type GatewaySpec struct {

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -36,7 +37,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -338,7 +339,7 @@ func TestForceDeleteFailedMon(t *testing.T) {
 	// The pod should be deleted since the pod is marked as deleted and the node is not ready
 	_, err = context.Clientset.CoreV1().Pods(c.Namespace).Get(monToFail.Name, metav1.GetOptions{})
 	assert.Error(t, err)
-	assert.True(t, errors.IsNotFound(err))
+	assert.True(t, kerrors.IsNotFound(err))
 
 	// mons b and c should still exist
 	_, err = context.Clientset.CoreV1().Pods(c.Namespace).Get("b-test", metav1.GetOptions{})
@@ -362,4 +363,31 @@ func createTestMonPod(t *testing.T, clientset kubernetes.Interface, namespace, n
 	_, err := clientset.CoreV1().Pods(namespace).Create(&pod)
 	assert.NoError(t, err)
 	return pod
+}
+
+func TestNewHealthChecker(t *testing.T) {
+	c := &Cluster{}
+	clusterSpec := &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{}}
+	time10s, _ := time.ParseDuration("10s")
+	clusterSpec10s := &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Interval: "10s"}}}}
+
+	type args struct {
+		monCluster  *Cluster
+		clusterSpec *cephv1.ClusterSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want *HealthChecker
+	}{
+		{"default-interval", args{c, clusterSpec}, &HealthChecker{c, clusterSpec, HealthCheckInterval}},
+		{"10s-interval", args{c, clusterSpec10s}, &HealthChecker{c, clusterSpec10s, time10s}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewHealthChecker(tt.args.monCluster, tt.args.clusterSpec); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewHealthChecker() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

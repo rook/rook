@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -35,7 +36,7 @@ const (
 )
 
 var (
-	healthCheckInterval = 60 * time.Second
+	defaultHealthCheckInterval = 60 * time.Second
 )
 
 // OSDHealthMonitor defines OSD process monitoring
@@ -43,11 +44,28 @@ type OSDHealthMonitor struct {
 	context                        *clusterd.Context
 	namespace                      string
 	removeOSDsIfOUTAndSafeToRemove bool
+	interval                       time.Duration
 }
 
 // NewOSDHealthMonitor instantiates OSD monitoring
-func NewOSDHealthMonitor(context *clusterd.Context, namespace string, removeOSDsIfOUTAndSafeToRemove bool) *OSDHealthMonitor {
-	return &OSDHealthMonitor{context, namespace, removeOSDsIfOUTAndSafeToRemove}
+func NewOSDHealthMonitor(context *clusterd.Context, namespace string, removeOSDsIfOUTAndSafeToRemove bool, healthCheck cephv1.CephClusterHealthCheckSpec) *OSDHealthMonitor {
+	h := &OSDHealthMonitor{
+		context:                        context,
+		namespace:                      namespace,
+		removeOSDsIfOUTAndSafeToRemove: removeOSDsIfOUTAndSafeToRemove,
+		interval:                       defaultHealthCheckInterval,
+	}
+
+	// allow overriding the check interval
+	checkInterval := healthCheck.DaemonHealth.ObjectStorageDaemon.Interval
+	if checkInterval != "" {
+		if duration, err := time.ParseDuration(checkInterval); err == nil {
+			logger.Infof("ceph osd status in namespace %q check interval %q", h.namespace, checkInterval)
+			h.interval = duration
+		}
+	}
+
+	return h
 }
 
 // Start runs monitoring logic for osds status at set intervals
@@ -55,15 +73,15 @@ func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
 
 	for {
 		select {
-		case <-time.After(healthCheckInterval):
-			logger.Debug("Checking osd processes status.")
+		case <-time.After(m.interval):
+			logger.Debug("checking osd processes status.")
 			err := m.checkOSDHealth()
 			if err != nil {
 				logger.Debugf("failed OSD status check. %v", err)
 			}
 
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of OSDs in namespace %s", m.namespace)
+			logger.Infof("stopping monitoring of OSDs in namespace %s", m.namespace)
 			return
 		}
 	}

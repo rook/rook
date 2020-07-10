@@ -29,14 +29,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	cephclient "github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -64,7 +62,13 @@ type cluster struct {
 	orchestrationNeeded  bool
 	orchMux              sync.Mutex
 	isUpgrade            bool
-	monitoringActivated  bool
+	watchersActivated    bool
+	monitoringChannels   map[string]*clusterHealth
+}
+
+type clusterHealth struct {
+	stopChan          chan struct{}
+	monitoringRunning bool
 }
 
 func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex, ownerRef *metav1.OwnerReference) *cluster {
@@ -72,14 +76,15 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		Info:      nil,
-		Namespace: c.Namespace,
-		Spec:      &c.Spec,
-		context:   context,
-		crdName:   c.Name,
-		stopCh:    make(chan struct{}),
-		ownerRef:  *ownerRef,
-		mons:      mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, *ownerRef, csiMutex),
+		Info:               nil,
+		Namespace:          c.Namespace,
+		Spec:               &c.Spec,
+		context:            context,
+		crdName:            c.Name,
+		stopCh:             make(chan struct{}),
+		monitoringChannels: make(map[string]*clusterHealth),
+		ownerRef:           *ownerRef,
+		mons:               mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, *ownerRef, csiMutex),
 	}
 }
 
@@ -146,19 +151,46 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Start Ceph manager
-	mgrs := mgr.New(c.Info, c.context, c.Namespace, rookImage,
-		spec.CephVersion, cephv1.GetMgrPlacement(spec.Placement), cephv1.GetMgrAnnotations(c.Spec.Annotations),
-		spec.Network, spec.Dashboard, spec.Monitoring, spec.Mgr, cephv1.GetMgrResources(spec.Resources),
-		cephv1.GetMgrPriorityClassName(spec.PriorityClassNames), c.ownerRef, c.Spec.DataDirHostPath, c.Spec.SkipUpgradeChecks)
+	mgrs := mgr.New(c.Info,
+		c.context,
+		c.Namespace,
+		rookImage,
+		spec.CephVersion,
+		cephv1.GetMgrPlacement(spec.Placement),
+		cephv1.GetMgrAnnotations(c.Spec.Annotations),
+		spec.Network,
+		spec.Dashboard,
+		spec.Monitoring,
+		spec.Mgr,
+		cephv1.GetMgrResources(spec.Resources),
+		cephv1.GetMgrPriorityClassName(spec.PriorityClassNames),
+		c.ownerRef,
+		c.Spec.DataDirHostPath,
+		c.Spec.SkipUpgradeChecks,
+		spec.HealthCheck)
 	err = mgrs.Start()
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph mgr")
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.Info, c.context, c.Namespace, rookImage, spec.CephVersion, spec.Storage, spec.DataDirHostPath,
-		cephv1.GetOSDPlacement(spec.Placement), cephv1.GetOSDAnnotations(spec.Annotations), spec.Network,
-		cephv1.GetOSDResources(spec.Resources), cephv1.GetPrepareOSDResources(spec.Resources), cephv1.GetOSDPriorityClassName(spec.PriorityClassNames), c.ownerRef, c.Spec.SkipUpgradeChecks, c.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy)
+	osds := osd.New(c.Info,
+		c.context,
+		c.Namespace,
+		rookImage,
+		spec.CephVersion,
+		spec.Storage,
+		spec.DataDirHostPath,
+		cephv1.GetOSDPlacement(spec.Placement),
+		cephv1.GetOSDAnnotations(spec.Annotations),
+		spec.Network,
+		cephv1.GetOSDResources(spec.Resources),
+		cephv1.GetPrepareOSDResources(spec.Resources),
+		cephv1.GetOSDPriorityClassName(spec.PriorityClassNames),
+		c.ownerRef,
+		c.Spec.SkipUpgradeChecks,
+		c.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy,
+		spec.HealthCheck)
 	err = osds.Start()
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph osds")
@@ -210,7 +242,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
 		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(opts)
 		if err == nil && len(mgrDeployments.Items) > 0 {
-			c.startClusterMonitoring(cluster, cephUser)
+			c.configureCephMonitoring(cluster, cephUser)
 		}
 
 		err = c.configureLocalCephCluster(cluster, clusterObj)
@@ -223,47 +255,9 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	cluster.mons.ClusterInfo = cluster.Info
 
 	// Start the monitoring if not already started
-	c.startClusterMonitoring(cluster, cephUser)
+	c.configureCephMonitoring(cluster, cephUser)
+
 	return nil
-}
-
-func (c *ClusterController) startClusterMonitoring(cluster *cluster, cephUser string) {
-	if cluster.monitoringActivated == true {
-		// the cluster monitoring goroutines are already running
-		logger.Debugf("cluster is already being monitored for cluster %q", cluster.Namespace)
-		return
-	}
-
-	// enable the cluster monitoring goroutines once
-	logger.Infof("enabling cluster monitoring goroutines for cluster %q", cluster.Namespace)
-	cluster.monitoringActivated = true
-
-	// Start client CRD watcher
-	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
-	clientController.StartWatch(cluster.stopCh)
-
-	// Start the object bucket provisioner
-	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace, cephUser)
-	// If cluster is external, pass down the user to the bucket controller
-
-	// note: the error return below is ignored and is expected to be removed from the
-	//   bucket library's `NewProvisioner` function
-	bucketController, _ := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)
-	go bucketController.Run(cluster.stopCh)
-
-	// Start mon health checker
-	healthChecker := mon.NewHealthChecker(cluster.mons, cluster.Spec)
-	go healthChecker.Check(cluster.stopCh)
-
-	if !cluster.Spec.External.Enable {
-		// Start the osd health checker only if running OSDs in the local ceph cluster
-		c.osdChecker = osd.NewOSDHealthMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove)
-		go c.osdChecker.Start(cluster.stopCh)
-	}
-
-	// Start the ceph status checker
-	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cephUser, c.namespacedName)
-	go cephChecker.checkCephStatus(cluster.stopCh)
 }
 
 func (c *ClusterController) configureLocalCephCluster(cluster *cluster, clusterObj *cephv1.CephCluster) error {

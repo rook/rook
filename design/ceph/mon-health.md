@@ -49,12 +49,14 @@ If the mitigating steps for mon failure don't bring a mon back up, the operator 
 and bring up a new monitor with a new identity. This is an operation that must be done while there is mon quorum.
 
 The operator checks for mon health every 45 seconds. If a monitor is down, the operator will wait 5 minutes before failing over the bad mon.
-These two intervals can be configured as parameters to the rook [operator pod](/cluster/examples/kubernetes/ceph/operator.yaml). If the intervals are too short, it could be unhealthy if the mons are failed over too aggressively. If the intervals are too long, the cluster could be at risk of losing quorum if a new monitor is not brought up before another mon fails.
-```
-- name: ROOK_MON_HEALTHCHECK_INTERVAL
-    value: "45s"
-- name: ROOK_MON_OUT_TIMEOUT
-    value: "600s"
+These two intervals can be configured as parameters to the CephCluster CR (see below). If the intervals are too short, it could be unhealthy if the mons are failed over too aggressively. If the intervals are too long, the cluster could be at risk of losing quorum if a new monitor is not brought up before another mon fails.
+
+```yaml
+healthCheck:
+  daemonHealth:
+    mon:
+      interval: 10s
+      timeout: 45s
 ```
 
 ### Example Failover

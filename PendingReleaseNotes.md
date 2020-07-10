@@ -8,7 +8,9 @@
 
 - Added a [toolbox job](Documentation/ceph-toolbox.md#toolbox-job) for running a script with Ceph commands, similar to running commands in the Rook toolbox.
 - Ceph RBD Mirror daemon has been extracted to its own CRD, it has been removed from the `CephCluster` CRD, see the [rbd-mirror crd](Documentation/ceph-rbd-mirror-crd.html).
-- CephCluster CRD has been converted to use the controller-runtime framework.
+- CephCluster CRD changes:
+  - Converted to use the controller-runtime framework
+  - ability to control health check as well as pod liveness probe, refer to [health check section](Documentation/ceph-cluster-crd.html#health-settings)
 - CephBlockPool CRD has a new field called `parameters` which allows to set any property on a given [pool](Documentation/ceph-pool-crd.html#add-specific-pool-properties)
 - OSD changes:
   - OSD on PVC now supports multipath device.
@@ -38,7 +40,8 @@
 
 - rbd-mirror daemons that were deployed through the CephCluster CR won't be managed anymore as they have their own CRD now.
 To transition, you can inject the new rbd mirror CR with the desired `count` of daemons and delete the previously managed rbd mirror deployments manually.
-
+- old monitoring settings used in the `operator.yaml`: `ROOK_CEPH_STATUS_CHECK_INTERVAL`, `ROOK_MON_HEALTHCHECK_INTERVAL`, `ROOK_MON_OUT_TIMEOUT` are now deprecated.
+Backward compatibility is maintained for existing deployments. These settings are now in the `CephCluster` CR, refer to [health check section](Documentation/ceph-cluster-crd.html#health-settings)
 
 ## Known Issues
 

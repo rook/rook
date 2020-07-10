@@ -47,11 +47,11 @@ type bucketChecker struct {
 	port            string
 	client          client.Client
 	namespacedName  types.NamespacedName
-	healthCheckSpec *cephv1.HealthCheckSpec
+	healthCheckSpec *cephv1.BucketHealthCheckSpec
 }
 
 // newbucketChecker creates a new HealthChecker object
-func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP, port string, client client.Client, namespacedName types.NamespacedName, healthCheckSpec *cephv1.HealthCheckSpec) *bucketChecker {
+func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP, port string, client client.Client, namespacedName types.NamespacedName, healthCheckSpec *cephv1.BucketHealthCheckSpec) *bucketChecker {
 	c := &bucketChecker{
 		context:         context,
 		objContext:      objContext,
@@ -63,7 +63,7 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP,
 		healthCheckSpec: healthCheckSpec,
 	}
 
-	// allow overriding the check interval with an env var on the operator
+	// allow overriding the check interval
 	checkInterval := healthCheckSpec.Bucket.Interval
 	if checkInterval != "" {
 		if duration, err := time.ParseDuration(checkInterval); err == nil {

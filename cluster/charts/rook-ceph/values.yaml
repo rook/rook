@@ -30,13 +30,6 @@ unreachableNodeTolerationSeconds: 5
 # Whether rook watches its current namespace for CRDs or the entire cluster, defaults to false
 currentNamespaceOnly: false
 
-# Interval at which to get the ceph status and update the cluster custom resource status
-cephStatusCheckInterval: "60s"
-
-mon:
-  healthCheckInterval: "45s"
-  monOutTimeout: "600s"
-
 ## Annotations to be added to pod
 annotations: {}
 
