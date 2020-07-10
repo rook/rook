@@ -23,8 +23,8 @@ spec:
     # If you want to be more precise, you can always use a timestamp tag such ceph/ceph:v15.2.4-20200630
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
     image: ceph/ceph:v15.2.4
-    # Whether to allow unsupported versions of Ceph. Currently mimic and nautilus are supported, with the recommendation to upgrade to nautilus.
-    # Octopus is the version allowed when this is set to true.
+    # Whether to allow unsupported versions of Ceph. Currently `nautilus` and `octopus` are supported.
+    # Future versions such as `pacific` would require this to be set to `true`.
     # Do not set to true in production.
     allowUnsupported: false
   # The path on the host where configuration files will be persisted. Must be specified.
