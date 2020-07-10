@@ -543,9 +543,6 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 			h.GatherAllRookLogs(h.T().Name()+"poolcheck", systemNamespace)
 		}
 
-		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
-		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
-
 		err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", h.clusterName)
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
@@ -553,6 +550,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 			err = h.waitForCleanupJobs(namespace)
 			assert.NoError(h.T(), err)
 		}
+
+		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
+		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
 		crdCheckerFunc := func() error {
 			_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(h.clusterName, metav1.GetOptions{})
@@ -869,7 +869,6 @@ func (h *CephInstaller) addCleanupPolicy(namespace string) error {
 		return fmt.Errorf("failed to get ceph cluster. %+v", err)
 	}
 	cluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
-	cluster.Spec.CleanupPolicy.SanitizeDisks.Method = cephv1.SanitizeMethodComplete
 	_, err = h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Update(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to add clean up policy to the cluster. %+v", err)
@@ -891,9 +890,17 @@ func (h *CephInstaller) waitForCleanupJobs(namespace string) error {
 			return false, nil
 		}
 		for _, job := range cleanupJobs.Items {
-			logger.Debugf("job %q status: %+v", job.Name, job.Status)
+			logger.Infof("job %q status: %+v", job.Name, job.Status)
 			if job.Status.Failed > 0 {
 				return false, fmt.Errorf("job %s failed", job.Name)
+			}
+			if job.Status.Succeeded == 1 {
+				l, err := h.k8shelper.Kubectl("-n", namespace, "logs", fmt.Sprintf("job.batch/%s", job.Name))
+				if err != nil {
+					logger.Errorf("cannot get logs for pod %s. %v", job.Name, err)
+				}
+				rawData := []byte(l)
+				logger.Infof("cleanup job %s done. logs: %s", job.Name, string(rawData))
 			}
 			if job.Status.Succeeded == 0 {
 				return false, nil
