@@ -296,7 +296,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 }
 
 // UpdateCephDeploymentAndWait verifies a deployment can be stopped or continued
-func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Deployment, namespace, daemonType, daemonName string, skipUpgradeChecks, continueUpgradeAfterChecksEvenIfNotHealthy bool) error {
+func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.ClusterInfo, deployment *apps.Deployment, daemonType, daemonName string, skipUpgradeChecks, continueUpgradeAfterChecksEvenIfNotHealthy bool) error {
 
 	callback := func(action string) error {
 		// At this point, we are in an upgrade
@@ -308,7 +308,7 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 		logger.Infof("checking if we can %s the deployment %s", action, deployment.Name)
 
 		if action == "stop" {
-			err := client.OkToStop(context, namespace, deployment.Name, daemonType, daemonName)
+			err := client.OkToStop(context, clusterInfo, deployment.Name, daemonType, daemonName)
 			if err != nil {
 				if continueUpgradeAfterChecksEvenIfNotHealthy {
 					logger.Infof("The %s daemon %s is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so proceeding to stop...", daemonType, daemonName)
@@ -319,7 +319,7 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 		}
 
 		if action == "continue" {
-			err := client.OkToContinue(context, namespace, deployment.Name, daemonType, daemonName)
+			err := client.OkToContinue(context, clusterInfo, deployment.Name, daemonType, daemonName)
 			if err != nil {
 				if continueUpgradeAfterChecksEvenIfNotHealthy {
 					logger.Infof("The %s daemon %s is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing...", daemonType, daemonName)
@@ -332,6 +332,6 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, deployment *apps.Dep
 		return nil
 	}
 
-	_, err := k8sutil.UpdateDeploymentAndWait(context, deployment, namespace, callback)
+	_, err := k8sutil.UpdateDeploymentAndWait(context, deployment, clusterInfo.Namespace, callback)
 	return err
 }

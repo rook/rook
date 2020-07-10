@@ -30,25 +30,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPodSpec(t *testing.T) {
 	clientset := optest.New(t, 1)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
-	c := New(
-		clusterInfo,
-		&clusterd.Context{Clientset: clientset},
-		"ns",
-		"rook/rook:myversion",
-		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
-		rookv1.Placement{},
-		rookv1.Annotations{},
-		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{Port: 1234},
-		cephv1.MonitoringSpec{},
-		cephv1.MgrSpec{},
-		v1.ResourceRequirements{
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	clusterSpec := cephv1.ClusterSpec{
+		CephVersion:        cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
+		Dashboard:          cephv1.DashboardSpec{Port: 1234},
+		PriorityClassNames: map[rookv1.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
+		DataDirHostPath:    "/var/lib/rook/",
+		Resources: rookv1.ResourceSpec{string(cephv1.KeyMgr): v1.ResourceRequirements{
 			Limits: v1.ResourceList{
 				v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
 				v1.ResourceMemory: *resource.NewQuantity(500.0, resource.BinarySI),
@@ -58,12 +50,9 @@ func TestPodSpec(t *testing.T) {
 				v1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
 			},
 		},
-		"my-priority-class",
-		metav1.OwnerReference{},
-		"/var/lib/rook/",
-		false,
-		cephv1.CephClusterHealthCheckSpec{},
-	)
+		},
+	}
+	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "rook/rook:myversion")
 
 	mgrTestConfig := mgrConfig{
 		DaemonID:     "a",
@@ -90,26 +79,9 @@ func TestPodSpec(t *testing.T) {
 
 func TestServiceSpec(t *testing.T) {
 	clientset := optest.New(t, 1)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
-	c := New(
-		clusterInfo,
-		&clusterd.Context{Clientset: clientset},
-		"ns",
-		"myversion",
-		cephv1.CephVersionSpec{},
-		rookv1.Placement{},
-		rookv1.Annotations{},
-		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{},
-		cephv1.MonitoringSpec{},
-		cephv1.MgrSpec{},
-		v1.ResourceRequirements{},
-		"my-priority-class",
-		metav1.OwnerReference{},
-		"/var/lib/rook/",
-		false,
-		cephv1.CephClusterHealthCheckSpec{},
-	)
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	clusterSpec := cephv1.ClusterSpec{}
+	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
 
 	s := c.makeMetricsService("rook-mgr")
 	assert.NotNil(t, s)
@@ -119,26 +91,13 @@ func TestServiceSpec(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := optest.New(t, 1)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
-	c := New(
-		clusterInfo,
-		&clusterd.Context{Clientset: clientset},
-		"ns",
-		"myversion",
-		cephv1.CephVersionSpec{},
-		rookv1.Placement{},
-		rookv1.Annotations{},
-		cephv1.NetworkSpec{HostNetwork: true},
-		cephv1.DashboardSpec{Port: 1234},
-		cephv1.MonitoringSpec{},
-		cephv1.MgrSpec{},
-		v1.ResourceRequirements{},
-		"my-priority-class",
-		metav1.OwnerReference{},
-		"/var/lib/rook/",
-		false,
-		cephv1.CephClusterHealthCheckSpec{},
-	)
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	clusterSpec := cephv1.ClusterSpec{
+		Network:         cephv1.NetworkSpec{HostNetwork: true},
+		Dashboard:       cephv1.DashboardSpec{Port: 1234},
+		DataDirHostPath: "/var/lib/rook/",
+	}
+	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
 
 	mgrTestConfig := mgrConfig{
 		DaemonID:     "a",
@@ -149,32 +108,18 @@ func TestHostNetwork(t *testing.T) {
 	d := c.makeDeployment(&mgrTestConfig)
 	assert.NotNil(t, d)
 
-	assert.Equal(t, true, c.Network.IsHost())
+	assert.Equal(t, true, c.spec.Network.IsHost())
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
 }
 
 func TestHttpBindFix(t *testing.T) {
 	clientset := optest.New(t, 1)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
-	c := New(
-		clusterInfo,
-		&clusterd.Context{Clientset: clientset},
-		"ns",
-		"myversion",
-		cephv1.CephVersionSpec{},
-		rookv1.Placement{},
-		rookv1.Annotations{},
-		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{Port: 1234},
-		cephv1.MonitoringSpec{},
-		cephv1.MgrSpec{},
-		v1.ResourceRequirements{},
-		"my-priority-class",
-		metav1.OwnerReference{},
-		"/var/lib/rook/",
-		false,
-		cephv1.CephClusterHealthCheckSpec{},
-	)
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	clusterSpec := cephv1.ClusterSpec{
+		Dashboard:       cephv1.DashboardSpec{Port: 1234},
+		DataDirHostPath: "/var/lib/rook/",
+	}
+	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
 
 	mgrTestConfig := mgrConfig{
 		DaemonID:     "a",
@@ -188,30 +133,15 @@ func TestHttpBindFix(t *testing.T) {
 	assert.NotNil(t, d)
 	assert.Equal(t, expectedInitContainers,
 		len(d.Spec.Template.Spec.InitContainers))
-
 }
 
 func TestApplyPrometheusAnnotations(t *testing.T) {
 	clientset := optest.New(t, 1)
-	c := New(
-		&cephclient.ClusterInfo{FSID: "myfsid"},
-		&clusterd.Context{Clientset: clientset},
-		"ns",
-		"myversion",
-		cephv1.CephVersionSpec{},
-		rookv1.Placement{},
-		rookv1.Annotations{},
-		cephv1.NetworkSpec{},
-		cephv1.DashboardSpec{},
-		cephv1.MonitoringSpec{},
-		cephv1.MgrSpec{},
-		v1.ResourceRequirements{},
-		"my-priority-class",
-		metav1.OwnerReference{},
-		"/var/lib/rook/",
-		false,
-		cephv1.CephClusterHealthCheckSpec{},
-	)
+	clusterSpec := cephv1.ClusterSpec{
+		DataDirHostPath: "/var/lib/rook/",
+	}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
 
 	mgrTestConfig := mgrConfig{
 		DaemonID:     "a",
@@ -233,9 +163,9 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 	fakeAnnotations := rookv1.Annotations{
 		"foo.io/bar": "foobar",
 	}
-	c.annotations = fakeAnnotations
+	c.spec.Annotations = map[rookv1.KeyType]rookv1.Annotations{cephv1.KeyMgr: fakeAnnotations}
 
 	c.applyPrometheusAnnotations(&d.ObjectMeta)
-	assert.Equal(t, 1, len(c.annotations))
+	assert.Equal(t, 1, len(c.spec.Annotations))
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 }

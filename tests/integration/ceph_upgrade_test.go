@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -106,14 +107,15 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	storageClassName := "block-upgrade"
 	blockName := "block-claim-upgrade"
 	logger.Infof("Initializing block before the upgrade")
-	setupBlockLite(s.helper, s.k8sh, s.Suite, s.namespace, systemNamespace, poolName, storageClassName, blockName, rbdPodName, s.op.installer.CephVersion)
+	clusterInfo := client.AdminClusterInfo(s.namespace)
+	setupBlockLite(s.helper, s.k8sh, s.Suite, clusterInfo, systemNamespace, poolName, storageClassName, blockName, rbdPodName, s.op.installer.CephVersion)
 
 	createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, storageClassName, rbdPodName, blockName)
 
 	// FIX: We should require block images to be removed. See tracking issue:
 	// <INSERT ISSUE>
 	requireBlockImagesRemoved := false
-	defer blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, s.namespace, poolName, storageClassName, blockName, rbdPodName, requireBlockImagesRemoved)
+	defer blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, clusterInfo, poolName, storageClassName, blockName, rbdPodName, requireBlockImagesRemoved)
 
 	// Create the filesystem, but wait to create the file test client until we upgrade to nautilus
 	logger.Infof("Initializing file before the upgrade")
@@ -308,7 +310,8 @@ func (s *UpgradeSuite) verifyFilesAfterUpgrade(fsName, newFileToWrite, messageFo
 
 	if fsName != "" {
 		// wait for filesystem to be active
-		err := waitForFilesystemActive(s.k8sh, s.namespace, fsName)
+		clusterInfo := client.AdminClusterInfo(s.namespace)
+		err := waitForFilesystemActive(s.k8sh, clusterInfo, fsName)
 		require.NoError(s.T(), err)
 
 		// test reading preexisting files in the pod with cephfs mounted

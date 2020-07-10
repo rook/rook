@@ -63,7 +63,7 @@ func TestStartRGW(t *testing.T) {
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 
 	// start a basic cluster
-	c := &clusterConfig{info, context, store, version, &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, false, r.client, s, cephv1.NetworkSpec{}}
+	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, r.client, s}
 	err := c.startRGWPods(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 
@@ -109,7 +109,7 @@ func TestCreateObjectStore(t *testing.T) {
 	object := []runtime.Object{&cephv1.CephObjectStore{}}
 	cl := fake.NewFakeClientWithScheme(s, object...)
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
-	c := &clusterConfig{info, context, store, "1.2.3.4", &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, false, r.client, s, cephv1.NetworkSpec{}}
+	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, r.client, s}
 	err := c.createOrUpdateStore(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 }
@@ -129,17 +129,15 @@ func TestGenerateSecretName(t *testing.T) {
 	cl := fake.NewFakeClient([]runtime.Object{}...)
 
 	// start a basic cluster
-	c := &clusterConfig{&cephclient.ClusterInfo{},
-		&clusterd.Context{},
+	c := &clusterConfig{&clusterd.Context{},
+		&cephclient.ClusterInfo{},
 		&cephv1.CephObjectStore{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"}},
 		"v1.1.0",
 		&cephv1.ClusterSpec{},
 		&metav1.OwnerReference{},
 		&config.DataPathMap{},
-		false,
 		cl,
-		scheme.Scheme,
-		cephv1.NetworkSpec{}}
+		scheme.Scheme}
 	secret := c.generateSecretName("a")
 	assert.Equal(t, "rook-ceph-rgw-default-a-keyring", secret)
 }

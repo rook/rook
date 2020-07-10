@@ -94,7 +94,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
 				return errors.Wrap(err, "failed to create ceph nfs deployment")
 			}
 			logger.Infof("ceph nfs deployment %q already exists. updating if needed", deployment.Name)
-			if err := updateDeploymentAndWait(r.context, deployment, n.Namespace, "nfs", id, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(r.context, r.clusterInfo, deployment, "nfs", id, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 				return errors.Wrapf(err, "failed to update ceph nfs deployment %q", deployment.Name)
 			}
 		} else {
@@ -245,7 +245,7 @@ func instanceName(n *cephv1.CephNFS, name string) string {
 	return fmt.Sprintf("%s-%s-%s", AppName, n.Name, name)
 }
 
-func validateGanesha(context *clusterd.Context, n *cephv1.CephNFS) error {
+func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, n *cephv1.CephNFS) error {
 	// core properties
 	if n.Name == "" {
 		return errors.New("missing name")
@@ -269,7 +269,7 @@ func validateGanesha(context *clusterd.Context, n *cephv1.CephNFS) error {
 
 	// We cannot run an NFS server if no MDS is running
 	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
-	_, err := client.GetPoolDetails(context, n.Namespace, n.Spec.RADOS.Pool)
+	_, err := client.GetPoolDetails(context, clusterInfo, n.Spec.RADOS.Pool)
 	if err != nil {
 		return errors.Wrapf(err, "pool %q not found, did the filesystem cr successfully complete?", n.Spec.RADOS.Pool)
 	}

@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -36,6 +37,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -63,9 +65,10 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileObjectZone reconciles a ObjectZone object
 type ReconcileObjectZone struct {
-	client  client.Client
-	scheme  *runtime.Scheme
-	context *clusterd.Context
+	client      client.Client
+	scheme      *runtime.Scheme
+	context     *clusterd.Context
+	clusterInfo *cephclient.ClusterInfo
 }
 
 // Add creates a new CephObjectZone Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -156,6 +159,12 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, nil
 	}
 
+	// Populate clusterInfo during each reconcile
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+	}
+
 	// validate the zone settings
 	err = validateZoneCR(cephObjectZone)
 	if err != nil {
@@ -198,7 +207,7 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
-	objContext := object.NewContext(r.context, zone.Name, zone.Namespace)
+	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 
 	// get zone group to see if master zone exists yet
 	output, err := object.RunAdminCommandNoRealm(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
@@ -256,7 +265,7 @@ func (r *ReconcileObjectZone) reconcileObjectZoneGroup(zone *cephv1.CephObjectZo
 func (r *ReconcileObjectZone) reconcileCephZoneGroup(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
-	objContext := object.NewContext(r.context, zone.Name, zone.Namespace)
+	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 
 	_, err := object.RunAdminCommandNoRealm(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {

@@ -50,9 +50,9 @@ type AddrvecEntry struct {
 }
 
 // GetMonQuorumStatus calls quorum_status mon_command
-func GetMonQuorumStatus(context *clusterd.Context, namespace, cephUsername string) (MonStatusResponse, error) {
+func GetMonQuorumStatus(context *clusterd.Context, clusterInfo *ClusterInfo, cephUsername string) (MonStatusResponse, error) {
 	args := []string{"quorum_status"}
-	cmd := NewCephCommand(context, namespace, args)
+	cmd := NewCephCommand(context, clusterInfo, args)
 	buf, err := cmd.Run()
 	if err != nil {
 		return MonStatusResponse{}, errors.Wrap(err, "mon quorum status failed")

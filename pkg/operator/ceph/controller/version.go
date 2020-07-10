@@ -26,14 +26,14 @@ import (
 
 // ValidateCephVersionsBetweenLocalAndExternalClusters makes sure an external cluster can be connected
 // by checking the external ceph versions available and comparing it with the local image provided
-func ValidateCephVersionsBetweenLocalAndExternalClusters(context *clusterd.Context, namespace string, localVersion cephver.CephVersion) (cephver.CephVersion, error) {
+func ValidateCephVersionsBetweenLocalAndExternalClusters(context *clusterd.Context, clusterInfo *client.ClusterInfo) (cephver.CephVersion, error) {
 	// health check should tell us if the external cluster has been upgraded and display a message
-	externalVersion, err := client.GetCephMonVersion(context, namespace)
+	externalVersion, err := client.GetCephMonVersion(context, clusterInfo)
 	if err != nil {
 		return cephver.CephVersion{}, errors.Wrap(err, "failed to get ceph mon version")
 	}
 
-	return *externalVersion, cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, *externalVersion)
+	return *externalVersion, cephver.ValidateCephVersionsBetweenLocalAndExternalClusters(clusterInfo.CephVersion, *externalVersion)
 }
 
 // GetImageVersion returns the CephVersion registered for a specified image (if any) and whether any image was found.

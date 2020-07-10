@@ -42,7 +42,7 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
 
 	// At present
-	s := keyring.GetSecretStore(c.context, c.fs.Namespace, &c.ownerRef)
+	s := keyring.GetSecretStore(c.context, c.clusterInfo, &c.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
@@ -64,7 +64,7 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 }
 
 func (c *Cluster) setDefaultFlagsMonConfigStore(mdsID string) error {
-	monStore := config.GetMonStore(c.context, c.fs.Namespace)
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
 	who := fmt.Sprintf("mds.%s", mdsID)
 	configOptions := make(map[string]string)
 

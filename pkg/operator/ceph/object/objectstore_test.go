@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,7 @@ func TestReconcileRealm(t *testing.T) {
 
 	storeName := "myobject"
 	context := &clusterd.Context{Executor: executor}
-	objContext := NewContext(context, storeName, "mycluster")
+	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster"}, storeName)
 	// create the first realm, marked as default
 	spec := cephv1.ObjectStoreSpec{}
 	err := setMultisite(objContext, "1.2.3.4", spec, storeName, storeName, storeName)
@@ -139,7 +140,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	}
 	executor.MockExecuteCommandWithOutput = executorFunc
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc
-	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
+	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: &client.ClusterInfo{Namespace: "ns"}}
 
 	// Delete an object store without deleting the pools
 	spec := cephv1.ObjectStoreSpec{}

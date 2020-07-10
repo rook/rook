@@ -22,6 +22,7 @@ import (
 
 	"fmt"
 
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -66,14 +67,15 @@ func TestCephFlexSuite(t *testing.T) {
 
 type CephFlexDriverSuite struct {
 	suite.Suite
-	testClient *clients.TestClient
-	bc         *clients.BlockOperation
-	kh         *utils.K8sHelper
-	namespace  string
-	pvcNameRWO string
-	pvcNameRWX string
-	installer  *installer.CephInstaller
-	op         *TestCluster
+	testClient  *clients.TestClient
+	clusterInfo *client.ClusterInfo
+	bc          *clients.BlockOperation
+	kh          *utils.K8sHelper
+	namespace   string
+	pvcNameRWO  string
+	pvcNameRWX  string
+	installer   *installer.CephInstaller
+	op          *TestCluster
 }
 
 func (s *CephFlexDriverSuite) SetupSuite() {
@@ -97,6 +99,7 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 		cephVersion:             installer.OctopusVersion,
 	}
 
+	s.clusterInfo = client.AdminClusterInfo(s.namespace)
 	s.op, s.kh = StartTestCluster(s.T, &flexTestCluster)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	s.bc = s.testClient.BlockClient
@@ -118,7 +121,7 @@ func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	statefulSetName := "block-stateful-set"
 	statefulPodsName := "ststest"
 
-	defer s.statefulSetDataCleanup(defaultNamespace, poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName)
+	defer s.statefulSetDataCleanup(poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName)
 	logger.Infof("Test case when block persistent volumes are scaled up and down along with StatefulSet")
 	logger.Info("Step 1: Create pool and storageClass")
 
@@ -160,17 +163,17 @@ func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 }
 
-func (s *CephFlexDriverSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName string) {
+func (s *CephFlexDriverSuite) statefulSetDataCleanup(poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName string) {
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	// Delete stateful set
-	s.kh.Clientset.CoreV1().Services(namespace).Delete(statefulSetName, &delOpts)
+	s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
 	s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
 	s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
 	// Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
 	// Delete storageclass and pool
-	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, poolName)
+	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, poolName)
 	s.testClient.BlockClient.DeleteStorageClass(storageClassName)
 }
 
@@ -231,8 +234,8 @@ func (s *CephFlexDriverSuite) TearDownSuite() {
 	s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWX)
 	s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwo")
 	s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwx")
-	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, "block-pool-rwo")
-	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.namespace, "block-pool-rwx")
+	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, "block-pool-rwo")
+	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, "block-pool-rwx")
 	s.op.Teardown()
 }
 

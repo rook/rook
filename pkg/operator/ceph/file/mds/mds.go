@@ -33,7 +33,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -113,7 +112,7 @@ func (c *Cluster) Start() error {
 	var fsPreparedForUpgrade = false
 	defer func() {
 		if fsPreparedForUpgrade {
-			if err := finishedWithDaemonUpgrade(c.context, c.clusterInfo.CephVersion, c.fs.Namespace, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
+			if err := finishedWithDaemonUpgrade(c.context, c.clusterInfo, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
 				logger.Errorf("for filesystem %q, USER should make sure the Ceph fs max_mds property is set to %d. %v",
 					c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount, err)
 			}
@@ -187,7 +186,7 @@ func (c *Cluster) Start() error {
 		}
 
 		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			if err = UpdateDeploymentAndWait(c.context, d, c.fs.Namespace, config.MdsType, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+			if err = UpdateDeploymentAndWait(c.context, c.clusterInfo, d, config.MdsType, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				return errors.Wrapf(err, "failed to update mds deployment %s", d.Name)
 			}
 		}
@@ -225,7 +224,7 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 			logger.Infof("Deleting extraneous mds deployment %s", d.GetName())
 			// if the extraneous mdses are the only ones active, Ceph may experience fs downtime
 			// if deleting them too quickly; therefore, wait until number of active mdses is desired
-			if err := client.WaitForActiveRanks(c.context, c.fs.Namespace, c.fs.Name,
+			if err := client.WaitForActiveRanks(c.context, c.clusterInfo, c.fs.Name,
 				c.fs.Spec.MetadataServer.ActiveCount, true, fsWaitForActiveTimeout); err != nil {
 				errCount++
 				logger.Errorf(
@@ -257,7 +256,7 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 }
 
 func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
-	monStore := config.GetMonStore(c.context, c.fs.Namespace)
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
 	who := fmt.Sprintf("mds.%s", mdsID)
 	err := monStore.DeleteDaemon(who)
 	if err != nil {
@@ -265,7 +264,7 @@ func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
 	}
 	logger.Infof("successfully deleted mds config for %q in mon configuration database", who)
 
-	err = client.AuthDelete(c.context, c.fs.Namespace, who)
+	err = client.AuthDelete(c.context, c.clusterInfo, who)
 	if err != nil {
 		return err
 	}
@@ -273,41 +272,14 @@ func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
 	return nil
 }
 
-// prepareForDaemonUpgrade performs all actions necessary to ensure the filesystem is prepared
-// to have its daemon(s) updated. This helps ensure there is no aberrant behavior during upgrades.
-// If the mds is not prepared within the timeout window, an error will be reported.
-// Ceph docs: http://docs.ceph.com/docs/master/cephfs/upgrading/
-func prepareForDaemonUpgrade(
-	context *clusterd.Context,
-	cephVersion cephver.CephVersion,
-	clusterName, fsName string,
-	timeout time.Duration,
-) error {
-	// upgrade guide according to nautilus https://docs.ceph.com/docs/nautilus/cephfs/upgrading/#upgrading-the-mds-cluster
-	logger.Infof("preparing filesystem %s for daemon upgrade", fsName)
-	if err := client.SetNumMDSRanks(context, clusterName, fsName, 1); err != nil {
-		return errors.Wrapf(err, "Could not prepare filesystem %q for daemon upgrade", fsName)
-	}
-	if err := client.WaitForActiveRanks(context, clusterName, fsName, 1, false, timeout); err != nil {
-		return err
-	}
-	logger.Infof("Filesystem %q successfully prepared for MDS daemon upgrade", fsName)
-	return nil
-}
-
 // finishedWithDaemonUpgrade performs all actions necessary to bring the filesystem back to its
 // ideal state following an upgrade of its daemon(s).
-func finishedWithDaemonUpgrade(
-	context *clusterd.Context,
-	cephVersion cephver.CephVersion,
-	clusterName, fsName string,
-	activeMDSCount int32,
-) error {
+func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *client.ClusterInfo, fsName string, activeMDSCount int32) error {
 	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
 	logger.Debugf("bringing num active MDS daemons for fs %s back to %d", fsName, activeMDSCount)
 	// TODO: Unknown (Apr 2020) if this can be removed once Rook no longer supports Nautilus.
 	// upgrade guide according to nautilus https://docs.ceph.com/docs/nautilus/cephfs/upgrading/#upgrading-the-mds-cluster
-	if err := client.SetNumMDSRanks(context, clusterName, fsName, activeMDSCount); err != nil {
+	if err := client.SetNumMDSRanks(context, clusterInfo, fsName, activeMDSCount); err != nil {
 		return errors.Wrapf(err, "Failed to restore filesystem %s following daemon upgrade", fsName)
 	}
 	return nil

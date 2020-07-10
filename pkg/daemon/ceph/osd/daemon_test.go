@@ -266,9 +266,9 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		devices:        []DesiredDevice{{Name: "all"}},
 		metadataDevice: "nvme01",
 		pvcBacked:      pvcBackedOSD,
-		cluster:        &cephclient.ClusterInfo{},
+		clusterInfo:    &cephclient.ClusterInfo{},
 	}
-	agent.cluster.CephVersion = version
+	agent.clusterInfo.CephVersion = version
 	mapping, err := getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 7, len(mapping.Entries))
@@ -281,13 +281,13 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
 
 	// Partition is skipped
-	agent.cluster.CephVersion = cephver.Nautilus
+	agent.clusterInfo.CephVersion = cephver.Nautilus
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 6, len(mapping.Entries))
 
 	// Do not skip partition anymore
-	agent.cluster.CephVersion = cephver.Octopus
+	agent.clusterInfo.CephVersion = cephver.Octopus
 
 	// select no devices both using and not using a filter
 	agent.metadataDevice = ""

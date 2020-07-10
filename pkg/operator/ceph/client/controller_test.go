@@ -18,12 +18,17 @@ package client
 
 import (
 	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -101,6 +106,7 @@ func TestGenerateClient(t *testing.T) {
 
 func TestCreateClient(t *testing.T) {
 	clientset := testop.New(t, 1)
+	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q=="
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -109,10 +115,18 @@ func TestCreateClient(t *testing.T) {
 			}
 			return "", errors.Errorf("unexpected ceph command '%v'", args)
 		},
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("COMMAND: %s %v", command, args)
+			if command == "ceph-authtool" && args[0] == "--create-keyring" {
+				filename := args[1]
+				assert.NoError(t, ioutil.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0644))
+			}
+			return "", nil
+		},
 	}
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
-
-	p := &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
+	namespace := "ns"
+	p := &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: namespace},
 		Spec: cephv1.ClientSpec{
 			Caps: map[string]string{
 				"osd": "allow *",
@@ -122,13 +136,19 @@ func TestCreateClient(t *testing.T) {
 		},
 	}
 
-	exists, _ := clientExists(context, p)
+	configDir := namespace
+	os.MkdirAll(configDir, 0755)
+	defer os.RemoveAll(configDir)
+	clusterInfo, _, _, err := mon.CreateOrLoadClusterInfo(context, namespace, &metav1.OwnerReference{})
+	assert.NoError(t, err)
+
+	exists, _ := clientExists(context, clusterInfo, p)
 	assert.False(t, exists)
-	err := createClient(context, p)
+	err = createClient(context, p)
 	assert.Nil(t, err)
 
 	// fail if caps are empty
-	p = &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"},
+	p = &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: clusterInfo.Namespace},
 		Spec: cephv1.ClientSpec{
 			Caps: map[string]string{
 				"osd": "",
@@ -137,7 +157,7 @@ func TestCreateClient(t *testing.T) {
 			},
 		},
 	}
-	exists, _ = clientExists(context, p)
+	exists, _ = clientExists(context, clusterInfo, p)
 	assert.False(t, exists)
 	err = createClient(context, p)
 	assert.NotNil(t, err)
@@ -195,7 +215,8 @@ func TestDeleteClient(t *testing.T) {
 
 	// delete a client that exists
 	p := &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client1", Namespace: "myns"}}
-	exists, err := clientExists(context, p)
+	clusterInfo := cephclient.AdminClusterInfo(p.Namespace)
+	exists, err := clientExists(context, clusterInfo, p)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	err = deleteClient(context, p)
@@ -203,7 +224,7 @@ func TestDeleteClient(t *testing.T) {
 
 	// succeed even if the client doesn't exist
 	p = &cephv1.CephClient{ObjectMeta: metav1.ObjectMeta{Name: "client2", Namespace: "myns"}}
-	exists, err = clientExists(context, p)
+	exists, err = clientExists(context, clusterInfo, p)
 	assert.NotNil(t, err)
 	assert.False(t, exists)
 	err = deleteClient(context, p)

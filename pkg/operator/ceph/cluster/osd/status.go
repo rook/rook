@@ -52,7 +52,7 @@ type provisionConfig struct {
 
 func (c *Cluster) newProvisionConfig() *provisionConfig {
 	return &provisionConfig{
-		DataPathMap: config.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
+		DataPathMap: config.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, c.spec.DataDirHostPath),
 	}
 }
 
@@ -126,7 +126,7 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 	}
 	remainingNodes := util.NewSet()
 	// check the status map to see if the node is already completed before we start watching
-	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).List(opts)
+	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).List(opts)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			config.addError("failed to get config status. %v", err)
@@ -176,7 +176,7 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 		}
 		logger.Infof("%d/%d node(s) completed osd provisioning, resource version %v", (originalNodes - remainingNodes.Count()), originalNodes, opts.ResourceVersion)
 
-		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Watch(opts)
+		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).Watch(opts)
 		if err != nil {
 			logger.Warningf("failed to start watch on osd status, trying again. %v", err)
 			time.Sleep(5 * time.Second)

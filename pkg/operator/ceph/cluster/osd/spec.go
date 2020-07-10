@@ -143,10 +143,10 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k8sutil.TruncateNodeName(prepareAppNameFmt, osdProps.crushHostname),
-			Namespace: c.Namespace,
+			Namespace: c.clusterInfo.Namespace,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     prepareAppName,
-				k8sutil.ClusterAttr: c.Namespace,
+				k8sutil.ClusterAttr: c.clusterInfo.Namespace,
 			},
 		},
 		Spec: batch.JobSpec{
@@ -160,7 +160,7 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 
 	k8sutil.AddRookVersionLabelToJob(job)
 	controller.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
-	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.clusterInfo.OwnerRef)
 	return job, nil
 }
 
@@ -171,11 +171,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	replicaCount := int32(1)
 	volumeMounts := controller.CephVolumeMounts(provisionConfig.DataPathMap, false)
 	configVolumeMounts := controller.RookVolumeMounts(provisionConfig.DataPathMap, false)
-	// When running on PVC, OSDs don't need a bindmount on dataDirHostPath, only the monitors do
+	// When running on PVC, the OSDs don't need a bindmount on dataDirHostPath, only the monitors do
 	if osdProps.onPVC() {
-		c.dataDirHostPath = ""
+		c.spec.DataDirHostPath = ""
 	}
-	volumes := controller.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, false)
+	volumes := controller.PodVolumes(provisionConfig.DataPathMap, c.spec.DataDirHostPath, false)
 	failureDomainValue := osdProps.crushHostname
 	doConfigInit := true       // initialize ceph.conf in init container?
 	doBinaryCopyInit := true   // copy tini and rook binaries in an init container?
@@ -214,7 +214,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	envVars := append(c.getConfigEnvVars(osdProps, dataDir), []v1.EnvVar{
 		tiniEnvVar,
 	}...)
-	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars(c.cephVersion.Image)...)
+	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars(c.spec.CephVersion.Image)...)
 	envVars = append(envVars, []v1.EnvVar{
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
 		{Name: "ROOK_OSD_ID", Value: osdID},
@@ -315,7 +315,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	args = append(args, opconfig.LoggingFlags()...)
-	args = append(args, osdOnSDNFlag(c.Network)...)
+	args = append(args, osdOnSDNFlag(c.spec.Network)...)
 
 	osdDataDirPath := activateOSDMountPath + osdID
 	if osdProps.onPVC() && osd.CVMode == "lvm" {
@@ -401,7 +401,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	initContainers = append(initContainers,
 		controller.ChownCephDataDirsInitContainer(
 			opconfig.DataPathMap{ContainerDataDir: dataPath},
-			c.cephVersion.Image,
+			c.spec.CephVersion.Image,
 			volumeMounts,
 			osdProps.resources,
 			securityContext,
@@ -415,17 +415,17 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		Spec: v1.PodSpec{
 			RestartPolicy:      v1.RestartPolicyAlways,
 			ServiceAccountName: serviceAccountName,
-			HostNetwork:        c.Network.IsHost(),
+			HostNetwork:        c.spec.Network.IsHost(),
 			HostPID:            hostPID,
 			HostIPC:            hostIPC,
-			PriorityClassName:  c.priorityClassName,
+			PriorityClassName:  cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 			InitContainers:     initContainers,
 			Containers: []v1.Container{
 				{
 					Command:         command,
 					Args:            args,
 					Name:            "osd",
-					Image:           c.cephVersion.Image,
+					Image:           c.spec.CephVersion.Image,
 					VolumeMounts:    volumeMounts,
 					Env:             envVars,
 					Resources:       osdProps.resources,
@@ -439,25 +439,25 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	// If the liveness probe is enabled
-	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureLivenessProbe(cephv1.KeyOSD, podTemplateSpec.Spec.Containers[0], c.healthCheck)
+	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureLivenessProbe(cephv1.KeyOSD, podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck)
 
-	if c.Network.IsHost() {
+	if c.spec.Network.IsHost() {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	} else if c.Network.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.Network.NetworkSpec, &podTemplateSpec.ObjectMeta)
+	} else if c.spec.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta)
 	}
 
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploymentName,
-			Namespace: c.Namespace,
+			Namespace: c.clusterInfo.Namespace,
 			Labels:    c.getOSDLabels(osd.ID, failureDomainValue, osdProps.portable),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					k8sutil.AppAttr:     AppName,
-					k8sutil.ClusterAttr: c.Namespace,
+					k8sutil.ClusterAttr: c.clusterInfo.Namespace,
 					OsdIdLabelKey:       fmt.Sprintf("%d", osd.ID),
 				},
 			},
@@ -481,13 +481,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
-	c.annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
-	c.annotations.ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
+	cephv1.GetOSDAnnotations(c.spec.Annotations).ApplyToObjectMeta(&deployment.ObjectMeta)
+	cephv1.GetOSDAnnotations(c.spec.Annotations).ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.clusterInfo.OwnerRef)
 	if !osdProps.onPVC() {
-		c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+		cephv1.GetOSDPlacement(c.spec.Placement).ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	} else {
 		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	}
@@ -538,7 +538,7 @@ func (c *Cluster) getActivateOSDInitContainer(osdID string, osdInfo OSDInfo, osd
 			fmt.Sprintf(activateOSDCode, osdID, osdInfo.UUID, osdStore, osdInfo.CVMode, osdInfo.BlockPath, osdMetadataDeviceEnvVarName),
 		},
 		Name:            "activate",
-		Image:           c.cephVersion.Image,
+		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    volMounts,
 		SecurityContext: PrivilegedContext(),
 		Env:             envVars,
@@ -553,7 +553,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 
 	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
-	volumes := append(controller.PodVolumes(provisionConfig.DataPathMap, c.dataDirHostPath, true), copyBinariesVolume)
+	volumes := append(controller.PodVolumes(provisionConfig.DataPathMap, c.spec.DataDirHostPath, true), copyBinariesVolume)
 
 	// create a volume on /dev so the pod can access devices on the host
 	devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
@@ -585,15 +585,15 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		},
 		RestartPolicy:     restart,
 		Volumes:           volumes,
-		HostNetwork:       c.Network.IsHost(),
-		PriorityClassName: c.priorityClassName,
+		HostNetwork:       c.spec.Network.IsHost(),
+		PriorityClassName: cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 		SchedulerName:     osdProps.schedulerName,
 	}
-	if c.Network.IsHost() {
+	if c.spec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	if !osdProps.onPVC() {
-		c.placement.ApplyToPodSpec(&podSpec)
+		cephv1.GetOSDPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec)
 	} else {
 		osdProps.placement.ApplyToPodSpec(&podSpec)
 	}
@@ -602,13 +602,13 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		Name: AppName,
 		Labels: map[string]string{
 			k8sutil.AppAttr:     prepareAppName,
-			k8sutil.ClusterAttr: c.Namespace,
+			k8sutil.ClusterAttr: c.clusterInfo.Namespace,
 			OSDOverPVCLabelKey:  osdProps.pvc.ClaimName,
 		},
 		Annotations: map[string]string{},
 	}
 
-	c.annotations.ApplyToObjectMeta(&podMeta)
+	cephv1.GetOSDAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podMeta)
 
 	// ceph-volume --dmcrypt uses cryptsetup that synchronizes with udev on
 	// host through semaphore
@@ -626,7 +626,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 func (c *Cluster) getPVCInitContainer(osdProps osdProperties) v1.Container {
 	return v1.Container{
 		Name:  blockPVCMapperInitContainer,
-		Image: c.cephVersion.Image,
+		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"cp",
 		},
@@ -652,7 +652,7 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 
 	return v1.Container{
 		Name:  blockPVCMapperInitContainer,
-		Image: c.cephVersion.Image,
+		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"cp",
 		},
@@ -682,7 +682,7 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 func (c *Cluster) getPVCMetadataInitContainer(mountPath string, osdProps osdProperties) v1.Container {
 	return v1.Container{
 		Name:  blockPVCMetadataMapperInitContainer,
-		Image: c.cephVersion.Image,
+		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"cp",
 		},
@@ -707,7 +707,7 @@ func (c *Cluster) getPVCMetadataInitContainer(mountPath string, osdProps osdProp
 func (c *Cluster) getPVCMetadataInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
 	return v1.Container{
 		Name:  blockPVCMetadataMapperInitContainer,
-		Image: c.cephVersion.Image,
+		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"cp",
 		},
@@ -732,7 +732,7 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 
 	container := v1.Container{
 		Name:  activatePVCOSDInitContainer,
-		Image: c.cephVersion.Image,
+		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"ceph-bluestore-tool",
 		},
@@ -756,7 +756,7 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 
 	container := v1.Container{
 		Name:  expandPVCOSDInitContainer,
-		Image: c.cephVersion.Image,
+		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"ceph-bluestore-tool",
 		},
@@ -771,10 +771,10 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.EnvVar {
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(osdProps.crushHostname),
-		{Name: "ROOK_CLUSTER_ID", Value: string(c.ownerRef.UID)},
+		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerRef.UID)},
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-		opmon.ClusterNameEnvVar(c.Namespace),
+		opmon.PodNamespaceEnvVar(c.clusterInfo.Namespace),
 		opmon.EndpointEnvVar(),
 		opmon.SecretEnvVar(),
 		opmon.CephUsernameEnvVar(),
@@ -922,7 +922,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		Command:      []string{path.Join(rookBinariesMountPath, "tini")},
 		Args:         []string{"--", path.Join(rookBinariesMountPath, "rook"), "ceph", "osd", "provision"},
 		Name:         "provision",
-		Image:        c.cephVersion.Image,
+		Image:        c.spec.CephVersion.Image,
 		VolumeMounts: volumeMounts,
 		Env:          envVars,
 		SecurityContext: &v1.SecurityContext{
@@ -931,7 +931,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 		},
-		Resources: c.prepareResources,
+		Resources: cephv1.GetPrepareOSDResources(c.spec.Resources),
 	}
 
 	return osdProvisionContainer, nil
@@ -1104,7 +1104,7 @@ func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClas
 func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bool) map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     AppName,
-		k8sutil.ClusterAttr: c.Namespace,
+		k8sutil.ClusterAttr: c.clusterInfo.Namespace,
 		OsdIdLabelKey:       fmt.Sprintf("%d", osdID),
 		FailureDomainKey:    failureDomainValue,
 		portableKey:         strconv.FormatBool(portable),
@@ -1145,7 +1145,7 @@ func (c *Cluster) osdRunFlagTuningOnPVC(osdID int) error {
 	// Time in seconds to sleep before next removal transaction
 	do["osd_delete_sleep"] = osdDeleteSleep
 
-	monStore := opconfig.GetMonStore(c.context, c.Namespace)
+	monStore := opconfig.GetMonStore(c.context, c.clusterInfo)
 
 	for flag, val := range do {
 		err := monStore.Set(who, flag, val)

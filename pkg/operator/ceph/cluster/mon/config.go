@@ -109,18 +109,26 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 		}
 	} else {
 		clusterInfo = &cephclient.ClusterInfo{
-			Name:          string(secrets.Data[clusterSecretNameKey]),
+			Namespace:     namespace,
 			FSID:          string(secrets.Data[fsidSecretNameKey]),
 			MonitorSecret: string(secrets.Data[monSecretNameKey]),
 		}
-		if cephSecret, ok := secrets.Data[adminSecretNameKey]; ok {
-			clusterInfo.CephCred.Username = client.AdminUsername
-			clusterInfo.CephCred.Secret = string(cephSecret)
-		} else {
-			clusterInfo.CephCred.Username = string(secrets.Data[cephUsernameKey])
+		if cephUsername, ok := secrets.Data[cephUsernameKey]; ok {
+			clusterInfo.CephCred.Username = string(cephUsername)
 			clusterInfo.CephCred.Secret = string(secrets.Data[cephUserSecretKey])
+		} else if adminSecretKey, ok := secrets.Data[adminSecretNameKey]; ok {
+			clusterInfo.CephCred.Username = client.AdminUsername
+			clusterInfo.CephCred.Secret = string(adminSecretKey)
+
+			secrets.Data[cephUsernameKey] = []byte(client.AdminUsername)
+			secrets.Data[cephUserSecretKey] = adminSecretKey
+			if _, err = context.Clientset.CoreV1().Secrets(namespace).Update(secrets); err != nil {
+				return nil, maxMonID, monMapping, errors.Wrap(err, "failed to update mon secrets")
+			}
+		} else {
+			return nil, maxMonID, monMapping, errors.New("failed to find either the cluster admin key or the username")
 		}
-		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Name)
+		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Namespace)
 	}
 
 	// get the existing monitor config
@@ -228,11 +236,10 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 
 	// store the secrets for internal usage of the rook pods
 	secrets := map[string][]byte{
-		clusterSecretNameKey: []byte(clusterInfo.Name),
-		fsidSecretNameKey:    []byte(clusterInfo.FSID),
-		monSecretNameKey:     []byte(clusterInfo.MonitorSecret),
-		cephUsernameKey:      []byte(clusterInfo.CephCred.Username),
-		cephUserSecretKey:    []byte(clusterInfo.CephCred.Secret),
+		fsidSecretNameKey: []byte(clusterInfo.FSID),
+		monSecretNameKey:  []byte(clusterInfo.MonitorSecret),
+		cephUsernameKey:   []byte(clusterInfo.CephCred.Username),
+		cephUserSecretKey: []byte(clusterInfo.CephCred.Secret),
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -251,13 +258,13 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 }
 
 // create new cluster info (FSID, shared keys)
-func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cephclient.ClusterInfo, error) {
+func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephclient.ClusterInfo, error) {
 	fsid, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
 	}
 
-	dir := path.Join(context.ConfigDir, clusterName)
+	dir := path.Join(context.ConfigDir, namespace)
 	if err = os.MkdirAll(dir, 0744); err != nil {
 		return nil, errors.Wrapf(err, "failed to create dir %s", dir)
 	}
@@ -282,7 +289,7 @@ func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cep
 	return &cephclient.ClusterInfo{
 		FSID:          fsid.String(),
 		MonitorSecret: monSecret,
-		Name:          clusterName,
+		Namespace:     namespace,
 		CephCred: cephclient.CephCred{
 			Username: client.AdminUsername,
 			Secret:   adminSecret,
@@ -326,7 +333,7 @@ func ExtractKey(contents string) (string, error) {
 }
 
 // PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no OSDs keep waiting
-func PopulateExternalClusterInfo(context *clusterd.Context, namespace string) *cephclient.ClusterInfo {
+func PopulateExternalClusterInfo(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) *cephclient.ClusterInfo {
 	var clusterInfo *cephclient.ClusterInfo
 	for {
 		var err error
@@ -353,5 +360,6 @@ func PopulateExternalClusterInfo(context *clusterd.Context, namespace string) *c
 		break
 	}
 
+	clusterInfo.OwnerRef = ownerRef
 	return clusterInfo
 }

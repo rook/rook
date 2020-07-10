@@ -227,21 +227,21 @@ func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) 
 
 	for _, pool := range pools {
 		name := poolName(context.Name, pool)
-		if err := ceph.DeletePool(context.Context, context.ClusterName, name); err != nil {
+		if err := ceph.DeletePool(context.Context, context.clusterInfo, name); err != nil {
 			logger.Warningf("failed to delete pool %q. %v", name, err)
 		}
 	}
 
 	// Delete erasure code profile if any
-	erasureCodes, err := ceph.ListErasureCodeProfiles(context.Context, context.ClusterName)
+	erasureCodes, err := ceph.ListErasureCodeProfiles(context.Context, context.clusterInfo)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list erasure code profiles for cluster %s", context.ClusterName)
+		return errors.Wrapf(err, "failed to list erasure code profiles for cluster %s", context.clusterInfo.Namespace)
 	}
 	// cleans up the EC profile for the data pool only. Metadata pools don't support EC (only replication is supported).
 	ecProfileName := client.GetErasureCodeProfileForPool(context.Name)
 	for i := range erasureCodes {
 		if erasureCodes[i] == ecProfileName {
-			if err := ceph.DeleteErasureCodeProfile(context.Context, context.ClusterName, ecProfileName); err != nil {
+			if err := ceph.DeleteErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName); err != nil {
 				return errors.Wrapf(err, "failed to delete erasure code profile %s for object store %s", ecProfileName, context.Name)
 			}
 			break
@@ -259,7 +259,7 @@ func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 		var missingPools []string
 		for _, pool := range pools {
 			poolName := poolName(context.Name, pool)
-			_, err := ceph.GetPoolDetails(context.Context, context.ClusterName, poolName)
+			_, err := ceph.GetPoolDetails(context.Context, context.clusterInfo, poolName)
 			if err != nil {
 				logger.Debugf("failed to find pool %q. %v", poolName, err)
 				missingPools = append(missingPools, poolName)
@@ -271,7 +271,7 @@ func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	}
 
 	// get the default PG count for rgw metadata pools
-	metadataPoolPGs, err := config.GetMonStore(context.Context, context.ClusterName).Get("mon.", "rgw_rados_pool_pg_num_min")
+	metadataPoolPGs, err := config.GetMonStore(context.Context, context.clusterInfo).Get("mon.", "rgw_rados_pool_pg_num_min")
 	if err != nil {
 		logger.Warningf("failed to adjust the PG count for rgw metadata pools. using the general default. %v", err)
 		metadataPoolPGs = ceph.DefaultPGCount
@@ -285,7 +285,7 @@ func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 	if spec.DataPool.IsErasureCoded() {
 		ecProfileName = client.GetErasureCodeProfileForPool(context.Name)
 		// create a new erasure code profile for the data pool
-		if err := ceph.CreateErasureCodeProfile(context.Context, context.ClusterName, ecProfileName, spec.DataPool); err != nil {
+		if err := ceph.CreateErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName, spec.DataPool); err != nil {
 			return errors.Wrapf(err, "failed to create erasure code profile for object store %s", context.Name)
 		}
 	}
@@ -301,16 +301,16 @@ func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSp
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
 		name := poolName(context.Name, pool)
-		if poolDetails, err := ceph.GetPoolDetails(context.Context, context.ClusterName, name); err != nil {
+		if poolDetails, err := ceph.GetPoolDetails(context.Context, context.clusterInfo, name); err != nil {
 			// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
 			// to create a replicated pool.
 			var err error
 			if poolSpec.IsErasureCoded() {
 				// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
 				// created with that property disabled to avoid unnecessary performance impact.
-				err = ceph.CreateECPoolForApp(context.Context, context.ClusterName, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
+				err = ceph.CreateECPoolForApp(context.Context, context.clusterInfo, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
 			} else {
-				err = ceph.CreateReplicatedPoolForApp(context.Context, context.ClusterName, name, poolSpec, pgCount, AppName)
+				err = ceph.CreateReplicatedPoolForApp(context.Context, context.clusterInfo, name, poolSpec, pgCount, AppName)
 			}
 			if err != nil {
 				return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, context.Name)
@@ -321,7 +321,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSp
 				// detect if the replication is different from the pool details
 				if poolDetails.Size != poolSpec.Replicated.Size {
 					logger.Infof("pool size is changed from %d to %d", poolDetails.Size, poolSpec.Replicated.Size)
-					if err := ceph.SetPoolReplicatedSizeProperty(context.Context, context.ClusterName, poolDetails.Name, strconv.FormatUint(uint64(poolSpec.Replicated.Size), 10)); err != nil {
+					if err := ceph.SetPoolReplicatedSizeProperty(context.Context, context.clusterInfo, poolDetails.Name, strconv.FormatUint(uint64(poolSpec.Replicated.Size), 10)); err != nil {
 						return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolDetails.Name, poolSpec.Replicated.Size)
 					}
 				}
@@ -329,7 +329,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec cephv1.PoolSp
 		}
 		// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count
 		if pgCount != ceph.DefaultPGCount {
-			if err := ceph.SetPoolProperty(context.Context, context.ClusterName, name, "pg_num_min", pgCount); err != nil {
+			if err := ceph.SetPoolProperty(context.Context, context.clusterInfo, name, "pg_num_min", pgCount); err != nil {
 				return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
 			}
 		}

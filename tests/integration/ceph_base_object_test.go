@@ -22,6 +22,7 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
@@ -51,6 +52,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store, User,Bucket and read/write to bucket")
 	logger.Infof("Running on Rook Cluster %s", namespace)
+	clusterInfo := client.AdminClusterInfo(namespace)
 
 	logger.Infof("Step 0 : Create Object Store User")
 	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
@@ -128,7 +130,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	logger.Infof("Check if bucket was created")
 	context := k8sh.MakeContext()
-	rgwcontext := rgw.NewContext(context, storeName, namespace)
+	rgwcontext := rgw.NewContext(context, clusterInfo, storeName)
 	var bkt rgw.ObjectBucket
 	for i = 0; i < 4; i++ {
 		b, code, err := rgw.GetBucket(rgwcontext, bucketname)
@@ -140,7 +142,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 		logger.Infof("(%d) check bucket exists, sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
 	}
-	require.Equal(s.T(), bkt.Name, bucketname)
+	require.Equal(s.T(), bucketname, bkt.Name)
 	logger.Infof("OBC, Secret and ConfigMap created")
 
 	logger.Infof("Step 4 : Create s3 client")

@@ -34,7 +34,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 	clusterInfo := &ClusterInfo{
 		FSID:          "id",
 		MonitorSecret: "monsecret",
-		Name:          "foo-cluster",
+		Namespace:     "foo-cluster",
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6789"},
@@ -90,7 +90,7 @@ func TestGenerateConfigFile(t *testing.T) {
 	clusterInfo := &ClusterInfo{
 		FSID:          "myfsid",
 		MonitorSecret: "monsecret",
-		Name:          "foo-cluster",
+		Namespace:     "foo-cluster",
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},

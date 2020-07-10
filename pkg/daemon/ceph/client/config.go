@@ -89,15 +89,15 @@ func GenerateConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) (
 // GenerateConnectionConfigWithSettings generates a Ceph config and keyring which will allow
 // the daemon to connect. Default config file settings can be overridden by specifying
 // some subset of settings.
-func GenerateConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig) (string, error) {
-	root := path.Join(context.ConfigDir, cluster.Name)
-	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", cluster.CephCred.Username))
-	err := writeKeyring(CephKeyring(cluster.CephCred), keyringPath)
+func GenerateConnectionConfigWithSettings(context *clusterd.Context, clusterInfo *ClusterInfo, settings *CephConfig) (string, error) {
+	root := path.Join(context.ConfigDir, clusterInfo.Namespace)
+	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username))
+	err := writeKeyring(CephKeyring(clusterInfo.CephCred), keyringPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to write keyring %q to %s", cluster.CephCred.Username, root)
+		return "", errors.Wrapf(err, "failed to write keyring %q to %s", clusterInfo.CephCred.Username, root)
 	}
 
-	filePath, err := generateConfigFile(context, cluster, root, keyringPath, settings, nil)
+	filePath, err := generateConfigFile(context, clusterInfo, root, keyringPath, settings, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to write config to %s", root)
 	}
@@ -106,25 +106,25 @@ func GenerateConnectionConfigWithSettings(context *clusterd.Context, cluster *Cl
 }
 
 // generateConfigFile generates and writes a config file to disk.
-func generateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
+func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pathRoot, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
 
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
 		logger.Warningf("failed to create config directory at %q. %v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(context, cluster, globalConfig)
+	configFile, err := createGlobalConfigFileSection(context, clusterInfo, globalConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create global config section")
 	}
 
-	qualifiedUser := getQualifiedUser(cluster.CephCred.Username)
+	qualifiedUser := getQualifiedUser(clusterInfo.CephCred.Username)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
 		return "", errors.Wrap(err, "failed to add admin client config section")
 	}
 
 	// write the entire config to disk
-	filePath := getConfFilePath(pathRoot, cluster.Name)
+	filePath := getConfFilePath(pathRoot, clusterInfo.Namespace)
 	logger.Infof("writing config file %s", filePath)
 	if err := configFile.SaveTo(filePath); err != nil {
 		return "", errors.Wrapf(err, "failed to save config file %s", filePath)
@@ -143,7 +143,7 @@ func getQualifiedUser(user string) string {
 }
 
 // CreateDefaultCephConfig creates a default ceph config file.
-func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*CephConfig, error) {
+func CreateDefaultCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) (*CephConfig, error) {
 
 	cephVersionEnv := os.Getenv("ROOK_CEPH_VERSION")
 	if cephVersionEnv != "" {
@@ -151,16 +151,16 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to extract ceph version")
 		}
-		cluster.CephVersion = *v
+		clusterInfo.CephVersion = *v
 	}
 
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// and "mon hosts" global config field
-	monMembers, monHosts := PopulateMonHostMembers(cluster.Monitors)
+	monMembers, monHosts := PopulateMonHostMembers(clusterInfo.Monitors)
 
 	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
-			FSID:           cluster.FSID,
+			FSID:           clusterInfo.FSID,
 			MonMembers:     strings.Join(monMembers, " "),
 			MonHost:        strings.Join(monHosts, ","),
 			PublicAddr:     context.NetworkInfo.PublicAddr,
@@ -174,7 +174,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 }
 
 // create a config file with global settings configured, and return an ini file
-func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterInfo, userConfig *CephConfig) (*ini.File, error) {
+func createGlobalConfigFileSection(context *clusterd.Context, clusterInfo *ClusterInfo, userConfig *CephConfig) (*ini.File, error) {
 
 	var ceph *CephConfig
 
@@ -183,7 +183,7 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		ceph = userConfig
 	} else {
 		var err error
-		ceph, err = CreateDefaultCephConfig(context, cluster)
+		ceph, err = CreateDefaultCephConfig(context, clusterInfo)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create default ceph config")
 		}

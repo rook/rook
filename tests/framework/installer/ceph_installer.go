@@ -213,7 +213,8 @@ func (h *CephInstaller) CreateRookToolbox(namespace string) (err error) {
 
 // Execute a command in the ceph toolbox
 func (h *CephInstaller) Execute(command string, parameters []string, namespace string) (error, string) {
-	cmd, args := client.FinalizeCephCommandArgs(command, parameters, h.k8shelper.MakeContext().ConfigDir, namespace, client.AdminUsername)
+	clusterInfo := client.AdminClusterInfo(namespace)
+	cmd, args := client.FinalizeCephCommandArgs(command, clusterInfo, parameters, h.k8shelper.MakeContext().ConfigDir)
 	result, err := h.k8shelper.MakeContext().Executor.ExecuteCommandWithOutput(cmd, args...)
 	if err != nil {
 		logger.Warningf("Error executing command %q: <%v>", command, err)

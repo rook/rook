@@ -41,9 +41,8 @@ func TestClusterDeleteFlexEnabled(t *testing.T) {
 	defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset: testop.New(t, 3),
 	}
 	listCount := 0
 	volumeAttachmentController := &attachment.MockAttachment{
@@ -107,9 +106,8 @@ func TestClusterDeleteFlexDisabled(t *testing.T) {
 	defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
-	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset: testop.New(t, 3),
 	}
 	listCount := 0
 	volumeAttachmentController := &attachment.MockAttachment{

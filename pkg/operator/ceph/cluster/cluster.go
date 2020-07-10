@@ -46,7 +46,7 @@ const (
 )
 
 type cluster struct {
-	Info                 *client.ClusterInfo
+	ClusterInfo          *client.ClusterInfo
 	context              *clusterd.Context
 	Namespace            string
 	Spec                 *cephv1.ClusterSpec
@@ -75,13 +75,13 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		Info:               nil,
+		ClusterInfo:        client.AdminClusterInfo(c.Namespace),
 		Namespace:          c.Namespace,
 		Spec:               &c.Spec,
 		context:            context,
 		crdName:            c.Name,
-		stopCh:             make(chan struct{}),
 		monitoringChannels: make(map[string]*clusterHealth),
+		stopCh:             make(chan struct{}),
 		ownerRef:           *ownerRef,
 		mons:               mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, *ownerRef, csiMutex),
 	}
@@ -122,14 +122,16 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Start the mon pods
-	clusterInfo, err := c.mons.Start(c.Info, rookImage, cephVersion, *c.Spec)
+	clusterInfo, err := c.mons.Start(c.ClusterInfo, rookImage, cephVersion, *c.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph monitors")
 	}
-	c.Info = clusterInfo
+	clusterInfo.OwnerRef = c.ownerRef
+	clusterInfo.SetName(c.crdName)
+	c.ClusterInfo = clusterInfo
 
 	// The cluster Identity must be established at this point
-	if !c.Info.IsInitialized(true) {
+	if !c.ClusterInfo.IsInitialized(true) {
 		return errors.New("the cluster identity was not established")
 	}
 
@@ -150,47 +152,14 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Start Ceph manager
-	mgrs := mgr.New(c.Info,
-		c.context,
-		c.Namespace,
-		rookImage,
-		spec.CephVersion,
-		cephv1.GetMgrPlacement(spec.Placement),
-		cephv1.GetMgrAnnotations(c.Spec.Annotations),
-		spec.Network,
-		spec.Dashboard,
-		spec.Monitoring,
-		spec.Mgr,
-		cephv1.GetMgrResources(spec.Resources),
-		cephv1.GetMgrPriorityClassName(spec.PriorityClassNames),
-		c.ownerRef,
-		c.Spec.DataDirHostPath,
-		c.Spec.SkipUpgradeChecks,
-		spec.HealthCheck)
+	mgrs := mgr.New(c.context, c.ClusterInfo, *spec, rookImage)
 	err = mgrs.Start()
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph mgr")
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.Info,
-		c.context,
-		c.Namespace,
-		rookImage,
-		spec.CephVersion,
-		spec.Storage,
-		spec.DriveGroups,
-		spec.DataDirHostPath,
-		cephv1.GetOSDPlacement(spec.Placement),
-		cephv1.GetOSDAnnotations(spec.Annotations),
-		spec.Network,
-		cephv1.GetOSDResources(spec.Resources),
-		cephv1.GetPrepareOSDResources(spec.Resources),
-		cephv1.GetOSDPriorityClassName(spec.PriorityClassNames),
-		c.ownerRef,
-		c.Spec.SkipUpgradeChecks,
-		c.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy,
-		spec.HealthCheck)
+	osds := osd.New(c.context, c.ClusterInfo, *spec, rookImage)
 	err = osds.Start()
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph osds")
@@ -224,8 +193,14 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		}
 	}
 
-	// The Ceph user the operator will use for management
-	cephUser := client.AdminUsername
+	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, cluster.Namespace)
+	if err != nil {
+		logger.Infof("clusterInfo not yet found, must be a new cluster")
+	} else {
+		clusterInfo.OwnerRef = cluster.ownerRef
+		clusterInfo.SetName(cluster.crdName)
+		cluster.ClusterInfo = clusterInfo
+	}
 
 	// Depending on the cluster type choose the correct orchestation
 	if cluster.Spec.External.Enable {
@@ -234,15 +209,14 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 			config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Failed to configure external ceph cluster")
 			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
-		cephUser = cluster.Info.CephCred.Username
 	} else {
 		// If the local cluster has already been configured, immediately start monitoring the cluster.
 		// Test if the cluster has already been configured if the mgr deployment has been created.
 		// If the mgr does not exist, the mons have never been verified to be in quorum.
 		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
 		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(opts)
-		if err == nil && len(mgrDeployments.Items) > 0 {
-			c.configureCephMonitoring(cluster, cephUser)
+		if err == nil && len(mgrDeployments.Items) > 0 && cluster.ClusterInfo != nil {
+			c.configureCephMonitoring(cluster, clusterInfo)
 		}
 
 		err = c.configureLocalCephCluster(cluster, clusterObj)
@@ -252,11 +226,10 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	}
 
 	// Populate ClusterInfo with the last value
-	cluster.mons.ClusterInfo = cluster.Info
+	cluster.mons.ClusterInfo = cluster.ClusterInfo
 
 	// Start the monitoring if not already started
-	c.configureCephMonitoring(cluster, cephUser)
-
+	c.configureCephMonitoring(cluster, cluster.ClusterInfo)
 	return nil
 }
 
@@ -298,7 +271,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster, clusterO
 }
 
 func (c *cluster) notifyChildControllerOfUpgrade() error {
-	version := strings.Replace(c.Info.CephVersion.String(), " ", "-", -1)
+	version := strings.Replace(c.ClusterInfo.CephVersion.String(), " ", "-", -1)
 
 	// List all child controllers
 	cephFilesystems, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).List(metav1.ListOptions{})
@@ -396,19 +369,19 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster, clusterO
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
 	// Create CSI Kubernetes Secrets
-	err := csi.CreateCSISecrets(c.context, c.Namespace, &c.ownerRef)
+	err := csi.CreateCSISecrets(c.context, c.ClusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to create csi kubernetes secrets")
 	}
 
 	// Create crash collector Kubernetes Secret
-	err = crash.CreateCrashCollectorSecret(c.context, c.Namespace, &c.ownerRef)
+	err = crash.CreateCrashCollectorSecret(c.context, c.ClusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 	}
 
 	// Enable Ceph messenger 2 protocol on Nautilus
-	if err := client.EnableMessenger2(c.context, c.Namespace); err != nil {
+	if err := client.EnableMessenger2(c.context, c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to enable Ceph messenger version 2")
 	}
 

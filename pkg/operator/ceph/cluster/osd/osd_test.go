@@ -23,6 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -61,10 +62,12 @@ func TestOSDProperties(t *testing.T) {
 func TestStart(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   "ns",
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookv1.StorageScopeSpec{}, cephv1.DriveGroupsSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	spec := cephv1.ClusterSpec{}
+	c := New(context, clusterInfo, spec, "myversion")
 
 	// Start the first time
 	err := c.Start()
@@ -112,17 +115,7 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
-	nodeName := "node8230"
-	storageSpec := rookv1.StorageScopeSpec{
-		Nodes: []rookv1.Node{
-			{
-				Name: nodeName,
-				Selection: rookv1.Selection{
-					Devices: []rookv1.Device{{Name: "sdx"}},
-				},
-			},
-		},
-	}
+	nodeName := "node23"
 
 	// set up a fake k8s client set and watcher to generate events that the operator will listen to
 	clientset := fake.NewSimpleClientset()
@@ -138,6 +131,7 @@ func TestAddRemoveNode(t *testing.T) {
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
 	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Nautilus,
 	}
 	generateKey := "expected key"
@@ -147,8 +141,21 @@ func TestAddRemoveNode(t *testing.T) {
 		},
 	}
 
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, cephv1.DriveGroupsSpec{}, "/foo", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor}
+	spec := cephv1.ClusterSpec{
+		DataDirHostPath: context.ConfigDir,
+		Storage: rookv1.StorageScopeSpec{
+			Nodes: []rookv1.Node{
+				{
+					Name: nodeName,
+					Selection: rookv1.Selection{
+						Devices: []rookv1.Device{{Name: "sdx"}},
+					},
+				},
+			},
+		},
+	}
+	c := New(context, clusterInfo, spec, "myversion")
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -172,10 +179,10 @@ func TestAddRemoveNode(t *testing.T) {
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:   "osdPod",
 		Labels: map[string]string{k8sutil.AppAttr: AppName}}}
-	c.context.Clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
+	c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(osdPod)
 
 	// mock the ceph calls that will be called during remove node
-	mockExec := &exectest.MockExecutor{
+	context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outputFile string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "status" {
@@ -225,9 +232,8 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 
 	// modify the storage spec to remove the node from the cluster
-	storageSpec.Nodes = []rookv1.Node{}
-	c = New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: mockExec}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, cephv1.DriveGroupsSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	spec.Storage.Nodes = []rookv1.Node{}
+	c = New(context, clusterInfo, spec, "myversion")
 
 	// reset the orchestration status watcher
 	statusMapWatcher = watch.NewFake()
@@ -255,16 +261,6 @@ func TestAddRemoveNode(t *testing.T) {
 func TestAddNodeFailure(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node1672"
-	storageSpec := rookv1.StorageScopeSpec{
-		Nodes: []rookv1.Node{
-			{
-				Name: nodeName,
-				Selection: rookv1.Selection{
-					Devices: []rookv1.Device{{Name: "sdx"}},
-				},
-			},
-		},
-	}
 
 	// create a fake clientset that will return an error when the operator tries to create a job
 	clientset := fake.NewSimpleClientset()
@@ -281,10 +277,24 @@ func TestAddNodeFailure(t *testing.T) {
 	assert.Nil(t, cmErr)
 
 	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, cephv1.DriveGroupsSpec{}, "/foo", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	spec := cephv1.ClusterSpec{
+		DataDirHostPath: context.ConfigDir,
+		Storage: rookv1.StorageScopeSpec{
+			Nodes: []rookv1.Node{
+				{
+					Name: nodeName,
+					Selection: rookv1.Selection{
+						Devices: []rookv1.Device{{Name: "sdx"}},
+					},
+				},
+			},
+		},
+	}
+	c := New(context, clusterInfo, spec, "myversion")
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -304,7 +314,8 @@ func TestAddNodeFailure(t *testing.T) {
 
 func TestGetPVCHostName(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, Namespace: "ns"}
+	clusterInfo := &client.ClusterInfo{Namespace: "ns"}
+	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, clusterInfo: clusterInfo}
 	pvcName := "test-pvc"
 
 	// fail to get the host name when there is no pod or deployment
@@ -316,14 +327,14 @@ func TestGetPVCHostName(t *testing.T) {
 	osdDeployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "osd-23",
-			Namespace: c.Namespace,
+			Namespace: c.clusterInfo.Namespace,
 			Labels:    c.getOSDLabels(23, "", true),
 		},
 	}
 	k8sutil.AddLabelToDeployment(OSDOverPVCLabelKey, pvcName, osdDeployment)
 	osdDeployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: "testnode"}
 
-	_, err = clientset.AppsV1().Deployments(c.Namespace).Create(osdDeployment)
+	_, err = clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(osdDeployment)
 	assert.NoError(t, err)
 
 	// get the host name based on the deployment
@@ -332,18 +343,18 @@ func TestGetPVCHostName(t *testing.T) {
 	assert.Equal(t, "testnode", name)
 
 	// delete the deployment and get the host name based on the pod
-	err = clientset.AppsV1().Deployments(c.Namespace).Delete(osdDeployment.Name, &metav1.DeleteOptions{})
+	err = clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(osdDeployment.Name, &metav1.DeleteOptions{})
 	assert.NoError(t, err)
 	osdPod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "osd-23",
-			Namespace: c.Namespace,
+			Namespace: c.clusterInfo.Namespace,
 			Labels:    c.getOSDLabels(23, "", true),
 		},
 	}
 	osdPod.Labels = map[string]string{OSDOverPVCLabelKey: pvcName}
 	osdPod.Spec.NodeName = "testnode"
-	_, err = clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
+	_, err = clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(osdPod)
 	assert.NoError(t, err)
 
 	name, err = c.getPVCHostName(pvcName)
@@ -352,9 +363,10 @@ func TestGetPVCHostName(t *testing.T) {
 }
 
 func TestGetOSDInfo(t *testing.T) {
-	c := New(&cephclient.ClusterInfo{}, &clusterd.Context{}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookv1.StorageScopeSpec{}, cephv1.DriveGroupsSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{},
-		v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	context := &clusterd.Context{}
+	spec := cephv1.ClusterSpec{DataDirHostPath: "/rook"}
+	c := New(context, clusterInfo, spec, "myversion")
 
 	node := "n1"
 	location := "root=default host=myhost zone=myzone"
@@ -369,7 +381,7 @@ func TestGetOSDInfo(t *testing.T) {
 		storeConfig:   config.StoreConfig{},
 	}
 	dataPathMap := &provisionConfig{
-		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, c.dataDirHostPath),
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, c.spec.DataDirHostPath),
 	}
 	d1, _ := c.makeDeployment(osdProp, osd1, dataPathMap)
 	osds1, _ := c.getOSDInfo(d1)

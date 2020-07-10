@@ -114,7 +114,7 @@ func TestGetMDSRank(t *testing.T) {
 	var statusFake CephStatus
 	json.Unmarshal(statusFakeRaw, &statusFake)
 
-	mdsRankFake, err := getMDSRank(statusFake, "rook-ceph", "myfs-b")
+	mdsRankFake, err := getMDSRank(statusFake, "myfs-b")
 	assert.Nil(t, err)
 	assert.Equal(t, 0, mdsRankFake)
 }

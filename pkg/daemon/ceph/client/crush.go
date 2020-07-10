@@ -81,10 +81,10 @@ type CrushFindResult struct {
 }
 
 // GetCrushMap fetches the Ceph CRUSH map
-func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error) {
+func GetCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo) (CrushMap, error) {
 	var c CrushMap
 	args := []string{"osd", "crush", "dump"}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return c, errors.Wrapf(err, "failed to get crush map. %s", string(buf))
 	}
@@ -98,9 +98,9 @@ func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error
 }
 
 // FindOSDInCrushMap finds an OSD in the CRUSH map
-func FindOSDInCrushMap(context *clusterd.Context, clusterName string, osdID int) (*CrushFindResult, error) {
+func FindOSDInCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (*CrushFindResult, error) {
 	args := []string{"osd", "find", strconv.Itoa(osdID)}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to find osd.%d in crush map: %s", osdID, string(buf))
 	}
@@ -114,8 +114,8 @@ func FindOSDInCrushMap(context *clusterd.Context, clusterName string, osdID int)
 }
 
 // GetCrushHostName gets the hostname where an OSD is running on
-func GetCrushHostName(context *clusterd.Context, clusterName string, osdID int) (string, error) {
-	result, err := FindOSDInCrushMap(context, clusterName, osdID)
+func GetCrushHostName(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (string, error) {
+	result, err := FindOSDInCrushMap(context, clusterInfo, osdID)
 	if err != nil {
 		return "", err
 	}
@@ -175,9 +175,9 @@ func formatProperty(name, value string) string {
 }
 
 // GetOSDOnHost returns the list of osds running on a given host
-func GetOSDOnHost(context *clusterd.Context, clusterName, node string) (string, error) {
+func GetOSDOnHost(context *clusterd.Context, clusterInfo *ClusterInfo, node string) (string, error) {
 	args := []string{"osd", "crush", "ls", node}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get osd list on host. %s", string(buf))
 	}

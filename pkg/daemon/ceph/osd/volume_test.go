@@ -284,7 +284,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
-	a := &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
+	a := &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
 	devices := &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
@@ -301,7 +301,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 7},
 	}
-	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
@@ -324,7 +324,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 7},
 	}
-	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
@@ -341,7 +341,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
-	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
@@ -365,7 +365,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
-	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
@@ -405,7 +405,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
-	a := &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
+	a := &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
 
 	devices := &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -431,7 +431,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 7},
 	}
-	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
 
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -461,7 +461,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 	}
-	a = &OsdAgent{cluster: clusterInfo, nodeName: "node1"}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
 
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -489,7 +489,7 @@ func TestParseCephVolumeLVMResult(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := GetCephVolumeLVMOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
+	osds, err := GetCephVolumeLVMOSDs(context, &cephclient.ClusterInfo{Namespace: "name"}, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", false, false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
@@ -508,7 +508,7 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := GetCephVolumeRawOSDs(context, "rook", "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", false)
+	osds, err := GetCephVolumeRawOSDs(context, &cephclient.ClusterInfo{Namespace: "name"}, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
@@ -528,7 +528,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := GetCephVolumeLVMOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
+	osds, err := GetCephVolumeLVMOSDs(context, &cephclient.ClusterInfo{Namespace: "name"}, "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))
@@ -549,7 +549,7 @@ func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	osds, err := GetCephVolumeLVMOSDs(context, "rook", "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
+	osds, err := GetCephVolumeLVMOSDs(context, &cephclient.ClusterInfo{Namespace: "name"}, "451267e6-883f-4936-8dff-080d781c67d5", "", false, false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 1, len(osds))

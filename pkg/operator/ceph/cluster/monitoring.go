@@ -19,13 +19,14 @@ package cluster
 
 import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephclient "github.com/rook/rook/pkg/operator/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	clientcontroller "github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 )
 
-func (c *ClusterController) configureCephMonitoring(cluster *cluster, cephUser string) {
+func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInfo *cephclient.ClusterInfo) {
 	var isDisabled bool
 	daemons := []string{"mon", "osd", "status"}
 
@@ -47,7 +48,7 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, cephUser s
 				// if not already running and not disabled, we run it
 				if !isDisabled {
 					// Run the go routine
-					c.startMonitoringCheck(cluster, daemon, cephUser)
+					c.startMonitoringCheck(cluster, clusterInfo, daemon)
 
 					// Set the flag to indicate monitoring is running
 					cluster.monitoringChannels[daemon].monitoringRunning = true
@@ -65,7 +66,7 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, cephUser s
 				}
 
 				// Run the go routine
-				c.startMonitoringCheck(cluster, daemon, cephUser)
+				c.startMonitoringCheck(cluster, clusterInfo, daemon)
 			}
 		}
 	}
@@ -77,11 +78,11 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, cephUser s
 	}
 
 	// Start client CRD watcher
-	clientController := cephclient.NewClientController(c.context, cluster.Namespace)
-	clientController.StartWatch(cluster.stopCh)
+	cc := clientcontroller.NewClientController(c.context, cluster.Namespace)
+	cc.StartWatch(cluster.stopCh)
 
 	// Start the object bucket provisioner
-	bucketProvisioner := bucket.NewProvisioner(c.context, cluster.Namespace, cephUser)
+	bucketProvisioner := bucket.NewProvisioner(c.context, clusterInfo)
 	// If cluster is external, pass down the user to the bucket controller
 
 	// note: the error return below is ignored and is expected to be removed from the
@@ -108,7 +109,7 @@ func isMonitoringDisabled(daemon string, clusterSpec *cephv1.ClusterSpec) bool {
 	return false
 }
 
-func (c *ClusterController) startMonitoringCheck(cluster *cluster, daemon string, cephUser string) {
+func (c *ClusterController) startMonitoringCheck(cluster *cluster, clusterInfo *cephclient.ClusterInfo, daemon string) {
 	switch daemon {
 	case "mon":
 		healthChecker := mon.NewHealthChecker(cluster.mons, cluster.Spec)
@@ -116,12 +117,12 @@ func (c *ClusterController) startMonitoringCheck(cluster *cluster, daemon string
 		go healthChecker.Check(cluster.monitoringChannels[daemon].stopChan)
 
 	case "osd":
-		c.osdChecker = osd.NewOSDHealthMonitor(c.context, cluster.Namespace, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Spec.HealthCheck)
+		c.osdChecker = osd.NewOSDHealthMonitor(c.context, clusterInfo, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Spec.HealthCheck)
 		logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
 		go c.osdChecker.Start(cluster.monitoringChannels[daemon].stopChan)
 
 	case "status":
-		cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cephUser, c.namespacedName, cluster.Spec.HealthCheck)
+		cephChecker := newCephStatusChecker(c.context, clusterInfo, cluster.Spec.HealthCheck)
 		logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
 		go cephChecker.checkCephStatus(cluster.monitoringChannels[daemon].stopChan)
 	}

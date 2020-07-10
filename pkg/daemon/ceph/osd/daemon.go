@@ -150,13 +150,13 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	// create the ceph.conf with the default settings
-	cephConfig, err := cephclient.CreateDefaultCephConfig(context, agent.cluster)
+	cephConfig, err := cephclient.CreateDefaultCephConfig(context, agent.clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to create default ceph config")
 	}
 
 	// write the latest config to the config dir
-	confFilePath, err := cephclient.GenerateConnectionConfigWithSettings(context, agent.cluster, cephConfig)
+	confFilePath, err := cephclient.GenerateConnectionConfigWithSettings(context, agent.clusterInfo, cephConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to write connection config")
 	}
@@ -311,7 +311,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		// If we detect a partition we have to make sure that ceph-volume will be able to consume it
 		// ceph-volume version 14.2.8 has the right code to support partitions
 		if device.Type == sys.PartType {
-			if !agent.cluster.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
+			if !agent.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
 				logger.Infof("skipping device %q because it is a partition and ceph version is too old, you need at least ceph %q", device.Name, cephVolumeRawModeMinCephVersion.String())
 				continue
 			}
@@ -338,7 +338,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		rejectedReason := ""
 		if agent.pvcBacked {
 			block := fmt.Sprintf("/mnt/%s", agent.nodeName)
-			rawOsds, err := GetCephVolumeRawOSDs(context, agent.cluster.Name, agent.cluster.FSID, block, agent.metadataDevice, false)
+			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, false)
 			if err != nil {
 				isAvailable = false
 				rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)

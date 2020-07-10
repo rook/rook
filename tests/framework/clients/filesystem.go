@@ -94,7 +94,8 @@ func (f *FilesystemOperation) Delete(name, namespace string) error {
 // List lists filesystems in Rook
 func (f *FilesystemOperation) List(namespace string) ([]client.CephFilesystem, error) {
 	context := f.k8sh.MakeContext()
-	filesystems, err := client.ListFilesystems(context, namespace)
+	clusterInfo := client.AdminClusterInfo(namespace)
+	filesystems, err := client.ListFilesystems(context, clusterInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pools: %+v", err)
 	}

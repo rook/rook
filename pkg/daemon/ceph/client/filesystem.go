@@ -76,9 +76,9 @@ type MDSInfo struct {
 }
 
 // ListFilesystems lists all filesystems provided by the Ceph cluster.
-func ListFilesystems(context *clusterd.Context, clusterName string) ([]CephFilesystem, error) {
+func ListFilesystems(context *clusterd.Context, clusterInfo *ClusterInfo) ([]CephFilesystem, error) {
 	args := []string{"fs", "ls"}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list filesystems")
 	}
@@ -93,9 +93,9 @@ func ListFilesystems(context *clusterd.Context, clusterName string) ([]CephFiles
 }
 
 // GetFilesystem gets detailed status information about a Ceph filesystem.
-func GetFilesystem(context *clusterd.Context, clusterName string, fsName string) (*CephFilesystemDetails, error) {
+func GetFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) (*CephFilesystemDetails, error) {
 	args := []string{"fs", "get", fsName}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get file system %s", fsName)
 	}
@@ -110,10 +110,10 @@ func GetFilesystem(context *clusterd.Context, clusterName string, fsName string)
 }
 
 // AllowStandbyReplay gets detailed status information about a Ceph filesystem.
-func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName string, allowStandbyReplay bool) error {
+func AllowStandbyReplay(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, allowStandbyReplay bool) error {
 	logger.Infof("setting allow_standby_replay for filesystem %q", fsName)
 	args := []string{"fs", "set", fsName, "allow_standby_replay", strconv.FormatBool(allowStandbyReplay)}
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %s", fsName)
 	}
@@ -122,7 +122,7 @@ func AllowStandbyReplay(context *clusterd.Context, clusterName string, fsName st
 }
 
 // CreateFilesystem performs software configuration steps for Ceph to provide a new filesystem.
-func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string, force bool) error {
+func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name, metadataPool string, dataPools []string, force bool) error {
 	if len(dataPools) == 0 {
 		return errors.New("at least one data pool is required")
 	}
@@ -134,7 +134,7 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 	if IsMultiFSEnabled() {
 		// enable multiple file systems in case this is not the first
 		args = []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
-		_, err = NewCephCommand(context, clusterName, args).Run()
+		_, err = NewCephCommand(context, clusterInfo, args).Run()
 		if err != nil {
 			// continue if this fails
 			logger.Warning("failed enabling multiple file systems. %v", err)
@@ -148,7 +148,7 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 		args = append(args, "--force")
 		logger.Infof("Filesystem %q will reuse pre-existing pools", name)
 	}
-	_, err = NewCephCommand(context, clusterName, args).Run()
+	_, err = NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed enabling ceph fs %q", name)
 	}
@@ -157,7 +157,7 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 	for i := 1; i < len(dataPools); i++ {
 		poolName := dataPools[i]
 		args = []string{"fs", "add_data_pool", name, poolName}
-		_, err = NewCephCommand(context, clusterName, args).Run()
+		_, err = NewCephCommand(context, clusterInfo, args).Run()
 		if err != nil {
 			logger.Errorf("failed to add pool %q to file system %q. %v", poolName, name, err)
 		}
@@ -177,11 +177,11 @@ func IsMultiFSEnabled() bool {
 }
 
 // SetNumMDSRanks sets the number of mds ranks (max_mds) for a Ceph filesystem.
-func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activeMDSCount int32) error {
+func SetNumMDSRanks(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, activeMDSCount int32) error {
 
 	// Always tell Ceph to set the new max_mds value
 	args := []string{"fs", "set", fsName, "max_mds", strconv.Itoa(int(activeMDSCount))}
-	if _, err := NewCephCommand(context, clusterName, args).Run(); err != nil {
+	if _, err := NewCephCommand(context, clusterInfo, args).Run(); err != nil {
 		return errors.Wrapf(err, "failed to set filesystem %s num mds ranks (max_mds) to %d", fsName, activeMDSCount)
 	}
 	return nil
@@ -192,9 +192,8 @@ func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activ
 // Param 'moreIsOkay' will allow success condition if num of ranks is more than active count given.
 func WaitForActiveRanks(
 	context *clusterd.Context,
-	clusterName, fsName string,
-	desiredActiveRanks int32, moreIsOkay bool,
-	timeout time.Duration,
+	clusterInfo *ClusterInfo, fsName string,
+	desiredActiveRanks int32, moreIsOkay bool, timeout time.Duration,
 ) error {
 	countText := fmt.Sprintf("%d", desiredActiveRanks)
 	if moreIsOkay {
@@ -204,7 +203,7 @@ func WaitForActiveRanks(
 	logger.Infof("waiting %.2f second(s) for number of active mds daemons for fs %s to become %s",
 		float64(timeout/time.Second), fsName, countText)
 	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
-		fs, err := GetFilesystem(context, clusterName, fsName)
+		fs, err := GetFilesystem(context, clusterInfo, fsName)
 		if err != nil {
 			logger.Errorf(
 				"Error getting filesystem %q details while waiting for num mds ranks to become %d. %v",
@@ -236,9 +235,9 @@ func activeRanksSuccess(upCount, desiredRanks int, moreIsOkay bool) bool {
 }
 
 // MarkFilesystemAsDown marks a Ceph filesystem as down.
-func MarkFilesystemAsDown(context *clusterd.Context, clusterName string, fsName string) error {
+func MarkFilesystemAsDown(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) error {
 	args := []string{"fs", "set", fsName, "cluster_down", "true"}
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to set file system %s to cluster_down", fsName)
 	}
@@ -246,9 +245,9 @@ func MarkFilesystemAsDown(context *clusterd.Context, clusterName string, fsName 
 }
 
 // FailMDS instructs Ceph to fail an mds daemon.
-func FailMDS(context *clusterd.Context, clusterName string, gid int) error {
+func FailMDS(context *clusterd.Context, clusterInfo *ClusterInfo, gid int) error {
 	args := []string{"mds", "fail", strconv.Itoa(gid)}
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to fail mds %d", gid)
 	}
@@ -258,9 +257,9 @@ func FailMDS(context *clusterd.Context, clusterName string, gid int) error {
 // FailFilesystem efficiently brings down the filesystem by marking the filesystem as down
 // and failing the MDSes using a single Ceph command. This works only from nautilus version
 // of Ceph onwards.
-func FailFilesystem(context *clusterd.Context, clusterName, fsName string) error {
+func FailFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) error {
 	args := []string{"fs", "fail", fsName}
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to fail filesystem %s", fsName)
 	}
@@ -269,20 +268,20 @@ func FailFilesystem(context *clusterd.Context, clusterName, fsName string) error
 
 // RemoveFilesystem performs software configuration steps to remove a Ceph filesystem and its
 // backing pools.
-func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string, preservePoolsOnDelete bool) error {
-	fs, err := GetFilesystem(context, clusterName, fsName)
+func RemoveFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, preservePoolsOnDelete bool) error {
+	fs, err := GetFilesystem(context, clusterInfo, fsName)
 	if err != nil {
 		return errors.Wrapf(err, "filesystem %s not found", fsName)
 	}
 
 	args := []string{"fs", "rm", fsName, confirmFlag}
-	_, err = NewCephCommand(context, clusterName, args).Run()
+	_, err = NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "Failed to delete ceph fs %s", fsName)
 	}
 
 	if !preservePoolsOnDelete {
-		err = deleteFSPools(context, clusterName, fs)
+		err = deleteFSPools(context, clusterInfo, fs)
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete fs %s pools", fsName)
 		}
@@ -293,8 +292,8 @@ func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string, pre
 	return nil
 }
 
-func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesystemDetails) error {
-	poolNames, err := GetPoolNamesByID(context, clusterName)
+func deleteFSPools(context *clusterd.Context, clusterInfo *ClusterInfo, fs *CephFilesystemDetails) error {
+	poolNames, err := GetPoolNamesByID(context, clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get pool names")
 	}
@@ -302,13 +301,13 @@ func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesy
 	var lastErr error = nil
 
 	// delete the metadata pool
-	if err := deleteFSPool(context, clusterName, poolNames, fs.MDSMap.MetadataPool); err != nil {
+	if err := deleteFSPool(context, clusterInfo, poolNames, fs.MDSMap.MetadataPool); err != nil {
 		lastErr = err
 	}
 
 	// delete the data pools
 	for _, poolID := range fs.MDSMap.DataPools {
-		if err := deleteFSPool(context, clusterName, poolNames, poolID); err != nil {
+		if err := deleteFSPool(context, clusterInfo, poolNames, poolID); err != nil {
 			lastErr = err
 		}
 	}
@@ -316,10 +315,10 @@ func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesy
 	return lastErr
 }
 
-func deleteFSPool(context *clusterd.Context, clusterName string, poolNames map[int]string, id int) error {
+func deleteFSPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolNames map[int]string, id int) error {
 	name, ok := poolNames[id]
 	if !ok {
 		return errors.Errorf("pool %d not found", id)
 	}
-	return DeletePool(context, clusterName, name)
+	return DeletePool(context, clusterInfo, name)
 }

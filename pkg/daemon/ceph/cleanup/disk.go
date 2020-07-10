@@ -24,6 +24,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 )
@@ -43,37 +44,35 @@ var (
 // DiskSanitizer is simple struct to old the context to execute the commands
 type DiskSanitizer struct {
 	context     *clusterd.Context
-	clusterName string
-	clusterFSID string
+	clusterInfo *client.ClusterInfo
 }
 
 // NewDiskSanitizer is function that returns a full filled DiskSanitizer object
-func NewDiskSanitizer(context *clusterd.Context, clusterName, clusterFSID string) *DiskSanitizer {
+func NewDiskSanitizer(context *clusterd.Context, clusterInfo *client.ClusterInfo) *DiskSanitizer {
 	return &DiskSanitizer{
 		context:     context,
-		clusterName: clusterName,
-		clusterFSID: clusterFSID,
+		clusterInfo: clusterInfo,
 	}
 }
 
 // StartSanitizeDisks main entrypoint of the cleanup package
-func StartSanitizeDisks(sanitizer *DiskSanitizer) {
+func (s *DiskSanitizer) StartSanitizeDisks() {
 	// LVM based OSDs
-	osdLVMList, err := osd.GetCephVolumeLVMOSDs(sanitizer.context, sanitizer.clusterName, sanitizer.clusterFSID, "", false, false)
+	osdLVMList, err := osd.GetCephVolumeLVMOSDs(s.context, s.clusterInfo, s.clusterInfo.FSID, "", false, false)
 	if err != nil {
 		logger.Errorf("failed to list lvm osd(s). %v", err)
 	} else {
 		// Start the sanitizing sequence
-		sanitizer.sanitizeLVMDisk(osdLVMList)
+		s.sanitizeLVMDisk(osdLVMList)
 	}
 
 	// Raw based OSDs
-	osdRawList, err := osd.GetCephVolumeRawOSDs(sanitizer.context, sanitizer.clusterName, sanitizer.clusterFSID, "", "", false)
+	osdRawList, err := osd.GetCephVolumeRawOSDs(s.context, s.clusterInfo, s.clusterInfo.FSID, "", "", false)
 	if err != nil {
 		logger.Errorf("failed to list raw osd(s). %v", err)
 	} else {
 		// Start the sanitizing sequence
-		sanitizer.sanitizeRawDisk(osdRawList)
+		s.sanitizeRawDisk(osdRawList)
 	}
 }
 

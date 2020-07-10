@@ -186,7 +186,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	r.clusterInfo = clusterInfo
 
 	// Populate CephVersion
-	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, opconfig.MonType)
+	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, opconfig.MonType)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
 	}
@@ -217,7 +217,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	// validate the filesystem settings
-	if err := validateFilesystem(r.context, cephFilesystem); err != nil {
+	if err := validateFilesystem(r.context, r.clusterInfo, cephFilesystem); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "invalid object filesystem %q arguments", cephFilesystem.Name)
 	}
 
@@ -239,7 +239,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *cephv1.CephFilesystem) (reconcile.Result, error) {
 	if r.cephClusterSpec.External.Enable {
-		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, cephFilesystem.Namespace, r.clusterInfo.CephVersion)
+		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, r.clusterInfo)
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
@@ -254,7 +254,7 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
 	}
 
-	err = createFilesystem(r.clusterInfo, r.context, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
+	err = createFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create filesystem %q", cephFilesystem.Name)
 	}
@@ -269,7 +269,7 @@ func (r *ReconcileCephFilesystem) reconcileDeleteFilesystem(cephFilesystem *ceph
 		return errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
 	}
 
-	err = deleteFilesystem(r.clusterInfo, r.context, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
+	err = deleteFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
 	if err != nil {
 		return err
 	}

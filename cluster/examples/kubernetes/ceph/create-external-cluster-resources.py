@@ -367,7 +367,6 @@ class RadosJSON:
                 "kind": "Secret",
                 "data": {
                     "admin-secret": "admin-secret",
-                    "cluster-name": self.out_map['CLUSTER_NAME'],
                     "fsid": self.out_map['ROOK_EXTERNAL_FSID'],
                     "mon-secret": "mon-secret"
                 },

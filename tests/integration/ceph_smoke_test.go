@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -193,10 +194,11 @@ func (suite *SmokeSuite) TestPoolResize() {
 	require.Nil(suite.T(), err)
 
 	poolFound := false
+	clusterInfo := client.AdminClusterInfo(suite.namespace)
 
 	// Wait for pool to appear
 	for i := 0; i < 10; i++ {
-		pools, err := suite.helper.PoolClient.ListCephPools(suite.namespace)
+		pools, err := suite.helper.PoolClient.ListCephPools(clusterInfo)
 		require.Nil(suite.T(), err)
 		for _, p := range pools {
 			if p.Name != poolName {
@@ -220,7 +222,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 	poolResized := false
 	// Wait for pool resize to happen
 	for i := 0; i < 10; i++ {
-		details, err := suite.helper.PoolClient.GetCephPoolDetails(suite.namespace, poolName)
+		details, err := suite.helper.PoolClient.GetCephPoolDetails(clusterInfo, poolName)
 		require.Nil(suite.T(), err)
 		if details.Size > 1 {
 			logger.Infof("pool %s size was updated", poolName)
@@ -243,7 +245,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 	require.Equal(suite.T(), true, poolResized, fmt.Sprintf("pool %s not found", poolName))
 
 	// clean up the pool
-	suite.helper.PoolClient.DeletePool(suite.helper.BlockClient, suite.namespace, poolName)
+	suite.helper.PoolClient.DeletePool(suite.helper.BlockClient, clusterInfo, poolName)
 }
 
 // Smoke Test for Client CRD
@@ -256,13 +258,14 @@ func (suite *SmokeSuite) TestCreateClient() {
 		"mgr": "allow rwx",
 		"osd": "allow rwx",
 	}
+	clusterInfo := client.AdminClusterInfo(suite.namespace)
 	err := suite.helper.UserClient.Create(clientName, suite.namespace, caps)
 	require.Nil(suite.T(), err)
 
 	clientFound := false
 
 	for i := 0; i < 30; i++ {
-		clients, _ := suite.helper.UserClient.Get(suite.namespace, "client."+clientName)
+		clients, _ := suite.helper.UserClient.Get(clusterInfo, "client."+clientName)
 		if clients != "" {
 			clientFound = true
 		}
@@ -283,7 +286,7 @@ func (suite *SmokeSuite) TestCreateClient() {
 		"mgr": "allow rw",
 		"osd": "allow *",
 	}
-	caps, _ = suite.helper.UserClient.Update(suite.namespace, clientName, newcaps)
+	caps, _ = suite.helper.UserClient.Update(clusterInfo, clientName, newcaps)
 
 	require.Equal(suite.T(), "allow r", caps["mon"], "wrong caps")
 	require.Equal(suite.T(), "allow rw", caps["mgr"], "wrong caps")

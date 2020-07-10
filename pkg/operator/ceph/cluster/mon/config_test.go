@@ -70,6 +70,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	// For backward compatibility check that the admin secret can be loaded as previously specified
 	// Update the secret as if created in an old cluster
 	delete(secret.Data, cephUserSecretKey)
+	delete(secret.Data, cephUsernameKey)
 	secret.Data[adminSecretNameKey] = []byte(adminSecret)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(secret)
 	assert.NoError(t, err)

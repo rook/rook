@@ -53,7 +53,7 @@ func CephConfFilePath(configDir, clusterName string) string {
 }
 
 // FinalizeCephCommandArgs builds the command line to be called
-func FinalizeCephCommandArgs(command string, args []string, configDir, clusterName, username string) (string, []string) {
+func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []string, configDir string) (string, []string) {
 	// the rbd client tool does not support the '--connect-timeout' option
 	// so we only use it for the 'ceph' command
 	// Also, there is no point of adding that option to 'crushtool' since that CLI does not connect to anything
@@ -67,62 +67,55 @@ func FinalizeCephCommandArgs(command string, args []string, configDir, clusterNa
 
 	// If the command should be run inside the toolbox pod, include the kubectl args to call the toolbox
 	if RunAllCephCommandsInToolbox {
-		toolArgs := []string{"-it", "exec", "rook-ceph-tools", "-n", clusterName, "--", command}
+		toolArgs := []string{"-it", "exec", "rook-ceph-tools", "-n", clusterInfo.Namespace, "--", command}
 		return Kubectl, append(toolArgs, args...)
 	}
 
-	// No need to append the args if it's the default ceph cluster
-	if clusterName == "ceph" && configDir == "/etc" {
-		return command, args
-	}
-
 	// Append the args to find the config and keyring
-	keyringFile := fmt.Sprintf("%s.keyring", username)
+	keyringFile := fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username)
 	configArgs := []string{
-		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--conf=%s", CephConfFilePath(configDir, clusterName)),
-		fmt.Sprintf("--name=%s", username),
-		fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterName, keyringFile)),
+		fmt.Sprintf("--cluster=%s", clusterInfo.Namespace),
+		fmt.Sprintf("--conf=%s", CephConfFilePath(configDir, clusterInfo.Namespace)),
+		fmt.Sprintf("--name=%s", clusterInfo.CephCred.Username),
+		fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterInfo.Namespace, keyringFile)),
 	}
 	return command, append(args, configArgs...)
 }
 
 type CephToolCommand struct {
 	context     *clusterd.Context
+	clusterInfo *ClusterInfo
 	tool        string
-	clusterName string
 	args        []string
 	timeout     time.Duration
 	JsonOutput  bool
 	OutputFile  bool
-	authUser    string
 }
 
-func newCephToolCommand(tool string, context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
+func newCephToolCommand(tool string, context *clusterd.Context, clusterInfo *ClusterInfo, args []string) *CephToolCommand {
 	return &CephToolCommand{
 		context:     context,
 		tool:        tool,
-		clusterName: clusterName,
+		clusterInfo: clusterInfo,
 		args:        args,
 		JsonOutput:  true,
 		OutputFile:  true,
-		authUser:    AdminUsername,
 	}
 }
 
-func NewCephCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
-	return newCephToolCommand(CephTool, context, clusterName, args)
+func NewCephCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []string) *CephToolCommand {
+	return newCephToolCommand(CephTool, context, clusterInfo, args)
 }
 
-func NewRBDCommand(context *clusterd.Context, clusterName string, args []string) *CephToolCommand {
-	cmd := newCephToolCommand(RBDTool, context, clusterName, args)
+func NewRBDCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []string) *CephToolCommand {
+	cmd := newCephToolCommand(RBDTool, context, clusterInfo, args)
 	cmd.JsonOutput = false
 	cmd.OutputFile = false
 	return cmd
 }
 
 func (c *CephToolCommand) run() ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(c.tool, c.args, c.context.ConfigDir, c.clusterName, c.authUser)
+	command, args := FinalizeCephCommandArgs(c.tool, c.clusterInfo, c.args, c.context.ConfigDir)
 	if c.JsonOutput {
 		args = append(args, "--format", "json")
 	} else {
@@ -177,7 +170,7 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 // minute. This method is left as a special case in which the caller has fully
 // configured its arguments. It is future work to integrate this case into the
 // generalization.
-func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
+func ExecuteRBDCommandWithTimeout(context *clusterd.Context, args []string) (string, error) {
 	output, err := context.Executor.ExecuteCommandWithTimeout(CmdExecuteTimeout, RBDTool, args...)
 	return output, err
 }

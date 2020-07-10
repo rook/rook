@@ -152,7 +152,7 @@ func verifyConfigFlags(configCmd *cobra.Command) error {
 	if err := flags.VerifyRequiredFlags(configCmd, required); err != nil {
 		return err
 	}
-	required = []string{"cluster-name", "mon-endpoints", "mon-secret", "ceph-username", "ceph-secret"}
+	required = []string{"mon-endpoints", "mon-secret", "ceph-username", "ceph-secret"}
 	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
 		return err
 	}
@@ -220,8 +220,8 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	logger.Infof("crush location of osd: %s", crushLocation)
 
 	forceFormat := false
-	ownerRef := opcontroller.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
-	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, context.Clientset, ownerRef)
+	ownerRef := opcontroller.ClusterOwnerRef(clusterInfo.Namespace, ownerRefID)
+	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerRef)
 	agent := osddaemon.NewAgent(context, dgs, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 

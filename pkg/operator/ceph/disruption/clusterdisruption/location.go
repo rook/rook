@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, poolFailureDomain string) ([]OsdData, error) {
+func (r *ReconcileClusterDisruption) getOsdDataList(clusterInfo *cephClient.ClusterInfo, request reconcile.Request, poolFailureDomain string) ([]OsdData, error) {
 	osdDeploymentList := &appsv1.DeploymentList{}
 	namespaceListOpts := client.InNamespace(request.Namespace)
 	err := r.client.List(context.TODO(), osdDeploymentList, client.MatchingLabels{k8sutil.AppAttr: osd.AppName}, namespaceListOpts)
@@ -56,7 +56,7 @@ func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, p
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to convert osd id %q in an int", osdID)
 		}
-		crushMeta, err := r.osdCrushLocationMap.Get(request.Namespace, osdIDInt)
+		crushMeta, err := r.osdCrushLocationMap.Get(clusterInfo, osdIDInt)
 		if err != nil {
 			// If the error contains that message, this means the cluster is not up and running
 			// No monitors are present and thus no ceph configuration has been created
@@ -72,7 +72,7 @@ func (r *ReconcileClusterDisruption) getOsdDataList(request reconcile.Request, p
 		// bypass the cache if the topology location is not populated in the cache
 		_, failureDomainKnown := crushMeta.Location[poolFailureDomain]
 		if !failureDomainKnown {
-			crushMeta, err = r.osdCrushLocationMap.get(request.Namespace, osdIDInt)
+			crushMeta, err = r.osdCrushLocationMap.get(clusterInfo, osdIDInt)
 			if err != nil {
 				return nil, errors.Wrapf(err, "could not fetch info from ceph for osd %q", osdID)
 			}
@@ -107,7 +107,7 @@ type cachedOSDLocation struct {
 }
 
 // Get takes an osd id and returns a CrushFindResult from cache
-func (o *OSDCrushLocationMap) Get(clusterNamespace string, id int) (*cephClient.CrushFindResult, error) {
+func (o *OSDCrushLocationMap) Get(clusterInfo *cephClient.ClusterInfo, id int) (*cephClient.CrushFindResult, error) {
 	o.mux.Lock()
 	defer o.mux.Unlock()
 	if o.ResyncPeriod == 0 {
@@ -118,30 +118,30 @@ func (o *OSDCrushLocationMap) Get(clusterNamespace string, id int) (*cephClient.
 	if len(o.clusterLocationMap) == 0 {
 		o.clusterLocationMap = make(map[string]map[int]cachedOSDLocation)
 	}
-	locationMap, ok := o.clusterLocationMap[clusterNamespace]
+	locationMap, ok := o.clusterLocationMap[clusterInfo.Namespace]
 	// initialize namespace map
 	if !ok {
-		o.clusterLocationMap[clusterNamespace] = make(map[int]cachedOSDLocation)
+		o.clusterLocationMap[clusterInfo.Namespace] = make(map[int]cachedOSDLocation)
 	}
 
 	// sync of osd id not found in clusterNamespace
 	osdLocation, ok := locationMap[id]
 	if !ok {
-		osdResult, err := o.get(clusterNamespace, id)
+		osdResult, err := o.get(clusterInfo, id)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to run `find` on osd %d in cluster %q", id, clusterNamespace)
+			return nil, errors.Wrapf(err, "failed to run `find` on osd %d in cluster %q", id, clusterInfo.Namespace)
 		}
-		o.clusterLocationMap[clusterNamespace][id] = cachedOSDLocation{result: osdResult, lastSynced: time.Now()}
+		o.clusterLocationMap[clusterInfo.Namespace][id] = cachedOSDLocation{result: osdResult, lastSynced: time.Now()}
 		return osdResult, nil
 	}
 
 	// sync if not synced for longer than ResyncPeriod
 	if time.Since(osdLocation.lastSynced) > o.ResyncPeriod {
-		osdResult, err := o.get(clusterNamespace, id)
+		osdResult, err := o.get(clusterInfo, id)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to run `find` on osd %d in cluster %q", id, clusterNamespace)
+			return nil, errors.Wrapf(err, "failed to run `find` on osd %d in cluster %q", id, clusterInfo.Namespace)
 		}
-		o.clusterLocationMap[clusterNamespace][id] = cachedOSDLocation{result: osdResult, lastSynced: time.Now()}
+		o.clusterLocationMap[clusterInfo.Namespace][id] = cachedOSDLocation{result: osdResult, lastSynced: time.Now()}
 		return osdResult, nil
 	}
 
@@ -150,12 +150,12 @@ func (o *OSDCrushLocationMap) Get(clusterNamespace string, id int) (*cephClient.
 }
 
 // uncached version
-func (o *OSDCrushLocationMap) get(clusterNamespace string, id int) (*cephClient.CrushFindResult, error) {
-	osdResult, err := cephClient.FindOSDInCrushMap(o.Context, clusterNamespace, id)
+func (o *OSDCrushLocationMap) get(clusterInfo *cephClient.ClusterInfo, id int) (*cephClient.CrushFindResult, error) {
+	osdResult, err := cephClient.FindOSDInCrushMap(o.Context, clusterInfo, id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed running find on osd %d", id)
 	}
-	o.clusterLocationMap[clusterNamespace][id] = cachedOSDLocation{
+	o.clusterLocationMap[clusterInfo.Namespace][id] = cachedOSDLocation{
 		result:     osdResult,
 		lastSynced: time.Now(),
 	}

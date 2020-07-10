@@ -42,16 +42,16 @@ var (
 // OSDHealthMonitor defines OSD process monitoring
 type OSDHealthMonitor struct {
 	context                        *clusterd.Context
-	namespace                      string
+	clusterInfo                    *client.ClusterInfo
 	removeOSDsIfOUTAndSafeToRemove bool
 	interval                       time.Duration
 }
 
 // NewOSDHealthMonitor instantiates OSD monitoring
-func NewOSDHealthMonitor(context *clusterd.Context, namespace string, removeOSDsIfOUTAndSafeToRemove bool, healthCheck cephv1.CephClusterHealthCheckSpec) *OSDHealthMonitor {
+func NewOSDHealthMonitor(context *clusterd.Context, clusterInfo *client.ClusterInfo, removeOSDsIfOUTAndSafeToRemove bool, healthCheck cephv1.CephClusterHealthCheckSpec) *OSDHealthMonitor {
 	h := &OSDHealthMonitor{
 		context:                        context,
-		namespace:                      namespace,
+		clusterInfo:                    clusterInfo,
 		removeOSDsIfOUTAndSafeToRemove: removeOSDsIfOUTAndSafeToRemove,
 		interval:                       defaultHealthCheckInterval,
 	}
@@ -60,7 +60,7 @@ func NewOSDHealthMonitor(context *clusterd.Context, namespace string, removeOSDs
 	checkInterval := healthCheck.DaemonHealth.ObjectStorageDaemon.Interval
 	if checkInterval != "" {
 		if duration, err := time.ParseDuration(checkInterval); err == nil {
-			logger.Infof("ceph osd status in namespace %q check interval %q", h.namespace, checkInterval)
+			logger.Infof("ceph osd status in namespace %q check interval %q", h.clusterInfo.Namespace, checkInterval)
 			h.interval = duration
 		}
 	}
@@ -81,7 +81,7 @@ func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
 			}
 
 		case <-stopCh:
-			logger.Infof("stopping monitoring of OSDs in namespace %s", m.namespace)
+			logger.Infof("Stopping monitoring of OSDs in namespace %s", m.clusterInfo.Namespace)
 			return
 		}
 	}
@@ -94,7 +94,7 @@ func (m *OSDHealthMonitor) Update(removeOSDsIfOUTAndSafeToRemove bool) {
 
 // checkOSDHealth takes action when needed if the OSDs are not healthy
 func (m *OSDHealthMonitor) checkOSDHealth() error {
-	osdDump, err := client.GetOSDDump(m.context, m.namespace)
+	osdDump, err := client.GetOSDDump(m.context, m.clusterInfo)
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func (m *OSDHealthMonitor) checkOSDHealth() error {
 
 func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) error {
 	label := fmt.Sprintf("ceph-osd-id=%d", outOSDid)
-	dp, err := k8sutil.GetDeployments(m.context.Clientset, m.namespace, label)
+	dp, err := k8sutil.GetDeployments(m.context.Clientset, m.clusterInfo.Namespace, label)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil
@@ -148,7 +148,7 @@ func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) erro
 		return errors.Wrapf(err, "failed to get osd deployment of osd id %d", outOSDid)
 	}
 	if len(dp.Items) != 0 {
-		safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.namespace, outOSDid)
+		safeToDestroyOSD, err := client.OsdSafeToDestroy(m.context, m.clusterInfo, outOSDid)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get osd deployment of osd id %d", outOSDid)
 		}
@@ -173,7 +173,7 @@ func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) erro
 // will free up the volume and allow the OSD to be restarted on another node.
 func (m *OSDHealthMonitor) restartOSDIfStuck(osdID int) error {
 	labels := fmt.Sprintf("ceph-osd-id=%d,portable=true", osdID)
-	pods, err := m.context.Clientset.CoreV1().Pods(m.namespace).List(metav1.ListOptions{LabelSelector: labels})
+	pods, err := m.context.Clientset.CoreV1().Pods(m.clusterInfo.Namespace).List(metav1.ListOptions{LabelSelector: labels})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get OSD with ID %d", osdID)
 	}

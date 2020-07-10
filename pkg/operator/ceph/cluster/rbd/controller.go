@@ -68,11 +68,11 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileCephRBDMirror reconciles a cephRBDMirror object
 type ReconcileCephRBDMirror struct {
+	context         *clusterd.Context
+	clusterInfo     *cephclient.ClusterInfo
 	client          client.Client
 	scheme          *runtime.Scheme
-	context         *clusterd.Context
 	cephClusterSpec *cephv1.ClusterSpec
-	clusterInfo     *cephclient.ClusterInfo
 }
 
 // Add creates a new cephRBDMirror Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -163,15 +163,14 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 
 	// Populate clusterInfo
 	// Always populate it during each reconcile
-	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
-	r.clusterInfo = clusterInfo
 
 	// Populate CephVersion
 	daemon := string(opconfig.MonType)
-	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, daemon)
+	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, daemon)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
 	}
@@ -196,7 +195,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 
 func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cephv1.CephRBDMirror) (reconcile.Result, error) {
 	if r.cephClusterSpec.External.Enable {
-		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, cephRBDMirror.Namespace, r.clusterInfo.CephVersion)
+		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, r.clusterInfo)
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical

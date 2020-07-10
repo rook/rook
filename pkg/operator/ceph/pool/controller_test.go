@@ -23,11 +23,13 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,89 +40,91 @@ import (
 
 func TestValidatePool(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
+	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
 
 	// not specifying some replication or EC settings is fine
-	p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	err := ValidatePool(context, &p)
+	p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+	err := ValidatePool(context, clusterInfo, &p)
 	assert.Nil(t, err)
 
 	// must specify name
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Namespace: "myns"}}
-	err = ValidatePool(context, &p)
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Namespace: clusterInfo.Namespace}}
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.NotNil(t, err)
 
 	// must specify namespace
 	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool"}}
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.NotNil(t, err)
 
 	// must not specify both replication and EC settings
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
 	p.Spec.ErasureCoded.CodingChunks = 2
 	p.Spec.ErasureCoded.DataChunks = 3
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.NotNil(t, err)
 
 	// succeed with replication settings
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.Nil(t, err)
 
 	// size is 1 and RequireSafeReplicaSize is true
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = true
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.Error(t, err)
 
 	// succeed with ec settings
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.ErasureCoded.CodingChunks = 1
 	p.Spec.ErasureCoded.DataChunks = 2
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.Nil(t, err)
 
 	// Tests with various compression modes
 	// succeed with compression mode "none"
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
 	p.Spec.CompressionMode = "none"
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.Nil(t, err)
 
 	// succeed with compression mode "aggressive"
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
 	p.Spec.CompressionMode = "aggressive"
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.Nil(t, err)
 
 	// fail with compression mode "unsupported"
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
 	p.Spec.CompressionMode = "unsupported"
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.Error(t, err)
 
 	// succeed with ec pool and valid compression mode
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.ErasureCoded.CodingChunks = 1
 	p.Spec.ErasureCoded.DataChunks = 2
 	p.Spec.CompressionMode = "passive"
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, clusterInfo, &p)
 	assert.Nil(t, err)
 }
 
 func TestValidateCrushProperties(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
+	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
 	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "crush" && args[2] == "dump" {
@@ -131,33 +135,34 @@ func TestValidateCrushProperties(t *testing.T) {
 
 	// succeed with a failure domain that exists
 	p := &cephv1.CephBlockPool{
-		ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"},
+		ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace},
 		Spec: cephv1.PoolSpec{
 			Replicated:    cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false},
 			FailureDomain: "osd",
 		},
 	}
-	err := ValidatePool(context, p)
+	err := ValidatePool(context, clusterInfo, p)
 	assert.Nil(t, err)
 
 	// fail with a failure domain that doesn't exist
 	p.Spec.FailureDomain = "doesntexist"
-	err = ValidatePool(context, p)
+	err = ValidatePool(context, clusterInfo, p)
 	assert.NotNil(t, err)
 
 	// fail with a crush root that doesn't exist
 	p.Spec.FailureDomain = "osd"
 	p.Spec.CrushRoot = "bad"
-	err = ValidatePool(context, p)
+	err = ValidatePool(context, clusterInfo, p)
 	assert.NotNil(t, err)
 
 	// fail with a crush root that does exist
 	p.Spec.CrushRoot = "good"
-	err = ValidatePool(context, p)
+	err = ValidatePool(context, clusterInfo, p)
 	assert.Nil(t, err)
 }
 
 func TestCreatePool(t *testing.T) {
+	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -169,23 +174,24 @@ func TestCreatePool(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
 
-	err := createPool(context, p)
+	err := createPool(context, clusterInfo, p)
 	assert.Nil(t, err)
 
 	// succeed with EC
 	p.Spec.Replicated.Size = 0
 	p.Spec.ErasureCoded.CodingChunks = 1
 	p.Spec.ErasureCoded.DataChunks = 2
-	err = createPool(context, p)
+	err = createPool(context, clusterInfo, p)
 	assert.Nil(t, err)
 }
 
 func TestDeletePool(t *testing.T) {
 	failOnDelete := false
+	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			if command == "ceph" && args[1] == "lspools" {
@@ -219,19 +225,19 @@ func TestDeletePool(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	// delete a pool that exists
-	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	err := deletePool(context, p)
+	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+	err := deletePool(context, clusterInfo, p)
 	assert.Nil(t, err)
 
 	// succeed even if the pool doesn't exist
-	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "otherpool", Namespace: "myns"}}
-	err = deletePool(context, p)
+	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "otherpool", Namespace: clusterInfo.Namespace}}
+	err = deletePool(context, clusterInfo, p)
 	assert.Nil(t, err)
 
 	// fail if images/snapshosts exist in the pool
 	failOnDelete = true
-	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	err = deletePool(context, p)
+	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+	err = deletePool(context, clusterInfo, p)
 	assert.NotNil(t, err)
 }
 
@@ -281,7 +287,9 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 	c := &clusterd.Context{
 		Executor:      executor,
-		RookClientset: rookclient.NewSimpleClientset()}
+		Clientset:     testop.New(t, 1),
+		RookClientset: rookclient.NewSimpleClientset(),
+	}
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
@@ -368,6 +376,23 @@ func TestCephBlockPoolController(t *testing.T) {
 		},
 	}
 	c.Executor = executor
+
+	// Mock clusterInfo
+	secrets := map[string][]byte{
+		"fsid":         []byte(name),
+		"mon-secret":   []byte("monsecret"),
+		"admin-secret": []byte("adminsecret"),
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon",
+			Namespace: namespace,
+		},
+		Data: secrets,
+		Type: k8sutil.RookType,
+	}
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	assert.NoError(t, err)
 
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
 	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: c}

@@ -147,6 +147,7 @@ func TestStartMonPods(t *testing.T) {
 	context, err := newTestStartCluster(t, namespace)
 	assert.Nil(t, err)
 	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -177,6 +178,7 @@ func TestOperatorRestart(t *testing.T) {
 	validateStart(t, c)
 
 	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, v1.ResourceRequirements{})
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but will not result in an error
 	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -206,6 +208,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 
 	// cluster with host networking
 	c = newCluster(context, namespace, cephv1.NetworkSpec{HostNetwork: true}, false, v1.ResourceRequirements{})
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but still results in an error
 	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -218,7 +221,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 func validateStart(t *testing.T, c *Cluster) {
 	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(AppName, metav1.GetOptions{})
 	assert.NoError(t, err) // there shouldn't be an error due the secret existing
-	assert.Equal(t, 5, len(s.Data))
+	assert.Equal(t, 4, len(s.Data))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
 	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
@@ -316,7 +319,7 @@ func TestWaitForQuorum(t *testing.T) {
 	context, err := newTestStartClusterWithQuorumResponse(t, namespace, quorumResponse)
 	requireAllInQuorum := false
 	expectedMons := []string{"a"}
-	clusterInfo := &client.ClusterInfo{Name: namespace}
+	clusterInfo := &client.ClusterInfo{Namespace: namespace}
 	err = waitForQuorumWithMons(context, clusterInfo, expectedMons, 0, requireAllInQuorum)
 	assert.Nil(t, err)
 }

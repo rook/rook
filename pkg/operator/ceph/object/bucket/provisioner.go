@@ -28,6 +28,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
@@ -35,25 +36,20 @@ import (
 type Provisioner struct {
 	context         *clusterd.Context
 	objectContext   *cephObject.Context
+	clusterInfo     *client.ClusterInfo
 	bucketName      string
 	claimClientset  claimClient.Interface
 	storeDomainName string
 	storePort       int32
 	region          string
-	// the namespace where the rook cluster should respond to events
-	namespace string
 	// access keys for acct for the bucket *owner*
 	cephUserName    string
 	accessKeyID     string
 	secretAccessKey string
 
-	// RunAsUser cephx user to use on radosgw-admin to create s3 users
-	RunRgwCmdAsUser string
-
 	s3Svc *s3.S3
 
 	objectStoreName      string
-	objectStoreNamespace string
 	endpoint             string
 	secretName           string
 	secretNamespace      string
@@ -62,8 +58,8 @@ type Provisioner struct {
 
 var _ apibkt.Provisioner = &Provisioner{}
 
-func NewProvisioner(context *clusterd.Context, namespace, runRgwCmdAsUser string) *Provisioner {
-	return &Provisioner{context: context, namespace: namespace, RunRgwCmdAsUser: runRgwCmdAsUser}
+func NewProvisioner(context *clusterd.Context, clusterInfo *client.ClusterInfo) *Provisioner {
+	return &Provisioner{context: context, clusterInfo: clusterInfo}
 }
 
 const maxBuckets = 1
@@ -322,7 +318,6 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 	}
 
 	p.setObjectStoreName(sc)
-	p.setObjectStoreNamespace(sc)
 	p.setRegion(sc)
 	p.setAdditionalConfigData(obc.Spec.AdditionalConfig)
 	p.setEndpoint(sc)
@@ -351,7 +346,6 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 	p.setBucketName(getBucketName(ob))
 	p.cephUserName = getCephUser(ob)
 	p.objectStoreName = getObjectStoreName(sc)
-	p.objectStoreNamespace = getObjectStoreNameSpace(sc)
 	p.setEndpoint(sc)
 	err = p.setObjectContext()
 	if err != nil {
@@ -400,11 +394,8 @@ func (p *Provisioner) setObjectContext() error {
 	// p.endpoint means we point to an external cluster
 	if p.objectStoreName == "" && p.endpoint == "" {
 		return errors.Errorf(msg, "name")
-	} else if p.objectStoreNamespace == "" {
-		return errors.Errorf(msg, "namespace")
 	}
-	p.objectContext = cephObject.NewContext(p.context, p.objectStoreName, p.objectStoreNamespace)
-	p.objectContext.RunAsUser = p.RunRgwCmdAsUser
+	p.objectContext = cephObject.NewContext(p.context, p.clusterInfo, p.objectStoreName)
 
 	return nil
 }
@@ -416,7 +407,7 @@ func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error
 	name := getObjectStoreName(sc)
 	namespace := getObjectStoreNameSpace(sc)
 	// make sure the object store actually exists
-	_, err := getObjectStore(p.context.RookClientset.CephV1(), p.objectStoreNamespace, p.objectStoreName)
+	_, err := getObjectStore(p.context.RookClientset.CephV1(), p.clusterInfo.Namespace, p.objectStoreName)
 	if err != nil {
 		return err
 	}
@@ -439,10 +430,6 @@ func (p *Provisioner) setObjectStorePort(sc *storagev1.StorageClass) error {
 
 func (p *Provisioner) setObjectStoreName(sc *storagev1.StorageClass) {
 	p.objectStoreName = sc.Parameters[objectStoreName]
-}
-
-func (p *Provisioner) setObjectStoreNamespace(sc *storagev1.StorageClass) {
-	p.objectStoreNamespace = sc.Parameters[objectStoreNamespace]
 }
 
 func (p *Provisioner) setBucketName(name string) {

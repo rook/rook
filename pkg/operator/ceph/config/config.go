@@ -102,13 +102,12 @@ func NewFlag(key, value string) string {
 // cannot be called before at least one monitor is established.
 func SetDefaultConfigs(
 	context *clusterd.Context,
-	namespace string,
 	clusterInfo *cephclient.ClusterInfo,
 	networkSpec cephv1.NetworkSpec,
 ) error {
 	// ceph.conf is never used. All configurations are made in the centralized mon config database,
 	// or they are specified on the commandline when daemons are called.
-	monStore := GetMonStore(context, namespace)
+	monStore := GetMonStore(context, clusterInfo)
 
 	if err := monStore.SetAll(DefaultCentralizedConfigs(clusterInfo.CephVersion)...); err != nil {
 		return errors.Wrapf(err, "failed to apply default Ceph configurations")
@@ -121,7 +120,7 @@ func SetDefaultConfigs(
 	// Apply Multus if needed
 	if networkSpec.IsMultus() {
 		logger.Info("configuring ceph network(s) with multus")
-		cephNetworks, err := generateNetworkSettings(context, namespace, networkSpec.Selectors)
+		cephNetworks, err := generateNetworkSettings(context, clusterInfo.Namespace, networkSpec.Selectors)
 		if err != nil {
 			errors.Wrap(err, "failed to generate network settings")
 		}

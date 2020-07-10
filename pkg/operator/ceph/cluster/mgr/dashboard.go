@@ -51,21 +51,21 @@ var (
 
 func (c *Cluster) configureDashboardService() error {
 	dashboardService := c.makeDashboardService(AppName)
-	if c.dashboard.Enabled {
+	if c.spec.Dashboard.Enabled {
 		// expose the dashboard service
-		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(dashboardService); err != nil {
+		if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(dashboardService); err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrap(err, "failed to create dashboard mgr service")
 			}
 			logger.Infof("dashboard service already exists")
-			original, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get(dashboardService.Name, metav1.GetOptions{})
+			original, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(dashboardService.Name, metav1.GetOptions{})
 			if err != nil {
 				return errors.Wrap(err, "failed to get dashboard service")
 			}
 			if original.Spec.Ports[0].Port != int32(c.dashboardPort()) {
 				logger.Infof("dashboard port changed. updating service")
 				original.Spec.Ports[0].Port = int32(c.dashboardPort())
-				if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Update(original); err != nil {
+				if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Update(original); err != nil {
 					return errors.Wrap(err, "failed to update dashboard mgr service")
 				}
 			}
@@ -74,7 +74,7 @@ func (c *Cluster) configureDashboardService() error {
 		}
 	} else {
 		// delete the dashboard service if it exists
-		err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(dashboardService.Name, &metav1.DeleteOptions{})
+		err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(dashboardService.Name, &metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "failed to delete dashboard service")
 		}
@@ -85,12 +85,12 @@ func (c *Cluster) configureDashboardService() error {
 
 // Ceph docs about the dashboard module: http://docs.ceph.com/docs/nautilus/mgr/dashboard/
 func (c *Cluster) configureDashboardModules() error {
-	if c.dashboard.Enabled {
-		if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
+	if c.spec.Dashboard.Enabled {
+		if err := client.MgrEnableModule(c.context, c.clusterInfo, dashboardModuleName, true); err != nil {
 			return errors.Wrapf(err, "failed to enable mgr dashboard module")
 		}
 	} else {
-		if err := client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName); err != nil {
+		if err := client.MgrDisableModule(c.context, c.clusterInfo, dashboardModuleName); err != nil {
 			logger.Errorf("failed to disable mgr dashboard module. %v", err)
 		}
 		return nil
@@ -119,14 +119,14 @@ func (c *Cluster) configureDashboardModules() error {
 
 func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error) {
 	// url prefix
-	hasChanged, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix, false)
+	hasChanged, err := client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.UrlPrefix, false)
 	if err != nil {
 		return false, err
 	}
 
 	// ssl support
-	ssl := strconv.FormatBool(c.dashboard.SSL)
-	changed, err := client.MgrSetConfig(c.context, c.Namespace, daemonID, "mgr/dashboard/ssl", ssl, false)
+	ssl := strconv.FormatBool(c.spec.Dashboard.SSL)
+	changed, err := client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/ssl", ssl, false)
 	if err != nil {
 		return false, err
 	}
@@ -134,15 +134,15 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// server port
 	port := strconv.Itoa(c.dashboardPort())
-	changed, err = client.MgrSetConfig(c.context, c.Namespace, daemonID, "mgr/dashboard/server_port", port, false)
+	changed, err = client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/server_port", port, false)
 	if err != nil {
 		return false, err
 	}
 	hasChanged = hasChanged || changed
 
 	// SSL enabled. Needed to set specifically the ssl port setting
-	if c.dashboard.SSL {
-		changed, err = client.MgrSetConfig(c.context, c.Namespace, daemonID, "mgr/dashboard/ssl_server_port", port, false)
+	if c.spec.Dashboard.SSL {
+		changed, err = client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/ssl_server_port", port, false)
 		if err != nil {
 			return false, err
 		}
@@ -161,7 +161,7 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 		return false, errors.Wrap(err, "failed to generate a password for the ceph dashboard")
 	}
 
-	if c.dashboard.SSL {
+	if c.spec.Dashboard.SSL {
 		alreadyCreated, err := c.createSelfSignedCert()
 		if err != nil {
 			return false, errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
@@ -184,7 +184,7 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	for i := 0; i < 5; i++ {
-		_, err := client.NewCephCommand(c.context, c.Namespace, args).RunWithTimeout(client.CmdExecuteTimeout)
+		_, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(client.CmdExecuteTimeout)
 		if err == context.DeadlineExceeded {
 			logger.Infof("cert creation timed out. trying again..")
 			continue
@@ -216,7 +216,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
 		args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
-		cmd := client.NewCephCommand(c.context, c.Namespace, args)
+		cmd := client.NewCephCommand(c.context, c.clusterInfo, args)
 		output, err := cmd.RunWithTimeout(client.CmdExecuteTimeout)
 		return "set dashboard creds", output, err
 	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
@@ -229,7 +229,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 }
 
 func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
-	secret, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
+	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the dashboard secret was already generated")
 		return decodeSecret(secret)
@@ -251,14 +251,14 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dashboardPasswordName,
-			Namespace: c.Namespace,
+			Namespace: c.clusterInfo.Namespace,
 		},
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(&secret.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(&secret.ObjectMeta, &c.clusterInfo.OwnerRef)
 
-	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(secret)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to save dashboard secret")
 	}
@@ -296,10 +296,10 @@ func decodeSecret(secret *v1.Secret) (string, error) {
 
 func (c *Cluster) restartDashboard() error {
 	logger.Infof("restarting the mgr module")
-	if err := client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName); err != nil {
+	if err := client.MgrDisableModule(c.context, c.clusterInfo, dashboardModuleName); err != nil {
 		return errors.Wrapf(err, "failed to disable mgr module %q.", dashboardModuleName)
 	}
-	if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
+	if err := client.MgrEnableModule(c.context, c.clusterInfo, dashboardModuleName, true); err != nil {
 		return errors.Wrapf(err, "failed to enable mgr module %q.", dashboardModuleName)
 	}
 	return nil

@@ -24,7 +24,6 @@ import (
 
 func TestFinalizeCephCommandArgs(t *testing.T) {
 	RunAllCephCommandsInToolbox = false
-	clusterName := "rook"
 	configDir := "/var/lib/rook/rook-ceph"
 	expectedCommand := "ceph"
 	args := []string{"quorum_status"}
@@ -37,14 +36,14 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
 	}
 
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName, "client.admin")
+	clusterInfo := AdminClusterInfo("rook")
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
 }
 
 func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
 	RunAllCephCommandsInToolbox = false
-	clusterName := "rook"
 	configDir := "/var/lib/rook/rook-ceph"
 	expectedCommand := "radosgw-admin"
 	args := []string{
@@ -67,14 +66,14 @@ func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
 		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
 	}
 
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName, "client.admin")
+	clusterInfo := AdminClusterInfo("rook")
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
 }
 
 func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 	RunAllCephCommandsInToolbox = true
-	clusterName := "rook"
 	configDir := "/var/lib/rook/rook-ceph"
 	expectedCommand := "ceph"
 	args := []string{"health"}
@@ -90,23 +89,9 @@ func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 		"--connect-timeout=15",
 	}
 
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName, "client.admin")
+	clusterInfo := AdminClusterInfo("rook")
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
 	assert.Exactly(t, "kubectl", cmd)
 	assert.Exactly(t, expectedArgs, args)
-}
-
-func TestFinalizeCephCommandArgsClusterDefaultName(t *testing.T) {
 	RunAllCephCommandsInToolbox = false
-	clusterName := "ceph"
-	configDir := "/etc"
-	expectedCommand := "ceph"
-	args := []string{"quorum_status"}
-	expectedArgs := []string{
-		"quorum_status",
-		"--connect-timeout=15",
-	}
-
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, args, configDir, clusterName, "client.admin")
-	assert.Exactly(t, expectedCommand, cmd)
-	assert.Exactly(t, expectedArgs, args)
 }

@@ -180,18 +180,11 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
 
-	// Populate clusterInfo
-	// Always populate it during each reconcile
-	var clusterInfo *cephclient.ClusterInfo
-	if r.cephClusterSpec.External.Enable {
-		clusterInfo = mon.PopulateExternalClusterInfo(r.context, request.NamespacedName.Namespace)
-	} else {
-		clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
-		}
+	// Populate clusterInfo during each reconcile
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
-	r.clusterInfo = clusterInfo
 
 	// validate isObjectStoreInitialized
 	err = r.isObjectStoreInitialized(cephObjectStoreUser)
@@ -215,11 +208,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// Generate user config
 	userConfig := generateUserConfig(cephObjectStoreUser)
 	r.userConfig = userConfig
-
-	// Set the cephx external username if the CephCluster is external
-	if r.cephClusterSpec.External.Enable {
-		r.objContext.RunAsUser = r.clusterInfo.CephCred.Username
-	}
 
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -306,7 +294,7 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 }
 
 func (r *ReconcileObjectStoreUser) isObjectStoreInitialized(u *cephv1.CephObjectStoreUser) error {
-	objContext := object.NewContext(r.context, u.Spec.Store, u.Namespace)
+	objContext := object.NewContext(r.context, r.clusterInfo, u.Spec.Store)
 	r.objContext = objContext
 
 	err := r.objectStoreInitialized(u)

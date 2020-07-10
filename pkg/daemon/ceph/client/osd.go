@@ -95,17 +95,17 @@ func (dump *OSDDump) IsFlagSetOnCrushUnit(checkFlag, crushUnit string) bool {
 
 // UpdateFlagOnCrushUnit checks if the flag is in the desired state and sets/unsets if it isn't. Mitigates redundant calls
 // it returns true if the value was changed
-func (dump *OSDDump) UpdateFlagOnCrushUnit(context *clusterd.Context, set bool, clusterName, crushUnit, flag string) (bool, error) {
+func (dump *OSDDump) UpdateFlagOnCrushUnit(context *clusterd.Context, clusterInfo *ClusterInfo, set bool, crushUnit, flag string) (bool, error) {
 	flagSet := dump.IsFlagSetOnCrushUnit(flag, crushUnit)
 	if flagSet && !set {
-		err := UnsetFlagOnCrushUnit(context, clusterName, crushUnit, flag)
+		err := UnsetFlagOnCrushUnit(context, clusterInfo, crushUnit, flag)
 		if err != nil {
 			return true, err
 		}
 		return true, nil
 	}
 	if !flagSet && set {
-		err := SetFlagOnCrushUnit(context, clusterName, crushUnit, flag)
+		err := SetFlagOnCrushUnit(context, clusterInfo, crushUnit, flag)
 		if err != nil {
 			return true, err
 		}
@@ -115,9 +115,9 @@ func (dump *OSDDump) UpdateFlagOnCrushUnit(context *clusterd.Context, set bool, 
 }
 
 // SetFlagOnCrushUnit sets the specified flag on the crush unit
-func SetFlagOnCrushUnit(context *clusterd.Context, clusterName, crushUnit, flag string) error {
+func SetFlagOnCrushUnit(context *clusterd.Context, clusterInfo *ClusterInfo, crushUnit, flag string) error {
 	args := []string{"osd", "set-group", flag, crushUnit}
-	cmd := NewCephCommand(context, clusterName, args)
+	cmd := NewCephCommand(context, clusterInfo, args)
 	_, err := cmd.Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to set flag %s on %s", crushUnit, flag)
@@ -126,9 +126,9 @@ func SetFlagOnCrushUnit(context *clusterd.Context, clusterName, crushUnit, flag 
 }
 
 // UnsetFlagOnCrushUnit unsets the specified flag on the crush unit
-func UnsetFlagOnCrushUnit(context *clusterd.Context, clusterName, crushUnit, flag string) error {
+func UnsetFlagOnCrushUnit(context *clusterd.Context, clusterInfo *ClusterInfo, crushUnit, flag string) error {
 	args := []string{"osd", "unset-group", flag, crushUnit}
-	cmd := NewCephCommand(context, clusterName, args)
+	cmd := NewCephCommand(context, clusterInfo, args)
 	_, err := cmd.Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to unset flag %s on %s", crushUnit, flag)
@@ -200,9 +200,9 @@ func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
 	return 0, 0, errors.Errorf("not found osd.%d in OSDDump", id)
 }
 
-func GetOSDUsage(context *clusterd.Context, clusterName string) (*OSDUsage, error) {
+func GetOSDUsage(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDUsage, error) {
 	args := []string{"osd", "df"}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get osd df")
 	}
@@ -215,9 +215,9 @@ func GetOSDUsage(context *clusterd.Context, clusterName string) (*OSDUsage, erro
 	return &osdUsage, nil
 }
 
-func GetOSDPerfStats(context *clusterd.Context, clusterName string) (*OSDPerfStats, error) {
+func GetOSDPerfStats(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDPerfStats, error) {
 	args := []string{"osd", "perf"}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get osd perf")
 	}
@@ -230,9 +230,9 @@ func GetOSDPerfStats(context *clusterd.Context, clusterName string) (*OSDPerfSta
 	return &osdPerfStats, nil
 }
 
-func GetOSDDump(context *clusterd.Context, clusterName string) (*OSDDump, error) {
+func GetOSDDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDDump, error) {
 	args := []string{"osd", "dump"}
-	cmd := NewCephCommand(context, clusterName, args)
+	cmd := NewCephCommand(context, clusterInfo, args)
 	buf, err := cmd.Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get osd dump")
@@ -246,15 +246,15 @@ func GetOSDDump(context *clusterd.Context, clusterName string) (*OSDDump, error)
 	return &osdDump, nil
 }
 
-func OSDOut(context *clusterd.Context, clusterName string, osdID int) (string, error) {
+func OSDOut(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (string, error) {
 	args := []string{"osd", "out", strconv.Itoa(osdID)}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	return string(buf), err
 }
 
-func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int) (bool, error) {
+func OsdSafeToDestroy(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int) (bool, error) {
 	args := []string{"osd", "safe-to-destroy", strconv.Itoa(osdID)}
-	cmd := NewCephCommand(context, clusterName, args)
+	cmd := NewCephCommand(context, clusterInfo, args)
 	buf, err := cmd.Run()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get safe-to-destroy status")
@@ -271,11 +271,11 @@ func OsdSafeToDestroy(context *clusterd.Context, clusterName string, osdID int) 
 }
 
 // HostTree returns the osd tree
-func HostTree(context *clusterd.Context, clusterName string) (OsdTree, error) {
+func HostTree(context *clusterd.Context, clusterInfo *ClusterInfo) (OsdTree, error) {
 	var output OsdTree
 
 	args := []string{"osd", "tree"}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return output, errors.Wrap(err, "failed to get osd tree")
 	}
@@ -289,11 +289,11 @@ func HostTree(context *clusterd.Context, clusterName string) (OsdTree, error) {
 }
 
 // OsdListNum returns the list of OSDs
-func OsdListNum(context *clusterd.Context, clusterName string) (OsdList, error) {
+func OsdListNum(context *clusterd.Context, clusterInfo *ClusterInfo) (OsdList, error) {
 	var output OsdList
 
 	args := []string{"osd", "ls"}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return output, errors.Wrap(err, "failed to get osd list")
 	}

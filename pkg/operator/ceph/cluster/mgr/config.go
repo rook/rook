@@ -43,22 +43,22 @@ type mgrConfig struct {
 }
 
 func (c *Cluster) dashboardPort() int {
-	if c.dashboard.Port == 0 {
+	if c.spec.Dashboard.Port == 0 {
 		// default port for HTTP/HTTPS
-		if c.dashboard.SSL {
+		if c.spec.Dashboard.SSL {
 			return dashboardPortHTTPS
 		} else {
 			return dashboardPortHTTP
 		}
 	}
 	// crd validates port >= 0
-	return c.dashboard.Port
+	return c.spec.Dashboard.Port
 }
 
 func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 	user := fmt.Sprintf("mgr.%s", m.DaemonID)
 	access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
-	s := keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef)
+	s := keyring.GetSecretStore(c.context, c.clusterInfo, &c.clusterInfo.OwnerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
@@ -66,7 +66,7 @@ func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 	}
 
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
-	err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Delete(m.ResourceName, &metav1.DeleteOptions{})
+	err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Delete(m.ResourceName, &metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Debugf("legacy mgr key %q is already removed", m.ResourceName)

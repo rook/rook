@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -64,7 +65,7 @@ func WriteKeyring(keyringPath, authKey string, generateContents func(string) str
 
 // CreateKeyring creates a keyring for access to the cluster with the desired set of privileges
 // and writes it to disk at the keyring path
-func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath string, access []string, generateContents func(string) string) error {
+func CreateKeyring(context *clusterd.Context, clusterInfo *ClusterInfo, username, keyringPath string, access []string, generateContents func(string) string) error {
 	_, err := os.Stat(keyringPath)
 	if err == nil {
 		// no error, the file exists, bail out with no error
@@ -76,7 +77,7 @@ func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath
 	}
 
 	// get-or-create-key for the user account
-	key, err := AuthGetOrCreateKey(context, clusterName, username, access)
+	key, err := AuthGetOrCreateKey(context, clusterInfo, username, access)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get or create auth key for %s", username)
 	}
@@ -95,4 +96,16 @@ func writeKeyring(keyring, keyringPath string) error {
 		return errors.Wrapf(err, "failed to write monitor keyring to %s", keyringPath)
 	}
 	return nil
+}
+
+// IsKeyringBase64Encoded returns whether the keyring is valid
+func IsKeyringBase64Encoded(keyring string) bool {
+	// If the keyring is not base64 we fail
+	_, err := base64.StdEncoding.DecodeString(keyring)
+	if err != nil {
+		logger.Errorf("key is not base64 encoded. %v", err)
+		return false
+	}
+
+	return true
 }

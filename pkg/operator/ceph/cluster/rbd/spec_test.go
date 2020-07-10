@@ -39,7 +39,6 @@ func TestPodSpec(t *testing.T) {
 		DaemonID:     "a",
 		ResourceName: "rook-ceph-rbd-mirror-a",
 		DataPathMap:  config.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook"),
-		namespace:    namespace,
 	}
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{

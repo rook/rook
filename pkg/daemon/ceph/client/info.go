@@ -23,6 +23,8 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ClusterInfo is a collection of information about a particular Ceph cluster. Rook uses information
@@ -31,9 +33,13 @@ type ClusterInfo struct {
 	FSID          string
 	MonitorSecret string
 	CephCred      CephCred
-	Name          string
 	Monitors      map[string]*MonInfo
 	CephVersion   cephver.CephVersion
+	Namespace     string
+	OwnerRef      metav1.OwnerReference
+	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
+	// If the CR name is needed, access it through the NamespacedName() method.
+	name string
 }
 
 // MonInfo is a collection of information about a Ceph mon.
@@ -48,6 +54,34 @@ type MonInfo struct {
 type CephCred struct {
 	Username string `json:"name"`
 	Secret   string `json:"secret"`
+}
+
+func NewClusterInfo(namespace, name string) *ClusterInfo {
+	return &ClusterInfo{Namespace: namespace, name: name}
+}
+
+func (c *ClusterInfo) SetName(name string) {
+	c.name = name
+}
+
+func (c *ClusterInfo) NamespacedName() types.NamespacedName {
+	if c.name == "" {
+		panic("name is not set on the clusterInfo")
+	}
+	return types.NamespacedName{Namespace: c.Namespace, Name: c.name}
+}
+
+// AdminClusterInfo() creates a ClusterInfo with the basic info to access the cluster
+// as an admin. Only the namespace and the ceph username fields are set in the struct,
+// so this clusterInfo cannot be used to generate the mon config or request the
+// namespacedName. A full cluster info must be populated for those operations.
+func AdminClusterInfo(namespace string) *ClusterInfo {
+	return &ClusterInfo{
+		Namespace: namespace,
+		CephCred: CephCred{
+			Username: AdminUsername,
+		},
+	}
 }
 
 // IsInitialized returns true if the critical information in the ClusterInfo struct has been filled
@@ -98,6 +132,6 @@ func (c *ClusterInfo) Log(logger *capnslog.PackageLogger) {
 	}
 	s := fmt.Sprintf(
 		"ClusterInfo: {FSID: %s, Name: %s, CephUser: %s, Monitors: %s}",
-		c.FSID, c.Name, c.CephCred.Username, strings.Join(mons, " "))
+		c.FSID, c.Namespace, c.CephCred.Username, strings.Join(mons, " "))
 	logger.Info(s)
 }

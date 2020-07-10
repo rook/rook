@@ -17,7 +17,6 @@ limitations under the License.
 package clusterdisruption
 
 import (
-	"strconv"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -29,26 +28,21 @@ func TestClusterMap(t *testing.T) {
 
 	sharedClusterMap := &ClusterMap{}
 
-	_, found := sharedClusterMap.GetClusterName("rook-ceph-0")
-	assert.False(t, found)
+	clusterInfo := sharedClusterMap.GetClusterInfo("rook-ceph-0")
+	assert.Nil(t, clusterInfo)
 
 	sharedClusterMap.UpdateClusterMap("rook-ceph-0", &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: "ceph-cluster-0"}})
 	sharedClusterMap.UpdateClusterMap("rook-ceph-1", &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: "ceph-cluster-1"}})
 	sharedClusterMap.UpdateClusterMap("rook-ceph-2", &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: "ceph-cluster-2"}})
-	name, found := sharedClusterMap.GetClusterName("rook-ceph-0")
-	assert.True(t, found)
-	assert.Equal(t, name, "ceph-cluster-0")
+	clusterInfo = sharedClusterMap.GetClusterInfo("rook-ceph-0")
+	assert.NotNil(t, clusterInfo)
+	assert.Equal(t, clusterInfo.NamespacedName().Name, "ceph-cluster-0")
+	assert.Equal(t, clusterInfo.NamespacedName().Namespace, "rook-ceph-0")
+	assert.Equal(t, clusterInfo.Namespace, "rook-ceph-0")
 
-	_, found = sharedClusterMap.GetClusterName("storage-namespace")
-	assert.False(t, found)
+	clusterInfo = sharedClusterMap.GetClusterInfo("storage-namespace")
+	assert.Nil(t, clusterInfo)
 
-	for namespace, cluster := range sharedClusterMap.GetClusterMap() {
-		clusterName := cluster.ObjectMeta.GetName()
-		nsNum, err := strconv.Atoi(string(namespace[len(namespace)-1]))
-		assert.Nil(t, err)
-		nameNum, err := strconv.Atoi(string(clusterName[len(clusterName)-1]))
-		assert.Nil(t, err)
-		assert.Equal(t, nsNum, nameNum)
-	}
-
+	namespaces := sharedClusterMap.GetClusterNamespaces()
+	assert.Equal(t, 3, len(namespaces))
 }

@@ -29,6 +29,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -159,6 +160,12 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		return reconcileResponse, nil
 	}
 
+	// Populate clusterInfo during each reconcile
+	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+	}
+
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephBlockPool)
 	if err != nil {
@@ -168,7 +175,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting pool %q", cephBlockPool.Name)
-		err := deletePool(r.context, cephBlockPool)
+		err := deletePool(r.context, clusterInfo, cephBlockPool)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
 		}
@@ -184,7 +191,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// validate the pool settings
-	if err := ValidatePool(r.context, cephBlockPool); err != nil {
+	if err := ValidatePool(r.context, clusterInfo, cephBlockPool); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "invalid pool CR %q spec", cephBlockPool.Name)
 	}
 
@@ -209,7 +216,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// CREATE/UPDATE
-	reconcileResponse, err = r.reconcileCreatePool(cephBlockPool)
+	reconcileResponse, err = r.reconcileCreatePool(clusterInfo, cephBlockPool)
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
@@ -223,8 +230,8 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephBlockPool) reconcileCreatePool(cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
-	err := createPool(r.context, cephBlockPool)
+func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.ClusterInfo, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
+	err := createPool(r.context, clusterInfo, cephBlockPool)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
@@ -234,10 +241,10 @@ func (r *ReconcileCephBlockPool) reconcileCreatePool(cephBlockPool *cephv1.CephB
 }
 
 // Create the pool
-func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
+func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.CephBlockPool) error {
 	// create the pool
 	logger.Infof("creating pool %q in namespace %q", p.Name, p.Namespace)
-	if err := cephclient.CreatePoolWithProfile(context, p.Namespace, p.Name, p.Spec, poolApplicationNameRBD); err != nil {
+	if err := cephclient.CreatePoolWithProfile(context, clusterInfo, p.Name, p.Spec, poolApplicationNameRBD); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 
@@ -245,8 +252,8 @@ func createPool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 }
 
 // Delete the pool
-func deletePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
-	pools, err := cephclient.ListPoolSummaries(context, p.Namespace)
+func deletePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.CephBlockPool) error {
+	pools, err := cephclient.ListPoolSummaries(context, clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to list pools")
 	}
@@ -254,7 +261,7 @@ func deletePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
 	// Only delete the pool if it exists...
 	for _, pool := range pools {
 		if pool.Name == p.Name {
-			err := cephclient.DeletePool(context, p.Namespace, p.Name)
+			err := cephclient.DeletePool(context, clusterInfo, p.Name)
 			if err != nil {
 				return errors.Wrapf(err, "failed to delete pool %q", p.Name)
 			}

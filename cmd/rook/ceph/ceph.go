@@ -17,6 +17,8 @@ limitations under the License.
 package ceph
 
 import (
+	"os"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 // Cmd is the main command for operator and daemons.
@@ -72,14 +75,15 @@ func createContext() *clusterd.Context {
 func addCephFlags(command *cobra.Command) {
 	command.Flags().StringVar(&cfg.networkInfo.PublicAddr, "public-ip", "", "public IP address for this machine")
 	command.Flags().StringVar(&cfg.networkInfo.ClusterAddr, "private-ip", "", "private IP address for this machine")
-	command.Flags().StringVar(&clusterInfo.Name, "cluster-name", "rookcluster", "ceph cluster name")
 	command.Flags().StringVar(&clusterInfo.FSID, "fsid", "", "the cluster uuid")
 	command.Flags().StringVar(&clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
 	command.Flags().StringVar(&clusterInfo.CephCred.Username, "ceph-username", "", "ceph username")
-	command.Flags().StringVar(&clusterInfo.CephCred.Secret, "ceph-secret", "", "secret for the admin user (random if not specified)")
+	command.Flags().StringVar(&clusterInfo.CephCred.Secret, "ceph-secret", "", "secret for the ceph user (random if not specified)")
 	command.Flags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
 	command.Flags().StringVar(&cfg.dataDir, "config-dir", "/var/lib/rook", "directory for storing configuration")
 	command.Flags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
+
+	clusterInfo.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 
 	// deprecated ipv4 format address
 	// TODO: remove these legacy flags in the future

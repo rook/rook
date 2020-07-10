@@ -80,7 +80,7 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	user := generateCephXUser(rgwConfig.ResourceName)
 	/* TODO: this says `osd allow rwx` while template says `osd allow *`; which is correct? */
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
-	s := keyring.GetSecretStore(c.context, c.store.Namespace, c.ownerRef)
+	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
@@ -92,7 +92,7 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 }
 
 func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
-	monStore := cephconfig.GetMonStore(c.context, c.store.Namespace)
+	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwName)
 	configOptions := make(map[string]string)
 
@@ -113,7 +113,7 @@ func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
 }
 
 func (c *clusterConfig) deleteFlagsMonConfigStore(rgwName string) error {
-	monStore := cephconfig.GetMonStore(c.context, c.store.Namespace)
+	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwName)
 	err := monStore.DeleteDaemon(who)
 	if err != nil {

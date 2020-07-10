@@ -23,13 +23,13 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -37,7 +37,7 @@ import (
 )
 
 func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{Namespace: "myosd", rookVersion: "23", cephVersion: cephv1.CephVersionSpec{}, clusterInfo: &cephclient.ClusterInfo{}}
+	cluster := &Cluster{rookVersion: "23", clusterInfo: client.AdminClusterInfo("myosd")}
 	osdProps := osdProperties{
 		crushHostname: "node",
 		devices:       []rookv1.Device{},
@@ -46,7 +46,7 @@ func TestPodContainer(t *testing.T) {
 		schedulerName: "custom-scheduler",
 	}
 	dataPathMap := &provisionConfig{
-		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(cluster.Namespace, "/var/lib/rook"),
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(cluster.clusterInfo.Namespace, "/var/lib/rook"),
 	}
 	c, err := cluster.provisionPodTemplateSpec(osdProps, v1.RestartPolicyAlways, dataPathMap)
 	assert.NotNil(t, c)
@@ -74,26 +74,31 @@ func TestDaemonset(t *testing.T) {
 }
 
 func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
-	storageSpec := rookv1.StorageScopeSpec{
-		Selection: rookv1.Selection{UseAllDevices: &allDevices, DeviceFilter: deviceName},
-		Nodes:     []rookv1.Node{{Name: "node1"}},
-	}
 	devices := []rookv1.Device{
 		{Name: deviceName},
 	}
-	driveGroups := cephv1.DriveGroupsSpec{}
 
 	clientset := fake.NewSimpleClientset()
-	cephVersion := cephv1.CephVersionSpec{Image: "ceph/ceph:v15"}
 	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   "ns",
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
-		storageSpec, driveGroups, dataDir, rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	spec := cephv1.ClusterSpec{
+		CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
+		Storage: rookv1.StorageScopeSpec{
+			Selection: rookv1.Selection{UseAllDevices: &allDevices, DeviceFilter: deviceName},
+			Nodes:     []rookv1.Node{{Name: "node1"}},
+		},
+		PriorityClassNames: map[rookv1.KeyType]string{
+			cephv1.KeyOSD: "my-priority-class",
+		},
+	}
+	c := New(context, clusterInfo, spec, "rook/rook:myversion")
 
 	devMountNeeded := deviceName != "" || allDevices
 
-	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.spec.Storage.ResolveNode(spec.Storage.Nodes[0].Name)
 	if len(devices) == 0 && len(dataDir) == 0 {
 		return
 	}
@@ -110,7 +115,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	}
 
 	dataPathMap := &provisionConfig{
-		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook"),
 	}
 
 	// Test LVM based on OSD on bare metal
@@ -118,7 +123,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
 	assert.Equal(t, "rook-ceph-osd-0", deployment.Name)
-	assert.Equal(t, c.Namespace, deployment.Namespace)
+	assert.Equal(t, c.clusterInfo.Namespace, deployment.Namespace)
 	assert.Equal(t, serviceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
 	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[v1.LabelHostname])
@@ -139,7 +144,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	assert.Equal(t, AppName, deployment.Spec.Template.ObjectMeta.Name)
 	assert.Equal(t, AppName, deployment.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, c.clusterInfo.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
 	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
@@ -150,7 +155,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont := deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, cephVersion.Image, cont.Image)
+	assert.Equal(t, spec.CephVersion.Image, cont.Image)
 	assert.Equal(t, 7, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
 
@@ -239,53 +244,55 @@ func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue
 }
 
 func TestStorageSpecConfig(t *testing.T) {
-	storageSpec := rookv1.StorageScopeSpec{
-		Nodes: []rookv1.Node{
-			{
-				Name: "node1",
-				Config: map[string]string{
-					"databaseSizeMB": "10",
-					"walSizeMB":      "20",
-					"metadataDevice": "nvme093",
-				},
-				Selection: rookv1.Selection{},
-				Resources: v1.ResourceRequirements{
-					Limits: v1.ResourceList{
-						v1.ResourceCPU:    *resource.NewQuantity(1024.0, resource.BinarySI),
-						v1.ResourceMemory: *resource.NewQuantity(4096.0, resource.BinarySI),
+	clientset := fake.NewSimpleClientset()
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   "ns",
+		CephVersion: cephver.Nautilus,
+	}
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	spec := cephv1.ClusterSpec{
+		DataDirHostPath: context.ConfigDir,
+		Storage: rookv1.StorageScopeSpec{
+			Nodes: []rookv1.Node{
+				{
+					Name: "node1",
+					Config: map[string]string{
+						"databaseSizeMB": "10",
+						"walSizeMB":      "20",
+						"metadataDevice": "nvme093",
 					},
-					Requests: v1.ResourceList{
-						v1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
-						v1.ResourceMemory: *resource.NewQuantity(2048.0, resource.BinarySI),
+					Selection: rookv1.Selection{},
+					Resources: v1.ResourceRequirements{
+						Limits: v1.ResourceList{
+							v1.ResourceCPU:    *resource.NewQuantity(1024.0, resource.BinarySI),
+							v1.ResourceMemory: *resource.NewQuantity(4096.0, resource.BinarySI),
+						},
+						Requests: v1.ResourceList{
+							v1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
+							v1.ResourceMemory: *resource.NewQuantity(2048.0, resource.BinarySI),
+						},
 					},
 				},
 			},
 		},
 	}
-	driveGroups := cephv1.DriveGroupsSpec{}
 
-	clientset := fake.NewSimpleClientset()
-	clusterInfo := &cephclient.ClusterInfo{
-		CephVersion: cephver.Nautilus,
-	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephv1.CephVersionSpec{},
-		storageSpec, driveGroups, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
-
-	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
-	storeConfig := config.ToStoreConfig(storageSpec.Nodes[0].Config)
-	metadataDevice := config.MetadataDevice(storageSpec.Nodes[0].Config)
+	c := New(context, clusterInfo, spec, "rook/rook:myversion")
+	n := c.spec.Storage.ResolveNode(spec.Storage.Nodes[0].Name)
+	storeConfig := config.ToStoreConfig(spec.Storage.Nodes[0].Config)
+	metadataDevice := config.MetadataDevice(spec.Storage.Nodes[0].Config)
 
 	osdProp := osdProperties{
 		crushHostname:  n.Name,
 		devices:        n.Devices,
 		selection:      n.Selection,
-		resources:      c.DesiredStorage.Nodes[0].Resources,
+		resources:      c.spec.Storage.Nodes[0].Resources,
 		storeConfig:    storeConfig,
 		metadataDevice: metadataDevice,
 	}
 
 	dataPathMap := &provisionConfig{
-		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook"),
 	}
 
 	job, err := c.makeJob(osdProp, dataPathMap)
@@ -313,16 +320,20 @@ func TestHostNetwork(t *testing.T) {
 			},
 		},
 	}
-	driveGroups := cephv1.DriveGroupsSpec{}
 
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   "ns",
 		CephVersion: cephver.Nautilus,
 	}
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
-		storageSpec, driveGroups, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{HostNetwork: true}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	spec := cephv1.ClusterSpec{
+		Storage: storageSpec,
+		Network: cephv1.NetworkSpec{HostNetwork: true},
+	}
+	c := New(context, clusterInfo, spec, "rook/rook:myversion")
 
-	n := c.DesiredStorage.ResolveNode(storageSpec.Nodes[0].Name)
+	n := c.spec.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := OSDInfo{
 		ID: 0,
 	}
@@ -331,12 +342,12 @@ func TestHostNetwork(t *testing.T) {
 		crushHostname: n.Name,
 		devices:       n.Devices,
 		selection:     n.Selection,
-		resources:     c.DesiredStorage.Nodes[0].Resources,
+		resources:     c.spec.Storage.Nodes[0].Resources,
 		storeConfig:   config.StoreConfig{},
 	}
 
 	dataPathMap := &provisionConfig{
-		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.Namespace, "/var/lib/rook"),
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, "/var/lib/rook"),
 	}
 
 	r, err := c.makeDeployment(osdProp, osd, dataPathMap)
@@ -361,22 +372,24 @@ func TestOsdOnSDNFlag(t *testing.T) {
 
 func TestOsdPrepareResources(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&cephclient.ClusterInfo{}, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", cephv1.CephVersionSpec{},
-		rookv1.StorageScopeSpec{}, cephv1.DriveGroupsSpec{}, "", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
 
-	// TEST 2: NOT running on PVC and some prepareResources are specificied
-	rr := v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(2000.0, resource.BinarySI),
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	spec := cephv1.ClusterSpec{
+		Resources: map[string]v1.ResourceRequirements{"prepareosd": {
+			Limits: v1.ResourceList{
+				v1.ResourceCPU: *resource.NewQuantity(2000.0, resource.BinarySI),
+			},
+			Requests: v1.ResourceList{
+				v1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
+			},
 		},
-		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
 		},
 	}
+	c := New(context, clusterInfo, spec, "rook/rook:myversion")
 
-	c.prepareResources = rr
-	r := c.prepareResources
-	assert.Equal(t, "2000", r.Limits.Cpu().String(), rr.Limits.Cpu().String())
+	r := cephv1.GetPrepareOSDResources(c.spec.Resources)
+	assert.Equal(t, "2000", r.Limits.Cpu().String())
 	assert.Equal(t, "0", r.Requests.Cpu().String())
 	assert.Equal(t, "0", r.Limits.Memory().String())
 	assert.Equal(t, "250", r.Requests.Memory().String())
@@ -407,11 +420,13 @@ func TestOsdActivateEnvVar(t *testing.T) {
 }
 
 func TestDriveGroups(t *testing.T) {
-	storageSpec := rookv1.StorageScopeSpec{
-		UseAllNodes: true,
-		Selection:   rookv1.Selection{},
-		Nodes:       []rookv1.Node{{Name: "node1"}, {Name: "node2"}},
+	clientset := fake.NewSimpleClientset()
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+
+	dataPathMap := &provisionConfig{
+		DataPathMap: opconfig.NewDatalessDaemonDataPathMap("ns", "/var/lib/rook"),
 	}
+
 	driveGroups := cephv1.DriveGroupsSpec{
 		cephv1.DriveGroup{
 			Name: "group1",
@@ -423,21 +438,20 @@ func TestDriveGroups(t *testing.T) {
 			Placement: rookv1.Placement{},
 		},
 	}
-
-	clientset := fake.NewSimpleClientset()
-
-	cephVersion := cephv1.CephVersionSpec{Image: "test-image"}
-
-	clusterInfo := &cephconfig.ClusterInfo{}
-
-	dataPathMap := &provisionConfig{
-		DataPathMap: opconfig.NewDatalessDaemonDataPathMap("ns", "/var/lib/rook"),
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	spec := cephv1.ClusterSpec{
+		DataDirHostPath: "/var/lib/rook",
+		CephVersion:     cephv1.CephVersionSpec{Image: "test-image"},
+		DriveGroups:     driveGroups,
+		Storage: rookv1.StorageScopeSpec{
+			UseAllNodes: true,
+			Selection:   rookv1.Selection{},
+			Nodes:       []rookv1.Node{{Name: "node1"}, {Name: "node2"}},
+		},
 	}
+	c := New(context, clusterInfo, spec, "rook/rook:myversion")
 
-	c := New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
-		storageSpec, driveGroups, "/var/lib/rook", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
-
-	n := c.DesiredStorage.ResolveNode("node1")
+	n := c.spec.Storage.ResolveNode("node1")
 
 	osdProp := osdProperties{
 		crushHostname: n.Name,
@@ -464,8 +478,7 @@ func TestDriveGroups(t *testing.T) {
 
 	// Drive groups are not specified; should NOT have env var specified
 	clusterInfo.CephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
-	c = New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
-		storageSpec, cephv1.DriveGroupsSpec{}, "/var/lib/rook", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	spec.DriveGroups = cephv1.DriveGroupsSpec{}
 	job, err := c.makeJob(osdProp, dataPathMap)
 	assert.NotNil(t, job)
 	assert.NoError(t, err)
@@ -473,8 +486,7 @@ func TestDriveGroups(t *testing.T) {
 
 	// Drive groups are specified; should have env var specified
 	osdProp.driveGroups = driveGroups
-	c = New(clusterInfo, &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", cephVersion,
-		storageSpec, driveGroups, "/var/lib/rook", rookv1.Placement{}, rookv1.Annotations{}, cephv1.NetworkSpec{}, v1.ResourceRequirements{}, v1.ResourceRequirements{}, "my-priority-class", metav1.OwnerReference{}, false, false, cephv1.CephClusterHealthCheckSpec{})
+	spec.DriveGroups = driveGroups
 	job, err = c.makeJob(osdProp, dataPathMap)
 	assert.NotNil(t, job)
 	assert.NoError(t, err)

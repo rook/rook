@@ -28,7 +28,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -46,8 +45,8 @@ type Filesystem struct {
 
 // createFilesystem creates a Ceph filesystem with metadata servers
 func createFilesystem(
-	clusterInfo *cephclient.ClusterInfo,
 	context *clusterd.Context,
+	clusterInfo *cephclient.ClusterInfo,
 	fs cephv1.CephFilesystem,
 	clusterSpec *cephv1.ClusterSpec,
 	ownerRefs metav1.OwnerReference,
@@ -57,25 +56,25 @@ func createFilesystem(
 
 	if len(fs.Spec.DataPools) != 0 {
 		f := newFS(fs.Name, fs.Namespace)
-		if err := f.doFilesystemCreate(context, clusterInfo.CephVersion, fs.Spec); err != nil {
+		if err := f.doFilesystemCreate(context, clusterInfo, fs.Spec); err != nil {
 			return errors.Wrapf(err, "failed to create filesystem %q", fs.Name)
 		}
 	}
 
-	filesystem, err := client.GetFilesystem(context, fs.Namespace, fs.Name)
+	filesystem, err := client.GetFilesystem(context, clusterInfo, fs.Name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get filesystem %q", fs.Name)
 	}
 
 	if fs.Spec.MetadataServer.ActiveStandby {
-		if err = client.AllowStandbyReplay(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+		if err = client.AllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
 			return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %q", fs.Name)
 		}
 	}
 
 	// set the number of active mds instances
 	if fs.Spec.MetadataServer.ActiveCount > 1 {
-		if err = client.SetNumMDSRanks(context, fs.Namespace, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
+		if err = client.SetNumMDSRanks(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
 			logger.Warningf("failed setting active mds count to %d. %v", fs.Spec.MetadataServer.ActiveCount, err)
 		}
 	}
@@ -89,17 +88,17 @@ func createFilesystem(
 	return nil
 }
 
-// deleteFileSystem deletes the filesystem from Ceph
+// deleteFilesystem deletes the filesystem from Ceph
 func deleteFilesystem(
-	clusterInfo *cephclient.ClusterInfo,
 	context *clusterd.Context,
+	clusterInfo *cephclient.ClusterInfo,
 	fs cephv1.CephFilesystem,
 	clusterSpec *cephv1.ClusterSpec,
 	ownerRefs metav1.OwnerReference,
 	dataDirHostPath string,
 	scheme *runtime.Scheme,
 ) error {
-	filesystem, err := client.GetFilesystem(context, fs.Namespace, fs.Name)
+	filesystem, err := client.GetFilesystem(context, clusterInfo, fs.Name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get filesystem %q", fs.Name)
 	}
@@ -119,21 +118,21 @@ func deleteFilesystem(
 
 	// The most important part of deletion is that the filesystem gets removed from Ceph
 	// The K8s resources will already be removed with the K8s owner references
-	if err := downFilesystem(context, fs.Namespace, fs.Name); err != nil {
+	if err := downFilesystem(context, clusterInfo, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
 		return errors.Wrapf(err, "failed to down filesystem %q", fs.Name)
 	}
 
 	// Permanently remove the filesystem if it was created by rook
 	if len(fs.Spec.DataPools) != 0 {
-		if err := client.RemoveFilesystem(context, fs.Namespace, fs.Name, fs.Spec.PreservePoolsOnDelete); err != nil {
+		if err := client.RemoveFilesystem(context, clusterInfo, fs.Name, fs.Spec.PreservePoolsOnDelete); err != nil {
 			return errors.Wrapf(err, "failed to remove filesystem %q", fs.Name)
 		}
 	}
 	return nil
 }
 
-func validateFilesystem(context *clusterd.Context, f *cephv1.CephFilesystem) error {
+func validateFilesystem(context *clusterd.Context, clusterInfo *client.ClusterInfo, f *cephv1.CephFilesystem) error {
 	if f.Name == "" {
 		return errors.New("missing name")
 	}
@@ -147,11 +146,11 @@ func validateFilesystem(context *clusterd.Context, f *cephv1.CephFilesystem) err
 	if len(f.Spec.DataPools) == 0 {
 		return nil
 	}
-	if err := pool.ValidatePoolSpec(context, f.Namespace, &f.Spec.MetadataPool); err != nil {
+	if err := pool.ValidatePoolSpec(context, clusterInfo, &f.Spec.MetadataPool); err != nil {
 		return errors.Wrap(err, "invalid metadata pool")
 	}
 	for _, p := range f.Spec.DataPools {
-		if err := pool.ValidatePoolSpec(context, f.Namespace, &p); err != nil {
+		if err := pool.ValidatePoolSpec(context, clusterInfo, &p); err != nil {
 			return errors.Wrap(err, "Invalid data pool")
 		}
 	}
@@ -168,10 +167,10 @@ func newFS(name, namespace string) *Filesystem {
 }
 
 // SetPoolSize function sets the sizes for MetadataPool and dataPool
-func SetPoolSize(f *Filesystem, context *clusterd.Context, spec cephv1.FilesystemSpec) error {
+func SetPoolSize(f *Filesystem, context *clusterd.Context, clusterInfo *client.ClusterInfo, spec cephv1.FilesystemSpec) error {
 	// generating the metadata pool's name
 	metadataPoolName := generateMetaDataPoolName(f)
-	err := client.CreatePoolWithProfile(context, f.Namespace, metadataPoolName, spec.MetadataPool, "")
+	err := client.CreatePoolWithProfile(context, clusterInfo, metadataPoolName, spec.MetadataPool, "")
 	if err != nil {
 		return errors.Wrapf(err, "failed to update metadata pool %q", metadataPoolName)
 	}
@@ -179,7 +178,7 @@ func SetPoolSize(f *Filesystem, context *clusterd.Context, spec cephv1.Filesyste
 	dataPoolNames := generateDataPoolNames(f, spec)
 	for i, pool := range spec.DataPools {
 		poolName := dataPoolNames[i]
-		err := client.CreatePoolWithProfile(context, f.Namespace, poolName, pool, "")
+		err := client.CreatePoolWithProfile(context, clusterInfo, poolName, pool, "")
 		if err != nil {
 			return errors.Wrapf(err, "failed to update datapool  %q", poolName)
 		}
@@ -188,14 +187,14 @@ func SetPoolSize(f *Filesystem, context *clusterd.Context, spec cephv1.Filesyste
 }
 
 // doFilesystemCreate starts the Ceph file daemons and creates the filesystem in Ceph.
-func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion cephver.CephVersion, spec cephv1.FilesystemSpec) error {
+func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *client.ClusterInfo, spec cephv1.FilesystemSpec) error {
 
-	_, err := client.GetFilesystem(context, f.Namespace, f.Name)
+	_, err := client.GetFilesystem(context, clusterInfo, f.Name)
 	if err == nil {
 		logger.Infof("filesystem %s already exists", f.Name)
 		// Even if the fs already exists, the num active mdses may have changed
 
-		if err := client.SetNumMDSRanks(context, f.Namespace, f.Name, spec.MetadataServer.ActiveCount); err != nil {
+		if err := client.SetNumMDSRanks(context, clusterInfo, f.Name, spec.MetadataServer.ActiveCount); err != nil {
 			logger.Errorf(
 				fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", spec.MetadataServer.ActiveCount, f.Name) +
 					"this error is not critical, but mdses may not be as failure tolerant as desired. " +
@@ -203,7 +202,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 					fmt.Sprintf(". %v", err),
 			)
 		}
-		if err := SetPoolSize(f, context, spec); err != nil {
+		if err := SetPoolSize(f, context, clusterInfo, spec); err != nil {
 			return errors.Wrap(err, "failed to set pools size")
 		}
 		return nil
@@ -212,7 +211,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 		return errors.New("at least one data pool must be specified")
 	}
 
-	fslist, err := client.ListFilesystems(context, f.Namespace)
+	fslist, err := client.ListFilesystems(context, clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "Unable to list existing filesystem")
 	}
@@ -220,7 +219,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 		return errors.Errorf("cannot create multiple filesystems. enable %s env variable to create more than one", client.MultiFsEnv)
 	}
 
-	poolNames, err := client.GetPoolNamesByID(context, f.Namespace)
+	poolNames, err := client.GetPoolNamesByID(context, clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get pool names")
 	}
@@ -237,7 +236,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 	metadataPoolName := generateMetaDataPoolName(f)
 	if _, poolFound := reversedPoolMap[metadataPoolName]; !poolFound {
 		poolsCreated = true
-		err = client.CreatePoolWithProfile(context, f.Namespace, metadataPoolName, spec.MetadataPool, "")
+		err = client.CreatePoolWithProfile(context, clusterInfo, metadataPoolName, spec.MetadataPool, "")
 		if err != nil {
 			return errors.Wrapf(err, "failed to create metadata pool %q", metadataPoolName)
 		}
@@ -248,13 +247,13 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 		poolName := dataPoolNames[i]
 		if _, poolFound := reversedPoolMap[poolName]; !poolFound {
 			poolsCreated = true
-			err = client.CreatePoolWithProfile(context, f.Namespace, poolName, pool, "")
+			err = client.CreatePoolWithProfile(context, clusterInfo, poolName, pool, "")
 			if err != nil {
 				return errors.Wrapf(err, "failed to create data pool %q", poolName)
 			}
 			if pool.IsErasureCoded() {
 				// An erasure coded data pool used for a filesystem must allow overwrites
-				if err := client.SetPoolProperty(context, f.Namespace, poolName, "allow_ec_overwrites", "true"); err != nil {
+				if err := client.SetPoolProperty(context, clusterInfo, poolName, "allow_ec_overwrites", "true"); err != nil {
 					logger.Warningf("failed to set ec pool property. %v", err)
 				}
 			}
@@ -263,7 +262,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 
 	// create the filesystem ('fs new' needs to be forced in order to reuse pre-existing pools)
 	// if only one pool is created new it wont work (to avoid inconsistencies).
-	if err := client.CreateFilesystem(context, f.Namespace, f.Name, metadataPoolName, dataPoolNames, !poolsCreated); err != nil {
+	if err := client.CreateFilesystem(context, clusterInfo, f.Name, metadataPoolName, dataPoolNames, !poolsCreated); err != nil {
 		return err
 	}
 
@@ -272,10 +271,10 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, cephVersion c
 }
 
 // downFilesystem marks the filesystem as down and the MDS' as failed
-func downFilesystem(context *clusterd.Context, namespace, filesystemName string) error {
+func downFilesystem(context *clusterd.Context, clusterInfo *client.ClusterInfo, filesystemName string) error {
 	logger.Infof("Downing filesystem %s", filesystemName)
 
-	if err := client.FailFilesystem(context, namespace, filesystemName); err != nil {
+	if err := client.FailFilesystem(context, clusterInfo, filesystemName); err != nil {
 		return err
 	}
 	logger.Infof("Downed filesystem %s", filesystemName)

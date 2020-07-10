@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
@@ -50,8 +51,9 @@ func TestGeneratePassword(t *testing.T) {
 
 func TestGetOrGeneratePassword(t *testing.T) {
 	clientset := test.New(t, 3)
-	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, Namespace: "myns"}
-	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
+	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
+	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, clusterInfo: clusterInfo}
+	_, err := c.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err))
 
 	// Generate a password
@@ -59,7 +61,7 @@ func TestGetOrGeneratePassword(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, passwordLength, len(password))
 
-	secret, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
+	secret, err := c.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(secret.Data))
 	passwordFromSecret, err := decodeSecret(secret)
@@ -104,10 +106,15 @@ func TestStartSecureDashboard(t *testing.T) {
 	}
 
 	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   "myns",
 		CephVersion: cephver.Nautilus,
 	}
-	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor}, Namespace: "myns",
-		dashboard: cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true}, cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"}}
+	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor},
+		spec: cephv1.ClusterSpec{
+			Dashboard:   cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true},
+			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
+		},
+	}
 	c.exitCode = func(err error) (int, bool) {
 		if exitCodeResponse != 0 {
 			return exitCodeResponse, true
@@ -126,12 +133,12 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.Equal(t, 1, disables)
 	assert.Equal(t, 2, moduleRetries)
 
-	svc, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	svc, err := c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, svc)
 
 	// disable the dashboard
-	c.dashboard.Enabled = false
+	c.spec.Dashboard.Enabled = false
 	err = c.configureDashboardService()
 	assert.Nil(t, err)
 	err = c.configureDashboardModules()
@@ -139,7 +146,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.Equal(t, 2, enables)
 	assert.Equal(t, 2, disables)
 
-	svc, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, kerrors.IsNotFound(err))
 	assert.Nil(t, svc)

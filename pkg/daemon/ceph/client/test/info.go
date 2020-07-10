@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package test
 
 import (
@@ -43,7 +44,7 @@ func CreateConfigDir(configDir string) error {
 func CreateTestClusterInfo(monCount int) *client.ClusterInfo {
 	c := &client.ClusterInfo{
 		FSID:          "12345",
-		Name:          "default",
+		Namespace:     "default",
 		MonitorSecret: "monsecret",
 		CephCred: client.CephCred{
 			Username: client.AdminUsername,

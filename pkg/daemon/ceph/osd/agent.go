@@ -29,7 +29,7 @@ const (
 
 // OsdAgent represents the OSD struct of an agent
 type OsdAgent struct {
-	cluster        *cephclient.ClusterInfo
+	clusterInfo    *cephclient.ClusterInfo
 	nodeName       string
 	forceFormat    bool
 	driveGroups    config.DriveGroupBlobs
@@ -49,7 +49,7 @@ type device struct {
 
 // NewAgent is the instantiation of the OSD agent
 func NewAgent(context *clusterd.Context, driveGroups config.DriveGroupBlobs, devices []DesiredDevice, metadataDevice string, forceFormat bool,
-	storeConfig config.StoreConfig, cluster *cephclient.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
+	storeConfig config.StoreConfig, clusterInfo *cephclient.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
 
 	return &OsdAgent{
 		driveGroups:    driveGroups,
@@ -57,7 +57,7 @@ func NewAgent(context *clusterd.Context, driveGroups config.DriveGroupBlobs, dev
 		metadataDevice: metadataDevice,
 		forceFormat:    forceFormat,
 		storeConfig:    storeConfig,
-		cluster:        cluster,
+		clusterInfo:    clusterInfo,
 		nodeName:       nodeName,
 		kv:             kv,
 		pvcBacked:      pvcBacked,

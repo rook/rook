@@ -39,17 +39,15 @@ import (
 )
 
 type clusterConfig struct {
-	clusterInfo       *cephclient.ClusterInfo
-	context           *clusterd.Context
-	store             *cephv1.CephObjectStore
-	rookVersion       string
-	clusterSpec       *cephv1.ClusterSpec
-	ownerRef          *metav1.OwnerReference
-	DataPathMap       *config.DataPathMap
-	skipUpgradeChecks bool
-	client            client.Client
-	scheme            *runtime.Scheme
-	Network           cephv1.NetworkSpec
+	context     *clusterd.Context
+	clusterInfo *cephclient.ClusterInfo
+	store       *cephv1.CephObjectStore
+	rookVersion string
+	clusterSpec *cephv1.ClusterSpec
+	ownerRef    *metav1.OwnerReference
+	DataPathMap *config.DataPathMap
+	client      client.Client
+	scheme      *runtime.Scheme
 }
 
 type rgwConfig struct {
@@ -66,7 +64,7 @@ const (
 
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
-func (c *clusterConfig) createOrUpdateStore(realmName string, zoneGroupName string, zoneName string) error {
+func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName string) error {
 	logger.Infof("creating object store %q in namespace %q", c.store.Name, c.store.Namespace)
 
 	if err := c.startRGWPods(realmName, zoneGroupName, zoneName); err != nil {
@@ -77,7 +75,7 @@ func (c *clusterConfig) createOrUpdateStore(realmName string, zoneGroupName stri
 	return nil
 }
 
-func (c *clusterConfig) startRGWPods(realmName string, zoneGroupName string, zoneName string) error {
+func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) error {
 	// backward compatibility, triggered during updates
 	if c.store.Spec.Gateway.AllNodes {
 		// log we don't support that anymore
@@ -161,7 +159,7 @@ func (c *clusterConfig) startRGWPods(realmName string, zoneGroupName string, zon
 				return errors.Wrap(createErr, "failed to create rgw deployment")
 			}
 			logger.Infof("object store %q deployment %q already exists. updating if needed", c.store.Name, deployment.Name)
-			if err := updateDeploymentAndWait(c.context, deployment, c.store.Namespace, config.RgwType, daemonLetterID, c.skipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+			if err := updateDeploymentAndWait(c.context, c.clusterInfo, deployment, config.RgwType, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				return errors.Wrapf(err, "failed to update object store %q deployment %q", c.store.Name, deployment.Name)
 			}
 		}
@@ -234,7 +232,7 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 			}
 		}
 		// Delete legacy rgw key
-		err = cephclient.AuthDelete(c.context, c.store.Namespace, oldRgwKeyName)
+		err = cephclient.AuthDelete(c.context, c.clusterInfo, oldRgwKeyName)
 		if err != nil {
 			logger.Infof("failed to delete legacy rgw key %q. %v", oldRgwKeyName, err)
 		}
@@ -253,7 +251,7 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 				logger.Warningf("error during deletion of deployment %q resource. %v", d.Name, err)
 			}
 			// Delete legacy rgw key
-			err = cephclient.AuthDelete(c.context, c.store.Namespace, oldRgwKeyName)
+			err = cephclient.AuthDelete(c.context, c.clusterInfo, oldRgwKeyName)
 			if err != nil {
 				logger.Infof("failed to delete legacy rgw key %q. %v", oldRgwKeyName, err)
 			}
@@ -279,7 +277,7 @@ func (c *clusterConfig) deleteStore() error {
 		}
 
 		// Delete the realm and pools
-		objContext := NewContext(c.context, c.store.Name, c.store.Namespace)
+		objContext := NewContext(c.context, c.clusterInfo, c.store.Name)
 		err := deleteRealmAndPools(objContext, c.store.Spec)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete the realm and pools")
@@ -299,7 +297,7 @@ func (c *clusterConfig) deleteRgwCephObjects(depNameToRemove string) error {
 		return err
 	}
 
-	err = cephclient.AuthDelete(c.context, c.store.Namespace, generateCephXUser(depNameToRemove))
+	err = cephclient.AuthDelete(c.context, c.clusterInfo, generateCephXUser(depNameToRemove))
 	if err != nil {
 		return err
 	}
@@ -332,12 +330,12 @@ func (r *ReconcileCephObjectStore) validateStore(s *cephv1.CephObjectStore) erro
 	// Validate the pool settings, but allow for empty pools specs in case they have already been created
 	// such as by the ceph mgr
 	if !emptyPool(s.Spec.MetadataPool) {
-		if err := pool.ValidatePoolSpec(r.context, s.Namespace, &s.Spec.MetadataPool); err != nil {
+		if err := pool.ValidatePoolSpec(r.context, r.clusterInfo, &s.Spec.MetadataPool); err != nil {
 			return errors.Wrap(err, "invalid metadata pool spec")
 		}
 	}
 	if !emptyPool(s.Spec.DataPool) {
-		if err := pool.ValidatePoolSpec(r.context, s.Namespace, &s.Spec.DataPool); err != nil {
+		if err := pool.ValidatePoolSpec(r.context, r.clusterInfo, &s.Spec.DataPool); err != nil {
 			return errors.Wrap(err, "invalid data pool spec")
 		}
 	}

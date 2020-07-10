@@ -101,7 +101,7 @@ func (m *DeviceOsdMapping) String() string {
 
 func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephclient.ClusterInfo) error {
 	// add auth privileges for the OSD, the bootstrap-osd privileges were very limited
-	if err := addOSDAuth(context, cluster.Name, config.id, config.rootPath); err != nil {
+	if err := addOSDAuth(context, cluster, config.id, config.rootPath); err != nil {
 		return err
 	}
 
@@ -109,10 +109,10 @@ func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephcl
 }
 
 // gets the current mon map for the cluster
-func getMonMap(context *clusterd.Context, clusterName string) ([]byte, error) {
+func getMonMap(context *clusterd.Context, clusterInfo *client.ClusterInfo) ([]byte, error) {
 	// TODO: "entity": "client.bootstrap-osd",
 	args := []string{"mon", "getmap"}
-	buf, err := client.NewCephCommand(context, clusterName, args).Run()
+	buf, err := client.NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get mon map")
 	}
@@ -120,11 +120,11 @@ func getMonMap(context *clusterd.Context, clusterName string) ([]byte, error) {
 }
 
 // add OSD auth privileges for the given OSD ID.  the bootstrap-osd privileges are limited and a real OSD needs more.
-func addOSDAuth(context *clusterd.Context, clusterName string, osdID int, osdDataPath string) error {
+func addOSDAuth(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int, osdDataPath string) error {
 	// get an existing auth or create a new auth for this OSD.  After this command is run, the new or existing
 	// keyring will be written to the keyring path specified.
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
 	caps := []string{"osd", "allow *", "mon", "allow profile osd"}
 
-	return client.AuthGetOrCreate(context, clusterName, osdEntity, getOSDKeyringPath(osdDataPath), caps)
+	return client.AuthGetOrCreate(context, clusterInfo, osdEntity, getOSDKeyringPath(osdDataPath), caps)
 }

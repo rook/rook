@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -37,7 +37,7 @@ import (
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	// cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
+	// cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 const (
@@ -151,6 +151,7 @@ func (r *ReconcileClusterDisruption) initializePDBState(request reconcile.Reques
 }
 
 func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
+	clusterInfo *cephclient.ClusterInfo,
 	request reconcile.Request,
 	pdbStateMap *corev1.ConfigMap,
 	poolFailureDomain string,
@@ -159,7 +160,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 ) error {
 	drainingFailureDomains := getSortedOSDMapKeys(drainingFailureDomainsMap)
 
-	pgHealthMsg, clean, err := cephClient.IsClusterClean(r.context.ClusterdContext, request.Namespace)
+	pgHealthMsg, clean, err := cephclient.IsClusterClean(r.context.ClusterdContext, clusterInfo)
 	if err != nil {
 		// If the error contains that message, this means the cluster is not up and running
 		// No monitors are present and thus no ceph configuration has been created
@@ -202,7 +203,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		}
 	}
 
-	err = r.updateNoout(pdbStateMap, allFailureDomainsMap)
+	err = r.updateNoout(clusterInfo, pdbStateMap, allFailureDomainsMap)
 	if err != nil {
 		logger.Errorf("could not update maintenance noout in cluster %q with ceph image. %v", request, err)
 	}
@@ -249,12 +250,11 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	return nil
 }
 
-func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, allFailureDomainsMap map[string][]OsdData) error {
+func (r *ReconcileClusterDisruption) updateNoout(clusterInfo *cephclient.ClusterInfo, pdbStateMap *corev1.ConfigMap, allFailureDomainsMap map[string][]OsdData) error {
 	disabledFailureDomain := pdbStateMap.Data[disabledPDBKey]
-	namespace := pdbStateMap.ObjectMeta.Namespace
-	osdDump, err := cephClient.GetOSDDump(r.context.ClusterdContext, namespace)
+	osdDump, err := cephclient.GetOSDDump(r.context.ClusterdContext, clusterInfo)
 	if err != nil {
-		return errors.Wrapf(err, "could not get osddump for reconciling maintenance noout in namespace %s", namespace)
+		return errors.Wrapf(err, "could not get osddump for reconciling maintenance noout in namespace %s", clusterInfo.Namespace)
 	}
 	for failureDomain := range allFailureDomainsMap {
 		disabledFailureDomainTimeStampKey := fmt.Sprintf("%s-noout-last-set-at", failureDomain)
@@ -273,19 +273,19 @@ func (r *ReconcileClusterDisruption) updateNoout(pdbStateMap *corev1.ConfigMap, 
 			}
 			if time.Since(nooutSetTime) >= r.maintenanceTimeout {
 				// noout expired
-				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, false, namespace, failureDomain, nooutFlag); err != nil {
+				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, false, failureDomain, nooutFlag); err != nil {
 					return errors.Wrapf(err, "failed to update flag on crush unit when noout expired.")
 				}
 			} else {
 				// set noout
-				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, true, namespace, failureDomain, nooutFlag); err != nil {
+				if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, true, failureDomain, nooutFlag); err != nil {
 					return errors.Wrapf(err, "failed to update flag on crush unit while setting noout.")
 				}
 			}
 
 		} else {
 			// ensure noout unset
-			if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, false, namespace, failureDomain, nooutFlag); err != nil {
+			if _, err := osdDump.UpdateFlagOnCrushUnit(r.context.ClusterdContext, clusterInfo, false, failureDomain, nooutFlag); err != nil {
 				return errors.Wrapf(err, "failed to update flag on crush unit when ensuring noout is unset.")
 			}
 			// delete the timestamp

@@ -17,8 +17,12 @@ limitations under the License.
 package ceph
 
 import (
+	"os"
+
 	"github.com/rook/rook/cmd/rook/rook"
 	cleanup "github.com/rook/rook/pkg/daemon/ceph/cleanup"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +32,6 @@ var (
 	namespaceDir    string
 	monSecret       string
 	clusterFSID     string
-	clusterName     string
 )
 
 var cleanUpCmd = &cobra.Command{
@@ -41,7 +44,6 @@ func init() {
 	cleanUpCmd.Flags().StringVar(&namespaceDir, "namespace-dir", "", "dataDirHostPath on the node")
 	cleanUpCmd.Flags().StringVar(&monSecret, "mon-secret", "", "monitor secret from the keyring")
 	cleanUpCmd.Flags().StringVar(&clusterFSID, "cluster-fsid", "", "ceph cluster fsid")
-	cleanUpCmd.Flags().StringVar(&clusterName, "cluster-name", "", "ceph cluster name")
 	flags.SetFlagsFromEnv(cleanUpCmd.Flags(), rook.RookEnvVarPrefix)
 	cleanUpCmd.RunE = startCleanUp
 }
@@ -57,14 +59,15 @@ func startCleanUp(cmd *cobra.Command, args []string) error {
 		cleanup.StartHostPathCleanup(namespaceDir, dataDirHostPath, monSecret)
 	}
 
+	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo.FSID = clusterFSID
+
 	// Build Sanitizer
-	s := cleanup.NewDiskSanitizer(createContext(),
-		clusterName,
-		clusterFSID,
-	)
+	s := cleanup.NewDiskSanitizer(createContext(), clusterInfo)
 
 	// Start OSD wipe process
-	cleanup.StartSanitizeDisks(s)
+	s.StartSanitizeDisks()
 
 	return nil
 }
