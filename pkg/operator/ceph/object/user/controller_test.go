@@ -253,6 +253,9 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		TypeMeta: metav1.TypeMeta{
 			Kind: "CephObjectStore",
 		},
+		Status: &cephv1.ObjectStoreStatus{
+			Info: map[string]string{"endpoint": "http://rook-ceph-rgw-my-store.rook-ceph:80"},
+		},
 	}
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreList{})

@@ -30,6 +30,7 @@ type Context struct {
 	ClusterName string
 	RunAsUser   string
 	UID         string
+	Endpoint    string
 }
 
 // NewContext creates a new object store context.

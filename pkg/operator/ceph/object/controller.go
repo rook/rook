@@ -168,7 +168,8 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// The CR was just created, initializing status fields
 	if cephObjectStore.Status == nil {
-		updateStatusPhase(r.client, request.NamespacedName, cephv1.ConditionProgressing)
+		// The store is not available so let's not build the status Info yet
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing, map[string]string{})
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -291,7 +292,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Set Ready status, we are done reconciling
-	updateStatusPhase(r.client, request.NamespacedName, cephv1.ConditionReady)
+	updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, buildStatusInfo(cephObjectStore))
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")

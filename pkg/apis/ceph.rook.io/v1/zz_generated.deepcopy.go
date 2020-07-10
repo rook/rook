@@ -1364,6 +1364,13 @@ func (in *ObjectStoreStatus) DeepCopyInto(out *ObjectStoreStatus) {
 		*out = new(BucketStatus)
 		**out = **in
 	}
+	if in.Info != nil {
+		in, out := &in.Info, &out.Info
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
