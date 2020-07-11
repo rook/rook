@@ -170,7 +170,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 
 func cleanupObjectHealthCheck(s3client *S3Agent, objectStoreUID string) error {
 	bucketToDelete := genUniqueBucketName(objectStoreUID)
-	logger.Infof("deleting object %q from bucket %q", s3HealthCheckObjectKey, bucketToDelete)
+	logger.Debugf("deleting object %q from bucket %q", s3HealthCheckObjectKey, bucketToDelete)
 	_, err := s3client.DeleteObjectInBucket(bucketToDelete, s3HealthCheckObjectKey)
 
 	return err
@@ -229,7 +229,7 @@ func (c *bucketChecker) testBucketHealth(s3client *S3Agent, bucket string) error
 
 	// Create S3 bucket
 	logger.Debugf("creating bucket %q", bucket)
-	err := s3client.CreateBucket(bucket)
+	err := s3client.CreateBucketNoInfoLogging(bucket)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create bucket %q for object store %q", bucket, c.namespacedName.Name)
 	}
