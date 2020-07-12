@@ -1,12 +1,8 @@
 #!/bin/bash
 set -ex
 
-<<<<<<< HEAD
 test_scratch_device=/dev/nvme0n1
-=======
-test_scratch_device=/dev/xvdc
-test_scratch_device2=/dev/xvdd
->>>>>>> ceph: update helm chart for Ceph clusters in different namespaces
+test_scratch_device2=/dev/nvme1n1
 if [ $# -ge 1 ] ; then
   test_scratch_device=$1
 fi
