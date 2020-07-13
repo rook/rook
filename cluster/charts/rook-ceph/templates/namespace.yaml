@@ -1,7 +1,9 @@
 {{- range .Values.clusterNamespaces }}
+{{- if ne . $.Release.Namespace}}
 apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ . }}
 ---
+{{- end }}
 {{- end }}

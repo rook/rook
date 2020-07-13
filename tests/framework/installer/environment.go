@@ -71,7 +71,7 @@ func TestScratchDevice() string {
 
 // TestScratchDevice2 get the second scratch device to be used for OSD
 func TestScratchDevice2() string {
-	return getEnvVarWithDefault("TEST_SCRATCH_DEVICE2", "/dev/xvdb")
+	return getEnvVarWithDefault("TEST_SCRATCH_DEVICE2", "/dev/nvme1n1")
 }
 
 func getEnvVarWithDefault(env, defaultValue string) string {

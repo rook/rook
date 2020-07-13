@@ -10,8 +10,11 @@ if [ $# -ge 2 ] ; then
   test_scratch_device2=$2
 fi
 
+<<<<<<< HEAD
 lsblk
 
+=======
+>>>>>>> ceph: revert debug code and small fix
 if [ ! -b "${test_scratch_device}" ] ; then
   echo "invalid scratch device, not a block device: ${test_scratch_device}" >&2
   exit 1
