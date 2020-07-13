@@ -80,6 +80,57 @@ rook-nfs-provisioner-7b5ff479f6-688dm   1/1     Running   0          102s
 rook-nfs-webhook-74749cbd46-6jw2w       1/1     Running   0          102s
 ```
 
+## Create Openshift Security Context Constraints
+
+On Openshift cluster, before creating NFS Server we need to create the security context constraints needed by nfs-server pods which running on openshift. The following yaml is found in `scc.yaml` under `/cluster/examples/kubernetes/nfs`.
+
+> *NOTE: Older versions of OpenShift may require ```apiVersion: v1```*
+
+```yaml
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-nfs
+allowHostDirVolumePlugin: true
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities:
+- SYS_ADMIN
+- DAC_READ_SEARCH
+defaultAddCapabilities: null
+fsGroup:
+  type: MustRunAs
+priority: null
+readOnlyRootFilesystem: false
+requiredDropCapabilities:
+- KILL
+- MKNOD
+- SYS_CHROOT
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- secret
+users:
+  - system:serviceaccount:rook-nfs:rook-nfs-server
+```
+
+You can create scc with following command:
+
+```console
+oc create -f scc.yaml
+```
+
 ## Create and Initialize NFS Server
 
 Now that the operator is running, we can create an instance of a NFS server by creating an instance of the `nfsservers.nfs.rook.io` resource.
@@ -124,7 +175,6 @@ metadata:
   name: rook-nfs
   namespace: rook-nfs
 spec:
-  serviceAccountName: rook-nfs
   replicas: 1
   exports:
   - name: share1

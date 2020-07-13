@@ -84,6 +84,7 @@ func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
 					Labels:    newLabels(cr),
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName: "rook-nfs-server",
 					Containers: []corev1.Container{
 						{
 							ImagePullPolicy: "IfNotPresent",

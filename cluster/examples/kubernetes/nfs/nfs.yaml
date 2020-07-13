@@ -3,6 +3,12 @@ kind: Namespace
 metadata:
   name:  rook-nfs
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-nfs-server
+  namespace: rook-nfs
+---
 # A default storageclass must be present
 apiVersion: v1
 kind: PersistentVolumeClaim
