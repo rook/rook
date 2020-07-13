@@ -70,6 +70,15 @@ metadata:
   namespace: rook-ceph
 spec:
   zonegroup: zonegroup-a
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+  dataPool:
+    failureDomain: device
+    erasureCoded:
+      dataChunks: 6
+      codingChunks: 2
 ```
 
 ### Object Zone Settings
@@ -79,6 +88,12 @@ spec:
 * `name`: The name of the object zone to create
 * `namespace`: The namespace of the Rook cluster where the object zone is created.
 
+### Pools
+
+The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](ceph-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster.
+
 #### Spec
 
 * `zonegroup`: The object zonegroup in which the zone will be created. This matches the name of the object zone group CRD.
+* `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
+* `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.

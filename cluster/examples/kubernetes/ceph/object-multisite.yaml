@@ -26,13 +26,6 @@ metadata:
   namespace: rook-ceph
 spec:
   zoneGroup: zonegroup-a
----
-apiVersion: ceph.rook.io/v1
-kind: CephObjectStore
-metadata:
-  name: multisite-store
-  namespace: rook-ceph
-spec:
   metadataPool:
     failureDomain: host
     replicated:
@@ -44,7 +37,14 @@ spec:
       size: 1
       requireSafeReplicaSize: true
     compressionMode: none
-  preservePoolsOnDelete: false
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: multisite-store
+  namespace: rook-ceph
+spec:
+  preservePoolsOnDelete: true
   gateway:
     type: s3
     port: 80

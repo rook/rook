@@ -607,6 +607,12 @@ type CephObjectZoneList struct {
 type ObjectZoneSpec struct {
 	//The display name for the ceph users
 	ZoneGroup string `json:"zoneGroup"`
+
+	// The metadata pool settings
+	MetadataPool PoolSpec `json:"metadataPool"`
+
+	// The data pool settings
+	DataPool PoolSpec `json:"dataPool"`
 }
 
 // +genclient

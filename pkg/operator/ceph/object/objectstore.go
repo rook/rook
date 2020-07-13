@@ -459,9 +459,9 @@ func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) 
 	return nil
 }
 
-func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
-	if emptyPool(spec.DataPool) && emptyPool(spec.MetadataPool) {
-		logger.Info("no pools specified for the object store, checking for their existence...")
+func CreatePools(context *Context, metadataPool, dataPool cephv1.PoolSpec) error {
+	if emptyPool(dataPool) && emptyPool(metadataPool) {
+		logger.Info("no pools specified for the CR, checking for their existence...")
 		pools := append(metadataPools, dataPoolName)
 		pools = append(pools, rootPool)
 		var missingPools []string
@@ -474,7 +474,7 @@ func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 			}
 		}
 		if len(missingPools) > 0 {
-			return fmt.Errorf("object store pools are missing: %v", missingPools)
+			return fmt.Errorf("CR store pools are missing: %v", missingPools)
 		}
 	}
 
@@ -485,20 +485,20 @@ func createPools(context *Context, spec cephv1.ObjectStoreSpec) error {
 		metadataPoolPGs = ceph.DefaultPGCount
 	}
 
-	if err := createSimilarPools(context, append(metadataPools, rootPool), spec.MetadataPool, metadataPoolPGs, ""); err != nil {
+	if err := createSimilarPools(context, append(metadataPools, rootPool), metadataPool, metadataPoolPGs, ""); err != nil {
 		return errors.Wrap(err, "failed to create metadata pools")
 	}
 
 	ecProfileName := ""
-	if spec.DataPool.IsErasureCoded() {
+	if dataPool.IsErasureCoded() {
 		ecProfileName = client.GetErasureCodeProfileForPool(context.Name)
 		// create a new erasure code profile for the data pool
-		if err := ceph.CreateErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName, spec.DataPool); err != nil {
-			return errors.Wrapf(err, "failed to create erasure code profile for object store %s", context.Name)
+		if err := ceph.CreateErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName, dataPool); err != nil {
+			return errors.Wrap(err, "failed to create erasure code profile")
 		}
 	}
 
-	if err := createSimilarPools(context, []string{dataPoolName}, spec.DataPool, ceph.DefaultPGCount, ecProfileName); err != nil {
+	if err := createSimilarPools(context, []string{dataPoolName}, dataPool, ceph.DefaultPGCount, ecProfileName); err != nil {
 		return errors.Wrap(err, "failed to create data pool")
 	}
 

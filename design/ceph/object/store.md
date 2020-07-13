@@ -61,6 +61,8 @@ The pools are the backing data store for the object store and are created with s
 
 If `preservePoolsOnDelete` is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
 
+When `zone` is set to include the object-store in a ceph-object-zone, preservePoolsOnDelete **must** be set to true.
+
 ```yaml
   metadataPool:
     failureDomain: host
@@ -107,9 +109,12 @@ This section enables the the object store to be part of a specified ceph-object-
 
 Specifying this section also ensures that the pool section in the ceph-object-zone is used, not the pool section in the object-store.
 
+When `zone` is set to include the object-store in a ceph-object-zone, preservePoolsOnDelete **must** be set to true.
+
 - `name`: name of the [ceph-object-zone](/design/ceph/object/ceph-object-zone.md) the object store is in. This name must be of a ceph-object-zone resource not just of a zone that has been already created.
 
 ```yaml
+  preservePoolsOnDelete: true
   zone:
     name: "name"
 ```

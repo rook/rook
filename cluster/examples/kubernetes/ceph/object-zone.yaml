@@ -10,3 +10,10 @@ metadata:
   namespace: rook-ceph
 spec:
   zoneGroup: zonegroup-a
+  metadataPool:
+    replicated:
+      size: 1
+  dataPool:
+    replicated:
+      size: 1
+    compressionMode: none

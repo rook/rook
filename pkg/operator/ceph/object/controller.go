@@ -340,20 +340,23 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
 		}
 
-		// RECONCILE POOLS
-		logger.Info("reconciling object store pools")
-		err = createPools(objContext, cephObjectStore.Spec)
-		if err != nil {
-			return r.setFailedStatus(namespacedName, "failed to create object pools", err)
+		// Reconcile Pool Creation
+		if !cephObjectStore.Spec.IsMultisite() {
+			logger.Info("reconciling object store pools")
+			err = CreatePools(objContext, cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool)
+			if err != nil {
+				return r.setFailedStatus(namespacedName, "failed to create object pools", err)
+			}
 		}
 
-		// RECONCILE REALM
+		// Reconcile Multisite Creation
 		logger.Infof("setting multisite settings for object store %q", cephObjectStore.Name)
 		err = setMultisite(objContext, cephObjectStore.Spec, serviceIP, realmName, zoneGroupName, zoneName, cephObjectStore.Namespace)
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to configure multisite for object store", err)
 		}
 
+		// Create or Update Store
 		err = cfg.createOrUpdateStore(realmName, zoneGroupName, zoneName)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)

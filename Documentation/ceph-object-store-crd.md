@@ -79,11 +79,13 @@ spec:
 
 ### Pools
 
-The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](ceph-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster.
+The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](ceph-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster. 
+
+When the `zone` section is set pools with the object stores name will not be created since the object-store will the using the pools created by the ceph-object-zone. In this scenario, `preservePoolsOnDelete` must be set to true.
 
 * `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
 * `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.
-* `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
+* `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'. When the `zone` section is set this must be set to true.
 
 ## Gateway Settings
 
@@ -115,6 +117,8 @@ All the other settings from the gateway section will be ignored, except for `sec
 ## Zone Settings
 
 The [zone](ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-multisite-crd.md).
+
+When `zone` is set, the object-store will use the pools created by the ceph-object-zone. Also `preservePoolsOnDelete` must be set to true.
 
 * `name`: the name of the ceph-object-zone the object stores should be in.
 

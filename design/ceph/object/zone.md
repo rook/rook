@@ -147,7 +147,9 @@ The underlying schema for pools defined by a pool CRD is the same as the schema 
 All metadata pools are created with the same settings, while the data pool can be created with independent settings.
 The metadata pools must use replication, while the data pool can use replication or erasure coding.
 
-`preservePoolsOnDelete`, if it is set to 'true', ensures the pools used to support the zone will remain when the ceph-object-zone will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'true' by default. If not specified is also deemed as 'true'.
+When the ceph-object-zone is deleted the pools used to support the zone will remain just like the zone. This is a security measure to avoid accidental loss of data.
+
+Just like deleting the zone intself, removing the pools must be done by hand through the toolbox.
 
 ```yaml
   metadataPool:
@@ -159,5 +161,4 @@ The metadata pools must use replication, while the data pool can use replication
     erasureCoded:
       dataChunks: 6
       codingChunks: 2
-  preservePoolsOnDelete: True
 ```

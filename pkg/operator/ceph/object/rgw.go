@@ -347,6 +347,10 @@ func (r *ReconcileCephObjectStore) validateStore(s *cephv1.CephObjectStore) erro
 		}
 	}
 
+	if s.Spec.IsMultisite() && !s.Spec.PreservePoolsOnDelete {
+		return errors.New("preservePoolsOnDelete must be true when zone is set")
+	}
+
 	return nil
 }
 

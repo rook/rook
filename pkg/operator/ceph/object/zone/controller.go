@@ -39,6 +39,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -166,7 +167,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// validate the zone settings
-	err = validateZoneCR(cephObjectZone)
+	err = r.validateZoneCR(cephObjectZone)
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid CephObjectZone CR %q", cephObjectZone.Name)
@@ -185,6 +186,14 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	reconcileResponse, err = r.reconcileCephZoneGroup(cephObjectZone, realmName)
 	if err != nil {
 		return reconcileResponse, err
+	}
+
+	// RECONCILE POOLS
+	logger.Info("reconciling object zone pools")
+	objContext := object.NewContext(r.context, cephObjectZone.Name, cephObjectZone.Namespace)
+	err = object.CreatePools(objContext, cephObjectZone.Spec.MetadataPool, cephObjectZone.Spec.DataPool)
+	if err != nil {
+		return r.setFailedStatus(request.NamespacedName, "failed to create zone pools", err)
 	}
 
 	// Create Ceph Zone
@@ -290,6 +299,26 @@ func (r *ReconcileObjectZone) reconcileCephZoneGroup(zone *cephv1.CephObjectZone
 
 	logger.Infof("Zone group %q found in Ceph cluster to create ceph zone %q", zone.Spec.ZoneGroup, zone.Name)
 	return reconcile.Result{}, nil
+}
+
+// validateZoneCR validates the zone arguments
+func (r *ReconcileObjectZone) validateZoneCR(u *cephv1.CephObjectZone) error {
+	if u.Name == "" {
+		return errors.New("missing name")
+	}
+	if u.Namespace == "" {
+		return errors.New("missing namespace")
+	}
+	if u.Spec.ZoneGroup == "" {
+		return errors.New("missing zonegroup")
+	}
+	if err := pool.ValidatePoolSpec(r.context, u.Namespace, &u.Spec.MetadataPool); err != nil {
+		return errors.Wrap(err, "invalid metadata pool spec")
+	}
+	if err := pool.ValidatePoolSpec(r.context, u.Namespace, &u.Spec.DataPool); err != nil {
+		return errors.Wrap(err, "invalid data pool spec")
+	}
+	return nil
 }
 
 func (r *ReconcileObjectZone) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {

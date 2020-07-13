@@ -43,7 +43,9 @@ kubectl create -f object-multisite.yaml
 
 The first zone group created in a realm is the master zone group. The first zone created in a zone group is the master zone.
 
-When one of the multisite CRs (realm, zone group, zone) is deleted the underlying ceph realm/zone group/zone is not deleted. This must be done manually (see next section).
+The zone will create the pools for the object-store(s) that are in the zone to use.
+
+When one of the multisite CRs (realm, zone group, zone) is deleted the underlying ceph realm/zone group/zone is not deleted, neither are the pools created by the zone. This must be done manually (see next section).
 
 For more information on the multisite CRDs please read [ceph-object-multisite-crd](ceph-object-multisite-crd.md).
 
@@ -123,4 +125,27 @@ radosgw-admin zonegroup rm --rgw-realm=realm-a --rgw-zone-group=zone-group-a --r
 radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
 radosgw-admin zone rm --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
 radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
+```
+
+When a zone is deleted, the pools for that zone are not deleted.
+
+### Deleting Pools for a Zone
+
+The Rook toolbox can delete pools. Deleting pools should be done with caution.
+
+If you do intend to deletepools you should read the following [documentation](https://docs.ceph.com/docs/master/rados/operations/pools/) on pools first.
+
+When a zone is created the following pools are created for each zone:
+```console
+$ZONE_NAME.rgw.control
+$ZONE_NAME.rgw.meta
+$ZONE_NAME.rgw.log
+$ZONE_NAME.rgw.buckets.index
+$ZONE_NAME.rgw.buckets.non-ec
+$ZONE_NAME.rgw.buckets.data
+```
+Here is an example command to delete the .rgw.buckets.data pool for zone-a.
+
+```console
+ceph osd pool rm zone-a.rgw.buckets.data zone-a.rgw.buckets.data --yes-i-really-really-mean-it
 ```
