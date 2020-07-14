@@ -18,6 +18,8 @@ package integration
 import (
 	"testing"
 
+	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -90,7 +92,8 @@ func (hs *HelmSuite) TearDownSuite() {
 func (hs *HelmSuite) deletePools() {
 	// create a test pool in each cluster so that we get some PGs
 	logger.Infof("Deleting pool %s", hs.poolName)
-	if err := hs.testClient.PoolClient.DeletePool(hs.testClient.BlockClient, hs.namespace1, hs.poolName); err != nil {
+	clusterInfo := client.AdminClusterInfo(hs.namespace1)
+	if err := hs.testClient.PoolClient.DeletePool(hs.testClient.BlockClient, clusterInfo, hs.poolName); err != nil {
 		logger.Errorf("failed to delete pool %q. %v", hs.poolName, err)
 	} else {
 		logger.Infof("deleted pool %q", hs.poolName)
