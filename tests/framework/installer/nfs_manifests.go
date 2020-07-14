@@ -510,6 +510,12 @@ spec:
 func (i *NFSManifests) GetNFSServer(namespace string, count int, storageClassName string) string {
 	return `
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-nfs-server
+  namespace: ` + namespace + `
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: test-claim
