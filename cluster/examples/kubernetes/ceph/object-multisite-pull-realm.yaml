@@ -2,25 +2,40 @@
 # Create an object store with settings for a test environment. Only a single OSD is required in this example.
 #  kubectl create -f object-multisite.yaml
 #################################################################################################################
+apiVersion: v1
+kind: Secret
+metadata:
+  name: realm-a-keys
+  namespace: myceph
+data:
+  # TODO: Replace with keys for your cluster
+  # these keys should be the base64 encoded versions of the actual keys or copied from the realm's on the other cluster's secret
+  access-key: VzFjNFltMVdWRTFJWWxZelZWQT0=
+  secret-key: WVY1MFIxeExkbG84U3pKdlRseEZXVGR3T3k1U1dUSS9KaTFoUVE9PQ==
+---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectRealm
 metadata:
   name: realm-a
-  namespace: rook-ceph
+  namespace: new-rook-ceph-namespace
+spec:
+  # This endpoint in this section needs is an endpoint from the master zone in the master zone group of realm-a. See object-multisite.md for more details.
+  pull:
+    endpoint: http://10.103.133.16:80
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectZoneGroup
 metadata:
   name: zonegroup-a
-  namespace: rook-ceph
+  namespace: new-rook-ceph-namespace
 spec:
   realm: realm-a
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectZone
 metadata:
-  name: zone-a
-  namespace: rook-ceph
+  name: zone-b
+  namespace: new-rook-ceph-namespace
 spec:
   zoneGroup: zonegroup-a
   metadataPool:
@@ -33,13 +48,12 @@ spec:
     replicated:
       size: 1
       requireSafeReplicaSize: true
-    compressionMode: none
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
-  name: multisite-store
-  namespace: rook-ceph
+  name: zone-b-multisite-store
+  namespace: new-rook-ceph-namespace
 spec:
   gateway:
     type: s3
@@ -47,4 +61,4 @@ spec:
     securePort:
     instances: 1
   zone:
-    name: zone-a
+    name: zone-b

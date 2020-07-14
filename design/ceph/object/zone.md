@@ -136,6 +136,15 @@ metadata:
   namespace: rook-ceph
 spec:
   zoneGroup: zone-group-b
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+  dataPool:
+    failureDomain: device
+    erasureCoded:
+      dataChunks: 6
+      codingChunks: 2
 ```
 
 ### Pools
@@ -149,7 +158,7 @@ The metadata pools must use replication, while the data pool can use replication
 
 When the ceph-object-zone is deleted the pools used to support the zone will remain just like the zone. This is a security measure to avoid accidental loss of data.
 
-Just like deleting the zone intself, removing the pools must be done by hand through the toolbox.
+Just like deleting the zone itself, removing the pools must be done by hand through the toolbox.
 
 ```yaml
   metadataPool:

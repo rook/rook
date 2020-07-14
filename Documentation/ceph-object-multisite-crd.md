@@ -20,6 +20,10 @@ kind: CephObjectRealm
 metadata:
   name: realm-a
   namespace: rook-ceph
+# This endpoint in this section needs is an endpoint from the master zone  in the master zone group of realm-a. See object-multisite.md for more details.
+spec:
+  pull:
+    endpoint: http://10.2.105.133:80
 ```
 
 ### Object Realm Settings
@@ -28,6 +32,11 @@ metadata:
 
 * `name`: The name of the object realm to create
 * `namespace`: The namespace of the Rook cluster where the object realm is created.
+
+#### Spec
+
+* `pull`: This optional section is for the pulling the realm for another ceph cluster.
+  * `endpoint`: The endpoint in the realm from another ceph cluster you want to pull from. This endpoint must be in the master zone of the master zone group of the realm.
 
 ## Ceph Object Zone Group CRD
 
@@ -75,10 +84,10 @@ spec:
     replicated:
       size: 3
   dataPool:
-    failureDomain: device
+    failureDomain: osd
     erasureCoded:
-      dataChunks: 6
-      codingChunks: 2
+      dataChunks: 2
+      codingChunks: 1
 ```
 
 ### Object Zone Settings
