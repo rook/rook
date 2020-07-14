@@ -284,11 +284,11 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		// drop policy if present
 		if policy != nil {
 			policy = policy.DropPolicyStatements(p.cephUserName)
-			output, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+			_, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
 			if err != nil {
 				return err
 			}
-			logger.Infof("principal %q ejected from bucket %q policy. Output: %v", p.cephUserName, p.bucketName, output)
+			logger.Infof("principal %q ejected from bucket %q policy", p.cephUserName, p.bucketName)
 		}
 	}
 
