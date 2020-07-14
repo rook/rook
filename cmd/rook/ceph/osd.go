@@ -19,8 +19,6 @@ package ceph
 import (
 	"encoding/json"
 	"os"
-	"strconv"
-	"strings"
 
 	"k8s.io/client-go/kubernetes"
 
@@ -264,41 +262,28 @@ func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]stri
 	oposd.UpdateLocationWithNodeLabels(location, nodeLabels)
 }
 
-// Parse the devices, which are comma separated. A colon indicates a non-default number of osds per device
-// or a non collocated metadata device.
-// For example, one osd will be created on each of sda and sdb, with 5 osds on the nvme01 device.
-//   sda:1:::,sdb:1:::,nvme01:5:::
-// For example, 3 osds will use sdb SSD for db and 3 osds will use sdc SSD for db.
-//   sdd:1:::sdb,sde:1:::sdb,sdf:1:::sdb,sdg:1:::sdc,sdh:1:::sdc,sdi:1:::sdc
+// Parse the devices, which are sent as a JSON-marshalled list of device IDs with a StorageConfig spec
 func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
+	configuredDevices := []osdcfg.ConfiguredDevice{}
+	err := json.Unmarshal([]byte(devices), &configuredDevices)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to JSON unmarshal configured devices (%q)", devices)
+	}
+
 	var result []osddaemon.DesiredDevice
-	parsed := strings.Split(devices, ",")
-	for _, device := range parsed {
-		parts := strings.Split(device, ":")
-		d := osddaemon.DesiredDevice{Name: parts[0], OSDsPerDevice: 1}
-		if len(parts) > 1 {
-			count, err := strconv.Atoi(parts[1])
-			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing count from devices (%q)", devices)
-			}
-			if count < 1 {
-				return nil, errors.Errorf("osds per device should be greater than 0 (%q)", parts[1])
-			}
-			d.OSDsPerDevice = count
+	for _, cd := range configuredDevices {
+		d := osddaemon.DesiredDevice{
+			Name: cd.ID,
 		}
-		if len(parts) > 2 && parts[2] != "" {
-			size, err := strconv.Atoi(parts[2])
-			if err != nil {
-				return nil, errors.Wrapf(err, "error DatabaseSizeMB (%q) to int", parts[2])
-			}
-			d.DatabaseSizeMB = size
+		d.OSDsPerDevice = cd.StoreConfig.OSDsPerDevice
+		d.DatabaseSizeMB = cd.StoreConfig.DatabaseSizeMB
+		d.DeviceClass = cd.StoreConfig.DeviceClass
+		d.MetadataDevice = cd.StoreConfig.MetadataDevice
+
+		if d.OSDsPerDevice < 1 {
+			return nil, errors.Errorf("osds per device should be greater than 0 (%q)", d.OSDsPerDevice)
 		}
-		if len(parts) > 3 && parts[3] != "" {
-			d.DeviceClass = parts[3]
-		}
-		if len(parts) > 4 {
-			d.MetadataDevice = parts[4]
-		}
+
 		result = append(result, d)
 	}
 

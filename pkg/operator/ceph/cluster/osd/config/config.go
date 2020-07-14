@@ -47,17 +47,27 @@ const (
 	DeviceClassKey     = "deviceClass"
 )
 
+// StoreConfig represents the configuration of an OSD on a device.
 type StoreConfig struct {
 	StoreType       string `json:"storeType,omitempty"`
 	WalSizeMB       int    `json:"walSizeMB,omitempty"`
 	DatabaseSizeMB  int    `json:"databaseSizeMB,omitempty"`
 	OSDsPerDevice   int    `json:"osdsPerDevice,omitempty"`
 	EncryptedDevice bool   `json:"encryptedDevice,omitempty"`
+	MetadataDevice  string `json:"metadataDevice,omitempty"`
 	DeviceClass     string `json:"deviceClass,omitempty"`
 }
 
+// NewStoreConfig returns a StoreConfig with proper defaults set.
+func NewStoreConfig() StoreConfig {
+	return StoreConfig{
+		OSDsPerDevice: 1,
+	}
+}
+
+// ToStoreConfig converts a config string-string map to a StoreConfig.
 func ToStoreConfig(config map[string]string) StoreConfig {
-	storeConfig := StoreConfig{}
+	storeConfig := NewStoreConfig()
 	for k, v := range config {
 		switch k {
 		case StoreTypeKey:
@@ -67,9 +77,14 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 		case DatabaseSizeMBKey:
 			storeConfig.DatabaseSizeMB = convertToIntIgnoreErr(v)
 		case OSDsPerDeviceKey:
-			storeConfig.OSDsPerDevice = convertToIntIgnoreErr(v)
+			i := convertToIntIgnoreErr(v)
+			if i > 0 { // only allow values 1 or more to be set
+				storeConfig.OSDsPerDevice = i
+			}
 		case EncryptedDeviceKey:
 			storeConfig.EncryptedDevice = (v == "true")
+		case MetadataDeviceKey:
+			storeConfig.MetadataDevice = v
 		case DeviceClassKey:
 			storeConfig.DeviceClass = v
 		}
@@ -104,3 +119,9 @@ type DriveGroupBlob string
 
 // DriveGroupBlobs is a mapping from Ceph Drive Group names to JSON blobs of Drive Group specs.
 type DriveGroupBlobs map[string]string
+
+// ConfiguredDevice is a device with a corresponding configuration.
+type ConfiguredDevice struct {
+	ID          string      `json:"id"`
+	StoreConfig StoreConfig `json:"storeConfig"`
+}
