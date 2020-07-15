@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephclientset "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
@@ -100,9 +99,9 @@ func getCephUser(ob *bktv1alpha1.ObjectBucket) string {
 	return ob.Spec.AdditionalState[cephUser]
 }
 
-func getObjectStore(c cephclientset.CephV1Interface, namespace, name string) (*cephv1.CephObjectStore, error) {
+func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
 	// Verify the object store API object actually exists
-	store, err := c.CephObjectStores(namespace).Get(name, metav1.GetOptions{})
+	store, err := p.context.RookClientset.CephV1().CephObjectStores(p.clusterInfo.Namespace).Get(p.objectStoreName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "cephObjectStore not found")

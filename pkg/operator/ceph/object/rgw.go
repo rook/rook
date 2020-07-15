@@ -277,8 +277,14 @@ func (c *clusterConfig) deleteStore() error {
 		}
 
 		// Delete the realm and pools
-		objContext := NewContext(c.context, c.clusterInfo, c.store.Name)
-		err := deleteRealmAndPools(objContext, c.store.Spec)
+		objContext, err := NewMultisiteContext(c.context, c.clusterInfo, c.store)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set multisite on object store %q", c.store.Name)
+		}
+
+		objContext.Endpoint = c.store.Status.Info["endpoint"]
+
+		err = deleteRealmAndPools(objContext, c.store.Spec)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete the realm and pools")
 		}
@@ -345,10 +351,6 @@ func (r *ReconcileCephObjectStore) validateStore(s *cephv1.CephObjectStore) erro
 		if len(s.Spec.Gateway.ExternalRgwEndpoints) == 0 {
 			return errors.New("ceph cluster is external but externalRgwEndpoints list is empty")
 		}
-	}
-
-	if s.Spec.IsMultisite() && !s.Spec.PreservePoolsOnDelete {
-		return errors.New("preservePoolsOnDelete must be true when zone is set")
 	}
 
 	return nil

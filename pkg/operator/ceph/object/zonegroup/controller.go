@@ -208,7 +208,7 @@ func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObj
 	objContext := object.NewContext(r.context, r.clusterInfo, zoneGroup.Name)
 
 	// get period to see if master zone group exists yet
-	output, err := object.RunAdminCommandNoRealm(objContext, "period", "get", realmArg)
+	output, err := object.RunAdminCommandNoMultisite(objContext, "period", "get", realmArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			return reconcile.Result{}, errors.Wrapf(err, "ceph period %q not found", zoneGroup.Spec.Realm)
@@ -229,24 +229,31 @@ func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObj
 	}
 
 	// create zone group
-	_, err = object.RunAdminCommandNoRealm(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
-	if err != nil {
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			logger.Debugf("ceph zone group %q not found, running `radosgw-admin zonegroup create`", zoneGroup.Name)
+	output, err = object.RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	if err == nil {
+		return reconcile.Result{}, nil
+	}
 
-			if zoneGroupIsMaster {
-				masterArg := "--master"
-				_, err = object.RunAdminCommandNoRealm(objContext, "zonegroup", "create", realmArg, zoneGroupArg, masterArg)
-			} else {
-				_, err = object.RunAdminCommandNoRealm(objContext, "zonegroup", "create", realmArg, zoneGroupArg)
-			}
-
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph zone group %q", zoneGroup.Name)
-			}
-		} else {
-			return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d", code)
+	if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+		logger.Debugf("ceph zone group %q not found, running `radosgw-admin zonegroup create`", zoneGroup.Name)
+		args := []string{
+			"zonegroup",
+			"create",
+			realmArg,
+			zoneGroupArg,
 		}
+
+		if zoneGroupIsMaster {
+			// master zone group does not exist yet for realm
+			args = append(args, "--master")
+		}
+
+		output, err = object.RunAdminCommandNoMultisite(objContext, args...)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph zone group %q for reason %q", zoneGroup.Name, output)
+		}
+	} else {
+		return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d for reason %q", code, output)
 	}
 
 	return reconcile.Result{}, nil
@@ -270,7 +277,7 @@ func (r *ReconcileObjectZoneGroup) reconcileCephRealm(zoneGroup *cephv1.CephObje
 	realmArg := fmt.Sprintf("--rgw-realm=%s", zoneGroup.Spec.Realm)
 	objContext := object.NewContext(r.context, r.clusterInfo, zoneGroup.Name)
 
-	_, err := object.RunAdminCommandNoRealm(objContext, "realm", "get", realmArg)
+	_, err := object.RunAdminCommandNoMultisite(objContext, "realm", "get", realmArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			return waitForRequeueIfObjectRealmNotReady, errors.Wrapf(err, "ceph realm %q not found", zoneGroup.Spec.Realm)
