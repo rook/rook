@@ -80,9 +80,8 @@ internal `Go` spec for a drive group is given below.
 // DriveGroups is a map of Drive Group names to Drive Group specifications.
 type DriveGroups map[string]DriveGroupSpec
 
-// DriveGroupSpec is a mapping from keys to values
-// Rook must use the "host_pattern" key to determine the host on which to run the Drive Group
-type DriveGroupSpec map[string]interface{}
+// DriveGroupSpec is a YAML or JSON parsable spec.
+type DriveGroupSpec interface{}
 ```
 
 `ceph-volume` feature request #1 will be used here to allow Rook to pass along the Drive Group YAML

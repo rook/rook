@@ -570,13 +570,18 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		return nil, errors.New("empty volumes")
 	}
 
+	provisionContainer, err := c.provisionOSDContainer(osdProps, copyBinariesContainer.VolumeMounts[0], provisionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate OSD provisioning container")
+	}
+
 	podSpec := v1.PodSpec{
 		ServiceAccountName: serviceAccountName,
 		InitContainers: []v1.Container{
 			*copyBinariesContainer,
 		},
 		Containers: []v1.Container{
-			c.provisionOSDContainer(osdProps, copyBinariesContainer.VolumeMounts[0], provisionConfig),
+			provisionContainer,
 		},
 		RestartPolicy:     restart,
 		Volumes:           volumes,
@@ -814,11 +819,28 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 	return envVars
 }
 
-func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMount v1.VolumeMount, provisionConfig *provisionConfig) v1.Container {
+func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMount v1.VolumeMount, provisionConfig *provisionConfig) (v1.Container, error) {
 	envVars := c.getConfigEnvVars(osdProps, k8sutil.DataDir)
 
 	// enable debug logging in the prepare job
 	envVars = append(envVars, setDebugLogLevelEnvVar(true))
+
+	// Drive Groups cannot be used to configure OSDs on PVCs, so ignore if this is a PVC config
+	// This shouldn't ever happen, but do the PVC check to be sure
+	if len(osdProps.driveGroups) > 0 && !osdProps.onPVC() {
+		v, err := c.getDriveGroupEnvVar(osdProps)
+		if err != nil {
+			// Because OSD creation via drive groups should take precedent over other types of drive
+			// creation, if there is an error here, we should fail. Allowing OSD creation to proceed
+			// without drive group information could result in OSD configs being created which the
+			// user does not want.
+			return v1.Container{}, errors.Wrapf(err, "failed to get drive group info for OSD provisioning container")
+		}
+		// An env var with no name means there are no groups, don't add the var
+		if v.Name != "" {
+			envVars = append(envVars, v)
+		}
+	}
 
 	// only 1 of device list, device filter, device path filter and use all devices can be specified.  We prioritize in that order.
 	if len(osdProps.devices) > 0 {
@@ -911,7 +933,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		Resources: c.prepareResources,
 	}
 
-	return osdProvisionContainer
+	return osdProvisionContainer, nil
 }
 
 func getPvcOSDBridgeMount(claimName string) v1.VolumeMount {
@@ -983,8 +1005,24 @@ func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
 	return volumes
 }
 
+func (c *Cluster) getDriveGroupEnvVar(osdProps osdProperties) (v1.EnvVar, error) {
+	if len(osdProps.driveGroups) == 0 {
+		return v1.EnvVar{}, nil
+	}
+
+	b, err := MarshalAsDriveGroupBlobs(osdProps.driveGroups)
+	if err != nil {
+		return v1.EnvVar{}, errors.Wrap(err, "failed to marshal drive groups into an env var")
+	}
+	return driveGroupsEnvVar(b), nil
+}
+
 func nodeNameEnvVar(name string) v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_NODE_NAME", Value: name}
+}
+
+func driveGroupsEnvVar(driveGroups string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOK_DRIVE_GROUPS", Value: driveGroups}
 }
 
 func dataDevicesEnvVar(dataDevices string) v1.EnvVar {

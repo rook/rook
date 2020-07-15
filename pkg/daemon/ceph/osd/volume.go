@@ -724,3 +724,32 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterName string, cephfsi
 
 	return osds, nil
 }
+
+func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
+	// Use stdbuf to capture the python output buffer such that we can write to the pod log as the
+	// logging happens instead of using the default buffering that will log everything after
+	// ceph-volume exits
+	baseCommand := "stdbuf"
+
+	// Send the log to a temp location that isn't persisted to disk so that we can print out the
+	// failure log later without also printing out past failures
+	// TODO: does this mess up expectations from the ceph log collector daemon?
+	logPath := "/tmp/ceph-log"
+	os.MkdirAll(logPath, 0644)
+	baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath}
+
+	co, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, append(baseArgs, args...)...)
+	if err != nil {
+		// Print c-v log before exiting with failure
+		cvLog := readCVLogContent("/tmp/ceph-log/ceph-volume.log")
+		logger.Errorf("%s", co)
+		if cvLog != "" {
+			logger.Errorf("%s", cvLog)
+		}
+
+		return "", errors.Wrapf(err, "failed ceph-volume call (see ceph-volume log above for more details)")
+	}
+	logger.Debugf("%v", co)
+
+	return co, nil
+}

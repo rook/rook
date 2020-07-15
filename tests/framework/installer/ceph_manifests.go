@@ -221,6 +221,18 @@ spec:
                 deviceFilter: {}
                 config: {}
                 storageClassDeviceSets: {}
+            driveGroups:
+              type: array
+              nullable: true
+              items:
+                properties:
+                  name:
+                    type: string
+                  spec: {}
+                  placement: {}
+                required:
+                - name
+                - spec
             monitoring:
               properties:
                 enabled:

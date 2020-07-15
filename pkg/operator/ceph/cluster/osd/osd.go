@@ -85,6 +85,7 @@ type Cluster struct {
 	cephVersion                                cephv1.CephVersionSpec
 	DesiredStorage                             rookv1.StorageScopeSpec // user-defined storage scope spec
 	ValidStorage                               rookv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
+	DriveGroups                                cephv1.DriveGroupsSpec
 	dataDirHostPath                            string
 	Network                                    cephv1.NetworkSpec
 	resources                                  v1.ResourceRequirements
@@ -105,6 +106,7 @@ func New(
 	rookVersion string,
 	cephVersion cephv1.CephVersionSpec,
 	storageSpec rookv1.StorageScopeSpec,
+	driveGroups cephv1.DriveGroupsSpec,
 	dataDirHostPath string,
 	placement rookv1.Placement,
 	annotations rookv1.Annotations,
@@ -126,6 +128,7 @@ func New(
 		rookVersion:       rookVersion,
 		cephVersion:       cephVersion,
 		DesiredStorage:    storageSpec,
+		DriveGroups:       driveGroups,
 		dataDirHostPath:   dataDirHostPath,
 		Network:           network,
 		resources:         resources,
@@ -180,6 +183,9 @@ type osdProperties struct {
 	tuneSlowDeviceClass bool
 	schedulerName       string
 	crushDeviceClass    string
+
+	// Drive Groups which apply to the node
+	driveGroups cephv1.DriveGroupsSpec
 }
 
 func (osdProps osdProperties) onPVC() bool {
@@ -201,8 +207,8 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
-	if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 && len(c.DesiredStorage.VolumeSources) == 0 && len(c.DesiredStorage.StorageClassDeviceSets) == 0 {
-		logger.Warningf("useAllNodes is set to false and no nodes, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
+	if c.DesiredStorage.UseAllNodes == false && len(c.DesiredStorage.Nodes) == 0 && len(c.DesiredStorage.VolumeSources) == 0 && len(c.DesiredStorage.StorageClassDeviceSets) == 0 && len(c.DriveGroups) == 0 {
+		logger.Warningf("useAllNodes is set to false and no nodes, Drive Groups, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
 	}
 
 	// start the jobs to provision the OSD devices
@@ -334,6 +340,22 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 		return
 	}
 
+	// Only provision nodes with either the 'storage' config or the 'driveGroups'; not both
+	// If Drive Groups are configured, always use those
+	// This should not apply to OSDs on PVCs; those can be configured alongside Drive Groups
+	if len(c.DriveGroups) > 0 {
+		c.startNodeDriveGroupProvisioners(config)
+	} else {
+		c.startNodeStorageProvisioners(config)
+	}
+
+	logger.Infof("start osds after provisioning is completed, if needed")
+	c.completeProvision(config)
+}
+
+func (c *Cluster) startNodeStorageProvisioners(config *provisionConfig) {
+	logger.Debug("starting provisioning on nodes using storage config")
+
 	if c.DesiredStorage.UseAllNodes {
 		if len(c.DesiredStorage.Nodes) > 0 {
 			logger.Warningf("useAllNodes is TRUE, but nodes are specified. NODES in the cluster CR will be IGNORED unless useAllNodes is FALSE.")
@@ -382,10 +404,6 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 			continue
 		}
 
-		// update the orchestration status of this node to the starting state
-		status := OrchestrationStatus{Status: OrchestrationStatusStarting}
-		c.updateOSDStatus(n.Name, status)
-
 		// create the job that prepares osds on the node
 		storeConfig := osdconfig.ToStoreConfig(n.Config)
 		metadataDevice := osdconfig.MetadataDevice(n.Config)
@@ -397,21 +415,84 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 			storeConfig:    storeConfig,
 			metadataDevice: metadataDevice,
 		}
-		job, err := c.makeJob(osdProps, config)
+		c.makeAndRunJob(n.Name, "provision", osdProps, config)
+	}
+}
+
+func (c *Cluster) startNodeDriveGroupProvisioners(config *provisionConfig) {
+	logger.Debug("starting provisioning on nodes using Drive Groups config")
+
+	if c.DesiredStorage.UseAllNodes {
+		logger.Warningf("The user has specified useAllNodes=true in the storage config. This will be ignored because driveGroups are configured.")
+	}
+	if len(c.DesiredStorage.Nodes) > 0 {
+		logger.Warningf("The user has specified nodes in the storage config. This will be ignored because driveGroups are configured.")
+	}
+
+	nodes, err := c.context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err != nil {
+		config.addError("failed to get all nodes: %v", err)
+		return
+	}
+
+	// With Drive Groups, we effectively treat it as though the user has specified
+	// 'useAllNodes: true` because we want the Drive Groups' placements to determine whether the
+	// DGroups are configured on a node
+	c.DesiredStorage.Nodes = nil
+
+	sanitizedDGs := SanitizeDriveGroups(c.DriveGroups)
+
+	// Drive Groups should considered on every node in the k8s cluster; each drive group's
+	// 'placement' should be the selector for placement across all of K8s' nodes and not be affected
+	// by node selections in the 'storage' config
+	for _, n := range nodes.Items {
+		normalizedHostname := k8sutil.GetNormalizedHostname(n)
+		storageNode := rookv1.Node{
+			Name: normalizedHostname,
+		}
+		c.DesiredStorage.Nodes = append(c.DesiredStorage.Nodes, storageNode)
+
+		groups, err := DriveGroupsWithPlacementMatchingNode(sanitizedDGs, &n)
 		if err != nil {
-			message := fmt.Sprintf("failed to create prepare job node %q. %v", n.Name, err)
-			config.addError(message)
-			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-			c.updateOSDStatus(n.Name, status)
+			config.addError("failed to determine drive groups with placement matching node %q (hostname: %q): %+v", n.Name, normalizedHostname, err)
+			continue
 		}
 
-		if !c.runJob(job, n.Name, config, "provision") {
-			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning on node %s", n.Name)}
-			c.updateOSDStatus(n.Name, status)
+		if len(groups) == 0 {
+			logger.Debugf("skipping drive group provisioning on node %q (hostname: %q). no drive groups match node or node is not ready/schedulable", n.Name, normalizedHostname)
+			continue
 		}
+
+		osdProps := osdProperties{
+			crushHostname: normalizedHostname,
+			driveGroups:   groups,
+		}
+		c.makeAndRunJob(normalizedHostname, "provision drive groups", osdProps, config)
 	}
-	logger.Infof("start osds after provisioning is completed, if needed")
-	c.completeProvision(config)
+
+	// With Drive Groups, any node *could* be valid, and we need to do this so nodes resolve when
+	// starting OSD daemons. Each DGroup's individual placement will determine if the group is valid
+	// for a given node.
+	c.ValidStorage = *c.DesiredStorage.DeepCopy()
+}
+
+func (c *Cluster) makeAndRunJob(nodeName, action string, osdProps osdProperties, config *provisionConfig) {
+	// update the orchestration status of this node to the starting state
+	status := OrchestrationStatus{Status: OrchestrationStatusStarting}
+	c.updateOSDStatus(nodeName, status)
+
+	job, err := c.makeJob(osdProps, config)
+	if err != nil {
+		message := fmt.Sprintf("failed to create OSD %s job for node %q. %v", action, nodeName, err)
+		config.addError(message)
+		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
+		c.updateOSDStatus(nodeName, status)
+	}
+
+	if !c.runJob(job, nodeName, config, action) {
+		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd %s job on node %s", action, nodeName)}
+		c.updateOSDStatus(nodeName, status)
+	}
 }
 
 func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
