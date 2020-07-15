@@ -503,8 +503,13 @@ type BucketStatus struct {
 type CephObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              ObjectStoreUserSpec `json:"spec"`
-	Status            *Status             `json:"status"`
+	Spec              ObjectStoreUserSpec    `json:"spec"`
+	Status            *ObjectStoreUserStatus `json:"status"`
+}
+
+type ObjectStoreUserStatus struct {
+	Phase string            `json:"phase,omitempty"`
+	Info  map[string]string `json:"info"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

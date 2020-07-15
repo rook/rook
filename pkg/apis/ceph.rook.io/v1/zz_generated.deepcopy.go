@@ -561,7 +561,7 @@ func (in *CephObjectStoreUser) DeepCopyInto(out *CephObjectStoreUser) {
 	out.Spec = in.Spec
 	if in.Status != nil {
 		in, out := &in.Status, &out.Status
-		*out = new(Status)
+		*out = new(ObjectStoreUserStatus)
 		**out = **in
 	}
 	return
