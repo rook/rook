@@ -45,6 +45,11 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
 	cluster.Info = mon.PopulateExternalClusterInfo(c.context, c.namespacedName.Namespace)
+	if cluster.Info == nil {
+		err := errors.New("Unable to retrieve a valid cluster info")
+		logger.Errorf("Error: %+v", err)
+		return err
+	}
 
 	// If the user to check the ceph health and status is not the admin,
 	// we validate that ExternalCred has been populated correctly,
@@ -173,6 +178,9 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
 }
 
 func validateExternalClusterSpec(cluster *cluster) error {
+	if cluster == nil {
+		return errors.New("A 'nil' cluster provided")
+	}
 	if cluster.Spec.CephVersion.Image != "" {
 		if cluster.Spec.DataDirHostPath == "" {
 			return errors.New("dataDirHostPath must be specified")
