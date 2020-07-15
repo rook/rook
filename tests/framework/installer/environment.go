@@ -42,7 +42,8 @@ func testStorageProvider() string {
 
 // TestIsOfficialBuild gets the storage provider for which tests should be run
 func TestIsOfficialBuild() bool {
-	return getEnvVarWithDefault("TEST_IS_OFFICIAL_BUILD", "") == "true"
+	// PRs will set this to "false", but the official build will not set it, so we compare against "false"
+	return getEnvVarWithDefault("TEST_IS_OFFICIAL_BUILD", "") != "false"
 }
 
 // baseTestDir gets the base test directory

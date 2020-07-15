@@ -49,8 +49,6 @@ func TestCephMgrSuite(t *testing.T) {
 	if installer.TestIsOfficialBuild() {
 		t.Skip()
 	}
-	logger.Info("TEMPORARILY disable the test while there is an issue in ceph master")
-	t.Skip()
 
 	s := new(CephMgrSuite)
 	defer func(s *CephMgrSuite) {
