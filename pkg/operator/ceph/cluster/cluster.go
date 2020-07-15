@@ -100,8 +100,9 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 	job := versionReporter.Job()
 	job.Spec.Template.Spec.ServiceAccountName = "rook-ceph-cmd-reporter"
 
-	// Apply the same node selector and tolerations for the ceph version detection as the mon daemons
+	// Apply the same placement for the ceph version detection as the mon daemons except for PodAntiAffinity
 	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)
+	job.Spec.Template.Spec.Affinity.PodAntiAffinity = nil
 
 	stdout, stderr, retcode, err := versionReporter.Run(timeout)
 	if err != nil {
