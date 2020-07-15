@@ -190,7 +190,6 @@ func (c *Cluster) Start() error {
 func (c *Cluster) configureModules(daemonIDs []string) {
 	// Configure the modules asynchronously so we can complete all the configuration much sooner.
 	startModuleConfiguration("http bind settings", c.clearHTTPBindFix)
-	startModuleConfiguration("orchestrator modules", c.configureOrchestratorModules)
 	startModuleConfiguration("prometheus", c.enablePrometheusModule)
 	startModuleConfiguration("dashboard", c.configureDashboardModules)
 	// "crash" is part of the "always_on_modules" list as of Octopus
@@ -278,7 +277,8 @@ func (c *Cluster) configureMgrModules() error {
 			}
 
 			// Configure special settings for individual modules that are enabled
-			if module.Name == PgautoscalerModuleName {
+			switch module.Name {
+			case PgautoscalerModuleName:
 				monStore := config.GetMonStore(c.context, c.clusterInfo)
 				// Ceph Octopus will have that option enabled
 				err := monStore.Set("global", "osd_pool_default_pg_autoscale_mode", "on")
@@ -289,6 +289,8 @@ func (c *Cluster) configureMgrModules() error {
 				if err != nil {
 					return errors.Wrap(err, "failed to set minimal number PGs per (in) osd before we warn the admin to")
 				}
+			case rookModuleName:
+				startModuleConfiguration("orchestrator modules", c.configureOrchestratorModules)
 			}
 
 		} else {
@@ -315,7 +317,7 @@ func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool
 }
 
 func wellKnownModule(name string) bool {
-	knownModules := []string{rookModuleName, dashboardModuleName, prometheusModuleName, crashModuleName}
+	knownModules := []string{dashboardModuleName, prometheusModuleName, crashModuleName}
 	for _, known := range knownModules {
 		if name == known {
 			return true

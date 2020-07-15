@@ -2036,6 +2036,8 @@ spec:
     modules:
     - name: pg_autoscaler
       enabled: true
+    - name: rook
+      enabled: true
   healthCheck:
     daemonHealth:
       mon:
