@@ -19,6 +19,7 @@ import json
 import argparse
 import unittest
 import re
+import requests
 from os import linesep as LINESEP
 
 # backward compatibility with 2.x
@@ -109,6 +110,18 @@ class RadosJSON:
             raise ExecutionFailureException(
                 "Out of range port number: {}".format(port))
         return False
+
+    def endpoint_dial(self, endpoint_str):
+        try:
+            ep = "http://" + endpoint_str
+            r = requests.head(ep)
+            rc = r.status_code
+            if rc != 200:
+                raise ExecutionFailureException(
+                    "wrong return code {} on rgw endpoint http header request".format(rc))
+        except requests.ConnectionError:
+            raise ExecutionFailureException(
+                "failed to connect to rgw endpoint {}".format(ep))
 
     def __init__(self, arg_list=None):
         self.out_map = {}
@@ -304,6 +317,7 @@ class RadosJSON:
         if self.out_map:
             return
         self._invalid_endpoint(self._arg_parser.rgw_endpoint)
+        self.endpoint_dial(self._arg_parser.rgw_endpoint)
         if not self.cluster.pool_exists(self._arg_parser.rbd_data_pool_name):
             raise ExecutionFailureException(
                 "The provided 'rbd-data-pool-name': {}, don't exists".format(
