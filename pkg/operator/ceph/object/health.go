@@ -31,7 +31,7 @@ import (
 const (
 	s3UserHealthCheckName      = "rook-ceph-internal-s3-user-checker"
 	s3HealthCheckBucketName    = "rook-ceph-bucket-checker"
-	defaultStatusCheckInterval = 1 * time.Minute
+	defaultHealthCheckInterval = 1 * time.Minute
 	s3HealthCheckObjectBody    = "Test Rook Object Data"
 	s3HealthCheckObjectBodyMD5 = "5f286306a2227a156ba770800e71b796"
 	s3HealthCheckObjectKey     = "rookHealthCheckTestObject"
@@ -55,7 +55,7 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP,
 	c := &bucketChecker{
 		context:         context,
 		objContext:      objContext,
-		interval:        defaultStatusCheckInterval,
+		interval:        defaultHealthCheckInterval,
 		serviceIP:       serviceIP,
 		port:            port,
 		namespacedName:  namespacedName,

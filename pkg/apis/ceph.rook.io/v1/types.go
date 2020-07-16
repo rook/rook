@@ -434,12 +434,13 @@ type ObjectStoreSpec struct {
 	// The multisite info
 	Zone ZoneSpec `json:"zone"`
 
-	// The rgw endpoint healthcheck
+	// The rgw Bucket healthchecks and liveness probe
 	HealthCheck BucketHealthCheckSpec `json:"healthCheck"`
 }
 
 type BucketHealthCheckSpec struct {
-	Bucket HealthCheckSpec `json:"bucket,omitempty"`
+	Bucket        HealthCheckSpec   `json:"rgw,omitempty"`
+	LivenessProbe *rookv1.ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
 type HealthCheckSpec struct {
