@@ -334,32 +334,48 @@ func ExtractKey(contents string) (string, error) {
 
 // PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no OSDs keep waiting
 func PopulateExternalClusterInfo(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) *cephclient.ClusterInfo {
-	var clusterInfo *cephclient.ClusterInfo
 	for {
-		var err error
-		clusterInfo, _, _, err = LoadClusterInfo(context, namespace)
+		clusterInfo, err := loadExternalClusterInfo(context, namespace)
 		if err != nil {
-			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
-			time.Sleep(externalConnectionRetry)
-			continue
-		}
-		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.CephCred.Username, clusterInfo.Monitors)
-		// If an admin key was provided we don't need to load the other resources
-		// Some people might want to give the admin key
-		// The necessary users/keys/secrets will be created by Rook
-		// This is also done to allow backward compatibility
-		if clusterInfo.CephCred.Username == client.AdminUsername {
-			break
-		}
-		if err := ValidateCephCSIConnectionSecrets(context, namespace); err != nil {
 			logger.Warningf("waiting for the csi connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
 			logger.Debugf("%v", err)
 			time.Sleep(externalConnectionRetry)
 			continue
 		}
-		break
+		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.CephCred.Username, clusterInfo.Monitors)
+		clusterInfo.OwnerRef = ownerRef
+		return clusterInfo
+	}
+}
+
+func loadExternalClusterInfo(context *clusterd.Context, namespace string) (*cephclient.ClusterInfo, error) {
+	var err error
+	clusterInfo, _, _, err := LoadClusterInfo(context, namespace)
+	if err != nil {
+		return clusterInfo, err
 	}
 
-	clusterInfo.OwnerRef = ownerRef
-	return clusterInfo
+	// If an admin key was provided we don't need to load the other resources
+	// Some people might want to give the admin key
+	// The necessary users/keys/secrets will be created by Rook
+	// This is also done to allow backward compatibility
+	if clusterInfo.CephCred.Username == client.AdminUsername && clusterInfo.CephCred.Secret != adminSecretNameKey {
+		return clusterInfo, nil
+	}
+
+	// If the admin secret is "admin-secret", look for the deprecated secret that has the external creds
+	if clusterInfo.CephCred.Secret == adminSecretNameKey {
+		secret, err := context.Clientset.CoreV1().Secrets(namespace).Get(OperatorCreds, metav1.GetOptions{})
+		if err != nil {
+			return clusterInfo, err
+		}
+		// Populate external credential
+		clusterInfo.CephCred.Username = string(secret.Data["userID"])
+		clusterInfo.CephCred.Secret = string(secret.Data["userKey"])
+	}
+
+	if err := ValidateCephCSIConnectionSecrets(context, namespace); err != nil {
+		return clusterInfo, err
+	}
+	return clusterInfo, nil
 }

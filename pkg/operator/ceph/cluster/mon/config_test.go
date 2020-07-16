@@ -80,4 +80,31 @@ func TestCreateClusterSecrets(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "client.admin", info.CephCred.Username)
 	assert.Equal(t, adminSecret, info.CephCred.Secret)
+
+	// Check that the external cluster can load the admin creds
+	externalClusterInfo, err := loadExternalClusterInfo(context, namespace)
+	assert.NotNil(t, externalClusterInfo)
+	assert.NoError(t, err)
+	assert.Equal(t, info.CephCred.Username, externalClusterInfo.CephCred.Username)
+	assert.Equal(t, info.CephCred.Secret, externalClusterInfo.CephCred.Secret)
+
+	// Fail to load the external cluster if the admin placeholder is specified
+	secret.Data[adminSecretNameKey] = []byte(adminSecretNameKey)
+	_, err = clientset.CoreV1().Secrets(namespace).Update(secret)
+	assert.NoError(t, err)
+	externalClusterInfo, err = loadExternalClusterInfo(context, namespace)
+	assert.Error(t, err)
+
+	// Load the external cluster with the legacy external creds
+	secret.Name = OperatorCreds
+	secret.Data = map[string][]byte{
+		"userID":  []byte("testid"),
+		"userKey": []byte("testkey"),
+	}
+	_, err = clientset.CoreV1().Secrets(namespace).Create(secret)
+	assert.NoError(t, err)
+	externalClusterInfo, err = loadExternalClusterInfo(context, namespace)
+	assert.NoError(t, err)
+	assert.Equal(t, "testid", externalClusterInfo.CephCred.Username)
+	assert.Equal(t, "testkey", externalClusterInfo.CephCred.Secret)
 }
