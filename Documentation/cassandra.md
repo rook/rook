@@ -99,18 +99,18 @@ You can add key-value pairs to the data section of the ConfigMap.
 
 ### Configuration Options
 
-| Name     | Type    | Default |
-|----------|-------------|---------|
-| `cluster_name` | string | the name of your cluster as specified in the cluster crd |
-| `listen_address` | string | POD_IP environment variable |
-| `num_tokens` | string  | 256 |
-| `rpc_address` | string  | 0.0.0.0 |
-| `broadcast_address` | string  | - |
-| `broadcast_rpc_address` | string  | member service ip address |
-| `endpoint_snitch` | string  | GossipingPropertyFileSnitch |
-| `disk_failure_policy` | string  | stop |
-| `commit_failure_policy` | string  | stop |
-| `seed_provider` | yaml  | SimpleSeedProvider with member service IPs |
+| Name                    | Type     | Default                                                  |
+|-------------------------|----------|----------------------------------------------------------|
+| `cluster_name`          | `string` | the name of your cluster as specified in the cluster crd |
+| `listen_address`        | `string` | POD_IP environment variable                              |
+| `num_tokens`            | `string` | 256                                                      |
+| `rpc_address`           | `string` | 0.0.0.0                                                  |
+| `broadcast_address`     | `string` | -                                                        |
+| `broadcast_rpc_address` | `string` | member service ip address                                |
+| `endpoint_snitch`       | `string` | GossipingPropertyFileSnitch                              |
+| `disk_failure_policy`   | `string` | stop                                                     |
+| `commit_failure_policy` | `string` | stop                                                     |
+| `seed_provider`         | `yaml`   | SimpleSeedProvider with member service IPs               |
 
 You can use go templates to reference Pod IP, service IP, DC, Rack and other variables using a TemplateData Object:
 
@@ -136,6 +136,7 @@ type TemplateData struct {
 Example usage:
 
 Specify the `configMapName` in the `RackSpec`.
+
 ```yaml
 apiVersion: cassandra.rook.io/v1alpha1
 kind: Cluster
@@ -154,6 +155,7 @@ spec:
 ```
 
 Create a ConfigMap with your overwrites:
+
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -185,7 +187,6 @@ kubectl edit clusters.cassandra.rook.io rook-cassandra
 ```console
 kubectl -n rook-cassandra describe clusters.cassandra.rook.io rook-cassandra
 ```
-
 
 ## Scale Down
 
@@ -232,6 +233,7 @@ kubectl -n rook-cassandra logs rook-cassandra-0
 To enable jmx_exporter for cassandra rack, you should specify `jmxExporterConfigMapName` option for rack in CassandraCluster CRD.
 
 For example:
+
 ```yaml
 apiVersion: cassandra.rook.io/v1alpha1
 kind: Cluster
@@ -258,6 +260,7 @@ spec:
 ```
 
 Simple config map example to get all metrics:
+
 ```yaml
 apiVersion: v1
 kind: ConfigMap

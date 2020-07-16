@@ -86,6 +86,8 @@ spec:
     racks:
       - name: us-east-1a
         members: 3
+        # overwrite or extend cassandra.yml config file
+        #configMapName: "cassandra-config-map"
         storage:
           volumeClaimTemplates:
                 - metadata:
