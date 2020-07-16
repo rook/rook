@@ -230,7 +230,6 @@ const (
 	ConditionFailure     ConditionType = "Failure"
 	ConditionUpgrading   ConditionType = "Upgrading"
 	ConditionDeleting    ConditionType = "Deleting"
-	ConditionHealthy     ConditionType = "Healthy"
 	// DefaultFailureDomain for PoolSpec
 	DefaultFailureDomain = "host"
 )

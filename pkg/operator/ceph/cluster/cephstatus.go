@@ -26,8 +26,10 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,21 +45,23 @@ type cephStatusChecker struct {
 	clusterInfo *cephclient.ClusterInfo
 	interval    time.Duration
 	client      client.Client
+	isExternal  bool
 }
 
 // newCephStatusChecker creates a new HealthChecker object
-func newCephStatusChecker(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, healthCheck cephv1.CephClusterHealthCheckSpec) *cephStatusChecker {
+func newCephStatusChecker(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec) *cephStatusChecker {
 	c := &cephStatusChecker{
 		context:     context,
 		clusterInfo: clusterInfo,
 		interval:    defaultStatusCheckInterval,
 		client:      context.Client,
+		isExternal:  clusterSpec.External.Enable,
 	}
 
 	// allow overriding the check interval with an env var on the operator
 	// Keep the existing behavior
 	var checkInterval string
-	checkIntervalCRSetting := healthCheck.DaemonHealth.Status.Interval
+	checkIntervalCRSetting := clusterSpec.HealthCheck.DaemonHealth.Status.Interval
 	checkIntervalEnv := os.Getenv("ROOK_CEPH_STATUS_CHECK_INTERVAL")
 	if checkIntervalEnv != "" {
 		checkInterval = checkIntervalEnv
@@ -106,20 +110,22 @@ func (c *cephStatusChecker) checkStatus() {
 	status, err = cephclient.StatusWithUser(c.context, c.clusterInfo)
 	if err != nil {
 		logger.Errorf("failed to get ceph status. %v", err)
-		if err := c.updateCephStatus(cephStatusOnError(err.Error())); err != nil {
+		condition, reason, message := c.conditionMessageReason(cephv1.ConditionFailure)
+		if err := c.updateCephStatus(cephStatusOnError(err.Error()), condition, reason, message); err != nil {
 			logger.Errorf("failed to query cluster status in namespace %q. %v", c.clusterInfo.Namespace, err)
 		}
 		return
 	}
 
 	logger.Debugf("cluster status: %+v", status)
-	if err := c.updateCephStatus(&status); err != nil {
+	condition, reason, message := c.conditionMessageReason(cephv1.ConditionReady)
+	if err := c.updateCephStatus(&status, condition, reason, message); err != nil {
 		logger.Errorf("failed to query cluster status in namespace %q. %v", c.clusterInfo.Namespace, err)
 	}
 }
 
 // updateStatus updates an object with a given status
-func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus) error {
+func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, condition cephv1.ConditionType, reason, message string) error {
 	clusterName := c.clusterInfo.NamespacedName()
 	cephCluster := &cephv1.CephCluster{}
 	err := c.client.Get(context.TODO(), clusterName, cephCluster)
@@ -131,12 +137,17 @@ func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus) erro
 		return errors.Wrapf(err, "failed to retrieve ceph cluster %q in namespace %q to update status to %+v", clusterName.Name, clusterName.Namespace, status)
 	}
 
+	// Update with Ceph Status
 	cephCluster.Status.CephStatus = toCustomResourceStatus(cephCluster.Status, status)
+	cephCluster.Status.Phase = condition
 	if err := opcontroller.UpdateStatus(c.client, cephCluster); err != nil {
 		return errors.Wrapf(err, "failed to update cluster %q status", clusterName.Namespace)
 	}
 
-	logger.Debugf("ceph cluster %q status updated to %+v", clusterName.Namespace, status)
+	// Update condition
+	config.ConditionExport(c.context, c.clusterInfo.NamespacedName(), condition, v1.ConditionTrue, reason, message)
+
+	logger.Debugf("ceph cluster %q status and condition updated to %+v, %v, %s, %s", clusterName.Namespace, status, v1.ConditionTrue, reason, message)
 	return nil
 }
 
@@ -210,4 +221,27 @@ func cephStatusOnError(errorMessage string) *cephclient.CephStatus {
 			Checks: details,
 		},
 	}
+}
+
+func (c *cephStatusChecker) conditionMessageReason(condition cephv1.ConditionType) (cephv1.ConditionType, string, string) {
+	var reason, message string
+
+	switch condition {
+	case cephv1.ConditionFailure:
+		reason = "ClusterFailure"
+		message = "Failed to configure ceph cluster"
+		if c.isExternal {
+			message = "Failed to configure external ceph cluster"
+		}
+	case cephv1.ConditionReady:
+		reason = "ClusterCreated"
+		message = "Cluster created successfully"
+		if c.isExternal {
+			condition = cephv1.ConditionConnected
+			reason = "ClusterConnected"
+			message = "Cluster connected successfully"
+		}
+	}
+
+	return condition, reason, message
 }

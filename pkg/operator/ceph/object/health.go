@@ -48,10 +48,11 @@ type bucketChecker struct {
 	client          client.Client
 	namespacedName  types.NamespacedName
 	healthCheckSpec *cephv1.BucketHealthCheckSpec
+	isExternal      bool
 }
 
 // newbucketChecker creates a new HealthChecker object
-func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP, port string, client client.Client, namespacedName types.NamespacedName, healthCheckSpec *cephv1.BucketHealthCheckSpec) *bucketChecker {
+func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP, port string, client client.Client, namespacedName types.NamespacedName, healthCheckSpec *cephv1.BucketHealthCheckSpec, isExternal bool) *bucketChecker {
 	c := &bucketChecker{
 		context:         context,
 		objContext:      objContext,
@@ -61,6 +62,7 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP,
 		namespacedName:  namespacedName,
 		client:          client,
 		healthCheckSpec: healthCheckSpec,
+		isExternal:      isExternal,
 	}
 
 	// allow overriding the check interval
@@ -169,7 +171,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	logger.Debug("successfully checked object store endpoint for object store %q", c.namespacedName.Name)
 
 	// Update the EndpointStatus in the CR to reflect the healthyness
-	updateStatusBucket(c.client, c.namespacedName, cephv1.ConditionHealthy, "")
+	updateStatusBucket(c.client, c.namespacedName, cephv1.ConditionConnected, "")
 
 	return nil
 }

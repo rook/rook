@@ -71,6 +71,7 @@ func updateStatusBucket(client client.Client, name types.NamespacedName, phase c
 	}
 
 	objectStore.Status.BucketStatus = toCustomResourceStatus(objectStore.Status.BucketStatus, details, phase)
+	objectStore.Status.Phase = phase
 	if err := opcontroller.UpdateStatus(client, objectStore); err != nil {
 		logger.Errorf("failed to set object store %q status to %v. %v", name, phase, err)
 		return
