@@ -93,7 +93,7 @@ spec:
       serviceAccountName: rook-cockroachdb-operator
       containers:
       - name: rook-cockroachdb-operator
-        image: rook/cockroachdb:v1.3.7
+        image: rook/cockroachdb:v1.3.8
         args: ["cockroachdb", "operator"]
         env:
         - name: POD_NAME

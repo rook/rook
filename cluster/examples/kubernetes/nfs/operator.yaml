@@ -102,7 +102,7 @@ spec:
       serviceAccountName: rook-nfs-operator
       containers:
       - name: rook-nfs-operator
-        image: rook/nfs:v1.3.7
+        image: rook/nfs:v1.3.8
         imagePullPolicy: IfNotPresent
         args: ["nfs", "operator"]
         env:
@@ -191,7 +191,7 @@ spec:
       serviceAccount: rook-nfs-provisioner
       containers:
       - name: rook-nfs-provisioner
-        image: rook/nfs:v1.3.7
+        image: rook/nfs:v1.3.8
         imagePullPolicy: IfNotPresent
         args: ["nfs", "provisioner","--provisioner=rook.io/nfs-provisioner"]
         env:
