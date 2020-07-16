@@ -55,10 +55,6 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInf
 				}
 			}
 		} else {
-			// If the mon does not exist in the map, this is a first deployment or an operator restart
-			// So we check the desired state from the CR and run it if necessary
-			//
-			// If the mon monitoring is enabled
 			if !isDisabled {
 				cluster.monitoringChannels[daemon] = &clusterHealth{
 					stopChan:          make(chan struct{}),
