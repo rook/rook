@@ -269,20 +269,20 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 }
 
 func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser) (reconcile.Result, error) {
-	err := r.createCephUser(cephObjectStoreUser)
+	err := r.createorUpdateCephUser(cephObjectStoreUser)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create object store user %q", cephObjectStoreUser.Name)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create/update object store user %q", cephObjectStoreUser.Name)
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileObjectStoreUser) createCephUser(u *cephv1.CephObjectStoreUser) error {
+func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectStoreUser) error {
 	logger.Infof("creating ceph object user %q in namespace %q", u.Name, u.Namespace)
 	user, rgwerr, err := object.CreateUser(r.objContext, r.userConfig)
 	if err != nil {
 		if rgwerr == object.ErrorCodeFileExists {
-			objectUser, _, err := object.GetUser(r.objContext, r.userConfig.UserID)
+			objectUser, _, err := object.UpdateUser(r.objContext, r.userConfig)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get details from ceph object user %q", objectUser.UserID)
 			}
@@ -290,6 +290,7 @@ func (r *ReconcileObjectStoreUser) createCephUser(u *cephv1.CephObjectStoreUser)
 			// Set access and secret key
 			r.userConfig.AccessKey = objectUser.AccessKey
 			r.userConfig.SecretKey = objectUser.SecretKey
+			logger.Debugf("ceph object user %q updated with display name %q", u.Name, *objectUser.DisplayName)
 
 			return nil
 		}
