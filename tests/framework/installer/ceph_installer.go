@@ -97,6 +97,7 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 	if err != nil {
 		return fmt.Errorf("Failed to start admission controllers: %v", err)
 	}
+
 	if err = h.WipeDisks(namespace, 2); err != nil {
 		return err
 	}
@@ -120,6 +121,9 @@ func (h *CephInstaller) startAdmissionController(namespace string) error {
 			return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
 		}
 	}
+	if !h.k8shelper.VersionAtLeast("v1.15.0") {
+		return nil
+	}
 	currDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to find current working directory. %v", err)
@@ -136,6 +140,7 @@ func (h *CephInstaller) startAdmissionController(namespace string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -498,7 +503,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	}
 	logger.Infof("installed rook operator and cluster : %s on k8s %s", namespace, h.k8sVersion)
 
-	if rookVersion != Version1_2 {
+	if rookVersion != Version1_2 && h.k8shelper.VersionAtLeast("v1.15.0") {
 		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", onamespace, "Running") {
 			assert.Fail(h.T(), "admission controller is not running")
 		}
