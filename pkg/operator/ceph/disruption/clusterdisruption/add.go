@@ -133,13 +133,12 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 				}
 
 				// Enqueue all CephClusters
-				clusterMap := sharedClusterMap.GetClusterMap()
-				numClusters := len(clusterMap)
-				if numClusters == 0 {
+				clusterNamespaces := sharedClusterMap.GetClusterNamespaces()
+				if len(clusterNamespaces) == 0 {
 					return []reconcile.Request{}
 				}
 				reqs := make([]reconcile.Request, 0)
-				for namespace := range clusterMap {
+				for _, namespace := range clusterNamespaces {
 					// The name will be populated in the reconcile
 					reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}})
 				}

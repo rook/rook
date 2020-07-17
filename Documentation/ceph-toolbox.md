@@ -48,11 +48,16 @@ spec:
         args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
         imagePullPolicy: IfNotPresent
         env:
-          - name: ROOK_ADMIN_SECRET
+          - name: ROOK_CEPH_USERNAME
             valueFrom:
               secretKeyRef:
                 name: rook-ceph-mon
-                key: admin-secret
+                key: ceph-username
+          - name: ROOK_CEPH_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: rook-ceph-mon
+                key: ceph-secret
         volumeMounts:
           - mountPath: /etc/ceph
             name: ceph-config
@@ -133,11 +138,16 @@ spec:
         args: ["--skip-watch"]
         imagePullPolicy: IfNotPresent
         env:
-        - name: ROOK_ADMIN_SECRET
+        - name: ROOK_CEPH_USERNAME
           valueFrom:
             secretKeyRef:
               name: rook-ceph-mon
-              key: admin-secret
+              key: ceph-username
+        - name: ROOK_CEPH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: rook-ceph-mon
+              key: ceph-secret
         volumeMounts:
         - mountPath: /etc/ceph
           name: ceph-config

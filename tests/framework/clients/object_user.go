@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -39,7 +40,8 @@ func CreateObjectUserOperation(k8sh *utils.K8sHelper, manifests installer.CephMa
 // ObjectUserGet Function to get the details of an object user from radosgw
 func (o *ObjectUserOperation) GetUser(namespace string, store string, userid string) (*rgw.ObjectUser, error) {
 	context := o.k8sh.MakeContext()
-	rgwcontext := rgw.NewContext(context, store, namespace)
+	clusterInfo := client.AdminClusterInfo(namespace)
+	rgwcontext := rgw.NewContext(context, clusterInfo, store)
 	userinfo, _, err := rgw.GetUser(rgwcontext, userid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %+v", err)

@@ -236,7 +236,7 @@ func TestGetCrushMap(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
-	crush, err := GetCrushMap(&clusterd.Context{Executor: executor}, "rook")
+	crush, err := GetCrushMap(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, 11, len(crush.Types))
@@ -255,7 +255,7 @@ func TestGetOSDOnHost(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	_, err := GetOSDOnHost(&clusterd.Context{Executor: executor}, "rook-ceph", "my-host")
+	_, err := GetOSDOnHost(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"), "my-host")
 	assert.Nil(t, err)
 }
 

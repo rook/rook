@@ -19,13 +19,13 @@ package csi
 import (
 	"testing"
 
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUpdateCsiClusterConfig(t *testing.T) {
 	// initialize an empty list & add a simple mons list
-	mons := map[string]*cephconfig.MonInfo{
+	mons := map[string]*cephclient.MonInfo{
 		"foo": {Name: "foo", Endpoint: "1.2.3.4:5000"},
 	}
 	s, err := UpdateCsiClusterConfig("[]", "alpha", mons)
@@ -34,7 +34,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		`[{"clusterID":"alpha","monitors":["1.2.3.4:5000"]}]`)
 
 	// add a 2nd mon to the current cluster
-	mons["bar"] = &cephconfig.MonInfo{
+	mons["bar"] = &cephclient.MonInfo{
 		Name: "bar", Endpoint: "10.11.12.13:5000"}
 	s, err = UpdateCsiClusterConfig(s, "alpha", mons)
 	assert.NoError(t, err)
@@ -47,7 +47,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	assert.Equal(t, len(cc[0].Monitors), 2)
 
 	// add a 2nd cluster with 3 mons
-	mons2 := map[string]*cephconfig.MonInfo{
+	mons2 := map[string]*cephclient.MonInfo{
 		"flim": {Name: "flim", Endpoint: "20.1.1.1:5000"},
 		"flam": {Name: "flam", Endpoint: "20.1.1.2:5000"},
 		"blam": {Name: "blam", Endpoint: "20.1.1.3:5000"},

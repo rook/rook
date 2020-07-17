@@ -31,7 +31,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -81,7 +80,7 @@ type ReconcileCephObjectStore struct {
 	scheme              *runtime.Scheme
 	context             *clusterd.Context
 	cephClusterSpec     *cephv1.ClusterSpec
-	clusterInfo         *cephconfig.ClusterInfo
+	clusterInfo         *cephclient.ClusterInfo
 	objectStoreChannels map[string]*objectStoreHealth
 }
 
@@ -206,28 +205,10 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		}
 	}
 
-	// Populate clusterInfo
-	// Always populate it during each reconcile
-	var clusterInfo *cephconfig.ClusterInfo
-	if r.cephClusterSpec.External.Enable {
-		clusterInfo = mon.PopulateExternalClusterInfo(r.context, request.NamespacedName.Namespace)
-	} else {
-		clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
-		}
-	}
-	r.clusterInfo = clusterInfo
-
-	// Populate CephVersion
-	// This only needed when bootstrapping rgw pods
-	// Might improve if we set the version by running a 'ceph version' command on a goroutine and update it every now and then
-	if !r.cephClusterSpec.External.Enable {
-		currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo.Name, opconfig.MonType)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
-		}
-		r.clusterInfo.CephVersion = currentCephVersion
+	// Populate clusterInfo during each reconcile
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
@@ -264,6 +245,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			context:     r.context,
 			store:       cephObjectStore,
 			clusterSpec: r.cephClusterSpec,
+			clusterInfo: r.clusterInfo,
 		}
 		err = cfg.deleteStore()
 		if err != nil {
@@ -301,26 +283,22 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName) (reconcile.Result, error) {
 	cfg := clusterConfig{
-		context:           r.context,
-		clusterInfo:       r.clusterInfo,
-		store:             cephObjectStore,
-		rookVersion:       r.cephClusterSpec.CephVersion.Image,
-		clusterSpec:       r.cephClusterSpec,
-		DataPathMap:       opconfig.NewStatelessDaemonDataPathMap(opconfig.RgwType, cephObjectStore.Name, cephObjectStore.Namespace, r.cephClusterSpec.DataDirHostPath),
-		client:            r.client,
-		scheme:            r.scheme,
-		skipUpgradeChecks: r.cephClusterSpec.SkipUpgradeChecks,
+		context:     r.context,
+		clusterInfo: r.clusterInfo,
+		store:       cephObjectStore,
+		rookVersion: r.cephClusterSpec.CephVersion.Image,
+		clusterSpec: r.cephClusterSpec,
+		DataPathMap: opconfig.NewStatelessDaemonDataPathMap(opconfig.RgwType, cephObjectStore.Name, cephObjectStore.Namespace, r.cephClusterSpec.DataDirHostPath),
+		client:      r.client,
+		scheme:      r.scheme,
 	}
-	objContext := NewContext(r.context, cephObjectStore.Name, cephObjectStore.Namespace)
+	objContext := NewContext(r.context, r.clusterInfo, cephObjectStore.Name)
 	objContext.UID = string(cephObjectStore.UID)
 
 	var serviceIP string
 	var err error
 
 	if r.cephClusterSpec.External.Enable {
-		// Assign the cephx user to run Ceph commands with
-		objContext.RunAsUser = r.clusterInfo.ExternalCred.Username
-
 		logger.Info("reconciling external object store")
 
 		// RECONCILE SERVICE
@@ -394,7 +372,7 @@ func (r *ReconcileCephObjectStore) reconcileCephZone(store *cephv1.CephObjectSto
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zoneGroupName)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", store.Spec.Zone.Name)
-	objContext := NewContext(r.context, store.Name, store.Namespace)
+	objContext := NewContext(r.context, r.clusterInfo, store.Name)
 
 	_, err := RunAdminCommandNoRealm(objContext, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {

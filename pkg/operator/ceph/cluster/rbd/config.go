@@ -19,6 +19,7 @@ package rbd
 import (
 	"fmt"
 
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -40,13 +41,12 @@ type daemonConfig struct {
 	DaemonID     string              // the ID of the Ceph daemon ("a", "b", ...)
 	DataPathMap  *config.DataPathMap // location to store data in container
 	ownerRef     metav1.OwnerReference
-	namespace    string
 }
 
-func (r *ReconcileCephRBDMirror) generateKeyring(daemonConfig *daemonConfig) (string, error) {
+func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo, daemonConfig *daemonConfig) (string, error) {
 	user := fullDaemonName(daemonConfig.DaemonID)
 	access := []string{"mon", "profile rbd-mirror", "osd", "profile rbd"}
-	s := keyring.GetSecretStore(r.context, daemonConfig.namespace, &daemonConfig.ownerRef)
+	s := keyring.GetSecretStore(r.context, clusterInfo, &daemonConfig.ownerRef)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
@@ -54,7 +54,7 @@ func (r *ReconcileCephRBDMirror) generateKeyring(daemonConfig *daemonConfig) (st
 	}
 
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
-	err = r.context.Clientset.CoreV1().Secrets(daemonConfig.namespace).Delete(daemonConfig.ResourceName, &metav1.DeleteOptions{})
+	err = r.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Delete(daemonConfig.ResourceName, &metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Debugf("legacy rbd-mirror key %q is already removed", daemonConfig.ResourceName)

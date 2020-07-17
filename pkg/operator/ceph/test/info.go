@@ -13,8 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package client
 
-import "github.com/coreos/pkg/capnslog"
-
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephclient")
+// Package test for the operator tests
+package test

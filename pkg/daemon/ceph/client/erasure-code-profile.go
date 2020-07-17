@@ -33,9 +33,9 @@ type CephErasureCodeProfile struct {
 	CrushRoot        string `json:"crush-root"`
 }
 
-func ListErasureCodeProfiles(context *clusterd.Context, namespace string) ([]string, error) {
+func ListErasureCodeProfiles(context *clusterd.Context, clusterInfo *ClusterInfo) ([]string, error) {
 	args := []string{"osd", "erasure-code-profile", "ls"}
-	buf, err := NewCephCommand(context, namespace, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list erasure-code-profiles")
 	}
@@ -49,9 +49,9 @@ func ListErasureCodeProfiles(context *clusterd.Context, namespace string) ([]str
 	return ecProfiles, nil
 }
 
-func GetErasureCodeProfileDetails(context *clusterd.Context, namespace, name string) (CephErasureCodeProfile, error) {
+func GetErasureCodeProfileDetails(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (CephErasureCodeProfile, error) {
 	args := []string{"osd", "erasure-code-profile", "get", name}
-	buf, err := NewCephCommand(context, namespace, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return CephErasureCodeProfile{}, errors.Wrapf(err, "failed to get erasure-code-profile for %q", name)
 	}
@@ -65,9 +65,9 @@ func GetErasureCodeProfileDetails(context *clusterd.Context, namespace, name str
 	return ecProfileDetails, nil
 }
 
-func CreateErasureCodeProfile(context *clusterd.Context, namespace, profileName string, pool cephv1.PoolSpec) error {
+func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInfo, profileName string, pool cephv1.PoolSpec) error {
 	// look up the default profile so we can use the default plugin/technique
-	defaultProfile, err := GetErasureCodeProfileDetails(context, namespace, "default")
+	defaultProfile, err := GetErasureCodeProfileDetails(context, clusterInfo, "default")
 	if err != nil {
 		return errors.Wrap(err, "failed to look up default erasure code profile")
 	}
@@ -91,7 +91,7 @@ func CreateErasureCodeProfile(context *clusterd.Context, namespace, profileName 
 
 	args := []string{"osd", "erasure-code-profile", "set", profileName}
 	args = append(args, profilePairs...)
-	_, err = NewCephCommand(context, namespace, args).Run()
+	_, err = NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrap(err, "failed to set ec-profile")
 	}
@@ -99,10 +99,10 @@ func CreateErasureCodeProfile(context *clusterd.Context, namespace, profileName 
 	return nil
 }
 
-func DeleteErasureCodeProfile(context *clusterd.Context, namespace, profileName string) error {
+func DeleteErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInfo, profileName string) error {
 	args := []string{"osd", "erasure-code-profile", "rm", profileName}
 
-	cmd := NewCephCommand(context, namespace, args)
+	cmd := NewCephCommand(context, clusterInfo, args)
 	cmd.JsonOutput = false
 	buf, err := cmd.Run()
 	if err != nil {

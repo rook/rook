@@ -2063,11 +2063,16 @@ spec:
     command: ["/tini"]
     args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
     env:
-      - name: ROOK_ADMIN_SECRET
+      - name: ROOK_CEPH_USERNAME
         valueFrom:
           secretKeyRef:
             name: rook-ceph-mon
-            key: admin-secret
+            key: ceph-username
+      - name: ROOK_CEPH_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: rook-ceph-mon
+            key: ceph-secret
     securityContext:
       privileged: true
     volumeMounts:

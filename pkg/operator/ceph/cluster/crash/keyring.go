@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
@@ -37,8 +38,8 @@ const (
 )
 
 // CreateCrashCollectorSecret creates the Kubernetes Crash Collector Secret
-func CreateCrashCollectorSecret(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) error {
-	k := keyring.GetSecretStore(context, namespace, ownerRef)
+func CreateCrashCollectorSecret(context *clusterd.Context, clusterInfo *client.ClusterInfo) error {
+	k := keyring.GetSecretStore(context, clusterInfo, &clusterInfo.OwnerRef)
 
 	// Create CrashCollector Ceph key
 	crashCollectorSecretKey, err := createCrashCollectorKeyring(k)
@@ -47,7 +48,7 @@ func CreateCrashCollectorSecret(context *clusterd.Context, namespace string, own
 	}
 
 	// Create or update Kubernetes CSI secret
-	if err := createOrUpdateCrashCollectorSecret(namespace, crashCollectorSecretKey, k, ownerRef); err != nil {
+	if err := createOrUpdateCrashCollectorSecret(clusterInfo, crashCollectorSecretKey, k); err != nil {
 		return errors.Wrap(err, "failed to create kubernetes csi secret")
 	}
 
@@ -70,7 +71,7 @@ func createCrashCollectorKeyring(s *keyring.SecretStore) (string, error) {
 	return key, nil
 }
 
-func createOrUpdateCrashCollectorSecret(namespace, crashCollectorSecretKey string, k *keyring.SecretStore, ownerRef *metav1.OwnerReference) error {
+func createOrUpdateCrashCollectorSecret(clusterInfo *client.ClusterInfo, crashCollectorSecretKey string, k *keyring.SecretStore) error {
 
 	keyring := fmt.Sprintf(crashKeyringTemplate, crashCollectorSecretKey)
 
@@ -81,19 +82,19 @@ func createOrUpdateCrashCollectorSecret(namespace, crashCollectorSecretKey strin
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      crashCollectorKeyName,
-			Namespace: namespace,
+			Namespace: clusterInfo.Namespace,
 		},
 		Data: crashCollectorSecret,
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(&s.ObjectMeta, ownerRef)
+	k8sutil.SetOwnerRef(&s.ObjectMeta, &clusterInfo.OwnerRef)
 
 	// Create Kubernetes Secret
 	err := k.CreateSecret(s)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", crashCollectorSecret, namespace)
+		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", crashCollectorSecret, clusterInfo.Namespace)
 	}
 
-	logger.Infof("created kubernetes crash collector secret for cluster %q", namespace)
+	logger.Infof("created kubernetes crash collector secret for cluster %q", clusterInfo.Namespace)
 	return nil
 }

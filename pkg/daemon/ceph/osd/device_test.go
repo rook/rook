@@ -23,12 +23,12 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOSDBootstrap(t *testing.T) {
-	clusterName := "mycluster"
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 
@@ -40,7 +40,7 @@ func TestOSDBootstrap(t *testing.T) {
 
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 	defer os.RemoveAll(context.ConfigDir)
-	err := createOSDBootstrapKeyring(context, clusterName, configDir)
+	err := createOSDBootstrapKeyring(context, &client.ClusterInfo{Namespace: "name"}, configDir)
 	assert.Nil(t, err)
 
 	targetPath := path.Join(configDir, bootstrapOsdKeyring)

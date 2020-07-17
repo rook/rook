@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +45,7 @@ type csiClusterConfig []csiClusterConfigEntry
 // FormatCsiClusterConfig returns a json-formatted string containing
 // the cluster-to-mon mapping required to configure ceph csi.
 func FormatCsiClusterConfig(
-	clusterKey string, mons map[string]*cephconfig.MonInfo) (string, error) {
+	clusterKey string, mons map[string]*cephclient.MonInfo) (string, error) {
 
 	cc := make(csiClusterConfig, 1)
 	cc[0].ClusterID = clusterKey
@@ -78,7 +78,7 @@ func formatCsiClusterConfig(cc csiClusterConfig) (string, error) {
 	return string(ccJson), nil
 }
 
-func monEndpoints(mons map[string]*cephconfig.MonInfo) []string {
+func monEndpoints(mons map[string]*cephclient.MonInfo) []string {
 	endpoints := make([]string, 0)
 	for _, m := range mons {
 		endpoints = append(endpoints, m.Endpoint)
@@ -89,7 +89,7 @@ func monEndpoints(mons map[string]*cephconfig.MonInfo) []string {
 // UpdateCsiClusterConfig returns a json-formatted string containing
 // the cluster-to-mon mapping required to configure ceph csi.
 func UpdateCsiClusterConfig(
-	curr, clusterKey string, mons map[string]*cephconfig.MonInfo) (string, error) {
+	curr, clusterKey string, mons map[string]*cephclient.MonInfo) (string, error) {
 
 	var (
 		cc     csiClusterConfig
@@ -152,7 +152,7 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerR
 // map from being updated for multiple clusters simultaneously.
 func SaveClusterConfig(
 	clientset kubernetes.Interface, clusterNamespace string,
-	clusterInfo *cephconfig.ClusterInfo, l sync.Locker) error {
+	clusterInfo *cephclient.ClusterInfo, l sync.Locker) error {
 
 	if !CSIEnabled() {
 		return nil

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package client
 
 import (
 	"fmt"
@@ -23,6 +23,8 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ClusterInfo is a collection of information about a particular Ceph cluster. Rook uses information
@@ -30,11 +32,14 @@ import (
 type ClusterInfo struct {
 	FSID          string
 	MonitorSecret string
-	AdminSecret   string
-	ExternalCred  ExternalCred
-	Name          string
+	CephCred      CephCred
 	Monitors      map[string]*MonInfo
 	CephVersion   cephver.CephVersion
+	Namespace     string
+	OwnerRef      metav1.OwnerReference
+	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
+	// If the CR name is needed, access it through the NamespacedName() method.
+	name string
 }
 
 // MonInfo is a collection of information about a Ceph mon.
@@ -43,10 +48,40 @@ type MonInfo struct {
 	Endpoint string `json:"endpoint"`
 }
 
-// ExternalCred represents the external cluster username and key
-type ExternalCred struct {
+// CephCred represents the Ceph cluster username and key used by the operator.
+// For converged clusters it will be the admin key, but external clusters will have a
+// lower-privileged key.
+type CephCred struct {
 	Username string `json:"name"`
 	Secret   string `json:"secret"`
+}
+
+func NewClusterInfo(namespace, name string) *ClusterInfo {
+	return &ClusterInfo{Namespace: namespace, name: name}
+}
+
+func (c *ClusterInfo) SetName(name string) {
+	c.name = name
+}
+
+func (c *ClusterInfo) NamespacedName() types.NamespacedName {
+	if c.name == "" {
+		panic("name is not set on the clusterInfo")
+	}
+	return types.NamespacedName{Namespace: c.Namespace, Name: c.name}
+}
+
+// AdminClusterInfo() creates a ClusterInfo with the basic info to access the cluster
+// as an admin. Only the namespace and the ceph username fields are set in the struct,
+// so this clusterInfo cannot be used to generate the mon config or request the
+// namespacedName. A full cluster info must be populated for those operations.
+func AdminClusterInfo(namespace string) *ClusterInfo {
+	return &ClusterInfo{
+		Namespace: namespace,
+		CephCred: CephCred{
+			Username: AdminUsername,
+		},
+	}
 }
 
 // IsInitialized returns true if the critical information in the ClusterInfo struct has been filled
@@ -68,35 +103,19 @@ func (c *ClusterInfo) IsInitialized(logError bool) bool {
 		if logError {
 			logger.Error("monitor secret is empty")
 		}
-	} else if c.AdminSecret == "" {
+	} else if c.CephCred.Username == "" {
 		if logError {
-			logger.Error("admin secret is empty")
+			logger.Error("ceph username is empty")
+		}
+	} else if c.CephCred.Secret == "" {
+		if logError {
+			logger.Error("ceph secret is empty")
 		}
 	} else {
 		isInitialized = true
 	}
 
 	return isInitialized
-}
-
-// IsInitializedExternalCred returns true if the critical information in the ExternalCred struct has been filled
-// in for the external cluster connection
-func (c *ClusterInfo) IsInitializedExternalCred(logError bool) bool {
-	var isInitializedExternalCred bool
-
-	if c.ExternalCred.Username == "" {
-		if logError {
-			logger.Error("external credential username is empty")
-		}
-	} else if c.ExternalCred.Secret == "" {
-		if logError {
-			logger.Error("external credential secret is empty")
-		}
-	} else {
-		isInitializedExternalCred = true
-	}
-
-	return isInitializedExternalCred
 }
 
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.
@@ -111,16 +130,8 @@ func (c *ClusterInfo) Log(logger *capnslog.PackageLogger) {
 		// Sprintf formatting is safe as user input isn't being used. Issue https://github.com/rook/rook/issues/4575
 		mons = append(mons, fmt.Sprintf("{Name: %s, Endpoint: %s}", m.Name, m.Endpoint))
 	}
-	monsec := ""
-	if c.MonitorSecret != "" {
-		monsec = "<hidden>"
-	}
-	admsec := ""
-	if c.AdminSecret != "" {
-		admsec = "<hidden>"
-	}
 	s := fmt.Sprintf(
-		"ClusterInfo: {FSID: %s, MonitorSecret: %s, AdminSecret: %s, Name: %s, Monitors: %s}",
-		c.FSID, monsec, admsec, c.Name, strings.Join(mons, " "))
+		"ClusterInfo: {FSID: %s, Name: %s, CephUser: %s, Monitors: %s}",
+		c.FSID, c.Namespace, c.CephCred.Username, strings.Join(mons, " "))
 	logger.Info(s)
 }

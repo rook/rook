@@ -22,7 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util"
 	"github.com/spf13/cobra"
 )
@@ -80,12 +80,12 @@ keyring = ` + keyring + `
 `
 
 	var fileMode os.FileMode = 0444 // read-only
-	err := ioutil.WriteFile(cephconfig.DefaultConfigFilePath(), []byte(cfg), fileMode)
+	err := ioutil.WriteFile(cephclient.DefaultConfigFilePath(), []byte(cfg), fileMode)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))
 	}
 
-	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
+	util.WriteFileToLog(logger, cephclient.DefaultConfigFilePath())
 
 	return nil
 }

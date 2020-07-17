@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +50,7 @@ func TestMonStore_Set(t *testing.T) {
 			return "", nil
 		}
 
-	monStore := GetMonStore(ctx, "ns")
+	monStore := GetMonStore(ctx, &client.ClusterInfo{Namespace: "ns"})
 
 	// setting with spaces converts to underscores
 	e := monStore.Set("global", "debug ms", "10")
@@ -94,7 +95,7 @@ func TestMonStore_Delete(t *testing.T) {
 			return "", nil
 		}
 
-	monStore := GetMonStore(ctx, "ns")
+	monStore := GetMonStore(ctx, &client.ClusterInfo{Namespace: "ns"})
 
 	// ceph config rm called as expected
 	e := monStore.Delete("global", "debug ms")
@@ -133,7 +134,7 @@ func TestMonStore_GetDaemon(t *testing.T) {
 			return execReturn, nil
 		}
 
-	monStore := GetMonStore(ctx, "ns")
+	monStore := GetMonStore(ctx, &client.ClusterInfo{Namespace: "ns"})
 
 	// ceph config get called as expected
 	options, e := monStore.GetDaemon("client.rgw.test.a")
@@ -176,7 +177,7 @@ func TestMonStore_DeleteDaemon(t *testing.T) {
 			return execReturn, nil
 		}
 
-	monStore := GetMonStore(ctx, "ns")
+	monStore := GetMonStore(ctx, &client.ClusterInfo{Namespace: "ns"})
 
 	// ceph config rm rgw_enable_usage_log called as expected
 	e := monStore.DeleteDaemon("client.rgw.test.a")
@@ -207,7 +208,7 @@ func TestMonStore_SetAll(t *testing.T) {
 			return "", nil
 		}
 
-	monStore := GetMonStore(ctx, "ns")
+	monStore := GetMonStore(ctx, &client.ClusterInfo{Namespace: "ns"})
 
 	cfgOverrides := []Option{
 		configOverride("global", "debug ms", "10"), // setting w/ spaces converts to underscores

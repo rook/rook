@@ -21,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -44,28 +43,16 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
-	cluster.Info = mon.PopulateExternalClusterInfo(c.context, c.namespacedName.Namespace)
+	cluster.ClusterInfo = mon.PopulateExternalClusterInfo(c.context, c.namespacedName.Namespace, cluster.ownerRef)
+	cluster.ClusterInfo.SetName(cluster.crdName)
 
-	// If the user to check the ceph health and status is not the admin,
-	// we validate that ExternalCred has been populated correctly,
-	// then we check if the key (whether admin or not) is encoded in base64
-	if !mon.IsExternalHealthCheckUserAdmin(cluster.Info.AdminSecret) {
-		if !cluster.Info.IsInitializedExternalCred(true) {
-			return errors.New("invalid user health checker credentials")
-		}
-		if !cephconfig.IsKeyringBase64Encoded(cluster.Info.ExternalCred.Secret) {
-			return errors.Errorf("invalid user health checker key %q", cluster.Info.ExternalCred.Username)
-		}
-	} else {
-		// If the client.admin is used
-		if !cephconfig.IsKeyringBase64Encoded(cluster.Info.AdminSecret) {
-			return errors.Errorf("invalid user health checker key %q", client.AdminUsername)
-		}
+	if !client.IsKeyringBase64Encoded(cluster.ClusterInfo.CephCred.Secret) {
+		return errors.Errorf("invalid user health checker key for user %q", cluster.ClusterInfo.CephCred.Username)
 	}
 
 	// Write connection info (ceph config file and keyring) for ceph commands
 	if cluster.Spec.CephVersion.Image == "" {
-		err = mon.WriteConnectionConfig(c.context, cluster.Info)
+		err = mon.WriteConnectionConfig(c.context, cluster.ClusterInfo)
 		if err != nil {
 			logger.Errorf("failed to write config. attempting to continue. %v", err)
 		}
@@ -84,27 +71,27 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		//
 		// Only do this when doing a bit of management...
 		logger.Infof("creating %q configmap", k8sutil.ConfigOverrideName)
-		err = populateConfigOverrideConfigMap(c.context, c.namespacedName.Namespace, cluster.ownerRef)
+		err = populateConfigOverrideConfigMap(c.context, c.namespacedName.Namespace, cluster.ClusterInfo.OwnerRef)
 		if err != nil {
 			return errors.Wrap(err, "failed to populate config override config map")
 		}
 
 		logger.Infof("creating %q secret", config.StoreName)
-		err = config.GetStore(c.context, c.namespacedName.Namespace, &cluster.ownerRef).CreateOrUpdate(cluster.Info)
+		err = config.GetStore(c.context, c.namespacedName.Namespace, &cluster.ClusterInfo.OwnerRef).CreateOrUpdate(cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to update the global config")
 		}
 	}
 
 	// The cluster Identity must be established at this point
-	if !cluster.Info.IsInitialized(true) {
+	if !cluster.ClusterInfo.IsInitialized(true) {
 		return errors.New("the cluster identity was not established")
 	}
 	logger.Info("external cluster identity established")
 
 	// Create CSI Secrets only if the user has provided the admin key
-	if cluster.Info.AdminSecret != mon.AdminSecretName {
-		err = csi.CreateCSISecrets(c.context, c.namespacedName.Namespace, &cluster.ownerRef)
+	if cluster.ClusterInfo.CephCred.Username == client.AdminUsername {
+		err = csi.CreateCSISecrets(c.context, cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to create csi kubernetes secrets")
 		}
@@ -117,7 +104,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 
 	// Save CSI configmap
-	err = csi.SaveClusterConfig(c.context.Clientset, c.namespacedName.Namespace, cluster.Info, c.csiConfigMutex)
+	err = csi.SaveClusterConfig(c.context.Clientset, c.namespacedName.Namespace, cluster.ClusterInfo, c.csiConfigMutex)
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
@@ -126,7 +113,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	// Create Crash Collector Secret
 	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
 	if !cluster.Spec.CrashCollector.Disable {
-		err = crash.CreateCrashCollectorSecret(c.context, c.namespacedName.Namespace, &cluster.ownerRef)
+		err = crash.CreateCrashCollectorSecret(c.context, cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 		}

@@ -23,9 +23,8 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -101,23 +100,13 @@ func (c *Cluster) checkHealth() error {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
-	logger.Debugf("Checking health for mons in cluster. %s", c.ClusterInfo.Name)
+	logger.Debugf("Checking health for mons in cluster. %s", c.ClusterInfo.Namespace)
 
 	// For an external connection we use a special function to get the status
 	if c.spec.External.Enable {
-		var err error
-		var quorumStatus client.MonStatusResponse
-		// backward compatibility for existing deployments on 1.2 that are using the admin key
-		if c.ClusterInfo.AdminSecret != AdminSecretName {
-			quorumStatus, err = client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name)
-			if err != nil {
-				return errors.Wrap(err, "failed to get external mon quorum status")
-			}
-		} else {
-			quorumStatus, err = client.GetMonQuorumStatusHealth(c.context, c.ClusterInfo.Name, c.ClusterInfo.ExternalCred.Username)
-			if err != nil {
-				return errors.Wrap(err, "failed to get external mon quorum status")
-			}
+		quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo, c.ClusterInfo.CephCred.Username)
+		if err != nil {
+			return errors.Wrap(err, "failed to get external mon quorum status")
 		}
 
 		return c.handleExternalMonStatus(quorumStatus)
@@ -125,7 +114,7 @@ func (c *Cluster) checkHealth() error {
 
 	// connect to the mons
 	// get the status and check for quorum
-	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo.Name)
+	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo, c.ClusterInfo.CephCred.Username)
 	if err != nil {
 		return errors.Wrap(err, "failed to get mon quorum status")
 	}
@@ -282,7 +271,7 @@ func (c *Cluster) failoverMon(name string) error {
 		}
 		m.PublicIP = serviceIP
 	}
-	c.ClusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
+	c.ClusterInfo.Monitors[m.DaemonName] = cephclient.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 
 	// Start the deployment
 	if err := c.startDeployments(mConf, true); err != nil {
@@ -314,7 +303,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 	}
 
 	// Remove the bad monitor from quorum
-	if err := removeMonitorFromQuorum(c.context, c.ClusterInfo.Name, daemonName); err != nil {
+	if err := c.removeMonitorFromQuorum(daemonName); err != nil {
 		logger.Errorf("failed to remove mon %q from quorum. %v", daemonName, err)
 	}
 	delete(c.ClusterInfo.Monitors, daemonName)
@@ -348,10 +337,10 @@ func (c *Cluster) removeMon(daemonName string) error {
 	return nil
 }
 
-func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string) error {
+func (c *Cluster) removeMonitorFromQuorum(name string) error {
 	logger.Debugf("removing monitor %s", name)
 	args := []string{"mon", "remove", name}
-	if _, err := client.NewCephCommand(context, clusterName, args).Run(); err != nil {
+	if _, err := client.NewCephCommand(c.context, c.ClusterInfo, args).Run(); err != nil {
 		return errors.Wrapf(err, "mon %s remove failed", name)
 	}
 
@@ -362,7 +351,7 @@ func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string
 func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
 	// We don't need to validate Ceph version if no image is present
 	if c.spec.CephVersion.Image != "" {
-		_, err := controller.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.Namespace, c.ClusterInfo.CephVersion)
+		_, err := controller.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate external ceph version")
 		}
@@ -385,7 +374,7 @@ func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error
 
 func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
 	var changed bool
-	oldClusterInfoMonitors := map[string]*cephconfig.MonInfo{}
+	oldClusterInfoMonitors := map[string]*cephclient.MonInfo{}
 	// clearing the content of clusterinfo monitors
 	// and populate oldClusterInfoMonitors with monitors from clusterinfo
 	// later c.ClusterInfo.Monitors get populated again
@@ -421,7 +410,7 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 				monIP := cephutil.GetIPFromEndpoint(endpoint)
 				monPort := cephutil.GetPortFromEndpoint(endpoint)
 				logger.Infof("new external mon %q found: %s, adding it", mon.Name, endpoint)
-				c.ClusterInfo.Monitors[mon.Name] = cephconfig.NewMonInfo(mon.Name, monIP, monPort)
+				c.ClusterInfo.Monitors[mon.Name] = cephclient.NewMonInfo(mon.Name, monIP, monPort)
 			} else {
 				logger.Debugf("mon %q is not in quorum and not in ClusterInfo", mon.Name)
 			}

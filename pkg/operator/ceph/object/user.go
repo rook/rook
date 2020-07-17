@@ -88,7 +88,7 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 
 // GetUser returns the user with the given ID.
 func GetUser(c *Context, id string) (*ObjectUser, int, error) {
-	logger.Infof("getting s3 user %q", id)
+	logger.Debugf("getting s3 user %q", id)
 
 	// note: err is set for non-existent user but result output is also empty
 	result, err := runAdminCommand(c, "user", "info", "--uid", id)

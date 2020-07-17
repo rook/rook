@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/coreos/pkg/capnslog"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -58,7 +58,7 @@ type ReconcileClusterDisruption struct {
 	clusterMap          *ClusterMap
 	osdCrushLocationMap *OSDCrushLocationMap
 	maintenanceTimeout  time.Duration
-	namelessRetries     int
+	clusterRetries      int
 }
 
 // Reconcile reconciles a node and ensures that it has a drain-detection deployment
@@ -75,38 +75,39 @@ func (r *ReconcileClusterDisruption) Reconcile(request reconcile.Request) (recon
 }
 
 func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (reconcile.Result, error) {
-	if len(request.Namespace) == 0 {
+	if request.Namespace == "" {
 		return reconcile.Result{}, errors.Errorf("request did not have namespace: %q", request.NamespacedName)
 	}
 
-	// ensure that the cluster name is populated
-	if len(request.Name) == 0 {
-		clusterName, found := r.clusterMap.GetClusterName(request.Namespace)
-		if !found && r.namelessRetries < maxNamelessRetries {
-			// ensure that a deleted cluster doesn't result in infinite retries
-			r.namelessRetries++
-			logger.Infof("clusterName is not known yet for namespace %q", request.Namespace)
-			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.New("clusterName for this namespace not yet known")
-		}
-		request.Name = clusterName
-		logger.Debugf("discovered NamespacedName: %q", request.NamespacedName)
-	}
-	r.namelessRetries = 0
 	logger.Debugf("reconciling %q", request.NamespacedName)
 
 	// get the ceph cluster
-	cephCluster := &cephv1.CephCluster{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephCluster)
-	if kerrors.IsNotFound(err) {
-		logger.Errorf("cephcluster %q seems to be deleted, not requeuing until triggered again", request)
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "could not get the ceph cluster %q", request.NamespacedName)
+	cephClusters := &cephv1.CephClusterList{}
+	if err := r.client.List(context.TODO(), cephClusters, client.InNamespace(request.Namespace)); err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "could not get cephclusters in namespace %q", request.Namespace)
 	}
+	if len(cephClusters.Items) == 0 {
+		logger.Errorf("cephcluster %q seems to be deleted, not requeuing until triggered again", request)
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	cephCluster := cephClusters.Items[0]
 
 	// update the clustermap with the cluster's name so that
 	// events on resources associated with the cluster can trigger reconciliation by namespace
-	r.clusterMap.UpdateClusterMap(request.Namespace, cephCluster)
+	r.clusterMap.UpdateClusterMap(request.Namespace, &cephCluster)
+
+	// get the cluster info
+	clusterInfo := r.clusterMap.GetClusterInfo(request.Namespace)
+	if clusterInfo == nil {
+		logger.Infof("clusterName is not known for namespace %q", request.Namespace)
+		return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.New("clusterName for this namespace not yet known")
+	}
+
+	// ensure that the cluster name is populated
+	if request.Name == "" {
+		request.Name = clusterInfo.NamespacedName().Name
+	}
 
 	if !cephCluster.Spec.DisruptionManagement.ManagePodBudgets {
 		// feature disabled for this cluster. not requeueing
@@ -127,7 +128,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 
 	// reconcile the static mon PDB
-	err = r.reconcileMonPDB(cephCluster)
+	err = r.reconcileMonPDB(&cephCluster)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -150,7 +151,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 
 	// get the osds with crush data populated
-	osdDataList, err := r.getOsdDataList(request, poolFailureDomain)
+	osdDataList, err := r.getOsdDataList(clusterInfo, request, poolFailureDomain)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -181,7 +182,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
-	err = r.reconcilePDBsForOSDs(request, pdbStateMap, poolFailureDomain, allFailureDomainsMap, drainingFailureDomainsMap)
+	err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomainsMap, drainingFailureDomainsMap)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -209,10 +210,9 @@ func (c *ClusterMap) UpdateClusterMap(namespace string, cluster *cephv1.CephClus
 
 }
 
-// GetClusterName returns vars clusterName, found. clusterName is the cluster name associated
-// with that namespace and found is the boolean indicating whether a cluster was
-// populated for that namespace or not.
-func (c *ClusterMap) GetClusterName(namespace string) (string, bool) {
+// GetClusterInfo looks up the context for the current ceph cluster.
+// found is the boolean indicating whether a cluster was populated for that namespace or not.
+func (c *ClusterMap) GetClusterInfo(namespace string) *cephClient.ClusterInfo {
 	defer c.mux.Unlock()
 	c.mux.Lock()
 
@@ -222,10 +222,12 @@ func (c *ClusterMap) GetClusterName(namespace string) (string, bool) {
 
 	cluster, ok := c.clusterMap[namespace]
 	if !ok {
-		return "", false
+		return nil
 	}
 
-	return cluster.ObjectMeta.GetName(), true
+	clusterInfo := cephClient.NewClusterInfo(namespace, cluster.ObjectMeta.GetName())
+	clusterInfo.CephCred.Username = cephClient.AdminUsername
+	return clusterInfo
 }
 
 // GetCluster returns vars cluster, found. cluster is the cephcluster associated
@@ -248,8 +250,12 @@ func (c *ClusterMap) GetCluster(namespace string) (*cephv1.CephCluster, bool) {
 }
 
 // GetClusterMap returns the internal clustermap for iteration purporses
-func (c *ClusterMap) GetClusterMap() map[string]*cephv1.CephCluster {
+func (c *ClusterMap) GetClusterNamespaces() []string {
 	defer c.mux.Unlock()
 	c.mux.Lock()
-	return c.clusterMap
+	var namespaces []string
+	for _, cluster := range c.clusterMap {
+		namespaces = append(namespaces, cluster.Namespace)
+	}
+	return namespaces
 }

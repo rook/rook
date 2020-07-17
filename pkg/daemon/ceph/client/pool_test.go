@@ -84,7 +84,7 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := CreateECPoolForApp(context, "myns", poolName, "mypoolprofile", p, DefaultPGCount, "myapp", overwrite)
+	err := CreateECPoolForApp(context, AdminClusterInfo("mycluster"), poolName, "mypoolprofile", p, DefaultPGCount, "myapp", overwrite)
 	assert.Nil(t, err)
 	if compressionMode != "" {
 		assert.True(t, compressionModeCreated)
@@ -174,7 +174,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	if compressionMode != "" {
 		p.CompressionMode = compressionMode
 	}
-	err := CreateReplicatedPoolForApp(context, "myns", "mypool", p, DefaultPGCount, "myapp")
+	err := CreateReplicatedPoolForApp(context, AdminClusterInfo("mycluster"), "mypool", p, DefaultPGCount, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
 	if compressionMode != "" {
@@ -219,11 +219,12 @@ func TestGetPoolStatistics(t *testing.T) {
 		return "", errors.Errorf("unexpected rbd command %q", args)
 	}
 
-	stats, err := GetPoolStatistics(context, "replicapool", "cluster")
+	clusterInfo := AdminClusterInfo("mycluster")
+	stats, err := GetPoolStatistics(context, clusterInfo, "replicapool")
 	assert.Nil(t, err)
 	assert.True(t, reflect.DeepEqual(stats, &p))
 
-	stats, err = GetPoolStatistics(context, "rbd", "cluster")
+	stats, err = GetPoolStatistics(context, clusterInfo, "rbd")
 	assert.NotNil(t, err)
 	assert.Nil(t, stats)
 }
@@ -245,7 +246,7 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := SetPoolReplicatedSizeProperty(context, "myns", poolName, "3")
+	err := SetPoolReplicatedSizeProperty(context, AdminClusterInfo("mycluster"), poolName, "3")
 	assert.NoError(t, err)
 
 	// TEST POOL SIZE 1 AND RequireSafeReplicaSize True
@@ -263,6 +264,6 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err = SetPoolReplicatedSizeProperty(context, "myns", poolName, "1")
+	err = SetPoolReplicatedSizeProperty(context, AdminClusterInfo("mycluster"), poolName, "1")
 	assert.NoError(t, err)
 }

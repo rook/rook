@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package client
 
 import (
 	"encoding/base64"
@@ -25,7 +25,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 const (
@@ -40,22 +39,19 @@ const (
 	caps mgr = "allow *"
 `
 
-	// ExternalUserKeyringTemplate is a string template of Ceph keyring settings which allow connection
-	// as admin. The key value must be filled in by the admin auth key for the cluster.
-	ExternalUserKeyringTemplate = `
+	// UserKeyringTemplate is a string template of Ceph keyring settings which allow connection.
+	UserKeyringTemplate = `
 [%s]
 	key = %s
 `
 )
 
-// AdminKeyring returns the filled-out admin keyring
-func AdminKeyring(c *ClusterInfo) string {
-	return fmt.Sprintf(AdminKeyringTemplate, c.AdminSecret)
-}
-
-// ExternalUserKeyring returns the filled-out external checker user keyring
-func ExternalUserKeyring(userName, keyring string) string {
-	return fmt.Sprintf(ExternalUserKeyringTemplate, userName, keyring)
+// CephKeyring returns the filled-out user keyring
+func CephKeyring(cred CephCred) string {
+	if cred.Username == AdminUsername {
+		return fmt.Sprintf(AdminKeyringTemplate, cred.Secret)
+	}
+	return fmt.Sprintf(UserKeyringTemplate, cred.Username, cred.Secret)
 }
 
 // WriteKeyring calls the generate contents function with auth key as an argument then saves the
@@ -69,7 +65,7 @@ func WriteKeyring(keyringPath, authKey string, generateContents func(string) str
 
 // CreateKeyring creates a keyring for access to the cluster with the desired set of privileges
 // and writes it to disk at the keyring path
-func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath string, access []string, generateContents func(string) string) error {
+func CreateKeyring(context *clusterd.Context, clusterInfo *ClusterInfo, username, keyringPath string, access []string, generateContents func(string) string) error {
 	_, err := os.Stat(keyringPath)
 	if err == nil {
 		// no error, the file exists, bail out with no error
@@ -81,7 +77,7 @@ func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath
 	}
 
 	// get-or-create-key for the user account
-	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
+	key, err := AuthGetOrCreateKey(context, clusterInfo, username, access)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get or create auth key for %s", username)
 	}

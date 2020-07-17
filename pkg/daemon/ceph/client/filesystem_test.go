@@ -160,7 +160,7 @@ func TestFilesystemRemove(t *testing.T) {
 		return "", errors.Errorf("unexpected rbd command %q", args)
 	}
 
-	err := RemoveFilesystem(context, "ns", fs.MDSMap.FilesystemName, false)
+	err := RemoveFilesystem(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, false)
 	assert.Nil(t, err)
 	assert.True(t, metadataDeleted)
 	assert.True(t, dataDeleted)

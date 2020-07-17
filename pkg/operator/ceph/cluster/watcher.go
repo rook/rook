@@ -46,7 +46,7 @@ func newClientCluster(client client.Client, namespace string, context *clusterd.
 	}
 }
 
-// onK8sNodeAdd is trigger when a node is added in the Kubernetes cluster
+// onK8sNodeAdd is triggered when a node is added in the Kubernetes cluster
 // func (c *clientCluster) onK8sNodeAdd(object runtime.Object) bool {
 func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 	node, ok := object.(*v1.Node)
@@ -89,7 +89,9 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		// Make sure we can call Ceph properly
 		// Is the node in the CRUSH map already?
 		// If so we don't need to reconcile, this is done to avoid double reconcile on operator restart
-		osds, err := cephclient.GetOSDOnHost(c.context, cluster.Namespace, nodeName)
+		// Assume the admin key since we are watching for node status to create OSDs
+		clusterInfo := cephclient.AdminClusterInfo(cluster.Namespace)
+		osds, err := cephclient.GetOSDOnHost(c.context, clusterInfo, nodeName)
 		if err != nil {
 			// If it fails, this might be due to the the operator just starting and catching an add event for that node
 			logger.Debugf("failed to get osds on node %q", nodeName)

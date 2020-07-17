@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -33,10 +34,11 @@ func TestAdminKeyringStore(t *testing.T) {
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
-	ns := "rook-ceph"
+	ns := "test-ns"
 	owner := metav1.OwnerReference{}
-	clusterInfo := testop.CreateConfigDir(1)
-	k := GetSecretStore(ctx, ns, &owner)
+	clusterInfo := clienttest.CreateTestClusterInfo(1)
+	clusterInfo.Namespace = ns
+	k := GetSecretStore(ctx, clusterInfo, &owner)
 
 	assertKeyringData := func(expectedKeyring string) {
 		s, e := clientset.CoreV1().Secrets(ns).Get("rook-ceph-admin-keyring", metav1.GetOptions{})
@@ -47,12 +49,12 @@ func TestAdminKeyringStore(t *testing.T) {
 	}
 
 	// create key
-	clusterInfo.AdminSecret = "adminsecretkey"
+	clusterInfo.CephCred.Secret = "adminsecretkey"
 	k.Admin().CreateOrUpdate(clusterInfo)
 	assertKeyringData(fmt.Sprintf(adminKeyringTemplate, "adminsecretkey"))
 
 	// update key
-	clusterInfo.AdminSecret = "differentsecretkey"
+	clusterInfo.CephCred.Secret = "differentsecretkey"
 	k.Admin().CreateOrUpdate(clusterInfo)
 	assertKeyringData(fmt.Sprintf(adminKeyringTemplate, "differentsecretkey"))
 }
@@ -62,12 +64,11 @@ func TestAdminVolumeAndMount(t *testing.T) {
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
-	ns := "rook-ceph"
 	owner := metav1.OwnerReference{}
-	clusterInfo := testop.CreateConfigDir(1)
-	s := GetSecretStore(ctx, ns, &owner)
+	clusterInfo := clienttest.CreateTestClusterInfo(1)
+	s := GetSecretStore(ctx, clusterInfo, &owner)
 
-	clusterInfo.AdminSecret = "adminsecretkey"
+	clusterInfo.CephCred.Secret = "adminsecretkey"
 	s.Admin().CreateOrUpdate(clusterInfo)
 
 	v := Volume().Admin()

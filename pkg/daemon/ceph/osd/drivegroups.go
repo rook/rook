@@ -38,7 +38,7 @@ func (a *OsdAgent) configureDriveGroups(context *clusterd.Context) error {
 	}
 
 	// Create OSD bootstrap keyring
-	err := createOSDBootstrapKeyring(context, a.cluster.Name, cephConfigDir)
+	err := createOSDBootstrapKeyring(context, a.clusterInfo, cephConfigDir)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate OSD bootstrap keyring")
 	}

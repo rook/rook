@@ -49,7 +49,6 @@ var (
 	namespaceDir    = "ROOK_NAMESPACE_DIR"
 	monitorSecret   = "ROOK_MON_SECRET"
 	clusterFSID     = "ROOK_CLUSTER_FSID"
-	clusterName     = "ROOK_CLUSTER_NAME"
 )
 
 func (c *ClusterController) startClusterCleanUp(stopCleanupCh chan struct{}, cluster *cephv1.CephCluster, cephHosts []string, monSecret, clusterFSID string) {
@@ -104,8 +103,8 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 			{Name: namespaceDir, Value: cluster.Namespace},
 			{Name: monitorSecret, Value: monSecret},
 			{Name: clusterFSID, Value: cephFSID},
-			{Name: clusterName, Value: cluster.Name},
 			{Name: "ROOK_LOG_LEVEL", Value: "DEBUG"},
+			mon.PodNamespaceEnvVar(cluster.Namespace),
 		}...)
 	}
 

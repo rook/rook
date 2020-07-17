@@ -37,7 +37,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
@@ -71,7 +71,7 @@ type ReconcileObjectStoreUser struct {
 	objContext      *object.Context
 	userConfig      object.ObjectUser
 	cephClusterSpec *cephv1.ClusterSpec
-	clusterInfo     *cephconfig.ClusterInfo
+	clusterInfo     *cephclient.ClusterInfo
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -180,18 +180,11 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
 
-	// Populate clusterInfo
-	// Always populate it during each reconcile
-	var clusterInfo *cephconfig.ClusterInfo
-	if r.cephClusterSpec.External.Enable {
-		clusterInfo = mon.PopulateExternalClusterInfo(r.context, request.NamespacedName.Namespace)
-	} else {
-		clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
-		}
+	// Populate clusterInfo during each reconcile
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
-	r.clusterInfo = clusterInfo
 
 	// validate isObjectStoreInitialized
 	err = r.isObjectStoreInitialized(cephObjectStoreUser)
@@ -215,11 +208,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// Generate user config
 	userConfig := generateUserConfig(cephObjectStoreUser)
 	r.userConfig = userConfig
-
-	// Set the cephx external username if the CephCluster is external
-	if r.cephClusterSpec.External.Enable {
-		r.objContext.RunAsUser = r.clusterInfo.ExternalCred.Username
-	}
 
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -306,7 +294,7 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 }
 
 func (r *ReconcileObjectStoreUser) isObjectStoreInitialized(u *cephv1.CephObjectStoreUser) error {
-	objContext := object.NewContext(r.context, u.Spec.Store, u.Namespace)
+	objContext := object.NewContext(r.context, r.clusterInfo, u.Spec.Store)
 	r.objContext = objContext
 
 	err := r.objectStoreInitialized(u)

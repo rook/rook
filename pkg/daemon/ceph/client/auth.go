@@ -24,10 +24,10 @@ import (
 
 // AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
 // user will be written to the given keyring path.
-func AuthGetOrCreate(context *clusterd.Context, clusterName, name, keyringPath string, caps []string) error {
+func AuthGetOrCreate(context *clusterd.Context, clusterInfo *ClusterInfo, name, keyringPath string, caps []string) error {
 	logger.Infof("getting or creating ceph auth %q", name)
 	args := append([]string{"auth", "get-or-create", name, "-o", keyringPath}, caps...)
-	cmd := NewCephCommand(context, clusterName, args)
+	cmd := NewCephCommand(context, clusterInfo, args)
 	cmd.JsonOutput = false
 	cmd.OutputFile = false
 	_, err := cmd.Run()
@@ -39,10 +39,10 @@ func AuthGetOrCreate(context *clusterd.Context, clusterName, name, keyringPath s
 }
 
 // AuthGetKey gets the key for the given user.
-func AuthGetKey(context *clusterd.Context, clusterName, name string) (string, error) {
+func AuthGetKey(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (string, error) {
 	logger.Infof("getting ceph auth key %q", name)
 	args := []string{"auth", "get-key", name}
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get key for %s", name)
 	}
@@ -51,10 +51,10 @@ func AuthGetKey(context *clusterd.Context, clusterName, name string) (string, er
 }
 
 // AuthGetOrCreateKey gets or creates the key for the given user.
-func AuthGetOrCreateKey(context *clusterd.Context, clusterName, name string, caps []string) (string, error) {
+func AuthGetOrCreateKey(context *clusterd.Context, clusterInfo *ClusterInfo, name string, caps []string) (string, error) {
 	logger.Infof("getting or creating ceph auth key %q", name)
 	args := append([]string{"auth", "get-or-create-key", name}, caps...)
-	buf, err := NewCephCommand(context, clusterName, args).Run()
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return "", errors.Wrapf(err, "failed get-or-create-key %s", name)
 	}
@@ -63,10 +63,10 @@ func AuthGetOrCreateKey(context *clusterd.Context, clusterName, name string, cap
 }
 
 // AuthUpdateCaps updates the capabilities for the given user.
-func AuthUpdateCaps(context *clusterd.Context, clusterName, name string, caps []string) error {
+func AuthUpdateCaps(context *clusterd.Context, clusterInfo *ClusterInfo, name string, caps []string) error {
 	logger.Infof("updating ceph auth caps %q to %v", name, caps)
 	args := append([]string{"auth", "caps", name}, caps...)
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to update caps for %s", name)
 	}
@@ -74,10 +74,10 @@ func AuthUpdateCaps(context *clusterd.Context, clusterName, name string, caps []
 }
 
 // AuthGetCaps gets the capabilities for the given user.
-func AuthGetCaps(context *clusterd.Context, clusterName, name string) (caps map[string]string, error error) {
+func AuthGetCaps(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (caps map[string]string, error error) {
 	logger.Infof("getting ceph auth caps for %q", name)
 	args := append([]string{"auth", "get", name})
-	output, err := NewCephCommand(context, clusterName, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get caps for %q", name)
 	}
@@ -106,10 +106,10 @@ func AuthGetCaps(context *clusterd.Context, clusterName, name string) (caps map[
 }
 
 // AuthDelete will delete the given user.
-func AuthDelete(context *clusterd.Context, clusterName, name string) error {
+func AuthDelete(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
 	logger.Infof("deleting ceph auth %q", name)
 	args := []string{"auth", "del", name}
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete auth for %s", name)
 	}

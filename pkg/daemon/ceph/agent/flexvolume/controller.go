@@ -432,7 +432,7 @@ func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *Client
 		}
 		clientAccessInfo.SecretKey = secretValue
 	} else if c.mountSecurityMode == agent.MountSecurityModeAny && clientAccessInfo.SecretKey == "" {
-		clientAccessInfo.SecretKey = clusterInfo.AdminSecret
+		clientAccessInfo.SecretKey = clusterInfo.CephCred.Secret
 	}
 
 	return nil

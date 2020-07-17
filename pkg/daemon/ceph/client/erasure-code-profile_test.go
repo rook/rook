@@ -84,6 +84,6 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := CreateErasureCodeProfile(context, "myns", "myapp", spec)
+	err := CreateErasureCodeProfile(context, AdminClusterInfo("mycluster"), "myapp", spec)
 	assert.Nil(t, err)
 }

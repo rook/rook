@@ -28,7 +28,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 	volumeSources := []rookv1.VolumeSource{}
 
 	// Iterate over storageClassDeviceSet
-	for _, storageClassDeviceSet := range c.DesiredStorage.StorageClassDeviceSets {
+	for _, storageClassDeviceSet := range c.spec.Storage.StorageClassDeviceSets {
 		if err := controller.CheckPodMemory(storageClassDeviceSet.Resources, cephOsdPodMinimumMemory); err != nil {
 			config.addError("cannot use storageClassDeviceSet %q for creating osds %v", storageClassDeviceSet.Name, err)
 			continue
@@ -90,7 +90,7 @@ func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSetName strin
 	// old labels and PVC ID
 	pvcStorageClassDeviceSetPVCId, pvcStorageClassDeviceSetPVCIdLabelSelector := makeStorageClassDeviceSetPVCID(storageClassDeviceSetName, setIndex)
 	pvc := makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId, setIndex, pvcTemplate)
-	oldPresentPVCs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
+	oldPresentPVCs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to list pvc %s for storageClassDeviceSet %s", pvcStorageClassDeviceSetPVCIdLabelSelector, storageClassDeviceSetName)
 	}
@@ -105,7 +105,7 @@ func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSetName strin
 	// check again with the new label for the presence of updated pvc
 	pvcStorageClassDeviceSetPVCId, pvcStorageClassDeviceSetPVCIdLabelSelector = makeStorageClassDeviceSetPVCIDNew(storageClassDeviceSetName, pvcTemplate.GetName(), setIndex)
 	pvc = makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId, setIndex, pvcTemplate)
-	presentPVCs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
+	presentPVCs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).List(metav1.ListOptions{LabelSelector: pvcStorageClassDeviceSetPVCIdLabelSelector})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to list pvc %s for storageClassDeviceSet %s", pvcStorageClassDeviceSetPVCIdLabelSelector, storageClassDeviceSetName)
 	}
@@ -113,7 +113,7 @@ func (c *Cluster) createStorageClassDeviceSetPVC(storageClassDeviceSetName strin
 	presentPVCsNum := len(presentPVCs.Items)
 	// No PVC found, creating a new one
 	if presentPVCsNum == 0 {
-		deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
+		deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Create(pvc)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create pvc %q for storageClassDeviceSet %q", pvc.GetGenerateName(), storageClassDeviceSetName)
 		}
@@ -141,7 +141,7 @@ func (c *Cluster) updatePVCIfChanged(desiredPVC *v1.PersistentVolumeClaim, curre
 	if desiredSize.Value() > currentSize.Value() {
 		currentPVC.Spec.Resources.Requests[v1.ResourceStorage] = desiredSize
 		logger.Infof("updating pvc %q size from %s to %s", currentPVC.Name, currentSize.String(), desiredSize.String())
-		if _, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Update(currentPVC); err != nil {
+		if _, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Update(currentPVC); err != nil {
 			// log the error, but don't fail the reconcile
 			logger.Errorf("failed to update pvc size. %v", err)
 			return

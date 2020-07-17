@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"syscall"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -35,6 +36,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -60,9 +62,10 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileObjectRealm reconciles a ObjectRealm object
 type ReconcileObjectRealm struct {
-	client  client.Client
-	scheme  *runtime.Scheme
-	context *clusterd.Context
+	client      client.Client
+	scheme      *runtime.Scheme
+	context     *clusterd.Context
+	clusterInfo *cephclient.ClusterInfo
 }
 
 // Add creates a new CephObjectRealm Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -152,6 +155,12 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, nil
 	}
 
+	// Populate clusterInfo during each reconcile
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+	}
+
 	// validate the realm settings
 	err = validateRealmCR(cephObjectRealm)
 	if err != nil {
@@ -178,7 +187,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 
 func (r *ReconcileObjectRealm) createCephRealm(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realm.Name)
-	objContext := object.NewContext(r.context, realm.Name, realm.Namespace)
+	objContext := object.NewContext(r.context, r.clusterInfo, realm.Namespace)
 
 	_, err := object.RunAdminCommandNoRealm(objContext, "realm", "get", realmArg)
 

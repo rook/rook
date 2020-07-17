@@ -104,9 +104,9 @@ func (b *BlockOperation) DeleteBlock(manifest string) (string, error) {
 }
 
 // List Function to list all the block images in all pools
-func (b *BlockOperation) ListAllImages(namespace string) ([]BlockImage, error) {
+func (b *BlockOperation) ListAllImages(clusterInfo *client.ClusterInfo) ([]BlockImage, error) {
 	// first list all the pools so that we can retrieve images from all pools
-	pools, err := client.ListPoolSummaries(b.k8sClient.MakeContext(), namespace)
+	pools, err := client.ListPoolSummaries(b.k8sClient.MakeContext(), clusterInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pools: %+v", err)
 	}
@@ -114,7 +114,7 @@ func (b *BlockOperation) ListAllImages(namespace string) ([]BlockImage, error) {
 	// for each pool, get further details about all the images in the pool
 	images := []BlockImage{}
 	for _, p := range pools {
-		cephImages, err := b.ListImagesInPool(namespace, p.Name)
+		cephImages, err := b.ListImagesInPool(clusterInfo, p.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get images from pool %s: %+v", p.Name, err)
 		}
@@ -124,10 +124,10 @@ func (b *BlockOperation) ListAllImages(namespace string) ([]BlockImage, error) {
 }
 
 // List Function to list all the block images in a pool
-func (b *BlockOperation) ListImagesInPool(namespace, poolName string) ([]BlockImage, error) {
+func (b *BlockOperation) ListImagesInPool(clusterInfo *client.ClusterInfo, poolName string) ([]BlockImage, error) {
 	// for each pool, get further details about all the images in the pool
 	images := []BlockImage{}
-	cephImages, err := client.ListImages(b.k8sClient.MakeContext(), namespace, poolName)
+	cephImages, err := client.ListImages(b.k8sClient.MakeContext(), clusterInfo, poolName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get images from pool %s: %+v", poolName, err)
 	}
@@ -146,9 +146,9 @@ func (b *BlockOperation) ListImagesInPool(namespace, poolName string) ([]BlockIm
 }
 
 // DeleteBlockImage Function to list all the blocks created/being managed by rook
-func (b *BlockOperation) DeleteBlockImage(image BlockImage, namespace string) error {
+func (b *BlockOperation) DeleteBlockImage(clusterInfo *client.ClusterInfo, image BlockImage) error {
 	context := b.k8sClient.MakeContext()
-	return client.DeleteImage(context, namespace, image.Name, image.PoolName)
+	return client.DeleteImage(context, clusterInfo, image.Name, image.PoolName)
 }
 
 // CreateClientPod starts a pod that should have a block PVC.

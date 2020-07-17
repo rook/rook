@@ -26,8 +26,8 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util/sys"
@@ -130,12 +130,13 @@ func (vm *VolumeManager) Attach(image, pool, id, key, clusterNamespace string) (
 			r := fmt.Sprintf(keyringTemplate, id, key)
 			return r
 		}
-		if err = cephconfig.WriteKeyring(keyring, key, keyringEval); err != nil {
+		if err = cephclient.WriteKeyring(keyring, key, keyringEval); err != nil {
 			return "", errors.Wrapf(err, "failed writing custom keyring for id %s", id)
 		}
 	}
 
-	err = cephclient.MapImage(vm.context, image, pool, id, keyring, clusterNamespace, monitors)
+	clusterInfo := client.AdminClusterInfo(clusterNamespace)
+	err = cephclient.MapImage(vm.context, clusterInfo, image, pool, id, keyring, monitors)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to map image %s/%s cluster %s", pool, image, clusterNamespace)
 	}
@@ -167,7 +168,8 @@ func (vm *VolumeManager) Expand(image, pool, clusterNamespace string, size uint6
 	if err != nil {
 		return errors.Wrapf(err, "failed to resize volume %s/%s cluster %s", pool, image, clusterNamespace)
 	}
-	err = cephclient.ExpandImage(vm.context, clusterNamespace, image, pool, monitors, keyring, size)
+	clusterInfo := client.AdminClusterInfo(clusterNamespace)
+	err = cephclient.ExpandImage(vm.context, clusterInfo, image, pool, monitors, keyring, size)
 	if err != nil {
 		return errors.Wrapf(err, "failed to resize volume %s/%s cluster %s", pool, image, clusterNamespace)
 	}
@@ -204,12 +206,13 @@ func (vm *VolumeManager) Detach(image, pool, id, key, clusterNamespace string, f
 			return r
 		}
 
-		if err = cephconfig.WriteKeyring(keyring, key, keyringEval); err != nil {
+		if err = cephclient.WriteKeyring(keyring, key, keyringEval); err != nil {
 			return errors.Wrapf(err, "failed writing custom keyring for id %s", id)
 		}
 	}
 
-	err = cephclient.UnMapImage(vm.context, image, pool, id, keyring, clusterNamespace, monitors, force)
+	clusterInfo := client.AdminClusterInfo(clusterNamespace)
+	err = cephclient.UnMapImage(vm.context, clusterInfo, image, pool, id, keyring, monitors, force)
 	if err != nil {
 		return errors.Wrapf(err, "failed to detach volume %s/%s cluster %s", pool, image, clusterNamespace)
 	}
@@ -238,7 +241,7 @@ func getClusterInfo(context *clusterd.Context, clusterNamespace string) (string,
 		return "", "", err
 	}
 
-	keyring := cephconfig.AdminKeyring(clusterInfo)
+	keyring := cephclient.CephKeyring(clusterInfo.CephCred)
 	if err := ioutil.WriteFile(keyringFile.Name(), []byte(keyring), 0644); err != nil {
 		return "", "", errors.Errorf("failed to write monitor keyring to %s", keyringFile.Name())
 	}

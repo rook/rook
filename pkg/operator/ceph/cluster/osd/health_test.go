@@ -23,6 +23,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -35,7 +36,7 @@ import (
 
 func TestOSDHealthCheck(t *testing.T) {
 	clientset := testexec.New(t, 2)
-	cluster := "fake"
+	clusterInfo := client.AdminClusterInfo("fake")
 
 	var execCount = 0
 	executor := &exectest.MockExecutor{
@@ -69,27 +70,27 @@ func TestOSDHealthCheck(t *testing.T) {
 
 	labels := map[string]string{
 		k8sutil.AppAttr:     AppName,
-		k8sutil.ClusterAttr: cluster,
+		k8sutil.ClusterAttr: clusterInfo.Namespace,
 		OsdIdLabelKey:       "0",
 	}
 
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "osd0",
-			Namespace: cluster,
+			Namespace: clusterInfo.Namespace,
 			Labels:    labels,
 		},
 	}
-	if _, err := context.Clientset.AppsV1().Deployments(cluster).Create(deployment); err != nil {
+	if _, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(deployment); err != nil {
 		logger.Errorf("Error creating fake deployment: %v", err)
 	}
 
 	// Check if the osd deployment is created
-	dp, _ := context.Clientset.AppsV1().Deployments(cluster).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", OsdIdLabelKey, 0)})
+	dp, _ := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", OsdIdLabelKey, 0)})
 	assert.Equal(t, 1, len(dp.Items))
 
 	// Initializing an OSD monitoring
-	osdMon := NewOSDHealthMonitor(context, cluster, true, cephv1.CephClusterHealthCheckSpec{})
+	osdMon := NewOSDHealthMonitor(context, clusterInfo, true, cephv1.CephClusterHealthCheckSpec{})
 
 	// Run OSD monitoring routine
 	err := osdMon.checkOSDHealth()
@@ -98,13 +99,13 @@ func TestOSDHealthCheck(t *testing.T) {
 	assert.Equal(t, 2, execCount)
 
 	// Check if the osd deployment was deleted
-	dp, _ = context.Clientset.AppsV1().Deployments(cluster).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", OsdIdLabelKey, 0)})
+	dp, _ = context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%v=%d", OsdIdLabelKey, 0)})
 	assert.Equal(t, 0, len(dp.Items))
 }
 
 func TestMonitorStart(t *testing.T) {
 	stopCh := make(chan struct{})
-	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, "cluster", true, cephv1.CephClusterHealthCheckSpec{})
+	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, client.AdminClusterInfo("ns"), true, cephv1.CephClusterHealthCheckSpec{})
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(stopCh)
 	close(stopCh)
@@ -112,7 +113,7 @@ func TestMonitorStart(t *testing.T) {
 
 func TestOSDRestartIfStuck(t *testing.T) {
 	clientset := testexec.New(t, 1)
-	namespace := "test"
+	clusterInfo := client.AdminClusterInfo("test")
 	// Setting up objects needed to create OSD
 	context := &clusterd.Context{
 		Clientset: clientset,
@@ -121,7 +122,7 @@ func TestOSDRestartIfStuck(t *testing.T) {
 	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "osd0",
-			Namespace: namespace,
+			Namespace: clusterInfo.Namespace,
 			Labels: map[string]string{
 				"ceph-osd-id": "23",
 				"portable":    "true",
@@ -129,27 +130,27 @@ func TestOSDRestartIfStuck(t *testing.T) {
 		},
 	}
 	pod.Spec.NodeName = "node0"
-	_, err := context.Clientset.CoreV1().Pods(namespace).Create(&pod)
+	_, err := context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Create(&pod)
 	assert.NoError(t, err)
 
-	m := NewOSDHealthMonitor(context, namespace, false, cephv1.CephClusterHealthCheckSpec{})
+	m := NewOSDHealthMonitor(context, clusterInfo, false, cephv1.CephClusterHealthCheckSpec{})
 
 	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
 
 	// The pod should still exist since it wasn't in a deleted state
-	p, err := context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
+	p, err := context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Get(pod.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, p)
 
 	// Add a deletion timestamp to the pod
 	pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-	_, err = context.Clientset.CoreV1().Pods(namespace).Update(&pod)
+	_, err = context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Update(&pod)
 	assert.NoError(t, err)
 
 	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
 
 	// The pod should still exist since the node is ready
-	p, err = context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
+	p, err = context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Get(pod.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, p)
 
@@ -165,18 +166,17 @@ func TestOSDRestartIfStuck(t *testing.T) {
 	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
 
 	// The pod should be deleted since the pod is marked as deleted and the node is not ready
-	_, err = context.Clientset.CoreV1().Pods(namespace).Get(pod.Name, metav1.GetOptions{})
+	_, err = context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Get(pod.Name, metav1.GetOptions{})
 	assert.Error(t, err)
 	assert.True(t, kerrors.IsNotFound(err))
 }
 
 func TestNewOSDHealthMonitor(t *testing.T) {
-	ns := "rook-ceph"
+	clusterInfo := client.AdminClusterInfo("test")
 	c := &clusterd.Context{}
 	time10s, _ := time.ParseDuration("10s")
 	type args struct {
 		context                        *clusterd.Context
-		namespace                      string
 		removeOSDsIfOUTAndSafeToRemove bool
 		healthCheck                    cephv1.CephClusterHealthCheckSpec
 	}
@@ -185,12 +185,12 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 		args args
 		want *OSDHealthMonitor
 	}{
-		{"default-interval", args{c, ns, false, cephv1.CephClusterHealthCheckSpec{}}, &OSDHealthMonitor{c, ns, false, defaultHealthCheckInterval}},
-		{"10s-interval", args{c, ns, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: "10s"}}}}, &OSDHealthMonitor{c, ns, false, time10s}},
+		{"default-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{}}, &OSDHealthMonitor{c, clusterInfo, false, defaultHealthCheckInterval}},
+		{"10s-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: "10s"}}}}, &OSDHealthMonitor{c, clusterInfo, false, time10s}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewOSDHealthMonitor(tt.args.context, tt.args.namespace, tt.args.removeOSDsIfOUTAndSafeToRemove, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
+			if got := NewOSDHealthMonitor(tt.args.context, clusterInfo, tt.args.removeOSDsIfOUTAndSafeToRemove, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewOSDHealthMonitor() = %v, want %v", got, tt.want)
 			}
 		})

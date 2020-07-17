@@ -21,7 +21,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -39,7 +39,6 @@ func TestPodSpec(t *testing.T) {
 		DaemonID:     "a",
 		ResourceName: "rook-ceph-rbd-mirror-a",
 		DataPathMap:  config.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook"),
-		namespace:    namespace,
 	}
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -74,7 +73,7 @@ func TestPodSpec(t *testing.T) {
 		},
 		TypeMeta: controllerTypeMeta,
 	}
-	clusterInfo := &cephconfig.ClusterInfo{
+	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
 	s := scheme.Scheme

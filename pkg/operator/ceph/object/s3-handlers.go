@@ -60,8 +60,21 @@ func NewS3Agent(accessKey, secretKey, endpoint string) (*S3Agent, error) {
 }
 
 // CreateBucket creates a bucket with the given name
+func (s *S3Agent) CreateBucketNoInfoLogging(name string) error {
+	return s.createBucket(name, false)
+}
+
+// CreateBucket creates a bucket with the given name
 func (s *S3Agent) CreateBucket(name string) error {
-	logger.Infof("creating bucket %q", name)
+	return s.createBucket(name, true)
+}
+
+func (s *S3Agent) createBucket(name string, infoLogging bool) error {
+	if infoLogging {
+		logger.Infof("creating bucket %q", name)
+	} else {
+		logger.Debugf("creating bucket %q", name)
+	}
 	bucketInput := &s3.CreateBucketInput{
 		Bucket: &name,
 	}
@@ -81,7 +94,11 @@ func (s *S3Agent) CreateBucket(name string) error {
 		return errors.Wrapf(err, "failed to create bucket %q", name)
 	}
 
-	logger.Infof("successfully created bucket %q", name)
+	if infoLogging {
+		logger.Infof("successfully created bucket %q", name)
+	} else {
+		logger.Debugf("successfully created bucket %q", name)
+	}
 	return nil
 }
 

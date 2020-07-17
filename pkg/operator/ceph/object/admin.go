@@ -26,20 +26,19 @@ import (
 // Context holds the context for the object store.
 type Context struct {
 	Context     *clusterd.Context
+	clusterInfo *client.ClusterInfo
 	Name        string
-	ClusterName string
-	RunAsUser   string
 	UID         string
 	Endpoint    string
 }
 
 // NewContext creates a new object store context.
-func NewContext(context *clusterd.Context, name, clusterName string) *Context {
-	return &Context{Context: context, Name: name, ClusterName: clusterName, RunAsUser: client.AdminUsername}
+func NewContext(context *clusterd.Context, clusterInfo *client.ClusterInfo, name string) *Context {
+	return &Context{Context: context, Name: name, clusterInfo: clusterInfo}
 }
 
 func RunAdminCommandNoRealm(c *Context, args ...string) (string, error) {
-	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.Context.ConfigDir, c.ClusterName, c.RunAsUser)
+	command, args := client.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
 
 	// start the rgw admin command
 	output, err := c.Context.Executor.ExecuteCommandWithOutput(command, args...)
@@ -58,7 +57,7 @@ func runAdminCommand(c *Context, args ...string) (string, error) {
 	// The following conditions tries to determine if the cluster is external
 	// When connecting to an external cluster, the Ceph user is different than client.admin
 	// This is not perfect though since "client.admin" is somehow supported...
-	if c.Name != "" && c.RunAsUser == client.AdminUsername {
+	if c.Name != "" && c.clusterInfo.CephCred.Username == client.AdminUsername {
 		options := []string{
 			fmt.Sprintf("--rgw-realm=%s", c.Name),
 			fmt.Sprintf("--rgw-zonegroup=%s", c.Name),

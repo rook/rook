@@ -32,14 +32,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	name      = "my-user"
-	namespace = "rook-ceph"
-	store     = "my-store"
-)
-
 func TestPopulateDomainAndPort(t *testing.T) {
-	p := NewProvisioner(&clusterd.Context{RookClientset: rookclient.NewSimpleClientset(), Clientset: test.New(t, 1)}, namespace, client.AdminUsername)
+	store := "test-store"
+	namespace := "ns"
+	clusterInfo := client.AdminClusterInfo(namespace)
+	p := NewProvisioner(&clusterd.Context{RookClientset: rookclient.NewSimpleClientset(), Clientset: test.New(t, 1)}, clusterInfo)
 	sc := &storagev1.StorageClass{
 		Parameters: map[string]string{
 			"foo": "bar",
@@ -99,9 +96,8 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = p.context.Clientset.CoreV1().Services(namespace).Create(svc)
 	assert.NoError(t, err)
-	p.objectStoreNamespace = namespace
 	p.objectStoreName = store
 	err = p.populateDomainAndPort(sc)
 	assert.NoError(t, err)
-	assert.Equal(t, "rook-ceph-rgw-my-store.rook-ceph", p.storeDomainName)
+	assert.Equal(t, "rook-ceph-rgw-test-store.ns", p.storeDomainName)
 }

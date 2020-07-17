@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
-	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -119,7 +119,7 @@ func TestAttach(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				err := clienttest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 				assert.Nil(t, err)
 			}
 			return "", nil
@@ -203,7 +203,7 @@ func TestDetach(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				err := clienttest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 				assert.Nil(t, err)
 			}
 			return "", nil
@@ -255,7 +255,7 @@ func TestDetachCustomKeyring(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				err := cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
+				err := clienttest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 				assert.Nil(t, err)
 			}
 			return "", nil

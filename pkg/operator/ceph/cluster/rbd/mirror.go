@@ -67,10 +67,9 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 			ResourceName: resourceName,
 			DataPathMap:  config.NewDatalessDaemonDataPathMap(cephRBDMirror.Namespace, r.cephClusterSpec.DataDirHostPath),
 			ownerRef:     *ref,
-			namespace:    cephRBDMirror.Namespace,
 		}
 
-		_, err := r.generateKeyring(daemonConf)
+		_, err := r.generateKeyring(r.clusterInfo, daemonConf)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 		}
@@ -96,7 +95,7 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 			}
 			logger.Infof("deployment for rbd-mirror %q already exists. updating if needed", resourceName)
 
-			if err := updateDeploymentAndWait(r.context, d, cephRBDMirror.Namespace, config.RbdMirrorType, daemonConf.DaemonID, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.RbdMirrorType, daemonConf.DaemonID, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
 				err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(cephRBDMirror.Name, &metav1.DeleteOptions{})

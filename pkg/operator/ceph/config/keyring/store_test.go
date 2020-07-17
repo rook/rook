@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -48,7 +49,7 @@ func TestGenerateKey(t *testing.T) {
 	}
 	ns := "rook-ceph"
 	owner := metav1.OwnerReference{}
-	s := GetSecretStore(ctx, ns, &owner)
+	s := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, &owner)
 
 	generateKey = "generatedsecretkey"
 	failGenerateKey = false
@@ -74,9 +75,9 @@ func TestKeyringStore(t *testing.T) {
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
-	ns := "rook-ceph"
 	owner := metav1.OwnerReference{}
-	k := GetSecretStore(ctx, ns, &owner)
+	ns := "rook-ceph"
+	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, &owner)
 
 	assertKeyringData := func(keyringName, expectedKeyring string) {
 		s, e := clientset.CoreV1().Secrets(ns).Get(keyringName, metav1.GetOptions{})
@@ -116,9 +117,8 @@ func TestResourceVolumeAndMount(t *testing.T) {
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
-	ns := "rook-ceph"
 	owner := metav1.OwnerReference{}
-	k := GetSecretStore(ctx, ns, &owner)
+	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: "ns"}, &owner)
 	k.CreateOrUpdate("test-resource", "qwertyuiop")
 	k.CreateOrUpdate("second-resource", "asdfgyhujkl")
 

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package client
 
 import (
 	"io/ioutil"
@@ -34,8 +34,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 	clusterInfo := &ClusterInfo{
 		FSID:          "id",
 		MonitorSecret: "monsecret",
-		AdminSecret:   "adminsecret",
-		Name:          "foo-cluster",
+		Namespace:     "foo-cluster",
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6789"},
@@ -91,19 +90,19 @@ func TestGenerateConfigFile(t *testing.T) {
 	clusterInfo := &ClusterInfo{
 		FSID:          "myfsid",
 		MonitorSecret: "monsecret",
-		AdminSecret:   "adminsecret",
-		Name:          "foo-cluster",
+		Namespace:     "foo-cluster",
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
 		CephVersion: cephver.Nautilus,
+		CephCred:    CephCred{Username: "admin", Secret: "mysecret"},
 	}
 
 	isInitialized := clusterInfo.IsInitialized(true)
 	assert.True(t, isInitialized)
 
 	// generate the config file to disk now
-	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), nil, nil)
+	configFilePath, err := generateConfigFile(context, clusterInfo, configDir, filepath.Join(configDir, "mykeyring"), nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, filepath.Join(configDir, "foo-cluster.config"), configFilePath)
 

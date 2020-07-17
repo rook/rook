@@ -31,7 +31,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -61,7 +61,7 @@ func (c *Cluster) genMonSharedKeyring() string {
 	return fmt.Sprintf(
 		keyringTemplate,
 		c.ClusterInfo.MonitorSecret,
-		cephconfig.AdminKeyring(c.ClusterInfo),
+		cephclient.CephKeyring(c.ClusterInfo.CephCred),
 	)
 }
 
@@ -77,13 +77,13 @@ func dataDirRelativeHostPath(monName string) string {
 }
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephconfig.ClusterInfo, int, *Mapping, error) {
+func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephclient.ClusterInfo, int, *Mapping, error) {
 	return CreateOrLoadClusterInfo(context, namespace, nil)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephconfig.ClusterInfo, int, *Mapping, error) {
-	var clusterInfo *cephconfig.ClusterInfo
+func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephclient.ClusterInfo, int, *Mapping, error) {
+	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
@@ -108,13 +108,27 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 			return nil, maxMonID, monMapping, err
 		}
 	} else {
-		clusterInfo = &cephconfig.ClusterInfo{
-			Name:          string(secrets.Data[clusterSecretName]),
-			FSID:          string(secrets.Data[fsidSecretName]),
-			MonitorSecret: string(secrets.Data[monSecretName]),
-			AdminSecret:   string(secrets.Data[AdminSecretName]),
+		clusterInfo = &cephclient.ClusterInfo{
+			Namespace:     namespace,
+			FSID:          string(secrets.Data[fsidSecretNameKey]),
+			MonitorSecret: string(secrets.Data[monSecretNameKey]),
 		}
-		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Name)
+		if cephUsername, ok := secrets.Data[cephUsernameKey]; ok {
+			clusterInfo.CephCred.Username = string(cephUsername)
+			clusterInfo.CephCred.Secret = string(secrets.Data[cephUserSecretKey])
+		} else if adminSecretKey, ok := secrets.Data[adminSecretNameKey]; ok {
+			clusterInfo.CephCred.Username = client.AdminUsername
+			clusterInfo.CephCred.Secret = string(adminSecretKey)
+
+			secrets.Data[cephUsernameKey] = []byte(client.AdminUsername)
+			secrets.Data[cephUserSecretKey] = adminSecretKey
+			if _, err = context.Clientset.CoreV1().Secrets(namespace).Update(secrets); err != nil {
+				return nil, maxMonID, monMapping, errors.Wrap(err, "failed to update mon secrets")
+			}
+		} else {
+			return nil, maxMonID, monMapping, errors.New("failed to find either the cluster admin key or the username")
+		}
+		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Namespace)
 	}
 
 	// get the existing monitor config
@@ -126,55 +140,43 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	return clusterInfo, maxMonID, monMapping, nil
 }
 
-// ValidateAndLoadExternalClusterSecrets returns the secret value of the client health checker key
-func ValidateAndLoadExternalClusterSecrets(context *clusterd.Context, namespace string) (cephconfig.ExternalCred, error) {
-	var externalCred cephconfig.ExternalCred
-
-	secret, err := context.Clientset.CoreV1().Secrets(namespace).Get(OperatorCreds, metav1.GetOptions{})
+// ValidateCephCSIConnectionSecrets returns the secret value of the client health checker key
+func ValidateCephCSIConnectionSecrets(context *clusterd.Context, namespace string) error {
+	_, err := context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiRBDNodeSecret, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
-			return externalCred, errors.Wrap(err, "failed to get external user secret")
-		}
-	}
-	// Populate external credential
-	externalCred.Username = string(secret.Data["userID"])
-	externalCred.Secret = string(secret.Data["userKey"])
-
-	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiRBDNodeSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return externalCred, errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDNodeSecret)
+			return errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDNodeSecret)
 		}
 	}
 
 	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiRBDProvisionerSecret, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
-			return externalCred, errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDProvisionerSecret)
+			return errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDProvisionerSecret)
 		}
 	}
 
 	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiCephFSNodeSecret, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
-			return externalCred, errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSNodeSecret)
+			return errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSNodeSecret)
 		}
 	}
 
 	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiCephFSProvisionerSecret, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
-			return externalCred, errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSProvisionerSecret)
+			return errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSProvisionerSecret)
 		}
 	}
 
-	return externalCred, nil
+	return nil
 }
 
 // WriteConnectionConfig save monitor connection config to disk
-func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
+func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
 	// write the latest config to the config dir
-	if _, err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
+	if _, err := cephclient.GenerateConnectionConfig(context, clusterInfo); err != nil {
 		return errors.Wrap(err, "failed to write connection config")
 	}
 
@@ -182,8 +184,8 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.Cl
 }
 
 // loadMonConfig returns the monitor endpoints and maxMonID
-func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephconfig.MonInfo, int, *Mapping, error) {
-	monEndpointMap := map[string]*cephconfig.MonInfo{}
+func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephclient.MonInfo, int, *Mapping, error) {
+	monEndpointMap := map[string]*cephclient.MonInfo{}
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
@@ -228,16 +230,16 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 
-func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {
+func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephclient.ClusterInfo, ownerRef *metav1.OwnerReference) error {
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
 
 	// store the secrets for internal usage of the rook pods
 	secrets := map[string][]byte{
-		clusterSecretName: []byte(clusterInfo.Name),
-		fsidSecretName:    []byte(clusterInfo.FSID),
-		monSecretName:     []byte(clusterInfo.MonitorSecret),
-		AdminSecretName:   []byte(clusterInfo.AdminSecret),
+		fsidSecretNameKey: []byte(clusterInfo.FSID),
+		monSecretNameKey:  []byte(clusterInfo.MonitorSecret),
+		cephUsernameKey:   []byte(clusterInfo.CephCred.Username),
+		cephUserSecretKey: []byte(clusterInfo.CephCred.Secret),
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -256,13 +258,13 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 }
 
 // create new cluster info (FSID, shared keys)
-func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cephconfig.ClusterInfo, error) {
+func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephclient.ClusterInfo, error) {
 	fsid, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
 	}
 
-	dir := path.Join(context.ConfigDir, clusterName)
+	dir := path.Join(context.ConfigDir, namespace)
 	if err = os.MkdirAll(dir, 0744); err != nil {
 		return nil, errors.Wrapf(err, "failed to create dir %s", dir)
 	}
@@ -274,17 +276,24 @@ func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cep
 	}
 
 	// generate the admin secret if one was not provided at the command line
-	args := []string{"--cap", "mon", "'allow *'", "--cap", "osd", "'allow *'", "--cap", "mgr", "'allow *'", "--cap", "mds", "'allow'"}
+	args := []string{
+		"--cap", "mon", "'allow *'",
+		"--cap", "osd", "'allow *'",
+		"--cap", "mgr", "'allow *'",
+		"--cap", "mds", "'allow'"}
 	adminSecret, err := genSecret(context.Executor, dir, client.AdminUsername, args)
 	if err != nil {
 		return nil, err
 	}
 
-	return &cephconfig.ClusterInfo{
+	return &cephclient.ClusterInfo{
 		FSID:          fsid.String(),
 		MonitorSecret: monSecret,
-		AdminSecret:   adminSecret,
-		Name:          clusterName,
+		Namespace:     namespace,
+		CephCred: cephclient.CephCred{
+			Username: client.AdminUsername,
+			Secret:   adminSecret,
+		},
 	}, nil
 }
 
@@ -324,40 +333,49 @@ func ExtractKey(contents string) (string, error) {
 }
 
 // PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no OSDs keep waiting
-func PopulateExternalClusterInfo(context *clusterd.Context, namespace string) *cephconfig.ClusterInfo {
-	var clusterInfo *cephconfig.ClusterInfo
+func PopulateExternalClusterInfo(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) *cephclient.ClusterInfo {
 	for {
-		var err error
-		clusterInfo, _, _, err = LoadClusterInfo(context, namespace)
+		clusterInfo, err := loadExternalClusterInfo(context, namespace)
 		if err != nil {
-			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
-			time.Sleep(externalConnectionRetry)
-			continue
-		}
-		// If an admin key was provided we don't need to load the other resources
-		// Some people might want to give the admin key
-		// The necessary users/keys/secrets will be created by Rook
-		// This is also done to allow backward compatibility
-		if IsExternalHealthCheckUserAdmin(clusterInfo.AdminSecret) {
-			clusterInfo.ExternalCred = cephconfig.ExternalCred{Username: client.AdminUsername, Secret: clusterInfo.AdminSecret}
-			break
-		}
-		externalCred, err := ValidateAndLoadExternalClusterSecrets(context, namespace)
-		if err != nil {
-			logger.Warningf("waiting for the connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+			logger.Warningf("waiting for the csi connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
 			logger.Debugf("%v", err)
 			time.Sleep(externalConnectionRetry)
 			continue
 		}
-		clusterInfo.ExternalCred = externalCred
-		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.ExternalCred.Username, clusterInfo.Monitors)
-		break
+		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.CephCred.Username, clusterInfo.Monitors)
+		clusterInfo.OwnerRef = ownerRef
+		return clusterInfo
 	}
-
-	return clusterInfo
 }
 
-// IsExternalHealthCheckUserAdmin returns whether the external ceph user is admin or not
-func IsExternalHealthCheckUserAdmin(adminSecret string) bool {
-	return adminSecret != AdminSecretName
+func loadExternalClusterInfo(context *clusterd.Context, namespace string) (*cephclient.ClusterInfo, error) {
+	var err error
+	clusterInfo, _, _, err := LoadClusterInfo(context, namespace)
+	if err != nil {
+		return clusterInfo, err
+	}
+
+	// If an admin key was provided we don't need to load the other resources
+	// Some people might want to give the admin key
+	// The necessary users/keys/secrets will be created by Rook
+	// This is also done to allow backward compatibility
+	if clusterInfo.CephCred.Username == client.AdminUsername && clusterInfo.CephCred.Secret != adminSecretNameKey {
+		return clusterInfo, nil
+	}
+
+	// If the admin secret is "admin-secret", look for the deprecated secret that has the external creds
+	if clusterInfo.CephCred.Secret == adminSecretNameKey {
+		secret, err := context.Clientset.CoreV1().Secrets(namespace).Get(OperatorCreds, metav1.GetOptions{})
+		if err != nil {
+			return clusterInfo, err
+		}
+		// Populate external credential
+		clusterInfo.CephCred.Username = string(secret.Data["userID"])
+		clusterInfo.CephCred.Secret = string(secret.Data["userKey"])
+	}
+
+	if err := ValidateCephCSIConnectionSecrets(context, namespace); err != nil {
+		return clusterInfo, err
+	}
+	return clusterInfo, nil
 }

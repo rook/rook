@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 const (
@@ -73,7 +73,7 @@ NFSv4 {
 }
 
 RADOS_KV {
-	ceph_conf = '` + cephconfig.DefaultConfigFilePath() + `';
+	ceph_conf = '` + cephclient.DefaultConfigFilePath() + `';
 	userid = ` + userID + `;
 	nodeid = ` + nodeID + `;
 	pool = "` + n.Spec.RADOS.Pool + `";
@@ -81,7 +81,7 @@ RADOS_KV {
 }
 
 RADOS_URLS {
-	ceph_conf = '` + cephconfig.DefaultConfigFilePath() + `';
+	ceph_conf = '` + cephclient.DefaultConfigFilePath() + `';
 	userid = ` + userID + `;
 	watch_url = '` + url + `';
 }

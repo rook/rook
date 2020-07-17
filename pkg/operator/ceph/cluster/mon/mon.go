@@ -33,7 +33,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
@@ -61,15 +61,16 @@ const (
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
 	AppName = "rook-ceph-mon"
 	// OperatorCreds is the name of the secret
-	OperatorCreds  = "rook-ceph-operator-creds"
-	monNodeAttr    = "mon_node"
-	monClusterAttr = "mon_cluster"
-	tprName        = "mon.rook.io"
-	fsidSecretName = "fsid"
-	monSecretName  = "mon-secret"
+	OperatorCreds     = "rook-ceph-operator-creds"
+	monNodeAttr       = "mon_node"
+	monClusterAttr    = "mon_cluster"
+	tprName           = "mon.rook.io"
+	fsidSecretNameKey = "fsid"
+	monSecretNameKey  = "mon-secret"
 	// AdminSecretName is the name of the admin secret
-	AdminSecretName   = "admin-secret"
-	clusterSecretName = "cluster-name"
+	adminSecretNameKey = "admin-secret"
+	cephUsernameKey    = "ceph-username"
+	cephUserSecretKey  = "ceph-secret"
 
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
@@ -110,7 +111,7 @@ var (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
-	ClusterInfo         *cephconfig.ClusterInfo
+	ClusterInfo         *cephclient.ClusterInfo
 	context             *clusterd.Context
 	spec                cephv1.ClusterSpec
 	Namespace           string
@@ -185,12 +186,13 @@ func New(context *clusterd.Context, namespace, dataDirHostPath string, network c
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start(clusterInfo *cephconfig.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephconfig.ClusterInfo, error) {
+func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephclient.ClusterInfo, error) {
 
 	// Only one goroutine can orchestrate the mons at a time
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
+	clusterInfo.OwnerRef = c.ownerRef
 	c.ClusterInfo = clusterInfo
 	c.rookVersion = rookVersion
 	c.spec = spec
@@ -234,7 +236,7 @@ func (c *Cluster) startMons(targetCount int) error {
 	// only once and do it as early as possible in the mon orchestration.
 	setConfigsNeedsRetry := false
 	if existingCount > 0 {
-		err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.Network)
+		err := config.SetDefaultConfigs(c.context, c.ClusterInfo, c.spec.Network)
 		if err != nil {
 			// If we fail here, it could be because the mons are not healthy, and this might be
 			// fixed by updating the mon deployments. Instead of returning error here, log a
@@ -255,7 +257,7 @@ func (c *Cluster) startMons(targetCount int) error {
 			// values in the config database. Do this only when the existing count is zero so that
 			// this is only done once when the cluster is created.
 			if existingCount == 0 {
-				err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.Network)
+				err := config.SetDefaultConfigs(c.context, c.ClusterInfo, c.spec.Network)
 				if err != nil {
 					return errors.Wrap(err, "failed to set Rook and/or user-defined Ceph config options after creating the first mon")
 				}
@@ -263,7 +265,7 @@ func (c *Cluster) startMons(targetCount int) error {
 				// Or if we need to retry, only do this when we are on the first iteration of the
 				// loop. This could be in the same if statement as above, but separate it to get a
 				// different error message.
-				err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.Network)
+				err := config.SetDefaultConfigs(c.context, c.ClusterInfo, c.spec.Network)
 				if err != nil {
 					return errors.Wrap(err, "failed to set Rook and/or user-defined Ceph config options after updating the existing mons")
 				}
@@ -277,7 +279,7 @@ func (c *Cluster) startMons(targetCount int) error {
 		}
 
 		if setConfigsNeedsRetry {
-			err := config.SetDefaultConfigs(c.context, c.Namespace, c.ClusterInfo, c.spec.Network)
+			err := config.SetDefaultConfigs(c.context, c.ClusterInfo, c.spec.Network)
 			if err != nil {
 				return errors.Wrap(err, "failed to set Rook and/or user-defined Ceph config options after forcefully updating the existing mons")
 			}
@@ -343,13 +345,14 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	}
 
 	c.ClusterInfo.CephVersion = cephVersion
+	c.ClusterInfo.OwnerRef = c.ownerRef
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {
 		return errors.Wrap(err, "failed to save mons")
 	}
 
-	k := keyring.GetSecretStore(c.context, c.Namespace, &c.ownerRef)
+	k := keyring.GetSecretStore(c.context, c.ClusterInfo, &c.ownerRef)
 	// store the keyring which all mons share
 	if err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
 		return errors.Wrap(err, "failed to save mon keyring secret")
@@ -555,7 +558,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 			}
 			m.PublicIP = serviceIP
 		}
-		c.ClusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
+		c.ClusterInfo.Monitors[m.DaemonName] = cephclient.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 	}
 
 	return nil
@@ -712,7 +715,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 	// Final verification that **all** mons are in quorum
 	// Do not proceed if one monitor is still syncing
 	// Only do this when monitors versions are different so we don't block the orchestration if a mon is down.
-	versions, err := client.GetAllCephDaemonVersions(c.context, c.ClusterInfo.Name)
+	versions, err := client.GetAllCephDaemonVersions(c.context, c.ClusterInfo)
 	if err != nil {
 		logger.Warningf("failed to get ceph daemons versions; this likely means there is no cluster yet. %v", err)
 	} else {
@@ -735,7 +738,7 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 
 	// wait for the monitors to join quorum
 	sleepTime := 5
-	err := waitForQuorumWithMons(c.context, c.ClusterInfo.Name, starting, sleepTime, requireAllInQuorum)
+	err := waitForQuorumWithMons(c.context, c.ClusterInfo, starting, sleepTime, requireAllInQuorum)
 	if err != nil {
 		return errors.Wrap(err, "failed to wait for mon quorum")
 	}
@@ -810,7 +813,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 	// Restart the mon if it is stuck on a failed node
 	c.restartMonIfStuckTerminating(m.DaemonName)
 
-	err := updateDeploymentAndWait(c.context, d, c.Namespace, config.MonType, m.DaemonName, c.spec.SkipUpgradeChecks, false)
+	err := updateDeploymentAndWait(c.context, c.ClusterInfo, d, config.MonType, m.DaemonName, c.spec.SkipUpgradeChecks, false)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update mon deployment %s", m.ResourceName)
 	}
@@ -940,7 +943,7 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	return nil
 }
 
-func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons []string, sleepTime int, requireAllInQuorum bool) error {
+func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, mons []string, sleepTime int, requireAllInQuorum bool) error {
 	logger.Infof("waiting for mon quorum with %v", mons)
 
 	// wait for monitors to establish quorum
@@ -961,7 +964,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 		allPodsRunning := true
 		var runningMonNames []string
 		for _, m := range mons {
-			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, fmt.Sprintf("app=%s,mon=%s", AppName, m))
+			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterInfo.Namespace, fmt.Sprintf("app=%s,mon=%s", AppName, m))
 			if err != nil {
 				logger.Infof("failed to query mon pod status, trying again. %v", err)
 				continue
@@ -981,7 +984,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 
 		// get the quorum_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterName)
+		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterInfo, clusterInfo.CephCred.Username)
 		if err != nil {
 			logger.Debugf("failed to get quorum_status. %v", err)
 			continue

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -96,7 +97,8 @@ func (mrc *MultiClusterDeploySuite) createPools() {
 func (mrc *MultiClusterDeploySuite) deletePools() {
 	// create a test pool in each cluster so that we get some PGs
 	logger.Infof("Deleting pool %s", mrc.poolName)
-	if err := mrc.testClient.PoolClient.DeletePool(mrc.testClient.BlockClient, mrc.namespace1, mrc.poolName); err != nil {
+	clusterInfo := client.AdminClusterInfo(mrc.namespace1)
+	if err := mrc.testClient.PoolClient.DeletePool(mrc.testClient.BlockClient, clusterInfo, mrc.poolName); err != nil {
 		logger.Errorf("failed to delete pool %q. %v", mrc.poolName, err)
 	} else {
 		logger.Infof("deleted pool %q", mrc.poolName)

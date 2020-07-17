@@ -18,6 +18,7 @@ limitations under the License.
 package pool
 
 import (
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 
 	"github.com/pkg/errors"
@@ -26,21 +27,21 @@ import (
 )
 
 // ValidatePool Validate the pool arguments
-func ValidatePool(context *clusterd.Context, p *cephv1.CephBlockPool) error {
+func ValidatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.CephBlockPool) error {
 	if p.Name == "" {
 		return errors.New("missing name")
 	}
 	if p.Namespace == "" {
 		return errors.New("missing namespace")
 	}
-	if err := ValidatePoolSpec(context, p.Namespace, &p.Spec); err != nil {
+	if err := ValidatePoolSpec(context, clusterInfo, &p.Spec); err != nil {
 		return err
 	}
 	return nil
 }
 
 // ValidatePoolSpec validates the Ceph block pool spec CR
-func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.PoolSpec) error {
+func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo, p *cephv1.PoolSpec) error {
 	if p.IsReplicated() && p.IsErasureCoded() {
 		return errors.New("both replication and erasure code settings cannot be specified")
 	}
@@ -48,7 +49,7 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *cephv1.Poo
 	var crush cephclient.CrushMap
 	var err error
 	if p.FailureDomain != "" || p.CrushRoot != "" {
-		crush, err = cephclient.GetCrushMap(context, namespace)
+		crush, err = cephclient.GetCrushMap(context, clusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to get crush map")
 		}

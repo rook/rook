@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package config provides methods for creating and formatting Ceph configuration files for daemons.
-package config
+// Package client provides methods for creating and formatting Ceph configuration files for daemons.
+package client
 
 import (
 	"fmt"
@@ -29,12 +29,11 @@ import (
 	"github.com/go-ini/ini"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephclient")
 
 const (
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
@@ -76,38 +75,29 @@ func DefaultConfigFilePath() string {
 	return path.Join(DefaultConfigDir, DefaultConfigFile)
 }
 
-// GetConfFilePath gets the path of a given cluster's config file
-func GetConfFilePath(root, clusterName string) string {
+// getConfFilePath gets the path of a given cluster's config file
+func getConfFilePath(root, clusterName string) string {
 	return fmt.Sprintf("%s/%s.config", root, clusterName)
 }
 
-// GenerateAdminConnectionConfig calls GenerateAdminConnectionConfigWithSettings with no settings
+// GenerateConnectionConfig calls GenerateConnectionConfigWithSettings with no settings
 // overridden.
-func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) (string, error) {
-	return GenerateAdminConnectionConfigWithSettings(context, cluster, nil)
+func GenerateConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) (string, error) {
+	return GenerateConnectionConfigWithSettings(context, cluster, nil)
 }
 
-// GenerateAdminConnectionConfigWithSettings generates a Ceph config and keyring which will allow
-// the daemon to connect as an admin. Default config file settings can be overridden by specifying
+// GenerateConnectionConfigWithSettings generates a Ceph config and keyring which will allow
+// the daemon to connect. Default config file settings can be overridden by specifying
 // some subset of settings.
-func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig) (string, error) {
-	root := path.Join(context.ConfigDir, cluster.Name)
-	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
-	err := writeKeyring(AdminKeyring(cluster), keyringPath)
+func GenerateConnectionConfigWithSettings(context *clusterd.Context, clusterInfo *ClusterInfo, settings *CephConfig) (string, error) {
+	root := path.Join(context.ConfigDir, clusterInfo.Namespace)
+	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username))
+	err := writeKeyring(CephKeyring(clusterInfo.CephCred), keyringPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to write admin keyring to %s", root)
+		return "", errors.Wrapf(err, "failed to write keyring %q to %s", clusterInfo.CephCred.Username, root)
 	}
 
-	// If this is an external cluster
-	if cluster.IsInitializedExternalCred(false) {
-		keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", cluster.ExternalCred.Username))
-		err := writeKeyring(ExternalUserKeyring(cluster.ExternalCred.Username, cluster.ExternalCred.Secret), keyringPath)
-		if err != nil {
-			return "", errors.Wrapf(err, "failed to write keyring %q to %s", cluster.ExternalCred.Username, root)
-		}
-	}
-
-	filePath, err := GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil)
+	filePath, err := generateConfigFile(context, clusterInfo, root, keyringPath, settings, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to write config to %s", root)
 	}
@@ -115,34 +105,26 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 	return filePath, nil
 }
 
-// GenerateConfigFile generates and writes a config file to disk.
-func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
+// generateConfigFile generates and writes a config file to disk.
+func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pathRoot, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
 
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
 		logger.Warningf("failed to create config directory at %q. %v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(context, cluster, globalConfig)
+	configFile, err := createGlobalConfigFileSection(context, clusterInfo, globalConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create global config section")
 	}
 
-	qualifiedUser := getQualifiedUser(user)
+	qualifiedUser := getQualifiedUser(clusterInfo.CephCred.Username)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
 		return "", errors.Wrap(err, "failed to add admin client config section")
 	}
 
-	if cluster.IsInitializedExternalCred(false) {
-		keyringPath = path.Join(path.Join(context.ConfigDir, cluster.Name), fmt.Sprintf("%s.keyring", cluster.ExternalCred.Username))
-		qualifiedUser := getQualifiedUser(cluster.ExternalCred.Username)
-		if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
-			return "", errors.Wrap(err, "failed to add user client config section")
-		}
-	}
-
 	// write the entire config to disk
-	filePath := GetConfFilePath(pathRoot, cluster.Name)
+	filePath := getConfFilePath(pathRoot, clusterInfo.Namespace)
 	logger.Infof("writing config file %s", filePath)
 	if err := configFile.SaveTo(filePath); err != nil {
 		return "", errors.Wrapf(err, "failed to save config file %s", filePath)
@@ -161,7 +143,7 @@ func getQualifiedUser(user string) string {
 }
 
 // CreateDefaultCephConfig creates a default ceph config file.
-func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*CephConfig, error) {
+func CreateDefaultCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) (*CephConfig, error) {
 
 	cephVersionEnv := os.Getenv("ROOK_CEPH_VERSION")
 	if cephVersionEnv != "" {
@@ -169,16 +151,16 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to extract ceph version")
 		}
-		cluster.CephVersion = *v
+		clusterInfo.CephVersion = *v
 	}
 
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// and "mon hosts" global config field
-	monMembers, monHosts := PopulateMonHostMembers(cluster.Monitors)
+	monMembers, monHosts := PopulateMonHostMembers(clusterInfo.Monitors)
 
 	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
-			FSID:           cluster.FSID,
+			FSID:           clusterInfo.FSID,
 			MonMembers:     strings.Join(monMembers, " "),
 			MonHost:        strings.Join(monHosts, ","),
 			PublicAddr:     context.NetworkInfo.PublicAddr,
@@ -192,7 +174,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo) (*
 }
 
 // create a config file with global settings configured, and return an ini file
-func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterInfo, userConfig *CephConfig) (*ini.File, error) {
+func createGlobalConfigFileSection(context *clusterd.Context, clusterInfo *ClusterInfo, userConfig *CephConfig) (*ini.File, error) {
 
 	var ceph *CephConfig
 
@@ -201,7 +183,7 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 		ceph = userConfig
 	} else {
 		var err error
-		ceph, err = CreateDefaultCephConfig(context, cluster)
+		ceph, err = CreateDefaultCephConfig(context, clusterInfo)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create default ceph config")
 		}

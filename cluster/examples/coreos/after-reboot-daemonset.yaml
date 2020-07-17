@@ -29,7 +29,7 @@ spec:
             valueFrom:
               secretKeyRef:
                 name: rook-ceph-mon
-                key: admin-secret
+                key: ceph-secret
           - name: NODE
             valueFrom:
                fieldRef:

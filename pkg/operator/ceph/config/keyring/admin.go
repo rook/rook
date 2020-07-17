@@ -19,7 +19,7 @@ package keyring
 import (
 	"fmt"
 
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 const (
@@ -48,7 +48,7 @@ func (s *SecretStore) Admin() *AdminStore {
 }
 
 // CreateOrUpdate creates or updates the admin keyring secret with cluster information.
-func (a *AdminStore) CreateOrUpdate(c *cephconfig.ClusterInfo) error {
-	keyring := fmt.Sprintf(adminKeyringTemplate, c.AdminSecret)
+func (a *AdminStore) CreateOrUpdate(c *cephclient.ClusterInfo) error {
+	keyring := fmt.Sprintf(adminKeyringTemplate, c.CephCred.Secret)
 	return a.secretStore.CreateOrUpdate(adminKeyringResourceName, keyring)
 }

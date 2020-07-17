@@ -24,9 +24,9 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestCephStatus(t *testing.T) {
@@ -93,30 +93,26 @@ func TestCephStatus(t *testing.T) {
 }
 
 func TestNewCephStatusChecker(t *testing.T) {
+	clusterInfo := client.AdminClusterInfo("ns")
 	c := &clusterd.Context{}
-	n := "rook-ceph"
-	u := "client.admin"
-	nsName := types.NamespacedName{Name: n, Namespace: n}
-	time10s, _ := time.ParseDuration("10s")
+	time10s, err := time.ParseDuration("10s")
+	assert.NoError(t, err)
 
 	type args struct {
-		context        *clusterd.Context
-		resourceName   string
-		cephUser       string
-		namespacedName types.NamespacedName
-		healthCheck    cephv1.CephClusterHealthCheckSpec
+		context     *clusterd.Context
+		healthCheck cephv1.CephClusterHealthCheckSpec
 	}
 	tests := []struct {
 		name string
 		args args
 		want *cephStatusChecker
 	}{
-		{"default-interval", args{c, n, u, nsName, cephv1.CephClusterHealthCheckSpec{}}, &cephStatusChecker{c, n, defaultStatusCheckInterval, u, c.Client, nsName}},
-		{"default-interval", args{c, n, u, nsName, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: "10s"}}}}, &cephStatusChecker{c, n, time10s, u, c.Client, nsName}},
+		{"default-interval", args{c, cephv1.CephClusterHealthCheckSpec{}}, &cephStatusChecker{c, clusterInfo, defaultStatusCheckInterval, c.Client}},
+		{"default-interval", args{c, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: "10s"}}}}, &cephStatusChecker{c, clusterInfo, time10s, c.Client}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newCephStatusChecker(tt.args.context, tt.args.resourceName, tt.args.cephUser, tt.args.namespacedName, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
+			if got := newCephStatusChecker(tt.args.context, clusterInfo, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("newCephStatusChecker() = %v, want %v", got, tt.want)
 			}
 		})

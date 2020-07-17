@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"strings"
 
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 // FlattenMonEndpoints returns a comma-delimited string of all mons and endpoints in the form
 // <mon-name>=<mon-endpoint>
-func FlattenMonEndpoints(mons map[string]*cephconfig.MonInfo) string {
+func FlattenMonEndpoints(mons map[string]*cephclient.MonInfo) string {
 	endpoints := []string{}
 	for _, m := range mons {
 		endpoints = append(endpoints, fmt.Sprintf("%s=%s", m.Name, m.Endpoint))
@@ -35,9 +35,9 @@ func FlattenMonEndpoints(mons map[string]*cephconfig.MonInfo) string {
 
 // ParseMonEndpoints parses a flattened representation of mons and endpoints in the form
 // <mon-name>=<mon-endpoint> and returns a list of Ceph mon configs.
-func ParseMonEndpoints(input string) map[string]*cephconfig.MonInfo {
+func ParseMonEndpoints(input string) map[string]*cephclient.MonInfo {
 	logger.Infof("parsing mon endpoints: %s", input)
-	mons := map[string]*cephconfig.MonInfo{}
+	mons := map[string]*cephclient.MonInfo{}
 	rawMons := strings.Split(input, ",")
 	for _, rawMon := range rawMons {
 		parts := strings.Split(rawMon, "=")
@@ -45,7 +45,7 @@ func ParseMonEndpoints(input string) map[string]*cephconfig.MonInfo {
 			logger.Warningf("ignoring invalid monitor %s", rawMon)
 			continue
 		}
-		mons[parts[0]] = &cephconfig.MonInfo{Name: parts[0], Endpoint: parts[1]}
+		mons[parts[0]] = &cephclient.MonInfo{Name: parts[0], Endpoint: parts[1]}
 	}
 	return mons
 }

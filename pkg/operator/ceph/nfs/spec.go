@@ -19,7 +19,7 @@ package nfs
 import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -247,7 +247,7 @@ func getLabels(n *cephv1.CephNFS, name string) map[string]string {
 func cephConfigVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	// nfs ganesha produces its own ceph config file, so cannot use controller.DaemonVolume or
 	// controller.DaemonVolumeMounts since that will bring in global ceph config file
-	cfgDir := cephconfig.DefaultConfigDir
+	cfgDir := cephclient.DefaultConfigDir
 	volName := k8sutil.PathToVolumeName(cfgDir)
 	v := v1.Volume{Name: volName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
 	m := v1.VolumeMount{Name: volName, MountPath: cfgDir}

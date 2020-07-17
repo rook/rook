@@ -30,14 +30,14 @@ var (
 )
 
 // MgrEnableModule enables a mgr module
-func MgrEnableModule(context *clusterd.Context, clusterName, name string, force bool) error {
+func MgrEnableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name string, force bool) error {
 	retryCount := 5
 	var err error
 	for i := 0; i < retryCount; i++ {
 		if name == "balancer" {
-			err = enableDisableBalancerModule(context, clusterName, "on")
+			err = enableDisableBalancerModule(context, clusterInfo, "on")
 		} else {
-			err = enableModule(context, clusterName, name, force, "enable")
+			err = enableModule(context, clusterInfo, name, force, "enable")
 		}
 		if err != nil {
 			if i < retryCount-1 {
@@ -54,15 +54,15 @@ func MgrEnableModule(context *clusterd.Context, clusterName, name string, force 
 }
 
 // MgrDisableModule disables a mgr module
-func MgrDisableModule(context *clusterd.Context, clusterName, name string) error {
+func MgrDisableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
 	if name == "balancer" {
-		return enableDisableBalancerModule(context, clusterName, "off")
+		return enableDisableBalancerModule(context, clusterInfo, "off")
 	}
-	return enableModule(context, clusterName, name, false, "disable")
+	return enableModule(context, clusterInfo, name, false, "disable")
 }
 
 // MgrSetConfig applies a setting for a single mgr daemon
-func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, key, val string, force bool) (bool, error) {
+func MgrSetConfig(context *clusterd.Context, clusterInfo *ClusterInfo, mgrName string, key, val string, force bool) (bool, error) {
 	var getArgs, setArgs []string
 	mgrID := fmt.Sprintf("mgr.%s", mgrName)
 	getArgs = append(getArgs, "config", "get", mgrID, key)
@@ -77,12 +77,12 @@ func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, key, v
 
 	// Retrieve previous value to monitor changes
 	var prevVal string
-	buf, err := NewCephCommand(context, clusterName, getArgs).Run()
+	buf, err := NewCephCommand(context, clusterInfo, getArgs).Run()
 	if err == nil {
 		prevVal = strings.TrimSpace(string(buf))
 	}
 
-	if _, err := NewCephCommand(context, clusterName, setArgs).Run(); err != nil {
+	if _, err := NewCephCommand(context, clusterInfo, setArgs).Run(); err != nil {
 		return false, errors.Wrapf(err, "failed to set mgr config key %s to \"%s\"", key, val)
 	}
 
@@ -90,13 +90,13 @@ func MgrSetConfig(context *clusterd.Context, clusterName, mgrName string, key, v
 	return hasChanged, nil
 }
 
-func enableModule(context *clusterd.Context, clusterName, name string, force bool, action string) error {
+func enableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name string, force bool, action string) error {
 	args := []string{"mgr", "module", action, name}
 	if force {
 		args = append(args, "--force")
 	}
 
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable mgr module %q", name)
 	}
@@ -105,9 +105,9 @@ func enableModule(context *clusterd.Context, clusterName, name string, force boo
 }
 
 // enableDisableBalancerModule enables the ceph balancer module
-func enableDisableBalancerModule(context *clusterd.Context, clusterName, action string) error {
+func enableDisableBalancerModule(context *clusterd.Context, clusterInfo *ClusterInfo, action string) error {
 	args := []string{"balancer", action}
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to turn %q the balancer module", action)
 	}
@@ -115,9 +115,9 @@ func enableDisableBalancerModule(context *clusterd.Context, clusterName, action 
 	return nil
 }
 
-func setBalancerMode(context *clusterd.Context, clusterName, mode string) error {
+func setBalancerMode(context *clusterd.Context, clusterInfo *ClusterInfo, mode string) error {
 	args := []string{"balancer", "mode", mode}
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to set balancer mode %q", mode)
 	}
@@ -126,9 +126,9 @@ func setBalancerMode(context *clusterd.Context, clusterName, mode string) error 
 }
 
 // setMinCompatClientLuminous set the minimum compatibility for clients to Luminous
-func setMinCompatClientLuminous(context *clusterd.Context, clusterName string) error {
+func setMinCompatClientLuminous(context *clusterd.Context, clusterInfo *ClusterInfo) error {
 	args := []string{"osd", "set-require-min-compat-client", "luminous", "--yes-i-really-mean-it"}
-	_, err := NewCephCommand(context, clusterName, args).Run()
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrap(err, "failed to set set-require-min-compat-client to luminous")
 	}
@@ -137,10 +137,10 @@ func setMinCompatClientLuminous(context *clusterd.Context, clusterName string) e
 }
 
 // mgrSetBalancerMode sets the given mode to the balancer module
-func mgrSetBalancerMode(context *clusterd.Context, clusterName, balancerModuleMode string) error {
+func mgrSetBalancerMode(context *clusterd.Context, clusterInfo *ClusterInfo, balancerModuleMode string) error {
 	retryCount := 5
 	for i := 0; i < retryCount; i++ {
-		err := setBalancerMode(context, clusterName, balancerModuleMode)
+		err := setBalancerMode(context, clusterInfo, balancerModuleMode)
 		if err != nil {
 			if i < retryCount-1 {
 				logger.Warningf("failed to set mgr module mode %q. trying again...", balancerModuleMode)
@@ -157,15 +157,15 @@ func mgrSetBalancerMode(context *clusterd.Context, clusterName, balancerModuleMo
 }
 
 // ConfigureBalancerModule configures the balancer module
-func ConfigureBalancerModule(context *clusterd.Context, clusterName, balancerModuleMode string) error {
+func ConfigureBalancerModule(context *clusterd.Context, clusterInfo *ClusterInfo, balancerModuleMode string) error {
 	// Set min compat client to luminous before enabling the balancer mode "upmap"
-	err := setMinCompatClientLuminous(context, clusterName)
+	err := setMinCompatClientLuminous(context, clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to set minimum compatibility client")
 	}
 
 	// Set balancer module mode
-	err = mgrSetBalancerMode(context, clusterName, balancerModuleMode)
+	err = mgrSetBalancerMode(context, clusterInfo, balancerModuleMode)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set balancer module mode to %q", balancerModuleMode)
 	}
