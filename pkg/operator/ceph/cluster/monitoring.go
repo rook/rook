@@ -26,11 +26,14 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 )
 
+var (
+	monitorDaemonList = []string{"mon", "osd", "status"}
+)
+
 func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInfo *cephclient.ClusterInfo) {
 	var isDisabled bool
-	daemons := []string{"mon", "osd", "status"}
 
-	for _, daemon := range daemons {
+	for _, daemon := range monitorDaemonList {
 		// Is the monitoring enabled for that daemon?
 		isDisabled = isMonitoringDisabled(daemon, cluster.Spec)
 		if health, ok := cluster.monitoringChannels[daemon]; ok {
