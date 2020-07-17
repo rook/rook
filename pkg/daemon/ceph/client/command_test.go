@@ -78,8 +78,8 @@ func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 	expectedCommand := "ceph"
 	args := []string{"health"}
 	expectedArgs := []string{
-		"-it",
 		"exec",
+		"-i",
 		"rook-ceph-tools",
 		"-n",
 		"rook",
