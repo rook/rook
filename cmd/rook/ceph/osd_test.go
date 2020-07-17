@@ -17,15 +17,40 @@ limitations under the License.
 package ceph
 
 import (
+	"encoding/json"
 	"testing"
 
+	osdcfg "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestParseDesiredDevices(t *testing.T) {
-	devices := "sda,sdb,nvme01:5"
+	configuredDevices := []osdcfg.ConfiguredDevice{
+		{
+			ID: "sda",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice: 1,
+			},
+		},
+		{
+			ID: "sdb",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice: 1,
+			},
+		},
+		{
+			ID: "nvme01",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice: 5,
+			},
+		},
+	}
+	marshalledDevices, err := json.Marshal(configuredDevices)
+	assert.NoError(t, err)
+	devices := string(marshalledDevices)
+
 	result, err := parseDevices(devices)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, len(result))
 	assert.Equal(t, "sda", result[0].Name)
 	assert.Equal(t, "sdb", result[1].Name)
@@ -41,19 +66,76 @@ func TestParseDesiredDevices(t *testing.T) {
 	assert.False(t, result[2].IsDevicePathFilter)
 
 	// negative osd count is not allowed
-	devices = "nvme01:-5"
+	configuredDevices = []osdcfg.ConfiguredDevice{
+		{
+			ID: "nvme01",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice: -5,
+			},
+		},
+	}
+	marshalledDevices, err = json.Marshal(configuredDevices)
+	assert.NoError(t, err)
+	devices = string(marshalledDevices)
+
 	result, err = parseDevices(devices)
 	assert.Nil(t, result)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	// 0 osd count is not allowed
-	devices = "nvme01:0"
+	configuredDevices = []osdcfg.ConfiguredDevice{
+		{
+			ID: "nvme01",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice: 0,
+			},
+		},
+	}
+	marshalledDevices, err = json.Marshal(configuredDevices)
+	assert.NoError(t, err)
+	devices = string(marshalledDevices)
+
 	result, err = parseDevices(devices)
 	assert.Nil(t, result)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	// OSDsPerDevice, metadataDevice, databaseSizeMB and deviceClass
-	devices = "sdd:1:2048::sdb,sde:1:::sdb,sdf:1:::sdc,sdg:1::tst:sdc"
+	configuredDevices = []osdcfg.ConfiguredDevice{
+		{
+			ID: "sdd",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice:  1,
+				DatabaseSizeMB: 2048,
+				MetadataDevice: "sdb",
+			},
+		},
+		{
+			ID: "sde",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice:  1,
+				MetadataDevice: "sdb",
+			},
+		},
+		{
+			ID: "sdf",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice:  1,
+				MetadataDevice: "sdc",
+			},
+		},
+		{
+			ID: "sdg",
+			StoreConfig: osdcfg.StoreConfig{
+				OSDsPerDevice:  1,
+				DeviceClass:    "tst",
+				MetadataDevice: "sdc",
+			},
+		},
+	}
+	marshalledDevices, err = json.Marshal(configuredDevices)
+	assert.NoError(t, err)
+	devices = string(marshalledDevices)
+
 	result, err = parseDevices(devices)
 	assert.Equal(t, "sdd", result[0].Name)
 	assert.Equal(t, "sde", result[1].Name)

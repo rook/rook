@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	"encoding/json"
 	"fmt"
 	"path"
 	"strconv"
@@ -845,40 +846,23 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 
 	// only 1 of device list, device filter, device path filter and use all devices can be specified.  We prioritize in that order.
 	if len(osdProps.devices) > 0 {
-		deviceNames := make([]string, len(osdProps.devices))
-		for i, device := range osdProps.devices {
-			devSuffix := ""
-			if count, ok := device.Config[config.OSDsPerDeviceKey]; ok {
-				logger.Infof("%s osds requested on device %s (node %s)", count, device.Name, osdProps.crushHostname)
-				devSuffix += ":" + count
-			} else {
-				devSuffix += ":1"
-			}
-			if databaseSizeMB, ok := device.Config[config.DatabaseSizeMBKey]; ok {
-				logger.Infof("osd %s requested with DB size %sMB (node %s)", device.Name, databaseSizeMB, osdProps.crushHostname)
-				devSuffix += ":" + databaseSizeMB
-			} else {
-				devSuffix += ":"
-			}
-			if deviceClass, ok := device.Config[config.DeviceClassKey]; ok {
-				logger.Infof("osd %s requested with deviceClass %s (node %s)", device.Name, deviceClass, osdProps.crushHostname)
-				devSuffix += ":" + deviceClass
-			} else {
-				devSuffix += ":"
-			}
-			if md, ok := device.Config[config.MetadataDeviceKey]; ok {
-				logger.Infof("osd %s requested with metadataDevice %s (node %s)", device.Name, md, osdProps.crushHostname)
-				devSuffix += ":" + md
-			} else {
-				devSuffix += ":"
-			}
-			deviceID := device.Name
+		configuredDevices := []config.ConfiguredDevice{}
+		for _, device := range osdProps.devices {
+			id := device.Name
 			if device.FullPath != "" {
-				deviceID = device.FullPath
+				id = device.FullPath
 			}
-			deviceNames[i] = deviceID + devSuffix
+			cd := config.ConfiguredDevice{
+				ID:          id,
+				StoreConfig: config.ToStoreConfig(device.Config),
+			}
+			configuredDevices = append(configuredDevices, cd)
 		}
-		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
+		marshalledDevices, err := json.Marshal(configuredDevices)
+		if err != nil {
+			return v1.Container{}, errors.Wrapf(err, "failed to JSON marshal configured devices for node %q", osdProps.crushHostname)
+		}
+		envVars = append(envVars, dataDevicesEnvVar(string(marshalledDevices)))
 	} else if osdProps.selection.DeviceFilter != "" {
 		envVars = append(envVars, deviceFilterEnvVar(osdProps.selection.DeviceFilter))
 	} else if osdProps.selection.DevicePathFilter != "" {
@@ -902,12 +886,25 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	if osdProps.onPVC() {
 		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 		// The device list is read by the Rook CLI via environment variables so let's add them
-		dev := []string{fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName)}
+		configuredDevices := []config.ConfiguredDevice{
+			{
+				ID:          fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName),
+				StoreConfig: config.NewStoreConfig(),
+			},
+		}
 		if osdProps.onPVCWithMetadata() {
 			volumeMounts = append(volumeMounts, getPvcMetadataOSDBridgeMount(osdProps.metadataPVC.ClaimName))
-			dev = append(dev, fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName))
+			configuredDevices = append(configuredDevices,
+				config.ConfiguredDevice{
+					ID:          fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName),
+					StoreConfig: config.NewStoreConfig(),
+				})
 		}
-		envVars = append(envVars, dataDevicesEnvVar(strings.Join(dev, ",")))
+		marshalledDevices, err := json.Marshal(configuredDevices)
+		if err != nil {
+			return v1.Container{}, errors.Wrapf(err, "failed to JSON marshal configured devices for PVC %q", osdProps.crushHostname)
+		}
+		envVars = append(envVars, dataDevicesEnvVar(string(marshalledDevices)))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
 		envVars = append(envVars, crushDeviceClassEnvVar(osdProps.crushDeviceClass))
 	}
