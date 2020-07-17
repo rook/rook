@@ -30,17 +30,12 @@ import (
 func TestOrchestratorModules(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	orchestratorModuleEnabled := false
 	rookModuleEnabled := false
 	rookBackendSet := false
 	backendErrorCount := 0
 	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "mgr" && args[1] == "module" && args[2] == "enable" {
-			if args[3] == "orchestrator_cli" {
-				orchestratorModuleEnabled = true
-				return "", nil
-			}
 			if args[3] == "rook" {
 				rookModuleEnabled = true
 				return "", nil
@@ -75,7 +70,6 @@ func TestOrchestratorModules(t *testing.T) {
 	assert.Error(t, err)
 	err = c.setRookOrchestratorBackend()
 	assert.NoError(t, err)
-	assert.True(t, orchestratorModuleEnabled)
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)
 	assert.Equal(t, 5, backendErrorCount)
@@ -85,7 +79,6 @@ func TestOrchestratorModules(t *testing.T) {
 	assert.NoError(t, err)
 	err = c.setRookOrchestratorBackend()
 	assert.NoError(t, err)
-	assert.True(t, orchestratorModuleEnabled)
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)
 

@@ -122,6 +122,7 @@ func (suite *CephMgrSuite) execute(command []string) (error, string) {
 }
 
 func (suite *CephMgrSuite) waitForOrchestrationModule() {
+	var err error
 	for timeout := 0; timeout < 30; timeout++ {
 		err, output := suite.execute([]string{"status"})
 		logger.Info("%s", output)
@@ -131,6 +132,8 @@ func (suite *CephMgrSuite) waitForOrchestrationModule() {
 		}
 		time.Sleep(2 * time.Second)
 	}
+	logger.Error("Giving up waiting for Rook Toolbox to be ready")
+	assert.Nil(suite.T(), err)
 }
 func (suite *CephMgrSuite) TestDeviceLs() {
 	logger.Info("Testing .... <ceph orch device ls>")

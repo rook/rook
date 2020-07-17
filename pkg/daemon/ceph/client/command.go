@@ -67,7 +67,7 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 
 	// If the command should be run inside the toolbox pod, include the kubectl args to call the toolbox
 	if RunAllCephCommandsInToolbox {
-		toolArgs := []string{"-it", "exec", "rook-ceph-tools", "-n", clusterInfo.Namespace, "--", command}
+		toolArgs := []string{"exec", "-i", "rook-ceph-tools", "-n", clusterInfo.Namespace, "--", command}
 		return Kubectl, append(toolArgs, args...)
 	}
 

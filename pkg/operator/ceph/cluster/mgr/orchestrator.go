@@ -25,7 +25,6 @@ import (
 )
 
 const (
-	orchestratorModuleName = "orchestrator_cli"
 	rookModuleName         = "rook"
 	orchestratorOldCLIName = "orchestrator"
 	orchestratorNewCLIName = "orch"
@@ -40,9 +39,6 @@ var (
 func (c *Cluster) configureOrchestratorModules() error {
 	if err := client.MgrEnableModule(c.context, c.clusterInfo, rookModuleName, true); err != nil {
 		return errors.Wrap(err, "failed to enable mgr rook module")
-	}
-	if err := client.MgrEnableModule(c.context, c.clusterInfo, orchestratorModuleName, true); err != nil {
-		return errors.Wrap(err, "failed to enable mgr orchestrator module")
 	}
 	if err := c.setRookOrchestratorBackend(); err != nil {
 		return errors.Wrap(err, "failed to set rook orchestrator backend")
