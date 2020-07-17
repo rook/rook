@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -38,7 +39,7 @@ func (c *CephCluster) ValidateCreate() error {
 
 	//If external mode enabled, then check if other fields are empty
 	if c.Spec.External.Enable {
-		if c.Spec.Mon != (MonSpec{}) || c.Spec.Dashboard != (DashboardSpec{}) || c.Spec.Monitoring != (MonitoringSpec{}) || c.Spec.DisruptionManagement != (DisruptionManagementSpec{}) || len(c.Spec.Mgr.Modules) > 0 || len(c.Spec.Network.Provider) > 0 || len(c.Spec.Network.Selectors) > 0 {
+		if c.Spec.Mon != (MonSpec{}) || c.Spec.Dashboard != (DashboardSpec{}) || !reflect.DeepEqual(c.Spec.Monitoring, (MonitoringSpec{})) || c.Spec.DisruptionManagement != (DisruptionManagementSpec{}) || len(c.Spec.Mgr.Modules) > 0 || len(c.Spec.Network.Provider) > 0 || len(c.Spec.Network.Selectors) > 0 {
 			return errors.New("invalid create : external mode enabled cannot have mon,dashboard,monitoring,network,disruptionManagement,storage fields in CR")
 		}
 	}

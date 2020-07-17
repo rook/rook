@@ -25,3 +25,9 @@ spec:
       mon:
         disabled: false
         interval: 45s
+  # optionally, the ceph-mgr IP address can be passed to gather metric from the prometheus exporter
+  # monitoring:
+  #   enabled: true
+  #   rulesNamespace: rook-ceph
+  #   externalMgrEndpoints:
+      #- ip: ip

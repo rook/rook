@@ -175,6 +175,12 @@ spec:
                   type: boolean
                 rulesNamespace:
                   type: string
+                externalMgrEndpoints:
+                  type: array
+                  items:
+                    properties:
+                      ip:
+                        type: string
             removeOSDsIfOutAndSafeToRemove:
               type: boolean
             external:

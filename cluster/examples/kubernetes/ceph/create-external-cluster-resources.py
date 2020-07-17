@@ -78,6 +78,10 @@ class RadosJSON:
                           help="RGW Pool prefix")
         argP.add_argument("--rgw-endpoint", default="", required=True,
                           help="Rados GateWay endpoint (in <IP>:<PORT> format)")
+        argP.add_argument("--monitoring-endpoint", default="", required=False,
+                          help="Ceph Manager prometheus exporter endpoints comma separated list of <IP> entries")
+        argP.add_argument("--monitoring-endpoint-port", default="9283", required=False,
+                          help="Ceph Manager prometheus exporter port")
         if args_to_parse:
             assert type(args_to_parse) == list, \
                 "Argument to 'gen_arg_parser' should be a list"
@@ -175,6 +179,26 @@ class RadosJSON:
         q_leader_details = q_leader_matching_list[0]
         ip_port = str(q_leader_details['public_addr'].split('/')[0])
         return "{}={}".format(str(q_leader_name), ip_port)
+
+    def get_active_ceph_mgr(self):
+        if self._arg_parser.monitoring_endpoint:
+            return self._arg_parser.monitoring_endpoint+':'+self._arg_parser.monitoring_endpoint_port
+        else:
+            cmd_json = {"prefix": "mgr services", "format": "json"}
+            ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
+            # if there is an unsuccessful attempt,
+            if ret_val != 0 or len(json_out) == 0:
+                raise ExecutionFailureException(
+                    "'mgr services' command failed.\n" +
+                    "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
+            monitoring_endpoint = json_out.get('prometheus')
+            if not monitoring_endpoint:
+                raise ExecutionFailureException(
+                    "'prometheus' service not found, is the exporter enabled?'.\n")
+
+            monitoring_endpoint = monitoring_endpoint.replace("http://", "")
+            monitoring_endpoint = monitoring_endpoint.replace("/", "")
+            return monitoring_endpoint
 
     def create_cephCSIKeyring_cephFSProvisioner(self):
         '''
@@ -298,7 +322,7 @@ class RadosJSON:
     def create_checkerKey(self):
         cmd_json = {"prefix": "auth get-or-create",
                     "entity": self.run_as_user,
-                    "caps": ["mon", "allow r, allow command quorum_status",
+                    "caps": ["mon", "allow r, allow command quorum_status, allow command version",
                              "osd", ("allow rwx pool={0}.rgw.meta, " +
                                      "allow r pool=.rgw.root, " +
                                      "allow rw pool={0}.rgw.control, " +
@@ -335,6 +359,10 @@ class RadosJSON:
         self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_cephFSNode()
         self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_cephFSProvisioner()
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
+        self.out_map['MONITORING_ENDPOINT'] = self.get_active_ceph_mgr().split(":")[
+            0]
+        self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_ceph_mgr().split(":")[
+            1]
         self.out_map['CEPHFS_POOL_NAME'] = self._arg_parser.cephfs_data_pool_name
         self.out_map['CEPHFS_FS_NAME'] = self._arg_parser.cephfs_filesystem_name
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
@@ -431,6 +459,14 @@ class RadosJSON:
                 "kind": "StorageClass",
                 "data": {
                     "endpoint": self.out_map['RGW_ENDPOINT']
+                }
+            },
+            {
+                "name": "monitoring-endpoint",
+                "kind": "CephCluster",
+                "data": {
+                    "MonitoringEndpoint": self.out_map['MONITORING_ENDPOINT'],
+                    "MonitoringPort": self.out_map['MONITORING_ENDPOINT_PORT']
                 }
             }
         ]

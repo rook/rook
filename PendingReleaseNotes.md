@@ -27,6 +27,7 @@
   - Supports connecting to external Ceph Rados Gateways, refer to the [external object section](Documentation/ceph-object.html#connect-to-external-object-store)
   - The CephObjectStore CR runs health checks on the object store endpoint, refer to the [health check section](Documentation/ceph-object-store-crd.html#health-settings)
   - The endpoint is now displayed in the Status field
+- Prometheus monitoring for external clusters is now possible, refer to the [external cluster section](Documentation/ceph-cluster-crd.html#external-cluster)
 
 ### EdgeFS
 

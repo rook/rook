@@ -44,6 +44,9 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
 var prometheusRuleName = "prometheus-ceph-vVERSION-rules"
 
+// PrometheusExternalRuleName is the name of the prometheus external rule
+var PrometheusExternalRuleName = "prometheus-ceph-vVERSION-rules-external"
+
 const (
 	// AppName is the ceph mgr application name
 	AppName                = "rook-ceph-mgr"
@@ -152,7 +155,7 @@ func (c *Cluster) Start() error {
 	c.configureModules(daemonIDs)
 
 	// create the metrics service
-	service := c.makeMetricsService(AppName)
+	service := c.MakeMetricsService(AppName, serviceMetricName)
 	if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(service); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create mgr service")
@@ -166,7 +169,7 @@ func (c *Cluster) Start() error {
 	if c.spec.Monitoring.Enabled {
 		logger.Infof("starting monitoring deployment")
 		// servicemonitor takes some metadata from the service for easy mapping
-		if err := c.enableServiceMonitor(service); err != nil {
+		if err := c.EnableServiceMonitor(service); err != nil {
 			logger.Errorf("failed to enable service monitor. %v", err)
 		} else {
 			logger.Infof("servicemonitor enabled")
@@ -177,7 +180,7 @@ func (c *Cluster) Start() error {
 		if namespace == "" {
 			namespace = c.clusterInfo.Namespace
 		}
-		if err := c.deployPrometheusRule(prometheusRuleName, namespace); err != nil {
+		if err := c.DeployPrometheusRule(prometheusRuleName, namespace); err != nil {
 			logger.Errorf("failed to deploy prometheus rule. %v", err)
 		} else {
 			logger.Infof("prometheusRule deployed")
@@ -326,8 +329,8 @@ func wellKnownModule(name string) bool {
 	return false
 }
 
-// add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
-func (c *Cluster) enableServiceMonitor(service *v1.Service) error {
+// EnableServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
+func (c *Cluster) EnableServiceMonitor(service *v1.Service) error {
 	name := service.GetName()
 	namespace := service.GetNamespace()
 	serviceMonitor, err := k8sutil.GetServiceMonitor(path.Join(monitoringPath, serviceMonitorFile))
@@ -345,8 +348,8 @@ func (c *Cluster) enableServiceMonitor(service *v1.Service) error {
 	return nil
 }
 
-// deploy prometheusRule that adds alerting and/or recording rules to the cluster
-func (c *Cluster) deployPrometheusRule(name, namespace string) error {
+// DeployPrometheusRule deploy prometheusRule that adds alerting and/or recording rules to the cluster
+func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
 	version := strconv.Itoa(c.clusterInfo.CephVersion.Major)
 	name = strings.Replace(name, "VERSION", version, 1)
 	prometheusRuleFile := name + ".yaml"

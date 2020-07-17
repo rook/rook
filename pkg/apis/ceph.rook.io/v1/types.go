@@ -177,6 +177,9 @@ type MonitoringSpec struct {
 	// The namespace where the prometheus rules and alerts should be created.
 	// If empty, the same namespace as the cluster will be used.
 	RulesNamespace string `json:"rulesNamespace,omitempty"`
+
+	// ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
+	ExternalMgrEndpoints []v1.EndpointAddress `json:"externalMgrEndpoints,omitempty"`
 }
 
 type ClusterStatus struct {

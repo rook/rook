@@ -22,6 +22,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
@@ -119,6 +120,25 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
+	// Discover external Ceph version
+	externalVersion, err := client.GetCephMonVersion(c.context, cluster.ClusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get external ceph mon version")
+	}
+	cluster.ClusterInfo.CephVersion = *externalVersion
+
+	// Populate ceph version
+	c.updateClusterCephVersion("", *externalVersion)
+
+	// enable monitoring if `monitoring: enabled: true`
+	// We need the Ceph version
+	if cluster.Spec.Monitoring.Enabled {
+		err := c.configureExternalClusterMonitoring(cluster)
+		if err != nil {
+			return errors.Wrap(err, "failed to configure external cluster monitoring")
+		}
+	}
+
 	// Everything went well so let's update the CR's status to "connected"
 	config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionConnected, v1.ConditionTrue, "ClusterConnected", "Cluster connected successfully")
 
@@ -164,6 +184,64 @@ func validateExternalClusterSpec(cluster *cluster) error {
 		if cluster.Spec.DataDirHostPath == "" {
 			return errors.New("dataDirHostPath must be specified")
 		}
+	}
+
+	return nil
+}
+
+func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster) error {
+	// Initialize manager object
+	manager := mgr.New(
+		c.context,
+		cluster.ClusterInfo,
+		*cluster.Spec,
+		c.rookImage,
+	)
+
+	// Create external monitoring Service
+	service := manager.MakeMetricsService(mgr.ExternalMgrAppName, mgr.ServiceExternalMetricName)
+	logger.Info("creating mgr external monitoring service")
+	_, err := c.context.Clientset.CoreV1().Services(c.namespacedName.Namespace).Create(service)
+	if err != nil {
+		if !kerrors.IsAlreadyExists(err) {
+			return errors.Wrap(err, "failed to create mgr service")
+		}
+		logger.Debug("mgr external metrics service already exists")
+	} else {
+		logger.Info("mgr external metrics service created")
+	}
+
+	// Create external monitoring Endpoints
+	endpoint := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring.ExternalMgrEndpoints, cluster.ownerRef)
+	logger.Info("creating mgr external monitoring endpoints")
+	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, c.namespacedName.Namespace, endpoint)
+	if err != nil {
+		return errors.Wrap(err, "failed to create or update mgr endpoint")
+	}
+
+	// Deploy external ServiceMonittor
+	logger.Info("creating external service monitor")
+	// servicemonitor takes some metadata from the service for easy mapping
+	err = manager.EnableServiceMonitor(service)
+	if err != nil {
+		logger.Errorf("failed to enable external service monitor. %v", err)
+	} else {
+		logger.Info("external service monitor created")
+	}
+
+	// namespace in which the prometheusRule should be deployed
+	// if left empty, it will be deployed in current namespace
+	namespace := cluster.Spec.Monitoring.RulesNamespace
+	if namespace == "" {
+		namespace = cluster.Namespace
+	}
+
+	logger.Info("creating external prometheus rule")
+	err = manager.DeployPrometheusRule(mgr.PrometheusExternalRuleName, namespace)
+	if err != nil {
+		logger.Errorf("failed to create external prometheus rule. %v", err)
+	} else {
+		logger.Info("external prometheus rule created")
 	}
 
 	return nil
