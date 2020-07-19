@@ -36,6 +36,7 @@
 
 ### Cassandra
 
+- Updated Jolokia javaagent from 1.6.0 to 1.6.2 due to CVEs.
 - Updated Base image from Alpine 3.8 to 3.12 due to CVEs.
 
 ## Breaking Changes
