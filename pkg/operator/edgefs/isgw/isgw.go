@@ -281,7 +281,7 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 
 	direction := getDirection(isgwSpec)
 
-	replication := 3
+	var replication int
 	if isgwSpec.ReplicationType == "initial" {
 		replication = 1
 	} else if isgwSpec.ReplicationType == "continuous" {

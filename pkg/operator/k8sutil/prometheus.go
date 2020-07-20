@@ -34,6 +34,9 @@ import (
 
 func getMonitoringClient() (*monitoringclient.Clientset, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to build config. %v", err)
+	}
 	client, err := monitoringclient.NewForConfig(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get monitoring client. %v", err)

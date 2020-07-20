@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -158,6 +158,9 @@ func (c *Cluster) waitJob(job *batch.Job) error {
 	batchClient := c.context.Clientset.BatchV1()
 	jobsClient := batchClient.Jobs(job.ObjectMeta.Namespace)
 	watch, err := jobsClient.Watch(metav1.ListOptions{LabelSelector: "job-name=" + job.ObjectMeta.Name})
+	if err != nil {
+		return fmt.Errorf("Failed to watch job %s", job.ObjectMeta.Name)
+	}
 
 	k8sjob, err := jobsClient.Get(job.ObjectMeta.Name, metav1.GetOptions{})
 	if err != nil {
