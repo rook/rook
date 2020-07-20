@@ -216,6 +216,9 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
 		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(opts)
 		if err == nil && len(mgrDeployments.Items) > 0 && cluster.ClusterInfo != nil {
+			// Populate mon cluster's ClusterInfo with the last value
+			cluster.mons.ClusterInfo = clusterInfo
+
 			c.configureCephMonitoring(cluster, clusterInfo)
 		}
 
@@ -225,7 +228,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		}
 	}
 
-	// Populate ClusterInfo with the last value
+	// Populate mon cluster's ClusterInfo with the last value
 	cluster.mons.ClusterInfo = cluster.ClusterInfo
 
 	// Start the monitoring if not already started
