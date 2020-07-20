@@ -19,9 +19,7 @@ package client
 import (
 	"fmt"
 	"net"
-	"strings"
 
-	"github.com/coreos/pkg/capnslog"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -121,17 +119,4 @@ func (c *ClusterInfo) IsInitialized(logError bool) bool {
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.
 func NewMonInfo(name, ip string, port int32) *MonInfo {
 	return &MonInfo{Name: name, Endpoint: net.JoinHostPort(ip, fmt.Sprintf("%d", port))}
-}
-
-// Log writes the cluster info struct to the logger
-func (c *ClusterInfo) Log(logger *capnslog.PackageLogger) {
-	mons := []string{}
-	for _, m := range c.Monitors {
-		// Sprintf formatting is safe as user input isn't being used. Issue https://github.com/rook/rook/issues/4575
-		mons = append(mons, fmt.Sprintf("{Name: %s, Endpoint: %s}", m.Name, m.Endpoint))
-	}
-	s := fmt.Sprintf(
-		"ClusterInfo: {FSID: %s, Name: %s, CephUser: %s, Monitors: %s}",
-		c.FSID, c.Namespace, c.CephCred.Username, strings.Join(mons, " "))
-	logger.Info(s)
 }
