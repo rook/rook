@@ -16,6 +16,7 @@ FROM alpine:3.12
 
 ARG ARCH
 ARG TINI_VERSION
+ARG JOLOKIA_VERSION=1.6.2
 
 ADD rook /usr/local/bin/
 
@@ -25,7 +26,7 @@ RUN mkdir -p /sidecar/plugins
 
 ADD rook /sidecar/
 # Jolokia plugin for JMX<->HTTP
-ADD "http://search.maven.org/remotecontent?filepath=org/jolokia/jolokia-jvm/1.6.0/jolokia-jvm-1.6.0-agent.jar" /sidecar/plugins/jolokia.jar
+ADD "https://search.maven.org/remotecontent?filepath=org/jolokia/jolokia-jvm/${JOLOKIA_VERSION}/jolokia-jvm-${JOLOKIA_VERSION}-agent.jar" /sidecar/plugins/jolokia.jar
 # JMX exporter for prometheus metrics
 ADD "https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar" /sidecar/plugins/jmx_prometheus.jar
 
