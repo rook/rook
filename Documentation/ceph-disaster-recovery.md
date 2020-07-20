@@ -294,7 +294,7 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
         container# monmaptool --rm c monmap  # Repeat this pattern until all the old ceph-mons are removed
         container# monmaptool --rm d monmap
         container# monmaptool --rm e monmap
-        container# monmaptool --add a 10.77.2.216:6789 monmap   # Replace it with the rook-ceph-mon-a address you got from previous command.
+        container# monmaptool --addv a [v2:10.77.2.216:3300,v1:10.77.2.216:6789] monmap   # Replace it with the rook-ceph-mon-a address you got from previous command.
         container# ceph-mon --inject-monmap monmap --mon-data ./mon-a/data  # Replace monmap in ceph-mon db with our modified version.
         container# rm monmap
         container# exit
