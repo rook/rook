@@ -103,6 +103,9 @@ func (c *cephStatusChecker) checkStatus() {
 	status, err = client.StatusWithUser(c.context, c.namespace, healthCheckUser)
 	if err != nil {
 		logger.Errorf("failed to get ceph status. %v", err)
+		if err := c.updateCephStatus(cephStatusOnError(err.Error())); err != nil {
+			logger.Errorf("failed to query cluster status in namespace %q. %v", c.namespace, err)
+		}
 		return
 	}
 
@@ -156,4 +159,21 @@ func toCustomResourceStatus(currentStatus cephv1.ClusterStatus, newStatus *clien
 
 func formatTime(t time.Time) string {
 	return t.Format(time.RFC3339)
+}
+
+func cephStatusOnError(errorMessage string) *client.CephStatus {
+	details := make(map[string]client.CheckMessage)
+	details["error"] = client.CheckMessage{
+		Severity: "Urgent",
+		Summary: client.Summary{
+			Message: errorMessage,
+		},
+	}
+
+	return &client.CephStatus{
+		Health: client.HealthStatus{
+			Status: "HEALTH_ERR",
+			Checks: details,
+		},
+	}
 }

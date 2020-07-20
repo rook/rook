@@ -62,10 +62,12 @@ type HealthStatus struct {
 }
 
 type CheckMessage struct {
-	Severity string `json:"severity"`
-	Summary  struct {
-		Message string `json:"message"`
-	} `json:"summary"`
+	Severity string  `json:"severity"`
+	Summary  Summary `json:"summary"`
+}
+
+type Summary struct {
+	Message string `json:"message"`
 }
 
 type MonMap struct {
