@@ -106,6 +106,9 @@ func (c *cephStatusChecker) checkStatus() {
 	status, err = cephclient.StatusWithUser(c.context, c.clusterInfo)
 	if err != nil {
 		logger.Errorf("failed to get ceph status. %v", err)
+		if err := c.updateCephStatus(cephStatusOnError(err.Error())); err != nil {
+			logger.Errorf("failed to query cluster status in namespace %q. %v", c.clusterInfo.Namespace, err)
+		}
 		return
 	}
 
@@ -189,5 +192,22 @@ func (c *ClusterController) updateClusterCephVersion(image string, cephVersion c
 	if err := opcontroller.UpdateStatus(c.client, cephCluster); err != nil {
 		logger.Errorf("failed to update cluster %q version. %v", c.namespacedName.Name, err)
 		return
+	}
+}
+
+func cephStatusOnError(errorMessage string) *cephclient.CephStatus {
+	details := make(map[string]cephclient.CheckMessage)
+	details["error"] = cephclient.CheckMessage{
+		Severity: "Urgent",
+		Summary: cephclient.Summary{
+			Message: errorMessage,
+		},
+	}
+
+	return &cephclient.CephStatus{
+		Health: cephclient.HealthStatus{
+			Status: "HEALTH_ERR",
+			Checks: details,
+		},
 	}
 }
