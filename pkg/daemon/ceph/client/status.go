@@ -166,7 +166,10 @@ func StatusWithUser(context *clusterd.Context, clusterInfo *ClusterInfo) (CephSt
 
 	buf, err := context.Executor.ExecuteCommandWithOutput(command, args...)
 	if err != nil {
-		return CephStatus{}, errors.Wrapf(err, "failed to get status. %s", string(buf))
+		if buf != "" {
+			return CephStatus{}, errors.Wrapf(err, "failed to get status. %s", string(buf))
+		}
+		return CephStatus{}, errors.Wrap(err, "failed to get ceph status")
 	}
 
 	var status CephStatus
