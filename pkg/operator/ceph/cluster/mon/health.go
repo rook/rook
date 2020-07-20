@@ -104,7 +104,7 @@ func (c *Cluster) checkHealth() error {
 
 	// For an external connection we use a special function to get the status
 	if c.spec.External.Enable {
-		quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo, c.ClusterInfo.CephCred.Username)
+		quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to get external mon quorum status")
 		}
@@ -114,7 +114,7 @@ func (c *Cluster) checkHealth() error {
 
 	// connect to the mons
 	// get the status and check for quorum
-	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo, c.ClusterInfo.CephCred.Username)
+	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get mon quorum status")
 	}
