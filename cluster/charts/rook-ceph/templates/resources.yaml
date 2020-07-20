@@ -287,8 +287,8 @@ spec:
                     - passive
                     - aggressive
                     - force
-                parameters:
-                  type: object
+                  parameters:
+                    type: object
             preservePoolsOnDelete:
               type: boolean
   subresources:
@@ -557,8 +557,6 @@ spec:
               - passive
               - aggressive
               - force
-            parameters:
-              type: object
             parameters:
               type: object
   subresources:
