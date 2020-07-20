@@ -562,6 +562,12 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	udevVolume := v1.Volume{Name: "udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}}
 	volumes = append(volumes, udevVolume)
 
+	// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
+	if !osdProps.onPVC() {
+		rootFSVolume := v1.Volume{Name: "rootfs", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/"}}}
+		volumes = append(volumes, rootFSVolume)
+	}
+
 	if osdProps.onPVC() {
 		// Create volume config for PVCs
 		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
@@ -881,6 +887,11 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		{Name: "udev", MountPath: "/run/udev"},
 		copyBinariesMount,
 	}...)
+
+	// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
+	if !osdProps.onPVC() {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: "rootfs", MountPath: "/rootfs", ReadOnly: true})
+	}
 
 	// If the OSD runs on PVC
 	if osdProps.onPVC() {

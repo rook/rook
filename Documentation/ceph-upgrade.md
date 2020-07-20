@@ -59,6 +59,7 @@ Rook v1.3 has several breaking changes that must be considered **before** upgrad
    OSDs in your cluster, run `lsblk` on each host to see what partitions exist.
    - If you see **three partitions** on a device running an OSD, this is a legacy OSD. See below for [converting legacy OSDs](#converting-legacy-osds).
    - If you see a single partition or LV with the `ceph` prefix, the OSD is **not** a legacy OSD and you will not need to convert the OSDs.
+4. Make sure the `lvm2` package is installed on the host where OSDs are running. If not, the prepare job will fail and the upgrade will be blocked.
 
 ### CSI Snapshots
 

@@ -29,6 +29,7 @@
   - The CephObjectStore CR runs health checks on the object store endpoint, refer to the [health check section](Documentation/ceph-object-store-crd.html#health-settings)
   - The endpoint is now displayed in the Status field
 - Prometheus monitoring for external clusters is now possible, refer to the [external cluster section](Documentation/ceph-cluster-crd.html#external-cluster)
+- The operator will check for the presence of the `lvm2` package on the host where OSDs will run. If not available, the prepare job will fail. This will prevent issues of OSDs not restarting on node reboot.
 
 ### EdgeFS
 
