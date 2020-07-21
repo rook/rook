@@ -18,8 +18,10 @@ package file
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -100,6 +102,10 @@ func deleteFilesystem(
 ) error {
 	filesystem, err := client.GetFilesystem(context, clusterInfo, fs.Name)
 	if err != nil {
+		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+			// If we're deleting the filesystem anyway, ignore the error that the filesystem doesn't exist
+			return nil
+		}
 		return errors.Wrapf(err, "failed to get filesystem %q", fs.Name)
 	}
 	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerRefs, dataDirHostPath, scheme)
