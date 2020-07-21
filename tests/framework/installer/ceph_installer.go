@@ -520,8 +520,11 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	for clusterNum, namespace := range namespaces {
 		if h.cleanupHost {
 			//Add cleanup policy to the ceph cluster
-			err = h.addCleanupPolicy(namespace)
-			assert.NoError(h.T(), err)
+			// Add cleanup policy to the ceph cluster but NOT the external one
+			if clusterNum == 0 {
+				err = h.addCleanupPolicy(namespace)
+				assert.NoError(h.T(), err)
+			}
 		}
 
 		if !h.T().Failed() {
@@ -547,8 +550,11 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 		if h.cleanupHost {
-			err = h.waitForCleanupJobs(namespace)
-			assert.NoError(h.T(), err)
+			// The second cluster is external so the cleanup pod will never exist!
+			if clusterNum == 0 {
+				err = h.waitForCleanupJobs(namespace)
+				assert.NoError(h.T(), err)
+			}
 		}
 
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
