@@ -167,6 +167,7 @@ spec:
                 provider:
                   type: string
                 selectors: {}
+              nullable: true
             storage:
               properties:
                 disruptionManagement:
