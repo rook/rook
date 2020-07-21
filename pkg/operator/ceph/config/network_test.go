@@ -23,6 +23,7 @@ import (
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	fakenetclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,6 +63,7 @@ func TestGenerateNetworkSettings(t *testing.T) {
 		},
 	}
 
+	// this nad uses whereabouts cni
 	network := &networkv1.NetworkAttachmentDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "public-network-attach-def",
@@ -135,4 +137,60 @@ func TestGenerateNetworkSettings(t *testing.T) {
 	cephNetwork, err = generateNetworkSettings(ctx, ns, netSelector)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
+}
+
+func TestGetNetworkRange(t *testing.T) {
+	ns := "rook-ceph"
+	nad := &networkv1.NetworkAttachmentDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "public-network-attach-def",
+			Namespace: ns,
+		},
+		Spec: networkv1.NetworkAttachmentDefinitionSpec{
+			Config: `{
+				"cniVersion": "0.3.0",
+				"type": "macvlan",
+				"master": "eth2",
+				"mode": "bridge",
+				"ipam": {
+				  "type": "host-local",
+				  "subnet": "",
+				  "gateway": "172.18.8.1"
+				}
+			  }`,
+		},
+	}
+
+	netConfig, err := k8sutil.GetNetworkAttachmentConfig(*nad)
+	assert.NoError(t, err)
+
+	//
+	// TEST 1: subnet/range is empty
+	//
+	networkRange := getNetworkRange(netConfig)
+	assert.Empty(t, networkRange)
+
+	//
+	// TEST 2: subnet is not empty
+	//
+	netConfig.Ipam.Type = "host-local"
+	netConfig.Ipam.Subnet = "192.168.0.0/24"
+	networkRange = getNetworkRange(netConfig)
+	assert.Equal(t, "192.168.0.0/24", networkRange)
+
+	//
+	// TEST 3: range is empty and ipam type is whereabouts
+	//
+	netConfig.Ipam.Type = "whereabouts"
+	netConfig.Ipam.Subnet = ""
+	networkRange = getNetworkRange(netConfig)
+	assert.Empty(t, networkRange)
+
+	//
+	// TEST 4: range is not empty and ipam type is whereabouts
+	//
+	netConfig.Ipam.Type = "whereabouts"
+	netConfig.Ipam.Range = "192.168.0.0/24"
+	networkRange = getNetworkRange(netConfig)
+	assert.Equal(t, "192.168.0.0/24", networkRange)
 }
