@@ -8,6 +8,6 @@ parameters:
   exportName: share1
   nfsServerName: rook-nfs
   nfsServerNamespace: rook-nfs
-provisioner: rook.io/nfs-provisioner
+provisioner: nfs.rook.io/rook-nfs-provisioner
 reclaimPolicy: Delete
 volumeBindingMode: Immediate

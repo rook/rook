@@ -68,7 +68,7 @@ func (suite *NfsSuite) TearDownSuite() {
 }
 
 func (suite *NfsSuite) Setup() {
-	suite.namespace = "nfs-ns"
+	suite.namespace = "rook-nfs"
 	suite.systemNamespace = installer.SystemNamespace(suite.namespace)
 	suite.instanceCount = 1
 
