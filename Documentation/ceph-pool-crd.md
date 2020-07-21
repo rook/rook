@@ -70,6 +70,7 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
 
 * `replicated`: Settings for a replicated pool. If specified, `erasureCoded` settings must not be specified.
   * `size`: The desired number of copies to make of the data in the pool.
+  * `requireSafeReplicaSize`: set to false if you want to create a pool with size 1, setting pool size 1 could lead to data loss without recovery. Make sure you are *ABSOLUTELY CERTAIN* that is what you want.
 * `erasureCoded`: Settings for an erasure-coded pool. If specified, `replicated` settings must not be specified. See below for more details on [erasure coding](#erasure-coding).
   * `dataChunks`: Number of chunks to divide the original object into
   * `codingChunks`: Number of coding chunks to generate
@@ -84,7 +85,6 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
 
 * `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values) listed to the given pool
   * `target_size_ratio:` gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
-  * `requireSafeReplicaSize`: set to false if you want to create a pool with size 1, setting pool size 1 could lead to data loss without recovery. Make sure you are *ABSOLUTELY CERTAIN* that is what you want.
   * `compression_mode`: Sets up the pool for inline compression when using a Bluestore OSD. If left unspecified does not setup any compression mode for the pool. Values supported are the same as Bluestore inline compression [modes](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression), such as `none`, `passive`, `aggressive`, and `force`.
 
 ### Add specific pool properties
