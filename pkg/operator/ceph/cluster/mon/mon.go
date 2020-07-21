@@ -984,7 +984,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.Cl
 
 		// get the quorum_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterInfo, clusterInfo.CephCred.Username)
+		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterInfo)
 		if err != nil {
 			logger.Debugf("failed to get quorum_status. %v", err)
 			continue
