@@ -45,8 +45,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
-		"/var/lib/rook",
-		cephv1.NetworkSpec{},
+		cephv1.ClusterSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
 	)
@@ -94,8 +93,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
-		"/var/lib/rook",
-		cephv1.NetworkSpec{},
+		cephv1.ClusterSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
 	)
@@ -155,8 +153,7 @@ func testRequiredDuringScheduling(t *testing.T, hostNetwork, allowMultiplePerNod
 	c := New(
 		&clusterd.Context{},
 		"ns",
-		"/var/lib/rook",
-		cephv1.NetworkSpec{},
+		cephv1.ClusterSpec{},
 		metav1.OwnerReference{},
 		&sync.Mutex{},
 	)
