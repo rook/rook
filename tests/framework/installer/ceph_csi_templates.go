@@ -91,7 +91,6 @@ const (
                 - "--type=rbd"
                 - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
                 - "--containerized=true"
-                - "--metadatastorage=k8s_configmap"
                 - "--pidlimit=-1"
               env:
                 - name: HOST_ROOTFS
@@ -207,7 +206,6 @@ const (
                 - "--type=rbd"
                 - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
                 - "--containerized=true"
-                - "--metadatastorage=k8s_configmap"
               env:
                 - name: HOST_ROOTFS
                   value: "/rootfs"
@@ -346,7 +344,6 @@ const (
                 - "--v=5"
                 - "--type=cephfs"
                 - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
-                - "--metadatastorage=k8s_configmap"
                 - "--pidlimit=-1"
               env:
                 - name: NODE_ID
@@ -453,8 +450,6 @@ const (
                 - "--v=5"
                 - "--type=cephfs"
                 - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
-                - "--metadatastorage=k8s_configmap"
-                - "--mountcachedir=/mount-cache-dir"
               env:
                 - name: NODE_ID
                   valueFrom:
@@ -483,8 +478,6 @@ const (
                   readOnly: true
                 - name: host-dev
                   mountPath: /dev
-                - name: mount-cache-dir
-                  mountPath: /mount-cache-dir
                 - name: ceph-csi-config
                   mountPath: /etc/ceph-csi-config/
                 - name: keys-tmp-dir
@@ -517,8 +510,6 @@ const (
             - name: host-dev
               hostPath:
                 path: /dev
-            - name: mount-cache-dir
-              emptyDir: {}
             - name: ceph-csi-config
               configMap:
                 name: rook-ceph-csi-config
