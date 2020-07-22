@@ -92,6 +92,11 @@ func (c *Cluster) checkHealth() error {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
+	if c.spec.Mon.Count == 0 || !c.ClusterInfo.IsInitialized(true) {
+		logger.Warningf("skipping mon health check since cluster details are not initialized")
+		return nil
+	}
+
 	logger.Debugf("Checking health for mons in cluster. %s", c.ClusterInfo.Namespace)
 
 	// For an external connection we use a special function to get the status
