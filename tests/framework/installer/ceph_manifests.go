@@ -254,6 +254,17 @@ spec:
                 confirmation:
                   type: string
                   pattern: ^$|^yes-really-destroy-data$
+                sanitizeDisks:
+                  properties:
+                    method:
+                      type: string
+                      pattern: ^(complete|quick)$
+                    dataSource:
+                      type: string
+                      pattern: ^(zero|random)$
+                    iteration:
+                      type: integer
+                      format: int32
             placement: {}
             resources: {}
   additionalPrinterColumns:

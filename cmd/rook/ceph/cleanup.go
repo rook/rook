@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/rook/rook/cmd/rook/rook"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cleanup "github.com/rook/rook/pkg/daemon/ceph/cleanup"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -28,10 +29,13 @@ import (
 )
 
 var (
-	dataDirHostPath string
-	namespaceDir    string
-	monSecret       string
-	clusterFSID     string
+	dataDirHostPath    string
+	namespaceDir       string
+	monSecret          string
+	clusterFSID        string
+	sanitizeMethod     string
+	sanitizeDataSource string
+	sanitizeIteration  int32
 )
 
 var cleanUpCmd = &cobra.Command{
@@ -44,6 +48,9 @@ func init() {
 	cleanUpCmd.Flags().StringVar(&namespaceDir, "namespace-dir", "", "dataDirHostPath on the node")
 	cleanUpCmd.Flags().StringVar(&monSecret, "mon-secret", "", "monitor secret from the keyring")
 	cleanUpCmd.Flags().StringVar(&clusterFSID, "cluster-fsid", "", "ceph cluster fsid")
+	cleanUpCmd.Flags().StringVar(&sanitizeMethod, "sanitize-method", string(cephv1.SanitizeMethodQuick), "sanitize method to use (metadata or data)")
+	cleanUpCmd.Flags().StringVar(&sanitizeDataSource, "sanitize-data-source", string(cephv1.SanitizeDataSourceZero), "data source to sanitize the disk (zero or random)")
+	cleanUpCmd.Flags().Int32Var(&sanitizeIteration, "sanitize-iteration", 1, "overwrite N times the disk")
 	flags.SetFlagsFromEnv(cleanUpCmd.Flags(), rook.RookEnvVarPrefix)
 	cleanUpCmd.RunE = startCleanUp
 }
@@ -64,7 +71,14 @@ func startCleanUp(cmd *cobra.Command, args []string) error {
 	clusterInfo.FSID = clusterFSID
 
 	// Build Sanitizer
-	s := cleanup.NewDiskSanitizer(createContext(), clusterInfo)
+	s := cleanup.NewDiskSanitizer(createContext(),
+		clusterInfo,
+		&cephv1.SanitizeDisksSpec{
+			Method:     cephv1.SanitizeMethodProperty(sanitizeMethod),
+			DataSource: cephv1.SanitizeDataSourceProperty(sanitizeDataSource),
+			Iteration:  sanitizeIteration,
+		},
+	)
 
 	// Start OSD wipe process
 	s.StartSanitizeDisks()

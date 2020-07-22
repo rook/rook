@@ -716,10 +716,21 @@ type ClientSpec struct {
 }
 
 type CleanupPolicySpec struct {
-	Confirmation CleanupConfirmationProperty `json:"confirmation,omitempty"`
+	Confirmation  CleanupConfirmationProperty `json:"confirmation,omitempty"`
+	SanitizeDisks SanitizeDisksSpec           `json:"sanitizeDisks"`
 }
 
 type CleanupConfirmationProperty string
+
+type SanitizeDataSourceProperty string
+
+type SanitizeMethodProperty string
+
+type SanitizeDisksSpec struct {
+	Method     SanitizeMethodProperty     `json:"method,omitempty"`
+	DataSource SanitizeDataSourceProperty `json:"dataSource,omitempty"`
+	Iteration  int32                      `json:"iteration,omitempty"`
+}
 
 // +genclient
 // +genclient:noStatus

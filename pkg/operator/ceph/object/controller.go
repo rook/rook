@@ -75,13 +75,14 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileCephObjectStore reconciles a cephObjectStore object
 type ReconcileCephObjectStore struct {
-	client              client.Client
-	bktclient           bktclient.Interface
-	scheme              *runtime.Scheme
-	context             *clusterd.Context
-	cephClusterSpec     *cephv1.ClusterSpec
-	clusterInfo         *cephclient.ClusterInfo
-	objectStoreChannels map[string]*objectStoreHealth
+	client                 client.Client
+	bktclient              bktclient.Interface
+	scheme                 *runtime.Scheme
+	context                *clusterd.Context
+	cephClusterSpec        *cephv1.ClusterSpec
+	clusterInfo            *cephclient.ClusterInfo
+	objectStoreChannels    map[string]*objectStoreHealth
+	clusterResourceDeleted bool
 }
 
 type objectStoreHealth struct {
@@ -221,35 +222,40 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting store %q", cephObjectStore.Name)
 
-		response, okToDelete := r.verifyObjectBucketCleanup(cephObjectStore)
-		if !okToDelete {
-			// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
-			// will eventually be satisfied such as the object buckets being removed
-			return response, nil
-		}
+		if !r.clusterResourceDeleted {
+			response, okToDelete := r.verifyObjectBucketCleanup(cephObjectStore)
+			if !okToDelete {
+				// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
+				// will eventually be satisfied such as the object buckets being removed
+				return response, nil
+			}
 
-		response, okToDelete = r.verifyObjectUserCleanup(cephObjectStore)
-		if !okToDelete {
-			// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
-			// will eventually be satisfied such as the object users being removed
-			return response, nil
-		}
+			response, okToDelete = r.verifyObjectUserCleanup(cephObjectStore)
+			if !okToDelete {
+				// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
+				// will eventually be satisfied such as the object users being removed
+				return response, nil
+			}
 
-		// Close the channel to stop the healthcheck of the endpoint
-		close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
+			// Close the channel to stop the healthcheck of the endpoint
+			close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
 
-		// Remove object store from the map
-		delete(r.objectStoreChannels, cephObjectStore.Name)
+			// Remove object store from the map
+			delete(r.objectStoreChannels, cephObjectStore.Name)
 
-		cfg := clusterConfig{
-			context:     r.context,
-			store:       cephObjectStore,
-			clusterSpec: r.cephClusterSpec,
-			clusterInfo: r.clusterInfo,
-		}
-		err = cfg.deleteStore()
-		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to delete store %q", cephObjectStore.Name)
+			cfg := clusterConfig{
+				context:     r.context,
+				store:       cephObjectStore,
+				clusterSpec: r.cephClusterSpec,
+				clusterInfo: r.clusterInfo,
+			}
+			err = cfg.deleteStore()
+			if err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to delete store %q", cephObjectStore.Name)
+			}
+
+			// Mark the ressource deletion as complete
+			r.clusterResourceDeleted = true
 		}
 
 		// Remove finalizer

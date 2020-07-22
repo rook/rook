@@ -97,10 +97,6 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 	if err != nil {
 		return fmt.Errorf("Failed to start admission controllers: %v", err)
 	}
-
-	if err = h.WipeDisks(namespace, 2); err != nil {
-		return err
-	}
 	rookOperator := h.Manifests.GetRookOperator(namespace)
 	_, err = h.k8shelper.KubectlWithStdin(rookOperator, createFromStdinArgs...)
 	if err != nil {
@@ -190,9 +186,6 @@ func (h *CephInstaller) CreateRookOperatorViaHelm(namespace, chartSettings strin
 
 	}
 
-	if err = h.WipeDisks(namespace, 2); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -527,8 +520,11 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	for clusterNum, namespace := range namespaces {
 		if h.cleanupHost {
 			//Add cleanup policy to the ceph cluster
-			err = h.addCleanupPolicy(namespace)
-			assert.NoError(h.T(), err)
+			// Add cleanup policy to the ceph cluster but NOT the external one
+			if clusterNum == 0 {
+				err = h.addCleanupPolicy(namespace)
+				assert.NoError(h.T(), err)
+			}
 		}
 
 		if !h.T().Failed() {
@@ -550,16 +546,19 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 			h.GatherAllRookLogs(h.T().Name()+"poolcheck", systemNamespace)
 		}
 
-		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
-		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
-
 		err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", h.clusterName)
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 		if h.cleanupHost {
-			err = h.waitForCleanupJobs(namespace)
-			assert.NoError(h.T(), err)
+			// The second cluster is external so the cleanup pod will never exist!
+			if clusterNum == 0 {
+				err = h.waitForCleanupJobs(namespace)
+				assert.NoError(h.T(), err)
+			}
 		}
+
+		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
+		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
 		crdCheckerFunc := func() error {
 			_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(h.clusterName, metav1.GetOptions{})
@@ -805,158 +804,6 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 	return h
 }
 
-// Wipe cluster disks
-func (h *CephInstaller) WipeDisks(namespace string, retries int) (err error) {
-	for i := 1; i <= retries; i++ {
-		if err = h.wipeClusterDisks(namespace); err == nil {
-			logger.Info("disks wiped successfully")
-			return nil
-		} else {
-			logger.Warningf("failed to wipe cluster disks. %+v. Attemp %d/%d ...", err, i, retries)
-		}
-	}
-	return fmt.Errorf("failed to wipe cluster disks. %+v", err)
-}
-
-// wipeClusterDisks runs a disk wipe job on all nodes in the k8s cluster.
-func (h *CephInstaller) wipeClusterDisks(namespace string) error {
-	// Wipe clean disks on all nodes
-	nodes, err := h.GetNodeHostnames()
-	if err != nil {
-		return fmt.Errorf("failed to get node hostnames. %+v", err)
-	}
-	var jobNames []string
-	for _, node := range nodes {
-		// Start the new job
-		globalTestJobIndex++
-		jobName := fmt.Sprintf("rook-ceph-disk-wipe-%d", globalTestJobIndex)
-		jobNames = append(jobNames, jobName)
-		job := h.GetDiskWipeJob(node, jobName, namespace)
-		_, err := h.k8shelper.KubectlWithStdin(job, createFromStdinArgs...)
-		if err != nil {
-			return fmt.Errorf("failed to create disk wipe job for host %s. %+v", node, err)
-		}
-	}
-
-	allJobsAreComplete := func() (done bool, err error) {
-		for _, jobName := range jobNames {
-			j, err := h.k8shelper.Clientset.BatchV1().Jobs(namespace).Get(jobName, metav1.GetOptions{})
-			if err != nil {
-				return false, nil
-			}
-			if j.Status.Failed > 0 {
-				return false, fmt.Errorf("job %s failed", jobName)
-			}
-			if j.Status.Succeeded == 0 {
-				return false, nil
-			}
-		}
-		return true, nil
-	}
-
-	// return the error below after cleaning up the jobs
-	err = wait.Poll(5*time.Second, 90*time.Second, allJobsAreComplete)
-	if err != nil {
-		return fmt.Errorf("failed to wait for wipe jobs to complete. %+v", err)
-	}
-	return nil
-}
-
-// GetDiskWipeJob returns a YAML manifest string for a job which will wipe clean the extra
-// (non-boot) disks on a node, allowing Ceph to use the disk(s) during its testing.
-func (h *CephInstaller) GetDiskWipeJob(nodeName, jobName, namespace string) string {
-	// put the wipe job in the cluster namespace so that logs get picked up in failure conditions
-	return `apiVersion: batch/v1
-kind: Job
-metadata:
-  name: ` + jobName + `
-  namespace: ` + namespace + `
-spec:
-    template:
-      spec:
-          restartPolicy: OnFailure
-          containers:
-              - name: disk-wipe
-                image: ` + h.CephVersion.Image + `
-                securityContext:
-                    privileged: true
-                volumeMounts:
-                    - name: dev
-                      mountPath: /dev
-                    - name: run-udev
-                      mountPath: /run/udev
-                command:
-                    - "sh"
-                    - "-c"
-                    - |
-                      set -xEeuo pipefail
-                      # Wipe LVM data from disks
-                      #
-                      udevadm trigger || true
-                      vgimport -a || true
-                      # We should prepopulate the PVs corresponding to Ceph VGs here.
-                      # It's because getting the relationship of the PVs and the VGs
-                      # is impossible after removing the VGs.
-                      TMP=$(pvs --noheadings --separator=',' -o pv_name,vg_name)
-                      PVS=
-                      for line in $TMP ; do
-                        if [[ $line =~ ,ceph- ]]; then
-                          PVS="$PVS ${line%,*}"
-                        fi
-                      done
-                      # Wipe VGs
-                      for vg in $(vgs --noheadings --readonly --separator=' ' -o vg_name); do
-                        if [[ $vg =~ ^ceph- ]]; then
-                          vgremove --yes --force "$vg"
-                        fi
-                      done
-                      # Wipe PVs
-                      for pv in $PVS; do
-                        pvremove --yes --force "$pv"
-                        wipefs --all "$pv"
-                        dd if=/dev/zero of="$pv" bs=1M count=100 oflag=direct,dsync
-                        # do not fail the timeout command
-                        # the command seems to hang sometimes for no reason so let's retry
-                        set +Ee
-                        for i in $(seq 1 3); do
-                            timeout --preserve-status 5s sgdisk --zap-all "$pv"
-                            if [ "$?" -eq 0 ]; then
-                                break
-                            fi
-                            sleep 5
-                        done
-                        set -Ee
-                      done
-                      # Wipe the specific disk in the CI that was running in raw mode
-                      set +Ee
-                      block=` + TestScratchDevice() + `
-                      wipefs --all "$block"
-                      dd if=/dev/zero of="$block" bs=1M count=100 oflag=direct,dsync
-                      set -Ee
-                      # Useful debug commands
-                      lsblk
-                      blkid
-                      df /
-                      #
-                      # some devices might still be mapped that lock the disks
-                      # this can fail with long-gone vestigial devices, so just assume this is successful
-                      ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove --force % || true
-                      rm -rf /dev/mapper/ceph-*  # clutter
-                      #
-                      # ceph-volume setup also leaves ceph-UUID directories in /dev (just clutter)
-                      rm -rf /dev/ceph-*
-          nodeSelector:
-            kubernetes.io/hostname: ` + nodeName + `
-          volumes:
-              - name: dev
-                hostPath:
-                  path: /dev
-              - name: run-udev
-                hostPath:
-                  path: /run/udev
-`
-}
-
 // GetCleanupPod gets a cleanup Pod that cleans up the dataDirHostPath
 func (h *CephInstaller) GetCleanupPod(node, removalDir string) string {
 	return `apiVersion: batch/v1
@@ -1049,9 +896,17 @@ func (h *CephInstaller) waitForCleanupJobs(namespace string) error {
 			return false, nil
 		}
 		for _, job := range cleanupJobs.Items {
-			logger.Debugf("job %q status: %+v", job.Name, job.Status)
+			logger.Infof("job %q status: %+v", job.Name, job.Status)
 			if job.Status.Failed > 0 {
 				return false, fmt.Errorf("job %s failed", job.Name)
+			}
+			if job.Status.Succeeded == 1 {
+				l, err := h.k8shelper.Kubectl("-n", namespace, "logs", fmt.Sprintf("job.batch/%s", job.Name))
+				if err != nil {
+					logger.Errorf("cannot get logs for pod %s. %v", job.Name, err)
+				}
+				rawData := []byte(l)
+				logger.Infof("cleanup job %s done. logs: %s", job.Name, string(rawData))
 			}
 			if job.Status.Succeeded == 0 {
 				return false, nil
