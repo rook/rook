@@ -178,7 +178,7 @@ func (i *CassandraManifests) GetCassandraCluster(namespace string, count int, mo
 	if mode == cassandrav1alpha1.ClusterModeScylla {
 		version = "2.3.0"
 	} else {
-		version = "3.11.1"
+		version = "3.11.6"
 	}
 	return fmt.Sprintf(`
 # Namespace for cassandra cluster
