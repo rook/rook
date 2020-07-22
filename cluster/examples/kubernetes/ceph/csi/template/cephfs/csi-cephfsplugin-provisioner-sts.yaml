@@ -56,7 +56,6 @@ spec:
             - "--v={{ .LogLevel }}"
             - "--controllerserver=true"
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
-            - "--metadatastorage=k8s_configmap"
             - "--pidlimit=-1"
             - "--metricsport={{ .CephFSGRPCMetricsPort }}"
             - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
