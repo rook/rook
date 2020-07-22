@@ -83,7 +83,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		monitoringChannels: make(map[string]*clusterHealth),
 		stopCh:             make(chan struct{}),
 		ownerRef:           *ownerRef,
-		mons:               mon.New(context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.Network, *ownerRef, csiMutex),
+		mons:               mon.New(context, c.Namespace, c.Spec, *ownerRef, csiMutex),
 	}
 }
 

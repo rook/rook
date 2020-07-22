@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
@@ -41,27 +40,25 @@ var (
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
 type HealthChecker struct {
-	monCluster  *Cluster
-	clusterSpec *cephv1.ClusterSpec
-	interval    time.Duration
+	monCluster *Cluster
+	interval   time.Duration
 }
 
 // NewHealthChecker creates a new HealthChecker object
-func NewHealthChecker(monCluster *Cluster, clusterSpec *cephv1.ClusterSpec) *HealthChecker {
+func NewHealthChecker(monCluster *Cluster) *HealthChecker {
 	h := &HealthChecker{
-		monCluster:  monCluster,
-		clusterSpec: clusterSpec,
-		interval:    HealthCheckInterval,
+		monCluster: monCluster,
+		interval:   HealthCheckInterval,
 	}
 
-	monCRDTimeoutSetting := clusterSpec.HealthCheck.DaemonHealth.Monitor.Timeout
+	monCRDTimeoutSetting := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Timeout
 	if monCRDTimeoutSetting != "" {
 		if monTimeout, err := time.ParseDuration(monCRDTimeoutSetting); err == nil {
 			MonOutTimeout = monTimeout
 		}
 	}
 
-	checkInterval := clusterSpec.HealthCheck.DaemonHealth.Monitor.Interval
+	checkInterval := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Interval
 	// allow overriding the check interval
 	if checkInterval != "" {
 		if duration, err := time.ParseDuration(checkInterval); err == nil {
@@ -75,11 +72,6 @@ func NewHealthChecker(monCluster *Cluster, clusterSpec *cephv1.ClusterSpec) *Hea
 
 // Check periodically checks the health of the monitors
 func (hc *HealthChecker) Check(stopCh chan struct{}) {
-	// Populate spec with clusterSpec
-	if hc.clusterSpec.External.Enable {
-		hc.monCluster.spec = *hc.clusterSpec
-	}
-
 	for {
 		select {
 		case <-stopCh:
@@ -257,7 +249,7 @@ func (c *Cluster) failoverMon(name string) error {
 		return errors.Wrap(err, "failed to place new mon on a node")
 	}
 
-	if c.Network.IsHost() {
+	if c.spec.Network.IsHost() {
 		node, ok := c.mapping.Node[m.DaemonName]
 		if !ok {
 			return errors.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)

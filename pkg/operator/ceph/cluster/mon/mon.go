@@ -119,10 +119,8 @@ type Cluster struct {
 	rookVersion         string
 	orchestrationMutex  sync.Mutex
 	Port                int32
-	Network             cephv1.NetworkSpec
 	maxMonID            int
 	waitForStart        bool
-	dataDirHostPath     string
 	monPodRetryInterval time.Duration
 	monPodTimeout       time.Duration
 	monTimeoutList      map[string]time.Time
@@ -166,17 +164,16 @@ type SchedulingResult struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath string, network cephv1.NetworkSpec, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
+func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
 	return &Cluster{
 		context:             context,
-		dataDirHostPath:     dataDirHostPath,
+		spec:                spec,
 		Namespace:           namespace,
 		maxMonID:            -1,
 		waitForStart:        true,
 		monPodRetryInterval: 6 * time.Second,
 		monPodTimeout:       5 * time.Minute,
 		monTimeoutList:      map[string]time.Time{},
-		Network:             network,
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 		},
@@ -198,8 +195,8 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string,
 	c.spec = spec
 
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
-	if c.Network.IsHost() && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
-		return nil, errors.Errorf("refusing to deploy %d monitors on the same host since hostNetwork is %+v and allowMultiplePerNode is %t. only one monitor per node is allowed", c.spec.Mon.Count, c.Network, c.spec.Mon.AllowMultiplePerNode)
+	if c.spec.Network.IsHost() && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
+		return nil, errors.Errorf("refusing to deploy %d monitors on the same host with host networking and allowMultiplePerNode is %t. only one monitor per node is allowed", c.spec.Mon.Count, c.spec.Mon.AllowMultiplePerNode)
 	}
 
 	// Validate pod's memory if specified
@@ -375,7 +372,7 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig) {
 			DaemonName:   monitor.Name,
 			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
 			DataPathMap: config.NewStatefulDaemonDataPathMap(
-				c.dataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
+				c.spec.DataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
 		})
 	}
 
@@ -397,7 +394,7 @@ func (c *Cluster) newMonConfig(monID int) *monConfig {
 		DaemonName:   daemonName,
 		Port:         DefaultMsgr1Port,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
-			c.dataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),
+			c.spec.DataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),
 	}
 }
 
@@ -544,7 +541,7 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 
 func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	for _, m := range mons {
-		if c.Network.IsHost() {
+		if c.spec.Network.IsHost() {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
 			node, ok := c.mapping.Node[m.DaemonName]
 			if !ok {
@@ -630,7 +627,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		// placement is not being made. otherwise, the node choice will map
 		// directly to a node selector on the monitor pod.
 		var nodeInfo *NodeInfo = nil
-		if c.Network.IsHost() || c.spec.Mon.VolumeClaimTemplate == nil {
+		if c.spec.Network.IsHost() || c.spec.Mon.VolumeClaimTemplate == nil {
 			logger.Infof("assignmon: mon %s assigned to node %s", mon.DaemonName, nodeChoice.Name)
 			nodeInfo, err = getNodeInfoFromNode(*nodeChoice)
 			if err != nil {
@@ -897,7 +894,7 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 		// isn't using host networking and the deployment is using pvc storage,
 		// then the node selector can be removed. this may happen after
 		// upgrading the cluster with the k8s scheduling support for monitors.
-		if c.Network.IsHost() || !pvcExists {
+		if c.spec.Network.IsHost() || !pvcExists {
 			p.PodAffinity = nil
 			p.PodAntiAffinity = nil
 			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,

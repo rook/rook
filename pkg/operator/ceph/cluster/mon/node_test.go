@@ -35,7 +35,7 @@ import (
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(t, 4)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	c.spec.Placement = map[rookv1.KeyType]rookv1.Placement{}
@@ -76,7 +76,8 @@ func TestHostNetworkSameNode(t *testing.T) {
 	context, err := newTestStartCluster(t, namespace)
 	assert.Nil(t, err)
 	// cluster host networking
-	c := newCluster(context, namespace, cephv1.NetworkSpec{HostNetwork: true}, true, v1.ResourceRequirements{})
+	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
+	c.spec.Network.HostNetwork = true
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
@@ -95,7 +96,7 @@ func TestPodMemory(t *testing.T) {
 		},
 	}
 
-	c := newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
+	c := newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -111,7 +112,7 @@ func TestPodMemory(t *testing.T) {
 		},
 	}
 
-	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
+	c = newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -127,7 +128,7 @@ func TestPodMemory(t *testing.T) {
 		},
 	}
 
-	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
+	c = newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -143,7 +144,7 @@ func TestPodMemory(t *testing.T) {
 		},
 	}
 
-	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
+	c = newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -151,7 +152,7 @@ func TestPodMemory(t *testing.T) {
 
 	// Test no resources were specified on the pod
 	r = v1.ResourceRequirements{}
-	c = newCluster(context, namespace, cephv1.NetworkSpec{}, true, r)
+	c = newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
@@ -161,10 +162,10 @@ func TestPodMemory(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(t, 3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
-	c.Network.HostNetwork = true
+	c.spec.Network.HostNetwork = true
 
 	monConfig := testGenMonConfig("c")
 	pod := c.makeMonPod(monConfig, false, "")

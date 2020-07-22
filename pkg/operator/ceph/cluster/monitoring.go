@@ -112,7 +112,7 @@ func isMonitoringDisabled(daemon string, clusterSpec *cephv1.ClusterSpec) bool {
 func (c *ClusterController) startMonitoringCheck(cluster *cluster, clusterInfo *cephclient.ClusterInfo, daemon string) {
 	switch daemon {
 	case "mon":
-		healthChecker := mon.NewHealthChecker(cluster.mons, cluster.Spec)
+		healthChecker := mon.NewHealthChecker(cluster.mons)
 		logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
 		go healthChecker.Check(cluster.monitoringChannels[daemon].stopChan)
 

@@ -151,7 +151,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) 
 		// we decide later whether to use a PVC volume or host volumes for mons, so only populate
 		// the base volumes at this point.
 		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
-		HostNetwork:       c.Network.IsHost(),
+		HostNetwork:       c.spec.Network.IsHost(),
 		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
 	}
 
@@ -170,10 +170,10 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) 
 	}
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pod.ObjectMeta)
 
-	if c.Network.IsHost() {
+	if c.spec.Network.IsHost() {
 		pod.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	} else if c.Network.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.Network.NetworkSpec, &pod.ObjectMeta)
+	} else if c.spec.Network.NetworkSpec.IsMultus() {
+		k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &pod.ObjectMeta)
 	}
 
 	return pod
@@ -235,7 +235,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 
 	// Handle the non-default port for host networking. If host networking is not being used,
 	// the service created elsewhere will handle the non-default port redirection to the default port inside the container.
-	if c.Network.IsHost() && monConfig.Port != DefaultMsgr1Port {
+	if c.spec.Network.IsHost() && monConfig.Port != DefaultMsgr1Port {
 		logger.Warningf("Starting mon %s with host networking on a non-default port %d. The mon must be failed over before enabling msgr2.",
 			monConfig.DaemonName, monConfig.Port)
 		publicAddr = fmt.Sprintf("%s:%d", publicAddr, monConfig.Port)
@@ -282,7 +282,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	container = config.ConfigureLivenessProbe(cephv1.KeyMon, container, c.spec.HealthCheck)
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
-	if !c.Network.IsHost() {
+	if !c.spec.Network.IsHost() {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
 		container.Args = append(container.Args,

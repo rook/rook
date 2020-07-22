@@ -59,7 +59,7 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(context, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	logger.Infof("initial mons: %v", c.ClusterInfo.Monitors)
 	c.waitForStart = false
@@ -114,7 +114,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(context, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -170,7 +170,7 @@ func TestAddRemoveMons(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(context, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
 	c.maxMonID = 0 // "a" is max mon id
 	c.waitForStart = false
@@ -365,26 +365,24 @@ func createTestMonPod(t *testing.T, clientset kubernetes.Interface, namespace, n
 }
 
 func TestNewHealthChecker(t *testing.T) {
-	c := &Cluster{}
-	clusterSpec := &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{}}
+	c := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{}}}
 	time10s, _ := time.ParseDuration("10s")
-	clusterSpec10s := &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Interval: "10s"}}}}
+	c10s := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Interval: "10s"}}}}}
 
 	type args struct {
-		monCluster  *Cluster
-		clusterSpec *cephv1.ClusterSpec
+		monCluster *Cluster
 	}
 	tests := []struct {
 		name string
 		args args
 		want *HealthChecker
 	}{
-		{"default-interval", args{c, clusterSpec}, &HealthChecker{c, clusterSpec, HealthCheckInterval}},
-		{"10s-interval", args{c, clusterSpec10s}, &HealthChecker{c, clusterSpec10s, time10s}},
+		{"default-interval", args{c}, &HealthChecker{c, HealthCheckInterval}},
+		{"10s-interval", args{c10s}, &HealthChecker{c10s, time10s}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewHealthChecker(tt.args.monCluster, tt.args.clusterSpec); !reflect.DeepEqual(got, tt.want) {
+			if got := NewHealthChecker(tt.args.monCluster); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewHealthChecker() = %v, want %v", got, tt.want)
 			}
 		})
