@@ -63,8 +63,6 @@ spec:
             - "--v={{ .LogLevel }}"
             - "--nodeserver=true"
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
-            - "--metadatastorage=k8s_configmap"
-            - "--mountcachedir=/mount-cache-dir"
             - "--pidlimit=-1"
             - "--metricsport={{ .CephFSGRPCMetricsPort }}"
             - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
@@ -102,8 +100,6 @@ spec:
               readOnly: true
             - name: host-dev
               mountPath: /dev
-            - name: mount-cache-dir
-              mountPath: /mount-cache-dir
             - name: ceph-csi-config
               mountPath: /etc/ceph-csi-config/
             - name: keys-tmp-dir
@@ -158,8 +154,6 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
-        - name: mount-cache-dir
-          emptyDir: {}
         - name: ceph-csi-config
           configMap:
             name: rook-ceph-csi-config
