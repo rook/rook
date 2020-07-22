@@ -432,7 +432,7 @@ type ObjectStoreSpec struct {
 	Gateway GatewaySpec `json:"gateway"`
 
 	// The multisite info
-	Zone ZoneSpec `json:"zone"`
+	Zone ZoneSpec `json:"zone,omitempty"`
 
 	// The rgw endpoint healthcheck
 	HealthCheck BucketHealthCheckSpec `json:"healthCheck"`
@@ -552,6 +552,11 @@ type CephObjectRealmList struct {
 
 // ObjectRealmSpec represent the spec of an ObjectRealm
 type ObjectRealmSpec struct {
+	Pull PullSpec `json:"pull"`
+}
+
+type PullSpec struct {
+	Endpoint string `json:"endpoint"`
 }
 
 // +genclient
@@ -602,6 +607,12 @@ type CephObjectZoneList struct {
 type ObjectZoneSpec struct {
 	//The display name for the ceph users
 	ZoneGroup string `json:"zoneGroup"`
+
+	// The metadata pool settings
+	MetadataPool PoolSpec `json:"metadataPool"`
+
+	// The data pool settings
+	DataPool PoolSpec `json:"dataPool"`
 }
 
 // +genclient

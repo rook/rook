@@ -395,7 +395,16 @@ func (p *Provisioner) setObjectContext() error {
 	if p.objectStoreName == "" && p.endpoint == "" {
 		return errors.Errorf(msg, "name")
 	}
-	p.objectContext = cephObject.NewContext(p.context, p.clusterInfo, p.objectStoreName)
+
+	store, err := p.getObjectStore()
+	if err != nil {
+		return errors.Wrap(err, "failed to get cephObjectStore")
+	}
+
+	p.objectContext, err = cephObject.NewMultisiteContext(p.context, p.clusterInfo, store)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set multisite on provisioner's objectContext")
+	}
 
 	return nil
 }
@@ -407,7 +416,7 @@ func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error
 	name := getObjectStoreName(sc)
 	namespace := getObjectStoreNameSpace(sc)
 	// make sure the object store actually exists
-	_, err := getObjectStore(p.context.RookClientset.CephV1(), p.clusterInfo.Namespace, p.objectStoreName)
+	_, err := p.getObjectStore()
 	if err != nil {
 		return err
 	}

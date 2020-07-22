@@ -41,11 +41,128 @@ object-multisite.yaml in the [examples](/cluster/examples/kubernetes/ceph/) dire
 kubectl create -f object-multisite.yaml
 ```
 
-The first zone group created in a realm is the master zone group. The first zone created in a zone group is the master zone.
+The first zone group created in a realm is the master zone group. The first zone created in a zone group is the master zone. When a non-master zone or non-master zone group is created, the zone group or zone is not in the Ceph Radosgw Multisite [Period](https://docs.ceph.com/docs/master/radosgw/multisite/) until an object-store is created in that zone (and zone group).
 
-When one of the multisite CRs (realm, zone group, zone) is deleted the underlying ceph realm/zone group/zone is not deleted. This must be done manually (see next section).
+The zone will create the pools for the object-store(s) that are in the zone to use.
+
+When one of the multisite CRs (realm, zone group, zone) is deleted the underlying ceph realm/zone group/zone is not deleted, neither are the pools created by the zone. See the "Multisite Cleanup" section for more information.
 
 For more information on the multisite CRDs please read [ceph-object-multisite-crd](ceph-object-multisite-crd.md).
+
+# Pulling a Realm
+
+If an admin wants to sync data from another cluster, the admin needs to pull a realm on a Rook Ceph cluster from another Rook Ceph (or Ceph) cluster. 
+
+To begin doing this, the admin needs 2 pieces of information:
+
+	- An endpoint from the realm you are pulling from
+	- The access key and the system key of the system user from the realm you're pulling from.
+
+## Getting the Pull Endpoint
+
+To pull a Ceph realm from a remote Ceph cluster, an endpoint must be added to the CephObjectRealm's `pull` section in the `spec`. This endpoint must be from the master zone in the master zone group of that realm. 
+
+To find an endpoint in the via tool boxes run:
+``console
+radosgw-admin zonegroup get --rgw-realm=REALM_NAME --rgw-zonegroup=MASTER_ZONEGROUP_NAME
+{
+    ...
+    "endpoints": [http://10.17.159.77:80],
+    ...
+}
+```
+
+A list of endpoints in the master zone group in the master zone is in the `endpoints` section of the JSON output of the `zonegoup get` command.
+
+This endpoint must also be resolvable from the new Rook Ceph cluster. To test this run the `curl` command on the endpoint:
+
+```console
+curl -L http://10.17.159.77:80
+<?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
+```
+
+Finally add the endpoint to the `pull` section of the CephObjectRealm's spec. The CephObjectRealm should have the same name as the CephObjectRealm/Ceph realm it is pulling from.
+
+```
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: realm-a
+  namespace: rook-ceph
+spec:
+  pull:
+    endpoint: http://10.17.159.77:80
+```
+
+## Getting Realm Access Key and Secret Key
+
+The access key and secret key of the system user from the realm you're pulling from.
+
+### Getting the Realm Access Key and Secret Key from the Rook Ceph Cluster
+
+When you create a ceph-object-realm a system user automatically gets created for the realm with an access key and a secret key.
+
+These keys are exported as a kubernetes [secret](https://kubernetes.io/docs/concepts/configuration/secret/) called "$REALM_NAME-keys" (ex: realm-a-keys).
+
+To get these keys from the cluster the realm was originally created on, run:
+```console
+$ kubectl -n $ORIGINAL_CLUSTER_NAMESPACE get secrets realm-a-keys -o yaml > realm-a-keys.yaml
+```
+Edit the `realm-a-keys.yaml` file, and change the `namespace` with the namespace that the new Rook Ceph cluster exists in.
+
+Then create a kubernetes secret on the pulling Rook Ceph cluster with the same secrets yaml file.
+```console
+kubectl create -f realm-a-keys.yaml
+```
+
+### Getting the Realm Access Key and Secret Key from a Non Rook Ceph Cluster
+
+The access key and the secret key of the system user can be found in the output of running the following command on a non-rook ceph cluster:
+```
+radosgw-admin user info --uid=$REALM_SYSTEM_USER_UID
+{
+    ...
+    "keys": [
+        {
+            "user": "$REALM_SYSTEM_USER_UID"
+            "access_key": "aSw4blZIKV9nKEU5VC0="
+            "secret_key": "JSlDXFt5TlgjSV9QOE9XUndrLiI5JEo9YDBsJg==",
+        }
+    ],
+    ...
+}
+
+Then base64 encode the each of the keys and create a .yaml file for the kubernetes secret from the following template. Only the access key, secret key, and namespace need to be replaced.
+```
+apiVersion: v1
+data:
+  access-key: YVN3NGJsWklLVjluS0VVNVZDMD0=
+  secret-key: SlNsRFhGdDVUbGdqU1Y5UU9FOVhVbmRyTGlJNUpFbzlZREJzSmc9PQ==
+kind: Secret
+metadata:
+  name: realm-a-keys
+  namespace: $NEW_ROOK_CLUSTER_NAMESPACE
+type: kubernetes.io/rook
+```
+
+Finally, create a kubernetes secret on the pulling Rook Ceph cluster with the new secrets yaml file.
+```console
+kubectl create -f realm-a-keys.yaml
+```
+
+### Pulling a Realm on a New Rook Ceph Cluster
+
+Once the admin knows the endpoint and the secret for the keys has been created, the admin should create:
+
+    - A [CephObjectRealm](/design/ceph/object/realm.md) referring to the realm on the other Ceph cluster, with an endpoint as described above.
+    - A [CephObjectZoneGroup](/design/ceph/object/zone-group.md) matching the zone group name or the CephObjectZoneGroup from the cluster the the realm was pulled from.
+    - A [CephObjectZone](/design/ceph/object/zone.md) referring to the CephObjectZoneGroup created above.
+    - A [CephObjectStore](/design/ceph/object/store.md) referring to the new CephObjectZone resource.
+
+object-multisite-pull-realm.yaml (with changes) in the [examples](/cluster/examples/kubernetes/ceph/) directory can be used to create the multisite CRDs.
+```console
+kubectl create -f object-multisite-pull-realm.yaml
+```
 
 # Multisite Cleanup
 
@@ -124,3 +241,38 @@ radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zone-group=zone-g
 radosgw-admin zone rm --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
 radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
 ```
+
+When a zone is deleted, the pools for that zone are not deleted.
+
+### Deleting Pools for a Zone
+
+The Rook toolbox can delete pools. Deleting pools should be done with caution.
+
+If you do intend to deletepools you should read the following [documentation](https://docs.ceph.com/docs/master/rados/operations/pools/) on pools first.
+
+When a zone is created the following pools are created for each zone:
+```console
+$ZONE_NAME.rgw.control
+$ZONE_NAME.rgw.meta
+$ZONE_NAME.rgw.log
+$ZONE_NAME.rgw.buckets.index
+$ZONE_NAME.rgw.buckets.non-ec
+$ZONE_NAME.rgw.buckets.data
+```
+Here is an example command to delete the .rgw.buckets.data pool for zone-a.
+
+```console
+ceph osd pool rm zone-a.rgw.buckets.data zone-a.rgw.buckets.data --yes-i-really-really-mean-it
+```
+
+In this command the pool name **must** be mentioned twice for the pool to be removed
+
+### Removing an Object Store from a Zone
+
+When an object-store (created in a zone) is deleted, the endpoint for that object store is removed from that zone, via
+```console
+kubectl delete -f object-store.yaml
+```
+
+Removing object store(s) from the master zone of the master zone group should be done with caution. When all of theses object-stores are deleted the period cannot be updated and that realm cannot be pulled.
+

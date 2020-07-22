@@ -239,7 +239,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	}
 
 	// Generate a password
-	password, err := generatePassword(passwordLength)
+	password, err := GeneratePassword(passwordLength)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate password")
 	}
@@ -265,7 +265,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	return password, nil
 }
 
-func generatePassword(length int) (string, error) {
+func GeneratePassword(length int) (string, error) {
 	// #nosec because of the word password
 	const passwordChars = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 	passwd, err := generateRandomBytes(length)

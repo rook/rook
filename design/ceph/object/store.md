@@ -105,7 +105,7 @@ If desired to configure the object store to replicate and sync data amongst obje
 
 This section enables the the object store to be part of a specified ceph-object-zone.
 
-Specifying this section also ensures that the pool section in the ceph-object-zone is used, not the pool section in the object-store.
+Specifying this section also ensures that the pool section in the ceph-object-zone is used for the object-store. If pools are specified for the object-store they are neither created nor deleted.
 
 - `name`: name of the [ceph-object-zone](/design/ceph/object/ceph-object-zone.md) the object store is in. This name must be of a ceph-object-zone resource not just of a zone that has been already created.
 

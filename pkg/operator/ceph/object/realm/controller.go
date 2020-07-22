@@ -19,9 +19,11 @@ package realm
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"syscall"
+	"time"
 
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -37,9 +39,11 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,8 +51,12 @@ import (
 )
 
 const (
-	controllerName = "ceph-object-realm-controller"
+	controllerName  = "ceph-object-realm-controller"
+	accessKeyLength = 14
+	secretKeyLength = 28
 )
+
+var waitForRequeueIfRealmNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
@@ -171,10 +179,23 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	// Start object reconciliation, updating status for this
 	updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
 
-	// CREATE/UPDATE CEPH REALM
-	reconcileResponse, err = r.createCephRealm(cephObjectRealm)
-	if err != nil {
-		return r.setFailedStatus(request.NamespacedName, "failed to create ceph realm", err)
+	// Create/Pull Ceph Realm
+	if cephObjectRealm.Spec.IsPullRealm() {
+		logger.Debug("pull section in spec found")
+		reconcileResponse, err = r.pullCephRealm(cephObjectRealm)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		reconcileResponse, err = r.createRealmKeys(cephObjectRealm)
+		if err != nil {
+			return r.setFailedStatus(request.NamespacedName, "failed to create keys for realm", err)
+		}
+
+		reconcileResponse, err = r.createCephRealm(cephObjectRealm)
+		if err != nil {
+			return r.setFailedStatus(request.NamespacedName, "failed to create ceph realm", err)
+		}
 	}
 
 	// Set Ready status, we are done reconciling
@@ -185,16 +206,40 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	return reconcile.Result{}, nil
 }
 
+func (r *ReconcileObjectRealm) pullCephRealm(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
+	realmArg := fmt.Sprintf("--rgw-realm=%s", realm.Name)
+	urlArg := fmt.Sprintf("--url=%s", realm.Spec.Pull.Endpoint)
+	logger.Debug("getting keys to pull realm")
+	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.context, realm.Name, realm.Namespace)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return waitForRequeueIfRealmNotReady, err
+		}
+		return waitForRequeueIfRealmNotReady, errors.Wrap(err, "failed to get keys for realm")
+	}
+	logger.Debugf("keys found to pull realm, getting ready to pull from endpoint %q", realm.Spec.Pull.Endpoint)
+
+	objContext := object.NewContext(r.context, r.clusterInfo, realm.Name)
+	output, err := object.RunAdminCommandNoMultisite(objContext, "realm", "pull", realmArg, urlArg, accessKeyArg, secretKeyArg)
+
+	if err != nil {
+		return waitForRequeueIfRealmNotReady, errors.Wrapf(err, "realm pull failed for reason: %v", output)
+	}
+	logger.Debugf("realm pull for %q from endpoint %q succeeded", realm.Name, realm.Spec.Pull.Endpoint)
+
+	return reconcile.Result{}, nil
+}
+
 func (r *ReconcileObjectRealm) createCephRealm(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realm.Name)
 	objContext := object.NewContext(r.context, r.clusterInfo, realm.Namespace)
 
-	_, err := object.RunAdminCommandNoRealm(objContext, "realm", "get", realmArg)
+	_, err := object.RunAdminCommandNoMultisite(objContext, "realm", "get", realmArg)
 
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			logger.Debugf("ceph realm %q not found, running `radosgw-admin realm create`", realm.Name)
-			_, err := object.RunAdminCommandNoRealm(objContext, "realm", "create", realmArg)
+			_, err := object.RunAdminCommandNoMultisite(objContext, "realm", "create", realmArg)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph realm %s", realm.Name)
 			}
@@ -203,6 +248,53 @@ func (r *ReconcileObjectRealm) createCephRealm(realm *cephv1.CephObjectRealm) (r
 			return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin realm get failed with code %d", code)
 		}
 	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
+	logger.Debugf("generating access and secret keys for new realm %q", realm.Name)
+
+	// the realm's secret key and access key are randomly generated and then encoded to base64
+	accessKey, err := mgr.GeneratePassword(accessKeyLength)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "access key failed to generate")
+	}
+	accessKey = base64.StdEncoding.EncodeToString([]byte(accessKey))
+
+	secretKey, err := mgr.GeneratePassword(secretKeyLength)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to generate secret key")
+	}
+	secretKey = base64.StdEncoding.EncodeToString([]byte(secretKey))
+
+	logger.Debugf("creating secrets for new realm %q", realm.Name)
+
+	secrets := map[string][]byte{
+		object.AccessKeyName: []byte(accessKey),
+		object.SecretKeyName: []byte(secretKey),
+	}
+
+	secretName := realm.Name + "-keys"
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: realm.Namespace,
+		},
+		Data: secrets,
+		Type: k8sutil.RookType,
+	}
+
+	ownerRef, err := opcontroller.GetControllerObjectOwnerReference(realm, r.scheme)
+	if err != nil || ownerRef == nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", realm.Name)
+	}
+
+	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
+	if _, err = r.context.Clientset.CoreV1().Secrets(realm.Namespace).Create(secret); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to save rgw secrets")
+	}
+	logger.Infof("secrets for keys have been created for realm %q", realm.Name)
 
 	return reconcile.Result{}, nil
 }

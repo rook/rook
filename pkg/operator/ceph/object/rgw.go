@@ -277,8 +277,14 @@ func (c *clusterConfig) deleteStore() error {
 		}
 
 		// Delete the realm and pools
-		objContext := NewContext(c.context, c.clusterInfo, c.store.Name)
-		err := deleteRealmAndPools(objContext, c.store.Spec)
+		objContext, err := NewMultisiteContext(c.context, c.clusterInfo, c.store)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set multisite on object store %q", c.store.Name)
+		}
+
+		objContext.Endpoint = c.store.Status.Info["endpoint"]
+
+		err = deleteRealmAndPools(objContext, c.store.Spec)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete the realm and pools")
 		}

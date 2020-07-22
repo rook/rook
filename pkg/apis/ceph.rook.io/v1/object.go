@@ -19,3 +19,7 @@ package v1
 func (s *ObjectStoreSpec) IsMultisite() bool {
 	return s.Zone.Name != ""
 }
+
+func (s *ObjectRealmSpec) IsPullRealm() bool {
+	return s.Pull.Endpoint != ""
+}

@@ -39,6 +39,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,7 +52,7 @@ const (
 	controllerName = "ceph-object-zone-controller"
 )
 
-var waitForRequeueIfObjectZoneNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+var waitForRequeueIfObjectZoneGroupNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
@@ -166,7 +167,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// validate the zone settings
-	err = validateZoneCR(cephObjectZone)
+	err = r.validateZoneCR(cephObjectZone)
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid CephObjectZone CR %q", cephObjectZone.Name)
@@ -210,7 +211,7 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 
 	// get zone group to see if master zone exists yet
-	output, err := object.RunAdminCommandNoRealm(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	output, err := object.RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			return reconcile.Result{}, errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)
@@ -219,33 +220,69 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 		}
 	}
 
-	// check if master zone group does not exist yet for period
-	masterZone, err := decodeMasterZone(output)
+	// check if master zone does not exist yet for period
+	zoneGroupJson, err := object.DecodeZoneGroupConfig(output)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to parse `radosgw-admin zonegroup get` output")
-	}
-
-	masterArg := ""
-	// master zone does not exist yet for zone group
-	if masterZone == "" {
-		masterArg = "--master"
+		return reconcile.Result{}, errors.Wrap(err, "failed to parse `radosgw-admin zonegroup get` output")
 	}
 
 	// create zone
-	_, err = object.RunAdminCommandNoRealm(objContext, "zone", "get", realmArg, zoneGroupArg, zoneArg)
-	if err != nil {
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			logger.Debugf("ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
-			_, err := object.RunAdminCommandNoRealm(objContext, "zone", "create", realmArg, zoneGroupArg, zoneArg, masterArg)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph zone %q", zone.Name)
-			}
-		} else {
-			return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin zone get failed with code %d", code)
+	_, err = object.RunAdminCommandNoMultisite(objContext, "zone", "get", realmArg, zoneGroupArg, zoneArg)
+	if err == nil {
+		logger.Debugf("ceph zone %q already exists, new zone and pools will not be created", zone.Name)
+		return reconcile.Result{}, nil
+	}
+
+	if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+		logger.Debugf("ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
+
+		zoneIsMaster := false
+		if zoneGroupJson.MasterZoneID == "" {
+			zoneIsMaster = true
 		}
+
+		err = r.createPoolsAndZone(objContext, zone, realmName, zoneIsMaster)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin zone get failed with code %d for reason %q", code, output)
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zone *cephv1.CephObjectZone, realmName string, zoneIsMaster bool) error {
+	// create pools for zone
+	logger.Debugf("creating pools ceph zone %q", zone.Name)
+	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
+	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
+
+	err := object.CreatePools(objContext, zone.Spec.MetadataPool, zone.Spec.DataPool)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create pools for zone %v", zone.Name)
+	}
+	logger.Debugf("created pools ceph zone %q", zone.Name)
+
+	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.context, realmName, zone.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "failed to get keys for realm")
+	}
+	args := []string{"zone", "create", realmArg, zoneGroupArg, zoneArg, accessKeyArg, secretKeyArg}
+
+	if zoneIsMaster {
+		// master zone does not exist yet for zone group
+		args = append(args, "--master")
+	}
+
+	output, err := object.RunAdminCommandNoMultisite(objContext, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create ceph zone %q for reason %q", zone.Name, output)
+	}
+	logger.Debugf("created ceph zone %q", zone.Name)
+
+	return nil
 }
 
 func (r *ReconcileObjectZone) reconcileObjectZoneGroup(zone *cephv1.CephObjectZone) (string, reconcile.Result, error) {
@@ -253,9 +290,9 @@ func (r *ReconcileObjectZone) reconcileObjectZoneGroup(zone *cephv1.CephObjectZo
 	zoneGroup, err := r.context.RookClientset.CephV1().CephObjectZoneGroups(zone.Namespace).Get(zone.Spec.ZoneGroup, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return "", waitForRequeueIfObjectZoneNotReady, err
+			return "", waitForRequeueIfObjectZoneGroupNotReady, err
 		}
-		return "", waitForRequeueIfObjectZoneNotReady, errors.Wrapf(err, "error getting cephObjectZoneGroup %v", zone.Spec.ZoneGroup)
+		return "", waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "error getting cephObjectZoneGroup %v", zone.Spec.ZoneGroup)
 	}
 
 	logger.Infof("CephObjectZoneGroup %v found", zoneGroup.Name)
@@ -267,17 +304,37 @@ func (r *ReconcileObjectZone) reconcileCephZoneGroup(zone *cephv1.CephObjectZone
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 
-	_, err := object.RunAdminCommandNoRealm(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	_, err := object.RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			return waitForRequeueIfObjectZoneNotReady, errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)
+			return waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)
 		} else {
-			return waitForRequeueIfObjectZoneNotReady, errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d", code)
+			return waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d", code)
 		}
 	}
 
 	logger.Infof("Zone group %q found in Ceph cluster to create ceph zone %q", zone.Spec.ZoneGroup, zone.Name)
 	return reconcile.Result{}, nil
+}
+
+// validateZoneCR validates the zone arguments
+func (r *ReconcileObjectZone) validateZoneCR(z *cephv1.CephObjectZone) error {
+	if z.Name == "" {
+		return errors.New("missing name")
+	}
+	if z.Namespace == "" {
+		return errors.New("missing namespace")
+	}
+	if z.Spec.ZoneGroup == "" {
+		return errors.New("missing zonegroup")
+	}
+	if err := pool.ValidatePoolSpec(r.context, r.clusterInfo, &z.Spec.MetadataPool); err != nil {
+		return errors.Wrap(err, "invalid metadata pool spec")
+	}
+	if err := pool.ValidatePoolSpec(r.context, r.clusterInfo, &z.Spec.DataPool); err != nil {
+		return errors.Wrap(err, "invalid data pool spec")
+	}
+	return nil
 }
 
 func (r *ReconcileObjectZone) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
