@@ -80,9 +80,11 @@ rook-nfs-provisioner-7b5ff479f6-688dm   1/1     Running   0          102s
 rook-nfs-webhook-74749cbd46-6jw2w       1/1     Running   0          102s
 ```
 
-## Create Openshift Security Context Constraints
+## Create Openshift Security Context Constraints (Optional)
 
-On Openshift cluster, before creating NFS Server we need to create the security context constraints needed by nfs-server pods which running on openshift. The following yaml is found in `scc.yaml` under `/cluster/examples/kubernetes/nfs`.
+On OpenShift clusters, we will need to create some additional security context constraints.  If you are **not** running in OpenShift you can skip this and go to the [next section](#create-and-initialize-nfs-server).
+
+To create the security context constraints for nfs-server pods, we can use the following yaml, which is also found in `scc.yaml` under `/cluster/examples/kubernetes/nfs`.
 
 > *NOTE: Older versions of OpenShift may require ```apiVersion: v1```*
 
