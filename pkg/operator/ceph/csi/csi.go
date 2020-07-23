@@ -28,9 +28,13 @@ import (
 )
 
 func ValidateAndConfigureDrivers(clientset kubernetes.Interface, namespace, rookImage, securityAccount string, serverVersion *version.Info, ownerRef *metav1.OwnerReference) {
-	if err := validateCSIVersion(clientset, namespace, rookImage, securityAccount, ownerRef); err != nil {
-		logger.Errorf("invalid csi version. %+v", err)
-		return
+	if !AllowUnsupported {
+		if err := validateCSIVersion(clientset, namespace, rookImage, securityAccount, ownerRef); err != nil {
+			logger.Errorf("invalid csi version. %+v", err)
+			return
+		}
+	} else {
+		logger.Info("Skipping csi version check, since unsupported versions are allowed")
 	}
 
 	if err := startDrivers(clientset, namespace, serverVersion, ownerRef); err != nil {
