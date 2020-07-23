@@ -390,10 +390,6 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 		}
 	}
 
-	// Everything went well so let's update the CR's status to "connected"
-	config.ConditionExport(c.context, namespace, name,
-		cephv1.ConditionConnected, v1.ConditionTrue, "ClusterConnected", "Cluster connected successfully")
-
 	// Mark initialization has done
 	cluster.initCompleted = true
 
@@ -588,7 +584,7 @@ func (c *ClusterController) startClusterMonitoring(cluster *cluster) {
 	}
 
 	// Start the ceph status checker
-	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cluster.crdName, cluster.Info.ExternalCred)
+	cephChecker := newCephStatusChecker(c.context, cluster.Namespace, cluster.crdName, cluster.Info.ExternalCred, cluster.Spec.External.Enable)
 	go cephChecker.checkCephStatus(cluster.stopCh)
 }
 
