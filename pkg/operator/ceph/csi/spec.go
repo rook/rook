@@ -527,6 +527,8 @@ func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, se
 	job := versionReporter.Job()
 	job.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 
+	// Apply csi provisioner toleration for csi version check job
+	job.Spec.Template.Spec.Tolerations = getToleration(clientset, true)
 	stdout, _, retcode, err := versionReporter.Run(timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed to complete ceph CSI version job")
