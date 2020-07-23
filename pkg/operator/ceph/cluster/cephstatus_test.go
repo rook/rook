@@ -18,11 +18,14 @@ limitations under the License.
 package cluster
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -87,4 +90,55 @@ func TestCephStatus(t *testing.T) {
 	assert.Equal(t, osdDownMsg.Severity, aggregateStatus.Details["OSD_DOWN"].Severity)
 	assert.Equal(t, pgAvailMsg.Summary.Message, aggregateStatus.Details["PG_AVAILABILITY"].Message)
 	assert.Equal(t, pgAvailMsg.Severity, aggregateStatus.Details["PG_AVAILABILITY"].Severity)
+}
+
+func Test_cephStatusChecker_conditionMessageReason(t *testing.T) {
+	c := &clusterd.Context{}
+	ns := "rook-ceph"
+	type fields struct {
+		context      *clusterd.Context
+		namespace    string
+		resourceName string
+		interval     time.Duration
+		externalCred config.ExternalCred
+		isExternal   bool
+	}
+	type args struct {
+		condition cephv1.ConditionType
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   cephv1.ConditionType
+		want1  string
+		want2  string
+	}{
+		{"failure-converged", fields{c, ns, ns, defaultStatusCheckInterval, config.ExternalCred{}, false}, args{cephv1.ConditionFailure}, cephv1.ConditionFailure, "ClusterFailure", "Failed to configure ceph cluster"},
+		{"failure-external", fields{c, ns, ns, defaultStatusCheckInterval, config.ExternalCred{}, true}, args{cephv1.ConditionFailure}, cephv1.ConditionFailure, "ClusterFailure", "Failed to configure external ceph cluster"},
+		{"success-converged", fields{c, ns, ns, defaultStatusCheckInterval, config.ExternalCred{}, false}, args{cephv1.ConditionReady}, cephv1.ConditionReady, "ClusterCreated", "Cluster created successfully"},
+		{"success-external", fields{c, ns, ns, defaultStatusCheckInterval, config.ExternalCred{}, true}, args{cephv1.ConditionReady}, cephv1.ConditionConnected, "ClusterConnected", "Cluster connected successfully"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &cephStatusChecker{
+				context:      tt.fields.context,
+				namespace:    tt.fields.namespace,
+				resourceName: tt.fields.resourceName,
+				interval:     tt.fields.interval,
+				externalCred: tt.fields.externalCred,
+				isExternal:   tt.fields.isExternal,
+			}
+			got, got1, got2 := c.conditionMessageReason(tt.args.condition)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("cephStatusChecker.conditionMessageReason() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("cephStatusChecker.conditionMessageReason() got1 = %v, want %v", got1, tt.want1)
+			}
+			if got2 != tt.want2 {
+				t.Errorf("cephStatusChecker.conditionMessageReason() got2 = %v, want %v", got2, tt.want2)
+			}
+		})
+	}
 }
