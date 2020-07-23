@@ -47,7 +47,7 @@ func (c *CephCluster) ValidateCreate() error {
 }
 
 func (c *CephCluster) ValidateUpdate(old runtime.Object) error {
-	logger.Info("validate update cephcluster %q", c.ObjectMeta.Name)
+	logger.Infof("validate update cephcluster %q", c.ObjectMeta.Name)
 
 	if err := validateCommon(*c); err != nil {
 		return err

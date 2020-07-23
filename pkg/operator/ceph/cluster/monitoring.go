@@ -26,11 +26,14 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 )
 
+var (
+	monitorDaemonList = []string{"mon", "osd", "status"}
+)
+
 func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInfo *cephclient.ClusterInfo) {
 	var isDisabled bool
-	daemons := []string{"mon", "osd", "status"}
 
-	for _, daemon := range daemons {
+	for _, daemon := range monitorDaemonList {
 		// Is the monitoring enabled for that daemon?
 		isDisabled = isMonitoringDisabled(daemon, cluster.Spec)
 		if health, ok := cluster.monitoringChannels[daemon]; ok {
@@ -55,10 +58,6 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInf
 				}
 			}
 		} else {
-			// If the mon does not exist in the map, this is a first deployment or an operator restart
-			// So we check the desired state from the CR and run it if necessary
-			//
-			// If the mon monitoring is enabled
 			if !isDisabled {
 				cluster.monitoringChannels[daemon] = &clusterHealth{
 					stopChan:          make(chan struct{}),
@@ -117,12 +116,14 @@ func (c *ClusterController) startMonitoringCheck(cluster *cluster, clusterInfo *
 		go healthChecker.Check(cluster.monitoringChannels[daemon].stopChan)
 
 	case "osd":
-		c.osdChecker = osd.NewOSDHealthMonitor(c.context, clusterInfo, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Spec.HealthCheck)
-		logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
-		go c.osdChecker.Start(cluster.monitoringChannels[daemon].stopChan)
+		if !cluster.Spec.External.Enable {
+			c.osdChecker = osd.NewOSDHealthMonitor(c.context, clusterInfo, cluster.Spec.RemoveOSDsIfOutAndSafeToRemove, cluster.Spec.HealthCheck)
+			logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
+			go c.osdChecker.Start(cluster.monitoringChannels[daemon].stopChan)
+		}
 
 	case "status":
-		cephChecker := newCephStatusChecker(c.context, clusterInfo, cluster.Spec.HealthCheck)
+		cephChecker := newCephStatusChecker(c.context, clusterInfo, cluster.Spec)
 		logger.Infof("enabling ceph %s monitoring goroutine for cluster %q", daemon, cluster.Namespace)
 		go cephChecker.checkCephStatus(cluster.monitoringChannels[daemon].stopChan)
 	}

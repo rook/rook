@@ -368,10 +368,23 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 
 	logger.Infof("delete event for cluster %q in namespace %q", cluster.Name, cluster.Namespace)
 
-	if cluster, ok := c.clusterMap[cluster.Namespace]; ok && !cluster.closedStopCh {
-		// close the goroutines watching the health of the cluster (mons, osds, ceph status, etc)
-		close(cluster.stopCh)
-		cluster.closedStopCh = true
+	if cluster, ok := c.clusterMap[cluster.Namespace]; ok {
+		// if not already stopped, stop clientcontroller and bucketController
+		if !cluster.closedStopCh {
+			close(cluster.stopCh)
+			cluster.closedStopCh = true
+		}
+
+		// close the goroutines watching the health of the cluster (mons, osds, ceph status)
+		var isDisabled bool
+		for _, daemon := range monitorDaemonList {
+			isDisabled = isMonitoringDisabled(daemon, cluster.Spec)
+			if _, ok := cluster.monitoringChannels[daemon]; ok {
+				if !isDisabled {
+					close(cluster.monitoringChannels[daemon].stopChan)
+				}
+			}
+		}
 	}
 
 	err := c.checkIfVolumesExist(cluster)

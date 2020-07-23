@@ -89,7 +89,7 @@ func setCondition(c *clusterd.Context, namespaceName types.NamespacedName, newCo
 		logger.Infof("CephCluster %q status: %q. %q", namespaceName.Namespace, cluster.Status.Phase, cluster.Status.Message)
 	}
 
-	err = c.Client.Update(context.TODO(), cluster)
+	err = c.Client.Status().Update(context.TODO(), cluster)
 	if err != nil {
 		logger.Errorf("failed to update cluster condition to %+v. %v", newCondition, err)
 	}

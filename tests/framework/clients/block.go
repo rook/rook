@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -85,7 +86,12 @@ func (b *BlockOperation) DeletePVC(namespace, claimName string) error {
 
 func (b *BlockOperation) DeleteStorageClass(storageClassName string) error {
 	logger.Infof("deleting storage class %q", storageClassName)
-	return b.k8sClient.Clientset.StorageV1().StorageClasses().Delete(storageClassName, &metav1.DeleteOptions{})
+	err := b.k8sClient.Clientset.StorageV1().StorageClasses().Delete(storageClassName, &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete storage class %q. %v", storageClassName, err)
+	}
+
+	return nil
 }
 
 // BlockDelete Function to delete a Block using Rook

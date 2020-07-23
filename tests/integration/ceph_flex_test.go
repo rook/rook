@@ -173,8 +173,10 @@ func (s *CephFlexDriverSuite) statefulSetDataCleanup(poolName, storageClassName,
 	// Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
 	// Delete storageclass and pool
-	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, poolName)
-	s.testClient.BlockClient.DeleteStorageClass(storageClassName)
+	err := s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, poolName)
+	require.Nil(s.T(), err)
+	err = s.testClient.BlockClient.DeleteStorageClass(storageClassName)
+	require.Nil(s.T(), err)
 }
 
 func (s *CephFlexDriverSuite) setupPVCs() {

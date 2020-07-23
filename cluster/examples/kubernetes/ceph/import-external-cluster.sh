@@ -137,7 +137,6 @@ function importCsiCephFSProvisionerSecret() {
 checkEnvVars
 importSecret
 importConfigMap
-importCheckerSecret
 importCsiRBDNodeSecret
 importCsiRBDProvisionerSecret
 importCsiCephFSNodeSecret
