@@ -30,6 +30,11 @@ import (
 func (in *BucketHealthCheckSpec) DeepCopyInto(out *BucketHealthCheckSpec) {
 	*out = *in
 	out.Bucket = in.Bucket
+	if in.LivenessProbe != nil {
+		in, out := &in.LivenessProbe, &out.LivenessProbe
+		*out = new(rookiov1.ProbeSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

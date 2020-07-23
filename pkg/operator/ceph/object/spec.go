@@ -163,6 +163,8 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		SecurityContext: mon.PodSecurityContext(),
 	}
 
+	// If the liveness probe is enabled
+	configureLivenessProbe(&container, c.store.Spec.HealthCheck)
 	if c.store.Spec.Gateway.SSLCertificateRef != "" {
 		// Add a volume mount for the ssl certificate
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
@@ -170,6 +172,21 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	}
 
 	return container
+}
+
+// configureLivenessProbe returns the desired liveness probe for a given daemon
+func configureLivenessProbe(container *v1.Container, healthCheck cephv1.BucketHealthCheckSpec) {
+	if ok := healthCheck.LivenessProbe; ok != nil {
+		if !healthCheck.LivenessProbe.Disabled {
+			probe := healthCheck.LivenessProbe.Probe
+			// If the spec value is empty, let's use a default
+			if probe != nil {
+				container.LivenessProbe = probe
+			}
+		} else {
+			container.LivenessProbe = nil
+		}
+	}
 }
 
 func (c *clusterConfig) generateLiveProbe() *v1.Probe {
