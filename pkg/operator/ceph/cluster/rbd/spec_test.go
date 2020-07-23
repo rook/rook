@@ -83,7 +83,8 @@ func TestPodSpec(t *testing.T) {
 	r.cephClusterSpec = &cephCluster.Spec
 	r.clusterInfo = clusterInfo
 
-	d := r.makeDeployment(&daemonConf, rbdMirror)
+	d, err := r.makeDeployment(&daemonConf, rbdMirror)
+	assert.NoError(t, err)
 	assert.Equal(t, "rook-ceph-rbd-mirror-a", d.Name)
 
 	// Deployment should have Ceph labels

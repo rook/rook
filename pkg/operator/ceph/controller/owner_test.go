@@ -70,7 +70,8 @@ func TestMatch(t *testing.T) {
 	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, fakeObject)
 
 	// Wrong Kind
-	ownerMatcher := NewOwnerReferenceMatcher(fakeObject, scheme)
+	ownerMatcher, err := NewOwnerReferenceMatcher(fakeObject, scheme)
+	assert.NoError(t, err)
 	match, _, err := ownerMatcher.Match(fakeChildObject)
 	assert.NoError(t, err)
 	assert.False(t, match)

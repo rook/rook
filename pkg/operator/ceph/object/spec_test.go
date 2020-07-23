@@ -67,7 +67,8 @@ func TestPodSpecs(t *testing.T) {
 		ResourceName: resourceName,
 	}
 
-	s := c.makeRGWPodSpec(rgwConfig)
+	s, err := c.makeRGWPodSpec(rgwConfig)
+	assert.NoError(t, err)
 
 	// Check pod anti affinity is well added to be compliant with HostNetwork setting
 	assert.Equal(t,
@@ -119,7 +120,8 @@ func TestSSLPodSpec(t *testing.T) {
 	rgwConfig := &rgwConfig{
 		ResourceName: resourceName,
 	}
-	s := c.makeRGWPodSpec(rgwConfig)
+	s, err := c.makeRGWPodSpec(rgwConfig)
+	assert.NoError(t, err)
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",

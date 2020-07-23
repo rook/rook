@@ -67,7 +67,8 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	}
 	monConfig := testGenMonConfig(monID)
 
-	d := c.makeDeployment(monConfig, false)
+	d, err := c.makeDeployment(monConfig, false)
+	assert.NoError(t, err)
 	assert.NotNil(t, d)
 
 	if pvc {

@@ -302,7 +302,9 @@ func objectChanged(oldObj, newObj runtime.Object, objectName string) (bool, erro
 	accessor := meta.NewAccessor()
 	currentResourceVersion, err := accessor.ResourceVersion(old)
 	if err == nil {
-		accessor.SetResourceVersion(new, currentResourceVersion)
+		if err := accessor.SetResourceVersion(new, currentResourceVersion); err != nil {
+			return false, err
+		}
 	}
 
 	// Calculate diff between old and new object
@@ -326,7 +328,10 @@ func objectChanged(oldObj, newObj runtime.Object, objectName string) (bool, erro
 // This avoids a double reconcile when the secret gets deleted.
 func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme) predicate.Funcs {
 	// Initialize the Owner Matcher, which is the main controller object: e.g. cephv1.CephBlockPool{}
-	ownerMatcher := NewOwnerReferenceMatcher(owner, scheme)
+	ownerMatcher, err := NewOwnerReferenceMatcher(owner, scheme)
+	if err != nil {
+		logger.Errorf("failed to initialize owner matcher. %v", err)
+	}
 
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
@@ -421,7 +426,10 @@ func isValidEvent(patch []byte, objectName string) bool {
 	patchString := string(patch)
 
 	var p map[string]interface{}
-	json.Unmarshal(patch, &p)
+	err := json.Unmarshal(patch, &p)
+	if err != nil {
+		logger.Infof("failed to unmarshal patch %v", err)
+	}
 	// don't reconcile on status update on an object (e.g. status "creating")
 	delete(p, "status")
 
@@ -434,7 +442,7 @@ func isValidEvent(patch []byte, objectName string) bool {
 	}
 
 	// Re-marshal to get the last diff
-	patch, err := json.Marshal(p)
+	patch, err = json.Marshal(p)
 	if err != nil {
 		logger.Infof("controller will reconcile resource %q based on patch: %s", objectName, patchString)
 	}

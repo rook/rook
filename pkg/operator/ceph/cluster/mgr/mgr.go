@@ -126,7 +126,10 @@ func (c *Cluster) Start() error {
 		}
 
 		// start the deployment
-		d := c.makeDeployment(mgrConfig)
+		d, err := c.makeDeployment(mgrConfig)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create deployment")
+		}
 
 		// Set the deployment hash as an annotation
 		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)

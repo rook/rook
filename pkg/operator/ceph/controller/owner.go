@@ -35,7 +35,7 @@ type OwnerMatcher struct {
 }
 
 // NewOwnerReferenceMatcher initializes a new owner reference matcher
-func NewOwnerReferenceMatcher(owner runtime.Object, scheme *runtime.Scheme) *OwnerMatcher {
+func NewOwnerReferenceMatcher(owner runtime.Object, scheme *runtime.Scheme) (*OwnerMatcher, error) {
 	m := &OwnerMatcher{
 		owner:  owner,
 		scheme: scheme,
@@ -43,9 +43,11 @@ func NewOwnerReferenceMatcher(owner runtime.Object, scheme *runtime.Scheme) *Own
 
 	meta, _ := meta.Accessor(owner)
 	m.ownerMeta = meta
-	m.setOwnerTypeGroupKind()
+	if err := m.setOwnerTypeGroupKind(); err != nil {
+		return m, errors.Wrap(err, "failed to set ownerType %v")
+	}
 
-	return m
+	return m, nil
 }
 
 // Match checks whether a given object matches the parent controller owner reference

@@ -60,7 +60,8 @@ func TestPodSpec(t *testing.T) {
 		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
-	d := c.makeDeployment(&mgrTestConfig)
+	d, err := c.makeDeployment(&mgrTestConfig)
+	assert.NoError(t, err)
 
 	// Deployment should have Ceph labels
 	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
@@ -105,7 +106,8 @@ func TestHostNetwork(t *testing.T) {
 		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
-	d := c.makeDeployment(&mgrTestConfig)
+	d, err := c.makeDeployment(&mgrTestConfig)
+	assert.NoError(t, err)
 	assert.NotNil(t, d)
 
 	assert.Equal(t, true, c.spec.Network.IsHost())
@@ -129,7 +131,8 @@ func TestHttpBindFix(t *testing.T) {
 
 	c.clusterInfo.CephVersion = cephver.Nautilus
 	expectedInitContainers := 3
-	d := c.makeDeployment(&mgrTestConfig)
+	d, err := c.makeDeployment(&mgrTestConfig)
+	assert.NoError(t, err)
 	assert.NotNil(t, d)
 	assert.Equal(t, expectedInitContainers,
 		len(d.Spec.Template.Spec.InitContainers))
@@ -149,7 +152,8 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
-	d := c.makeDeployment(&mgrTestConfig)
+	d, err := c.makeDeployment(&mgrTestConfig)
+	assert.NoError(t, err)
 
 	// Test without annotations
 	c.applyPrometheusAnnotations(&d.ObjectMeta)
@@ -158,7 +162,8 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 	// Test with existing annotations
 	// applyPrometheusAnnotations() shouldn't do anything
 	// re-initialize "d"
-	d = c.makeDeployment(&mgrTestConfig)
+	d, err = c.makeDeployment(&mgrTestConfig)
+	assert.NoError(t, err)
 
 	fakeAnnotations := rookv1.Annotations{
 		"foo.io/bar": "foobar",

@@ -417,7 +417,10 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 	}
 
 	// build the canary deployment.
-	d := c.makeDeployment(mon, true)
+	d, err := c.makeDeployment(mon, true)
+	if err != nil {
+		return result, err
+	}
 	d.Name += "-canary"
 	d.Spec.Template.ObjectMeta.Name += "-canary"
 
@@ -808,7 +811,9 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 		d.Name)
 
 	// Restart the mon if it is stuck on a failed node
-	c.restartMonIfStuckTerminating(m.DaemonName)
+	if err := c.restartMonIfStuckTerminating(m.DaemonName); err != nil {
+		logger.Error("failed to restart mon if it is stuck", err)
+	}
 
 	err := updateDeploymentAndWait(c.context, c.ClusterInfo, d, config.MonType, m.DaemonName, c.spec.SkipUpgradeChecks, false)
 	if err != nil {
@@ -854,10 +859,13 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	pvcExists := false
 	deploymentExists := false
 
-	d := c.makeDeployment(m, false)
+	d, err := c.makeDeployment(m, false)
+	if err != nil {
+		return err
+	}
 
 	// Set the deployment hash as an annotation
-	err := patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
+	err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 	}

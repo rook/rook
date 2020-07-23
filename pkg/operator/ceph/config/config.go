@@ -122,7 +122,7 @@ func SetDefaultConfigs(
 		logger.Info("configuring ceph network(s) with multus")
 		cephNetworks, err := generateNetworkSettings(context, clusterInfo.Namespace, networkSpec.Selectors)
 		if err != nil {
-			errors.Wrap(err, "failed to generate network settings")
+			return errors.Wrap(err, "failed to generate network settings")
 		}
 
 		// Apply ceph network settings to the mon config store

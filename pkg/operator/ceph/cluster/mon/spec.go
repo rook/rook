@@ -59,7 +59,7 @@ func (c *Cluster) getLabels(daemonName string, canary bool, pvcName string) map[
 	return labels
 }
 
-func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) *apps.Deployment {
+func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) (*apps.Deployment, error) {
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      monConfig.ResourceName,
@@ -72,7 +72,10 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) *apps.Deploy
 	controller.AddCephVersionLabelToDeployment(c.ClusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
 
-	pod := c.makeMonPod(monConfig, canary, "")
+	pod, err := c.makeMonPod(monConfig, canary, "")
+	if err != nil {
+		return nil, err
+	}
 	replicaCount := int32(1)
 	d.Spec = apps.DeploymentSpec{
 		Selector: &metav1.LabelSelector{
@@ -88,7 +91,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) *apps.Deploy
 		},
 	}
 
-	return d
+	return d, nil
 }
 
 func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*v1.PersistentVolumeClaim, error) {
@@ -137,7 +140,7 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*v1.PersistentVo
 	return pvc, nil
 }
 
-func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) *v1.Pod {
+func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) (*v1.Pod, error) {
 	logger.Debugf("monConfig: %+v", monConfig)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
@@ -173,10 +176,12 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool, PVCName string) 
 	if c.spec.Network.IsHost() {
 		pod.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &pod.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &pod.ObjectMeta); err != nil {
+			return nil, err
+		}
 	}
 
-	return pod
+	return pod, nil
 }
 
 /*

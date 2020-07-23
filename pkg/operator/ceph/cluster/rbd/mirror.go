@@ -75,7 +75,10 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		}
 
 		// Start the deployment
-		d := r.makeDeployment(daemonConf, cephRBDMirror)
+		d, err := r.makeDeployment(daemonConf, cephRBDMirror)
+		if err != nil {
+			return errors.Wrap(err, "failed to create deployment")
+		}
 
 		// Set owner ref to cephRBDMirror object
 		err = controllerutil.SetControllerReference(cephRBDMirror, d, r.scheme)
