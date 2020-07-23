@@ -19,7 +19,7 @@ metadata:
   name: rook-cassandra
   namespace: rook-cassandra
 spec:
-  version: 3.11.1
+  version: 3.11.6
   repository: my-private-repo.io/cassandra
   mode: cassandra
   # A key/value list of annotations

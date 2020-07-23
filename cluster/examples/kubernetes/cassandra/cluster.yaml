@@ -70,7 +70,7 @@ metadata:
   name: rook-cassandra
   namespace: rook-cassandra
 spec:
-  version: 3.11.1
+  version: 3.11.6
   mode: cassandra
   # A key/value list of annotations
   annotations:
