@@ -627,10 +627,6 @@ func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, se
 
 	version, err := extractCephCSIVersion(stdout)
 	if err != nil {
-		if AllowUnsupported {
-			logger.Infof("failed to extract csi version, but continuing since unsupported versions are allowed. %v", err)
-			return nil
-		}
 		return errors.Wrap(err, "failed to extract ceph CSI version")
 	}
 	logger.Infof("Detected ceph CSI image version: %q", version)
