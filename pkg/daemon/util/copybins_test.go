@@ -33,13 +33,13 @@ func TestCopyBinaries(t *testing.T) {
 		// the binary should just be the text showing where it was copied from so we can verify it
 		_, err = f.WriteString(binPath)
 		assert.NoError(t, err)
-		err = os.Chmod(binPath, 0755)
+		err = os.Chmod(binPath, 0700)
 		assert.NoError(t, err)
 		f.Close()
 	}
 
 	mkdir := func(dir string) {
-		err := os.MkdirAll(dir, 0755)
+		err := os.MkdirAll(dir, 0700)
 		assert.NoError(t, err)
 	}
 

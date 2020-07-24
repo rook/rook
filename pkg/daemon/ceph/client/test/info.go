@@ -27,13 +27,13 @@ import (
 )
 
 func CreateConfigDir(configDir string) error {
-	if err := os.MkdirAll(configDir, 0744); err != nil {
+	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return errors.Wrap(err, "error while creating directory")
 	}
-	if err := ioutil.WriteFile(path.Join(configDir, "client.admin.keyring"), []byte("key = adminsecret"), 0644); err != nil {
+	if err := ioutil.WriteFile(path.Join(configDir, "client.admin.keyring"), []byte("key = adminsecret"), 0600); err != nil {
 		return errors.Wrap(err, "admin writefile error")
 	}
-	if err := ioutil.WriteFile(path.Join(configDir, "mon.keyring"), []byte("key = monsecret"), 0644); err != nil {
+	if err := ioutil.WriteFile(path.Join(configDir, "mon.keyring"), []byte("key = monsecret"), 0600); err != nil {
 		return errors.Wrap(err, "mon writefile error")
 	}
 	return nil

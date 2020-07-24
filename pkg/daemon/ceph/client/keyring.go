@@ -89,10 +89,10 @@ func CreateKeyring(context *clusterd.Context, clusterInfo *ClusterInfo, username
 // TODO: Write keyring only to the default ceph config location since we are in a container
 func writeKeyring(keyring, keyringPath string) error {
 	// save the keyring to the given path
-	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
+	if err := os.MkdirAll(filepath.Dir(keyringPath), 0700); err != nil {
 		return errors.Wrapf(err, "failed to create keyring directory for %s", keyringPath)
 	}
-	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
+	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0600); err != nil {
 		return errors.Wrapf(err, "failed to write monitor keyring to %s", keyringPath)
 	}
 	return nil

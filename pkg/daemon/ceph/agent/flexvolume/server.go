@@ -241,6 +241,7 @@ func configureFlexVolume(driverFile, driverDir, driverName string) error {
 	if err != nil {
 		logger.Errorf("invalid flex settings. %v", err)
 	} else {
+		// #nosec since the flex settings need read permissions
 		if err := ioutil.WriteFile(path.Join(driverDir, settingsFilename), settings, 0644); err != nil {
 			logger.Errorf("failed to write settings file %q. %v", settingsFilename, err)
 		} else {

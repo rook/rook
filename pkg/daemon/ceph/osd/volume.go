@@ -376,7 +376,7 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 		}
 	}
 
-	if err = ioutil.WriteFile(lvmConfPath, output, 0644); err != nil {
+	if err = ioutil.WriteFile(lvmConfPath, output, 0600); err != nil {
 		return errors.Wrapf(err, "failed to update lvm config file %q", lvmConfPath)
 	}
 
@@ -739,7 +739,7 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	// failure log later without also printing out past failures
 	// TODO: does this mess up expectations from the ceph log collector daemon?
 	logPath := "/tmp/ceph-log"
-	if err := os.MkdirAll(logPath, 0644); err != nil {
+	if err := os.MkdirAll(logPath, 0700); err != nil {
 		return "", errors.Wrapf(err, "failed to create dir %q", logPath)
 	}
 	baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath}
