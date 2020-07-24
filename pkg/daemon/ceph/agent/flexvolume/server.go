@@ -250,6 +250,7 @@ func configureFlexVolume(driverFile, driverDir, driverName string) error {
 	return nil
 }
 
+// #nosec G307 Calling defer to close the file without checking the error return is not a risk for a simple file open and close
 func copyFile(src, dest string) error {
 	srcFile, err := os.Open(filepath.Clean(src))
 	if err != nil {
