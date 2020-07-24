@@ -38,7 +38,7 @@ const (
 	mdsCacheMemoryLimitFactor = 0.5
 )
 
-func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
+func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error) {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mdsConfig.ResourceName,
@@ -85,14 +85,16 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) *apps.Deployment {
 	if c.clusterSpec.Network.IsHost() {
 		d.Spec.Template.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.clusterSpec.Network.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.clusterSpec.Network.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.clusterSpec.Network.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			return nil, err
+		}
 	}
 
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 
-	return d
+	return d, nil
 }
 
 func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {

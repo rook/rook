@@ -737,7 +737,9 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	// failure log later without also printing out past failures
 	// TODO: does this mess up expectations from the ceph log collector daemon?
 	logPath := "/tmp/ceph-log"
-	os.MkdirAll(logPath, 0644)
+	if err := os.MkdirAll(logPath, 0644); err != nil {
+		return "", errors.Wrapf(err, "failed to create dir %q", logPath)
+	}
 	baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath}
 
 	co, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, append(baseArgs, args...)...)

@@ -145,7 +145,10 @@ func (s *S3Agent) GetObjectInBucket(bucketname string, key string) (string, erro
 
 	}
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(result.Body)
+	_, err = buf.ReadFrom(result.Body)
+	if err != nil {
+		return "", err
+	}
 
 	return buf.String(), nil
 }

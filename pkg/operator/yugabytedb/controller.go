@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/pkg/errors"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	yugabytedbv1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -182,8 +183,13 @@ func validateClusterSpec(spec yugabytedbv1alpha1.YBClusterSpec) error {
 		return fmt.Errorf("VolumeClaimTemplate unavailable in TServer spec.")
 	}
 
-	validateResourceSpec(spec.Master.Resource, false)
-	validateResourceSpec(spec.TServer.Resource, true)
+	if err := validateResourceSpec(spec.Master.Resource, false); err != nil {
+		return errors.Wrap(err, "failed to validate resource spec")
+	}
+
+	if err := validateResourceSpec(spec.TServer.Resource, true); err != nil {
+		return errors.Wrap(err, "failed to validate resource spec")
+	}
 
 	return nil
 }

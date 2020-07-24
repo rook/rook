@@ -91,7 +91,7 @@ func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonC
 	return nil
 }
 
-func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig) *apps.Deployment {
+func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig) (*apps.Deployment, error) {
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(nfs, cfg.ID),
@@ -147,7 +147,9 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	if r.cephClusterSpec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if r.cephClusterSpec.Network.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(r.cephClusterSpec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(r.cephClusterSpec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta); err != nil {
+			return nil, err
+		}
 	}
 
 	nfs.Spec.Server.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
@@ -162,7 +164,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		Replicas: &replicas,
 	}
 
-	return deployment
+	return deployment, nil
 }
 
 func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS) v1.Container {

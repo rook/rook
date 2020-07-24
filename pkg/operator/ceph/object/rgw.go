@@ -138,7 +138,10 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		}
 
 		// Create deployment
-		deployment := c.createDeployment(rgwConfig)
+		deployment, err := c.createDeployment(rgwConfig)
+		if err != nil {
+			return nil
+		}
 		logger.Infof("object store %q deployment %q started", c.store.Name, deployment.Name)
 
 		// Set owner ref to cephObjectStore object

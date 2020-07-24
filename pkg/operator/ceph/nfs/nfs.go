@@ -73,8 +73,10 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
 		}
 
 		// create the deployment
-		deployment := r.makeDeployment(n, cfg)
-
+		deployment, err := r.makeDeployment(n, cfg)
+		if err != nil {
+			return errors.Wrap(err, "failed to set to create deployment")
+		}
 		// Set owner ref to cephNFS object
 		err = controllerutil.SetControllerReference(n, deployment, r.scheme)
 		if err != nil {

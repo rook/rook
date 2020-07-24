@@ -181,7 +181,9 @@ func (c *Cluster) checkHealth() error {
 			logger.Warningf("mon %q not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
 
 			// Restart the mon if it is stuck on a failed node
-			c.restartMonIfStuckTerminating(mon.Name)
+			if err := c.restartMonIfStuckTerminating(mon.Name); err != nil {
+				logger.Error("failed to restart the mon if it is stuck", err)
+			}
 			continue
 		}
 

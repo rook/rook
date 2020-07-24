@@ -159,8 +159,10 @@ func (c *Cluster) Start() error {
 		}
 
 		// start the deployment
-		d := c.makeDeployment(mdsConfig)
-
+		d, err := c.makeDeployment(mdsConfig)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create deployment")
+		}
 		// Set owner ref to cephFilesystem object
 		err = controllerutil.SetControllerReference(&c.fs, d, c.scheme)
 		if err != nil {

@@ -121,7 +121,9 @@ func Add(mgr manager.Manager, context *clusterd.Context, clusterController *Clus
 func newReconciler(mgr manager.Manager, context *clusterd.Context, clusterController *ClusterController) reconcile.Reconciler {
 	// Add the cephv1 scheme to the manager scheme so that the controller knows about it
 	mgrScheme := mgr.GetScheme()
-	cephv1.AddToScheme(mgr.GetScheme())
+	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
+		panic(err)
+	}
 
 	return &ReconcileCephCluster{
 		client:            mgr.GetClient(),

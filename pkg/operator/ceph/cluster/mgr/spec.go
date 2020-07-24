@@ -45,7 +45,7 @@ const (
 	ServiceExternalMetricName = "http-external-metrics"
 )
 
-func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
+func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error) {
 	logger.Debugf("mgrConfig: %+v", mgrConfig)
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -81,7 +81,9 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	if c.spec.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			return nil, err
+		}
 	}
 
 	cephv1.GetMgrAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podSpec.ObjectMeta)
@@ -110,7 +112,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *apps.Deployment {
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.clusterInfo.OwnerRef)
-	return d
+	return d, nil
 }
 
 // if we do not need the http bind fix, then we need to be careful. if we are

@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdMirror *cephv1.CephRBDMirror) *apps.Deployment {
+func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdMirror *cephv1.CephRBDMirror) (*apps.Deployment, error) {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
@@ -52,7 +52,9 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	if r.cephClusterSpec.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if r.cephClusterSpec.Network.IsMultus() {
-		k8sutil.ApplyMultus(r.cephClusterSpec.Network.NetworkSpec, &podSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(r.cephClusterSpec.Network.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+			return nil, err
+		}
 	}
 	rbdMirror.Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
@@ -75,7 +77,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	controller.AddCephVersionLabelToDeployment(r.clusterInfo.CephVersion, d)
 
-	return d
+	return d, nil
 }
 
 func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConfig, rbdMirror *cephv1.CephRBDMirror) v1.Container {

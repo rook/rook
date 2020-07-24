@@ -82,7 +82,7 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		ResourceName: "rook-ceph-mds-myfs-a",
 		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, "myfs-a", "rook-ceph", "/var/lib/rook/"),
 	}
-	return c.makeDeployment(mdsTestConfig), nil
+	return c.makeDeployment(mdsTestConfig)
 }
 
 func TestPodSpecs(t *testing.T) {

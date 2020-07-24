@@ -445,7 +445,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if c.spec.Network.IsHost() {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.NetworkSpec.IsMultus() {
-		k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta); err != nil {
+			return nil, err
+		}
 	}
 
 	deployment := &apps.Deployment{

@@ -37,7 +37,11 @@ const (
 	livenessProbePath = "/swift/healthcheck"
 )
 
-func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment {
+func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
+	pod, err := c.makeRGWPodSpec(rgwConfig)
+	if err != nil {
+		return nil, err
+	}
 	replicas := int32(1)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -49,7 +53,7 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment 
 			Selector: &metav1.LabelSelector{
 				MatchLabels: getLabels(c.store.Name, c.store.Namespace),
 			},
-			Template: c.makeRGWPodSpec(rgwConfig),
+			Template: pod,
 			Replicas: &replicas,
 			Strategy: apps.DeploymentStrategy{
 				Type: apps.RecreateDeploymentStrategyType,
@@ -60,10 +64,10 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) *apps.Deployment 
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 
-	return d
+	return d, nil
 }
 
-func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec {
+func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec, error) {
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			c.makeChownInitContainer(rgwConfig),
@@ -117,10 +121,12 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) v1.PodTemplateSpec 
 	if c.clusterSpec.Network.IsHost() {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.clusterSpec.Network.IsMultus() {
-		k8sutil.ApplyMultus(c.clusterSpec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta)
+		if err := k8sutil.ApplyMultus(c.clusterSpec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta); err != nil {
+			return podTemplateSpec, err
+		}
 	}
 
-	return podTemplateSpec
+	return podTemplateSpec, nil
 }
 
 func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Container {

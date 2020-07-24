@@ -119,7 +119,8 @@ func TestDeploymentSpec(t *testing.T) {
 		},
 	}
 
-	d := r.makeDeployment(nfs, cfg)
+	d, err := r.makeDeployment(nfs, cfg)
+	assert.NoError(t, err)
 
 	// Deployment should have Ceph labels
 	optest.AssertLabelsContainRookRequirements(t, d.ObjectMeta.Labels, AppName)
