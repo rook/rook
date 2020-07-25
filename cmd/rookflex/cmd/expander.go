@@ -62,8 +62,10 @@ func handleExpandFs(cmd *cobra.Command, args []string) error {
 	var command *exec.Cmd
 	switch opts.FsType {
 	case "ext3", "ext4":
+		// #nosec G204 Rook controls the input to the exec arguments
 		command = exec.Command("resize2fs", args[2])
 	case "xfs":
+		// #nosec G204 Rook controls the input to the exec arguments
 		command = exec.Command("xfs_growfs", "-d", args[2])
 	default:
 		log(client, fmt.Sprintf("resize is not supported for fs: %s", opts.FsType), false)

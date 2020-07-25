@@ -258,6 +258,7 @@ func copyFile(src, dest string) error {
 	}
 	defer srcFile.Close()
 
+	// #nosec G304 Rook controls the File path provided as input
 	destFile, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755) // creates if file doesn't exist
 	if err != nil {
 		return errors.Wrapf(err, "error creating destination file %s", dest)

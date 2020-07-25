@@ -31,7 +31,7 @@ import (
 
 const (
 	appName                  = "rook-ceph-admission-controller"
-	secretVolumeName         = "webhook-certificates"
+	secretVolumeName         = "webhook-certificates" // #nosec G101 This is just a var name, not a real secret
 	serviceAccountName       = "rook-ceph-admission-controller"
 	portName                 = "webhook-api"
 	servicePort        int32 = 443

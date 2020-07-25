@@ -649,6 +649,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 func readCVLogContent(cvLogFilePath string) string {
 	// Open c-v log file
+	// #nosec G304 Rook controls File path provided as input
 	cvLogFile, err := os.Open(cvLogFilePath)
 	if err != nil {
 		logger.Errorf("failed to open ceph-volume log file %q. %v", cvLogFilePath, err)
