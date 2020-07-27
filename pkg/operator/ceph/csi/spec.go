@@ -46,7 +46,6 @@ type Param struct {
 	SnapshotterImage             string
 	ResizerImage                 string
 	DriverNamePrefix             string
-	EnableSnapshotter            string
 	EnableCSIGRPCMetrics         string
 	KubeletDirPath               string
 	ForceCephFSKernelClient      string
@@ -99,7 +98,7 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v2.1.2"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.0.0"
 	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.6.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
@@ -257,11 +256,6 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 	tp.RBDLivenessMetricsPort, err = getPortFromConfig(clientset, "CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
-	}
-
-	// Enable snapshotter sidecar deployment if kubernetes version is >= 1.17
-	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= snapshotDeploymentSuppVersion) {
-		tp.EnableSnapshotter = "true"
 	}
 
 	// default value `system-node-critical` is the highest available priority
