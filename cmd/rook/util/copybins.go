@@ -45,7 +45,9 @@ func init() {
 	// copy-binaries
 	CopyBinsCmd.Flags().StringVar(&copyToDir, "copy-to-dir", "",
 		"The directory into which 'tini' and 'rook' binaries will be copied.")
-	CopyBinsCmd.MarkFlagRequired("copy-to-dir")
+	if err := CopyBinsCmd.MarkFlagRequired("copy-to-dir"); err != nil {
+		panic(err)
+	}
 }
 
 func runCopyBins(cCmd *cobra.Command, cArgs []string) error {

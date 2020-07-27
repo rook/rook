@@ -18,7 +18,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/rpc"
 	"os"
@@ -27,6 +26,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -153,7 +153,9 @@ func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devic
 		)
 		if err != nil {
 			log(client, fmt.Sprintf("mount volume %s/%s failed: %v", opts.BlockPool, opts.Image, err), true)
-			os.Remove(globalVolumeMountPath)
+			if err := os.Remove(globalVolumeMountPath); err != nil {
+				log(client, fmt.Sprintf("failed to remove dir %s. %v", globalVolumeMountPath, err), false)
+			}
 			return err
 		}
 		log(client,
@@ -190,7 +192,9 @@ func mount(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, globalVolum
 						return fmt.Errorf("%s is still mounted, despite call to unmount().  Will try again next sync loop", opts.MountDir)
 					}
 				}
-				os.Remove(opts.MountDir)
+				if err := os.Remove(opts.MountDir); err != nil {
+					log(client, fmt.Sprint("failed to remove dir", err), true)
+				}
 				return fmt.Errorf("failed to mount volume %s to %s, error %v", globalVolumeMountPath, opts.MountDir, err)
 			}
 			return nil
@@ -279,12 +283,16 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 				// Directory is already mounted
 				return nil
 			}
-			os.MkdirAll(opts.MountDir, 0750)
+			if err := os.MkdirAll(opts.MountDir, 0750); err != nil {
+				return errors.Wrap(err, "failed to create dir")
+			}
 
 			err = mounter.Interface.Mount(devicePath, opts.MountDir, cephFS, options)
 			if err != nil {
 				// cleanup upon failure
-				k8smount.CleanupMountPoint(opts.MountDir, mounter.Interface, false)
+				if err := k8smount.CleanupMountPoint(opts.MountDir, mounter.Interface, false); err != nil {
+					log(client, fmt.Sprint("failed to cleanup mount point", err), true)
+				}
 				return fmt.Errorf("failed to mount filesystem %s to %s with monitor %s and options %v: %+v", opts.FsName, opts.MountDir, devicePath, options, err)
 			}
 			return nil

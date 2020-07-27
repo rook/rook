@@ -22,8 +22,13 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+)
+
+var (
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-flags")
 )
 
 func VerifyRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
@@ -50,20 +55,19 @@ func createRequiredFlagError(name string, flags []string) error {
 	return fmt.Errorf("%s are required for %s", strings.Join(flags, ","), name)
 }
 
-func SetLoggingFlags(flags *pflag.FlagSet) error {
+func SetLoggingFlags(flags *pflag.FlagSet) {
 	//Add commandline flags to the flagset. We will always write to stderr
 	//and not to a file by default
 	flags.AddGoFlagSet(flag.CommandLine)
 	if err := flags.Set("logtostderr", "true"); err != nil {
-		return fmt.Errorf("failed to set flag %q. %v", "logtostderr", err)
+		logger.Infof("failed to set flag %q. %v", "logtostderr", err)
 	}
 	if err := flags.Parse(nil); err != nil {
-		return fmt.Errorf("failed to parse logging flag. %v", err)
+		panic(err)
 	}
-	return nil
 }
 
-func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) error {
+func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) {
 	var errorFlag bool
 	var err error
 	flags.VisitAll(func(f *pflag.Flag) {
@@ -77,9 +81,8 @@ func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) error {
 		}
 	})
 	if errorFlag != false {
-		return fmt.Errorf("error while setting CLI flags from environment variables. %v", err)
+		logger.Error("failed to set flag ", err)
 	}
-	return nil
 }
 
 // GetFlagsAndValues returns all flags and their values as a slice with elements in the format of

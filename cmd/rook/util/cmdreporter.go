@@ -60,14 +60,20 @@ func init() {
 	// cmd-reporter
 	CmdReporterCmd.Flags().StringVar(&commandString, "command", "",
 		"The command to run in JSON list syntax. e.g., '[\"command\", \"--flag\", \"value\", \"arg\"]'")
-	CmdReporterCmd.MarkFlagRequired("command")
+	if err := CmdReporterCmd.MarkFlagRequired("command"); err != nil {
+		panic(err)
+	}
 
 	CmdReporterCmd.Flags().StringVar(&configMapName, "config-map-name", "",
 		"The name of the ConfigMap into which the result of the command will be stored.")
-	CmdReporterCmd.MarkFlagRequired("config-map-name")
+	if err := CmdReporterCmd.MarkFlagRequired("config-map-name"); err != nil {
+		panic(err)
+	}
 
 	CmdReporterCmd.Flags().StringVar(&namespace, "namespace", "", "The namespace in which to create the ConfigMap.")
-	CmdReporterCmd.MarkFlagRequired("namespace")
+	if err := CmdReporterCmd.MarkFlagRequired("namespace"); err != nil {
+		panic(err)
+	}
 }
 
 func runCmdReporter(cCmd *cobra.Command, cArgs []string) {

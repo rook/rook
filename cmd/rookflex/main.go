@@ -32,7 +32,9 @@ type result struct {
 
 func main() {
 	// workaround a k8s logging issue: https://github.com/kubernetes/kubernetes/issues/17162
-	flag.CommandLine.Parse([]string{})
+	if err := flag.CommandLine.Parse([]string{}); err != nil {
+		panic(err)
+	}
 
 	var r result
 	if err := cmd.RootCmd.Execute(); err != nil {
