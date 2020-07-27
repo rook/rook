@@ -36,6 +36,7 @@ func CopyBinaries(target string) error {
 	return copyBinary(defaultTiniDir, target, "tini")
 }
 
+// #nosec G307 Calling defer to close the file without checking the error return is not a risk for a simple file open and close
 func copyBinary(sourceDir, targetDir, filename string) error {
 	sourcePath := path.Join(sourceDir, filename)
 	targetPath := path.Join(targetDir, filename)

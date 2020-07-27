@@ -134,6 +134,7 @@ func (*CommandExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...
 }
 
 // ExecuteCommandWithOutputFileTimeout Same as ExecuteCommandWithOutputFile but with a timeout limit.
+// #nosec G307 Calling defer to close the file without checking the error return is not a risk for a simple file open and close
 func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duration,
 	command, outfileArg string, arg ...string) (string, error) {
 
