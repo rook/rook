@@ -76,7 +76,7 @@ class RadosJSON:
                           help="Namespace where CephCluster is running")
         argP.add_argument("--rgw-pool-prefix", default="default",
                           help="RGW Pool prefix")
-        argP.add_argument("--rgw-endpoint", default="", required=True,
+        argP.add_argument("--rgw-endpoint", default="", required=False,
                           help="Rados GateWay endpoint (in <IP>:<PORT> format)")
         argP.add_argument("--monitoring-endpoint", default="", required=False,
                           help="Ceph Manager prometheus exporter endpoints comma separated list of <IP> entries")
