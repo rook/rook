@@ -17,6 +17,7 @@
   - OSDs can now be provisioned using Ceph's Drive Groups definitions for Ceph Octopus v15.2.5+.
     [See docs for more](Documentation/ceph-cluster-crd.md#storage-selection-via-ceph-drive-groups)
   - OSDs can be provisioned on support /dev/disk/by-path/pci-HHHH:HH:HH.H devices with colons (`:`)
+  - OSDs on PVC can now be encrypted
 - Added [admission controller](Documentation/admission-controller-usage.md) support for CRD validations.
   - Support for Ceph CRDs is provided. Some validations for CephClusters are included and additional validations can be added for other CRDs
   - Can be extended to add support for other providers

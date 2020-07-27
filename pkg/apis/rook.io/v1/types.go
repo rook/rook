@@ -117,6 +117,7 @@ type StorageClassDeviceSet struct {
 	Portable             bool                       `json:"portable,omitempty"`             // OSD portability across the hosts
 	TuneSlowDeviceClass  bool                       `json:"tuneDeviceClass,omitempty"`      // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
 	SchedulerName        string                     `json:"schedulerName,omitempty"`        // Scheduler name for OSD pod placement
+	Encrypted            bool                       `json:"encrypted,omitempty"`            // Whether to encrypt the deviceSet
 }
 
 // VolumeSource is a volume source spec for Rook
@@ -131,4 +132,5 @@ type VolumeSource struct {
 	SchedulerName       string                                          `json:"schedulerName,omitempty"`    // Scheduler name for OSD pod placement
 	CrushDeviceClass    string                                          `json:"crushDeviceClass,omitempty"` // CrushDeviceClass represents the crush device class for an OSD
 	Size                string                                          `json:"size,omitempty"`             // Size represents the size requested for the PVC
+	Encrypted           bool                                            `json:"encrypted,omitempty"`        // Whether to encrypt the deviceSet
 }

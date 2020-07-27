@@ -142,7 +142,8 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 
 	// ceph-volume --dmcrypt uses cryptsetup that synchronizes with udev on
 	// host through semaphore
-	podSpec.HostIPC = osdProps.storeConfig.EncryptedDevice
+	podSpec.HostIPC = osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
+
 	return &v1.PodTemplateSpec{
 		ObjectMeta: podMeta,
 		Spec:       podSpec,
@@ -240,6 +241,11 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, dataDevicesEnvVar(string(marshalledDevices)))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
 		envVars = append(envVars, crushDeviceClassEnvVar(osdProps.crushDeviceClass))
+		envVars = append(envVars, encryptedDeviceEnvVar(osdProps.encrypted))
+
+		if osdProps.encrypted {
+			envVars = append(envVars, cephVolumeRawEncryptedEnvVar(osdProps.pvc.ClaimName))
+		}
 	}
 
 	// run privileged always since we always mount /dev
