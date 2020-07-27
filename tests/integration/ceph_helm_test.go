@@ -72,14 +72,14 @@ func (hs *HelmSuite) SetupSuite() {
 	hs.clusterNamespaces = []string{"cluster-ns1", "cluster-ns2"}
 
 	hs.op, hs.kh = NewMCTestOperations(hs.T, hs.operatorNamespace, hs.clusterNamespaces[0], hs.clusterNamespaces[1], true, false)
-	hs.testClient = clients.CreateTestClient(hs.kh, hs.op.installer.Manifests)
+	hs.helper = clients.CreateTestClient(hs.kh, hs.op.installer.Manifests)
 	hs.createPools()
 }
 
 func (hs *HelmSuite) createPools() {
 	// create a test pool in each cluster so that we get some PGs
 	logger.Infof("Creating pool %s", hs.poolName)
-	err := hs.testClient.PoolClient.Create(hs.poolName, hs.clusterNamespaces[0], 1)
+	err := hs.helper.PoolClient.Create(hs.poolName, hs.clusterNamespaces[0], 1)
 	require.Nil(hs.T(), err)
 }
 
@@ -88,11 +88,21 @@ func (hs *HelmSuite) TearDownSuite() {
 	hs.op.Teardown()
 }
 
+// Test to make sure all rook components are installed and Running
+func (hs *HelmSuite) TestInstallingMultipleRookClusters() {
+
+	// Check if Rook cluster 1 is deployed successfully
+	checkIfRookClusterIsInstalled(hs.Suite, hs.kh, hs.operatorNamespace, hs.clusterNamespaces, 1)
+	for _, clusterNamespace := range hs.clusterNamespaces {
+		checkIfRookClusterIsHealthy(hs.Suite, hs.helper, clusterNamespace)
+	}
+}
+
 func (hs *HelmSuite) deletePools() {
 	// create a test pool in each cluster so that we get some PGs
 	logger.Infof("Deleting pool %s", hs.poolName)
 	clusterInfo := client.AdminClusterInfo(hs.clusterNamespaces[0])
-	if err := hs.testClient.PoolClient.DeletePool(hs.testClient.BlockClient, clusterInfo, hs.poolName); err != nil {
+	if err := hs.helper.PoolClient.DeletePool(hs.helper.BlockClient, clusterInfo, hs.poolName); err != nil {
 		logger.Errorf("failed to delete pool %q. %v", hs.poolName, err)
 	} else {
 		logger.Infof("deleted pool %q", hs.poolName)
