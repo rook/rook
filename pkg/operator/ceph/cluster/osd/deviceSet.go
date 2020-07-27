@@ -82,6 +82,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 				TuneSlowDeviceClass: storageClassDeviceSet.TuneSlowDeviceClass,
 				SchedulerName:       storageClassDeviceSet.SchedulerName,
 				CrushDeviceClass:    crushDeviceClass,
+				Encrypted:           storageClassDeviceSet.Encrypted,
 			})
 		}
 	}

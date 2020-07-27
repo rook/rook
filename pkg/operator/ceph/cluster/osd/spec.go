@@ -35,14 +35,17 @@ import (
 )
 
 const (
-	rookBinariesMountPath               = "/rook"
-	rookBinariesVolumeName              = "rook-binaries"
-	activateOSDVolumeName               = "activate-osd"
-	activateOSDMountPath                = "/var/lib/ceph/osd/ceph-"
-	blockPVCMapperInitContainer         = "blkdevmapper"
-	blockPVCMetadataMapperInitContainer = "blkdevmapper-metadata"
-	activatePVCOSDInitContainer         = "activate"
-	expandPVCOSDInitContainer           = "expand-bluefs"
+	rookBinariesMountPath                 = "/rook"
+	rookBinariesVolumeName                = "rook-binaries"
+	activateOSDVolumeName                 = "activate-osd"
+	activateOSDMountPath                  = "/var/lib/ceph/osd/ceph-"
+	blockPVCMapperInitContainer           = "blkdevmapper"
+	blockEncryptionOpenInitContainer      = "encryption-open"
+	blockPVCMapperEncryptionInitContainer = "blkdevmapper-encryption"
+	blockPVCMetadataMapperInitContainer   = "blkdevmapper-metadata"
+	activatePVCOSDInitContainer           = "activate"
+	expandPVCOSDInitContainer             = "expand-bluefs"
+	encryptionKeyFileName                 = "luks_key"
 )
 
 const (
@@ -130,6 +133,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if osdProps.onPVC() {
 		// Create volume config for PVCs
 		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
+		// If encrypted let's add the secret key mount path
+		if osdProps.encrypted && osd.CVMode == "raw" {
+			encryptedVol, _ := getEncryptionVolume(osdProps.pvc.ClaimName)
+			volumes = append(volumes, encryptedVol)
+		}
 	}
 
 	if len(volumes) == 0 {
@@ -225,6 +233,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	volumes = append(volumes, udevVolume)
 	volumeMounts = append(volumeMounts, udevVolumeMount)
 
+	// If the PV is encrypted let's mount the device mapper path
+	if osdProps.encrypted {
+		dmVol, dmVolMount := getDeviceMapperVolume()
+		volumes = append(volumes, dmVol)
+		volumeMounts = append(volumeMounts, dmVolMount)
+	}
+
 	// Add the volume to the spec and the mount to the daemon container
 	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
 	if doBinaryCopyInit {
@@ -298,12 +313,22 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	if osdProps.onPVC() && osd.CVMode == "raw" {
-		initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
-		if osdProps.onPVCWithMetadata() {
-			initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
+		if osdProps.encrypted {
+			// Add a new init container to open the encrypted disk!
+			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdProps))
+			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps))
+			// TODO: ADD METADATA DEV
+		} else {
+			initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
+			if osdProps.onPVCWithMetadata() {
+				initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
+			}
 		}
 		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
-		initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
+		// Expansion is not supported on encrypted device
+		if !osdProps.encrypted {
+			initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
+		}
 	}
 	if doActivateOSDInit {
 		initContainers = append(initContainers, *activateOSDContainer)
@@ -521,13 +546,46 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 				DevicePath: fmt.Sprintf("/%s", osdProps.pvc.ClaimName),
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		SecurityContext: opmon.PodSecurityContext(),
+		Resources:       osdProps.resources,
+	}
+}
+
+func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(osdProps osdProperties) v1.Container {
+	container := v1.Container{
+		Name:  blockEncryptionOpenInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"cryptsetup",
+		},
+		// Runs "cryptsetup --verbose --key-file /etc/ceph/luks_key --allow-discards luksOpen /set1-data-0-7dwll set1-data-0-7dwll-block-dmcrypt"
+		Args: []string{"--verbose", "--key-file", encryptionKeyPath(), "--allow-discards", "luksOpen", fmt.Sprintf("/%s", osdProps.pvc.ClaimName), encryptionDMName(osdProps.pvc.ClaimName)},
+		VolumeDevices: []v1.VolumeDevice{
 			{
-				MountPath: mountPath,
-				SubPath:   path.Base(mountPath),
-				Name:      fmt.Sprintf("%s-bridge", osdProps.pvc.ClaimName),
+				Name:       osdProps.pvc.ClaimName,
+				DevicePath: fmt.Sprintf("/%s", osdProps.pvc.ClaimName),
 			},
 		},
+		VolumeMounts:    []v1.VolumeMount{getDeviceMapperMount()},
+		SecurityContext: opmon.PodSecurityContext(),
+		Resources:       osdProps.resources,
+	}
+	_, volMount := getEncryptionVolume(osdProps.pvc.ClaimName)
+	container.VolumeMounts = append(container.VolumeMounts, volMount)
+
+	return container
+}
+
+func (c *Cluster) getPVCEncryptionInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
+	return v1.Container{
+		Name:  blockPVCMapperEncryptionInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"cp",
+		},
+		Args:            []string{"-a", encryptionDMPath(osdProps.pvc.ClaimName), path.Join(mountPath, "block")},
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
 		SecurityContext: opmon.PodSecurityContext(),
 		Resources:       osdProps.resources,
 	}

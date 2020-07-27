@@ -17,27 +17,21 @@ limitations under the License.
 package osd
 
 import (
-	"testing"
-
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/stretchr/testify/assert"
+	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/clusterd"
 )
 
-func TestOsdOnSDNFlag(t *testing.T) {
-	network := cephv1.NetworkSpec{}
+const (
+	cryptsetupBinary = "cryptsetup"
+)
 
-	args := osdOnSDNFlag(network)
-	assert.NotEmpty(t, args)
+func closeEncryptedDevice(context *clusterd.Context, dmName string) error {
+	args := []string{"--verbose", "luksClose", dmName}
+	cryptsetupOut, err := context.Executor.ExecuteCommandWithCombinedOutput(cryptsetupBinary, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to close encrypted device. %s", cryptsetupOut)
+	}
 
-	network.Provider = "host"
-	args = osdOnSDNFlag(network)
-	assert.Empty(t, args)
-}
-
-func TestEncryptionKeyPath(t *testing.T) {
-	assert.Equal(t, "/etc/ceph/luks_key", encryptionKeyPath())
-}
-
-func TestGenerateOSDEncryptionSecretName(t *testing.T) {
-	assert.Equal(t, "rook-ceph-osd-encryption-key-set1-data-0-7dwll", generateOSDEncryptionSecretName("set1-data-0-7dwll"))
+	logger.Info(cryptsetupOut)
+	return nil
 }

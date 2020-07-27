@@ -27,6 +27,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -506,9 +507,10 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "name"}
 
-	context := &clusterd.Context{Executor: executor}
-	osds, err := GetCephVolumeRawOSDs(context, &cephclient.ClusterInfo{Namespace: "name"}, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", false)
+	context := &clusterd.Context{Executor: executor, Clientset: test.New(t, 3)}
+	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))
@@ -592,4 +594,25 @@ func TestPrintCVLogContent(t *testing.T) {
 	// Print again, now there is content
 	cvLog = readCVLogContent(tmp.Name())
 	assert.NotEmpty(t, cvLog, cvLog)
+}
+
+func TestGetEncryptedBlockPath(t *testing.T) {
+	type args struct {
+		op string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{"not-found", args{"Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-1"}, ""},
+		{"found", args{"Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbr ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt"}, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getEncryptedBlockPath(tt.args.op); got != tt.want {
+				t.Errorf("getEncryptedBlockPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

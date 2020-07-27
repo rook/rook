@@ -113,6 +113,8 @@ type LocalDisk struct {
 	RealPath string `json:"real-path,omitempty"`
 	// KernelName is the kernel name of the device
 	KernelName string `json:"kernel-name,omitempty"`
+	// Whether this device should be encrypted
+	Encrypted bool `json:"encrypted,omitempty"`
 }
 
 // ListDevices list all devices available on a machine

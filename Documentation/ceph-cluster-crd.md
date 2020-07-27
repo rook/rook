@@ -70,6 +70,7 @@ spec:
       count: 3
       portable: false
       tuneDeviceClass: false
+      encrypted: false
       volumeClaimTemplates:
       - metadata:
           name: data
@@ -315,6 +316,7 @@ The following are the settings for Storage Class Device Sets which can be config
   * `volumeMode`: The volume mode to be set for the PVC. Which should be Block
   * `accessModes`: The access mode for the PVC to be bound by OSD.
 * `schedulerName`: Scheduler name for OSD pod placement. (Optional)
+* `encrypted`: whether to encrypt all the OSDs in a given storageClassDeviceSet
 
 ### OSD Configuration Settings
 

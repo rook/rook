@@ -219,6 +219,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	forceFormat := false
 	ownerRef := opcontroller.ClusterOwnerRef(clusterInfo.Namespace, ownerRefID)
+	clusterInfo.OwnerRef = ownerRef
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerRef)
 	agent := osddaemon.NewAgent(context, dgs, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
