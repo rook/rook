@@ -46,7 +46,6 @@ type Param struct {
 	SnapshotterImage             string
 	ResizerImage                 string
 	DriverNamePrefix             string
-	EnableSnapshotter            string
 	EnableCSIGRPCMetrics         string
 	KubeletDirPath               string
 	ForceCephFSKernelClient      string
@@ -257,11 +256,6 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 	tp.RBDLivenessMetricsPort, err = getPortFromConfig(clientset, "CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
-	}
-
-	// Enable snapshotter sidecar deployment if kubernetes version is >= 1.17
-	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= snapshotDeploymentSuppVersion) {
-		tp.EnableSnapshotter = "true"
 	}
 
 	// default value `system-node-critical` is the highest available priority
