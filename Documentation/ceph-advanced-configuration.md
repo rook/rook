@@ -178,7 +178,7 @@ do
  echo "Pod:  ${pod}"
  echo "Node: $(kubectl -n rook-ceph get pod ${pod} -o jsonpath='{.spec.nodeName}')"
  kubectl -n rook-ceph exec ${pod} -- sh -c '\
-  for i in /var/lib/rook/osd*; do
+  for i in /var/lib/ceph/osd/ceph-*; do
     [ -f ${i}/ready ] || continue
     echo -ne "-$(basename ${i}) "
     echo $(lsblk -n -o NAME,SIZE ${i}/block 2> /dev/null || \
@@ -188,7 +188,7 @@ do
 done
 ```
 
-The output should look something like this. Note that OSDs on the same node will show duplicate information.
+The output should look something like this.
 
 ```console
 Pod:  osd-m2fz2
