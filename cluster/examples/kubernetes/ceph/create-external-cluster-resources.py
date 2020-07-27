@@ -75,7 +75,7 @@ class RadosJSON:
                           help="Namespace where CephCluster is running")
         argP.add_argument("--rgw-pool-prefix", default="default",
                           help="RGW Pool prefix")
-        argP.add_argument("--rgw-endpoint", default="", required=True,
+        argP.add_argument("--rgw-endpoint", default="", required=False,
                           help="Rados GateWay endpoint (in <IP>:<PORT> format)")
         if args_to_parse:
             assert type(args_to_parse) == list, \
