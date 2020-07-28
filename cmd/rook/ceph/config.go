@@ -46,10 +46,14 @@ var (
 
 func init() {
 	configCmd.Flags().StringVar(&keyring, "keyring", "", "path to the keyring file")
-	configCmd.MarkFlagRequired("keyring")
+	if err := configCmd.MarkFlagRequired("keyring"); err != nil {
+		panic(err)
+	}
 
 	configCmd.Flags().StringVar(&username, "username", "", "the daemon username")
-	configCmd.MarkFlagRequired("username")
+	if err := configCmd.MarkFlagRequired("username"); err != nil {
+		panic(err)
+	}
 
 	configCmd.RunE = initConfig
 }
