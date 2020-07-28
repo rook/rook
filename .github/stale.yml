@@ -33,7 +33,7 @@ issues:
 
 # Specify configuration settings that are specific to PRs
 pulls:
-  daysUntilStale: 180
+  daysUntilStale: 90
   daysUntilClose: 30
   markComment: >
     This pull request has been automatically marked as stale because it has not had
