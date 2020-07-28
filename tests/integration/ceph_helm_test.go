@@ -120,7 +120,9 @@ func (hs *HelmSuite) TestARookInstallViaHelm() {
 
 // Test BlockCreation on Rook that was installed via Helm
 func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
-	runBlockCSITestLite(hs.helper, hs.kh, hs.Suite, hs.clusterNamespaces, hs.operatorNamespace, hs.op.installer.CephVersion)
+	for _, clusterNamespace := range hs.clusterNamespaces {
+		runBlockCSITestLite(hs.helper, hs.kh, hs.Suite, clusterNamespace, hs.operatorNamespace, hs.op.installer.CephVersion)
+	}
 }
 
 // Test File System Creation on Rook that was installed via helm
