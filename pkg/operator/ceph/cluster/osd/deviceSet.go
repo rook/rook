@@ -17,6 +17,9 @@ limitations under the License.
 package osd
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -171,4 +174,16 @@ func makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDevi
 		},
 		Spec: pvcTemplate.Spec,
 	}
+}
+
+func makeStorageClassDeviceSetPVCID(storageClassDeviceSetName string, setIndex int) (pvcID, pvcLabelSelector string) {
+	pvcStorageClassDeviceSetPVCId := fmt.Sprintf("%s-%d", storageClassDeviceSetName, setIndex)
+	return pvcStorageClassDeviceSetPVCId, fmt.Sprintf("%s=%s", CephDeviceSetPVCIDLabelKey, pvcStorageClassDeviceSetPVCId)
+}
+
+// This is the new function that generates the labels
+// It includes the pvcTemplateName in it
+func makeStorageClassDeviceSetPVCIDNew(storageClassDeviceSetName, pvcTemplateName string, setIndex int) (pvcID, pvcLabelSelector string) {
+	pvcStorageClassDeviceSetPVCId := fmt.Sprintf("%s-%s-%d", storageClassDeviceSetName, strings.Replace(pvcTemplateName, " ", "-", -1), setIndex)
+	return pvcStorageClassDeviceSetPVCId, fmt.Sprintf("%s=%s", CephDeviceSetPVCIDLabelKey, pvcStorageClassDeviceSetPVCId)
 }
