@@ -126,7 +126,7 @@ another are as simple as updating the image of the Rook operator. For example, w
 released, the process of updating from v1.3.0 is as simple as running the following:
 
 ```console
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.3.1
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.4.0-beta.0
 ```
 
 ## Helm Upgrades
