@@ -323,7 +323,7 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 }
 
 func (c *Cluster) getPodLabels(daemonName string) map[string]string {
-	labels := controller.PodLabels(AppName, c.clusterInfo.Namespace, "mgr", daemonName)
+	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, "mgr", daemonName)
 	// leave "instance" key for legacy usage
 	labels["instance"] = daemonName
 	return labels

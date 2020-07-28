@@ -133,7 +133,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 }
 
 func (c *Cluster) podLabels(mdsConfig *mdsConfig) map[string]string {
-	labels := controller.PodLabels(AppName, c.fs.Namespace, "mds", mdsConfig.DaemonID)
+	labels := controller.CephDaemonAppLabels(AppName, c.fs.Namespace, "mds", mdsConfig.DaemonID)
 	labels["rook_file_system"] = c.fs.Name
 	return labels
 }
