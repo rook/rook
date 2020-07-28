@@ -349,7 +349,7 @@ func addPortToEndpoint(endpoints *v1.Endpoints, name string, port int32) {
 }
 
 func getLabels(name, namespace string) map[string]string {
-	labels := controller.PodLabels(AppName, namespace, "rgw", name)
+	labels := controller.CephDaemonAppLabels(AppName, namespace, "rgw", name)
 	labels["rook_object_store"] = name
 	return labels
 }
