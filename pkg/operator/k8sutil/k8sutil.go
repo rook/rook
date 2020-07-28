@@ -80,6 +80,8 @@ func GetK8SVersion(clientset kubernetes.Interface) (*version.Version, error) {
 }
 
 // Hash stableName computes a stable pseudorandom string suitable for inclusion in a Kubernetes object name from the given seed string.
+// Do **NOT** edit this function in a way that would change its output as it needs to
+// provide consistent mappings from string to hash accross versions of rook.
 func Hash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:16])
@@ -91,6 +93,8 @@ func Hash(s string) string {
 // For more information, see the following resources:
 // https://stackoverflow.com/a/50451893
 // https://stackoverflow.com/a/32294443
+// Do **NOT** edit this function in a way that would change its output as it needs to
+// provide consistent mappings from string to hash accross versions of rook.
 func TruncateNodeName(format, nodeName string) string {
 	if len(nodeName)+len(fmt.Sprintf(format, "")) > validation.DNS1035LabelMaxLength {
 		hashed := Hash(nodeName)
