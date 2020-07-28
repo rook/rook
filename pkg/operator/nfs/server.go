@@ -66,6 +66,7 @@ func Setup(ganeshaConfig string) error {
 func Run(ganeshaConfig string) error {
 	// Start ganesha.nfsd
 	logger.Infof("Running NFS server!")
+	// #nosec G204 Rook controls the input to the exec arguments
 	cmd := exec.Command("ganesha.nfsd", "-F", "-L", ganeshaLog, "-f", ganeshaConfig, "-N", ganeshaOptions)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ganesha.nfsd failed with error: %v, output: %s", err, out)
