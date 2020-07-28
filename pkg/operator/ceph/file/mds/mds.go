@@ -237,7 +237,8 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 				)
 				break // stop trying to delete daemons, but continue to reporting any errors below
 			}
-			if err := deleteMdsDeployment(c.context, c.fs.Namespace, &d); err != nil {
+			localdeployment := d
+			if err := deleteMdsDeployment(c.context, c.fs.Namespace, &localdeployment); err != nil {
 				errCount++
 				logger.Errorf("error during deletion of extraneous mds deployments. %v", err)
 			}

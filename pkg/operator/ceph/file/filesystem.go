@@ -156,7 +156,8 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *client.ClusterIn
 		return errors.Wrap(err, "invalid metadata pool")
 	}
 	for _, p := range f.Spec.DataPools {
-		if err := pool.ValidatePoolSpec(context, clusterInfo, &p); err != nil {
+		localpoolSpec := p
+		if err := pool.ValidatePoolSpec(context, clusterInfo, &localpoolSpec); err != nil {
 			return errors.Wrap(err, "Invalid data pool")
 		}
 	}

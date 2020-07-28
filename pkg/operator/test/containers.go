@@ -55,7 +55,8 @@ func (ps *PodSpecTester) Containers() *ContainersTester {
 // the value.
 func (ct *ContainersTester) AssertArgReferencesMatchEnvVars() {
 	for _, c := range ct.containers {
-		assert.Subset(ct.t, varNames(&c), argEnvReferences(&c),
+		localcontainer := c
+		assert.Subset(ct.t, varNames(&localcontainer), argEnvReferences(&localcontainer),
 			"container: "+c.Name,
 			"references to env vars in args do not match env vars",
 			"args:", c.Args, "envs:", c.Env)

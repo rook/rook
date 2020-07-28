@@ -226,7 +226,8 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		// refresh old canaries in draining failure domain
 		for _, drainingCanary := range drainingCanaryList.Items {
 			if time.Since(drainingCanary.GetCreationTimestamp().Time) > time.Minute && drainingCanary.Status.ReadyReplicas < 1 {
-				err := r.client.Delete(context.TODO(), &drainingCanary)
+				localdrainingCanary := drainingCanary
+				err := r.client.Delete(context.TODO(), &localdrainingCanary)
 				if err != nil {
 					logger.Warningf("could not delete canary deployment %q in namespace %q. %v", drainingCanary.GetName(), drainingCanary.GetNamespace(), err)
 				}

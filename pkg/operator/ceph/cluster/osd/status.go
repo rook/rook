@@ -143,8 +143,8 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 			logger.Warningf("missing node label on configmap %s", configMap.Name)
 			continue
 		}
-
-		completed := c.handleStatusConfigMapStatus(node, config, &configMap, configOSDs)
+		localconfigMap := configMap
+		completed := c.handleStatusConfigMapStatus(node, config, &localconfigMap, configOSDs)
 		if !completed {
 			remainingNodes.Add(node)
 		}

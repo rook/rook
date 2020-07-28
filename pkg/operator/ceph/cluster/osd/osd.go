@@ -403,8 +403,8 @@ func (c *Cluster) startNodeDriveGroupProvisioners(config *provisionConfig) {
 			Name: normalizedHostname,
 		}
 		c.spec.Storage.Nodes = append(c.spec.Storage.Nodes, storageNode)
-
-		groups, err := DriveGroupsWithPlacementMatchingNode(sanitizedDGs, &n)
+		localnode := n
+		groups, err := DriveGroupsWithPlacementMatchingNode(sanitizedDGs, &localnode)
 		if err != nil {
 			config.addError("failed to determine drive groups with placement matching node %q (hostname: %q): %+v", n.Name, normalizedHostname, err)
 			continue

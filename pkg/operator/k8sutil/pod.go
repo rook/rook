@@ -187,7 +187,8 @@ func GetMatchingContainer(containers []v1.Container, name string) (v1.Container,
 		// if there are multiple pods, we require the container to have the expected name
 		for _, container := range containers {
 			if container.Name == name {
-				result = &container
+				localcontainer := container
+				result = &localcontainer
 				break
 			}
 		}
