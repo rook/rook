@@ -77,7 +77,8 @@ func VolumeMountExists(mountName string, mounts []v1.VolumeMount) error {
 func HumanReadableVolumes(volumes []v1.Volume) string {
 	stringVols := []string{}
 	for _, volume := range volumes {
-		stringVols = append(stringVols, HumanReadableVolume(&volume))
+		localvolume := volume
+		stringVols = append(stringVols, HumanReadableVolume(&localvolume))
 	}
 	return fmt.Sprintf("%v", stringVols)
 }
@@ -102,7 +103,8 @@ func HumanReadableVolume(v *v1.Volume) string {
 func HumanReadableVolumeMounts(mounts []v1.VolumeMount) string {
 	stringMounts := []string{}
 	for _, mount := range mounts {
-		stringMounts = append(stringMounts, HumanReadableVolumeMount(&mount))
+		localmount := mount
+		stringMounts = append(stringMounts, HumanReadableVolumeMount(&localmount))
 	}
 	return fmt.Sprintf("%v", stringMounts)
 }
@@ -154,9 +156,10 @@ func (d *VolumesAndMountsTestDefinition) TestMountsMatchVolumes(t *testing.T) {
 			fmt.Sprintf("%s mounts match volumes in %s", mountsSpec.Moniker, d.VolumesSpec.Moniker),
 			func(t *testing.T) {
 				for _, mount := range mountsSpec.Mounts {
+					localmount := mount
 					assert.Nil(t, VolumeExists(mount.Name, d.VolumesSpec.Volumes),
 						"%s volume mount %s does not have a corresponding %s volume to source it: %s",
-						mountsSpec.Moniker, HumanReadableVolumeMount(&mount),
+						mountsSpec.Moniker, HumanReadableVolumeMount(&localmount),
 						d.VolumesSpec.Moniker, HumanReadableVolumes(d.VolumesSpec.Volumes))
 				}
 			},
@@ -169,9 +172,10 @@ func (d *VolumesAndMountsTestDefinition) TestMountsMatchVolumes(t *testing.T) {
 		fmt.Sprintf("No extraneous %s volumes exist", d.VolumesSpec.Moniker),
 		func(t *testing.T) {
 			for _, volume := range d.VolumesSpec.Volumes {
+				localvolume := volume
 				assert.Nil(t, mountExistsInMountsSpecItems(volume.Name, d.MountsSpecItems),
 					"%s volume %s is not used by any volume mount: %v",
-					d.VolumesSpec.Moniker, HumanReadableVolume(&volume),
+					d.VolumesSpec.Moniker, HumanReadableVolume(&localvolume),
 					humanReadableMountsSpecItems(d.MountsSpecItems))
 			}
 		},

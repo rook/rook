@@ -201,7 +201,8 @@ func NodeIsTolerable(node v1.Node, tolerations []v1.Toleration, ignoreWellKnownT
 		}
 		isTolerated := false
 		for _, toleration := range tolerations {
-			if toleration.ToleratesTaint(&taint) {
+			localtaint := taint
+			if toleration.ToleratesTaint(&localtaint) {
 				isTolerated = true
 				break
 			}

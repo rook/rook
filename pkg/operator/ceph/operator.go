@@ -271,7 +271,8 @@ func getDeploymentOwnerReference(clientset kubernetes.Interface, namespace strin
 			}
 			for _, replicasetOwner := range replicaset.OwnerReferences {
 				if replicasetOwner.Kind == "Deployment" {
-					deploymentRef = &replicasetOwner
+					localreplicasetOwner := replicasetOwner
+					deploymentRef = &localreplicasetOwner
 				}
 			}
 		}

@@ -91,7 +91,8 @@ func (ct *ContainersTester) AssertEnvVarsContainCephRequirements() {
 		if !isCephCommand(c.Command) {
 			continue // don't consider containers that aren't Ceph commands
 		}
-		assert.Subset(ct.t, varNames(&c), requiredEnvVars)
+		localcontainer := c
+		assert.Subset(ct.t, varNames(&localcontainer), requiredEnvVars)
 		for _, e := range c.Env {
 			// For the required env vars, make sure they are sourced as expected
 			switch e.Name {
@@ -139,7 +140,8 @@ func (ct *ContainersTester) AssertEnvVarsContainCephRequirements() {
 // the value.
 func (ct *ContainersTester) AssertArgReferencesMatchEnvVars() {
 	for _, c := range ct.containers {
-		assert.Subset(ct.t, varNames(&c), argEnvReferences(&c),
+		localcontainer := c
+		assert.Subset(ct.t, varNames(&localcontainer), argEnvReferences(&localcontainer),
 			"container: "+c.Name,
 			"references to env vars in args do not match env vars",
 			"args:", c.Args, "envs:", c.Env)
@@ -209,7 +211,8 @@ func varNames(c *v1.Container) []string {
 func (ct *ContainersTester) allNonrequiredArgEnvReferences() []string {
 	allSet := map[string]bool{}
 	for _, c := range ct.containers {
-		for _, r := range argEnvReferences(&c) {
+		localcontainer := c
+		for _, r := range argEnvReferences(&localcontainer) {
 			allSet[r] = true
 		}
 	}
@@ -228,7 +231,8 @@ func (ct *ContainersTester) allNonrequiredArgEnvReferences() []string {
 func (ct *ContainersTester) allNonrequiredVarNames() []string {
 	allSet := map[string]bool{}
 	for _, c := range ct.containers {
-		for _, v := range varNames(&c) {
+		localcontainer := c
+		for _, v := range varNames(&localcontainer) {
 			allSet[v] = true
 		}
 	}

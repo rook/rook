@@ -283,7 +283,8 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 			cephFilesystem.Labels = map[string]string{}
 		}
 		cephFilesystem.Labels["ceph_version"] = version
-		_, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).Update(&cephFilesystem)
+		localcephFilesystem := cephFilesystem
+		_, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).Update(&localcephFilesystem)
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph filesystem CR %q with new label", cephFilesystem.Name)
 		}
@@ -298,7 +299,8 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 			cephObjectStore.Labels = map[string]string{}
 		}
 		cephObjectStore.Labels["ceph_version"] = version
-		_, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).Update(&cephObjectStore)
+		localcephObjectStore := cephObjectStore
+		_, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).Update(&localcephObjectStore)
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph object store CR %q with new label", cephObjectStore.Name)
 		}
@@ -313,7 +315,8 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 			cephNFS.Labels = map[string]string{}
 		}
 		cephNFS.Labels["ceph_version"] = version
-		_, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).Update(&cephNFS)
+		localcephNFS := cephNFS
+		_, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).Update(&localcephNFS)
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph nfs CR %q with new label", cephNFS.Name)
 		}
