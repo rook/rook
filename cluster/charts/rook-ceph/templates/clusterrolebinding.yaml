@@ -105,11 +105,9 @@ roleRef:
   name: rbd-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 subjects:
-{{- range $_, $clusterNamespace := $clusterNamespaces }}
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: {{ $clusterNamespace }}
-{{- end }}
+    namespace: {{ .Release.Namespace }}
 ---
 
 {{- if .Values.pspEnable }}
@@ -221,12 +219,10 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: 'psp:rook'
-{{- range $_, $clusterNamespace := $clusterNamespaces }}
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: {{ $clusterNamespace }}
-{{- end }}
+    namespace: {{ .Release.Namespace }}
 ---
 
 kind: ClusterRoleBinding
