@@ -236,7 +236,7 @@ func (o MCTestOperations) Setup() {
 
 // Teardown is a wrapper for tearDown after suite
 func (o MCTestOperations) Teardown() {
-	o.installer.UninstallRookFromMultipleNS(installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
+	o.installer.UninstallRookFromMultipleNS(o.systemNamespace, o.namespace1, o.namespace2)
 }
 
 func (o MCTestOperations) startCluster(namespace, store string) error {
