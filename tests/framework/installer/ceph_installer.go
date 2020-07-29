@@ -761,6 +761,7 @@ func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string)
 	for _, namespace := range namespaces {
 		h.k8shelper.GetLogsFromNamespace(namespace, testName, testEnvName())
 		h.k8shelper.GetPodDescribeFromNamespace(namespace, testName, testEnvName())
+		h.k8shelper.GetEventsFromNamespace(namespace, testName, testEnvName())
 	}
 }
 
