@@ -17,6 +17,7 @@ data:
   config: |
     [global]
     osd_pool_default_size = 1
+    mon_warn_on_pool_no_redundancy = false
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
