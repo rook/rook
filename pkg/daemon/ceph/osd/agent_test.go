@@ -31,9 +31,9 @@ func createTestKeyring(t *testing.T, configRoot string, args []string) {
 	var configDir string
 	if len(args) > 5 && strings.HasPrefix(args[5], "--id") {
 		configDir = filepath.Join(configRoot, "osd") + args[5][5:]
-		err := os.MkdirAll(configDir, 0744)
+		err := os.MkdirAll(configDir, 0700)
 		assert.Nil(t, err)
-		err = ioutil.WriteFile(path.Join(configDir, "keyring"), []byte("mykeyring"), 0644)
+		err = ioutil.WriteFile(path.Join(configDir, "keyring"), []byte("mykeyring"), 0600)
 		assert.Nil(t, err)
 	}
 }

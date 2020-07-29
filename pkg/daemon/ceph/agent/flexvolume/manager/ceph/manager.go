@@ -242,7 +242,7 @@ func getClusterInfo(context *clusterd.Context, clusterNamespace string) (string,
 	}
 
 	keyring := cephclient.CephKeyring(clusterInfo.CephCred)
-	if err := ioutil.WriteFile(keyringFile.Name(), []byte(keyring), 0644); err != nil {
+	if err := ioutil.WriteFile(keyringFile.Name(), []byte(keyring), 0600); err != nil {
 		return "", "", errors.Errorf("failed to write monitor keyring to %s", keyringFile.Name())
 	}
 
