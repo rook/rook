@@ -6,9 +6,9 @@ indent: true
 
 ## RBD Snapshots
 
-### Snapshot Beta Prerequisites
+### Prerequisites
 
-1. Requires kubernetes v1.17+ which supports snapshot beta.
+1. Requires Kubernetes v1.17+ which supports snapshot beta.
 
 2. Install the new snapshot controller and snapshot beta CRD. More info can be found
 [here](https://github.com/kubernetes-csi/external-snapshotter/tree/v2.1.1#usage)

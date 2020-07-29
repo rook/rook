@@ -28,7 +28,7 @@ const (
 	// Version1_2 rook version 1.2
 	Version1_2 = "v1.2.7"
 	// Version1_3 rook version 1.3
-	Version1_3 = "v1.3.1"
+	Version1_3 = "v1.3.8"
 )
 
 type CephManifests interface {
