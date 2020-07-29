@@ -273,4 +273,3 @@ subjects:
     namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- end }}
-
