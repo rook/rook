@@ -215,6 +215,9 @@ func TerminateFatal(reason error) {
 		if _, err = file.WriteString(reason.Error()); err != nil {
 			fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
 		}
+		if err := file.Close(); err != nil {
+			logger.Errorf("failed to close file. %v", err)
+		}
 	}
 
 	os.Exit(1)

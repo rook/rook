@@ -271,7 +271,11 @@ func copyFile(src, dest string) error {
 	if err != nil {
 		return errors.Wrapf(err, "error copying file from %s to %s", src, dest)
 	}
-	return destFile.Sync()
+	err = destFile.Sync()
+	if err := destFile.Close(); err != nil {
+		return err
+	}
+	return err
 }
 
 // Gets the flex driver info (vendor, driver name) from a given path where the flex driver exists.

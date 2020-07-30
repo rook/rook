@@ -173,6 +173,9 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duratio
 	}
 
 	fileOut, err := ioutil.ReadAll(outFile)
+	if err := outFile.Close(); err != nil {
+		return "", err
+	}
 	return string(fileOut), err
 }
 
@@ -206,6 +209,9 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 
 	// read the entire output file and return that to the caller
 	fileOut, err := ioutil.ReadAll(outFile)
+	if err := outFile.Close(); err != nil {
+		return "", err
+	}
 	return string(fileOut), err
 }
 
