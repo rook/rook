@@ -54,6 +54,8 @@ type Provisioner struct {
 	secretName           string
 	secretNamespace      string
 	additionalConfigData map[string]string
+
+	bucketPolicy *cephObject.BucketPolicy
 }
 
 var _ apibkt.Provisioner = &Provisioner{}
@@ -346,6 +348,7 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 		return errors.Wrap(err, "failed to set domain and port")
 	}
 
+	p.setOBCBucketPolicy(sc)
 	return nil
 }
 
@@ -538,4 +541,41 @@ func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error 
 	}
 
 	return nil
+}
+
+func fetchSCBucketPolicy(sc *storagev1.StorageClass) string {
+	const key = "bucketpolicy"
+	return sc.Parameters[key]
+}
+
+func validateOBCBucketPolicy(bucketPolicy *cephObject.BucketPolicy) error {
+	const (
+		resourcecheck  = "arn:aws:s3:::/*"
+		principalcheck = "arn:aws:iam:::*"
+		awskey         = "AWS"
+	)
+	for _, statement := range bucketPolicy.Statement {
+		if len(statement.Principal[awskey]) != 1 && statement.Principal[awskey][0] != principalcheck {
+			return errors.New("Principal value is mismatching")
+		}
+		if len(statement.Resource) != 1 && statement.Resource[0] != resourcecheck {
+			return errors.New("Resource value is mismatching")
+		}
+	}
+
+	return nil
+}
+
+func (p *Provisioner) setOBCBucketPolicy(sc *storagev1.StorageClass) {
+	SCBucketPolicy := fetchSCBucketPolicy(sc)
+	if len(SCBucketPolicy) > 0 {
+		bucketPolicy := cephObject.DecodeBucketPolicy(SCBucketPolicy)
+		err := validateOBCBucketPolicy(bucketPolicy)
+		if err == nil {
+			logger.Debugf("Found bucket policy in storage class %v", bucketPolicy)
+			p.bucketPolicy = bucketPolicy
+		} else {
+			logger.Warningf("Invalid bucket policy %v, hence skipping", err)
+		}
+	}
 }

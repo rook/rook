@@ -9,6 +9,18 @@ parameters:
   objectStoreName: my-store # port 80 assumed
   objectStoreNamespace: rook-ceph
   region: us-east-1
+  bucketpolicy: '{
+                "Version": "2012-10-17",
+                "Statement": [
+                {
+                "Sid": "getobjs",
+                "Effect": "Allow",
+                "Principal": {"AWS": ["arn:aws:iam:::*"]},
+                "Action": ["s3:GetObject"],
+                "Resource": ["arn:aws:s3:::/*"]
+                }
+                ]
+          }'
   # To accommodate brownfield cases reference the existing bucket name here instead
   # of in the ObjectBucketClaim (OBC). In this case the provisioner will grant
   # access to the bucket by creating a new user, attaching it to the bucket, and

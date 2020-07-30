@@ -160,6 +160,17 @@ func NewBucketPolicy(ps ...PolicyStatement) *BucketPolicy {
 	return bp
 }
 
+func DecodeBucketPolicy(data string) *BucketPolicy {
+	var policy BucketPolicy
+	err := json.Unmarshal([]byte(data), &policy)
+	if err != nil {
+		logger.Infof("unmarshalling failed %v", err)
+		return nil
+	}
+	logger.Debugf("bucket policy %v", policy)
+	return &policy
+}
+
 // PutBucketPolicy applies the policy to the bucket
 func (s *S3Agent) PutBucketPolicy(bucket string, policy BucketPolicy) (*s3.PutBucketPolicyOutput, error) {
 
