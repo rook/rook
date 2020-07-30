@@ -169,6 +169,7 @@ func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSp
 			logger.Errorf("wrong localAddr format")
 			return svc
 		}
+		// #nosec G109 using Atoi to convert type into int is not a real risk
 		lport, _ := strconv.Atoi(port)
 		lportServicePort := v1.ServicePort{Name: "lport", Port: int32(lport), Protocol: v1.ProtocolTCP}
 		if isgwSpec.ExternalPort != 0 {
@@ -187,6 +188,7 @@ func (c *ISGWController) makeISGWService(name, svcname, namespace string, isgwSp
 			logger.Errorf("wrong dynamicFetchAddr format")
 			return svc
 		}
+		// #nosec G109 using Atoi to convert type into int is not a real risk
 		lport, _ := strconv.Atoi(port)
 
 		svc.Spec.Ports = append(svc.Spec.Ports, v1.ServicePort{Name: "dfport", Port: int32(lport), Protocol: v1.ProtocolTCP})
@@ -394,6 +396,7 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 			logger.Errorf("wrong localAddr format")
 			return cont
 		}
+		// #nosec G109 using Atoi to convert type into int is not a real risk
 		lport, _ := strconv.Atoi(port)
 		cont.Ports = append(cont.Ports, v1.ContainerPort{Name: "lport", ContainerPort: int32(lport), Protocol: v1.ProtocolTCP})
 	}
@@ -403,6 +406,7 @@ func (c *ISGWController) isgwContainer(svcname, name, containerImage string, isg
 			logger.Errorf("wrong dynamicFetchAddr format")
 			return cont
 		}
+		// #nosec G109 using Atoi to convert type into int is not a real risk
 		lport, _ := strconv.Atoi(port)
 		cont.Ports = append(cont.Ports, v1.ContainerPort{Name: "dfport", ContainerPort: int32(lport), Protocol: v1.ProtocolTCP})
 	}

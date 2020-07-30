@@ -260,7 +260,7 @@ func copyFile(src, dest string) error {
 	}
 	defer srcFile.Close()
 
-	// #nosec G304 since destFile needs the permission to execute
+	// #nosec G302,G304 since destFile needs the permission to execute
 	destFile, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0750) // creates if file doesn't exist
 	if err != nil {
 		return errors.Wrapf(err, "error creating destination file %s", dest)

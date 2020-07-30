@@ -206,7 +206,7 @@ func TerminateOnError(err error, msg string) {
 func TerminateFatal(reason error) {
 	fmt.Fprintln(os.Stderr, reason)
 
-	file, err := os.OpenFile(terminationLog, os.O_APPEND|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(terminationLog, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
 	} else {
