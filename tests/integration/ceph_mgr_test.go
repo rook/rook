@@ -125,7 +125,7 @@ func (suite *CephMgrSuite) waitForOrchestrationModule() {
 	var err error
 	for timeout := 0; timeout < 30; timeout++ {
 		err, output := suite.execute([]string{"status"})
-		logger.Info("%s", output)
+		logger.Infof("%s", output)
 		if err == nil {
 			logger.Info("Rook Toolbox ready to execute commands")
 			break
