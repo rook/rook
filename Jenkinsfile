@@ -151,6 +151,8 @@ pipeline {
                 stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script {
                     def data = [
+                        "aws_1.11.x": "v1.11.10",
+                        "aws_1.13.x": "v1.13.12",
                         "aws_1.14.x": "v1.14.10",
                         "aws_1.15.x": "v1.15.11",
                         "aws_1.16.x": "v1.16.8",
