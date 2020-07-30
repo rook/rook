@@ -17,8 +17,7 @@ limitations under the License.
 package bucket
 
 import (
-	"math/rand"
-	"time"
+	"crypto/rand"
 
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
@@ -125,12 +124,13 @@ func getService(c kubernetes.Interface, namespace, name string) (*v1.Service, er
 
 func randomString(n int) string {
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	var letterRunes = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[r.Intn(len(letterRunes))]
+	var letterRunes = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	for k, v := range b {
+		b[k] = letterRunes[v%byte(len(letterRunes))]
 	}
 	return string(b)
 }

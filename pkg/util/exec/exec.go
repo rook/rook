@@ -177,6 +177,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duratio
 }
 
 // ExecuteCommandWithOutputFile executes a command with output on a file
+// #nosec G307 Calling defer to close the file without checking the error return is not a risk for a simple file open and close
 func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error) {
 
 	// create a temporary file to serve as the output file for the command to be run and ensure

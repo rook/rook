@@ -121,6 +121,7 @@ func IndexFromName(n string) (int32, error) {
 		return -1, fmt.Errorf("couldn't get index from name %s", n)
 	}
 
+	// #nosec G109 using Atoi to convert type into int is not a real risk
 	index, err := strconv.Atoi(n[delimIndex+1:])
 	if err != nil {
 		return -1, fmt.Errorf("couldn't get index from name %s", n)
