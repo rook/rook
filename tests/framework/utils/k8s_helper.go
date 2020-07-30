@@ -537,6 +537,28 @@ func (k8sh *K8sHelper) GetPodDescribeFromNamespace(namespace, testName, platform
 	}
 }
 
+func (k8sh *K8sHelper) GetEventsFromNamespace(namespace, testName, platformName string) {
+	logger.Infof("Gathering events in namespace %q", namespace)
+
+	file, err := k8sh.createTestLogFile(platformName, "events", namespace, testName, "")
+	if err != nil {
+		logger.Errorf("failed to create event file. %v", err)
+		return
+	}
+	defer file.Close()
+
+	args := append([]string{"get", "events", "-n", namespace})
+	events, err := k8sh.Kubectl(args...)
+	if err != nil {
+		logger.Errorf("failed to get events. %v. %v", args, err)
+	}
+	if events == "" {
+		return
+	}
+	file.WriteString(events)
+	return
+}
+
 func (k8sh *K8sHelper) appendPodDescribe(file *os.File, namespace, name string) {
 	description := k8sh.getPodDescribe(namespace, name)
 	if description == "" {
