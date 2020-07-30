@@ -251,21 +251,16 @@ class RadosJSON:
     def get_cephfs_data_pool_details(self):
         cmd_json = {"prefix": "fs ls", "format": "json"}
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
-        # if there is an unsuccessful attempt,
-        if ret_val != 0 or len(json_out) == 0:
-            raise ExecutionFailureException(
-                "'fs ls' command failed.\nError: {}".format(
-                    err_msg if ret_val != 0 else "No filesystem detected."))
-        # if there are multiple filesystems present, and
-        # no specific filesystem name and data-pool names are provided,
-        # then raise an exception
-        if len(json_out) > 1 and not self._arg_parser.cephfs_filesystem_name:
-            # if the arguments are not provided, generate an error message
-            raise ExecutionFailureException(
-                "More than ONE filesystems detected.\n" +
-                "{}\n\n".format(json_out) +
-                "Please manually provide the details for " +
-                "'--cephfs-filesystem-name'")
+        # if there is an unsuccessful attempt, report an error
+        if ret_val != 0:
+            # if fs and data_pool arguments are not set, silently return
+            if self._arg_parser.cephfs_filesystem_name == "" and self._arg_parser.cephfs_data_pool_name == "":
+                return
+            # if user has provided any of the
+            # '--cephfs-filesystem-name' or '--cephfs-data-pool-name' arguments,
+            # raise an exception as we are unable to verify the args
+            raise ExecutionFailureException("'fs ls' ceph call failed with error: {}".format(err_msg))
+
         matching_json_out = {}
         # if '--cephfs-filesystem-name' argument is provided,
         # check whether the provided filesystem-name exists or not
@@ -281,29 +276,60 @@ class RadosJSON:
                         self._arg_parser.cephfs_filesystem_name,
                         [str(x['name']) for x in json_out]))
             matching_json_out = matching_json_out_list[0]
+        # if cephfs filesystem name is not provided,
+        # try to get a default fs name by doing the following
         else:
-            self._arg_parser.cephfs_filesystem_name = str(json_out[0]['name'])
-            matching_json_out = json_out[0]
+            # a. check if there is only one filesystem is present
+            if len(json_out) == 1:
+                matching_json_out = json_out[0]
+            # b. or else, check if data_pool name is provided
+            elif self._arg_parser.cephfs_data_pool_name:
+                # and if present, check whether there exists a fs which has the data_pool
+                for eachJ in json_out:
+                    if self._arg_parser.cephfs_data_pool_name in eachJ['data_pools']:
+                        matching_json_out = eachJ
+                        break
+                # if there is no matching fs exists, that means provided data_pool name is invalid
+                if not matching_json_out:
+                    raise ExecutionFailureException(
+                            "Provided data_pool name, {}, does not exists".format(
+                                self._arg_parser.cephfs_data_pool_name))
+            # c. if nothing is set and couldn't find a default,
+            else:
+                # just return silently
+                return
+
+        if matching_json_out:
+            self._arg_parser.cephfs_filesystem_name = str(matching_json_out['name'])
+
         if type(matching_json_out['data_pools']) == list:
-            if len(matching_json_out['data_pools']) == 0:
-                raise ExecutionFailureException("No 'data_pools' found.")
             # if the user has already provided data-pool-name,
             # through --cephfs-data-pool-name
             if self._arg_parser.cephfs_data_pool_name:
                 # if the provided name is not matching with the one in the list
                 if self._arg_parser.cephfs_data_pool_name not in matching_json_out['data_pools']:
                     raise ExecutionFailureException(
-                        ("Provided 'data-pool-name': '{}', " +
-                         "doesn't match from the data-pools' list: {}").format(
-                            self._arg_parser.cephfs_data_pool_name,
-                            [str(x) for x in matching_json_out['data_pools']]))
+                            "{}: '{}', {}: {}".format(
+                                "Provided data-pool-name",
+                                self._arg_parser.cephfs_data_pool_name,
+                                "doesn't match from the data-pools' list",
+                                [str(x) for x in matching_json_out['data_pools']]))
+            # if data_pool name is not provided,
+            # then try to find a default data pool name
             else:
+                # if no data_pools exist, silently return
+                if len(matching_json_out['data_pools']) == 0:
+                    return
                 self._arg_parser.cephfs_data_pool_name = str(
                     matching_json_out['data_pools'][0])
+            # if there are more than one 'data_pools' exist,
+            # then warn the user that we are using the selected name
             if len(matching_json_out['data_pools']) > 1:
-                print("WARNING: Multiple data pools detected.\n" +
-                      "{}\n".format([str(x) for x in matching_json_out['data_pools']]) +
-                      "Using the data-pool: {}\n".format(self._arg_parser.cephfs_data_pool_name))
+                print("{}: {}\n{}: '{}'\n".format(
+                    "WARNING: Multiple data pools detected",
+                    [str(x) for x in matching_json_out['data_pools']],
+                    "Using the data-pool",
+                    self._arg_parser.cephfs_data_pool_name))
 
     def create_cephCSIKeyring_RBDNode(self):
         cmd_json = {"prefix": "auth get-or-create",
