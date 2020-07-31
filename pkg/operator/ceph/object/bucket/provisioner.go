@@ -104,7 +104,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	// setting quota limit if it is enabled
 	err = p.setAdditionalSettings(options)
 	if err != nil {
-		p.deleteOBCResource(p.bucketName)
+		p.deleteOBCResourceLogError(p.bucketName)
 		return nil, err
 	}
 
@@ -192,7 +192,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	// setting quota limit if it is enabled
 	err = p.setAdditionalSettings(options)
 	if err != nil {
-		p.deleteOBCResource("")
+		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
