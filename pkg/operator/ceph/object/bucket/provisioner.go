@@ -504,9 +504,9 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 	return nil
 }
 
-func (p *Provisioner) deleteOBCResourceLogError(name string) {
-	if err := p.deleteOBCResource(""); err != nil {
-		logger.Warningf("error deleting OBC resource. %v", err)
+func (p *Provisioner) deleteOBCResourceLogError(bucketname string) {
+	if err := p.deleteOBCResource(bucketname); err != nil {
+		logger.Warningf("failed to delete OBC resource. %v", err)
 	}
 }
 
