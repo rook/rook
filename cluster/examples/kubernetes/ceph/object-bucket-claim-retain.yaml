@@ -11,3 +11,7 @@ spec:
   #bucketName: 
   generateBucketName: ceph-bkt
   storageClassName: rook-ceph-retain-bucket
+  additionalConfig:
+    # To set for quota for OBC
+    #maxObjects: "1000"
+    #maxSize: "2G"

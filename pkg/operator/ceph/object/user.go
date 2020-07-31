@@ -183,25 +183,27 @@ func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 	return result, errors.Wrap(err, "failed to delete s3 user")
 }
 
-func SetQuotaUserBucketMax(c *Context, id string, max int) (string, int, error) {
+// SetQuotaUserBucketMax will set maximum bucket quota for a user
+func SetQuotaUserBucketMax(c *Context, id string, max int) (string, error) {
 	logger.Infof("Setting user %q max buckets to %d", id, max)
 	args := []string{"--quota-scope", "user", "--max-buckets", strconv.Itoa(max)}
-	result, errCode, err := setUserQuota(c, id, args)
-	if errCode != RGWErrorNone {
+	result, err := setUserQuota(c, id, args)
+	if err != nil {
 		err = errors.Wrap(err, "failed setting bucket max")
 	}
-	return result, errCode, err
+	return result, err
 }
 
-func setUserQuota(c *Context, id string, args []string) (string, int, error) {
+func setUserQuota(c *Context, id string, args []string) (string, error) {
 	args = append([]string{"quota", "set", "--uid", id}, args...)
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
 		err = errors.Wrap(err, "failed to set max buckets for user")
 	}
-	return result, RGWErrorNone, err
+	return result, err
 }
 
+// LinkUser will link a user to a bucket
 func LinkUser(c *Context, id, bucket string) (string, int, error) {
 	logger.Infof("Linking (user: %s) (bucket: %s)", id, bucket)
 	args := []string{"bucket", "link", "--uid", id, "--bucket", bucket}
@@ -215,6 +217,7 @@ func LinkUser(c *Context, id, bucket string) (string, int, error) {
 	return result, RGWErrorNone, nil
 }
 
+// UnlinkUser will unlink the user from a bucket
 func UnlinkUser(c *Context, id, bucket string) (string, int, error) {
 	logger.Infof("Unlinking (user: %s) (bucket: %s)", id, bucket)
 	args := []string{"bucket", "unlink", "--uid", id, "--bucket", bucket}
@@ -226,4 +229,38 @@ func UnlinkUser(c *Context, id, bucket string) (string, int, error) {
 		return "", RGWErrorNotFound, err
 	}
 	return result, RGWErrorNone, nil
+}
+
+// EnableUserQuota will allows to enable quota defined for a user
+func EnableUserQuota(c *Context, id string) (string, error) {
+	logger.Debug("Enabling user quota for %q", id)
+	args := append([]string{"quota", "enable", "--quota-scope", "user", "--uid", id})
+	result, err := runAdminCommand(c, args...)
+	if err != nil {
+		err = errors.Wrap(err, "failed to enable quota for the user")
+	}
+	return result, err
+
+}
+
+// SetQuotaUserObject allows to set maximum limit on objects for a user
+func SetQuotaUserObjectMax(c *Context, id string, maxobjects string) (string, error) {
+	logger.Debugf("Setting user %q max objects to %s", id, maxobjects)
+	args := []string{"--quota-scope", "user", "--max-objects", maxobjects}
+	result, err := setUserQuota(c, id, args)
+	if err != nil {
+		err = errors.Wrap(err, "failed setting object max")
+	}
+	return result, err
+}
+
+// SetQuotaUserMaxSize allows to set maximum size for a user
+func SetQuotaUserMaxSize(c *Context, id string, maxsize string) (string, error) {
+	logger.Debugf("Setting user %q max size to %s", id, maxsize)
+	args := []string{"--quota-scope", "user", "--max-size", maxsize}
+	result, err := setUserQuota(c, id, args)
+	if err != nil {
+		err = errors.Wrap(err, "failed setting max size")
+	}
+	return result, err
 }
