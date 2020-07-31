@@ -31,7 +31,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
-			Labels: controller.PodLabels(AppName, rbdMirror.Namespace, config.RbdMirrorType, daemonConfig.DaemonID),
+			Labels: controller.CephDaemonAppLabels(AppName, rbdMirror.Namespace, config.RbdMirrorType, daemonConfig.DaemonID),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -64,7 +64,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			Name:        daemonConfig.ResourceName,
 			Namespace:   rbdMirror.Namespace,
 			Annotations: rbdMirror.Spec.Annotations,
-			Labels:      controller.PodLabels(AppName, rbdMirror.Namespace, config.RbdMirrorType, daemonConfig.DaemonID),
+			Labels:      controller.CephDaemonAppLabels(AppName, rbdMirror.Namespace, config.RbdMirrorType, daemonConfig.DaemonID),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
