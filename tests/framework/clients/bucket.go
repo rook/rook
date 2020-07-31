@@ -44,12 +44,12 @@ func (b *BucketOperation) DeleteBucketStorageClass(namespace string, storeName s
 	return err
 }
 
-func (b *BucketOperation) CreateObc(obcName string, storageClassName string, bucketName string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("create", b.manifests.GetObc(obcName, storageClassName, bucketName, createBucket))
+func (b *BucketOperation) CreateObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("create", b.manifests.GetObc(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
-func (b *BucketOperation) DeleteObc(obcName string, storageClassName string, bucketName string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("delete", b.manifests.GetObc(obcName, storageClassName, bucketName, createBucket))
+func (b *BucketOperation) DeleteObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("delete", b.manifests.GetObc(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
 // CheckOBC, returns true if the obc, secret and configmap are all in the "check" state,

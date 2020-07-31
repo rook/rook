@@ -23,6 +23,7 @@
 - OBC changes:
   - Updated lib bucket provisioner version to support multithread and required change can be found in [operator.yaml](cluster/examples/kubernetes/ceph/operator.yaml#L449)
     - Can be extended to add support for other providers
+  - Added support for [quota](Documentation/ceph-object-bucket-claim.md#obc-custom-resource), have options for object count and total size.
 - CephObjectStore CRD changes:
   - Health displayed in the Status field
   - Supports connecting to external Ceph Rados Gateways, refer to the [external object section](Documentation/ceph-object.html#connect-to-external-object-store)

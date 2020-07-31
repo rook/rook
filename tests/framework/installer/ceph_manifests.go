@@ -49,7 +49,7 @@ type CephManifests interface {
 	GetObjectStore(namespace, name string, replicaCount, port int) string
 	GetObjectStoreUser(namespace, name, displayName, store string) string
 	GetBucketStorageClass(namespace, storeName, storageClassName, reclaimPolicy, region string) string
-	GetObc(obcName, storageClassName, bucketName string, createBucket bool) string
+	GetObc(obcName, storageClassName, bucketName string, maxObject string, createBucket bool) string
 	GetClient(namespace, name string, caps map[string]string) string
 }
 
@@ -2295,7 +2295,7 @@ parameters:
 }
 
 //GetObc returns the manifest to create object bucket claim
-func (m *CephManifestsMaster) GetObc(claimName string, storageClassName string, objectBucketName string, varBucketName bool) string {
+func (m *CephManifestsMaster) GetObc(claimName string, storageClassName string, objectBucketName string, maxObject string, varBucketName bool) string {
 	bucketParameter := "generateBucketName"
 	if varBucketName {
 		bucketParameter = "bucketName"
@@ -2306,7 +2306,9 @@ metadata:
   name: ` + claimName + `
 spec:
   ` + bucketParameter + `: ` + objectBucketName + `
-  storageClassName: ` + storageClassName
+  storageClassName: ` + storageClassName + `
+  additionalConfig:
+    maxObjects: "` + maxObject + `"`
 }
 
 func (m *CephManifestsMaster) GetClient(namespace string, claimName string, caps map[string]string) string {

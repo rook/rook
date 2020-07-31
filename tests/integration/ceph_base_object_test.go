@@ -36,11 +36,14 @@ var (
 	userid          = "rook-user"
 	userdisplayname = "A rook RGW user"
 	bucketname      = "smokebkt"
-	objBody         = "Test Rook Object Data"
-	objectKey       = "rookObj1"
+	ObjBody         = "Test Rook Object Data"
+	ObjectKey1      = "rookObj1"
+	ObjectKey2      = "rookObj2"
+	ObjectKey3      = "rookObj3"
 	contentType     = "plain/text"
 	obcName         = "smoke-delete-bucket"
 	region          = "us-east-1"
+	maxObject       = "2"
 )
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
@@ -119,7 +122,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	bucketStorageClassName := "rook-smoke-delete-bucket"
 	cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
 	require.Nil(s.T(), cobErr)
-	cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, true)
+	cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
 	require.Nil(s.T(), cobcErr)
 
 	for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "created"); i++ {
@@ -154,22 +157,32 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
 	logger.Infof("Step 5 : Put Object on bucket")
-	_, poErr := s3client.PutObjectInBucket(bucketname, objBody, objectKey, contentType)
+	_, poErr := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey1, contentType)
 	require.Nil(s.T(), poErr)
 
 	logger.Infof("Step 6 : Get Object from bucket")
-	read, err := s3client.GetObjectInBucket(bucketname, objectKey)
+	read, err := s3client.GetObjectInBucket(bucketname, ObjectKey1)
 	require.Nil(s.T(), err)
-	require.Equal(s.T(), objBody, read)
+	require.Equal(s.T(), ObjBody, read)
 	logger.Infof("Object Created and Retrieved on bucket successfully")
 
-	logger.Infof("Step 7 : Delete object on bucket")
-	_, delobjErr := s3client.DeleteObjectInBucket(bucketname, objectKey)
-	require.Nil(s.T(), delobjErr)
-	logger.Infof("Object deleted on bucket successfully")
+	logger.Infof("Step 7 : Testing Quota for the OBC")
+	logger.Infof("Adding one more object to the bucket")
+	_, poErr = s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey2, contentType)
+	require.Nil(s.T(), poErr)
+	logger.Infof("Testing the max object limit")
+	_, poErr = s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey3, contentType)
+	require.Error(s.T(), poErr)
 
-	logger.Infof("Step 8 : Delete Object Bucket Claim")
-	dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, true)
+	logger.Infof("Step 8 : Delete objects on bucket")
+	_, delobjErr := s3client.DeleteObjectInBucket(bucketname, ObjectKey1)
+	require.Nil(s.T(), delobjErr)
+	_, delobjErr = s3client.DeleteObjectInBucket(bucketname, ObjectKey2)
+	require.Nil(s.T(), delobjErr)
+	logger.Infof("Objects deleted on bucket successfully")
+
+	logger.Infof("Step 9 : Delete Object Bucket Claim")
+	dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
 	require.Nil(s.T(), dobcErr)
 	logger.Infof("Checking to see if the obc, secret and cm have all been deleted")
 	for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "deleted"); i++ {
