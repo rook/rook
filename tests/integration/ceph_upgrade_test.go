@@ -607,5 +607,6 @@ rules:
   resources:
   - csidrivers
   verbs:
-  - create`
+  - create
+  - delete`
 }

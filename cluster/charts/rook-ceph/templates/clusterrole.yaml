@@ -166,6 +166,7 @@ rules:
   - csidrivers
   verbs:
   - create
+  - delete
 ---
 # Aspects of ceph-mgr that require cluster-wide access
 kind: ClusterRole
