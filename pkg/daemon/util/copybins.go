@@ -68,6 +68,9 @@ func copyBinary(sourceDir, targetDir, filename string) error {
 	if _, err := io.Copy(destinationFile, sourceFile); err != nil {
 		return err
 	}
+	if err := destinationFile.Close(); err != nil {
+		return err
+	}
 	// #nosec targetPath requires the permission to execute
 	return os.Chmod(targetPath, 0700)
 }
