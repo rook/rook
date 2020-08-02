@@ -985,6 +985,67 @@ If the previous section has not been completed, the Rook Operator will still ack
 
 > **WARNING**: If no cluster is managed by the current Rook Operator, you need to inject `common.yaml`, then modify `cluster-external.yaml` and specify `rook-ceph` as `namespace`.
 
+If this is successfull you will see the CepCluster status as connected.
+
+```console
+kubectl get CephCluster -n rook-ceph-external
+NAME                 DATADIRHOSTPATH   MONCOUNT   AGE    STATE       HEALTH
+rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
+```
+
+Before you create a StorageClass with this cluster you will need to create a Pool in your external Ceph Cluster.
+
+#### Example StorageClass based on external Ceph Pool
+
+In Ceph Cluster let us list the pools available:
+
+```console
+rados df
+POOL_NAME     USED OBJECTS CLONES COPIES MISSING_ON_PRIMARY UNFOUND DEGRADED RD_OPS  RD WR_OPS  WR USED COMPR UNDER COMPR 
+replicated_2g  0 B       0      0      0                  0       0        0      0 0 B      0 0 B        0 B         0 B 
+```
+
+Here is an example StorageClass configuration that uses the `replicated_2g` pool from the external cluster:
+
+```console
+cat << EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-ceph-block-ext
+# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
+provisioner: rook-ceph.rbd.csi.ceph.com
+parameters:
+    # clusterID is the namespace where the rook cluster is running
+    clusterID: rook-ceph-external
+    # Ceph pool into which the RBD image shall be created
+    pool: replicated_2g
+
+    # RBD image format. Defaults to "2".
+    imageFormat: "2"
+
+    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
+    imageFeatures: layering
+
+    # The secrets contain Ceph admin credentials.
+    csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph-external
+    csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph-external
+
+    # Specify the filesystem type of the volume. If not specified, csi-provisioner
+    # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
+    # in hyperconverged settings where the volume is mounted on the same node as the osds.
+    csi.storage.k8s.io/fstype: ext4
+
+# Delete the rbd volume when a PVC is deleted
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+EOF
+```
+
+You can now create a persistent volume based on this StorageClass.
+
 #### CephCluster example (management)
 
 The following CephCluster CR represents a cluster that will perform management tasks on the external cluster.
