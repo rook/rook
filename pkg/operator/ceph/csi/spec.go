@@ -108,7 +108,6 @@ const (
 	KubeMinMajor                   = "1"
 	KubeMinMinor                   = "13"
 	provDeploymentSuppVersion      = "14"
-	snapshotDeploymentSuppVersion  = "17"
 	kubeMinVerForFilesystemRestore = "15"
 	kubeMinVerForBlockRestore      = "16"
 
