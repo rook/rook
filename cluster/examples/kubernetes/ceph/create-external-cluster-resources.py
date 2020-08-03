@@ -343,12 +343,23 @@ class RadosJSON:
     def _gen_output_map(self):
         if self.out_map:
             return
-        self._invalid_endpoint(self._arg_parser.rgw_endpoint)
-        self.endpoint_dial(self._arg_parser.rgw_endpoint)
-        if not self.cluster.pool_exists(self._arg_parser.rbd_data_pool_name):
-            raise ExecutionFailureException(
-                "The provided 'rbd-data-pool-name': {}, don't exists".format(
-                    self._arg_parser.rbd_data_pool_name))
+        pools_to_validate = [self._arg_parser.rbd_data_pool_name]
+        # if rgw_endpoint is provided, validate it
+        if self._arg_parser.rgw_endpoint:
+            self._invalid_endpoint(self._arg_parser.rgw_endpoint)
+            self.endpoint_dial(self._arg_parser.rgw_endpoint)
+            rgw_pool_to_validate = ["{0}.rgw.meta".format(self._arg_parser.rgw_pool_prefix),
+                                    ".rgw.root",
+                                    "{0}.rgw.control".format(
+                self._arg_parser.rgw_pool_prefix),
+                "{0}.rgw.log".format(
+                self._arg_parser.rgw_pool_prefix),
+                "{0}.rgw.buckets.index".format(self._arg_parser.rgw_pool_prefix)]
+            pools_to_validate.extend(rgw_pool_to_validate)
+        for pool in pools_to_validate:
+            if not self.cluster.pool_exists(pool):
+                raise ExecutionFailureException(
+                    "The provided pool {} does not exist".format(pool))
         self._excluded_keys.add('CLUSTER_NAME')
         self.get_cephfs_data_pool_details()
         self.out_map['NAMESPACE'] = self._arg_parser.namespace
@@ -444,14 +455,6 @@ class RadosJSON:
                 "kind": "StorageClass",
                 "data": {
                     "pool": self.out_map['RBD_POOL_NAME']
-                }
-            },
-            {
-                "name": "monitoring-endpoint",
-                "kind": "CephCluster",
-                "data": {
-                    "MonitoringEndpoint": self.out_map['MONITORING_ENDPOINT'],
-                    "MonitoringPort": self.out_map['MONITORING_ENDPOINT_PORT']
                 }
             }
         ]
