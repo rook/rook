@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 )
 
 const (
@@ -43,11 +43,11 @@ func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClas
 }
 
 func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bool) map[string]string {
-	return map[string]string{
-		k8sutil.AppAttr:     AppName,
-		k8sutil.ClusterAttr: c.clusterInfo.Namespace,
-		OsdIdLabelKey:       fmt.Sprintf("%d", osdID),
-		FailureDomainKey:    failureDomainValue,
-		portableKey:         strconv.FormatBool(portable),
-	}
+	stringID := fmt.Sprintf("%d", osdID)
+	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, "osd", stringID)
+	// Add "ceph-osd-id: <id>" for legacy
+	labels[OsdIdLabelKey] = stringID
+	labels[FailureDomainKey] = failureDomainValue
+	labels[portableKey] = strconv.FormatBool(portable)
+	return labels
 }
