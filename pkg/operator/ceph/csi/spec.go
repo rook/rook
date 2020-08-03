@@ -289,7 +289,7 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		tp.RBDPluginUpdateStrategy = rollingUpdate
 	}
 
-	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
+	if ver.Major < KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
 		deployProvSTS = true
 	}
 
