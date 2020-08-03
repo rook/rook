@@ -567,7 +567,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 
 		if h.cleanupHost {
 			// The second cluster is external so the cleanup pod will never exist!
-			if clusterNum == 0 {
+			if clusterNum == 0 || h.useHelm {
 				err = h.waitForCleanupJobs(namespace)
 				assert.NoError(h.T(), err)
 			}
@@ -590,6 +590,12 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 
 		err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
 		checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
+	}
+
+	// confirm all devices are clean and available
+	for _, namespace := range namespaces {
+		args := []string{"orch", "device", "ls"}
+		h.Execute("ceph", args, namespace)
 	}
 
 	err = h.k8shelper.DeleteResourceAndWait(false, "namespace", systemNamespace)
@@ -712,14 +718,20 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 	}
 
 	// wait a bit longer for the system namespace to be cleaned up after their deletion
+	removed := false
 	for i := 0; i < 15; i++ {
 		_, err := h.k8shelper.Clientset.CoreV1().Namespaces().Get(systemNamespace, metav1.GetOptions{})
 		if err != nil && errors.IsNotFound(err) {
 			logger.Infof("system namespace %q removed", systemNamespace)
+			removed = true
 			break
 		}
 		logger.Infof("system namespace %q still found...", systemNamespace)
 		time.Sleep(5 * time.Second)
+	}
+
+	if !removed {
+		logger.Errorf("failed to remove system namespace %q", systemNamespace)
 	}
 }
 
@@ -727,7 +739,7 @@ func (h *CephInstaller) removeClusterFinalizers(namespace string) {
 	// Get the latest cluster instead of using the same instance in case it has been changed
 	cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(h.clusterName, metav1.GetOptions{})
 	if err != nil {
-		logger.Errorf("failed to remove finalizer. failed to get cluster. %+v", err)
+		logger.Errorf("failed to remove finalizer. failed to get cluster from %s. %+v", namespace, err)
 		return
 	}
 	objectMeta := &cluster.ObjectMeta
@@ -738,10 +750,10 @@ func (h *CephInstaller) removeClusterFinalizers(namespace string) {
 	objectMeta.Finalizers = nil
 	_, err = h.k8shelper.RookClientset.CephV1().CephClusters(cluster.Namespace).Update(cluster)
 	if err != nil {
-		logger.Errorf("failed to remove finalizers from cluster %s. %+v", objectMeta.Name, err)
+		logger.Errorf("failed to remove finalizers from cluster %s from %s. %+v", objectMeta.Name, namespace, err)
 		return
 	}
-	logger.Infof("removed finalizers from cluster %s", objectMeta.Name)
+	logger.Infof("removed finalizers from cluster %s from %s", objectMeta.Name, namespace)
 }
 
 func (h *CephInstaller) checkCephHealthStatus(namespace string) {
