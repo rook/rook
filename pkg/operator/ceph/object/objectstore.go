@@ -56,6 +56,9 @@ var (
 		"rgw.buckets.non-ec",
 	}
 	dataPoolName = "rgw.buckets.data"
+
+	// An user with system privileges for dashboard service
+	DashboardUser = "dashboard-admin"
 )
 
 type idType struct {
@@ -703,4 +706,90 @@ func GetObjectBucketProvisioner(c *clusterd.Context, namespace string) string {
 		}
 	}
 	return provName
+}
+
+// CheckDashboardUser returns true if the user is configure else return false
+func checkDashboardUser(context *Context) (bool, error) {
+	args := []string{"dashboard", "get-rgw-api-access-key"}
+	cephCmd := ceph.NewCephCommand(context.Context, context.clusterInfo, args)
+	out, err := cephCmd.Run()
+
+	if string(out) != "" {
+		return true, err
+	}
+
+	return false, err
+}
+
+func enableRGWDashboard(context *Context) error {
+	checkDashboard, err := checkDashboardUser(context)
+	if err != nil {
+		logger.Debug("Unable to fetch dashboard user key for RGW, hence skipping")
+		return nil
+	}
+	if checkDashboard {
+		logger.Debug("RGW Dashboard is already enabled")
+		return nil
+	}
+	user := ObjectUser{
+		UserID:      DashboardUser,
+		DisplayName: &DashboardUser,
+		SystemUser:  true,
+	}
+	u, errCode, err := CreateUser(context, user)
+	if err != nil || errCode != 0 {
+		return errors.Wrapf(err, "failed to create user %q", DashboardUser)
+	}
+	args := []string{"dashboard", "set-rgw-api-access-key", *u.AccessKey}
+	cephCmd := ceph.NewCephCommand(context.Context, context.clusterInfo, args)
+	_, err = cephCmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set user %q accesskey", DashboardUser)
+	}
+
+	args = []string{"dashboard", "set-rgw-api-secret-key", *u.SecretKey}
+	cephCmd = ceph.NewCephCommand(context.Context, context.clusterInfo, args)
+	_, err = cephCmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set user %q secretkey", DashboardUser)
+	}
+
+	return nil
+}
+
+func disableRGWDashboard(context *Context) error {
+	checkDashboard, err := checkDashboardUser(context)
+	if err != nil {
+		logger.Debugf("unable to fetch dashboard user key for user %q, hence skipping", DashboardUser)
+		return nil
+	}
+	if !checkDashboard {
+		logger.Debug("RGW Dashboard is already disabled")
+		return nil
+	}
+	_, _, err = GetUser(context, DashboardUser)
+	if err != nil {
+		logger.Debugf("unable to fetch the user %q details from this objectstore %q", DashboardUser, context.Name)
+		return nil
+	}
+	_, err = DeleteUser(context, DashboardUser)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete ceph user %q", DashboardUser)
+	}
+
+	args := []string{"dashboard", "reset-rgw-api-access-key"}
+	cephCmd := ceph.NewCephCommand(context.Context, context.clusterInfo, args)
+	_, err = cephCmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to reset user accesskey for user %q", DashboardUser)
+	}
+
+	args = []string{"dashboard", "reset-rgw-api-secret-key"}
+	cephCmd = ceph.NewCephCommand(context.Context, context.clusterInfo, args)
+	_, err = cephCmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to reset user secretkey for user %q", DashboardUser)
+	}
+
+	return nil
 }
