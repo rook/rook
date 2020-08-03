@@ -289,7 +289,7 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 	}
 
 	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
-	if ver.Major < KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
+	if ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion {
 		logger.Info("deploying provisioner as statefulset")
 		deployProvSTS = true
 	}
@@ -302,10 +302,10 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		tp.ResizerImage = DefaultResizerImage
 	}
 
-	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForFilesystemRestore {
+	if ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForFilesystemRestore {
 		logger.Warning("CSI Filesystem volume expansion requires Kubernetes version >=1.15.0")
 	}
-	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForBlockRestore {
+	if ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForBlockRestore {
 		logger.Warning("CSI Block volume expansion requires Kubernetes version >=1.16.0")
 	}
 
@@ -471,7 +471,7 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		}
 	}
 
-	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
+	if ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion {
 		if EnableRBD {
 			err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
 			if err != nil {
