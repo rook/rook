@@ -101,7 +101,7 @@ var (
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.6.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
 	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v2.1.1"
-	defaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
+	DefaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
 )
 
 const (
@@ -293,12 +293,12 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		deployProvSTS = true
 	}
 
-	tp.ResizerImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RESIZER_IMAGE", defaultResizerImage)
+	tp.ResizerImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
 	if err != nil {
 		return errors.Wrap(err, "failed to load ROOK_CSI_RESIZER_IMAGE setting")
 	}
 	if tp.ResizerImage == "" {
-		tp.ResizerImage = defaultResizerImage
+		tp.ResizerImage = DefaultResizerImage
 	}
 
 	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForFilesystemRestore {
