@@ -340,17 +340,19 @@ class RadosJSON:
     def _gen_output_map(self):
         if self.out_map:
             return
+        pools_to_validate = [self._arg_parser.rbd_data_pool_name]
         # if rgw_endpoint is provided, validate it
         if self._arg_parser.rgw_endpoint:
             self._invalid_endpoint(self._arg_parser.rgw_endpoint)
             self.endpoint_dial(self._arg_parser.rgw_endpoint)
-        pools_to_validate = [self._arg_parser.rbd_data_pool_name, "{0}.rgw.meta".format(self._arg_parser.rgw_pool_prefix),
-                             ".rgw.root",
-                             "{0}.rgw.control".format(
-            self._arg_parser.rgw_pool_prefix),
-            "{0}.rgw.log".format(
-            self._arg_parser.rgw_pool_prefix),
-            "{0}.rgw.buckets.index".format(self._arg_parser.rgw_pool_prefix)]
+            rgw_pool_to_validate = ["{0}.rgw.meta".format(self._arg_parser.rgw_pool_prefix),
+                                    ".rgw.root",
+                                    "{0}.rgw.control".format(
+                self._arg_parser.rgw_pool_prefix),
+                "{0}.rgw.log".format(
+                self._arg_parser.rgw_pool_prefix),
+                "{0}.rgw.buckets.index".format(self._arg_parser.rgw_pool_prefix)]
+            pools_to_validate.extend(rgw_pool_to_validate)
         for pool in pools_to_validate:
             if not self.cluster.pool_exists(pool):
                 raise ExecutionFailureException(
