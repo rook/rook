@@ -23,12 +23,10 @@ import (
 	"time"
 
 	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
-
-	"github.com/pkg/errors"
-
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
 
+	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8scsi "k8s.io/api/storage/v1beta1"
@@ -103,14 +101,13 @@ var (
 	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.6.0"
 	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
 	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v2.1.1"
-	defaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
+	DefaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
 )
 
 const (
 	KubeMinMajor                   = "1"
 	KubeMinMinor                   = "13"
 	provDeploymentSuppVersion      = "14"
-	snapshotDeploymentSuppVersion  = "17"
 	kubeMinVerForFilesystemRestore = "15"
 	kubeMinVerForBlockRestore      = "16"
 
@@ -291,22 +288,24 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		tp.RBDPluginUpdateStrategy = rollingUpdate
 	}
 
-	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
+	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
+	if ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion {
+		logger.Info("deploying provisioner as statefulset")
 		deployProvSTS = true
 	}
 
-	tp.ResizerImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RESIZER_IMAGE", defaultResizerImage)
+	tp.ResizerImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
 	if err != nil {
 		return errors.Wrap(err, "failed to load ROOK_CSI_RESIZER_IMAGE setting")
 	}
 	if tp.ResizerImage == "" {
-		tp.ResizerImage = defaultResizerImage
+		tp.ResizerImage = DefaultResizerImage
 	}
 
-	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForFilesystemRestore {
+	if ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForFilesystemRestore {
 		logger.Warning("CSI Filesystem volume expansion requires Kubernetes version >=1.15.0")
 	}
-	if ver.Major < KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForBlockRestore {
+	if ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForBlockRestore {
 		logger.Warning("CSI Block volume expansion requires Kubernetes version >=1.16.0")
 	}
 
@@ -472,7 +471,7 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		}
 	}
 
-	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
+	if ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion {
 		if EnableRBD {
 			err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
 			if err != nil {
