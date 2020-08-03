@@ -289,7 +289,9 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		tp.RBDPluginUpdateStrategy = rollingUpdate
 	}
 
+	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
 	if ver.Major < KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion) {
+		logger.Info("deploying provisioner as statefulset")
 		deployProvSTS = true
 	}
 
