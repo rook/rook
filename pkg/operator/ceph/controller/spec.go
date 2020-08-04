@@ -310,9 +310,13 @@ func AppLabels(appName, namespace string) map[string]string {
 // App name is the name of the application: e.g., 'rook-ceph-mon', 'rook-ceph-mgr', etc.
 // Daemon type is the Ceph daemon type: "mon", "mgr", "osd", "mds", "rgw"
 // Daemon ID is the ID portion of the Ceph daemon name: "a" for "mon.a"; "c" for "mds.c"
-func CephDaemonAppLabels(appName, namespace, daemonType, daemonID string) map[string]string {
+func CephDaemonAppLabels(appName, namespace, daemonType, daemonID string, includeNewLabels bool) map[string]string {
 	labels := AppLabels(appName, namespace)
-	labels["ceph_daemon_type"] = daemonType
+
+	// New labels cannot be applied to match selectors during upgrade
+	if includeNewLabels {
+		labels["ceph_daemon_type"] = daemonType
+	}
 	labels["ceph_daemon_id"] = daemonID
 	// Also report the daemon id keyed by its daemon type: "mon: a", "mds: c", etc.
 	labels[daemonType] = daemonID
