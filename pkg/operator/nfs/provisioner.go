@@ -34,6 +34,12 @@ import (
 )
 
 const (
+	nfsServerNameSCParam      = "nfsServerName"
+	nfsServerNamespaceSCParam = "nfsServerNamespace"
+	exportNameSCParam         = "exportName"
+)
+
+var (
 	mountPath = "/export"
 )
 
@@ -61,17 +67,17 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 		return nil, err
 	}
 
-	serverName, present := sc.Parameters["nfsServerName"]
+	serverName, present := sc.Parameters[nfsServerNameSCParam]
 	if !present {
 		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
 
-	serverNamespace, present := sc.Parameters["nfsServerNamespace"]
+	serverNamespace, present := sc.Parameters[nfsServerNamespaceSCParam]
 	if !present {
 		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
 
-	exportName, present := sc.Parameters["exportName"]
+	exportName, present := sc.Parameters[exportNameSCParam]
 	if !present {
 		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
@@ -86,11 +92,20 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 		return nil, err
 	}
 
-	var exportPath string
+	var (
+		exportPath string
+		found      bool
+	)
+
 	for _, export := range nfsserver.Spec.Exports {
 		if export.Name == exportName {
 			exportPath = filepath.Join(mountPath, export.PersistentVolumeClaim.ClaimName)
+			found = true
 		}
+	}
+
+	if !found {
+		return nil, fmt.Errorf("No export name from storageclass is match with NFSServer %s in namespace %s", nfsserver.Name, nfsserver.Namespace)
 	}
 
 	pvName := strings.Join([]string{options.PVC.Namespace, options.PVC.Name, options.PVName}, "-")
@@ -115,7 +130,7 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				NFS: &v1.NFSVolumeSource{
 					Server:   nfsserversvc.Spec.ClusterIP,
-					Path:     "/" + fullPath,
+					Path:     fullPath,
 					ReadOnly: false,
 				},
 			},
@@ -134,17 +149,17 @@ func (p *Provisioner) Delete(volume *v1.PersistentVolume) error {
 		return err
 	}
 
-	serverName, present := sc.Parameters["nfsServerName"]
+	serverName, present := sc.Parameters[nfsServerNameSCParam]
 	if !present {
 		return errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
 
-	serverNamespace, present := sc.Parameters["nfsServerNamespace"]
+	serverNamespace, present := sc.Parameters[nfsServerNamespaceSCParam]
 	if !present {
 		return errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
 
-	exportName, present := sc.Parameters["exportName"]
+	exportName, present := sc.Parameters[exportNameSCParam]
 	if !present {
 		return errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
@@ -154,11 +169,20 @@ func (p *Provisioner) Delete(volume *v1.PersistentVolume) error {
 		return err
 	}
 
-	var exportPath string
+	var (
+		exportPath string
+		found      bool
+	)
+
 	for _, export := range nfsserver.Spec.Exports {
 		if export.Name == exportName {
 			exportPath = filepath.Join(mountPath, export.PersistentVolumeClaim.ClaimName)
+			found = true
 		}
+	}
+
+	if !found {
+		return fmt.Errorf("No export name from storageclass is match with NFSServer %s in namespace %s", nfsserver.Name, nfsserver.Namespace)
 	}
 
 	fullPath := filepath.Join(exportPath, pvName)
