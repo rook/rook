@@ -58,11 +58,11 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 	clusterList := &cephv1.CephClusterList{}
 	err := c.List(context.TODO(), clusterList, client.InNamespace(namespacedName.Namespace))
 	if err != nil {
-		logger.Errorf("%q:failed to fetch CephCluster %v", controllerName, err)
+		logger.Errorf("%q: failed to fetch CephCluster %v", controllerName, err)
 		return cephCluster, false, cephClusterExists, ImmediateRetryResult
 	}
 	if len(clusterList.Items) == 0 {
-		logger.Errorf("%q: no CephCluster resource found in namespace %q", controllerName, namespacedName.Namespace)
+		logger.Debugf("%q: no CephCluster resource found in namespace %q", controllerName, namespacedName.Namespace)
 		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 	}
 	cephClusterExists = true
