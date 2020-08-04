@@ -86,6 +86,7 @@ func (hs *HelmSuite) createPools() {
 func (hs *HelmSuite) TearDownSuite() {
 	hs.deletePools()
 	hs.op.Teardown()
+	hs.cleanupDisks()
 }
 
 // Test to make sure all rook components are installed and Running
@@ -133,4 +134,12 @@ func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 // Test Object StoreCreation on Rook that was installed via helm
 func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	runObjectE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.clusterNamespaces, "default", 3, true)
+}
+
+// This is temporal code
+func (hs *HelmSuite) cleanupDisks() {
+	cleanupDeviceCmd := "tests/scripts/cleanupDisks.sh"
+	cmdArgs := utils.CommandArgs{Command: cleanupDeviceCmd, CmdArgs: []string{installer.TestScratchDevice(), installer.TestScratchDevice2()}}
+	cmdOut := utils.ExecuteCommand(cmdArgs)
+	logger.Infof("cleanup disks output: %v", cmdOut)
 }
