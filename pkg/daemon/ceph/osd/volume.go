@@ -653,6 +653,10 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}
 
+	logger.Infof("Execute %s %s list %s --format json:  %v", cephVolumeCmd, cvMode, lv, result)
+	debug, err := context.Executor.ExecuteCommandWithOutput(cephVolumeCmd, "--log-level", "10", cvMode, "list", lv)
+	logger.Infof("Execute %s --log-level 10 %s list %s --format json:  %v, %v", cephVolumeCmd, cvMode, lv, debug, err)
+
 	var osds []oposd.OSDInfo
 	var cephVolumeResult map[string][]osdInfo
 	err = json.Unmarshal([]byte(result), &cephVolumeResult)
@@ -747,6 +751,9 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}
+	logger.Infof("Execute %s %s list %s --format json:  %v", cephVolumeCmd, cvMode, block, result)
+	debug, err := context.Executor.ExecuteCommandWithOutput(cephVolumeCmd, "--log-level", "10", cvMode, "list", block)
+	logger.Infof("Execute %s --log-level 10 %s list %s --format json:  %v, %v", cephVolumeCmd, cvMode, block, debug, err)
 
 	var osds []oposd.OSDInfo
 	var cephVolumeResult map[string]osdInfoBlock
