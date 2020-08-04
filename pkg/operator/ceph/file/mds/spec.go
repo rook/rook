@@ -42,7 +42,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error)
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mdsConfig.ResourceName,
-			Labels: c.podLabels(mdsConfig),
+			Labels: c.podLabels(mdsConfig, true),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -68,11 +68,11 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mdsConfig.ResourceName,
 			Namespace: c.fs.Namespace,
-			Labels:    c.podLabels(mdsConfig),
+			Labels:    c.podLabels(mdsConfig, true),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: podSpec.Labels,
+				MatchLabels: c.podLabels(mdsConfig, false),
 			},
 			Template: podSpec,
 			Replicas: &replicas,
@@ -132,8 +132,8 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	return container
 }
 
-func (c *Cluster) podLabels(mdsConfig *mdsConfig) map[string]string {
-	labels := controller.CephDaemonAppLabels(AppName, c.fs.Namespace, "mds", mdsConfig.DaemonID)
+func (c *Cluster) podLabels(mdsConfig *mdsConfig, includeNewLabels bool) map[string]string {
+	labels := controller.CephDaemonAppLabels(AppName, c.fs.Namespace, "mds", mdsConfig.DaemonID, includeNewLabels)
 	labels["rook_file_system"] = c.fs.Name
 	return labels
 }
