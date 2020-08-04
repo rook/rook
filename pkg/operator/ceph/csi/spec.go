@@ -471,7 +471,7 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		}
 	}
 
-	if ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion {
+	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
 		if EnableRBD {
 			err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
 			if err != nil {
