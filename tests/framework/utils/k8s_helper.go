@@ -555,7 +555,7 @@ func (k8sh *K8sHelper) GetEventsFromNamespace(namespace, testName, platformName 
 
 	file, err := k8sh.createTestLogFile(platformName, "events", namespace, testName, "")
 	if err != nil {
-		logger.Errorf("failed to create event file. %v", err)s
+		logger.Errorf("failed to create event file. %v", err)
 		return
 	}
 	defer file.Close()
