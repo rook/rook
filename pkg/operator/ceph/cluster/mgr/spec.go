@@ -50,7 +50,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
-			Labels: c.getPodLabels(mgrConfig.DaemonID),
+			Labels: c.getPodLabels(mgrConfig.DaemonID, true),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -96,11 +96,11 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mgrConfig.ResourceName,
 			Namespace: c.clusterInfo.Namespace,
-			Labels:    c.getPodLabels(mgrConfig.DaemonID),
+			Labels:    c.getPodLabels(mgrConfig.DaemonID, true),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: c.getPodLabels(mgrConfig.DaemonID),
+				MatchLabels: c.getPodLabels(mgrConfig.DaemonID, false),
 			},
 			Template: podSpec,
 			Replicas: &replicas,
@@ -322,8 +322,8 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 	return svc
 }
 
-func (c *Cluster) getPodLabels(daemonName string) map[string]string {
-	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, "mgr", daemonName)
+func (c *Cluster) getPodLabels(daemonName string, includeNewLabels bool) map[string]string {
+	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, "mgr", daemonName, includeNewLabels)
 	// leave "instance" key for legacy usage
 	labels["instance"] = daemonName
 	return labels
