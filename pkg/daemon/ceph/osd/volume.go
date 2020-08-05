@@ -631,7 +631,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 	var lvPath string
 
-	result, err := context.Executor.ExecuteCommandWithOutput(cephVolumeCmd, cvMode, "list", lv, "--format", "json")
+	result, err := callCephVolume(context, cvMode, "list", lv, "--format", "json")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}
@@ -640,7 +640,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	var cephVolumeResult map[string][]osdInfo
 	err = json.Unmarshal([]byte(result), &cephVolumeResult)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume %s list results", cvMode)
+		return nil, errors.Wrapf(err, "failed to unmarshal ceph-volume %s list results. %s", cvMode, result)
 	}
 
 	for name, osdInfo := range cephVolumeResult {
@@ -722,7 +722,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	// lv can be a block device if raw mode is used
 	cvMode := "raw"
 
-	result, err := context.Executor.ExecuteCommandWithOutput(cephVolumeCmd, cvMode, "list", block, "--format", "json")
+	result, err := callCephVolume(context, cvMode, "list", block, "--format", "json")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}

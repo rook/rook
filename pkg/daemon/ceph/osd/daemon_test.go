@@ -173,76 +173,86 @@ USEC_INITIALIZED=1128667
 )
 
 func TestAvailableDevices(t *testing.T) {
-	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-		logger.Infof("OUTPUT for %s %v", command, args)
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("OUTPUT for %s %v", command, args)
 
-		if command == "lsblk" {
-			if strings.Index(args[3], "sdb") != -1 {
-				// /dev/sdb has a partition
-				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
+			if command == "lsblk" {
+				if strings.Index(args[3], "sdb") != -1 {
+					// /dev/sdb has a partition
+					return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
-			} else if strings.Index(args[0], "vg1-lv") != -1 {
-				// /dev/mapper/vg1-lv* are LVs
-				return `TYPE="lvm"`, nil
-			} else if strings.Index(args[0], "sdt1") != -1 {
-				return `TYPE="part"`, nil
-			} else if strings.HasPrefix(args[0], "/dev") {
-				return `TYPE="disk"`, nil
-			}
-			return "", nil
-		} else if command == "blkid" {
-			if strings.Index(args[3], "sdb1") != -1 {
-				// partition sdb1 has a label MY-PART
-				return "MY-PART", nil
-			}
-		} else if command == "udevadm" {
-			if strings.Index(args[2], "sdc") != -1 {
-				// /dev/sdc has a file system
-				return udevFSOutput, nil
-			} else if strings.Index(args[2], "sdt1") != -1 {
-				return udevPartOutput, nil
-			}
-
-			return "", nil
-		} else if command == "dmsetup" && args[0] == "info" {
-			if strings.Index(args[5], "vg1-lv1") != -1 {
-				return "vg1-lv1", nil
-			} else if strings.Index(args[5], "vg1-lv2") != -1 {
-				return "vg1-lv2", nil
-			}
-		} else if command == "dmsetup" && args[0] == "splitname" {
-			if strings.Index(args[2], "vg1-lv1") != -1 {
-				return "vg1:lv1:", nil
-			} else if strings.Index(args[2], "vg1-lv2") != -1 {
-				return "vg1:lv2:", nil
-			}
-		} else if command == "ceph-volume" {
-			if args[0] == "inventory" {
-				if strings.Index(args[3], "/mnt/set1-0-data-qfhfk") != -1 {
-					return cvInventoryOutputNotAvailableBluestoreLabel, nil
-				} else if strings.Index(args[3], "sdb") != -1 {
-					// sdb is locked
-					return cvInventoryOutputNotAvailableLocked, nil
-				} else if strings.Index(args[3], "sdc") != -1 {
-					// sdc is too small
-					return cvInventoryOutputNotAvailableSmall, nil
+				} else if strings.Index(args[0], "vg1-lv") != -1 {
+					// /dev/mapper/vg1-lv* are LVs
+					return `TYPE="lvm"`, nil
+				} else if strings.Index(args[0], "sdt1") != -1 {
+					return `TYPE="part"`, nil
+				} else if strings.HasPrefix(args[0], "/dev") {
+					return `TYPE="disk"`, nil
+				}
+				return "", nil
+			} else if command == "blkid" {
+				if strings.Index(args[3], "sdb1") != -1 {
+					// partition sdb1 has a label MY-PART
+					return "MY-PART", nil
+				}
+			} else if command == "udevadm" {
+				if strings.Index(args[2], "sdc") != -1 {
+					// /dev/sdc has a file system
+					return udevFSOutput, nil
+				} else if strings.Index(args[2], "sdt1") != -1 {
+					return udevPartOutput, nil
 				}
 
-				return cvInventoryOutputAvailable, nil
-			}
-			if args[0] == "raw" && args[1] == "list" {
-				return cephVolumeRAWTestResult, nil
-			}
-		} else if command == "ceph-volume" && args[0] == "lvm" {
-			if args[4] == "vg1/lv2" {
-				return `{"0":[{"name":"lv2","type":"block"}]}`, nil
-			}
-			return "{}", nil
-		}
+				return "", nil
+			} else if command == "dmsetup" && args[0] == "info" {
+				if strings.Index(args[5], "vg1-lv1") != -1 {
+					return "vg1-lv1", nil
+				} else if strings.Index(args[5], "vg1-lv2") != -1 {
+					return "vg1-lv2", nil
+				}
+			} else if command == "dmsetup" && args[0] == "splitname" {
+				if strings.Index(args[2], "vg1-lv1") != -1 {
+					return "vg1:lv1:", nil
+				} else if strings.Index(args[2], "vg1-lv2") != -1 {
+					return "vg1:lv2:", nil
+				}
+			} else if command == "ceph-volume" {
+				if args[0] == "inventory" {
+					if strings.Index(args[3], "/mnt/set1-0-data-qfhfk") != -1 {
+						return cvInventoryOutputNotAvailableBluestoreLabel, nil
+					} else if strings.Index(args[3], "sdb") != -1 {
+						// sdb is locked
+						return cvInventoryOutputNotAvailableLocked, nil
+					} else if strings.Index(args[3], "sdc") != -1 {
+						// sdc is too small
+						return cvInventoryOutputNotAvailableSmall, nil
+					}
 
-		return "", errors.Errorf("unknown command %s %s", command, args)
+					return cvInventoryOutputAvailable, nil
+				}
+
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		},
+		MockExecuteCommandWithCombinedOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+
+			if command == "stdbuf" {
+				if args[4] == "raw" && args[5] == "list" {
+					return cephVolumeRAWTestResult, nil
+				} else if command == "ceph-volume" && args[0] == "lvm" {
+					if args[4] == "vg1/lv2" {
+						return `{"0":[{"name":"lv2","type":"block"}]}`, nil
+					}
+				}
+				return "{}", nil
+			}
+
+			return "", errors.Errorf("unknown command: %s, args: %#v", command, args)
+		},
 	}
 
 	context := &clusterd.Context{Executor: executor}
