@@ -12,9 +12,8 @@ fi
 
 lsblk
 
-random_string=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
-
-sudo mkdir -p /var/lib/rook/${random_string}/mon1 /var/lib/rook/${random_string}/mon2 /var/lib/rook/${random_string}/mon3
+sudo rm -rf /var/lib/rook/rook-integration-test
+sudo mkdir -p /var/lib/rook/rook-integration-test/mon1 /var/lib/rook/rook-integration-test/mon2 /var/lib/rook/rook-integration-test/mon3
 
 node_name=$(kubectl get nodes -o jsonpath={.items[*].metadata.name})
 
@@ -38,7 +37,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
-    path: "/var/lib/rook/${random_string}/mon1" 
+    path: "/var/lib/rook/rook-integration-test/mon1"
   nodeAffinity:
       required:
         nodeSelectorTerms:
@@ -63,7 +62,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
-    path: "/var/lib/rook/${random_string}/mon2" 
+    path: "/var/lib/rook/rook-integration-test/mon2"
   nodeAffinity:
       required:
         nodeSelectorTerms:
@@ -88,7 +87,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
-    path: "/var/lib/rook/${random_string}/mon3" 
+    path: "/var/lib/rook/rook-integration-test/mon3"
   nodeAffinity:
       required:
         nodeSelectorTerms:
