@@ -162,7 +162,7 @@ func StartTestCluster(t func() *testing.T, cluster *TestCluster) (*TestCluster, 
 	return cluster, kh
 }
 
-// SetUpRook is a wrapper for setting up rook
+// Setup is a wrapper for setting up rook
 func (op *TestCluster) Setup() {
 	// Turn on DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
@@ -183,7 +183,7 @@ func (op *TestCluster) Setup() {
 // SetInstallData updates the installer helper based on the version of Rook desired
 func (op *TestCluster) SetInstallData(version string) {}
 
-// TearDownRook is a wrapper for tearDown after Suite
+// Teardown is a wrapper for tearDown after Suite
 func (op *TestCluster) Teardown() {
 	op.installer.UninstallRook(op.namespace)
 }

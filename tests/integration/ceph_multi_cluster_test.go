@@ -152,7 +152,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 	return op, kh
 }
 
-// SetUpRook is wrapper for setting up multiple rook clusters.
+// Setup is wrapper for setting up multiple rook clusters.
 func (o MCTestOperations) Setup() {
 	var err error
 	if o.testOverPVC {
@@ -187,7 +187,7 @@ func (o MCTestOperations) Setup() {
 	logger.Infof("finished starting clusters")
 }
 
-// TearDownRook is a wrapper for tearDown after suite
+// Teardown is a wrapper for tearDown after suite
 func (o MCTestOperations) Teardown() {
 	o.installer.UninstallRookFromMultipleNS(installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
