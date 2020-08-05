@@ -510,7 +510,8 @@ class RadosJSON:
                         "name": "ceph-rgw",
                         "kind": "StorageClass",
                         "data": {
-                            "endpoint": self.out_map['RGW_ENDPOINT']
+                            "endpoint": self.out_map['RGW_ENDPOINT'],
+                            "poolPrefix": self.out_map['RGW_POOL_PREFIX']
                         }
             })
         return json.dumps(json_out)+LINESEP
