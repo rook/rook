@@ -174,3 +174,8 @@ kubectl create -f csi-metrics-service-monitor.yaml
 ```
 
 This will create the service monitor to have promethues monitor CSI
+
+### Collecting RBD per-image IO statistics
+
+RBD per-image IO statistics collection is disabled by default. This can be enabled by setting `enableRBDStats: true` in the CephBlockPool spec.
+Prometheus does not need to be restarted after enabling it.
