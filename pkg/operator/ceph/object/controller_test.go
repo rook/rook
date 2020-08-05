@@ -137,6 +137,44 @@ const (
 			"ceph version 14.2.8 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 3
 		}
 	}`
+	userCreateJSON = `{
+	"user_id": "my-user",
+	"display_name": "my-user",
+	"email": "",
+	"suspended": 0,
+	"max_buckets": 1000,
+	"subusers": [],
+	"keys": [
+		{
+			"user": "my-user",
+			"access_key": "EOE7FYCNOBZJ5VFV909G",
+			"secret_key": "qmIqpWm8HxCzmynCrD6U6vKWi4hnDBndOnmxXNsV"
+		}
+	],
+	"swift_keys": [],
+	"caps": [],
+	"op_mask": "read, write, delete",
+	"default_placement": "",
+	"default_storage_class": "",
+	"placement_tags": [],
+	"bucket_quota": {
+		"enabled": false,
+		"check_on_raw": false,
+		"max_size": -1,
+		"max_size_kb": 0,
+		"max_objects": -1
+	},
+	"user_quota": {
+		"enabled": false,
+		"check_on_raw": false,
+		"max_size": -1,
+		"max_size_kb": 0,
+		"max_objects": -1
+	},
+	"temp_url_keys": [],
+	"type": "rgw",
+	"mfa_ids": []
+}`
 )
 
 var (
@@ -308,6 +346,9 @@ func TestCephObjectStoreController(t *testing.T) {
 			}
 			if args[0] == "zone" && args[1] == "get" {
 				return zoneGetJSON, nil
+			}
+			if args[0] == "user" {
+				return userCreateJSON, nil
 			}
 			return "", nil
 		},
