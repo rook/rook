@@ -44,8 +44,7 @@ func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClas
 
 func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bool) map[string]string {
 	stringID := fmt.Sprintf("%d", osdID)
-	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, "osd", stringID)
-	// Add "ceph-osd-id: <id>" for legacy
+	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, "osd", stringID, true)
 	labels[OsdIdLabelKey] = stringID
 	labels[FailureDomainKey] = failureDomainValue
 	labels[portableKey] = strconv.FormatBool(portable)

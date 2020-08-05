@@ -47,11 +47,11 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rgwConfig.ResourceName,
 			Namespace: c.store.Namespace,
-			Labels:    getLabels(c.store.Name, c.store.Namespace),
+			Labels:    getLabels(c.store.Name, c.store.Namespace, true),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: getLabels(c.store.Name, c.store.Namespace),
+				MatchLabels: getLabels(c.store.Name, c.store.Namespace, false),
 			},
 			Template: pod,
 			Replicas: &replicas,
@@ -106,13 +106,13 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 
 	// If host networking is not enabled, preferred pod anti-affinity is added to the rgw daemons
 	preferredDuringScheduling := true
-	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.store.Spec.Gateway.Placement, c.clusterSpec.Network.IsHost(), preferredDuringScheduling, getLabels(c.store.Name, c.store.Namespace),
-		nil)
+	labels := getLabels(c.store.Name, c.store.Namespace, false)
+	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.store.Spec.Gateway.Placement, c.clusterSpec.Network.IsHost(), preferredDuringScheduling, labels, nil)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   rgwConfig.ResourceName,
-			Labels: getLabels(c.store.Name, c.store.Namespace),
+			Labels: getLabels(c.store.Name, c.store.Namespace, true),
 		},
 		Spec: podSpec,
 	}
@@ -239,7 +239,7 @@ func (c *clusterConfig) generateLiveProbePort() intstr.IntOrString {
 }
 
 func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore) *v1.Service {
-	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace)
+	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(cephObjectStore.Name),
@@ -268,7 +268,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 }
 
 func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *v1.Endpoints {
-	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace)
+	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 
 	endpoints := &v1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
@@ -348,8 +348,8 @@ func addPortToEndpoint(endpoints *v1.Endpoints, name string, port int32) {
 	)
 }
 
-func getLabels(name, namespace string) map[string]string {
-	labels := controller.CephDaemonAppLabels(AppName, namespace, "rgw", name)
+func getLabels(name, namespace string, includeNewLabels bool) map[string]string {
+	labels := controller.CephDaemonAppLabels(AppName, namespace, "rgw", name, includeNewLabels)
 	labels["rook_object_store"] = name
 	return labels
 }

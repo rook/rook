@@ -175,7 +175,7 @@ func (r *ReconcileCephNFS) generateConfigMap(n *cephv1.CephNFS, name string) *v1
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s-%s", AppName, n.Name, name),
 			Namespace: n.Namespace,
-			Labels:    getLabels(n, name),
+			Labels:    getLabels(n, name, true),
 		},
 		Data: data,
 	}

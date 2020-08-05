@@ -41,7 +41,7 @@ const (
 )
 
 func (r *ReconcileCephNFS) generateCephNFSService(nfs *cephv1.CephNFS, cfg daemonConfig) *v1.Service {
-	labels := getLabels(nfs, cfg.ID)
+	labels := getLabels(nfs, cfg.ID, true)
 
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -96,7 +96,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(nfs, cfg.ID),
 			Namespace: nfs.Namespace,
-			Labels:    getLabels(nfs, cfg.ID),
+			Labels:    getLabels(nfs, cfg.ID, true),
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
@@ -139,7 +139,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   instanceName(nfs, cfg.ID),
-			Labels: getLabels(nfs, cfg.ID),
+			Labels: getLabels(nfs, cfg.ID, true),
 		},
 		Spec: podSpec,
 	}
@@ -158,7 +158,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	replicas := int32(1)
 	deployment.Spec = apps.DeploymentSpec{
 		Selector: &metav1.LabelSelector{
-			MatchLabels: getLabels(nfs, cfg.ID),
+			MatchLabels: getLabels(nfs, cfg.ID, false),
 		},
 		Template: podTemplateSpec,
 		Replicas: &replicas,
@@ -239,8 +239,8 @@ func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
 	}
 }
 
-func getLabels(n *cephv1.CephNFS, name string) map[string]string {
-	labels := controller.CephDaemonAppLabels(AppName, n.Namespace, "nfs", name)
+func getLabels(n *cephv1.CephNFS, name string, includeNewLabels bool) map[string]string {
+	labels := controller.CephDaemonAppLabels(AppName, n.Namespace, "nfs", name, includeNewLabels)
 	labels["ceph_nfs"] = n.Name
 	labels["instance"] = name
 	return labels

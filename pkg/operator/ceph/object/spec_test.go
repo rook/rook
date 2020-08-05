@@ -75,7 +75,7 @@ func TestPodSpecs(t *testing.T) {
 		1,
 		len(s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
 	assert.Equal(t,
-		getLabels(c.store.Name, c.store.Namespace),
+		getLabels(c.store.Name, c.store.Namespace, false),
 		s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchLabels)
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
