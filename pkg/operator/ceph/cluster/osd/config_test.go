@@ -76,7 +76,7 @@ func TestClusterIsCephVolumeRAwModeSupported(t *testing.T) {
 				ValidStorage: tt.fields.ValidStorage,
 				kv:           tt.fields.kv,
 			}
-			if got := c.isCephVolumeRAwModeSupported(); got != tt.want {
+			if got := c.isCephVolumeRawModeSupported(); got != tt.want {
 				t.Errorf("Cluster.isCephVolumeRAwModeSupported() = %v, want %v", got, tt.want)
 			}
 		})
