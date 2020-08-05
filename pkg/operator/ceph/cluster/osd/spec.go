@@ -88,7 +88,9 @@ else
 	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
 	ceph-volume "$CV_MODE" activate "${ARGS[@]}"
 fi
-
+if [ "$PAUSE_OSD" == "true" ]; then
+ 	sleep infinity;
+fi
 `
 )
 

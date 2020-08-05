@@ -169,6 +169,7 @@ func osdActivateEnvVar() []v1.EnvVar {
 					Name: "rook-ceph-config"},
 					Key: "mon_host"}}},
 		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
+		{Name: "PAUSE_OSD", Value: "false"},
 	}
 
 	return append(cephVolumeEnvVar(), monEnvVars...)
