@@ -113,8 +113,6 @@ wait_for_ready(){
 kubeadm_reset() {
     kubectl delete -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
     sudo kubeadm reset $skippreflightcheck
-    sudo rm /usr/local/bin/kube*
-    sudo rm kubectl
     rm $HOME/admin.conf
     rm -rf $HOME/.kube
     sudo apt-get -y remove kubelet
