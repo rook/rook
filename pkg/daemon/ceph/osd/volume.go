@@ -53,6 +53,8 @@ var (
 	cvLogDir      = ""
 	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
 	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
+
+	isEncrypted = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
 )
 
 type osdInfoBlock struct {
@@ -158,14 +160,6 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	if a.pvcBacked {
 		for _, device := range devices.Entries {
 			dev := device.Config.Name
-			// When not using PV backend an LV
-			// Otherwise lsblk will fail since the block will be '/dev/mnt/set1-0-data-l6p5q'
-			// And thus won't be a block device
-			//
-			// The same goes the metadata block device which is stored in /srv
-			if !strings.HasPrefix(dev, "/mnt") && !strings.HasPrefix(dev, "/srv") {
-				dev = path.Join("/dev", dev)
-			}
 			lvBackedPV, err = sys.IsLV(dev, context.Executor)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to check device type")
@@ -204,7 +198,10 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 
 	// List THE configured OSD with ceph-volume raw mode
 	if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) && !lvBackedPV {
-		block = fmt.Sprintf("/mnt/%s", a.nodeName)
+		// When the block is encrypted we need to list against the encrypted device mapper
+		if !isEncrypted {
+			block = fmt.Sprintf("/mnt/%s", a.nodeName)
+		}
 		rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, lvBackedPV)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
@@ -216,7 +213,6 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 }
 
 func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *DeviceOsdMapping, lvBackedPV bool) (string, string, error) {
-
 	// we need to return the block if raw mode is used and the lv if lvm mode
 	baseCommand := "stdbuf"
 	var baseArgs []string
@@ -291,6 +287,10 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				immediateExecuteArgs = append(immediateExecuteArgs, []string{crushDeviceClassFlag, crushDeviceClass}...)
 			}
 
+			if isEncrypted {
+				immediateExecuteArgs = append(immediateExecuteArgs, encryptedFlag)
+			}
+
 			// Add the cli argument for the metadata device
 			if metadataDev {
 				immediateExecuteArgs = append(immediateExecuteArgs, metadataArg...)
@@ -312,8 +312,13 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			}
 			logger.Infof("%v", op)
 			// if raw mode is used or PV on LV, let's return the path of the device
-			if lvBackedPV || cephVolumeMode == "raw" {
+			if lvBackedPV || cephVolumeMode == "raw" && !isEncrypted {
 				blockPath = deviceArg
+			} else if cephVolumeMode == "raw" && isEncrypted {
+				blockPath = getEncryptedBlockPath(op)
+				if blockPath == "" {
+					return "", "", errors.New("failed to get encrypted block path from ceph-volume lvm prepare output")
+				}
 			} else {
 				blockPath = getLVPath(op)
 				if blockPath == "" {
@@ -340,6 +345,20 @@ func getLVPath(op string) string {
 			return fmt.Sprintf("/dev/%s/%s", vgtmp[1], lvtmp[1])
 		}
 	}
+	return ""
+}
+
+func getEncryptedBlockPath(op string) string {
+	tmp := sys.Grep(op, "luksOpen")
+	tmpList := strings.Split(tmp, " ")
+
+	// The command looks like: "Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbr ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt"
+	for _, item := range tmpList {
+		if strings.Contains(item, "block-dmcrypt") {
+			return fmt.Sprintf("/dev/mapper/%s", item)
+		}
+	}
+
 	return ""
 }
 
@@ -721,8 +740,17 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			CVMode:        cvMode,
 			Store:         "bluestore",
 		}
-		osds = append(osds, osd)
 
+		// If this is an encrypted OSD
+		if os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName) != "" {
+			// Close encrypted device
+			err = closeEncryptedDevice(context, block)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to close encrypted device %q for osd %d", block, osdID)
+			}
+		}
+
+		osds = append(osds, osd)
 	}
 	logger.Infof("%d ceph-volume raw osd devices configured on this node", len(osds))
 

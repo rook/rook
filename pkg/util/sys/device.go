@@ -111,6 +111,10 @@ type LocalDisk struct {
 	CephVolumeData string `json:"cephVolumeData,omitempty"`
 	// RealPath is the device pathname behind the PVC, behind /mnt/<pvc>/name
 	RealPath string `json:"real-path,omitempty"`
+	// KernelName is the kernel name of the device
+	KernelName string `json:"kernel-name,omitempty"`
+	// Whether this device should be encrypted
+	Encrypted bool `json:"encrypted,omitempty"`
 }
 
 // ListDevices list all devices available on a machine

@@ -26,17 +26,22 @@ import (
 )
 
 const (
-	osdStoreEnvVarName          = "ROOK_OSD_STORE"
-	osdDatabaseSizeEnvVarName   = "ROOK_OSD_DATABASE_SIZE"
-	osdWalSizeEnvVarName        = "ROOK_OSD_WAL_SIZE"
-	osdJournalSizeEnvVarName    = "ROOK_OSD_JOURNAL_SIZE"
-	osdsPerDeviceEnvVarName     = "ROOK_OSDS_PER_DEVICE"
-	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
-	pvcBackedOSDVarName         = "ROOK_PVC_BACKED_OSD"
-	blockPathVarName            = "ROOK_BLOCK_PATH"
-	cvModeVarName               = "ROOK_CV_MODE"
-	lvBackedPVVarName           = "ROOK_LV_BACKED_PV"
-	CrushDeviceClassVarName     = "ROOK_OSD_CRUSH_DEVICE_CLASS"
+	osdStoreEnvVarName        = "ROOK_OSD_STORE"
+	osdDatabaseSizeEnvVarName = "ROOK_OSD_DATABASE_SIZE"
+	osdWalSizeEnvVarName      = "ROOK_OSD_WAL_SIZE"
+	osdJournalSizeEnvVarName  = "ROOK_OSD_JOURNAL_SIZE"
+	osdsPerDeviceEnvVarName   = "ROOK_OSDS_PER_DEVICE"
+	// EncryptedDeviceEnvVarName is used in the pod spec to indicate whether the OSD is encrypted or not
+	EncryptedDeviceEnvVarName = "ROOK_ENCRYPTED_DEVICE"
+	// CephVolumeEncryptedKeyEnvVarName is the env variable used by ceph-volume to encrypt the OSD (raw mode)
+	// Hardcoded in ceph-volume do NOT touch
+	CephVolumeEncryptedKeyEnvVarName = "CEPH_VOLUME_DMCRYPT_SECRET"
+	osdMetadataDeviceEnvVarName      = "ROOK_METADATA_DEVICE"
+	pvcBackedOSDVarName              = "ROOK_PVC_BACKED_OSD"
+	blockPathVarName                 = "ROOK_BLOCK_PATH"
+	cvModeVarName                    = "ROOK_CV_MODE"
+	lvBackedPVVarName                = "ROOK_LV_BACKED_PV"
+	CrushDeviceClassVarName          = "ROOK_OSD_CRUSH_DEVICE_CLASS"
 )
 
 func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.EnvVar {
@@ -82,6 +87,10 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 
 	if osdProps.storeConfig.OSDsPerDevice != 0 {
 		envVars = append(envVars, v1.EnvVar{Name: osdsPerDeviceEnvVarName, Value: strconv.Itoa(osdProps.storeConfig.OSDsPerDevice)})
+	}
+
+	if osdProps.storeConfig.EncryptedDevice {
+		envVars = append(envVars, v1.EnvVar{Name: EncryptedDeviceEnvVarName, Value: "true"})
 	}
 
 	return envVars
@@ -149,6 +158,21 @@ func lvBackedPVEnvVar(lvBackedPV string) v1.EnvVar {
 
 func crushDeviceClassEnvVar(crushDeviceClass string) v1.EnvVar {
 	return v1.EnvVar{Name: CrushDeviceClassVarName, Value: crushDeviceClass}
+}
+
+func encryptedDeviceEnvVar(encryptedDevice bool) v1.EnvVar {
+	return v1.EnvVar{Name: EncryptedDeviceEnvVarName, Value: strconv.FormatBool(encryptedDevice)}
+}
+
+func cephVolumeRawEncryptedEnvVar(pvcName string) v1.EnvVar {
+	return v1.EnvVar{
+		Name: CephVolumeEncryptedKeyEnvVarName,
+		ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
+				Name: generateOSDEncryptionSecretName(pvcName)},
+				Key: OsdEncryptionSecretNameKeyName},
+		},
+	}
 }
 
 func cephVolumeEnvVar() []v1.EnvVar {

@@ -268,7 +268,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 func GeneratePassword(length int) (string, error) {
 	// #nosec because of the word password
 	const passwordChars = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
-	passwd, err := generateRandomBytes(length)
+	passwd, err := GenerateRandomBytes(length)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate password")
 	}
@@ -278,14 +278,15 @@ func GeneratePassword(length int) (string, error) {
 	return string(passwd), nil
 }
 
-// generateRandomBytes returns securely generated random bytes.
-func generateRandomBytes(length int) ([]byte, error) {
+// GenerateRandomBytes returns securely generated random bytes.
+func GenerateRandomBytes(length int) ([]byte, error) {
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
 		return nil, errors.Wrap(err, "failed to generate random bytes")
 	}
 	return bytes, nil
 }
+
 func decodeSecret(secret *v1.Secret) (string, error) {
 	password, ok := secret.Data[passwordKeyName]
 	if !ok {
