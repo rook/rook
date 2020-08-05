@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -337,9 +338,15 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			if lvBackedPV || cephVolumeMode == "raw" && !isEncrypted {
 				blockPath = deviceArg
 			} else if cephVolumeMode == "raw" && isEncrypted {
-				blockPath = getEncryptedBlockPath(op)
+				blockPath = getEncryptedBlockPath(op, oposd.DmcryptBlockType)
 				if blockPath == "" {
 					return "", "", "", errors.New("failed to get encrypted block path from ceph-volume lvm prepare output")
+				}
+				if metadataBlockPath != "" {
+					metadataBlockPath = getEncryptedBlockPath(op, oposd.DmcryptMetadataType)
+					if metadataBlockPath == "" {
+						return "", "", "", errors.New("failed to get encrypted block.db path from ceph-volume lvm prepare output")
+					}
 				}
 			} else {
 				blockPath = getLVPath(op)
@@ -370,14 +377,16 @@ func getLVPath(op string) string {
 	return ""
 }
 
-func getEncryptedBlockPath(op string) string {
-	tmp := sys.Grep(op, "luksOpen")
-	tmpList := strings.Split(tmp, " ")
+func getEncryptedBlockPath(op, blockType string) string {
+	re := regexp.MustCompile("(?m)^.*luksOpen.*$")
+	matches := re.FindAllString(op, -1)
 
-	// The command looks like: "Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbr ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt"
-	for _, item := range tmpList {
-		if strings.Contains(item, "block-dmcrypt") {
-			return fmt.Sprintf("/dev/mapper/%s", item)
+	for _, line := range matches {
+		lineSlice := strings.Fields(line)
+		for _, word := range lineSlice {
+			if strings.Contains(word, blockType) {
+				return fmt.Sprintf("/dev/mapper/%s", word)
+			}
 		}
 	}
 
@@ -769,6 +778,15 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			err = closeEncryptedDevice(context, block)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to close encrypted device %q for osd %d", block, osdID)
+			}
+
+			if metadataBlock != "" {
+				// Close encrypted device
+				err = closeEncryptedDevice(context, metadataBlock)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to close encrypted device %q for osd %d", block, osdID)
+				}
+
 			}
 		}
 

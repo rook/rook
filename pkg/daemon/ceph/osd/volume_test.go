@@ -607,20 +607,30 @@ func TestPrintCVLogContent(t *testing.T) {
 }
 
 func TestGetEncryptedBlockPath(t *testing.T) {
+	cvOp := `
+Running command: /usr/bin/ceph-authtool --gen-print-key
+Running command: /usr/sbin/cryptsetup --batch-mode --key-file - luksFormat /dev/xvdbq
+Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbq ceph-22971ee4-017c-48ec-b52b-68cdd2cc0ed2-xvdbq-block-dmcrypt
+Running command: /usr/sbin/cryptsetup --batch-mode --key-file - luksFormat /dev/xvdbm
+Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbm ceph-22971ee4-017c-48ec-b52b-68cdd2cc0ed2-xvdbm-db-dmcrypt
+Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-1`
+
 	type args struct {
-		op string
+		op        string
+		blockType string
 	}
 	tests := []struct {
 		name string
 		args args
 		want string
 	}{
-		{"not-found", args{"Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-1"}, ""},
-		{"found", args{"Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbr ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt"}, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt"},
+		{"not-found", args{"Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-1", "block-dmcrypt"}, ""},
+		{"found-block", args{cvOp, "block-dmcrypt"}, "/dev/mapper/ceph-22971ee4-017c-48ec-b52b-68cdd2cc0ed2-xvdbq-block-dmcrypt"},
+		{"found-db", args{cvOp, "db-dmcrypt"}, "/dev/mapper/ceph-22971ee4-017c-48ec-b52b-68cdd2cc0ed2-xvdbm-db-dmcrypt"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getEncryptedBlockPath(tt.args.op); got != tt.want {
+			if got := getEncryptedBlockPath(tt.args.op, tt.args.blockType); got != tt.want {
 				t.Errorf("getEncryptedBlockPath() = %v, want %v", got, tt.want)
 			}
 		})
