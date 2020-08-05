@@ -118,7 +118,7 @@ All the other settings from the gateway section will be ignored, except for `sec
 
 The [zone](ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-multisite-crd.md).
 
-* `name`: the name of the ceph-object-zone the object stores should be in.
+* `name`: the name of the ceph-object-zone the object store will be in.
 
 ## Runtime settings
 
