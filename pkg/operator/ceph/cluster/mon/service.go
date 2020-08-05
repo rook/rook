@@ -27,11 +27,10 @@ import (
 )
 
 func (c *Cluster) createService(mon *monConfig) (string, error) {
-	labels := c.getLabels(mon.DaemonName, false, "", true)
 	svcDef := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mon.ResourceName,
-			Labels: labels,
+			Labels: c.getLabels(mon.DaemonName, false, "", true),
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
@@ -44,7 +43,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 					Protocol:   v1.ProtocolTCP,
 				},
 			},
-			Selector: labels,
+			Selector: c.getLabels(mon.DaemonName, false, "", false),
 		},
 	}
 	k8sutil.SetOwnerRef(&svcDef.ObjectMeta, &c.ownerRef)
