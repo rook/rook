@@ -148,7 +148,7 @@ func NewMCTestOperations(t func() *testing.T, systemNamespace string, namespace1
 	require.NoError(t(), err)
 	checkIfShouldRunForMinimalTestMatrix(t, kh, multiClusterMinimalTestVersion)
 
-	cleanupHost := true
+	cleanupHost := false
 	i := installer.NewCephInstaller(t, kh.Clientset, useHelm, "", installer.VersionMaster, installer.NautilusVersion, cleanupHost)
 
 	op := &MCTestOperations{
