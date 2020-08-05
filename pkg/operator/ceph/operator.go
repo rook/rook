@@ -223,8 +223,8 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "failed to configure CSI parameters")
 	}
 
-	if serverVersion.Major < csi.KubeMinMajor || serverVersion.Major == csi.KubeMinMajor && serverVersion.Minor < csi.KubeMinMinor {
-		logger.Infof("CSI drivers only supported in K8s 1.13 or newer. version=%s", serverVersion.String())
+	if serverVersion.Major < csi.KubeMinMajor || serverVersion.Major == csi.KubeMinMajor && serverVersion.Minor < csi.ProvDeploymentSuppVersion {
+		logger.Infof("CSI drivers only supported in K8s 1.14 or newer. version=%s", serverVersion.String())
 		// disable csi control variables to disable other csi functions
 		csi.EnableRBD = false
 		csi.EnableCephFS = false
