@@ -573,20 +573,22 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 			}
 		}
 
-		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
-		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
-		if err != nil {
-			logger.Errorf("failed to delete cluster roles. %v ", err)
-		}
-
-		crdCheckerFunc := func() error {
+		crCheckerFunc := func() error {
 			_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(h.clusterName, metav1.GetOptions{})
 			// ensure the finalizer(s) are removed
 			h.removeClusterFinalizers(namespace)
 			return err
 		}
-		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
-		checkError(h.T(), err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
+		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crCheckerFunc)
+		checkError(h.T(), err, fmt.Sprintf("failed to wait for cr %s deletion", namespace))
+	}
+
+	for _, namespace := range namespaces {
+		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
+		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
+		if err != nil {
+			logger.Errorf("failed to delete cluster roles. %v ", err)
+		}
 
 		err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
 		checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
@@ -933,7 +935,7 @@ func (h *CephInstaller) addCleanupPolicy(namespace string) error {
 	if err != nil {
 		return fmt.Errorf("failed to add clean up policy to the cluster. %+v", err)
 	}
-	logger.Info("successfully added cleanup policy to the ceph cluster")
+	logger.Infof("successfully added cleanup policy to the ceph cluster %v in %v", cluster.Name, cluster.Namespace)
 	return nil
 }
 
