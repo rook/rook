@@ -19,7 +19,7 @@ First the Prometheus operator needs to be started in the cluster so it can watch
 A full explanation can be found in the [Prometheus operator repository on GitHub](https://github.com/coreos/prometheus-operator), but the quick instructions can be found here:
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.27.0/bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.41.0/bundle.yaml
 ```
 
 This will start the Prometheus operator, but before moving on, wait until the operator is in the `Running` state:
