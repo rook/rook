@@ -1886,6 +1886,7 @@ spec:
       count: 1
       portable: false
       tuneDeviceClass: true
+      encrypted: false
       volumeClaimTemplates:
       - metadata:
           name: data

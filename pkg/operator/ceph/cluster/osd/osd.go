@@ -49,8 +49,9 @@ import (
 )
 
 var (
-	logger                  = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
-	updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
+	logger                                    = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+	updateDeploymentAndWait                   = mon.UpdateCephDeploymentAndWait
+	cephVolumeRawEncryptionModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 11}
 )
 
 const (
@@ -135,7 +136,7 @@ type osdProperties struct {
 	tuneSlowDeviceClass bool
 	schedulerName       string
 	crushDeviceClass    string
-
+	encrypted           bool
 	// Drive Groups which apply to the node
 	driveGroups cephv1.DriveGroupsSpec
 }
@@ -232,9 +233,42 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			portable:         volume.Portable,
 			crushDeviceClass: volume.CrushDeviceClass,
 			schedulerName:    volume.SchedulerName,
+			encrypted:        volume.Encrypted,
 		}
 
 		logger.Debugf("osdProps are %+v", osdProps)
+
+		// If the deviceSet template has "encrypted" but the Ceph version is not compatible
+		if osdProps.encrypted && !c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinCephVersion) {
+			errMsg := fmt.Sprintf("failed to validate storageClassDeviceSet %q. min required ceph version to support encryption is %q", volume.Name, cephVolumeRawEncryptionModeMinCephVersion.String())
+			config.addError(errMsg)
+			continue
+		}
+
+		// create encryption Kubernetes Secret if the PVC is encrypted
+		if osdProps.encrypted {
+			// Generate dmcrypt key
+			key, err := generateDmCryptKey()
+			if err != nil {
+				errMsg := fmt.Sprintf("failed to generate dmcrypt key for osd claim %q. %v", osdProps.pvc.ClaimName, err)
+				config.addError(errMsg)
+				continue
+			}
+
+			// Store the kube secret here!
+			s := generateOSDEncryptedKeySecret(osdProps.pvc.ClaimName, c.clusterInfo.Namespace, key)
+
+			// Set the ownerref to the Secret
+			k8sutil.SetOwnerRef(&s.ObjectMeta, &c.clusterInfo.OwnerRef)
+
+			// Create the Kubernetes Secret
+			_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(s)
+			if err != nil && !kerrors.IsAlreadyExists(err) {
+				errMsg := fmt.Sprintf("failed to save ceph osd encryption key as a secret for pvc %q. %v", osdProps.pvc.ClaimName, err)
+				config.addError(errMsg)
+				continue
+			}
+		}
 
 		// Update the orchestration status of this pvc to the starting state
 		status := OrchestrationStatus{Status: OrchestrationStatusStarting, PvcBackedOSD: true}
@@ -663,6 +697,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				tuneSlowDeviceClass: volumeSource.TuneSlowDeviceClass,
 				pvcSize:             volumeSource.Size,
 				schedulerName:       volumeSource.SchedulerName,
+				encrypted:           volumeSource.Encrypted,
 			}
 			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
 			// or from the osd prepare job from initial creation.

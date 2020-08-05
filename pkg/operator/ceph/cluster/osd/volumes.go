@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -27,19 +28,55 @@ const (
 	udevPath             = "/run/udev"
 	udevVolName          = "run-udev"
 	osdEncryptionVolName = "osd-encryption-key"
+	dmPath               = "/dev/mapper"
+	dmVolName            = "dev-mapper"
 )
 
 func getPvcOSDBridgeMount(claimName string) v1.VolumeMount {
-	return v1.VolumeMount{Name: fmt.Sprintf("%s-bridge", claimName), MountPath: "/mnt"}
+	return v1.VolumeMount{
+		Name:      fmt.Sprintf("%s-bridge", claimName),
+		MountPath: "/mnt",
+	}
 }
 
 func getPvcOSDBridgeMountActivate(mountPath, claimName string) v1.VolumeMount {
-	return v1.VolumeMount{Name: fmt.Sprintf("%s-bridge", claimName), MountPath: mountPath, SubPath: path.Base(mountPath)}
+	return v1.VolumeMount{
+		Name:      fmt.Sprintf("%s-bridge", claimName),
+		MountPath: mountPath,
+		SubPath:   path.Base(mountPath),
+	}
 }
 
 func getPvcMetadataOSDBridgeMount(claimName string) v1.VolumeMount {
-	return v1.VolumeMount{Name: fmt.Sprintf("%s-bridge", claimName), MountPath: "/srv"}
+	return v1.VolumeMount{
+		Name:      fmt.Sprintf("%s-bridge", claimName),
+		MountPath: "/srv",
+	}
 }
+
+func getDeviceMapperMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		MountPath: dmPath,
+		Name:      dmVolName,
+	}
+}
+
+func getDeviceMapperVolume() (v1.Volume, v1.VolumeMount) {
+	volume := v1.Volume{
+		Name: dmVolName,
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{Path: dmPath},
+		},
+	}
+
+	volumeMounts := v1.VolumeMount{
+		Name:      dmVolName,
+		MountPath: dmPath,
+	}
+
+	return volume, volumeMounts
+}
+
 func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
 	volumes := []v1.Volume{
 		{
@@ -102,6 +139,34 @@ func getUdevVolume() (v1.Volume, v1.VolumeMount) {
 	volumeMounts := v1.VolumeMount{
 		Name:      udevVolName,
 		MountPath: udevPath,
+	}
+
+	return volume, volumeMounts
+}
+
+func getEncryptionVolume(pvcName string) (v1.Volume, v1.VolumeMount) {
+	var m int32 = 0400
+	volume := v1.Volume{
+		Name: osdEncryptionVolName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: generateOSDEncryptionSecretName(pvcName),
+				Items: []v1.KeyToPath{
+					{
+						Key:  OsdEncryptionSecretNameKeyName,
+						Path: encryptionKeyFileName,
+					},
+				},
+				DefaultMode: &m,
+			},
+		},
+	}
+
+	// Mounts /etc/ceph/luks_key
+	volumeMounts := v1.VolumeMount{
+		Name:      osdEncryptionVolName,
+		ReadOnly:  true,
+		MountPath: config.EtcCephDir,
 	}
 
 	return volume, volumeMounts

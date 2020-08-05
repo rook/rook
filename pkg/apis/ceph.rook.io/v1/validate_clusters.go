@@ -74,6 +74,12 @@ func validateUpdatedCephCluster(updatedCephCluster *CephCluster, found *CephClus
 		return errors.Errorf("invalid update: Provider change from %q to %q is not allowed", found.Spec.Network.Provider, updatedCephCluster.Spec.Network.Provider)
 	}
 
+	for i, storageClassDeviceSet := range updatedCephCluster.Spec.Storage.StorageClassDeviceSets {
+		if storageClassDeviceSet.Encrypted != found.Spec.Storage.StorageClassDeviceSets[i].Encrypted {
+			return errors.Errorf("invalid update: StorageClassDeviceSet %q encryption change from %t to %t is not allowed", storageClassDeviceSet.Name, found.Spec.Storage.StorageClassDeviceSets[i].Encrypted, storageClassDeviceSet.Encrypted)
+		}
+	}
+
 	return nil
 }
 
