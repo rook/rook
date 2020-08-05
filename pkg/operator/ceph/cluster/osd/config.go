@@ -157,3 +157,14 @@ func generateOSDEncryptedKeySecret(pvcName, namespace, key string) *v1.Secret {
 func generateOSDEncryptionSecretName(pvcName string) string {
 	return fmt.Sprintf("%s-%s", osdEncryptionSecretNamePrefix, pvcName)
 }
+
+func (c *Cluster) isCephVolumeRAwModeSupported() bool {
+	if c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinNautilusCephVersion) && !c.clusterInfo.CephVersion.IsOctopus() {
+		return true
+	}
+	if c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinOctopusCephVersion) {
+		return true
+	}
+
+	return false
+}
