@@ -24,6 +24,9 @@ spec:
   # The Ceph CRUSH device class associated with the CRUSH replicated rule
   # For reference: https://docs.ceph.com/docs/nautilus/rados/operations/crush-map/#device-classes
   #deviceClass: my-class
+  # Enables collecting RBD per-image IO statistics by enabling dynamic OSD performance counters. Defaults to false.
+  # For reference: https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics
+  # enableRBDStats: true
   # Set any property on a given pool
   # see https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
   parameters:
