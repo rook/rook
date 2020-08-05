@@ -322,7 +322,8 @@ spec:
                 sslCertificateRef: {}
                 port:
                   type: integer
-                securePort: {}
+                securePort:
+                  type: integer
                 instances:
                   type: integer
                 annotations: {}
@@ -1872,7 +1873,6 @@ spec:
     type: s3
     sslCertificateRef:
     port: ` + strconv.Itoa(port) + `
-    securePort:
     instances: ` + strconv.Itoa(replicaCount) + `
     allNodes: false
 `

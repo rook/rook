@@ -320,7 +320,8 @@ func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore
 		return "", errors.Wrapf(err, "failed to create or update object store %q service", cephObjectStore.Name)
 	}
 
-	logger.Infof("ceph object store gateway service running at %s:%d", svc.Spec.ClusterIP, cephObjectStore.Spec.Gateway.Port)
+	logger.Infof("ceph object store gateway service running at %s", svc.Spec.ClusterIP)
+
 	return svc.Spec.ClusterIP, nil
 }
 

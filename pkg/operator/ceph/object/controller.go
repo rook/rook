@@ -474,10 +474,13 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 
 	var port string
 
-	if objectstore.Spec.Gateway.Port != 0 {
-		port = strconv.Itoa(int(objectstore.Spec.Gateway.Port))
-	} else if objectstore.Spec.Gateway.SecurePort != 0 {
+	if objectstore.Spec.Gateway.SecurePort != 0 && objectstore.Spec.Gateway.SSLCertificateRef != "" {
 		port = strconv.Itoa(int(objectstore.Spec.Gateway.SecurePort))
+	} else if objectstore.Spec.Gateway.Port != 0 {
+		port = strconv.Itoa(int(objectstore.Spec.Gateway.Port))
+	} else {
+		logger.Error("At least one of Port or SecurePort should be non-zero")
+		return
 	}
 
 	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck, r.cephClusterSpec.External.Enable)

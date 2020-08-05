@@ -84,10 +84,14 @@ func updateStatusBucket(client client.Client, name types.NamespacedName, phase c
 
 func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string {
 	m := make(map[string]string)
-	m["endpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port, false)
 
-	if cephObjectStore.Spec.Gateway.SecurePort != 0 {
+	if cephObjectStore.Spec.Gateway.SecurePort != 0 && cephObjectStore.Spec.Gateway.Port != 0 {
 		m["secureEndpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.SecurePort, true)
+		m["endpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port, false)
+	} else if cephObjectStore.Spec.Gateway.SecurePort != 0 {
+		m["endpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.SecurePort, true)
+	} else {
+		m["endpoint"] = buildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port, false)
 	}
 
 	return m

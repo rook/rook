@@ -25,6 +25,7 @@ import (
 )
 
 func TestBuildStatusInfo(t *testing.T) {
+	// Port enabled and SecurePort disabled
 	cephObjectStore := &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-store",
@@ -35,5 +36,25 @@ func TestBuildStatusInfo(t *testing.T) {
 
 	statusInfo := buildStatusInfo(cephObjectStore)
 	assert.NotEmpty(t, statusInfo["endpoint"])
+	assert.Empty(t, statusInfo["secureEndpoint"])
 	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", statusInfo["endpoint"])
+
+	// SecurePort enabled and Port disabled
+	cephObjectStore.Spec.Gateway.Port = 0
+	cephObjectStore.Spec.Gateway.SecurePort = 443
+
+	statusInfo = buildStatusInfo(cephObjectStore)
+	assert.NotEmpty(t, statusInfo["endpoint"])
+	assert.Empty(t, statusInfo["secureEndpoint"])
+	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph:443", statusInfo["endpoint"])
+
+	// Both Port and SecurePort enabled
+	cephObjectStore.Spec.Gateway.Port = 80
+	cephObjectStore.Spec.Gateway.SecurePort = 443
+
+	statusInfo = buildStatusInfo(cephObjectStore)
+	assert.NotEmpty(t, statusInfo["endpoint"])
+	assert.NotEmpty(t, statusInfo["secureEndpoint"])
+	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", statusInfo["endpoint"])
+	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph:443", statusInfo["secureEndpoint"])
 }
