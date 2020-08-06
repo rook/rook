@@ -346,8 +346,15 @@ available with Ceph-CSI v3.0.
 
 > Automatically updated if you are upgrading via the helm chart
 
-First apply new resources. This includes slightly modified privileges (RBAC) needed by the Operator
+First apply new resources. This includes modified privileges (RBAC) needed by the Operator
 and updates to the Custom Resource Definitions (CRDs).
+
+If you are not using the default `rook-ceph` namespace, replace the namespace in the following manifest:
+```sh
+sed -i "s/namespace: rook-ceph/namespace: $ROOK_SYSTEM_NAMESPACE/g" upgrade-from-v1.3-apply.yaml
+```
+
+Now apply the updated privileges:
 
 ```sh
 kubectl delete -f upgrade-from-v1.3-delete.yaml
