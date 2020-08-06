@@ -69,7 +69,9 @@ func updateStatusBucket(client client.Client, name types.NamespacedName, phase c
 		logger.Warningf("failed to retrieve object store %q to update status to %v. %v", name, phase, err)
 		return
 	}
-
+	if objectStore.Status == nil {
+		objectStore.Status = &cephv1.ObjectStoreStatus{}
+	}
 	objectStore.Status.BucketStatus = toCustomResourceStatus(objectStore.Status.BucketStatus, details, phase)
 	objectStore.Status.Phase = phase
 	if err := opcontroller.UpdateStatus(client, objectStore); err != nil {
