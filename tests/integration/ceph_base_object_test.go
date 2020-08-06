@@ -77,22 +77,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object store created successfully")
 
 	// check that ObjectUser is created
-	logger.Infof("Waiting 15 seconds to ensure user was created")
-	time.Sleep(15 * time.Second)
+	logger.Infof("Waiting 5 seconds for the object user to be created")
+	time.Sleep(5 * time.Second)
 	logger.Infof("Checking to see if the user secret has been created")
-	i = 0
-	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
+	for i := 0; i < 6 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
 		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
 	}
-
-	// Check object store status
-	objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(storeName, metav1.GetOptions{})
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
-	// Info field has the endpoint in it
-	assert.NotEmpty(s.T(), objectStore.Status.Info)
-	assert.NotEmpty(s.T(), objectStore.Status.Info["endpoint"])
 
 	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
 	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
@@ -100,6 +91,22 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	assert.Equal(s.T(), userid, userInfo.UserID)
 	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 	logger.Infof("Done creating object store user")
+
+	// Check object store status
+	for i := 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
+		objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(storeName, metav1.GetOptions{})
+		assert.Nil(s.T(), err)
+		if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
+			logger.Infof("(%d) bucket status check sleeping for 5 seconds ...", i)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		assert.Equal(s.T(), cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
+		// Info field has the endpoint in it
+		assert.NotEmpty(s.T(), objectStore.Status.Info)
+		assert.NotEmpty(s.T(), objectStore.Status.Info["endpoint"])
+		break
+	}
 
 	logger.Infof("Step 2 : Test Deleting User")
 	dosuErr := helper.ObjectUserClient.Delete(namespace, userid)
