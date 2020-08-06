@@ -1996,7 +1996,7 @@ func (m *CephManifestsV1_2) GetRookExternalCluster(settings *clusterExternalSett
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: ` + settings.Namespace + `
+  name: ` + settings.Name + `
   namespace: ` + settings.Namespace + `
 spec:
   external:

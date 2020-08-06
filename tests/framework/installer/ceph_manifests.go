@@ -75,6 +75,7 @@ type clusterSettings struct {
 
 // clusterExternalSettings represents the settings of an external cluster
 type clusterExternalSettings struct {
+	Name            string
 	Namespace       string
 	DataDirHostPath string
 }
@@ -2585,7 +2586,7 @@ func (m *CephManifestsMaster) GetRookExternalCluster(settings *clusterExternalSe
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: ` + settings.Namespace + `
+  name: ` + settings.Name + `
   namespace: ` + settings.Namespace + `
 spec:
   external:

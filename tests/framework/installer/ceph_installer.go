@@ -337,7 +337,11 @@ func (h *CephInstaller) CreateRookExternalCluster(namespace, firstClusterNamespa
 
 	// Start the external cluster
 	logger.Infof("Starting Rook External Cluster with yaml")
-	settings := &clusterExternalSettings{namespace, dataDirHostPath}
+	settings := &clusterExternalSettings{
+		Name:            h.clusterName,
+		Namespace:       namespace,
+		DataDirHostPath: dataDirHostPath,
+	}
 	rookCluster := h.Manifests.GetRookExternalCluster(settings)
 	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 		return fmt.Errorf("failed to create rook external cluster. %v ", err)
