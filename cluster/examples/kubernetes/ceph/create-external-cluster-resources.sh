@@ -32,7 +32,7 @@ fi
 }
 
 function createCheckerKey() {
-  checkerKey=$(ceph auth get-or-create "$CLIENT_CHECKER_NAME" mon 'allow r, allow command quorum_status' osd 'allow rwx pool='"$RGW_POOL_PREFIX"'.rgw.meta, allow r pool=.rgw.root, allow rw pool='"$RGW_POOL_PREFIX"'.rgw.control, allow x pool='"$RGW_POOL_PREFIX"'.rgw.buckets.index, allow x pool='"$RGW_POOL_PREFIX"'.rgw.log'|awk '/key =/ { print $3}')
+  checkerKey=$(ceph auth get-or-create "$CLIENT_CHECKER_NAME" mon 'allow r, allow command quorum_status' mgr 'allow command config' osd 'allow rwx pool='"$RGW_POOL_PREFIX"'.rgw.meta, allow r pool=.rgw.root, allow rw pool='"$RGW_POOL_PREFIX"'.rgw.control, allow x pool='"$RGW_POOL_PREFIX"'.rgw.buckets.index, allow x pool='"$RGW_POOL_PREFIX"'.rgw.log'|awk '/key =/ { print $3}')
   echo "export ROOK_EXTERNAL_USER_SECRET=$checkerKey"
   echo "export ROOK_EXTERNAL_USERNAME=$CLIENT_CHECKER_NAME"
 }

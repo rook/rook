@@ -321,6 +321,9 @@ type PoolSpec struct {
 
 	// Parameters is a list of properties to enable on a given pool
 	Parameters map[string]string `json:"parameters,omitempty"`
+
+	// EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
+	EnableRBDStats bool `json:"enableRBDStats"`
 }
 
 type Status struct {
