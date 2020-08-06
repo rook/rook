@@ -32,6 +32,8 @@ const (
 	PublicNetworkSelectorKeyName = "public"
 	// ClusterNetworkSelectorKeyName is the network selector key for the ceph cluster network
 	ClusterNetworkSelectorKeyName = "cluster"
+	// Whereabouts Ipam type
+	WhereaboutsIpamType = "whereabouts"
 )
 
 var (
@@ -65,12 +67,22 @@ func generateNetworkSettings(context *clusterd.Context, namespace string, networ
 			return []Option{}, errors.Wrapf(err, "failed to get network attachment definition configuration for selector %q", selectorKey)
 		}
 
-		if netConfig.Ipam.Subnet != "" {
-			cephNetworks = append(cephNetworks, configOverride("global", fmt.Sprintf("%s_network", selectorKey), netConfig.Ipam.Subnet))
+		networkRange := getNetworkRange(netConfig)
+		if networkRange != "" {
+			cephNetworks = append(cephNetworks, configOverride("global", fmt.Sprintf("%s_network", selectorKey), networkRange))
 		} else {
 			return []Option{}, errors.Errorf("empty subnet from network attachment definition %q", networkSelectors[selectorKey])
 		}
 	}
 
 	return cephNetworks, nil
+}
+
+func getNetworkRange(netConfig k8sutil.NetworkAttachmentConfig) string {
+	if netConfig.Ipam.Subnet != "" {
+		return netConfig.Ipam.Subnet
+	} else if netConfig.Ipam.Range != "" && netConfig.Ipam.Type == WhereaboutsIpamType {
+		return netConfig.Ipam.Range
+	}
+	return ""
 }

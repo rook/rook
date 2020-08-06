@@ -35,6 +35,7 @@ type NetworkAttachmentConfig struct {
 	Ipam       struct {
 		Type       string `json:"type"`
 		Subnet     string `json:"subnet"`
+		Range      string `json:"range"`
 		RangeStart string `json:"rangeStart"`
 		RangeEnd   string `json:"rangeEnd"`
 		Routes     []struct {
