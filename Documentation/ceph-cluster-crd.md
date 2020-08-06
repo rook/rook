@@ -239,6 +239,7 @@ For example, you can do:
 * `cluster`: "my-replication-storage-network"
 
 For `multus` network provider, an already working cluster with Multus networking is required. Network attachment definition that later will be attached to the cluster needs to be created before the Cluster CRD.
+The Network attachment definitions should be using whereabouts cni.
 If Rook cannot find the provided Network attachment definition it will fail running the Ceph OSD pods.
 You can add the Multus network attachment selection annotation selecting the created network attachment definition on `selectors`.
 
