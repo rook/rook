@@ -1,1 +1,1 @@
-cluster/examples/kubernetes/ceph/monitoring/prometheus-ceph-v14-rules-external.yaml
+prometheus-ceph-v14-rules-external.yaml
