@@ -722,7 +722,12 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	// lv can be a block device if raw mode is used
 	cvMode := "raw"
 
-	result, err := callCephVolume(context, cvMode, "list", block, "--format", "json")
+	args := []string{cvMode, "list", block, "--format", "json"}
+	if block == "" {
+		args = []string{cvMode, "list", "--format", "json"}
+	}
+
+	result, err := callCephVolume(context, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}
