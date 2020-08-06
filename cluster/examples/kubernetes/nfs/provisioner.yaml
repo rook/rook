@@ -72,7 +72,7 @@ spec:
       serviceAccount: rook-nfs-provisioner
       containers:
       - name: rook-nfs-provisioner
-        image: rook/nfs:v1.4.0-beta.0
+        image: rook/nfs:v1.4.0
         imagePullPolicy: IfNotPresent
         args: ["nfs", "provisioner","--provisioner=rook.io/nfs-provisioner"]
         env:
