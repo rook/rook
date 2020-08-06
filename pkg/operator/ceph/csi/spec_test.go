@@ -26,10 +26,8 @@ import (
 
 func TestStartCSI(t *testing.T) {
 	RBDPluginTemplatePath = "csi-rbdplugin.yaml"
-	RBDProvisionerSTSTemplatePath = "csi-rbdplugin-provisioner-sts.yaml"
 	RBDProvisionerDepTemplatePath = "csi-rbdplugin-provisioner-dep.yaml"
 	CephFSPluginTemplatePath = "csi-cephfsplugin.yaml"
-	CephFSProvisionerSTSTemplatePath = "csi-cephfsplugin-provisioner-sts.yaml"
 	CephFSProvisionerDepTemplatePath = "csi-cephfsplugin-provisioner-dep.yaml"
 
 	CSIParam = Param{

@@ -106,8 +106,7 @@ var (
 
 const (
 	KubeMinMajor                   = "1"
-	KubeMinMinor                   = "13"
-	provDeploymentSuppVersion      = "14"
+	ProvDeploymentSuppVersion      = "14"
 	kubeMinVerForFilesystemRestore = "15"
 	kubeMinVerForBlockRestore      = "16"
 
@@ -129,12 +128,10 @@ const (
 
 	// template
 	DefaultRBDPluginTemplatePath         = "/etc/ceph-csi/rbd/csi-rbdplugin.yaml"
-	DefaultRBDProvisionerSTSTemplatePath = "/etc/ceph-csi/rbd/csi-rbdplugin-provisioner-sts.yaml"
 	DefaultRBDProvisionerDepTemplatePath = "/etc/ceph-csi/rbd/csi-rbdplugin-provisioner-dep.yaml"
 	DefaultRBDPluginServiceTemplatePath  = "/etc/ceph-csi/rbd/csi-rbdplugin-svc.yaml"
 
 	DefaultCephFSPluginTemplatePath         = "/etc/ceph-csi/cephfs/csi-cephfsplugin.yaml"
-	DefaultCephFSProvisionerSTSTemplatePath = "/etc/ceph-csi/cephfs/csi-cephfsplugin-provisioner-sts.yaml"
 	DefaultCephFSProvisionerDepTemplatePath = "/etc/ceph-csi/cephfs/csi-cephfsplugin-provisioner-dep.yaml"
 	DefaultCephFSPluginServiceTemplatePath  = "/etc/ceph-csi/cephfs/csi-cephfsplugin-svc.yaml"
 
@@ -205,9 +202,7 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 	var (
 		err                                                   error
 		rbdPlugin, cephfsPlugin                               *apps.DaemonSet
-		rbdProvisionerSTS, cephfsProvisionerSTS               *apps.StatefulSet
 		rbdProvisionerDeployment, cephfsProvisionerDeployment *apps.Deployment
-		deployProvSTS                                         bool
 		rbdService, cephfsService                             *corev1.Service
 	)
 
@@ -289,10 +284,6 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 	}
 
 	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
-	if ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion {
-		logger.Info("deploying provisioner as statefulset")
-		deployProvSTS = true
-	}
 
 	tp.ResizerImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
 	if err != nil {
@@ -329,17 +320,12 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbdplugin template")
 		}
-		if deployProvSTS {
-			rbdProvisionerSTS, err = templateToStatefulSet("rbd-provisioner", RBDProvisionerSTSTemplatePath, tp)
-			if err != nil {
-				return errors.Wrap(err, "failed to load rbd provisioner statefulset template")
-			}
-		} else {
-			rbdProvisionerDeployment, err = templateToDeployment("rbd-provisioner", RBDProvisionerDepTemplatePath, tp)
-			if err != nil {
-				return errors.Wrap(err, "failed to load rbd provisioner deployment template")
-			}
+
+		rbdProvisionerDeployment, err = templateToDeployment("rbd-provisioner", RBDProvisionerDepTemplatePath, tp)
+		if err != nil {
+			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 		}
+
 		rbdService, err = templateToService("rbd-service", DefaultRBDPluginServiceTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbd plugin service template")
@@ -351,17 +337,12 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		if err != nil {
 			return errors.Wrap(err, "failed to load CephFS plugin template")
 		}
-		if deployProvSTS {
-			cephfsProvisionerSTS, err = templateToStatefulSet("cephfs-provisioner", CephFSProvisionerSTSTemplatePath, tp)
-			if err != nil {
-				return errors.Wrap(err, "failed to load CephFS provisioner statefulset template")
-			}
-		} else {
-			cephfsProvisionerDeployment, err = templateToDeployment("cephfs-provisioner", CephFSProvisionerDepTemplatePath, tp)
-			if err != nil {
-				return errors.Wrap(err, "failed to load rbd provisioner deployment template")
-			}
+
+		cephfsProvisionerDeployment, err = templateToDeployment("cephfs-provisioner", CephFSProvisionerDepTemplatePath, tp)
+		if err != nil {
+			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 		}
+
 		cephfsService, err = templateToService("cephfs-service", DefaultCephFSPluginServiceTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load cephfs plugin service template")
@@ -387,17 +368,7 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		k8sutil.AddRookVersionLabelToDaemonSet(rbdPlugin)
 	}
 
-	if rbdProvisionerSTS != nil {
-		applyToPodSpec(&rbdProvisionerSTS.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
-		// apply resource request and limit to rbd provisioner containers
-		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerSTS.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&rbdProvisionerSTS.ObjectMeta, ownerRef)
-		err = k8sutil.CreateStatefulSet(clientset, csiRBDProvisioner, namespace, rbdProvisionerSTS)
-		if err != nil {
-			return errors.Wrapf(err, "failed to start rbd provisioner statefulset: %+v", rbdProvisionerSTS)
-		}
-		k8sutil.AddRookVersionLabelToStatefulSet(rbdProvisionerSTS)
-	} else if rbdProvisionerDeployment != nil {
+	if rbdProvisionerDeployment != nil {
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
@@ -435,18 +406,7 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		k8sutil.AddRookVersionLabelToDaemonSet(cephfsPlugin)
 	}
 
-	if cephfsProvisionerSTS != nil {
-		applyToPodSpec(&cephfsProvisionerSTS.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
-		// apply resource request and limit to cephfs provisioner containers
-		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerSTS.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&cephfsProvisionerSTS.ObjectMeta, ownerRef)
-		err = k8sutil.CreateStatefulSet(clientset, csiCephFSProvisioner, namespace, cephfsProvisionerSTS)
-		if err != nil {
-			return errors.Wrapf(err, "failed to start cephfs provisioner statefulset: %+v", cephfsProvisionerSTS)
-		}
-		k8sutil.AddRookVersionLabelToStatefulSet(cephfsProvisionerSTS)
-
-	} else if cephfsProvisionerDeployment != nil {
+	if cephfsProvisionerDeployment != nil {
 		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		// get resource details for cephfs provisioner
 		// apply resource request and limit to cephfs provisioner containers
@@ -471,20 +431,19 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		}
 	}
 
-	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
-		if EnableRBD {
-			err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
-			if err != nil {
-				return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
-			}
-		}
-		if EnableCephFS {
-			err = createCSIDriverInfo(clientset, CephFSDriverName, ownerRef)
-			if err != nil {
-				return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
-			}
+	if EnableRBD {
+		err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
 	}
+	if EnableCephFS {
+		err = createCSIDriverInfo(clientset, CephFSDriverName, ownerRef)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
+		}
+	}
+
 	return nil
 }
 
@@ -519,18 +478,10 @@ func deleteCSIDriverResources(
 		succeeded = false
 	}
 
-	if ver.Major == KubeMinMajor && ver.Minor < provDeploymentSuppVersion {
-		err = k8sutil.DeleteStatefulset(clientset, namespace, deployment)
-		if err != nil {
-			logger.Errorf("failed to delete the %q. %v", deployment, err)
-			succeeded = false
-		}
-	} else {
-		err = k8sutil.DeleteDeployment(clientset, namespace, deployment)
-		if err != nil {
-			logger.Errorf("failed to delete the %q. %v", deployment, err)
-			succeeded = false
-		}
+	err = k8sutil.DeleteDeployment(clientset, namespace, deployment)
+	if err != nil {
+		logger.Errorf("failed to delete the %q. %v", deployment, err)
+		succeeded = false
 	}
 
 	err = k8sutil.DeleteService(clientset, namespace, service)
