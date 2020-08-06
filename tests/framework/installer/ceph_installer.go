@@ -598,12 +598,6 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))
 	}
 
-	// confirm all devices are clean and available
-	for _, namespace := range namespaces {
-		args := []string{"orch", "device", "ls"}
-		h.Execute("ceph", args, namespace)
-	}
-
 	err = h.k8shelper.DeleteResourceAndWait(false, "namespace", systemNamespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot delete system namespace %s", systemNamespace))
 
