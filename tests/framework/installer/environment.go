@@ -50,13 +50,18 @@ func UsePVC() bool {
 }
 
 // baseTestDir gets the base test directory
-func baseTestDir() string {
-	// If the base test directory is actively set to empty (as in CI), we use the current working directory.
+func baseTestDir() (string, error) {
+	// If the base test directory is actively set to WORKING_DIR (as in CI),
+	// we use the current working directory.
 	val := getEnvVarWithDefault("TEST_BASE_DIR", "/data")
 	if val == "WORKING_DIR" {
-		val, _ = os.Getwd()
+		var err error
+		val, err = os.Getwd()
+		if err != nil {
+			return "", err
+		}
 	}
-	return val
+	return val, nil
 }
 
 // TestScratchDevice get the scratch device to be used for OSD
