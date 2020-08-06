@@ -24,7 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -40,7 +40,7 @@ import (
 
 func TestValidatePool(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
-	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
 
 	// not specifying some replication or EC settings is fine
 	p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
@@ -124,7 +124,7 @@ func TestValidatePool(t *testing.T) {
 func TestValidateCrushProperties(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
 	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "crush" && args[2] == "dump" {
@@ -162,7 +162,7 @@ func TestValidateCrushProperties(t *testing.T) {
 }
 
 func TestCreatePool(t *testing.T) {
-	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -191,7 +191,7 @@ func TestCreatePool(t *testing.T) {
 
 func TestDeletePool(t *testing.T) {
 	failOnDelete := false
-	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			if command == "ceph" && args[1] == "lspools" {
@@ -293,7 +293,7 @@ func TestCephBlockPoolController(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, pool)
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, pool, &cephv1.CephClusterList{})
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(object...)
@@ -365,11 +365,15 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClient(objects...)
+	c.Client = cl
 
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "config" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools" {
+				return "", nil
 			}
 
 			return "", nil
@@ -394,6 +398,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
 	assert.NoError(t, err)
 
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
 	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: c}
 
@@ -404,4 +409,84 @@ func TestCephBlockPoolController(t *testing.T) {
 	err = r.client.Get(context.TODO(), req.NamespacedName, pool)
 	assert.NoError(t, err)
 	assert.Equal(t, "Ready", pool.Status.Phase)
+}
+
+func TestConfigureRBDStats(t *testing.T) {
+	var (
+		s         = runtime.NewScheme()
+		context   = &clusterd.Context{}
+		namespace = "rook-ceph"
+	)
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			switch {
+			case args[0] == "config" && args[1] == "set" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools" && args[4] != "":
+				return "", nil
+			case args[0] == "config" && args[1] == "get" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools":
+				return "", nil
+			case args[0] == "config" && args[1] == "rm" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools":
+				return "", nil
+			}
+			return "", errors.Errorf("unexpected arguments %q", args)
+		},
+	}
+
+	context.Executor = executor
+	context.Client = fake.NewFakeClientWithScheme(s)
+	clusterInfo := &cephclient.ClusterInfo{Namespace: namespace}
+
+	// Case 1: CephBlockPoolList is not registered in scheme.
+	// So, an error is expected as List() operation would fail.
+	err := configureRBDStats(context, clusterInfo)
+	assert.NotNil(t, err)
+
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+	// Case 2: CephBlockPoolList is registered in schema.
+	// So, no error is expected.
+	err = configureRBDStats(context, clusterInfo)
+	assert.Nil(t, err)
+
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPool{})
+	// A Pool resource with metadata and spec.
+	poolWithRBDStatsDisabled := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-pool-without-rbd-stats",
+			Namespace: namespace,
+		},
+		Spec: cephv1.PoolSpec{
+			Replicated: cephv1.ReplicatedSpec{
+				Size: 3,
+			},
+		},
+	}
+
+	// Case 3: One CephBlockPool with EnableRBDStats:false (default).
+	objects := []runtime.Object{
+		poolWithRBDStatsDisabled,
+	}
+	context.Client = fake.NewFakeClientWithScheme(s, objects...)
+	err = configureRBDStats(context, clusterInfo)
+	assert.Nil(t, err)
+
+	// Case 4: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
+	poolWithRBDStatsEnabled := poolWithRBDStatsDisabled.DeepCopy()
+	poolWithRBDStatsEnabled.Name = "my-pool-with-rbd-stats"
+	poolWithRBDStatsEnabled.Spec.EnableRBDStats = true
+	objects = append(objects, poolWithRBDStatsEnabled)
+	context.Client = fake.NewFakeClientWithScheme(s, objects...)
+	err = configureRBDStats(context, clusterInfo)
+	assert.Nil(t, err)
+
+	// Case 5: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
+	// MgrSetConfig returns an error
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			return "", errors.Errorf("mock error to simulate failure of MgrSetConfig() function")
+		},
+	}
+	err = configureRBDStats(context, clusterInfo)
+	assert.NotNil(t, err)
 }

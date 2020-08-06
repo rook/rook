@@ -569,6 +569,10 @@ spec:
               - passive
               - aggressive
               - force
+            enableRBDStats:
+              description: EnableRBDStats is used to enable gathering of statistics
+                for all RBD images in the pool
+              type: boolean
             parameters:
               type: object
   subresources:
