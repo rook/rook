@@ -18,7 +18,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"os"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -127,8 +127,7 @@ func (c *cephStatusChecker) checkStatus() {
 // updateStatus updates an object with a given status
 func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, condition cephv1.ConditionType, reason, message string) error {
 	clusterName := c.clusterInfo.NamespacedName()
-	cephCluster := &cephv1.CephCluster{}
-	err := c.client.Get(context.TODO(), clusterName, cephCluster)
+	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(clusterName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
@@ -182,8 +181,7 @@ func formatTime(t time.Time) string {
 func (c *ClusterController) updateClusterCephVersion(image string, cephVersion cephver.CephVersion) {
 	logger.Infof("cluster %q: version %q detected for image %q", c.namespacedName.Namespace, cephVersion.String(), image)
 
-	cephCluster := &cephv1.CephCluster{}
-	err := c.client.Get(context.TODO(), c.namespacedName, cephCluster)
+	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(c.namespacedName.Namespace).Get(c.namespacedName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
