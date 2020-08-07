@@ -254,7 +254,7 @@ func addLabel(key, value string, labels map[string]string) {
 	labels[key] = value
 }
 
-func CreateDeployment(name, namespace string, clientset kubernetes.Interface, dep *apps.Deployment) error {
+func CreateDeployment(clientset kubernetes.Interface, name, namespace string, dep *apps.Deployment) error {
 	_, err := clientset.AppsV1().Deployments(namespace).Create(dep)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {

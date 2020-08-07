@@ -390,7 +390,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerSTS.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerSTS.ObjectMeta, ownerRef)
-		err = k8sutil.CreateStatefulSet("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerSTS)
+		err = k8sutil.CreateStatefulSet(clientset, "csi-rbdplugin-provisioner", namespace, rbdProvisionerSTS)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner statefulset: %+v", rbdProvisionerSTS)
 		}
@@ -400,7 +400,13 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, ownerRef)
-		err = k8sutil.CreateDeployment("csi-rbdplugin-provisioner", namespace, clientset, rbdProvisionerDeployment)
+		antiAffinity := getPodAntiAffinity("app", "csi-rbdplugin-provisioner")
+		rbdProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
+		rbdProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
+			Type: apps.RecreateDeploymentStrategyType,
+		}
+
+		err = k8sutil.CreateDeployment(clientset, "csi-rbdplugin-provisioner", namespace, rbdProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
@@ -432,7 +438,7 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerSTS.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerSTS.ObjectMeta, ownerRef)
-		err = k8sutil.CreateStatefulSet("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerSTS)
+		err = k8sutil.CreateStatefulSet(clientset, "csi-cephfsplugin-provisioner", namespace, cephfsProvisionerSTS)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs provisioner statefulset: %+v", cephfsProvisionerSTS)
 		}
@@ -444,7 +450,13 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, ownerRef)
-		err = k8sutil.CreateDeployment("csi-cephfsplugin-provisioner", namespace, clientset, cephfsProvisionerDeployment)
+
+		antiAffinity := getPodAntiAffinity("app", "csi-cephfsplugin-provisioner")
+		cephfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
+		cephfsProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
+			Type: apps.RecreateDeploymentStrategyType,
+		}
+		err = k8sutil.CreateDeployment(clientset, "csi-cephfsplugin-provisioner", namespace, cephfsProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}

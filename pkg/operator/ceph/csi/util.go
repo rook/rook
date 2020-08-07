@@ -30,6 +30,7 @@ import (
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -218,4 +219,24 @@ func getPortFromConfig(clientset kubernetes.Interface, env string, defaultPort u
 		return defaultPort, errors.Errorf("%s port value is greater than 65535 for %s.", port, env)
 	}
 	return uint16(p), nil
+}
+
+func getPodAntiAffinity(key, value string) corev1.PodAntiAffinity {
+	return corev1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      key,
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{value},
+						},
+					},
+				},
+				TopologyKey: corev1.LabelHostname,
+			},
+		},
+	}
+
 }
