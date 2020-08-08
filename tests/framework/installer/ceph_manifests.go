@@ -323,6 +323,8 @@ spec:
               properties:
                 failureDomain:
                   type: string
+                crushRoot:
+                  type: string
                 replicated:
                   properties:
                     size:
@@ -354,6 +356,8 @@ spec:
               items:
                 properties:
                   failureDomain:
+                    type: string
+                  crushRoot:
                     type: string
                   replicated:
                     properties:
@@ -469,6 +473,8 @@ spec:
               properties:
                 failureDomain:
                   type: string
+                crushRoot:
+                  type: string
                 replicated:
                   properties:
                     size:
@@ -494,6 +500,8 @@ spec:
             dataPool:
               properties:
                 failureDomain:
+                  type: string
+                crushRoot:
                   type: string
                 replicated:
                   properties:
@@ -620,6 +628,8 @@ spec:
         spec:
           properties:
             failureDomain:
+                type: string
+            crushRoot:
                 type: string
             replicated:
               properties:
