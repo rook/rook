@@ -125,8 +125,21 @@ spec:
       #       requests:
       #         # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
       #         storage: 5Gi
-      #     # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
-      #     storageClassName: gp2
+      #     # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
+      #     storageClassName: io1
+      #     volumeMode: Block
+      #     accessModes:
+      #       - ReadWriteOnce
+      # dedicated block device to store bluestore wal (block.wal)
+      # - metadata:
+      #     name: wal
+      #   spec:
+      #     resources:
+      #       requests:
+      #         # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
+      #         storage: 5Gi
+      #     # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
+      #     storageClassName: io1
       #     volumeMode: Block
       #     accessModes:
       #       - ReadWriteOnce

@@ -37,6 +37,7 @@ import (
 const (
 	pvcDataTypeDevice     = "data"
 	pvcMetadataTypeDevice = "metadata"
+	pvcWalTypeDevice      = "wal"
 	lvmCommandToCheck     = "lvm"
 )
 
@@ -144,6 +145,28 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 	return nil
 }
 
+func configRawDevice(name string, context *clusterd.Context) (*sys.LocalDisk, error) {
+	rawDevice, err := clusterd.PopulateDeviceInfo(name, context.Executor)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get device info for %q", name)
+	}
+
+	// set the device type: data, block_db(metadata) or wal.
+	if strings.HasPrefix(name, "/mnt") {
+		rawDevice, err = clusterd.PopulateDeviceUdevInfo(rawDevice.KernelName, context.Executor, rawDevice)
+		if err != nil {
+			logger.Warningf("failed to get udev info for device %q. %v", name, err)
+		}
+		rawDevice.Type = pvcDataTypeDevice
+	} else if strings.HasPrefix(name, "/srv") {
+		rawDevice.Type = pvcMetadataTypeDevice
+	} else if strings.HasPrefix(name, "/wal") {
+		rawDevice.Type = pvcWalTypeDevice
+	}
+
+	return rawDevice, nil
+}
+
 // Provision provisions an OSD
 func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
 
@@ -191,29 +214,13 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 
 	var rawDevices []*sys.LocalDisk
 	if agent.pvcBacked {
-		rawDevice, err := clusterd.PopulateDeviceInfo(agent.devices[0].Name, context.Executor)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get device info for %q", agent.devices[0].Name)
-		}
-
-		rawDevice, err = clusterd.PopulateDeviceUdevInfo(rawDevice.KernelName, context.Executor, rawDevice)
-		if err != nil {
-			logger.Warningf("failed to get udev info for device %q. %v", agent.devices[0].Name, err)
-		}
-
-		rawDevice.Type = pvcDataTypeDevice
-		rawDevices = append(rawDevices, rawDevice)
-
-		// We have a metadata device
-		if len(agent.devices) > 1 {
-			rawMetadataDevice, err := clusterd.PopulateDeviceInfo(agent.devices[1].Name, context.Executor)
+		for i := range agent.devices {
+			rawDevice, err := configRawDevice(agent.devices[i].Name, context)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get device info for %q", agent.devices[1].Name)
+				return err
 			}
 
-			// set it's a metadata device
-			rawMetadataDevice.Type = pvcMetadataTypeDevice
-			rawDevices = append(rawDevices, rawMetadataDevice)
+			rawDevices = append(rawDevices, rawDevice)
 		}
 	} else {
 		// We still need to use 'lsblk' as the underlaying way to discover devices
@@ -356,7 +363,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		rejectedReason := ""
 		if agent.pvcBacked {
 			block := fmt.Sprintf("/mnt/%s", agent.nodeName)
-			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, false)
+			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false)
 			if err != nil {
 				isAvailable = false
 				rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)
@@ -452,6 +459,12 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 					logger.Infof("metadata device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
 					deviceInfo = &DeviceOsdIDEntry{Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks), Metadata: []int{1}}
 				}
+
+				// set that this is not an OSD but a wal device
+				if device.Type == pvcWalTypeDevice {
+					logger.Infof("wal device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
+					deviceInfo = &DeviceOsdIDEntry{Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks), Metadata: []int{2}}
+				}
 			} else {
 				logger.Infof("skipping device %q that does not match the device filter/list (%v). %v", device.Name, desiredDevices, err)
 			}
@@ -469,6 +482,8 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 					available.Entries[pvcDataTypeDevice] = deviceInfo
 				} else if device.Type == pvcMetadataTypeDevice {
 					available.Entries[pvcMetadataTypeDevice] = deviceInfo
+				} else if device.Type == pvcWalTypeDevice {
+					available.Entries[pvcWalTypeDevice] = deviceInfo
 				}
 			} else {
 				available.Entries[device.Name] = deviceInfo

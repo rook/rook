@@ -43,6 +43,7 @@ const (
 	blockEncryptionOpenInitContainer      = "encryption-open"
 	blockPVCMapperEncryptionInitContainer = "blkdevmapper-encryption"
 	blockPVCMetadataMapperInitContainer   = "blkdevmapper-metadata"
+	blockPVCWalMapperInitContainer        = "blkdevmapper-wal"
 	activatePVCOSDInitContainer           = "activate"
 	expandPVCOSDInitContainer             = "expand-bluefs"
 	encryptionKeyFileName                 = "luks_key"
@@ -59,6 +60,7 @@ OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 CV_MODE=%s
 DEVICE=%s
 METADATA_DEVICE="$%s"
+WAL_DEVICE="$%s"
 
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
@@ -87,6 +89,9 @@ else
 	ARGS=(--device ${DEVICE} --no-systemd --no-tmpfs)
 	if [ -n "$METADATA_DEVICE" ]; then
 		ARGS+=(--block.db ${METADATA_DEVICE})
+	fi
+	if [ -n "$WAL_DEVICE" ]; then
+		ARGS+=(--block.wal ${WAL_DEVICE})
 	fi
 	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
 	ceph-volume "$CV_MODE" activate "${ARGS[@]}"
@@ -323,6 +328,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			if osdProps.onPVCWithMetadata() {
 				initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
 			}
+			if osdProps.onPVCWithWal() {
+				initContainers = append(initContainers, c.getPVCWalInitContainerActivate(osdDataDirPath, osdProps))
+			}
 		}
 		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
 		// Expansion is not supported on encrypted device
@@ -490,7 +498,7 @@ func (c *Cluster) getActivateOSDInitContainer(osdID string, osdInfo OSDInfo, osd
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDCode, osdID, osdInfo.UUID, osdStore, osdInfo.CVMode, osdInfo.BlockPath, osdMetadataDeviceEnvVarName),
+			fmt.Sprintf(activateOSDCode, osdID, osdInfo.UUID, osdStore, osdInfo.CVMode, osdInfo.BlockPath, osdMetadataDeviceEnvVarName, osdWalDeviceEnvVarName),
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,
@@ -635,6 +643,53 @@ func (c *Cluster) getPVCMetadataInitContainerActivate(mountPath string, osdProps
 			},
 		},
 		// We need to call getPvcOSDBridgeMountActivate() so that we can copy the metadata block into the "main" empty dir
+		// This empty dir is passed along every init container
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		SecurityContext: opmon.PodSecurityContext(),
+		Resources:       osdProps.resources,
+	}
+}
+
+func (c *Cluster) getPVCWalInitContainer(mountPath string, osdProps osdProperties) v1.Container {
+	return v1.Container{
+		Name:  blockPVCWalMapperInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"cp",
+		},
+		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), fmt.Sprintf("/wal/%s", osdProps.walPVC.ClaimName)},
+		VolumeDevices: []v1.VolumeDevice{
+			{
+				Name:       osdProps.walPVC.ClaimName,
+				DevicePath: fmt.Sprintf("/%s", osdProps.walPVC.ClaimName),
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				MountPath: "/wal",
+				Name:      fmt.Sprintf("%s-bridge", osdProps.walPVC.ClaimName),
+			},
+		},
+		SecurityContext: opmon.PodSecurityContext(),
+		Resources:       osdProps.resources,
+	}
+}
+
+func (c *Cluster) getPVCWalInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
+	return v1.Container{
+		Name:  blockPVCWalMapperInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"cp",
+		},
+		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), path.Join(mountPath, "block.wal")},
+		VolumeDevices: []v1.VolumeDevice{
+			{
+				Name:       osdProps.walPVC.ClaimName,
+				DevicePath: fmt.Sprintf("/%s", osdProps.walPVC.ClaimName),
+			},
+		},
+		// We need to call getPvcOSDBridgeMountActivate() so that we can copy the wal block into the "main" empty dir
 		// This empty dir is passed along every init container
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
 		SecurityContext: opmon.PodSecurityContext(),
