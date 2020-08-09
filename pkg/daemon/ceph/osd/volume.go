@@ -93,7 +93,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	var lvmOsds []oposd.OSDInfo
 	var rawOsds []oposd.OSDInfo
 	var lvBackedPV bool
-	var block, lvPath, metadataBlock string
+	var block, lvPath, metadataBlock, walBlock string
 	var err error
 
 	// Idempotency check, if the device list is empty devices have been prepared already
@@ -128,9 +128,9 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 				//    * restarted the operator, again the prepare job was not re-run
 				//
 				// I'm leaving this code with an empty metadata device for now
-				metadataBlock = ""
+				metadataBlock, walBlock = "", ""
 
-				rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, lvBackedPV)
+				rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV)
 				if err != nil {
 					logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
 				}
@@ -180,7 +180,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 
 	// If running on OSD on PVC
 	if a.pvcBacked {
-		if block, metadataBlock, err = a.initializeBlockPVC(context, devices, lvBackedPV); err != nil {
+		if block, metadataBlock, walBlock, err = a.initializeBlockPVC(context, devices, lvBackedPV); err != nil {
 			return nil, errors.Wrap(err, "failed to initialize devices on PVC")
 		}
 	} else {
@@ -202,7 +202,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		if !isEncrypted {
 			block = fmt.Sprintf("/mnt/%s", a.nodeName)
 		}
-		rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, lvBackedPV)
+		rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
 		}
@@ -212,7 +212,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	return osds, err
 }
 
-func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *DeviceOsdMapping, lvBackedPV bool) (string, string, error) {
+func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *DeviceOsdMapping, lvBackedPV bool) (string, string, string, error) {
 	// we need to return the block if raw mode is used and the lv if lvm mode
 	baseCommand := "stdbuf"
 	var baseArgs []string
@@ -234,9 +234,9 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 		baseArgs = []string{"-oL", cephVolumeCmd, "--log-path", cvLogDir, cephVolumeMode, "prepare", "--bluestore"}
 	}
 
-	var metadataArg []string
-	var metadataDev bool
-	var blockPath, metadataBlockPath string
+	var metadataArg, walArg []string
+	var metadataDev, walDev bool
+	var blockPath, metadataBlockPath, walBlockPath string
 
 	// Problem: map is an unordered collection
 	// therefore the iteration order of a map is not guaranteed to be the same every time you iterate over it.
@@ -244,8 +244,8 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	for name, device := range devices.Entries {
 		// If this is the metadata device there is nothing to do
 		// it'll be used in one of the iterations
-		if name == "metadata" {
-			logger.Debugf("device %q is a metadata device, skipping this iteration it will be used in the next one", device.Config.Name)
+		if name == "metadata" || name == "wal" {
+			logger.Debugf("device %q is a metadata or wal device, skipping this iteration it will be used in the next one", device.Config.Name)
 			// Don't do this device
 			continue
 		}
@@ -262,6 +262,15 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			metadataBlockPath = devices.Entries["metadata"].Config.Name
 		}
 
+		if _, ok := devices.Entries["wal"]; ok {
+			walDev = true
+			walArg = append(walArg, []string{"--block.wal",
+				devices.Entries["wal"].Config.Name,
+			}...)
+
+			walBlockPath = devices.Entries["wal"].Config.Name
+		}
+
 		if device.Data == -1 {
 			logger.Infof("configuring new device %q", device.Config.Name)
 			var err error
@@ -271,7 +280,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				// pass 'vg/lv' to ceph-volume
 				deviceArg, err = sys.GetLVName(context.Executor, device.Config.Name)
 				if err != nil {
-					return "", "", errors.Wrapf(err, "failed to get lv name from device path %q", device.Config.Name)
+					return "", "", "", errors.Wrapf(err, "failed to get lv name from device path %q", device.Config.Name)
 				}
 			} else {
 				deviceArg = device.Config.Name
@@ -303,6 +312,11 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				immediateExecuteArgs = append(immediateExecuteArgs, metadataArg...)
 			}
 
+			// Add the cli argument for the wal device
+			if walDev {
+				immediateExecuteArgs = append(immediateExecuteArgs, walArg...)
+			}
+
 			// execute ceph-volume with the device
 			op, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, immediateExecuteArgs...)
 			if err != nil {
@@ -315,7 +329,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				}
 
 				// Return failure
-				return "", "", errors.Wrap(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
+				return "", "", "", errors.Wrap(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
 			}
 			logger.Infof("%v", op)
 			// if raw mode is used or PV on LV, let's return the path of the device
@@ -324,12 +338,12 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			} else if cephVolumeMode == "raw" && isEncrypted {
 				blockPath = getEncryptedBlockPath(op)
 				if blockPath == "" {
-					return "", "", errors.New("failed to get encrypted block path from ceph-volume lvm prepare output")
+					return "", "", "", errors.New("failed to get encrypted block path from ceph-volume lvm prepare output")
 				}
 			} else {
 				blockPath = getLVPath(op)
 				if blockPath == "" {
-					return "", "", errors.New("failed to get lv path from ceph-volume lvm prepare output")
+					return "", "", "", errors.New("failed to get lv path from ceph-volume lvm prepare output")
 				}
 			}
 		} else {
@@ -337,7 +351,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 		}
 	}
 
-	return blockPath, metadataBlockPath, nil
+	return blockPath, metadataBlockPath, walBlockPath, nil
 }
 
 func getLVPath(op string) string {
@@ -695,7 +709,7 @@ func readCVLogContent(cvLogFilePath string) string {
 }
 
 // GetCephVolumeRawOSDs list OSD prepared with raw mode
-func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, block, metadataBlock string, lvBackedPV bool) ([]oposd.OSDInfo, error) {
+func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, block, metadataBlock, walBlock string, lvBackedPV bool) ([]oposd.OSDInfo, error) {
 	// lv can be a block device if raw mode is used
 	cvMode := "raw"
 
@@ -742,6 +756,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			// Hence, let's use the PVC name instead which will always remain consistent
 			BlockPath:     block,
 			MetadataPath:  metadataBlock,
+			WalPath:       walBlock,
 			SkipLVRelease: true,
 			LVBackedPV:    lvBackedPV,
 			CVMode:        cvMode,
