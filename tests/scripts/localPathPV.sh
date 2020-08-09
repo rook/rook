@@ -10,11 +10,8 @@ if [ $# -ge 2 ] ; then
   test_scratch_device2=$2
 fi
 
-<<<<<<< HEAD
 lsblk
 
-=======
->>>>>>> ceph: revert debug code and small fix
 if [ ! -b "${test_scratch_device}" ] ; then
   echo "invalid scratch device, not a block device: ${test_scratch_device}" >&2
   exit 1
@@ -23,6 +20,9 @@ if [ ! -b "${test_scratch_device2}" ] ; then
   echo "invalid scratch device name: ${test_scratch_device2}" >&2
   exit 1
 fi
+
+sudo dd if=/dev/zero of="$test_scratch_device" bs=1M oflag=direct
+sudo dd if=/dev/zero of="$test_scratch_device2" bs=1M oflag=direct
 
 sudo rm -rf /var/lib/rook/rook-integration-test
 sudo mkdir -p /var/lib/rook/rook-integration-test/mon1 /var/lib/rook/rook-integration-test/mon2 /var/lib/rook/rook-integration-test/mon3
