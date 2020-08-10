@@ -59,8 +59,16 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
-	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
+	c := New(context, "ns", "", cephv1.NetworkSpec{}, metav1.OwnerReference{}, &sync.Mutex{}) // clusterInfo is nil so we return err
+	err := c.checkHealth()
+	assert.NotNil(t, err)
+
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0, AllowMultiplePerNode: true}, "myversion")
+	// mon count is 0 so we return err
+	err = c.checkHealth()
+	assert.NotNil(t, err)
+
+	c.spec.Mon.Count = 3
 	logger.Infof("initial mons: %v", c.ClusterInfo.Monitors)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -77,7 +85,7 @@ func TestCheckHealth(t *testing.T) {
 		return SchedulingResult{Node: node}, nil
 	}
 
-	err := c.checkHealth()
+	err = c.checkHealth()
 	assert.Nil(t, err)
 	logger.Infof("mons after checkHealth: %v", c.ClusterInfo.Monitors)
 	assert.ElementsMatch(t, []string{"rook-ceph-mon-a", "rook-ceph-mon-f"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
