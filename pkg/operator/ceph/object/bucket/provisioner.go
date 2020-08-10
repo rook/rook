@@ -110,6 +110,26 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, err
 	}
 
+	if p.bucketPolicy != nil {
+		policy, _ := s3svc.GetBucketPolicy(p.bucketName)
+		for _, statement := range p.bucketPolicy.Statement {
+			statement.Resource = nil
+			statement.ForResources(p.bucketName)
+			statement.ForSubResources(p.bucketName)
+			if policy == nil {
+				policy = cephObject.NewBucketPolicy(statement)
+			} else {
+				policy = policy.ModifyBucketPolicy(statement)
+			}
+		}
+		out, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+		logger.Errorf("PutBucketPolicy output: %v err %v", out, err)
+		if err != nil {
+			p.deleteOBCResourceLogError(p.bucketName)
+			return nil, err
+		}
+	}
+
 	return p.composeObjectBucket(), nil
 }
 
@@ -198,6 +218,25 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, err
 	}
 
+	if p.bucketPolicy != nil {
+		policy, _ := s3svc.GetBucketPolicy(p.bucketName)
+		for _, statement := range p.bucketPolicy.Statement {
+			statement.Resource = nil
+			statement.ForResources(p.bucketName)
+			statement.ForSubResources(p.bucketName)
+			if policy == nil {
+				policy = cephObject.NewBucketPolicy(statement)
+			} else {
+				policy = policy.ModifyBucketPolicy(statement)
+			}
+		}
+		out, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+		logger.Errorf("PutBucketPolicy output: %v err %v", out, err)
+		if err != nil {
+			p.deleteOBCResourceLogError("")
+			return nil, err
+		}
+	}
 	// returned ob with connection info
 	return p.composeObjectBucket(), nil
 }
