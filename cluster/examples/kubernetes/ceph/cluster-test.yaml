@@ -40,3 +40,8 @@ spec:
     useAllNodes: true
     useAllDevices: true
     #deviceFilter:
+  healthCheck:
+    daemonHealth:
+      mon:
+        interval: 45s
+        timeout: 600s
