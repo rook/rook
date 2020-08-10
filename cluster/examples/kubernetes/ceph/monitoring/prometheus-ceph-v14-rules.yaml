@@ -33,18 +33,6 @@ spec:
     - expr: |
         count(count(ceph_mon_metadata{job="rook-ceph-mgr"} or ceph_osd_metadata{job="rook-ceph-mgr"} or ceph_rgw_metadata{job="rook-ceph-mgr"} or ceph_mds_metadata{job="rook-ceph-mgr"} or ceph_mgr_metadata{job="rook-ceph-mgr"}) by(ceph_version))
       record: job:ceph_versions_running:count
-    - expr: |
-        sum(kube_persistentvolumeclaim_resource_requests_storage_bytes * on (namespace,persistentvolumeclaim) group_right() (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~".*rbd.csi.ceph.com"}))
-      record: job:ceph_block_capacity_requested
-    - expr: |
-        sum(kubelet_volume_stats_used_bytes * on (namespace,persistentvolumeclaim) group_right() (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~".*rbd.csi.ceph.com"}))
-      record: job:ceph_block_capacity_used
-    - expr: |
-        sum(kube_persistentvolumeclaim_resource_requests_storage_bytes * on (namespace,persistentvolumeclaim) group_right() (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~".*cephfs.csi.ceph.com"}))
-      record: job:ceph_filesystem_capacity_requested
-    - expr: |
-        sum(kubelet_volume_stats_used_bytes * on (namespace,persistentvolumeclaim) group_right() (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~".*cephfs.csi.ceph.com"}))
-      record: job:ceph_filesystem_capacity_used
   - name: ceph-mgr-status
     rules:
     - alert: CephMgrIsAbsent
