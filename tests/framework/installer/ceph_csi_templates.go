@@ -332,6 +332,21 @@ const (
               volumeMounts:
                 - name: socket-dir
                   mountPath: /csi
+            - name: csi-snapshotter
+              image:  {{ .SnapshotterImage }}
+              args:
+                - "--csi-address=$(ADDRESS)"
+                - "--v=5"
+                - "--timeout=60s"
+              env:
+                - name: ADDRESS
+                  value: unix:///csi/csi-provisioner.sock
+              imagePullPolicy: Always
+              securityContext:
+                privileged: true
+              volumeMounts:
+                - name: socket-dir
+                  mountPath: /csi
             - name: csi-cephfsplugin
               securityContext:
                 privileged: true
