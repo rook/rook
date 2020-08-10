@@ -91,7 +91,6 @@ func (hs *HelmSuite) TearDownSuite() {
 
 // Test to make sure all rook components are installed and Running
 func (hs *HelmSuite) TestInstallingMultipleRookClusters() {
-
 	// Check if Rook cluster 1 is deployed successfully
 	checkIfRookClusterIsInstalled(hs.Suite, hs.kh, hs.operatorNamespace, hs.clusterNamespaces, 1)
 	for _, clusterNamespace := range hs.clusterNamespaces {

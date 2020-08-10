@@ -21,8 +21,8 @@ if [ ! -b "${test_scratch_device2}" ] ; then
   exit 1
 fi
 
-sudo dd if=/dev/zero of="$test_scratch_device" bs=1M oflag=direct
-sudo dd if=/dev/zero of="$test_scratch_device2" bs=1M oflag=direct
+sudo dd if=/dev/zero of="$test_scratch_device" bs=1M count=100 oflag=direct
+sudo dd if=/dev/zero of="$test_scratch_device2" bs=1M count=100 oflag=direct
 
 sudo rm -rf /var/lib/rook/rook-integration-test
 sudo mkdir -p /var/lib/rook/rook-integration-test/mon1 /var/lib/rook/rook-integration-test/mon2 /var/lib/rook/rook-integration-test/mon3
@@ -31,7 +31,7 @@ node_name=$(kubectl get nodes -o jsonpath={.items[*].metadata.name})
 
 kubectl label nodes ${node_name} rook.io/has-disk=true
 
-kubectl delete pv -l type=local
+kubectl delete pv -l type=local --timeout=300s
 
 cat <<eof | kubectl apply -f -
 apiVersion: v1

@@ -749,7 +749,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 	result, err := callCephVolume(context, false, args...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
+		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results, %s", cvMode, result)
 	}
 	logger.Infof("Execute %s %s list %s --format json:  %v", cephVolumeCmd, cvMode, block, result)
 	debug, err := context.Executor.ExecuteCommandWithOutput(cephVolumeCmd, "--log-level", "10", cvMode, "list", block)
