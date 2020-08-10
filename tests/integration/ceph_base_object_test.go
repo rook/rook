@@ -67,8 +67,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	// check that ObjectStore is created
 	logger.Infof("Check that RGW pods are Running")
-	i := 0
-	for i = 0; i < 24 && k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running") == false; i++ {
+	for i := 0; i < 24 && k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running") == false; i++ {
 		logger.Infof("(%d) RGW pod check sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
 	}
@@ -93,7 +92,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Done creating object store user")
 
 	// Check object store status
-	for i := 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
+	var i int
+	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
 		objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(storeName, metav1.GetOptions{})
 		assert.Nil(s.T(), err)
 		if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
@@ -107,18 +107,19 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 		assert.NotEmpty(s.T(), objectStore.Status.Info["endpoint"])
 		break
 	}
+	require.NotEqual(s.T(), i, 4)
 
 	logger.Infof("Step 2 : Test Deleting User")
 	dosuErr := helper.ObjectUserClient.Delete(namespace, userid)
 	require.Nil(s.T(), dosuErr)
 	logger.Infof("Object store user deleted successfully")
 	logger.Infof("Checking to see if the user secret has been deleted")
-	i = 0
 	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == true; i++ {
 		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
 	}
 	assert.False(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
+	require.NotEqual(s.T(), i, 4)
 
 	logger.Infof("Check that MGRs are not in a crashloop")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", namespace, 1, "Running"))
@@ -152,6 +153,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 		logger.Infof("(%d) check bucket exists, sleeping for 5 seconds ...", i)
 		time.Sleep(5 * time.Second)
 	}
+	assert.NotEqual(s.T(), i, 4)
 	require.Equal(s.T(), bucketname, bkt.Name)
 	logger.Infof("OBC, Secret and ConfigMap created")
 
