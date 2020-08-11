@@ -37,6 +37,7 @@ const (
 	// Hardcoded in ceph-volume do NOT touch
 	CephVolumeEncryptedKeyEnvVarName = "CEPH_VOLUME_DMCRYPT_SECRET"
 	osdMetadataDeviceEnvVarName      = "ROOK_METADATA_DEVICE"
+	osdWalDeviceEnvVarName           = "ROOK_WAL_DEVICE"
 	pvcBackedOSDVarName              = "ROOK_PVC_BACKED_OSD"
 	blockPathVarName                 = "ROOK_BLOCK_PATH"
 	cvModeVarName                    = "ROOK_CV_MODE"
@@ -130,6 +131,10 @@ func devicePathFilterEnvVar(filter string) v1.EnvVar {
 
 func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
 	return v1.EnvVar{Name: osdMetadataDeviceEnvVarName, Value: metadataDevice}
+}
+
+func walDeviceEnvVar(walDevice string) v1.EnvVar {
+	return v1.EnvVar{Name: osdWalDeviceEnvVarName, Value: walDevice}
 }
 
 func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {

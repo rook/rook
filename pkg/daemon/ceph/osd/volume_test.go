@@ -292,10 +292,11 @@ func TestInitializeBlockPVC(t *testing.T) {
 		},
 	}
 
-	blockPath, metadataBlockPath, err := a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err := a.initializeBlockPVC(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "/mnt/set1-data-0-rpf2k", blockPath)
 	assert.Equal(t, "", metadataBlockPath)
+	assert.Equal(t, "", walBlockPath)
 
 	// Test for failure scenario by giving CephVersion{Major: 14, Minor: 2, Extra: 7}
 	// instead of CephVersion{Major: 14, Minor: 2, Extra: 8}.
@@ -309,7 +310,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 		},
 	}
 
-	blockPath, metadataBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
 	assert.NotNil(t, err)
 
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
@@ -332,10 +333,11 @@ func TestInitializeBlockPVC(t *testing.T) {
 		},
 	}
 
-	blockPath, metadataBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "/dev/ceph-bceae560-85b1-4a87-9375-6335fb760c8c/osd-block-2ac8edb0-0d2e-4d8f-a6cc-4c972d56079c", blockPath)
 	assert.Equal(t, "", metadataBlockPath)
+	assert.Equal(t, "", walBlockPath)
 
 	// Test for failure scenario by giving CephVersion{Major: 14, Minor: 2, Extra: 8}
 	// instead of cephver.CephVersion{Major: 14, Minor: 2, Extra: 7}.
@@ -349,7 +351,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 		},
 	}
 
-	blockPath, metadataBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
 	assert.NotNil(t, err)
 
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
@@ -373,10 +375,11 @@ func TestInitializeBlockPVC(t *testing.T) {
 		},
 	}
 
-	blockPath, metadataBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "/mnt/set1-data-0-rpf2k", blockPath)
 	assert.Equal(t, "", metadataBlockPath)
+	assert.Equal(t, "", walBlockPath)
 
 	// Test for condition when Data !=-1 with CephVersion{Major: 14, Minor: 2, Extra: 8} for raw  with flag --crush-device-class.
 	devices = &DeviceOsdMapping{
@@ -385,10 +388,11 @@ func TestInitializeBlockPVC(t *testing.T) {
 		},
 	}
 
-	blockPath, metadataBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "", blockPath)
 	assert.Equal(t, "", metadataBlockPath)
+	assert.Equal(t, "", walBlockPath)
 }
 
 func TestInitializeBlockPVCWithMetadata(t *testing.T) {
@@ -412,13 +416,15 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data":     {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
 			"metadata": {Data: 0, Metadata: []int{1}, Config: DesiredDevice{Name: "/srv/set1-metadata-0-8c7kr"}},
+			"wal":      {Data: 1, Metadata: []int{2}, Config: DesiredDevice{Name: ""}},
 		},
 	}
 
-	blockPath, metadataBlockPath, err := a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err := a.initializeBlockPVC(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "/mnt/set1-data-0-rpf2k", blockPath)
 	assert.Equal(t, "/srv/set1-metadata-0-8c7kr", metadataBlockPath)
+	assert.Equal(t, "", walBlockPath)
 
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
@@ -438,13 +444,15 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data":     {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
 			"metadata": {Data: 0, Metadata: []int{1}, Config: DesiredDevice{Name: "/srv/set1-metadata-0-8c7kr"}},
+			"wal":      {Data: 1, Metadata: []int{2}, Config: DesiredDevice{Name: ""}},
 		},
 	}
 
-	blockPath, metadataBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "/dev/ceph-bceae560-85b1-4a87-9375-6335fb760c8c/osd-block-2ac8edb0-0d2e-4d8f-a6cc-4c972d56079c", blockPath)
 	assert.Equal(t, "/srv/set1-metadata-0-8c7kr", metadataBlockPath)
+	assert.Equal(t, "", walBlockPath)
 
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
@@ -468,13 +476,15 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data":     {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
 			"metadata": {Data: 0, Metadata: []int{1}, Config: DesiredDevice{Name: "/srv/set1-metadata-0-8c7kr"}},
+			"wal":      {Data: 1, Metadata: []int{2}, Config: DesiredDevice{Name: ""}},
 		},
 	}
 
-	blockPath, metadataBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "/mnt/set1-data-0-rpf2k", blockPath)
 	assert.Equal(t, "/srv/set1-metadata-0-8c7kr", metadataBlockPath)
+	assert.Equal(t, "", walBlockPath)
 }
 
 func TestParseCephVolumeLVMResult(t *testing.T) {
@@ -510,7 +520,7 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "name"}
 
 	context := &clusterd.Context{Executor: executor, Clientset: test.New(t, 3)}
-	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", false)
+	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", "", false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))

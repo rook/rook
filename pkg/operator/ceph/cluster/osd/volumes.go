@@ -54,6 +54,13 @@ func getPvcMetadataOSDBridgeMount(claimName string) v1.VolumeMount {
 	}
 }
 
+func getPvcWalOSDBridgeMount(claimName string) v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      fmt.Sprintf("%s-bridge", claimName),
+		MountPath: "/wal",
+	}
+}
+
 func getDeviceMapperMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		MountPath: dmPath,
@@ -121,6 +128,31 @@ func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
 		}
 
 		volumes = append(volumes, metadataPVCVolume...)
+	}
+
+	// If we have a wal PVC let's add it
+	if osdProps.onPVCWithWal() {
+		walPVCVolume := []v1.Volume{
+			{
+				Name: osdProps.walPVC.ClaimName,
+				VolumeSource: v1.VolumeSource{
+					PersistentVolumeClaim: &osdProps.walPVC,
+				},
+			},
+			{
+				// We need a bridge mount which is basically a common volume mount between the non privileged init container
+				// and the privileged provision container or osd daemon container
+				// The reason for this is mentioned in the comment for getPVCInitContainer() method
+				Name: fmt.Sprintf("%s-bridge", osdProps.walPVC.ClaimName),
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{
+						Medium: "Memory",
+					},
+				},
+			},
+		}
+
+		volumes = append(volumes, walPVCVolume...)
 	}
 
 	logger.Debugf("volumes are %+v", volumes)

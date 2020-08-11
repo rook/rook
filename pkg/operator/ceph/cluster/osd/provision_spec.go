@@ -46,6 +46,9 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 		if osdProps.onPVCWithMetadata() {
 			podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, c.getPVCMetadataInitContainer("/srv", osdProps))
 		}
+		if osdProps.onPVCWithWal() {
+			podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, c.getPVCWalInitContainer("/wal", osdProps))
+		}
 	}
 
 	job := &batch.Job{
@@ -231,6 +234,14 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			configuredDevices = append(configuredDevices,
 				config.ConfiguredDevice{
 					ID:          fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName),
+					StoreConfig: config.NewStoreConfig(),
+				})
+		}
+		if osdProps.onPVCWithWal() {
+			volumeMounts = append(volumeMounts, getPvcWalOSDBridgeMount(osdProps.walPVC.ClaimName))
+			configuredDevices = append(configuredDevices,
+				config.ConfiguredDevice{
+					ID:          fmt.Sprintf("/wal/%s", osdProps.walPVC.ClaimName),
 					StoreConfig: config.NewStoreConfig(),
 				})
 		}
