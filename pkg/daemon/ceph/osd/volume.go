@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -305,12 +306,22 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			}
 
 			// execute ceph-volume with the device
-			op, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, immediateExecuteArgs...)
+			// op, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, immediateExecuteArgs...)
+
+			logger.Infof("Installing rook on k8s")
+
+			op, err := context.Executor.ExecuteCommandWithOutput(baseCommand, immediateExecuteArgs...)
 			if err != nil {
 				cvLogFilePath := path.Join(cvLogDir, "ceph-volume.log")
-
 				// Print c-v log before exiting
 				cvLog := readCVLogContent(cvLogFilePath)
+
+				lsOut, lsErr := exec.Command("ls", "-al", cvLogFilePath).Output()
+				logger.Infof("ls -al %s: %v, err: %v", cvLogFilePath, lsOut, lsErr)
+
+				catOut, catErr := exec.Command("cat", cvLogFilePath).Output()
+				logger.Infof("cat %s: %v, err: %v", cvLogFilePath, catOut, catErr)
+
 				if cvLog != "" {
 					logger.Errorf("%s", cvLog)
 				}
