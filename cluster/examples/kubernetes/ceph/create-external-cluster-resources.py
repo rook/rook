@@ -460,25 +460,24 @@ class RadosJSON:
         ]
         # if 'CEPHFS_FS_NAME' exists, then only add 'cephfs' StorageClass
         if self.out_map['CEPHFS_FS_NAME']:
-            json_out.append(
-                {
-                    "name": "cephfs",
-                    "kind": "StorageClass",
-                    "data": {
-                            "fsName": self.out_map['CEPHFS_FS_NAME'],
-                            "pool": self.out_map['CEPHFS_POOL_NAME']
-                    }
-                })
+            json_out.append({
+                "name": "cephfs",
+                "kind": "StorageClass",
+                "data": {
+                    "fsName": self.out_map['CEPHFS_FS_NAME'],
+                    "pool": self.out_map['CEPHFS_POOL_NAME']
+                }
+            })
         # if 'RGW_ENDPOINT' exists, then only add 'ceph-rgw' StorageClass
         if self.out_map['RGW_ENDPOINT']:
-            json_out.append(
-                {
-                    "name": "ceph-rgw",
-                    "kind": "StorageClass",
-                    "data": {
-                            "endpoint": self.out_map['RGW_ENDPOINT']
-                    }
-                })
+            json_out.append({
+                "name": "ceph-rgw",
+                "kind": "StorageClass",
+                "data": {
+                    "endpoint": self.out_map['RGW_ENDPOINT'],
+                    "poolPrefix": self.out_map['RGW_POOL_PREFIX']
+                }
+            })
         return json.dumps(json_out)+LINESEP
 
     def main(self):
