@@ -353,8 +353,7 @@ class RadosJSON:
                                     "{0}.rgw.control".format(
                 self._arg_parser.rgw_pool_prefix),
                 "{0}.rgw.log".format(
-                self._arg_parser.rgw_pool_prefix),
-                "{0}.rgw.buckets.index".format(self._arg_parser.rgw_pool_prefix)]
+                self._arg_parser.rgw_pool_prefix)]
             pools_to_validate.extend(rgw_pool_to_validate)
         for pool in pools_to_validate:
             if not self.cluster.pool_exists(pool):
