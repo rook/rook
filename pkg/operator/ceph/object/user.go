@@ -42,6 +42,7 @@ type ObjectUser struct {
 	Email       *string `json:"email"`
 	AccessKey   *string `json:"accessKey"`
 	SecretKey   *string `json:"secretKey"`
+	SystemUser  bool    `json:"systemuser"`
 }
 
 // ListUsers lists the object pool users.
@@ -81,6 +82,8 @@ func decodeUser(data string) (*ObjectUser, int, error) {
 	if len(user.Keys) > 0 {
 		rookUser.AccessKey = &user.Keys[0].AccessKey
 		rookUser.SecretKey = &user.Keys[0].SecretKey
+	} else {
+		return nil, RGWErrorBadData, errors.New("AccessKey and SecretKey are missing")
 	}
 
 	return &rookUser, RGWErrorNone, nil
@@ -122,6 +125,10 @@ func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 	if user.Email != nil {
 		args = append(args, "--email", *user.Email)
+	}
+
+	if user.SystemUser {
+		args = append(args, "--system")
 	}
 
 	result, err := runAdminCommand(c, args...)

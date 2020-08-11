@@ -33,6 +33,7 @@
 - Prometheus monitoring for external clusters is now possible, refer to the [external cluster section](Documentation/ceph-cluster-crd.html#external-cluster)
 - The operator will check for the presence of the `lvm2` package on the host where OSDs will run. If not available, the prepare job will fail. This will prevent issues of OSDs not restarting on node reboot.
 - Added a new label "ceph_daemon_type" label to Ceph daemon pods to go alongside the existing "ceph_daemon_id" label.
+- The dashboard for the ceph object store will be enabled if the dashboard module is loaded
 
 ### EdgeFS
 
@@ -54,7 +55,9 @@ Backward compatibility is maintained for existing deployments. These settings ar
 
 ## Known Issues
 
-### <Storage Provider>
+### Ceph
+
+- The Ceph dashboard currently only supports a single object store (RGW) and can only be enabled for the first object store created by Rook. Object stores created after the first will not be able to have the same dashboard view as the first.
 
 ## Deprecations
 
