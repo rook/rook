@@ -133,6 +133,21 @@ spec:
         version: v1
         displayName: Ceph RBD Mirror
         description: Represents a Ceph RBD Mirror.
+      - kind: CephObjectRealm
+        name: cephobjectrealms.ceph.rook.io
+        version: v1
+        displayName: Ceph Object Store Realm
+        description: Represents a Ceph Object Store Realm.
+      - kind: CephObjectZoneGroup
+        name: cephobjectzonegroups.ceph.rook.io
+        version: v1
+        displayName: Ceph Object Store Zone Group
+        description: Represents a Ceph Object Store Zone Group.
+      - kind: CephObjectZone
+        name: cephobjectzones.ceph.rook.io
+        version: v1
+        displayName: Ceph Object Store Zone
+        description: Represents a Ceph Object Store Zone.
   displayName: Rook-Ceph
   description: |
 
