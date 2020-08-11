@@ -244,10 +244,18 @@ function hack_csv() {
     # rook-ceph-osd --> serviceAccountName
     #     rook-ceph-osd --> rule
 
+    sed -i 's/rook-ceph-global/rook-ceph-system/' "$CSV_FILE_NAME"
     sed -i 's/rook-ceph-object-bucket/rook-ceph-system/' "$CSV_FILE_NAME"
+    sed -i 's/rook-ceph-cluster-mgmt/rook-ceph-system/' "$CSV_FILE_NAME"
 
-    sed -i 's/rbd-csi-nodeplugin-rules/rook-csi-rbd-plugin-sa/' "$CSV_FILE_NAME"
-    sed -i 's/rbd-external-provisioner-runner-rules/rook-csi-rbd-provisioner-sa/' "$CSV_FILE_NAME"
+    sed -i 's/rook-ceph-mgr-cluster/rook-ceph-mgr/' "$CSV_FILE_NAME"
+    sed -i 's/rook-ceph-mgr-system/rook-ceph-mgr/' "$CSV_FILE_NAME"
+
+    sed -i 's/cephfs-csi-nodeplugin/rook-csi-cephfs-plugin-sa/' "$CSV_FILE_NAME"
+    sed -i 's/cephfs-external-provisioner-runner/rook-csi-cephfs-provisioner-sa/' "$CSV_FILE_NAME"
+
+    sed -i 's/rbd-csi-nodeplugin/rook-csi-rbd-plugin-sa/' "$CSV_FILE_NAME"
+    sed -i 's/rbd-external-provisioner-runner/rook-csi-rbd-provisioner-sa/' "$CSV_FILE_NAME"
     # The operator-sdk also does not properly respect when
     # Roles differ from the Service Account name
     # The operator-sdk instead assumes the Role/ClusterRole is the ServiceAccount name
