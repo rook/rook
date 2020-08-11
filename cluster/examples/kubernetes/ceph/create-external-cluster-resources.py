@@ -259,7 +259,8 @@ class RadosJSON:
             # if user has provided any of the
             # '--cephfs-filesystem-name' or '--cephfs-data-pool-name' arguments,
             # raise an exception as we are unable to verify the args
-            raise ExecutionFailureException("'fs ls' ceph call failed with error: {}".format(err_msg))
+            raise ExecutionFailureException(
+                "'fs ls' ceph call failed with error: {}".format(err_msg))
 
         matching_json_out = {}
         # if '--cephfs-filesystem-name' argument is provided,
@@ -292,15 +293,16 @@ class RadosJSON:
                 # if there is no matching fs exists, that means provided data_pool name is invalid
                 if not matching_json_out:
                     raise ExecutionFailureException(
-                            "Provided data_pool name, {}, does not exists".format(
-                                self._arg_parser.cephfs_data_pool_name))
+                        "Provided data_pool name, {}, does not exists".format(
+                            self._arg_parser.cephfs_data_pool_name))
             # c. if nothing is set and couldn't find a default,
             else:
                 # just return silently
                 return
 
         if matching_json_out:
-            self._arg_parser.cephfs_filesystem_name = str(matching_json_out['name'])
+            self._arg_parser.cephfs_filesystem_name = str(
+                matching_json_out['name'])
 
         if type(matching_json_out['data_pools']) == list:
             # if the user has already provided data-pool-name,
@@ -309,11 +311,11 @@ class RadosJSON:
                 # if the provided name is not matching with the one in the list
                 if self._arg_parser.cephfs_data_pool_name not in matching_json_out['data_pools']:
                     raise ExecutionFailureException(
-                            "{}: '{}', {}: {}".format(
-                                "Provided data-pool-name",
-                                self._arg_parser.cephfs_data_pool_name,
-                                "doesn't match from the data-pools' list",
-                                [str(x) for x in matching_json_out['data_pools']]))
+                        "{}: '{}', {}: {}".format(
+                            "Provided data-pool-name",
+                            self._arg_parser.cephfs_data_pool_name,
+                            "doesn't match from the data-pools' list",
+                            [str(x) for x in matching_json_out['data_pools']]))
             # if data_pool name is not provided,
             # then try to find a default data pool name
             else:
@@ -377,8 +379,7 @@ class RadosJSON:
                                     "{0}.rgw.control".format(
                 self._arg_parser.rgw_pool_prefix),
                 "{0}.rgw.log".format(
-                self._arg_parser.rgw_pool_prefix),
-                "{0}.rgw.buckets.index".format(self._arg_parser.rgw_pool_prefix)]
+                self._arg_parser.rgw_pool_prefix)]
             pools_to_validate.extend(rgw_pool_to_validate)
         for pool in pools_to_validate:
             if not self.cluster.pool_exists(pool):
@@ -496,25 +497,25 @@ class RadosJSON:
         # if 'CEPHFS_FS_NAME' exists, then only add 'cephfs' StorageClass
         if self.out_map['CEPHFS_FS_NAME']:
             json_out.append(
-                    {
-                        "name": "cephfs",
-                        "kind": "StorageClass",
-                        "data": {
+                {
+                    "name": "cephfs",
+                    "kind": "StorageClass",
+                    "data": {
                             "fsName": self.out_map['CEPHFS_FS_NAME'],
                             "pool": self.out_map['CEPHFS_POOL_NAME']
-                        }
-            })
+                    }
+                })
         # if 'RGW_ENDPOINT' exists, then only add 'ceph-rgw' StorageClass
         if self.out_map['RGW_ENDPOINT']:
             json_out.append(
-                    {
-                        "name": "ceph-rgw",
-                        "kind": "StorageClass",
-                        "data": {
+                {
+                    "name": "ceph-rgw",
+                    "kind": "StorageClass",
+                    "data": {
                             "endpoint": self.out_map['RGW_ENDPOINT'],
                             "poolPrefix": self.out_map['RGW_POOL_PREFIX']
-                        }
-            })
+                    }
+                })
         return json.dumps(json_out)+LINESEP
 
     def main(self):
