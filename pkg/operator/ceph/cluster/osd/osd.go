@@ -71,6 +71,7 @@ const (
 	portableKey                         = "portable"
 	cephOsdPodMinimumMemory      uint64 = 2048 // minimum amount of memory in MB to run the pod
 	bluestorePVCMetadata                = "metadata"
+	bluestorePVCWal                     = "wal"
 	bluestorePVCData                    = "data"
 )
 
@@ -104,6 +105,7 @@ type OSDInfo struct {
 	// BlockPath is the logical Volume path for an OSD created by Ceph-volume with format '/dev/<Volume Group>/<Logical Volume>' or simply /dev/vdb if block mode is used
 	BlockPath     string `json:"lv-path"`
 	MetadataPath  string `json:"metadata-path"`
+	WalPath       string `json:"wal-path"`
 	SkipLVRelease bool   `json:"skip-lv-release"`
 	Location      string `json:"location"`
 	LVBackedPV    bool   `json:"lv-backed-pv"`
@@ -125,6 +127,7 @@ type osdProperties struct {
 	devices             []rookv1.Device
 	pvc                 v1.PersistentVolumeClaimVolumeSource
 	metadataPVC         v1.PersistentVolumeClaimVolumeSource
+	walPVC              v1.PersistentVolumeClaimVolumeSource
 	pvcSize             string
 	selection           rookv1.Selection
 	resources           v1.ResourceRequirements
@@ -147,6 +150,10 @@ func (osdProps osdProperties) onPVC() bool {
 
 func (osdProps osdProperties) onPVCWithMetadata() bool {
 	return osdProps.metadataPVC.ClaimName != ""
+}
+
+func (osdProps osdProperties) onPVCWithWal() bool {
+	return osdProps.walPVC.ClaimName != ""
 }
 
 // Start the osd management
@@ -224,10 +231,16 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			logger.Infof("OSD will have its main bluestore block on %q", dataSource.ClaimName)
 		}
 
+		walSource, walOK := volume.PVCSources[bluestorePVCWal]
+		if walOK {
+			logger.Infof("OSD will have its wal device on %q", walSource.ClaimName)
+		}
+
 		osdProps := osdProperties{
 			crushHostname:    dataSource.ClaimName,
 			pvc:              dataSource,
 			metadataPVC:      metadataSource,
+			walPVC:           walSource,
 			resources:        volume.Resources,
 			placement:        volume.Placement,
 			portable:         volume.Portable,
@@ -687,10 +700,16 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				logger.Infof("OSD will have its main bluestore block on %q", dataSource.ClaimName)
 			}
 
+			walSource, walOK := volumeSource.PVCSources[bluestorePVCWal]
+			if walOK {
+				logger.Infof("OSD will have its wal device on %q", walSource.ClaimName)
+			}
+
 			osdProps := osdProperties{
 				crushHostname:       dataSource.ClaimName,
 				pvc:                 dataSource,
 				metadataPVC:         metadataSource,
+				walPVC:              walSource,
 				resources:           volumeSource.Resources,
 				placement:           volumeSource.Placement,
 				portable:            volumeSource.Portable,
@@ -785,6 +804,9 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 		}
 		if envVar.Name == osdMetadataDeviceEnvVarName {
 			osd.MetadataPath = envVar.Value
+		}
+		if envVar.Name == osdWalDeviceEnvVarName {
+			osd.WalPath = envVar.Value
 		}
 	}
 
