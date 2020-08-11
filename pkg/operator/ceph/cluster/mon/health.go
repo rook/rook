@@ -247,8 +247,49 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
 	}
 }
 
+func (c *Cluster) updateMonDeploymentReplica(name string, enabled bool) error {
+	// get the existing deployment
+	d, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(resourceName(name), metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get mon %q", name)
+	}
+
+	// set the desired number of replicas
+	var desiredReplicas int32
+	if enabled {
+		desiredReplicas = 1
+	}
+	originalReplicas := *d.Spec.Replicas
+	d.Spec.Replicas = &desiredReplicas
+
+	// update the deployment
+	logger.Infof("scaling the mon %q deployment to replica %d", name, desiredReplicas)
+	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Update(d)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update mon %q replicas from %d to %d", name, originalReplicas, desiredReplicas)
+	}
+	return nil
+}
+
 func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %q", name)
+
+	// Scale down the failed mon to allow a new one to start
+	if err := c.updateMonDeploymentReplica(name, false); err != nil {
+		// attempt to continue with the failover even if the bad mon could not be stopped
+		logger.Warningf("failed to stop mon %q for failover. %v", name, err)
+	}
+	newMonSucceeded := false
+	defer func() {
+		if newMonSucceeded {
+			// do nothing if the new mon was started successfully, the deployment will anyway be deleted
+			return
+		}
+		if err := c.updateMonDeploymentReplica(name, true); err != nil {
+			// attempt to continue even if the bad mon could not be restarted
+			logger.Warningf("failed to restart failed mon %q after new mon wouldn't start. %v", name, err)
+		}
+	}()
 
 	// Start a new monitor
 	m := c.newMonConfig(c.maxMonID + 1)
@@ -284,6 +325,7 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Only increment the max mon id if the new pod started successfully
 	c.maxMonID++
+	newMonSucceeded = true
 
 	return c.removeMon(name)
 }

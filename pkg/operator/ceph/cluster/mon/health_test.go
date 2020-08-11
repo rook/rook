@@ -29,11 +29,13 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -104,6 +106,37 @@ func TestCheckHealth(t *testing.T) {
 		_, ok := c.ClusterInfo.Monitors[monName]
 		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list. %v", monName, c.ClusterInfo.Monitors))
 	}
+}
+
+func TestScaleMonDeployment(t *testing.T) {
+	clientset := test.New(t, 1)
+	context := &clusterd.Context{Clientset: clientset}
+	c := New(context, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0, AllowMultiplePerNode: true}, "myversion")
+
+	name := "a"
+	c.spec.Mon.Count = 3
+	logger.Infof("initial mons: %v", c.ClusterInfo.Monitors[name])
+	monConfig := &monConfig{ResourceName: resourceName(name), DaemonName: name, DataPathMap: &config.DataPathMap{}}
+	d, err := c.makeDeployment(monConfig, false)
+	require.NoError(t, err)
+	_, err = clientset.AppsV1().Deployments(c.Namespace).Create(d)
+	require.NoError(t, err)
+
+	verifyMonReplicas(t, c, name, 1)
+	err = c.updateMonDeploymentReplica(name, false)
+	assert.NoError(t, err)
+	verifyMonReplicas(t, c, name, 0)
+
+	err = c.updateMonDeploymentReplica(name, true)
+	assert.NoError(t, err)
+	verifyMonReplicas(t, c, name, 1)
+}
+
+func verifyMonReplicas(t *testing.T, c *Cluster, name string, expected int32) {
+	d, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(resourceName("a"), metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, expected, *d.Spec.Replicas)
 }
 
 func TestCheckHealthNotFound(t *testing.T) {
