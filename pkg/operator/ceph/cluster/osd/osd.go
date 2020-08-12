@@ -49,9 +49,10 @@ import (
 )
 
 var (
-	logger                                    = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
-	updateDeploymentAndWait                   = mon.UpdateCephDeploymentAndWait
-	cephVolumeRawEncryptionModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 11}
+	logger                                            = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+	updateDeploymentAndWait                           = mon.UpdateCephDeploymentAndWait
+	cephVolumeRawEncryptionModeMinNautilusCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 11}
+	cephVolumeRawEncryptionModeMinOctopusCephVersion  = cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
 )
 
 const (
@@ -252,10 +253,12 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 		logger.Debugf("osdProps are %+v", osdProps)
 
 		// If the deviceSet template has "encrypted" but the Ceph version is not compatible
-		if osdProps.encrypted && !c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinCephVersion) {
-			errMsg := fmt.Sprintf("failed to validate storageClassDeviceSet %q. min required ceph version to support encryption is %q", volume.Name, cephVolumeRawEncryptionModeMinCephVersion.String())
-			config.addError(errMsg)
-			continue
+		if osdProps.encrypted {
+			if !c.isCephVolumeRawModeSupported() {
+				errMsg := fmt.Sprintf("failed to validate storageClassDeviceSet %q. min required ceph version to support encryption is %q or %q", volume.Name, cephVolumeRawEncryptionModeMinNautilusCephVersion.String(), cephVolumeRawEncryptionModeMinOctopusCephVersion.String())
+				config.addError(errMsg)
+				continue
+			}
 		}
 
 		// create encryption Kubernetes Secret if the PVC is encrypted

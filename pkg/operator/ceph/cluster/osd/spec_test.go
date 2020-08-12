@@ -26,14 +26,13 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes/fake"
-
-	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPodContainer(t *testing.T) {
@@ -384,4 +383,42 @@ func TestOsdPrepareResources(t *testing.T) {
 	assert.Equal(t, "0", r.Requests.Cpu().String())
 	assert.Equal(t, "0", r.Limits.Memory().String())
 	assert.Equal(t, "250", r.Requests.Memory().String())
+}
+
+func TestClusterGetPVCEncryptionOpenInitContainerActivate(t *testing.T) {
+	c := New(&clusterd.Context{}, &cephclient.ClusterInfo{}, cephv1.ClusterSpec{}, "rook/rook:myversion")
+	osdProperties := osdProperties{
+		pvc: v1.PersistentVolumeClaimVolumeSource{
+			ClaimName: "pvc1",
+		},
+	}
+
+	// No metadata PVC
+	containers := c.getPVCEncryptionOpenInitContainerActivate(osdProperties)
+	assert.Equal(t, 1, len(containers))
+
+	// With metadata PVC
+	osdProperties.metadataPVC.ClaimName = "pvc2"
+	containers = c.getPVCEncryptionOpenInitContainerActivate(osdProperties)
+	assert.Equal(t, 2, len(containers))
+}
+
+func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
+	c := New(&clusterd.Context{}, &cephclient.ClusterInfo{}, cephv1.ClusterSpec{}, "rook/rook:myversion")
+	osdProperties := osdProperties{
+		pvc: v1.PersistentVolumeClaimVolumeSource{
+			ClaimName: "pvc1",
+		},
+		resources: v1.ResourceRequirements{},
+	}
+	mountPath := "/var/lib/ceph/osd/ceph-0"
+
+	// No metadata PVC
+	containers := c.getPVCEncryptionInitContainerActivate(mountPath, osdProperties)
+	assert.Equal(t, 1, len(containers))
+
+	// With metadata PVC
+	osdProperties.metadataPVC.ClaimName = "pvc2"
+	containers = c.getPVCEncryptionInitContainerActivate(mountPath, osdProperties)
+	assert.Equal(t, 2, len(containers))
 }

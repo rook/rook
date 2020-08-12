@@ -35,18 +35,26 @@ import (
 )
 
 const (
-	rookBinariesMountPath                 = "/rook"
-	rookBinariesVolumeName                = "rook-binaries"
-	activateOSDVolumeName                 = "activate-osd"
-	activateOSDMountPath                  = "/var/lib/ceph/osd/ceph-"
-	blockPVCMapperInitContainer           = "blkdevmapper"
-	blockEncryptionOpenInitContainer      = "encryption-open"
-	blockPVCMapperEncryptionInitContainer = "blkdevmapper-encryption"
-	blockPVCMetadataMapperInitContainer   = "blkdevmapper-metadata"
-	blockPVCWalMapperInitContainer        = "blkdevmapper-wal"
-	activatePVCOSDInitContainer           = "activate"
-	expandPVCOSDInitContainer             = "expand-bluefs"
-	encryptionKeyFileName                 = "luks_key"
+	rookBinariesMountPath                         = "/rook"
+	rookBinariesVolumeName                        = "rook-binaries"
+	activateOSDVolumeName                         = "activate-osd"
+	activateOSDMountPath                          = "/var/lib/ceph/osd/ceph-"
+	blockPVCMapperInitContainer                   = "blkdevmapper"
+	blockEncryptionOpenInitContainer              = "encryption-open"
+	blockEncryptionOpenMetadataInitContainer      = "encryption-open-metadata"
+	blockPVCMapperEncryptionInitContainer         = "blkdevmapper-encryption"
+	blockPVCMapperEncryptionMetadataInitContainer = "blkdevmapper-metadata-encryption"
+	blockPVCMetadataMapperInitContainer           = "blkdevmapper-metadata"
+	blockPVCWalMapperInitContainer                = "blkdevmapper-wal"
+	activatePVCOSDInitContainer                   = "activate"
+	expandPVCOSDInitContainer                     = "expand-bluefs"
+	encryptionKeyFileName                         = "luks_key"
+	// DmcryptBlockType is a portion of the device mapper name for the encrypted OSD on PVC block.db (rocksdb db)
+	DmcryptBlockType = "block-dmcrypt"
+	// DmcryptMetadataType is a portion of the device mapper name for the encrypted OSD on PVC block
+	DmcryptMetadataType = "db-dmcrypt"
+	dmcryptBlockName    = "block"
+	dmcryptMetadataName = "block.db"
 )
 
 const (
@@ -320,8 +328,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if osdProps.onPVC() && osd.CVMode == "raw" {
 		if osdProps.encrypted {
 			// Add a new init container to open the encrypted disk!
-			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdProps))
-			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps))
+			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdProps)...)
+			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps)...)
 			// TODO: ADD METADATA DEV
 		} else {
 			initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
@@ -547,7 +555,7 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 		Command: []string{
 			"cp",
 		},
-		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.pvc.ClaimName), path.Join(mountPath, "block")},
+		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.pvc.ClaimName), path.Join(mountPath, dmcryptBlockName)},
 		VolumeDevices: []v1.VolumeDevice{
 			{
 				Name:       osdProps.pvc.ClaimName,
@@ -560,43 +568,82 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 	}
 }
 
-func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(osdProps osdProperties) v1.Container {
-	container := v1.Container{
-		Name:  blockEncryptionOpenInitContainer,
+func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequirements, containerName, pvcName, blockType string) v1.Container {
+	return v1.Container{
+		Name:  containerName,
 		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"cryptsetup",
 		},
 		// Runs "cryptsetup --verbose --key-file /etc/ceph/luks_key --allow-discards luksOpen /set1-data-0-7dwll set1-data-0-7dwll-block-dmcrypt"
-		Args: []string{"--verbose", "--key-file", encryptionKeyPath(), "--allow-discards", "luksOpen", fmt.Sprintf("/%s", osdProps.pvc.ClaimName), encryptionDMName(osdProps.pvc.ClaimName)},
+		Args: []string{
+			"--verbose",
+			"--key-file",
+			encryptionKeyPath(),
+			"--allow-discards",
+			"luksOpen",
+			fmt.Sprintf("/%s", pvcName),
+			encryptionDMName(pvcName, blockType),
+		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
-				Name:       osdProps.pvc.ClaimName,
-				DevicePath: fmt.Sprintf("/%s", osdProps.pvc.ClaimName),
+				Name:       pvcName,
+				DevicePath: fmt.Sprintf("/%s", pvcName),
 			},
 		},
 		VolumeMounts:    []v1.VolumeMount{getDeviceMapperMount()},
 		SecurityContext: opmon.PodSecurityContext(),
-		Resources:       osdProps.resources,
+		Resources:       resources,
 	}
-	_, volMount := getEncryptionVolume(osdProps.pvc.ClaimName)
-	container.VolumeMounts = append(container.VolumeMounts, volMount)
-
-	return container
 }
 
-func (c *Cluster) getPVCEncryptionInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
+func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(osdProps osdProperties) []v1.Container {
+	containers := []v1.Container{}
+
+	// Main block container
+	blockContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenInitContainer, osdProps.pvc.ClaimName, DmcryptBlockType)
+	_, volMount := getEncryptionVolume(osdProps.pvc.ClaimName)
+	blockContainer.VolumeMounts = append(blockContainer.VolumeMounts, volMount)
+	containers = append(containers, blockContainer)
+
+	// If there is a metadata PVC
+	if osdProps.metadataPVC.ClaimName != "" {
+		metadataContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenMetadataInitContainer, osdProps.metadataPVC.ClaimName, DmcryptMetadataType)
+		// We use the same key for both block and block.db so we must use osdProps.pvc.ClaimName for the getEncryptionVolume()
+		_, volMount := getEncryptionVolume(osdProps.pvc.ClaimName)
+		metadataContainer.VolumeMounts = append(metadataContainer.VolumeMounts, volMount)
+		containers = append(containers, metadataContainer)
+	}
+
+	return containers
+}
+
+func (c *Cluster) generateEncryptionCopyBlockContainer(resources v1.ResourceRequirements, containerName, pvcName, mountPath, volumeMountPVCName, blockName, blockType string) v1.Container {
 	return v1.Container{
-		Name:  blockPVCMapperEncryptionInitContainer,
+		Name:  containerName,
 		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"cp",
 		},
-		Args:            []string{"-a", encryptionDMPath(osdProps.pvc.ClaimName), path.Join(mountPath, "block")},
-		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		Args: []string{"-a", encryptionDMPath(pvcName, blockType), path.Join(mountPath, blockName)},
+		// volumeMountPVCName is crucial, especially when the block we copy is the metadata block
+		// its value must be the name of the block PV so that all init containers use the same bridge (the emptyDir shared by all the init containers)
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName)},
 		SecurityContext: opmon.PodSecurityContext(),
-		Resources:       osdProps.resources,
+		Resources:       resources,
 	}
+}
+
+func (c *Cluster) getPVCEncryptionInitContainerActivate(mountPath string, osdProps osdProperties) []v1.Container {
+	containers := []v1.Container{}
+	containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionInitContainer, osdProps.pvc.ClaimName, mountPath, osdProps.pvc.ClaimName, dmcryptBlockName, DmcryptBlockType))
+
+	// If there is a metadata PVC
+	if osdProps.metadataPVC.ClaimName != "" {
+		containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionMetadataInitContainer, osdProps.metadataPVC.ClaimName, mountPath, osdProps.pvc.ClaimName, dmcryptMetadataName, DmcryptMetadataType))
+	}
+
+	return containers
 }
 
 // The reason why this is not part of getPVCInitContainer is that this will change the deployment spec object
