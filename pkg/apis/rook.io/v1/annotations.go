@@ -51,12 +51,3 @@ func (a Annotations) Merge(with Annotations) Annotations {
 	}
 	return ret
 }
-
-// GetMapStringString return the Annotations as a
-func (a Annotations) GetMapStringString() map[string]string {
-	res := map[string]string{}
-	for k, v := range a {
-		res[k] = v
-	}
-	return res
-}

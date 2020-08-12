@@ -60,11 +60,11 @@ func TestAnnotationsApply(t *testing.T) {
 		"hello": "world",
 	}
 	testAnnotations.ApplyToObjectMeta(objMeta)
-	assert.Equal(t, testAnnotations.GetMapStringString(), objMeta.Annotations)
+	assert.Equal(t, testAnnotations.getMapStringString(), objMeta.Annotations)
 
 	testAnnotations["isthisatest"] = "test"
 	testAnnotations.ApplyToObjectMeta(objMeta)
-	assert.Equal(t, testAnnotations.GetMapStringString(), objMeta.Annotations)
+	assert.Equal(t, testAnnotations.getMapStringString(), objMeta.Annotations)
 }
 
 func TestAnnotationsMerge(t *testing.T) {
@@ -81,12 +81,21 @@ func TestAnnotationsMerge(t *testing.T) {
 		"bar":   "foo",
 		"hello": "world",
 	}
-	assert.Equal(t, expected, testAnnotationsPart1.Merge(testAnnotationsPart2).GetMapStringString())
+	assert.Equal(t, expected, testAnnotationsPart1.Merge(testAnnotationsPart2).getMapStringString())
 
 	// Test that nil annotations can still be appended to
 	testAnnotationsPart3 := Annotations{
 		"hello": "world",
 	}
 	var empty Annotations
-	assert.Equal(t, map[string]string(testAnnotationsPart3), empty.Merge(testAnnotationsPart3).GetMapStringString())
+	assert.Equal(t, map[string]string(testAnnotationsPart3), empty.Merge(testAnnotationsPart3).getMapStringString())
+}
+
+// getMapStringString return the Annotations as a
+func (a Annotations) getMapStringString() map[string]string {
+	res := map[string]string{}
+	for k, v := range a {
+		res[k] = v
+	}
+	return res
 }
