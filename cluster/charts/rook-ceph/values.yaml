@@ -5,7 +5,7 @@
 image:
   prefix: rook
   repository: rook/ceph
-  tag: VERSION
+  tag: master
   pullPolicy: IfNotPresent
 
 resources:
