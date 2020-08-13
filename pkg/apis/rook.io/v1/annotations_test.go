@@ -53,21 +53,21 @@ mon:
 	assert.Equal(t, expected, annotations)
 }
 
-func TestAnnotations_ApplyToPodSpec(t *testing.T) {
+func TestAnnotationsApply(t *testing.T) {
 	objMeta := &metav1.ObjectMeta{}
 	testAnnotations := Annotations{
 		"foo":   "bar",
 		"hello": "world",
 	}
 	testAnnotations.ApplyToObjectMeta(objMeta)
-	assert.Equal(t, testAnnotations.GetMapStringString(), objMeta.Annotations)
+	assert.Equal(t, testAnnotations.getMapStringString(), objMeta.Annotations)
 
 	testAnnotations["isthisatest"] = "test"
 	testAnnotations.ApplyToObjectMeta(objMeta)
-	assert.Equal(t, testAnnotations.GetMapStringString(), objMeta.Annotations)
+	assert.Equal(t, testAnnotations.getMapStringString(), objMeta.Annotations)
 }
 
-func TestAnnotations_Merge(t *testing.T) {
+func TestAnnotationsMerge(t *testing.T) {
 	testAnnotationsPart1 := Annotations{
 		"foo":   "bar",
 		"hello": "world",
@@ -76,9 +76,26 @@ func TestAnnotations_Merge(t *testing.T) {
 		"bar":   "foo",
 		"hello": "earth",
 	}
-	assert.Equal(t, map[string]string{
+	expected := map[string]string{
 		"foo":   "bar",
 		"bar":   "foo",
 		"hello": "world",
-	}, testAnnotationsPart1.Merge(testAnnotationsPart2).GetMapStringString())
+	}
+	assert.Equal(t, expected, testAnnotationsPart1.Merge(testAnnotationsPart2).getMapStringString())
+
+	// Test that nil annotations can still be appended to
+	testAnnotationsPart3 := Annotations{
+		"hello": "world",
+	}
+	var empty Annotations
+	assert.Equal(t, map[string]string(testAnnotationsPart3), empty.Merge(testAnnotationsPart3).getMapStringString())
+}
+
+// getMapStringString return the Annotations as a
+func (a Annotations) getMapStringString() map[string]string {
+	res := map[string]string{}
+	for k, v := range a {
+		res[k] = v
+	}
+	return res
 }
