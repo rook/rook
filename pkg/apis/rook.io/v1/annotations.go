@@ -41,19 +41,13 @@ func (a Annotations) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 // Placement's attributes will override the original ones if defined.
 func (a Annotations) Merge(with Annotations) Annotations {
 	ret := a
+	if ret == nil {
+		ret = map[string]string{}
+	}
 	for k, v := range with {
 		if _, ok := ret[k]; !ok {
 			ret[k] = v
 		}
 	}
 	return ret
-}
-
-// GetMapStringString return the Annotations as a
-func (a Annotations) GetMapStringString() map[string]string {
-	res := map[string]string{}
-	for k, v := range a {
-		res[k] = v
-	}
-	return res
 }
