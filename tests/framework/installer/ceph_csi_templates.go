@@ -68,7 +68,8 @@ const (
               args:
                 - "--csi-address=$(ADDRESS)"
                 - "--v=5"
-                - "--timeout=60s"
+                - "--timeout=150s"
+                - "--leader-election=true"
               env:
                 - name: ADDRESS
                   value: unix:///csi/csi-provisioner.sock
@@ -329,6 +330,22 @@ const (
                 - name: ADDRESS
                   value: /csi/csi-provisioner.sock
               imagePullPolicy: "IfNotPresent"
+              volumeMounts:
+                - name: socket-dir
+                  mountPath: /csi
+            - name: csi-snapshotter
+              image:  {{ .SnapshotterImage }}
+              args:
+                - "--csi-address=$(ADDRESS)"
+                - "--v=5"
+                - "--timeout=150s"
+                - "--leader-election=true"
+              env:
+                - name: ADDRESS
+                  value: unix:///csi/csi-provisioner.sock
+              imagePullPolicy: Always
+              securityContext:
+                privileged: true
               volumeMounts:
                 - name: socket-dir
                   mountPath: /csi
