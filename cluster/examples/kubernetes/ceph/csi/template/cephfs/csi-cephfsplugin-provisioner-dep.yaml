@@ -34,6 +34,21 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        - name: csi-snapshotter
+          image:  {{ .SnapshotterImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v={{ .LogLevel }}"
+            - "--timeout=150s"
+            - "--leader-election=true"
+            - "--leader-election-namespace={{ .Namespace }}"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-resizer
           image: {{ .ResizerImage }}
           args:
