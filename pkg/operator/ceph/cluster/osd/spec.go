@@ -42,8 +42,10 @@ const (
 	blockPVCMapperInitContainer                   = "blkdevmapper"
 	blockEncryptionOpenInitContainer              = "encryption-open"
 	blockEncryptionOpenMetadataInitContainer      = "encryption-open-metadata"
+	blockEncryptionOpenWalInitContainer           = "encryption-open-wal"
 	blockPVCMapperEncryptionInitContainer         = "blkdevmapper-encryption"
 	blockPVCMapperEncryptionMetadataInitContainer = "blkdevmapper-metadata-encryption"
+	blockPVCMapperEncryptionWalInitContainer      = "blkdevmapper-wal-encryption"
 	blockPVCMetadataMapperInitContainer           = "blkdevmapper-metadata"
 	blockPVCWalMapperInitContainer                = "blkdevmapper-wal"
 	activatePVCOSDInitContainer                   = "activate"
@@ -53,8 +55,11 @@ const (
 	DmcryptBlockType = "block-dmcrypt"
 	// DmcryptMetadataType is a portion of the device mapper name for the encrypted OSD on PVC block
 	DmcryptMetadataType = "db-dmcrypt"
+	// DmcryptWalType is a portion of the device mapper name for the encrypted OSD on PVC wal
+	DmcryptWalType      = "wal-dmcrypt"
 	dmcryptBlockName    = "block"
 	dmcryptMetadataName = "block.db"
+	dmcryptWalName      = "block.wal"
 )
 
 const (
@@ -330,7 +335,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			// Add a new init container to open the encrypted disk!
 			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdProps)...)
 			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps)...)
-			// TODO: ADD METADATA DEV
 		} else {
 			initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
 			if osdProps.onPVCWithMetadata() {
@@ -615,6 +619,15 @@ func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(osdProps osdProperti
 		containers = append(containers, metadataContainer)
 	}
 
+	// If there is a wal PVC
+	if osdProps.walPVC.ClaimName != "" {
+		metadataContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenWalInitContainer, osdProps.walPVC.ClaimName, DmcryptWalType)
+		// We use the same key for both block and block.db so we must use osdProps.pvc.ClaimName for the getEncryptionVolume()
+		_, volMount := getEncryptionVolume(osdProps.pvc.ClaimName)
+		metadataContainer.VolumeMounts = append(metadataContainer.VolumeMounts, volMount)
+		containers = append(containers, metadataContainer)
+	}
+
 	return containers
 }
 
@@ -641,6 +654,11 @@ func (c *Cluster) getPVCEncryptionInitContainerActivate(mountPath string, osdPro
 	// If there is a metadata PVC
 	if osdProps.metadataPVC.ClaimName != "" {
 		containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionMetadataInitContainer, osdProps.metadataPVC.ClaimName, mountPath, osdProps.pvc.ClaimName, dmcryptMetadataName, DmcryptMetadataType))
+	}
+
+	// If there is a wal PVC
+	if osdProps.walPVC.ClaimName != "" {
+		containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionWalInitContainer, osdProps.walPVC.ClaimName, mountPath, osdProps.pvc.ClaimName, dmcryptWalName, DmcryptWalType))
 	}
 
 	return containers
