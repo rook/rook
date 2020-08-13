@@ -68,7 +68,8 @@ const (
               args:
                 - "--csi-address=$(ADDRESS)"
                 - "--v=5"
-                - "--timeout=60s"
+                - "--timeout=150s"
+                - "--leader-election=true"
               env:
                 - name: ADDRESS
                   value: unix:///csi/csi-provisioner.sock
@@ -337,7 +338,8 @@ const (
               args:
                 - "--csi-address=$(ADDRESS)"
                 - "--v=5"
-                - "--timeout=60s"
+                - "--timeout=150s"
+                - "--leader-election=true"
               env:
                 - name: ADDRESS
                   value: unix:///csi/csi-provisioner.sock
