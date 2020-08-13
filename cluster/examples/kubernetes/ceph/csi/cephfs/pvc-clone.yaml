@@ -9,7 +9,7 @@ spec:
     name: cephfs-pvc
     kind: PersistentVolumeClaim
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 1Gi
