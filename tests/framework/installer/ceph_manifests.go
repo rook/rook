@@ -461,9 +461,12 @@ spec:
                 sslCertificateRef: {}
                 port:
                   type: integer
-                  minimum: 1
+                  minimum: 0
                   maximum: 65535
-                securePort: {}
+                securePort:
+                  type: integer
+                  minimum: 0
+                  maximum: 65535
                 instances:
                   type: integer
                 annotations: {}
@@ -2159,7 +2162,6 @@ spec:
     type: s3
     sslCertificateRef:
     port: ` + strconv.Itoa(port) + `
-    securePort:
     instances: ` + strconv.Itoa(replicaCount) + `
     allNodes: false
   healthCheck:
