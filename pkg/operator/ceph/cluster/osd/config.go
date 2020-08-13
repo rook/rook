@@ -121,12 +121,12 @@ func encryptionKeyPath() string {
 	return fmt.Sprintf("%s/%s", opconfig.EtcCephDir, encryptionKeyFileName)
 }
 
-func encryptionDMName(pvcName string) string {
-	return fmt.Sprintf("%s-block-dmcrypt", pvcName)
+func encryptionDMName(pvcName, blockType string) string {
+	return fmt.Sprintf("%s-%s", pvcName, blockType)
 }
 
-func encryptionDMPath(pvcName string) string {
-	return fmt.Sprintf("/dev/mapper/%s", encryptionDMName(pvcName))
+func encryptionDMPath(pvcName, blockType string) string {
+	return fmt.Sprintf("/dev/mapper/%s", encryptionDMName(pvcName, blockType))
 }
 
 func generateDmCryptKey() (string, error) {
@@ -156,4 +156,15 @@ func generateOSDEncryptedKeySecret(pvcName, namespace, key string) *v1.Secret {
 
 func generateOSDEncryptionSecretName(pvcName string) string {
 	return fmt.Sprintf("%s-%s", osdEncryptionSecretNamePrefix, pvcName)
+}
+
+func (c *Cluster) isCephVolumeRawModeSupported() bool {
+	if c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinNautilusCephVersion) && !c.clusterInfo.CephVersion.IsOctopus() {
+		return true
+	}
+	if c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinOctopusCephVersion) {
+		return true
+	}
+
+	return false
 }
