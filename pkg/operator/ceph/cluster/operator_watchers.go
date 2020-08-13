@@ -44,7 +44,11 @@ func (c *ClusterController) StartOperatorSettingsWatch(namespace string, stopCh 
 // StopWatch stop watchers
 func (c *ClusterController) StopWatch() {
 	for _, cluster := range c.clusterMap {
-		close(cluster.stopCh)
+		// check channel is open before closing
+		if !cluster.closedStopCh {
+			close(cluster.stopCh)
+			cluster.closedStopCh = true
+		}
 	}
 	c.clusterMap = make(map[string]*cluster)
 }
