@@ -616,12 +616,21 @@ func TestPrintCVLogContent(t *testing.T) {
 
 func TestGetEncryptedBlockPath(t *testing.T) {
 	cvOp := `
+2020-08-13 13:33:55.181541 D | exec: Running command: stdbuf -oL ceph-volume --log-path /var/log/ceph/set1-data-0-hfdc6 raw prepare --bluestore --data /dev/xvdce --crush-device-class hybriddu13 --dmcrypt --block.db /dev/xvdbb --block.wal /dev/xvdcu
+2020-08-13 13:34:34.246638 I | cephosd: Running command: /usr/bin/ceph-authtool --gen-print-key
 Running command: /usr/bin/ceph-authtool --gen-print-key
-Running command: /usr/sbin/cryptsetup --batch-mode --key-file - luksFormat /dev/xvdbq
-Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbq ceph-22971ee4-017c-48ec-b52b-68cdd2cc0ed2-xvdbq-block-dmcrypt
-Running command: /usr/sbin/cryptsetup --batch-mode --key-file - luksFormat /dev/xvdbm
-Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbm ceph-22971ee4-017c-48ec-b52b-68cdd2cc0ed2-xvdbm-db-dmcrypt
-Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-1`
+Running command: /usr/bin/ceph --cluster ceph --name client.bootstrap-osd --keyring /var/lib/ceph/bootstrap-osd/ceph.keyring -i - osd new e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d
+Running command: /usr/bin/ceph-authtool --gen-print-key
+Running command: /usr/sbin/cryptsetup --batch-mode --key-file - luksFormat /dev/xvdce
+Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdce ceph-e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d-xvdce-block-dmcrypt
+Running command: /usr/sbin/cryptsetup --batch-mode --key-file - luksFormat /dev/xvdcu
+Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdcu ceph-e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d-xvdcu-wal-dmcrypt
+Running command: /usr/sbin/cryptsetup --batch-mode --key-file - luksFormat /dev/xvdbb
+Running command: /usr/sbin/cryptsetup --key-file - --allow-discards luksOpen /dev/xvdbb ceph-e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d-xvdbb-db-dmcrypt
+Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-2
+Running command: /usr/bin/chown -R ceph:ceph /dev/mapper/ceph-e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d-xvdce-block-dmcrypt
+Running command: /usr/bin/ln -s /dev/mapper/ceph-e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d-xvdce-block-dmcrypt /var/lib/ceph/osd/ceph-2/block
+Running command: /usr/bin/ceph --cluster ceph --name client.bootstrap-osd --keyring /var/lib/ceph/bootstrap-osd/ceph.keyring mon getmap -o /var/lib/ceph/osd/ceph-2/activate.monmap`
 
 	type args struct {
 		op        string
@@ -633,8 +642,9 @@ Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-1`
 		want string
 	}{
 		{"not-found", args{"Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-1", "block-dmcrypt"}, ""},
-		{"found-block", args{cvOp, "block-dmcrypt"}, "/dev/mapper/ceph-22971ee4-017c-48ec-b52b-68cdd2cc0ed2-xvdbq-block-dmcrypt"},
-		{"found-db", args{cvOp, "db-dmcrypt"}, "/dev/mapper/ceph-22971ee4-017c-48ec-b52b-68cdd2cc0ed2-xvdbm-db-dmcrypt"},
+		{"found-block", args{cvOp, "block-dmcrypt"}, "/dev/mapper/ceph-e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d-xvdce-block-dmcrypt"},
+		{"found-db", args{cvOp, "db-dmcrypt"}, "/dev/mapper/ceph-e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d-xvdbb-db-dmcrypt"},
+		{"found-wal", args{cvOp, "wal-dmcrypt"}, "/dev/mapper/ceph-e3c9ca4a-d00f-464b-9ac7-91fb151f6c8d-xvdcu-wal-dmcrypt"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

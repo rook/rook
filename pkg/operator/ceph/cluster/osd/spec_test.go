@@ -398,9 +398,14 @@ func TestClusterGetPVCEncryptionOpenInitContainerActivate(t *testing.T) {
 	assert.Equal(t, 1, len(containers))
 
 	// With metadata PVC
-	osdProperties.metadataPVC.ClaimName = "pvc2"
+	osdProperties.metadataPVC.ClaimName = "pvcDB"
 	containers = c.getPVCEncryptionOpenInitContainerActivate(osdProperties)
 	assert.Equal(t, 2, len(containers))
+
+	// With wal PVC
+	osdProperties.walPVC.ClaimName = "pvcWal"
+	containers = c.getPVCEncryptionOpenInitContainerActivate(osdProperties)
+	assert.Equal(t, 3, len(containers))
 }
 
 func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
@@ -418,7 +423,12 @@ func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
 	assert.Equal(t, 1, len(containers))
 
 	// With metadata PVC
-	osdProperties.metadataPVC.ClaimName = "pvc2"
+	osdProperties.metadataPVC.ClaimName = "pvcDB"
 	containers = c.getPVCEncryptionInitContainerActivate(mountPath, osdProperties)
 	assert.Equal(t, 2, len(containers))
+
+	// With wal PVC
+	osdProperties.walPVC.ClaimName = "pvcWal"
+	containers = c.getPVCEncryptionInitContainerActivate(mountPath, osdProperties)
+	assert.Equal(t, 3, len(containers))
 }
