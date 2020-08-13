@@ -27,9 +27,9 @@ import (
 )
 
 func TestBuildNsEnterCLI(t *testing.T) {
-	ne := NewNsenter(&clusterd.Context{}, lvmCommandToCheck, []string{"--help"})
+	ne := NewNsenter(&clusterd.Context{}, lvmCommandToCheck, []string{"help"})
 	args := ne.buildNsEnterCLI(filepath.Join("/sbin/", ne.binary))
-	expectedCLI := []string{"--mount=/rootfs/proc/1/ns/mnt", "--", "/sbin/lvm", "--help"}
+	expectedCLI := []string{"--mount=/rootfs/proc/1/ns/mnt", "--", "/sbin/lvm", "help"}
 
 	assert.Equal(t, expectedCLI, args)
 }
@@ -38,7 +38,7 @@ func TestCheckIfBinaryExistsOnHost(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
-		if command == "nsenter" && args[0] == "--mount=/rootfs/proc/1/ns/mnt" && args[1] == "--" && args[3] == "--help" {
+		if command == "nsenter" && args[0] == "--mount=/rootfs/proc/1/ns/mnt" && args[1] == "--" && args[3] == "help" {
 			if args[2] == "/usr/sbin/lvm" || args[2] == "/sbin/lvm" {
 				return "success", nil
 			}
@@ -48,7 +48,7 @@ func TestCheckIfBinaryExistsOnHost(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	ne := NewNsenter(context, lvmCommandToCheck, []string{"--help"})
+	ne := NewNsenter(context, lvmCommandToCheck, []string{"help"})
 	err := ne.checkIfBinaryExistsOnHost()
 	assert.NoError(t, err)
 }
