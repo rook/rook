@@ -173,7 +173,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	// Check for the presence of LVM on the host when NOT running on PVC
 	// since this scenario is still using LVM
 	if !agent.pvcBacked {
-		ne := NewNsenter(context, lvmCommandToCheck, []string{"--help"})
+		ne := NewNsenter(context, lvmCommandToCheck, []string{"help"})
 		err := ne.checkIfBinaryExistsOnHost()
 		if err != nil {
 			return errors.Wrapf(err, "binary %q does not exist on the host, make sure lvm2 package is installed", lvmCommandToCheck)
