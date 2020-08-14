@@ -100,12 +100,20 @@ type NetworkSpec struct {
 	Selectors map[string]string `json:"selectors"`
 }
 
-// KeyType
+// KeyType type safety
 type KeyType string
 
+// AnnotationsSpec
 type AnnotationsSpec map[KeyType]Annotations
 
+// Annotations
 type Annotations map[string]string
+
+// LabelsSpec
+type LabelsSpec map[KeyType]Labels
+
+// Labels
+type Labels map[string]string
 
 type StorageClassDeviceSet struct {
 	Name                 string                     `json:"name,omitempty"`                 // A unique identifier for the set
