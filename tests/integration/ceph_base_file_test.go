@@ -321,7 +321,7 @@ func createFilesystemMountUserConsumerPod(helper *clients.TestClient, k8sh *util
 }
 
 func getFilesystemAgentMountSecretsBinding(namespace string) string {
-	return `apiVersion: rbac.authorization.k8s.io/v1beta1
+	return `apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: rook-ceph-agent-mount
