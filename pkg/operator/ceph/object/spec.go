@@ -62,6 +62,7 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
+	c.store.Spec.Gateway.Labels.ApplyToObjectMeta(&d.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 
 	return d, nil
@@ -117,6 +118,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		Spec: podSpec,
 	}
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
+	c.store.Spec.Gateway.Labels.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
 	if c.clusterSpec.Network.IsHost() {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet

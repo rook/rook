@@ -154,7 +154,8 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		Annotations: map[string]string{},
 	}
 
-	cephv1.GetOSDAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podMeta)
+	cephv1.GetOSDPrepareAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podMeta)
+	cephv1.GetOSDPrepareLabels(c.spec.Labels).ApplyToObjectMeta(&podMeta)
 
 	// ceph-volume --dmcrypt uses cryptsetup that synchronizes with udev on
 	// host through semaphore
