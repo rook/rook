@@ -57,6 +57,7 @@ func TestStartMGR(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
 	clusterSpec := cephv1.ClusterSpec{
 		Annotations:        map[rookv1.KeyType]rookv1.Annotations{cephv1.KeyMgr: {"my": "annotation"}},
+		Labels:             map[rookv1.KeyType]rookv1.Labels{cephv1.KeyMgr: {"my-label-key": "value"}},
 		Dashboard:          cephv1.DashboardSpec{Enabled: true, SSL: true},
 		Monitoring:         cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
 		PriorityClassNames: map[rookv1.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
@@ -101,6 +102,7 @@ func validateStart(t *testing.T, c *Cluster) {
 		d, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]string{"my": "annotation"}, d.Spec.Template.Annotations)
+		assert.Contains(t, d.Spec.Template.Labels, "my-label-key")
 		assert.Equal(t, "my-priority-class", d.Spec.Template.Spec.PriorityClassName)
 	}
 

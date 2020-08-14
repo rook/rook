@@ -30,6 +30,11 @@ func GetMonAnnotations(a rook.AnnotationsSpec) rook.Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyMon)
 }
 
+// GetOSDPrepareAnnotations returns the annotations for the OSD service
+func GetOSDPrepareAnnotations(a rook.AnnotationsSpec) rook.Annotations {
+	return mergeAllAnnotationsWithKey(a, KeyOSDPrepare)
+}
+
 // GetOSDAnnotations returns the annotations for the OSD service
 func GetOSDAnnotations(a rook.AnnotationsSpec) rook.Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyOSD)
