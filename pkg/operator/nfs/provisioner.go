@@ -19,7 +19,7 @@ package nfs
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	mountPath = "/export"
+	mountPath = "/"
 )
 
 type Provisioner struct {
@@ -99,7 +99,7 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 
 	for _, export := range nfsserver.Spec.Exports {
 		if export.Name == exportName {
-			exportPath = filepath.Join(mountPath, export.PersistentVolumeClaim.ClaimName)
+			exportPath = path.Join(mountPath, export.PersistentVolumeClaim.ClaimName)
 			found = true
 		}
 	}
@@ -109,12 +109,10 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 	}
 
 	pvName := strings.Join([]string{options.PVC.Namespace, options.PVC.Name, options.PVName}, "-")
-	fullPath := filepath.Join(exportPath, pvName)
-	if err := os.MkdirAll(fullPath, 0777); err != nil {
+	fullPath := path.Join(exportPath, pvName)
+	if err := os.MkdirAll(fullPath, 0700); err != nil {
 		return nil, errors.New("unable to create directory to provision new pv: " + err.Error())
 	}
-
-	_ = os.Chmod(fullPath, 0777)
 
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -141,8 +139,8 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 }
 
 func (p *Provisioner) Delete(volume *v1.PersistentVolume) error {
-	path := volume.Spec.PersistentVolumeSource.NFS.Path
-	pvName := filepath.Base(path)
+	nfsPath := volume.Spec.PersistentVolumeSource.NFS.Path
+	pvName := path.Base(nfsPath)
 
 	sc, err := p.storageClassForPV(volume)
 	if err != nil {
@@ -176,7 +174,7 @@ func (p *Provisioner) Delete(volume *v1.PersistentVolume) error {
 
 	for _, export := range nfsserver.Spec.Exports {
 		if export.Name == exportName {
-			exportPath = filepath.Join(mountPath, export.PersistentVolumeClaim.ClaimName)
+			exportPath = path.Join(mountPath, export.PersistentVolumeClaim.ClaimName)
 			found = true
 		}
 	}
@@ -185,7 +183,7 @@ func (p *Provisioner) Delete(volume *v1.PersistentVolume) error {
 		return fmt.Errorf("No export name from storageclass is match with NFSServer %s in namespace %s", nfsserver.Name, nfsserver.Namespace)
 	}
 
-	fullPath := filepath.Join(exportPath, pvName)
+	fullPath := path.Join(exportPath, pvName)
 	return os.RemoveAll(fullPath)
 }
 

@@ -240,7 +240,6 @@ rules:
 - apiGroups:
   - apps
   resources:
-  - deployments
   - statefulsets
   verbs:
   - create
@@ -429,12 +428,6 @@ metadata:
   name: rook-nfs-server
   namespace: ` + namespace + `
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-nfs-provisioner
-  namespace: ` + namespace + `
----
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -475,7 +468,7 @@ metadata:
   name: run-nfs-provisioner
 subjects:
   - kind: ServiceAccount
-    name: rook-nfs-provisioner
+    name: rook-nfs-server
     namespace: ` + namespace + `
 roleRef:
   kind: ClusterRole

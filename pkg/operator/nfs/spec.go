@@ -67,6 +67,7 @@ func newServiceForNFSServer(cr *nfsv1alpha1.NFSServer) *corev1.Service {
 }
 
 func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
+	privilaged := true
 	replicas := int32(cr.Spec.Replicas)
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -87,10 +88,9 @@ func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
 					ServiceAccountName: "rook-nfs-server",
 					Containers: []corev1.Container{
 						{
-							ImagePullPolicy: "IfNotPresent",
-							Name:            cr.Name,
-							Image:           "rook/nfs:master",
-							Args:            []string{"nfs", "server", "--ganeshaConfigPath=" + nfsConfigMapPath + "/" + cr.Name},
+							Name:  "nfs-server",
+							Image: "rook/nfs:master",
+							Args:  []string{"nfs", "server", "--ganeshaConfigPath=" + nfsConfigMapPath + "/" + cr.Name},
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "nfs-port",
@@ -110,49 +110,17 @@ func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
 								},
 							},
 						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func newDeploymentForNFSProvisioner(cr *nfsv1alpha1.NFSServer) *appsv1.Deployment {
-	name := cr.Name + "-provisioner"
-	provisionerName := "nfs.rook.io/" + name
-	replicas := int32(1)
-	defaultTerminationGracePeriodSeconds := int64(30)
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: cr.Namespace,
-			Labels:    newLabels(cr),
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      cr.Name,
-					Namespace: cr.Namespace,
-					Labels:    newLabels(cr),
-				},
-				Spec: corev1.PodSpec{
-					ServiceAccountName: "rook-nfs-provisioner",
-					Containers: []corev1.Container{
 						{
-							Name:                     name,
+							Name:                     "nfs-provisioner",
 							Image:                    "rook/nfs:master",
-							ImagePullPolicy:          corev1.PullIfNotPresent,
-							Args:                     []string{"nfs", "provisioner", "--provisioner=" + provisionerName},
+							Args:                     []string{"nfs", "provisioner", "--provisioner=" + "nfs.rook.io/" + cr.Name + "-provisioner"},
 							TerminationMessagePath:   "/dev/termination-log",
 							TerminationMessagePolicy: corev1.TerminationMessageReadFile,
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: &privilaged,
+							},
 						},
 					},
-					RestartPolicy:                 corev1.RestartPolicyAlways,
-					TerminationGracePeriodSeconds: &defaultTerminationGracePeriodSeconds,
-					DNSPolicy:                     corev1.DNSClusterFirst,
-					SecurityContext:               &corev1.PodSecurityContext{},
-					SchedulerName:                 corev1.DefaultSchedulerName,
 				},
 			},
 		},

@@ -19,7 +19,7 @@ package nfs
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -124,12 +123,6 @@ func (r *NFSServerReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reterr
 		return reconcile.Result{}, err
 	}
 
-	if err := r.reconcileNFSProvisioner(ctx, instance); err != nil {
-		r.Recorder.Eventf(instance, corev1.EventTypeWarning, nfsv1alpha1.EventFailed, "Failed reconciling nfsprovisioner: %+v", err)
-		r.Log.Errorf("Error reconciling nfsprovisioner: %+v", err)
-		return reconcile.Result{}, err
-	}
-
 	// Reconcile status state based on statefulset ready replicas.
 	sts := &appsv1.StatefulSet{}
 	if err := r.Client.Get(ctx, req.NamespacedName, sts); err != nil {
@@ -166,8 +159,8 @@ func (r *NFSServerReconciler) reconcileNFSServerConfig(ctx context.Context, cr *
 		nfsGaneshaConfig := `
 EXPORT {
 	Export_Id = ` + fmt.Sprintf("%v", id) + `;
-	Path = ` + filepath.Join(mountPath, claimName) + `;
-	Pseudo = ` + filepath.Join(mountPath, claimName) + `;
+	Path = ` + path.Join("/", claimName) + `;
+	Pseudo = ` + path.Join("/", claimName) + `;
 	Protocols = 4;
 	Transports = TCP;
 	Sectype = sys;
@@ -295,12 +288,16 @@ func (r *NFSServerReconciler) reconcileNFSServer(ctx context.Context, cr *nfsv1a
 
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      shareName,
-				MountPath: filepath.Join(mountPath, claimName),
+				MountPath: path.Join("/", claimName),
 			})
 		}
 
 		sts.Spec.Template.Spec.Volumes = volumes
-		sts.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+		for i, container := range sts.Spec.Template.Spec.Containers {
+			if container.Name == "nfs-server" || container.Name == "nfs-provisioner" {
+				sts.Spec.Template.Spec.Containers[i].VolumeMounts = volumeMounts
+			}
+		}
 
 		return nil
 	})
@@ -316,69 +313,6 @@ func (r *NFSServerReconciler) reconcileNFSServer(ctx context.Context, cr *nfsv1a
 		return nil
 	case controllerutil.OperationResultUpdated:
 		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventUpdated, "%s nfs-server statefulset: %s", strings.Title(string(stsop)), sts.Name)
-		return nil
-	default:
-		return nil
-	}
-}
-
-func (r *NFSServerReconciler) reconcileNFSProvisioner(ctx context.Context, cr *nfsv1alpha1.NFSServer) error {
-	nfsserversvc := &corev1.Service{}
-	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}, nfsserversvc); err != nil {
-		return err
-	}
-
-	dep := newDeploymentForNFSProvisioner(cr)
-	depop, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
-
-		if dep.ObjectMeta.CreationTimestamp.IsZero() {
-			dep.Spec.Selector = &metav1.LabelSelector{
-				MatchLabels: newLabels(cr),
-			}
-		}
-
-		if err := controllerutil.SetControllerReference(cr, dep, r.Scheme); err != nil {
-			return err
-		}
-
-		var volumes []corev1.Volume
-		var volumeMounts []corev1.VolumeMount
-		for _, export := range cr.Spec.Exports {
-			shareName := export.Name
-			claimName := export.PersistentVolumeClaim.ClaimName
-			volumes = append(volumes, corev1.Volume{
-				Name: shareName,
-				VolumeSource: corev1.VolumeSource{
-					NFS: &corev1.NFSVolumeSource{
-						Server: nfsserversvc.Spec.ClusterIP,
-						Path:   filepath.Join(mountPath, claimName),
-					},
-				},
-			})
-
-			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      shareName,
-				MountPath: filepath.Join(mountPath, claimName),
-			})
-		}
-
-		dep.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
-		dep.Spec.Template.Spec.Volumes = volumes
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	r.Log.Info("Reconciling NFSProvisioner Deployment", "Operation.Result ", depop)
-	switch depop {
-	case controllerutil.OperationResultCreated:
-		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventCreated, "%s nfs-provisioner deployment: %s", strings.Title(string(depop)), dep.Name)
-		return nil
-	case controllerutil.OperationResultUpdated:
-		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventUpdated, "%s nfs-provisioner deployment: %s", strings.Title(string(depop)), dep.Name)
 		return nil
 	default:
 		return nil

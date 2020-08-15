@@ -18,14 +18,13 @@ package nfs
 
 import (
 	"context"
-	"path/filepath"
+	"path"
 	"reflect"
 	"testing"
 
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,7 +32,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -141,12 +139,16 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      shareName,
-				MountPath: filepath.Join(mountPath, claimName),
+				MountPath: path.Join("/", claimName),
 			})
 		}
 		sts.Status.ReadyReplicas = int32(cr.Spec.Replicas)
 		sts.Spec.Template.Spec.Volumes = volumes
-		sts.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+		for i, container := range sts.Spec.Template.Spec.Containers {
+			if container.Name == "nfs-server" || container.Name == "nfs-provisioner" {
+				sts.Spec.Template.Spec.Containers[i].VolumeMounts = volumeMounts
+			}
+		}
 
 		return sts
 	}
@@ -155,42 +157,6 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 		svc := newServiceForNFSServer(cr)
 		_ = controllerutil.SetControllerReference(cr, svc, scheme)
 		return svc
-	}
-
-	expectedProvisionerFunc := func(scheme *runtime.Scheme, cr *nfsv1alpha1.NFSServer) *appsv1.Deployment {
-		dep := newDeploymentForNFSProvisioner(cr)
-		dep.Spec.Selector = &metav1.LabelSelector{
-			MatchLabels: newLabels(cr),
-		}
-
-		_ = controllerutil.SetControllerReference(cr, dep, scheme)
-
-		var volumes []corev1.Volume
-		var volumeMounts []corev1.VolumeMount
-		for _, export := range cr.Spec.Exports {
-			shareName := export.Name
-			claimName := export.PersistentVolumeClaim.ClaimName
-			volumes = append(volumes, v1.Volume{
-				Name: shareName,
-				VolumeSource: v1.VolumeSource{
-					NFS: &v1.NFSVolumeSource{
-						Server: expectedServerServiceFunc(scheme, cr).Spec.ClusterIP,
-						Path:   filepath.Join(mountPath, claimName),
-					},
-				},
-			})
-
-			volumeMounts = append(volumeMounts, v1.VolumeMount{
-				Name:      shareName,
-				MountPath: filepath.Join(mountPath, claimName),
-			})
-		}
-
-		dep.Status.ReadyReplicas = int32(cr.Spec.Replicas)
-		dep.Spec.Template.Spec.Volumes = volumes
-		dep.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
-
-		return dep
 	}
 
 	rr := reconcile.Request{
@@ -256,18 +222,15 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 
 			expectedServer := expectedServerFunc(scheme, tt.cr)
 			expectedServerService := expectedServerServiceFunc(scheme, tt.cr)
-			expectedProvisioner := expectedProvisionerFunc(scheme, tt.cr)
 
 			objs := []runtime.Object{
 				tt.cr,
 				expectedServer,
 				expectedServerService,
-				expectedProvisioner,
 			}
 
 			expectedServer.GetObjectKind().SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("StatefulSet"))
 			expectedServerService.GetObjectKind().SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
-			expectedProvisioner.GetObjectKind().SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("Deployment"))
 
 			fc := fake.NewFakeClient(objs...)
 			fr := record.NewFakeRecorder(2)
@@ -303,20 +266,6 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotServerService, expectedServerService) {
 				t.Errorf("NFSServerReconciler.Reconcile() = %v, want %v", gotServerService, expectedServerService)
-			}
-
-			gotProvisioner := &appsv1.Deployment{}
-			provisionerObjKey := client.ObjectKey{
-				Name:      tt.args.req.Name + "-provisioner",
-				Namespace: tt.args.req.Namespace,
-			}
-			if err := fc.Get(context.Background(), provisionerObjKey, gotProvisioner); err != nil {
-				t.Errorf("NFSServerReconciler.Reconcile() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !reflect.DeepEqual(gotProvisioner, expectedProvisioner) {
-				t.Errorf("NFSServerReconciler.Reconcile() = %v, want %v", gotProvisioner, expectedProvisioner)
 			}
 		})
 	}

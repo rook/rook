@@ -9,12 +9,6 @@ metadata:
   name: rook-nfs-server
   namespace: rook-nfs
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-nfs-provisioner
-  namespace: rook-nfs
----
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -52,10 +46,10 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: run-nfs-provisioner
+  name: rook-nfs-provisioner-runner
 subjects:
   - kind: ServiceAccount
-    name: rook-nfs-provisioner
+    name: rook-nfs-server
      # replace with namespace where provisioner is deployed
     namespace: rook-nfs
 roleRef:
