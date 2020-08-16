@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/pkg/errors"
 )
 
 // Executor is the main interface for all the exec commands
@@ -290,7 +289,6 @@ func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 	out = strings.TrimSpace(string(output))
 
 	if err != nil {
-		err = errors.Wrap(err, out)
 		return out, err
 	}
 
@@ -298,5 +296,5 @@ func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 }
 
 func logCommand(command string, arg ...string) {
-	logger.Debugf("Running command: %s %s", command, strings.Join(arg, " "))
+	logger.Infof("Running command: %s %s", command, strings.Join(arg, " "))
 }
