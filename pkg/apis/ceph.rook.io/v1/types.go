@@ -450,7 +450,7 @@ type ObjectStoreSpec struct {
 }
 
 type BucketHealthCheckSpec struct {
-	Bucket        HealthCheckSpec   `json:"rgw,omitempty"`
+	Bucket        HealthCheckSpec   `json:"bucket,omitempty"`
 	LivenessProbe *rookv1.ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
