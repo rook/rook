@@ -773,9 +773,9 @@ type RBDMirroringSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
-	// The resource requirements for the rgw pods
+	// The resource requirements for the rbd mirror pods
 	Resources v1.ResourceRequirements `json:"resources"`
 
-	// PriorityClassName sets priority classes on the rgw pods
+	// PriorityClassName sets priority class on the rbd mirror pods
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
