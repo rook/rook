@@ -136,9 +136,8 @@ type MCTestOperations struct {
 	systemNamespace  string
 	storageClassName string
 	testOverPVC      bool
-	// This value is not necessary
-	useHelm         bool
-	externalCluster bool
+	useHelm          bool
+	externalCluster  bool
 }
 
 // NewMCTestOperations creates new instance of TestCluster struct

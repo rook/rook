@@ -415,7 +415,7 @@ func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	assert.NoError(s.T(), err)
 }
 
-func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace string, systemNamespace string, version cephv1.CephVersionSpec) {
+func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace, systemNamespace string, version cephv1.CephVersionSpec) {
 	checkSkipCSITest(s.T(), k8sh)
 
 	logger.Infof("Block Storage End to End Integration Test - create storageclass,pool and pvc")

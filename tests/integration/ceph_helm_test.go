@@ -135,7 +135,6 @@ func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	runObjectE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.clusterNamespaces, "default", 3, true)
 }
 
-// This is temporal code
 func (hs *HelmSuite) cleanupDisks() {
 	cleanupDeviceCmd := "tests/scripts/cleanupDisks.sh"
 	cmdArgs := utils.CommandArgs{Command: cleanupDeviceCmd, CmdArgs: []string{installer.TestScratchDevice(), installer.TestScratchDevice2()}}

@@ -324,6 +324,15 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 	logger.Infof("Delete file System consumer")
 	err := k8sh.DeletePod(namespace, podName)
 	assert.Nil(s.T(), err)
+
+	// Wait 30s for becoming terminating status
+	for i := 0; i < 30; i++ {
+		if !k8sh.IsPodTerminated(podName, namespace) {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+	}
+
 	if !k8sh.IsPodTerminated(podName, namespace) {
 		k8sh.PrintPodDescribe(namespace, podName)
 		assert.Fail(s.T(), fmt.Sprintf("make sure %s pod is terminated", podName))
