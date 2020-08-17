@@ -18,5 +18,5 @@ spec:
       - ip: 192.168.39.182
   healthCheck:
     bucket:
-      enabled: true
+      disabled: false
       interval: 60s

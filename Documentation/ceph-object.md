@@ -54,7 +54,7 @@ spec:
     instances: 1
   healthCheck:
     bucket:
-      enabled: true
+      disabled: false
       interval: 60s
 ```
 
