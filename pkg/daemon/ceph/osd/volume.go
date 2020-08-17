@@ -342,10 +342,16 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				if blockPath == "" {
 					return "", "", "", errors.New("failed to get encrypted block path from ceph-volume lvm prepare output")
 				}
-				if metadataBlockPath != "" {
+				if metadataDev {
 					metadataBlockPath = getEncryptedBlockPath(op, oposd.DmcryptMetadataType)
 					if metadataBlockPath == "" {
 						return "", "", "", errors.New("failed to get encrypted block.db path from ceph-volume lvm prepare output")
+					}
+				}
+				if walDev {
+					walBlockPath = getEncryptedBlockPath(op, oposd.DmcryptWalType)
+					if walBlockPath == "" {
+						return "", "", "", errors.New("failed to get encrypted block.wal path from ceph-volume lvm prepare output")
 					}
 				}
 			} else {
@@ -785,13 +791,22 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 				return nil, errors.Wrapf(err, "failed to close encrypted device %q for osd %d", block, osdID)
 			}
 
+			// If there is a metadata block
 			if metadataBlock != "" {
 				// Close encrypted device
 				err = closeEncryptedDevice(context, metadataBlock)
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to close encrypted device %q for osd %d", block, osdID)
+					return nil, errors.Wrapf(err, "failed to close encrypted db device %q for osd %d", metadataBlock, osdID)
 				}
+			}
 
+			// If there is a wal block
+			if walBlock != "" {
+				// Close encrypted device
+				err = closeEncryptedDevice(context, walBlock)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to close encrypted wal device %q for osd %d", walBlock, osdID)
+				}
 			}
 		}
 
