@@ -545,6 +545,19 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 				err = h.addCleanupPolicy(namespace)
 				assert.NoError(h.T(), err)
 			}
+
+			// Wait until the change is reflected by cache
+			for i := 0; i < 30; i++ {
+				cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(h.clusterName, metav1.GetOptions{})
+				if err != nil {
+					fmt.Printf("Change of the CleanupPolicy has error: \n", err)
+					break
+				}
+				if cluster.Spec.CleanupPolicy.Confirmation != cephv1.DeleteDataDirOnHostsConfirmation {
+					continue
+				}
+			}
+			logger.Infof("Change of the CleanupPolicy is reflected to cache")
 		}
 
 		if !h.T().Failed() {

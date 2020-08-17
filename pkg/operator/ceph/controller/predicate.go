@@ -272,7 +272,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
 				if diff != "" {
-					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					logger.Infof("CR has changed for %q in %s. diff=%s", objNew.Name, objNew.GetNamespace(), diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)

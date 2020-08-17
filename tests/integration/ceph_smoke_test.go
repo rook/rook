@@ -111,6 +111,12 @@ func (suite *SmokeSuite) AfterTest(suiteName, testName string) {
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
+	// delete rbd mirror
+	rbdMirrorName := "my-rbd-mirror"
+
+	err := suite.helper.RBDMirrorClient.Delete(suite.namespace, rbdMirrorName)
+	require.Nil(suite.T(), err)
+
 	suite.op.Teardown()
 }
 
