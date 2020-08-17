@@ -27,3 +27,21 @@ spec:
 ### Prerequisites
 
 This guide assumes you have created a Rook cluster as explained in the main [Quickstart guide](ceph-quickstart.md)
+
+## Settings
+
+If any setting is unspecified, a suitable default will be used automatically.
+
+### RBDMirror metadata
+
+* `name`: The name that will be used for the Ceph RBD Mirror daemon.
+* `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace.
+
+### RBDMirror Settings
+
+* `count`: The number of rbd mirror instance to run.
+* `placement`: The rbd mirror pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml).
+* `annotations`: Key value pair list of annotations to add.
+* `labels`: Key value pair list of labels to add.
+* `resources`: The resource requirements for the rbd mirror pods.
+* `priorityClassName`: The priority class to set on the rbd mirror pods.
