@@ -1564,14 +1564,17 @@ func (k8sh *K8sHelper) appendContainerLogs(file *os.File, pod v1.Pod, containerN
 
 // CreateAnonSystemClusterBinding Creates anon-user-access clusterrolebinding for cluster-admin role - used by kubeadm env.
 func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
-	args := []string{"create", "clusterrolebinding", "anon-user-access", "--clusterrole", "cluster-admin", "--user", "system:anonymous"}
-	_, err := k8sh.Kubectl(args...)
+	_, err := k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Get("anon-user-access", metav1.GetOptions{})
 	if err != nil {
-		logger.Warningf("anon-user-access not created")
-		return
+		logger.Warningf("anon-user-access clusterrolebinding not found. %v", err)
+		args := []string{"create", "clusterrolebinding", "anon-user-access", "--clusterrole", "cluster-admin", "--user", "system:anonymous"}
+		_, err := k8sh.Kubectl(args...)
+		if err != nil {
+			logger.Errorf("failed to create anon-user-access. %v", err)
+			return
+		}
+		logger.Info("anon-user-access creation completed, waiting for it to exist in API")
 	}
-
-	logger.Infof("anon-user-access creation completed, waiting for it to exist in API")
 
 	for i := 0; i < RetryLoop; i++ {
 		var err error
