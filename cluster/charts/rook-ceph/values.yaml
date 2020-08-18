@@ -69,7 +69,7 @@ csi:
   allowUnsupportedVersion: false
     # (Optional) CEPH CSI RBD provisioner resource requirement list, Put here list of resource
   # requests and limits you want to apply for provisioner pod
-  # csiRBDProvisionerResource:
+  # csiRBDProvisionerResource: |
   #  - name : csi-provisioner
   #    resource:
   #      requests:
@@ -120,7 +120,7 @@ csi:
   #        cpu: 100m
   # (Optional) CEPH CSI RBD plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
-  # csiRBDPluginResource:
+  # csiRBDPluginResource: |
   #  - name : driver-registrar
   #    resource:
   #      requests:
@@ -147,7 +147,7 @@ csi:
   #        cpu: 100m
   # (Optional) CEPH CSI CephFS provisioner resource requirement list, Put here list of resource
   # requests and limits you want to apply for provisioner pod
-  # csiCephFSProvisionerResource:
+  # csiCephFSProvisionerResource: |
   #  - name : csi-provisioner
   #    resource:
   #      requests:
@@ -190,7 +190,7 @@ csi:
   #        cpu: 100m
   # (Optional) CEPH CSI CephFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
-  # csiCephFSPluginResource:
+  # csiCephFSPluginResource: |
   #  - name : driver-registrar
   #    resource:
   #      requests:
