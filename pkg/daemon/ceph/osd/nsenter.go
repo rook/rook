@@ -29,6 +29,7 @@ const (
 	mountNsPath = "/rootfs/proc/1/ns/mnt"
 	// nsenterCmd is the nsenter command
 	nsenterCmd = "nsenter"
+	rootFSPath = "/rootfs"
 )
 
 var (
@@ -72,10 +73,18 @@ func (ne *NSEnter) callNsEnter(binPath string) error {
 func (ne *NSEnter) checkIfBinaryExistsOnHost() error {
 	for _, path := range binPathsToCheck {
 		binPath := filepath.Join(path, ne.binary)
+		// Check with nsenter first
 		err := ne.callNsEnter(binPath)
 		if err != nil {
 			logger.Debugf("failed to call nsenter. %v", err)
-			continue
+			// If nsenter failed, let's try with the rootfs directly
+			rootFSBinPath := filepath.Join(rootFSPath, binPath)
+			output, err := ne.context.Executor.ExecuteCommandWithCombinedOutput(rootFSBinPath, ne.binaryArgs...)
+			if err != nil {
+				logger.Debugf("failed to execute command on the host rootfs. %s. %v", output, err)
+				continue
+			}
+			binPath = rootFSBinPath
 		}
 		logger.Infof("binary %q found on the host, proceeding with osd preparation", binPath)
 		return nil
