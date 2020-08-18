@@ -309,6 +309,8 @@ The following are the settings for Storage Class Device Sets which can be config
 
   However, if there are more OSDs than nodes, this anti-affinity will not be effective. Another placement scheme to consider is to add labels to the nodes in such a way that the OSDs can be grouped on those nodes, create multiple storageClassDeviceSets, and add node affinity to each of the device sets that will place the OSDs in those sets of nodes.
 
+* `preparePlacement`: The placement criteria for the preparation of the OSD devices. Creating OSDs is a two-step process and the prepare job may require different placement than the OSD daemons. If the `preparePlacement` is not specified, the `placement` will instead be applied for consistent placement for the OSD prepare jobs and OSD deployments. The `preparePlacement` is only useful for `portable` OSDs in the device sets. OSDs that are not portable will be tied to the host where the OSD prepare job initially runs.
+   * For example, provisioning may require topology spread constraints across zones, but the OSD daemons may require constraints across hosts within the zones.
 * `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
 * `tuneDeviceClass`: If `true`, because the OSD can be on a slow device class, Rook will adapt to that by tuning the OSD process. This will make Ceph perform better under that slow device.
 * `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
@@ -1146,8 +1148,8 @@ In Ceph Cluster let us list the pools available:
 
 ```console
 rados df
-POOL_NAME     USED OBJECTS CLONES COPIES MISSING_ON_PRIMARY UNFOUND DEGRADED RD_OPS  RD WR_OPS  WR USED COMPR UNDER COMPR 
-replicated_2g  0 B       0      0      0                  0       0        0      0 0 B      0 0 B        0 B         0 B 
+POOL_NAME     USED OBJECTS CLONES COPIES MISSING_ON_PRIMARY UNFOUND DEGRADED RD_OPS  RD WR_OPS  WR USED COMPR UNDER COMPR
+replicated_2g  0 B       0      0      0                  0       0        0      0 0 B      0 0 B        0 B         0 B
 ```
 
 Here is an example StorageClass configuration that uses the `replicated_2g` pool from the external cluster:
