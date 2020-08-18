@@ -119,7 +119,8 @@ type StorageClassDeviceSet struct {
 	Name                 string                     `json:"name,omitempty"`                 // A unique identifier for the set
 	Count                int                        `json:"count,omitempty"`                // Number of devices in this set
 	Resources            v1.ResourceRequirements    `json:"resources,omitempty"`            // Requests/limits for the devices
-	Placement            Placement                  `json:"placement,omitempty"`            // Placement constraints for the devices
+	Placement            Placement                  `json:"placement,omitempty"`            // Placement constraints for the device daemons
+	PreparePlacement     *Placement                 `json:"preparePlacement,omitempty"`     // Placement constraints for the device preparation
 	Config               map[string]string          `json:"config,omitempty"`               // Provider-specific device configuration
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
 	Portable             bool                       `json:"portable,omitempty"`             // OSD portability across the hosts
@@ -134,6 +135,7 @@ type VolumeSource struct {
 	PVCSources          map[string]v1.PersistentVolumeClaimVolumeSource `json:"pvcSources,omitempty"`
 	Resources           v1.ResourceRequirements                         `json:"resources,omitempty"`
 	Placement           Placement                                       `json:"placement,omitempty"`
+	PreparePlacement    *Placement                                      `json:"preparePlacement,omitempty"`
 	Config              map[string]string                               `json:"config,omitempty"`
 	Portable            bool                                            `json:"portable,omitempty"`         // Portable OSD portability across the hosts
 	TuneSlowDeviceClass bool                                            `json:"tuneDeviceClass,omitempty"`  // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class

@@ -75,6 +75,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 				Name:                storageClassDeviceSet.Name,
 				Resources:           storageClassDeviceSet.Resources,
 				Placement:           storageClassDeviceSet.Placement,
+				PreparePlacement:    storageClassDeviceSet.PreparePlacement,
 				Config:              storageClassDeviceSet.Config,
 				Size:                dataSize,
 				PVCSources:          pvcSources,
