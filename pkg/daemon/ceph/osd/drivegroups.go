@@ -45,7 +45,7 @@ func (a *OsdAgent) configureDriveGroups(context *clusterd.Context) error {
 
 	for group, spec := range a.driveGroups {
 		logger.Infof("configuring Drive Group %q: %+v", group, spec)
-		_, err := callCephVolume(context, cvDriveGroupsCommand, "--spec", spec)
+		_, err := callCephVolume(context, true, cvDriveGroupsCommand, "--spec", spec)
 		if err != nil {
 			return errors.Wrapf(err, "failed to configure Drive Group %q", group)
 		}
@@ -56,7 +56,7 @@ func (a *OsdAgent) configureDriveGroups(context *clusterd.Context) error {
 func (a *OsdAgent) driveGroupsAreSupported(context *clusterd.Context) bool {
 	// Call `ceph-volume drive-group` command with no args:
 	// if supported, will return 0 (and help message which we ingore), else returns nonzero (error)
-	_, err := callCephVolume(context, cvDriveGroupsCommand)
+	_, err := callCephVolume(context, true, cvDriveGroupsCommand)
 	if err != nil {
 		return false
 	}

@@ -637,8 +637,8 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	cvMode := "lvm"
 
 	var lvPath string
-
-	result, err := callCephVolume(context, cvMode, "list", lv, "--format", "json")
+	args := []string{cvMode, "list", lv, "--format", "json"}
+	result, err := callCephVolume(context, false, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}
@@ -733,7 +733,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		args = []string{cvMode, "list", "--format", "json"}
 	}
 
-	result, err := callCephVolume(context, args...)
+	result, err := callCephVolume(context, false, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve ceph-volume %s list results", cvMode)
 	}
@@ -817,7 +817,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	return osds, nil
 }
 
-func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
+func callCephVolume(context *clusterd.Context, requiresCombinedOutput bool, args ...string) (string, error) {
 	// Use stdbuf to capture the python output buffer such that we can write to the pod log as the
 	// logging happens instead of using the default buffering that will log everything after
 	// ceph-volume exits
@@ -832,7 +832,13 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 	}
 	baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath}
 
-	co, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, append(baseArgs, args...)...)
+	// Do not use combined output for "list" calls, otherwise we will get stderr is the output and this will break the json unmarshall
+	f := context.Executor.ExecuteCommandWithOutput
+	if requiresCombinedOutput {
+		// If the action is preparing we need the combined output
+		f = context.Executor.ExecuteCommandWithCombinedOutput
+	}
+	co, err := f(baseCommand, append(baseArgs, args...)...)
 	if err != nil {
 		// Print c-v log before exiting with failure
 		cvLog := readCVLogContent("/tmp/ceph-log/ceph-volume.log")

@@ -233,14 +233,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 					return cvInventoryOutputAvailable, nil
 				}
 
-			}
-
-			return "", errors.Errorf("unknown command %s %s", command, args)
-		},
-		MockExecuteCommandWithCombinedOutput: func(command string, args ...string) (string, error) {
-			logger.Infof("%s %v", command, args)
-
-			if command == "stdbuf" {
+			} else if command == "stdbuf" {
 				if args[4] == "raw" && args[5] == "list" {
 					return cephVolumeRAWTestResult, nil
 				} else if command == "ceph-volume" && args[0] == "lvm" {
@@ -250,8 +243,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				}
 				return "{}", nil
 			}
-
-			return "", errors.Errorf("unknown command: %s, args: %#v", command, args)
+			return "", errors.Errorf("unknown command %s %s", command, args)
 		},
 	}
 
