@@ -2163,7 +2163,7 @@ spec:
     allNodes: false
   healthCheck:
     bucket:
-      enabled: true
+      disabled: false
       interval: 10s
 `
 }

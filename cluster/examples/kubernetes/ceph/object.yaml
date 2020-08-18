@@ -86,8 +86,8 @@ spec:
     #name: zone-a
   # service endpoint healthcheck
   healthCheck:
-    endpoint:
-      enabled: true
+    bucket:
+      disabled: false
       interval: 60s
     # Configure the pod liveness probe for the rgw daemon
     livenessProbe:
