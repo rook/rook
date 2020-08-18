@@ -103,7 +103,7 @@ func (c *Cluster) getDaemonIDs() []string {
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
 	// Validate pod's memory if specified
-	err := controller.CheckPodMemory(cephv1.GetMgrResources(c.spec.Resources), cephMgrPodMinimumMemory)
+	err := controller.CheckPodMemory(cephv1.ResourcesKeyMgr, cephv1.GetMgrResources(c.spec.Resources), cephMgrPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}

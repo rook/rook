@@ -200,7 +200,7 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string,
 	}
 
 	// Validate pod's memory if specified
-	err := controller.CheckPodMemory(cephv1.GetMonResources(c.spec.Resources), cephMonPodMinimumMemory)
+	err := controller.CheckPodMemory(cephv1.ResourcesKeyMon, cephv1.GetMonResources(c.spec.Resources), cephMonPodMinimumMemory)
 	if err != nil {
 		return nil, errors.Wrap(err, "error checking pod memory")
 	}

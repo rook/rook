@@ -102,7 +102,7 @@ var UpdateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 // Start starts or updates a Ceph mds cluster in Kubernetes.
 func (c *Cluster) Start() error {
 	// Validate pod's memory if specified
-	err := controller.CheckPodMemory(c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
+	err := controller.CheckPodMemory(cephv1.ResourcesKeyMDS, c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}

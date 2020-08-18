@@ -74,7 +74,7 @@ func TestNodeAffinity(t *testing.T) {
 func TestHostNetworkSameNode(t *testing.T) {
 	namespace := "ns"
 	context, err := newTestStartCluster(t, namespace)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	// cluster host networking
 	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
 	c.spec.Network.HostNetwork = true
@@ -88,7 +88,7 @@ func TestHostNetworkSameNode(t *testing.T) {
 func TestPodMemory(t *testing.T) {
 	namespace := "ns"
 	context, err := newTestStartCluster(t, namespace)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	// Test memory limit alone
 	r := v1.ResourceRequirements{
 		Limits: v1.ResourceList{
@@ -100,7 +100,7 @@ func TestPodMemory(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	// Test REQUEST == LIMIT
 	r = v1.ResourceRequirements{
@@ -116,7 +116,7 @@ func TestPodMemory(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	// Test LIMIT != REQUEST but obviously LIMIT > REQUEST
 	r = v1.ResourceRequirements{
@@ -132,9 +132,9 @@ func TestPodMemory(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
-	// Test valid case where pod resource is set approprietly
+	// Test valid case where pod resource is set appropriately
 	r = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
 			v1.ResourceMemory: *resource.NewQuantity(1073741824, resource.BinarySI), // size in Bytes
@@ -148,7 +148,7 @@ func TestPodMemory(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Test no resources were specified on the pod
 	r = v1.ResourceRequirements{}
@@ -156,7 +156,7 @@ func TestPodMemory(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 }
 
@@ -203,7 +203,7 @@ func extractArgValue(args []string, name string) (string, string) {
 func TestGetNodeInfoFromNode(t *testing.T) {
 	clientset := test.New(t, 1)
 	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, node)
 
 	node.Status = v1.NodeStatus{}
@@ -221,6 +221,6 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 	node.Status.Addresses[0].Type = v1.NodeInternalIP
 	node.Status.Addresses[0].Address = "172.17.0.1"
 	info, err = getNodeInfoFromNode(*node)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "172.17.0.1", info.Address)
 }
