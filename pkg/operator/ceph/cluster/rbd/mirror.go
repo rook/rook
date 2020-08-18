@@ -45,7 +45,7 @@ var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 // Start begins the process of running rbd mirroring daemons.
 func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) error {
 	// Validate pod's memory if specified
-	err := controller.CheckPodMemory(cephRBDMirror.Spec.Resources, cephRbdMirrorPodMinimumMemory)
+	err := controller.CheckPodMemory(cephv1.ResourcesKeyRBDMirror, cephRBDMirror.Spec.Resources, cephRbdMirrorPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
 	}

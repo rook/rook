@@ -324,11 +324,10 @@ func CephDaemonAppLabels(appName, namespace, daemonType, daemonID string, includ
 }
 
 // CheckPodMemory verify pod's memory limit is valid
-func CheckPodMemory(resources v1.ResourceRequirements, cephPodMinimumMemory uint64) error {
+func CheckPodMemory(name string, resources v1.ResourceRequirements, cephPodMinimumMemory uint64) error {
 	// Ceph related PR: https://github.com/ceph/ceph/pull/26856
 	podMemoryLimit := resources.Limits.Memory()
 	podMemoryRequest := resources.Requests.Memory()
-	errorMessage := `refuse to run the pod with %dmb of ram, provide at least %dmb.`
 
 	// If nothing was provided let's just return
 	// This means no restrictions on pod's resources
@@ -339,7 +338,8 @@ func CheckPodMemory(resources v1.ResourceRequirements, cephPodMinimumMemory uint
 	if !podMemoryLimit.IsZero() {
 		// This means LIMIT and REQUEST are either identical or different but still we use LIMIT as a reference
 		if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
-			return errors.Errorf(errorMessage, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
+			// allow the configuration if less than the min, but print a warning
+			logger.Warningf("running the %q daemon(s) with %dmb of ram, but at least %dmb is recommended", name, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
 		}
 
 		// This means LIMIT < REQUEST
