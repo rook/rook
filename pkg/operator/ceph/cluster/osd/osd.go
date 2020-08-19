@@ -172,7 +172,7 @@ func (c *Cluster) Start() error {
 	config := c.newProvisionConfig()
 
 	// Validate pod's memory if specified
-	err := controller.CheckPodMemory(cephv1.GetOSDResources(c.spec.Resources), cephOsdPodMinimumMemory)
+	err := controller.CheckPodMemory(cephv1.ResourcesKeyOSD, cephv1.GetOSDResources(c.spec.Resources), cephOsdPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "failed to check pod memory")
 	}

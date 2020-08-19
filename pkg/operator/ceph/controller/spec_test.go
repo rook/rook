@@ -66,6 +66,7 @@ func TestMountsMatchVolumes(t *testing.T) {
 func TestCheckPodMemory(t *testing.T) {
 	// This value is in MB
 	const PodMinimumMemory uint64 = 1024
+	name := "test"
 
 	// A value for the memory used in the tests
 	var memory_value = int64(PodMinimumMemory * 8 * uint64(math.Pow10(6)))
@@ -73,7 +74,7 @@ func TestCheckPodMemory(t *testing.T) {
 	// Case 1: No memory limits, no memory requested
 	test_resource := v1.ResourceRequirements{}
 
-	if err := CheckPodMemory(test_resource, PodMinimumMemory); err != nil {
+	if err := CheckPodMemory(name, test_resource, PodMinimumMemory); err != nil {
 		t.Errorf("Error case 1: %s", err.Error())
 	}
 
@@ -87,7 +88,7 @@ func TestCheckPodMemory(t *testing.T) {
 		},
 	}
 
-	if err := CheckPodMemory(test_resource, PodMinimumMemory); err != nil {
+	if err := CheckPodMemory(name, test_resource, PodMinimumMemory); err != nil {
 		t.Errorf("Error case 2: %s", err.Error())
 	}
 
@@ -98,7 +99,7 @@ func TestCheckPodMemory(t *testing.T) {
 		},
 	}
 
-	if err := CheckPodMemory(test_resource, PodMinimumMemory); err != nil {
+	if err := CheckPodMemory(name, test_resource, PodMinimumMemory); err != nil {
 		t.Errorf("Error case 3: %s", err.Error())
 	}
 }
