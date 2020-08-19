@@ -50,6 +50,7 @@ const (
 	blockPVCWalMapperInitContainer                = "blkdevmapper-wal"
 	activatePVCOSDInitContainer                   = "activate"
 	expandPVCOSDInitContainer                     = "expand-bluefs"
+	expandEncryptedPVCOSDInitContainer            = "expand-encrypted-bluefs"
 	encryptionKeyFileName                         = "luks_key"
 	// DmcryptBlockType is a portion of the device mapper name for the encrypted OSD on PVC block.db (rocksdb db)
 	DmcryptBlockType = "block-dmcrypt"
@@ -351,6 +352,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			// Add a new init container to open the encrypted disk!
 			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdProps)...)
 			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps)...)
+			// Resize the encrypted device if necessary, this must be done after the encrypted block is opened
+			initContainers = append(initContainers, c.getExpandEncryptedPVCInitContainer(osdDataDirPath, osdProps))
 		} else {
 			initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
 			if osdProps.onPVCWithMetadata() {
@@ -361,10 +364,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			}
 		}
 		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
-		// Expansion is not supported on encrypted device
-		if !osdProps.encrypted {
-			initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
-		}
+		initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
+
 	}
 	if doActivateOSDInit {
 		initContainers = append(initContainers, *activateOSDContainer)
@@ -798,9 +799,19 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 }
 
 func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string) v1.Container {
+	/* Output example from 10GiB to 20GiB:
+
+	   inferring bluefs devices from bluestore path
+	   1 : device size 0x4ffe00000 : own 0x[11ff00000~40000000] = 0x40000000 : using 0x470000(4.4 MiB) : bluestore has 0x23fdd0000(9.0 GiB) available
+	   Expanding DB/WAL...
+	   Expanding Main...
+	   1 : expanding  from 0x27fe00000 to 0x4ffe00000
+	   1 : size label updated to 21472739328
+
+	*/
 	osdDataPath := activateOSDMountPath + osdID
 
-	container := v1.Container{
+	return v1.Container{
 		Name:  expandPVCOSDInitContainer,
 		Image: c.spec.CephVersion.Image,
 		Command: []string{
@@ -811,6 +822,26 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 		SecurityContext: PrivilegedContext(),
 		Resources:       osdProps.resources,
 	}
+}
+
+func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps osdProperties) v1.Container {
+	/* Command example
+	   [root@rook-ceph-osd-0-59b9947547-w8mdq /]# cryptsetup resize set1-data-2-8n462-block-dmcrypt
+	   Command successful.
+	*/
+
+	return v1.Container{
+		Name:  expandEncryptedPVCOSDInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"cryptsetup",
+		},
+		Args:            []string{"--verbose", "resize", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		SecurityContext: PrivilegedContext(),
+		Resources:       osdProps.resources,
+	}
+}
 
 	return container
 }
