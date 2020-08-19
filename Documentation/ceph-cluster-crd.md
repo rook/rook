@@ -423,19 +423,15 @@ It scrapes for Ceph daemon core dumps and sends them to the Ceph manager crash m
 You can read more about the [Ceph Crash module](https://docs.ceph.com/docs/master/mgr/crash/).
 * `cleanup`: Set resource requests/limits for cleanup job, responsible for wiping cluster's data after uninstall
 
-In order to provide the best possible experience running Ceph in containers, Rook internally enforces minimum memory limits if resource limits are passed.
-If a user configures a limit or request value that is too low, Rook will refuse to run the pod(s).
-Here are the current minimum amounts of memory in MB to apply so that Rook will agree to run Ceph pods:
+In order to provide the best possible experience running Ceph in containers, Rook internally recommends minimum memory limits if resource limits are passed.
+If a user configures a limit or request value that is too low, Rook will still run the pod(s) and print a warning to the operator log.
 
 * `mon`: 1024MB
 * `mgr`: 512MB
 * `osd`: 2048MB
 * `mds`: 4096MB
-
-Rook does not enforce any minimum limit nor request on the following:
-
-* prepare OSD pod: This pod commonly takes up to 50MB, but depending on the OSD scenario may need more memory. 100MB would be more conservative.
-* crashcollector pod: This pod commonly takes around 60MB.
+* `prepareosd`: 50MB
+* `crashcollector`: 60MB
 
 ### Resource Requirements/Limits
 
