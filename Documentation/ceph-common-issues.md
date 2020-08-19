@@ -27,6 +27,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [Flex storage class versus Ceph CSI storage class](#flex-storage-class-versus-ceph-csi-storage-class)
 * [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
 * [Too few PGs per OSD warning is shown](#too-few-pgs-per-osd-warning-is-shown)
+* [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
 
 ## Troubleshooting Techniques
 
@@ -800,3 +801,16 @@ You can bypass this problem by using ext4 or any other filesystems rather than X
 The meaning of this warning is written in [the document](https://docs.ceph.com/docs/master/rados/operations/health-checks#too-few-pgs).
 However, in many cases it is benign. For more information, please see [the blog entry](http://ceph.com/community/new-luminous-pg-overdose-protection/).
 Please refer to [Configuring Pools](ceph-advanced-configuration.md#configuring-pools) if you want to know the proper `pg_num` of pools and change these values.
+
+## LVM metadata can be corrupted with OSD on LV-backed PVC
+
+### Symptoms
+
+There is a critical flaw in OSD on LV-backed PVC. LVM metadata can be corrupted if both the host and OSD container modify it simultaneously. For example, the administrator might modify it on the host, while the OSD initialization process in a container could modify it too. If you still decide to configure an OSD on LVM, please keep the following in mind to reduce the probability of this issue.
+
+### Solution
+
+- Avoid configuration of LVs from the host. In addition, don't touch the VGs and physical volumes that back these LVs. 
+- Avoid incrementing the `count` field of `storageClassDeviceSets` and create a new LV that backs a OSD simultaneously.
+
+You can know whether the above-mentioned tag exists tag with the command: `sudo lvs -o lv_name,lv_tags`. If the `lv_tag` field is empty in an LV corresponding to the OSD lv_tags, this OSD encountered the problem. In this case, please [retire this OSD](ceph-osd-mgmt.md#remove-an-osd) or replace with other new OSD before restarting.

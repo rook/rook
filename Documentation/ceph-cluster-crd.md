@@ -315,22 +315,11 @@ The following are the settings for Storage Class Device Sets which can be config
 * `tuneDeviceClass`: If `true`, because the OSD can be on a slow device class, Rook will adapt to that by tuning the OSD process. This will make Ceph perform better under that slow device.
 * `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
   * `resources.requests.storage`: The desired capacity for the underlying storage devices.
-  * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device, multipath device, or logical volume. Other types are not supported. If you want to use logical volume, plese see [known issue of OSD on LV-backed PVC](#known-issue-of-osd-on-lv-backed-pvc)
+  * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device, multipath device, or logical volume. Other types are not supported. If you want to use logical volume, please see [known issue of OSD on LV-backed PVC](ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
   * `volumeMode`: The volume mode to be set for the PVC. Which should be Block
   * `accessModes`: The access mode for the PVC to be bound by OSD.
 * `schedulerName`: Scheduler name for OSD pod placement. (Optional)
 * `encrypted`: whether to encrypt all the OSDs in a given storageClassDeviceSet
-
-#### Known Issue of OSD on LV backed PVC
-
-There is a critical flaw in OSD on LV-backed PVC. LVM metadata would corrupt if both host and OSD container may modify it simultaneously. For example, administorator (in host) might modify it, that backs PVC, while the OSD initialization process (in container) modify it too. Before fixing this problem, please keep the following in mind to reduce the probability of this problems as possible.
-
-- Don't create new OSD on LV-backed PVC
-- If you have existing OSDs on LV-backed PVCs, don't touch that LVs from host. In addition, don't touch the VGs and physical volumes that back these LVs. For example, please don't increment `count` field of `storageClassDeviceSets` and create a new LV that backs a OSD simultaneously.
-
-In addition, there is a problem that may be caused by this flaw. When using OSD on LV-backed PVC with TopoLVM's dynamic provisioning, sometimes part of OSDs don't have a LVM metadata that should be added in the OSD initialization process. In this case, these OSDs don't work after restarting OSD daemons. If this applies to you, please don't create many OSDs at once. In other words, please don't add more than two of `count` field in `storageClassDeviceSet`. Instead, it's recommended to add a new OSD only if there is no running `rook-ceph-osd-prepare` pods in the same node.
-
-You can know whether the above-mentioned tag exists tag with `sudo lvs -o lv_name,lv_tags`. If `lv_tag` field is empty in a LV corresponing to an OSD lv_tags, this OSD encountered this problem. In this case, please retire this OSD or replace with other new OSD before restarting.
 
 ### OSD Configuration Settings
 
