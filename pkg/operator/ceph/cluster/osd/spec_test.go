@@ -205,7 +205,77 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	cont = deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, 6, len(cont.VolumeMounts), cont.VolumeMounts)
 
-	// Test OSD on PVC with RAW and metadata device
+	// Test with encrypted OSD on PVC with RAW
+	osdProp.encrypted = true
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, 7, len(deployment.Spec.Template.Spec.InitContainers), deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "encryption-open", deployment.Spec.Template.Spec.InitContainers[0].Name)
+	assert.Equal(t, "blkdevmapper-encryption", deployment.Spec.Template.Spec.InitContainers[1].Name)
+	assert.Equal(t, "encrypted-block-status", deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "expand-encrypted-bluefs", deployment.Spec.Template.Spec.InitContainers[3].Name)
+	assert.Equal(t, "activate", deployment.Spec.Template.Spec.InitContainers[4].Name)
+	assert.Equal(t, "expand-bluefs", deployment.Spec.Template.Spec.InitContainers[5].Name)
+	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[6].Name)
+	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
+	cont = deployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
+	osdProp.encrypted = false
+
+	// // Test OSD on PVC with RAW and metadata device
+	osd = OSDInfo{
+		ID:     0,
+		CVMode: "raw",
+	}
+	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, 5, len(deployment.Spec.Template.Spec.InitContainers))
+	assert.Equal(t, "blkdevmapper", deployment.Spec.Template.Spec.InitContainers[0].Name)
+	assert.Equal(t, "blkdevmapper-metadata", deployment.Spec.Template.Spec.InitContainers[1].Name)
+	assert.Equal(t, "activate", deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "expand-bluefs", deployment.Spec.Template.Spec.InitContainers[3].Name)
+	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[4].Name)
+	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
+	cont = deployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 6, len(cont.VolumeMounts), cont.VolumeMounts)
+	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
+	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
+	blkMetaInitCont := deployment.Spec.Template.Spec.InitContainers[2]
+	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
+
+	// // Test encrypted OSD on PVC with RAW and metadata device
+	osd = OSDInfo{
+		ID:     0,
+		CVMode: "raw",
+	}
+	osdProp.encrypted = true
+	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, 9, len(deployment.Spec.Template.Spec.InitContainers))
+	assert.Equal(t, "encryption-open", deployment.Spec.Template.Spec.InitContainers[0].Name)
+	assert.Equal(t, "encryption-open-metadata", deployment.Spec.Template.Spec.InitContainers[1].Name)
+	assert.Equal(t, "blkdevmapper-encryption", deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "blkdevmapper-metadata-encryption", deployment.Spec.Template.Spec.InitContainers[3].Name)
+	assert.Equal(t, "encrypted-block-status", deployment.Spec.Template.Spec.InitContainers[4].Name)
+	assert.Equal(t, "expand-encrypted-bluefs", deployment.Spec.Template.Spec.InitContainers[5].Name)
+	assert.Equal(t, "activate", deployment.Spec.Template.Spec.InitContainers[6].Name)
+	assert.Equal(t, "expand-bluefs", deployment.Spec.Template.Spec.InitContainers[7].Name)
+	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[8].Name)
+	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
+	cont = deployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
+	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
+	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
+	blkMetaInitCont = deployment.Spec.Template.Spec.InitContainers[6]
+	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
+	osdProp.encrypted = false
+
+	// // Test OSD on PVC with RAW / metadata and wal device
 	osd = OSDInfo{
 		ID:     0,
 		CVMode: "raw",
@@ -227,7 +297,38 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 6, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
-	blkMetaInitCont := deployment.Spec.Template.Spec.InitContainers[2]
+	blkMetaInitCont = deployment.Spec.Template.Spec.InitContainers[2]
+	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
+
+	// // Test encrypted OSD on PVC with RAW / metadata and wal device
+	osd = OSDInfo{
+		ID:     0,
+		CVMode: "raw",
+	}
+	osdProp.encrypted = true
+	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
+	osdProp.walPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-wal"}
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, 11, len(deployment.Spec.Template.Spec.InitContainers))
+	assert.Equal(t, "encryption-open", deployment.Spec.Template.Spec.InitContainers[0].Name)
+	assert.Equal(t, "encryption-open-metadata", deployment.Spec.Template.Spec.InitContainers[1].Name)
+	assert.Equal(t, "encryption-open-wal", deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "blkdevmapper-encryption", deployment.Spec.Template.Spec.InitContainers[3].Name)
+	assert.Equal(t, "blkdevmapper-metadata-encryption", deployment.Spec.Template.Spec.InitContainers[4].Name)
+	assert.Equal(t, "blkdevmapper-wal-encryption", deployment.Spec.Template.Spec.InitContainers[5].Name)
+	assert.Equal(t, "encrypted-block-status", deployment.Spec.Template.Spec.InitContainers[6].Name)
+	assert.Equal(t, "expand-encrypted-bluefs", deployment.Spec.Template.Spec.InitContainers[7].Name)
+	assert.Equal(t, "activate", deployment.Spec.Template.Spec.InitContainers[8].Name)
+	assert.Equal(t, "expand-bluefs", deployment.Spec.Template.Spec.InitContainers[9].Name)
+	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[10].Name)
+	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
+	cont = deployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
+	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
+	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
+	blkMetaInitCont = deployment.Spec.Template.Spec.InitContainers[8]
 	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
 }
 
