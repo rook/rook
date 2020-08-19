@@ -51,6 +51,7 @@ const (
 	activatePVCOSDInitContainer                   = "activate"
 	expandPVCOSDInitContainer                     = "expand-bluefs"
 	expandEncryptedPVCOSDInitContainer            = "expand-encrypted-bluefs"
+	encryptedPVCStatusOSDInitContainer            = "encrypted-block-status"
 	encryptionKeyFileName                         = "luks_key"
 	// DmcryptBlockType is a portion of the device mapper name for the encrypted OSD on PVC block.db (rocksdb db)
 	DmcryptBlockType = "block-dmcrypt"
@@ -349,9 +350,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	if osdProps.onPVC() && osd.CVMode == "raw" {
 		if osdProps.encrypted {
-			// Add a new init container to open the encrypted disk!
+			// Open the encrypted disk
 			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdProps)...)
+			// Copy the encrypted block to the osd data location, e,g: /var/lib/ceph/osd/ceph-0/block
 			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps)...)
+			// Print the encrypted block status
+			initContainers = append(initContainers, c.getEncryptedStatusPVCInitContainer(osdDataDirPath, osdProps))
 			// Resize the encrypted device if necessary, this must be done after the encrypted block is opened
 			initContainers = append(initContainers, c.getExpandEncryptedPVCInitContainer(osdDataDirPath, osdProps))
 		} else {
@@ -843,5 +847,32 @@ func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps 
 	}
 }
 
-	return container
+func (c *Cluster) getEncryptedStatusPVCInitContainer(mountPath string, osdProps osdProperties) v1.Container {
+	/* Command example:
+		root@rook-ceph-osd-0-59b9947547-w8mdq /]# cryptsetup status set1-data-2-8n462-block-dmcrypt -v
+	   /dev/mapper/set1-data-2-8n462-block-dmcrypt is active and is in use.
+	     type:    LUKS1
+	     cipher:  aes-xts-plain64
+	     keysize: 256 bits
+	     key location: dm-crypt
+	     device:  /dev/xvdbv
+	     sector size:  512
+	     offset:  4096 sectors
+	     size:    20967424 sectors
+	     mode:    read/write
+	     flags:   discards
+	   Command successful.
+	*/
+
+	return v1.Container{
+		Name:  encryptedPVCStatusOSDInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"cryptsetup",
+		},
+		Args:            []string{"--verbose", "status", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		SecurityContext: PrivilegedContext(),
+		Resources:       osdProps.resources,
+	}
 }
