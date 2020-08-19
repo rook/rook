@@ -50,6 +50,8 @@ const (
 	blockPVCWalMapperInitContainer                = "blkdevmapper-wal"
 	activatePVCOSDInitContainer                   = "activate"
 	expandPVCOSDInitContainer                     = "expand-bluefs"
+	expandEncryptedPVCOSDInitContainer            = "expand-encrypted-bluefs"
+	encryptedPVCStatusOSDInitContainer            = "encrypted-block-status"
 	encryptionKeyFileName                         = "luks_key"
 	// DmcryptBlockType is a portion of the device mapper name for the encrypted OSD on PVC block.db (rocksdb db)
 	DmcryptBlockType = "block-dmcrypt"
@@ -110,6 +112,22 @@ else
 	ceph-volume "$CV_MODE" activate "${ARGS[@]}"
 fi
 
+`
+
+	openEncryptedBlock = `
+set -xe
+
+KEY_FILE_PATH=%s
+BLOCK_PATH=%s
+DM_NAME=%s
+DM_PATH=%s
+
+if [ -b "$DM_PATH" ]; then
+	echo "Encrypted device "$BLOCK_PATH" already opened at "$DM_PATH""
+else
+  echo "Opening encrypted device "$BLOCK_PATH" at "$DM_PATH""
+  cryptsetup luksOpen --verbose --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
+fi
 `
 )
 
@@ -332,9 +350,14 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	if osdProps.onPVC() && osd.CVMode == "raw" {
 		if osdProps.encrypted {
-			// Add a new init container to open the encrypted disk!
+			// Open the encrypted disk
 			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdProps)...)
+			// Copy the encrypted block to the osd data location, e,g: /var/lib/ceph/osd/ceph-0/block
 			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps)...)
+			// Print the encrypted block status
+			initContainers = append(initContainers, c.getEncryptedStatusPVCInitContainer(osdDataDirPath, osdProps))
+			// Resize the encrypted device if necessary, this must be done after the encrypted block is opened
+			initContainers = append(initContainers, c.getExpandEncryptedPVCInitContainer(osdDataDirPath, osdProps))
 		} else {
 			initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
 			if osdProps.onPVCWithMetadata() {
@@ -345,10 +368,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			}
 		}
 		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
-		// Expansion is not supported on encrypted device
-		if !osdProps.encrypted {
-			initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
-		}
+		initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
+
 	}
 	if doActivateOSDInit {
 		initContainers = append(initContainers, *activateOSDContainer)
@@ -576,18 +597,12 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 	return v1.Container{
 		Name:  containerName,
 		Image: c.spec.CephVersion.Image,
+		// Running via bash allows us to check whether the device is already opened or not
+		// If we don't the cryptsetup command will fail saying the device is already opened
 		Command: []string{
-			"cryptsetup",
-		},
-		// Runs "cryptsetup --verbose --key-file /etc/ceph/luks_key --allow-discards luksOpen /set1-data-0-7dwll set1-data-0-7dwll-block-dmcrypt"
-		Args: []string{
-			"--verbose",
-			"--key-file",
-			encryptionKeyPath(),
-			"--allow-discards",
-			"luksOpen",
-			fmt.Sprintf("/%s", pvcName),
-			encryptionDMName(pvcName, blockType),
+			"/bin/bash",
+			"-c",
+			fmt.Sprintf(openEncryptedBlock, encryptionKeyPath(), fmt.Sprintf("/%s", pvcName), encryptionDMName(pvcName, blockType), encryptionDMPath(pvcName, blockType)),
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
@@ -788,9 +803,19 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 }
 
 func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string) v1.Container {
+	/* Output example from 10GiB to 20GiB:
+
+	   inferring bluefs devices from bluestore path
+	   1 : device size 0x4ffe00000 : own 0x[11ff00000~40000000] = 0x40000000 : using 0x470000(4.4 MiB) : bluestore has 0x23fdd0000(9.0 GiB) available
+	   Expanding DB/WAL...
+	   Expanding Main...
+	   1 : expanding  from 0x27fe00000 to 0x4ffe00000
+	   1 : size label updated to 21472739328
+
+	*/
 	osdDataPath := activateOSDMountPath + osdID
 
-	container := v1.Container{
+	return v1.Container{
 		Name:  expandPVCOSDInitContainer,
 		Image: c.spec.CephVersion.Image,
 		Command: []string{
@@ -801,6 +826,53 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 		SecurityContext: PrivilegedContext(),
 		Resources:       osdProps.resources,
 	}
+}
 
-	return container
+func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps osdProperties) v1.Container {
+	/* Command example
+	   [root@rook-ceph-osd-0-59b9947547-w8mdq /]# cryptsetup resize set1-data-2-8n462-block-dmcrypt
+	   Command successful.
+	*/
+
+	return v1.Container{
+		Name:  expandEncryptedPVCOSDInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"cryptsetup",
+		},
+		Args:            []string{"--verbose", "resize", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		SecurityContext: PrivilegedContext(),
+		Resources:       osdProps.resources,
+	}
+}
+
+func (c *Cluster) getEncryptedStatusPVCInitContainer(mountPath string, osdProps osdProperties) v1.Container {
+	/* Command example:
+		root@rook-ceph-osd-0-59b9947547-w8mdq /]# cryptsetup status set1-data-2-8n462-block-dmcrypt -v
+	   /dev/mapper/set1-data-2-8n462-block-dmcrypt is active and is in use.
+	     type:    LUKS1
+	     cipher:  aes-xts-plain64
+	     keysize: 256 bits
+	     key location: dm-crypt
+	     device:  /dev/xvdbv
+	     sector size:  512
+	     offset:  4096 sectors
+	     size:    20967424 sectors
+	     mode:    read/write
+	     flags:   discards
+	   Command successful.
+	*/
+
+	return v1.Container{
+		Name:  encryptedPVCStatusOSDInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"cryptsetup",
+		},
+		Args:            []string{"--verbose", "status", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		SecurityContext: PrivilegedContext(),
+		Resources:       osdProps.resources,
+	}
 }
