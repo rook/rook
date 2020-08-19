@@ -404,3 +404,53 @@ func TestGetOSDInfo(t *testing.T) {
 	assert.Equal(t, 0, len(osds3))
 	assert.NotNil(t, err)
 }
+
+func TestOSDPlacement(t *testing.T) {
+	// no placement
+	prop := osdProperties{}
+	result := prop.getPreparePlacement()
+	assert.Nil(t, result.NodeAffinity)
+
+	// the osd daemon placement is specified
+	prop.placement = rookv1.Placement{NodeAffinity: &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{
+					MatchExpressions: []v1.NodeSelectorRequirement{
+						{
+							Key:      "label1",
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"bar", "baz"},
+						},
+					},
+				},
+			},
+		},
+	},
+	}
+
+	result = prop.getPreparePlacement()
+	assert.Equal(t, 1, len(result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms))
+	assert.Equal(t, "label1", result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key)
+
+	// The prepare placement is specified and takes precedence over the osd placement
+	prop.preparePlacement = &rookv1.Placement{NodeAffinity: &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{
+					MatchExpressions: []v1.NodeSelectorRequirement{
+						{
+							Key:      "label2",
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"foo", "bar"},
+						},
+					},
+				},
+			},
+		},
+	},
+	}
+	result = prop.getPreparePlacement()
+	assert.Equal(t, 1, len(result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms))
+	assert.Equal(t, "label2", result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key)
+}

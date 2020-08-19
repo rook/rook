@@ -134,6 +134,7 @@ type osdProperties struct {
 	resources           v1.ResourceRequirements
 	storeConfig         osdconfig.StoreConfig
 	placement           rookv1.Placement
+	preparePlacement    *rookv1.Placement
 	metadataDevice      string
 	location            string
 	portable            bool
@@ -155,6 +156,15 @@ func (osdProps osdProperties) onPVCWithMetadata() bool {
 
 func (osdProps osdProperties) onPVCWithWal() bool {
 	return osdProps.walPVC.ClaimName != ""
+}
+
+func (osdProps osdProperties) getPreparePlacement() rookv1.Placement {
+	// If the osd prepare placement is specified, use it
+	if osdProps.preparePlacement != nil {
+		return *osdProps.preparePlacement
+	}
+	// Fall back to use the same placement as requested for the osd daemons
+	return osdProps.placement
 }
 
 // Start the osd management
@@ -244,6 +254,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			walPVC:           walSource,
 			resources:        volume.Resources,
 			placement:        volume.Placement,
+			preparePlacement: volume.PreparePlacement,
 			portable:         volume.Portable,
 			crushDeviceClass: volume.CrushDeviceClass,
 			schedulerName:    volume.SchedulerName,
@@ -715,6 +726,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				walPVC:              walSource,
 				resources:           volumeSource.Resources,
 				placement:           volumeSource.Placement,
+				preparePlacement:    volumeSource.PreparePlacement,
 				portable:            volumeSource.Portable,
 				tuneSlowDeviceClass: volumeSource.TuneSlowDeviceClass,
 				pvcSize:             volumeSource.Size,
