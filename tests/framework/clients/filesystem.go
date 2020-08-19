@@ -56,8 +56,60 @@ func (f *FilesystemOperation) Create(name, namespace string, activeCount int) er
 }
 
 // CreateStorageClass creates a storage class for CephFS clients
-func (f *FilesystemOperation) CreateStorageClass(fsName, namespace, storageClassName string) error {
-	return f.k8sh.ResourceOperation("apply", f.manifests.GetFileStorageClassDef(fsName, storageClassName, namespace))
+func (f *FilesystemOperation) CreateStorageClass(fsName, systemNamespace, namespace, storageClassName string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetFileStorageClassDef(fsName, storageClassName, systemNamespace, namespace))
+}
+
+// CreateSnapshotClass creates a snapshot class for CephFS clients
+func (f *FilesystemOperation) CreateSnapshotClass(snapshotClassName, reclaimPolicy, namespace string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetFileStorageSnapshotClass(snapshotClassName, namespace, namespace, reclaimPolicy))
+}
+
+// CreatePVCRestore creates a pvc from snapshot
+func (f *FilesystemOperation) CreatePVCRestore(namespace, claimName, snapshotName, storageClassName, mode, size string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetPVCRestore(claimName, snapshotName, namespace, storageClassName, mode, size))
+}
+
+// CreatePVCClone creates a pvc from pvc
+func (f *FilesystemOperation) CreatePVCClone(namespace, cloneClaimName, parentClaimName, storageClassName, mode, size string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetPVCClone(cloneClaimName, parentClaimName, namespace, storageClassName, mode, size))
+}
+
+// CreateSnapshot creates a snapshot from pvc
+func (f *FilesystemOperation) CreateSnapshot(snapshotName, claimName, snapshotClassName, namespace string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetSnapshot(snapshotName, claimName, snapshotClassName, namespace))
+}
+
+// DeleteSnapshot deletes the snapshot
+func (f *FilesystemOperation) DeleteSnapshot(snapshotName, claimName, snapshotClassName, namespace string) error {
+	return f.k8sh.ResourceOperation("delete", f.manifests.GetSnapshot(snapshotName, claimName, snapshotClassName, namespace))
+}
+
+func (f *FilesystemOperation) DeletePVC(namespace, claimName string) error {
+	logger.Infof("deleting pvc %q from namespace %q", claimName, namespace)
+	return f.k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(claimName, &metav1.DeleteOptions{})
+}
+
+func (f *FilesystemOperation) DeleteStorageClass(storageClassName string) error {
+	logger.Infof("deleting storage class %q", storageClassName)
+	err := f.k8sh.Clientset.StorageV1().StorageClasses().Delete(storageClassName, &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete storage class %q. %v", storageClassName, err)
+	}
+
+	return nil
+}
+
+func (f *FilesystemOperation) CreatePVC(namespace, claimName, storageClassName, mode, size string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetPVC(claimName, namespace, storageClassName, mode, size))
+}
+
+func (f *FilesystemOperation) CreatePod(podName, claimName, namespace, mountPoint string, readOnly bool) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetPod(podName, claimName, namespace, mountPoint, readOnly))
+}
+
+func (f *FilesystemOperation) DeleteSnapshotClass(snapshotClassName, deletePolicy, namespace string) error {
+	return f.k8sh.ResourceOperation("delete", f.manifests.GetFileStorageSnapshotClass(snapshotClassName, namespace, namespace, deletePolicy))
 }
 
 // ScaleDown scales down the number of active metadata servers of a filesystem in Rook

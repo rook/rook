@@ -19,6 +19,7 @@ package integration
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,6 +44,219 @@ func checkSkipCSITest(t *testing.T, k8sh *utils.K8sHelper) {
 		logger.Info("Skipping tests as kube version is less than 1.13.0 for the CSI driver")
 		t.Skip()
 	}
+}
+
+func skipSnapshotTest(k8sh *utils.K8sHelper) bool {
+	minVersion := "v1.17.0"
+	if !k8sh.VersionAtLeast(minVersion) {
+		logger.Infof("Skipping snapshot tests as kubernetes version is less than %q for the CSI driver", minVersion)
+		return true
+	}
+	return false
+}
+
+func skipCloneTest(k8sh *utils.K8sHelper) bool {
+	minVersion := "v1.16.0"
+	if !k8sh.VersionAtLeast(minVersion) {
+		logger.Infof("Skipping snapshot tests as kubernetes version is less than %q for the CSI driver", minVersion)
+		return true
+	}
+	return false
+}
+
+func blockCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, storageClassName string) {
+	// create pvc and app
+	pvcSize := "1Gi"
+	pvcName := "parent-pvc"
+	podName := "demo-pod"
+	readOnly := false
+	mountPoint := "/var/lib/test"
+	logger.Infof("create a PVC")
+	err := helper.BlockClient.CreatePVC(defaultNamespace, pvcName, storageClassName, "ReadWriteOnce", pvcSize)
+	require.NoError(s.T(), err)
+	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, pvcName), "Make sure PVC is Bound")
+
+	logger.Infof("bind PVC to application")
+	err = helper.BlockClient.CreatePod(podName, pvcName, defaultNamespace, mountPoint, readOnly)
+	assert.NoError(s.T(), err)
+
+	logger.Infof("check pod is in running state")
+	require.True(s.T(), k8sh.IsPodRunning(podName, defaultNamespace), "make sure pod is in running state")
+	logger.Infof("Storage Mounted successfully")
+
+	// write data to pvc get the checksum value
+	logger.Infof("write data to pvc")
+	cmd := fmt.Sprintf("dd if=/dev/zero of=%s/file.out bs=1MB count=10 status=none conv=fsync && md5sum %s/file.out", mountPoint, mountPoint)
+	resp, err := k8sh.RunCommandInPod(defaultNamespace, podName, cmd)
+	require.NoError(s.T(), err)
+	pvcChecksum := strings.Fields(resp)
+	require.Equal(s.T(), len(pvcChecksum), 2)
+
+	clonePVCName := "clone-pvc"
+	logger.Infof("create a new pvc from pvc")
+	err = helper.BlockClient.CreatePVCClone(defaultNamespace, clonePVCName, pvcName, storageClassName, "ReadWriteOnce", pvcSize)
+	require.NoError(s.T(), err)
+	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, clonePVCName), "Make sure PVC is Bound")
+
+	clonePodName := "clone-pod"
+	logger.Infof("bind PVC clone to application")
+	err = helper.BlockClient.CreatePod(clonePodName, clonePVCName, defaultNamespace, mountPoint, readOnly)
+	assert.NoError(s.T(), err)
+
+	logger.Infof("check pod is in running state")
+	require.True(s.T(), k8sh.IsPodRunning(clonePodName, defaultNamespace), "make sure pod is in running state")
+	logger.Infof("Storage Mounted successfully")
+
+	// get the checksum of the data and validate it
+	logger.Infof("check md5sum of both pvc and clone data is same")
+	cmd = fmt.Sprintf("md5sum %s/file.out", mountPoint)
+	resp, err = k8sh.RunCommandInPod(defaultNamespace, clonePodName, cmd)
+	require.NoError(s.T(), err)
+	clonePVCChecksum := strings.Fields(resp)
+	require.Equal(s.T(), len(clonePVCChecksum), 2)
+
+	// compare the checksum value and verify the values are equal
+	assert.Equal(s.T(), clonePVCChecksum[0], pvcChecksum[0])
+	// delete clone PVC and app
+	logger.Infof("delete clone pod")
+
+	err = k8sh.DeletePod(k8sutil.DefaultNamespace, clonePodName)
+	require.NoError(s.T(), err)
+	logger.Infof("delete clone pvc")
+
+	err = helper.BlockClient.DeletePVC(defaultNamespace, clonePVCName)
+	assertNoErrorUnlessNotFound(s, err)
+	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, clonePVCName))
+
+	// delete the parent PVC and app
+	err = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
+	require.NoError(s.T(), err)
+	logger.Infof("delete parent pvc")
+
+	err = helper.BlockClient.DeletePVC(defaultNamespace, pvcName)
+	assertNoErrorUnlessNotFound(s, err)
+	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
+}
+
+func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, storageClassName, namespace string) {
+	logger.Infof("install snapshot CRD")
+	err := k8sh.CreateSnapshotCRD()
+	require.NoError(s.T(), err)
+
+	logger.Infof("install snapshot controller")
+	err = k8sh.CreateSnapshotController()
+	require.NoError(s.T(), err)
+
+	logger.Infof("check snapshot controller is running")
+	err = k8sh.WaitForSnapshotController(15)
+	require.NoError(s.T(), err)
+	// create snapshot class
+	snapshotDeletePolicy := "Delete"
+	snapshotClassName := "snapshot-testing"
+	logger.Infof("create snapshotclass")
+	err = helper.BlockClient.CreateSnapshotClass(snapshotClassName, snapshotDeletePolicy, namespace)
+	require.NoError(s.T(), err)
+	// create pvc and app
+	pvcSize := "1Gi"
+	pvcName := "snap-pvc"
+	podName := "demo-pod"
+	readOnly := false
+	mountPoint := "/var/lib/test"
+	logger.Infof("create a PVC")
+	err = helper.BlockClient.CreatePVC(defaultNamespace, pvcName, storageClassName, "ReadWriteOnce", pvcSize)
+	require.NoError(s.T(), err)
+	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, pvcName), "Make sure PVC is Bound")
+
+	logger.Infof("bind PVC to application")
+	err = helper.BlockClient.CreatePod(podName, pvcName, defaultNamespace, mountPoint, readOnly)
+	assert.NoError(s.T(), err)
+
+	logger.Infof("check pod is in running state")
+	require.True(s.T(), k8sh.IsPodRunning(podName, defaultNamespace), "make sure pod is in running state")
+	logger.Infof("Storage Mounted successfully")
+
+	// write data to pvc get the checksum value
+	logger.Infof("write data to pvc")
+	cmd := fmt.Sprintf("dd if=/dev/zero of=%s/file.out bs=1MB count=10 status=none conv=fsync && md5sum %s/file.out", mountPoint, mountPoint)
+	resp, err := k8sh.RunCommandInPod(defaultNamespace, podName, cmd)
+	require.NoError(s.T(), err)
+	pvcChecksum := strings.Fields(resp)
+	require.Equal(s.T(), len(pvcChecksum), 2)
+	// create a snapshot
+	snapshotName := "rbd-pvc-snapshot"
+	logger.Infof("create a snapshot from pvc")
+	err = helper.BlockClient.CreateSnapshot(snapshotName, pvcName, snapshotClassName, defaultNamespace)
+	require.NoError(s.T(), err)
+	restorePVCName := "restore-block-pvc"
+	// check snapshot is in ready state
+	ready, err := k8sh.CheckSnapshotISReadyToUse(snapshotName, defaultNamespace, 15)
+	require.NoError(s.T(), err)
+	require.True(s.T(), ready, "make sure snapshot is in ready state")
+	// create restore from snapshot and bind it to app
+	logger.Infof("restore pvc to a new snapshot")
+	err = helper.BlockClient.CreatePVCRestore(defaultNamespace, restorePVCName, snapshotName, storageClassName, "ReadWriteOnce", pvcSize)
+	require.NoError(s.T(), err)
+	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, restorePVCName), "Make sure PVC is Bound")
+
+	restorePodName := "restore-pod"
+	logger.Infof("bind PVC Restore to application")
+	err = helper.BlockClient.CreatePod(restorePodName, restorePVCName, defaultNamespace, mountPoint, readOnly)
+	assert.NoError(s.T(), err)
+
+	logger.Infof("check pod is in running state")
+	require.True(s.T(), k8sh.IsPodRunning(restorePodName, defaultNamespace), "make sure pod is in running state")
+	logger.Infof("Storage Mounted successfully")
+
+	// get the checksum of the data and validate it
+	logger.Infof("check md5sum of both pvc and restore data is same")
+	cmd = fmt.Sprintf("md5sum %s/file.out", mountPoint)
+	resp, err = k8sh.RunCommandInPod(defaultNamespace, restorePodName, cmd)
+	require.NoError(s.T(), err)
+	restorePVCChecksum := strings.Fields(resp)
+	require.Equal(s.T(), len(restorePVCChecksum), 2)
+
+	// compare the checksum value and verify the values are equal
+	assert.Equal(s.T(), restorePVCChecksum[0], pvcChecksum[0])
+	// delete clone PVC and app
+	logger.Infof("delete restore pod")
+
+	err = k8sh.DeletePod(k8sutil.DefaultNamespace, restorePodName)
+	require.NoError(s.T(), err)
+	logger.Infof("delete restore pvc")
+
+	err = helper.BlockClient.DeletePVC(defaultNamespace, restorePVCName)
+	assertNoErrorUnlessNotFound(s, err)
+	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, restorePVCName))
+
+	// delete the snapshot
+	logger.Infof("delete snapshot")
+
+	err = helper.BlockClient.DeleteSnapshot(snapshotName, pvcName, snapshotClassName, defaultNamespace)
+	require.NoError(s.T(), err)
+	logger.Infof("delete application pod")
+
+	// delete the parent PVC and app
+	err = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
+	require.NoError(s.T(), err)
+	logger.Infof("delete parent pvc")
+
+	err = helper.BlockClient.DeletePVC(defaultNamespace, pvcName)
+	assertNoErrorUnlessNotFound(s, err)
+	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
+
+	logger.Infof("delete snapshotclass")
+
+	err = helper.BlockClient.DeleteSnapshotClass(snapshotClassName, snapshotDeletePolicy, namespace)
+	require.NoError(s.T(), err)
+	logger.Infof("delete snapshot-controller")
+
+	err = k8sh.DeleteSnapshotController()
+	require.NoError(s.T(), err)
+	logger.Infof("delete snapshot CRD")
+
+	// remove snapshotcontroller and delete snapshot CRD
+	err = k8sh.DeleteSnapshotCRD()
+	require.NoError(s.T(), err)
 }
 
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
@@ -210,6 +424,13 @@ func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	podName := "test-pod-lite"
 	defer blockTestDataCleanUp(helper, k8sh, s, clusterInfo, poolName, storageClassName, blockName, podName, true)
 	setupBlockLite(helper, k8sh, s, clusterInfo, systemNamespace, poolName, storageClassName, blockName, podName, version)
+	if !skipSnapshotTest(k8sh) {
+		blockCSISnapshotTest(helper, k8sh, s, storageClassName, clusterNamespace)
+	}
+
+	if !skipCloneTest(k8sh) {
+		blockCSICloneTest(helper, k8sh, s, storageClassName)
+	}
 }
 
 func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo,

@@ -41,8 +41,14 @@ type CephManifests interface {
 	GetRookToolBox(namespace string) string
 	GetBlockPoolDef(poolName, namespace, replicaSize string) string
 	GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string
-	GetFileStorageClassDef(fsName, storageClassName, namespace string) string
-	GetBlockPVCDef(claimName, namespace, storageClassName, accessModes, size string) string
+	GetFileStorageClassDef(fsName, storageClassName, systemNamespace, namespace string) string
+	GetPVC(claimName, namespace, storageClassName, accessModes, size string) string
+	GetBlockSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string
+	GetFileStorageSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string
+	GetPVCRestore(claimName, snapshotName, namespace, storageClassName, accessModes, size string) string
+	GetPVCClone(cloneClaimName, parentClaimName, namespace, storageClassName, accessModes, size string) string
+	GetSnapshot(snapshotName, claimName, snapshotClassName, namespace string) string
+	GetPod(podName, claimName, namespace, mountPoint string, readOnly bool) string
 	GetFilesystem(namepace, name string, activeCount int) string
 	GetNFS(namepace, name, pool string, daemonCount int) string
 	GetRBDMirror(namepace, name string, daemonCount int) string
@@ -1200,7 +1206,7 @@ rules:
     verbs: ["list", "watch", "create", "update", "patch"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshots"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "patch"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotcontents"]
     verbs: ["create", "get", "list", "watch", "update", "delete"]
@@ -1219,6 +1225,12 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims/status"]
     verbs: ["update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots/status"]
+    verbs: ["update"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create", "list", "watch", "delete", "get", "update"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1339,6 +1351,24 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims/status"]
     verbs: ["update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents/status"]
+    verbs: ["update"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create", "list", "watch", "delete", "get", "update"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots/status"]
+    verbs: ["update"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1610,6 +1640,7 @@ data:
   ROOK_CSI_ENABLE_RBD: "true"
   ROOK_CSI_ENABLE_GRPC_METRICS: "true"
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
+  CSI_LOG_LEVEL: "5"
 `
 }
 
@@ -2022,6 +2053,112 @@ spec:
           path: mon-endpoints`
 }
 
+func (m *CephManifestsMaster) GetBlockSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string {
+	// Create a CSI driver snapshotclass
+	return `
+apiVersion: snapshot.storage.k8s.io/v1beta1
+kind: VolumeSnapshotClass
+metadata:
+  name: ` + snapshotClassName + `
+driver: ` + systemNamespace + `.rbd.csi.ceph.com
+deletionPolicy: ` + reclaimPolicy + `
+parameters:
+  clusterID: ` + namespace + `
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: ` + namespace + `
+`
+}
+
+func (m *CephManifestsMaster) GetFileStorageSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string {
+	// Create a CSI driver snapshotclass
+	return `
+apiVersion: snapshot.storage.k8s.io/v1beta1
+kind: VolumeSnapshotClass
+metadata:
+  name: ` + snapshotClassName + `
+driver: ` + systemNamespace + `.cephfs.csi.ceph.com
+deletionPolicy: ` + reclaimPolicy + `
+parameters:
+  clusterID: ` + namespace + `
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: ` + namespace + `
+`
+}
+
+func (m *CephManifestsMaster) GetPVCRestore(claimName, snapshotName, namespace, storageClassName, accessModes, size string) string {
+	return `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ` + claimName + `
+  namespace: ` + namespace + `
+spec:
+  storageClassName: ` + storageClassName + `
+  dataSource:
+    name: ` + snapshotName + `
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  accessModes:
+    - ` + accessModes + `
+  resources:
+    requests:
+      storage: ` + size
+}
+
+func (m *CephManifestsMaster) GetPVCClone(cloneClaimName, parentClaimName, namespace, storageClassName, accessModes, size string) string {
+	return `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ` + cloneClaimName + `
+  namespace: ` + namespace + `
+spec:
+  storageClassName: ` + storageClassName + `
+  dataSource:
+    name: ` + parentClaimName + `
+    kind: PersistentVolumeClaim
+  accessModes:
+    - ` + accessModes + `
+  resources:
+    requests:
+      storage: ` + size
+}
+
+func (m *CephManifestsMaster) GetSnapshot(snapshotName, claimName, snapshotClassName, namespace string) string {
+	return `apiVersion: snapshot.storage.k8s.io/v1beta1
+kind: VolumeSnapshot
+metadata:
+  name: ` + snapshotName + `
+  namespace: ` + namespace + `
+spec:
+  volumeSnapshotClassName: ` + snapshotClassName + `
+  source:
+    persistentVolumeClaimName: ` + claimName
+}
+
+func (m *CephManifestsMaster) GetPod(podName, claimName, namespace, mountPath string, readOnly bool) string {
+	return `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ` + podName + `
+  namespace: ` + namespace + `
+spec:
+  containers:
+  - name: ` + podName + `
+    image: busybox
+    command: ["/bin/sleep", "infinity"]
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+    - mountPath: ` + mountPath + `
+      name: csivol
+  volumes:
+  - name: csivol
+    persistentVolumeClaim:
+       claimName: ` + claimName + `
+       readOnly: ` + strconv.FormatBool(readOnly) + `
+  restartPolicy: Never
+`
+}
+
 func (m *CephManifestsMaster) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
@@ -2053,6 +2190,8 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: ` + namespace + `
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
   csi.storage.k8s.io/node-stage-secret-namespace: ` + namespace + `
+  imageFeatures: layering
+  csi.storage.k8s.io/fstype: ext4
 `
 	}
 	// Create a FLEX driver storage class
@@ -2068,7 +2207,7 @@ parameters:
     clusterNamespace: ` + namespace
 }
 
-func (m *CephManifestsMaster) GetFileStorageClassDef(fsName, storageClassName, namespace string) string {
+func (m *CephManifestsMaster) GetFileStorageClassDef(fsName, storageClassName, systemNamespace, namespace string) string {
 	// Create a CSI driver storage class
 	csiCephFSNodeSecret := "rook-csi-cephfs-node"
 	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner"
@@ -2077,7 +2216,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ` + storageClassName + `
-provisioner: ` + SystemNamespace(namespace) + `.cephfs.csi.ceph.com
+provisioner: ` + systemNamespace + `.cephfs.csi.ceph.com
 parameters:
   clusterID: ` + namespace + `
   fsName: ` + fsName + `
@@ -2089,15 +2228,14 @@ parameters:
 `
 }
 
-func (m *CephManifestsMaster) GetBlockPVCDef(claimName, namespace, storageClassName, accessModes, size string) string {
+func (m *CephManifestsMaster) GetPVC(claimName, namespace, storageClassName, accessModes, size string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ` + claimName + `
   namespace: ` + namespace + `
-  annotations:
-    volume.beta.kubernetes.io/storage-class: ` + storageClassName + `
 spec:
+  storageClassName: ` + storageClassName + `
   accessModes:
     - ` + accessModes + `
   resources:

@@ -1785,7 +1785,7 @@ parameters:
     clusterNamespace: ` + namespace
 }
 
-func (m *CephManifestsV1_2) GetFileStorageClassDef(fsName, storageClassName, namespace string) string {
+func (m *CephManifestsV1_2) GetFileStorageClassDef(fsName, storageClassName, systemNamespace, namespace string) string {
 	// Create a CSI driver storage class
 	csiCephFSNodeSecret := "rook-csi-cephfs-node"
 	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner"
@@ -1794,7 +1794,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ` + storageClassName + `
-provisioner: ` + SystemNamespace(namespace) + `.cephfs.csi.ceph.com
+provisioner: ` + systemNamespace + `.cephfs.csi.ceph.com
 parameters:
   clusterID: ` + namespace + `
   fsName: ` + fsName + `
@@ -1806,7 +1806,7 @@ parameters:
 `
 }
 
-func (m *CephManifestsV1_2) GetBlockPVCDef(claimName, namespace, storageClassName, accessModes, size string) string {
+func (m *CephManifestsV1_2) GetPVC(claimName, namespace, storageClassName, accessModes, size string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -2006,5 +2006,34 @@ spec:
 
 func (m *CephManifestsV1_2) GetRBDMirror(namespace, name string, count int) string {
 	// Not implemented in v1.2
+	return ""
+}
+
+func (m *CephManifestsV1_2) GetBlockSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string {
+	// block snapshot was not implemented in v1.2
+	return ""
+}
+
+func (m *CephManifestsV1_2) GetFileStorageSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string {
+	// filesystem snapshot was not implemented in v1.2
+	return ""
+}
+
+func (m *CephManifestsV1_2) GetPVCRestore(claimName, snapshotName, namespace, storageClassName, accessModes, size string) string {
+	// snapshot restore to a new PVC was not implemented in v1.2
+	return ""
+}
+
+func (m *CephManifestsV1_2) GetPVCClone(cloneClaimName, parentClaimName, namespace, storageClassName, accessModes, size string) string {
+	// clone pvc to a new PVC was not implemented in v1.2
+	return ""
+}
+
+func (m *CephManifestsV1_2) GetSnapshot(snapshotName, claimName, snapshotClassName, namespace string) string {
+	// pvc snapshot was not implemented in v1.2
+	return ""
+}
+
+func (m *CephManifestsV1_2) GetPod(podName, claimName, namespace, mountPath string, readOnly bool) string {
 	return ""
 }

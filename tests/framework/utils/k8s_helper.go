@@ -757,6 +757,21 @@ func (k8sh *K8sHelper) writeToPod(namespace, name, filename, message string) err
 	return nil
 }
 
+// RunCommandInPod runs the provided command inside the pod
+func (k8sh *K8sHelper) RunCommandInPod(namespace, name, cmd string) (string, error) {
+	args := []string{"exec", name}
+
+	if namespace != "" {
+		args = append(args, "-n", namespace)
+	}
+	args = append(args, "--", "sh", "-c", cmd)
+	resp, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute command %q in pod %s. %+v", cmd, name, err)
+	}
+	return resp, err
+}
+
 func (k8sh *K8sHelper) readFromPod(namespace, name, filename string) (string, error) {
 	rd := path.Join(TestMountPath, filename)
 	args := []string{"exec", name}
