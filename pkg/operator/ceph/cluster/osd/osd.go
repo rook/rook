@@ -252,18 +252,15 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 
 		logger.Debugf("osdProps are %+v", osdProps)
 
-		// If the deviceSet template has "encrypted" but the Ceph version is not compatible
 		if osdProps.encrypted {
+			// If the deviceSet template has "encrypted" but the Ceph version is not compatible
 			if !c.isCephVolumeRawModeSupported() {
 				errMsg := fmt.Sprintf("failed to validate storageClassDeviceSet %q. min required ceph version to support encryption is %q or %q", volume.Name, cephVolumeRawEncryptionModeMinNautilusCephVersion.String(), cephVolumeRawEncryptionModeMinOctopusCephVersion.String())
 				config.addError(errMsg)
 				continue
 			}
-		}
 
-		// create encryption Kubernetes Secret if the PVC is encrypted
-		if osdProps.encrypted {
-			// Generate dmcrypt key
+			// create encryption Kubernetes Secret if the PVC is encrypted
 			key, err := generateDmCryptKey()
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to generate dmcrypt key for osd claim %q. %v", osdProps.pvc.ClaimName, err)
