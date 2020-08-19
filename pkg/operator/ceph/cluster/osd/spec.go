@@ -111,6 +111,22 @@ else
 fi
 
 `
+
+	openEncryptedBlock = `
+set -xe
+
+KEY_FILE_PATH=%s
+BLOCK_PATH=%s
+DM_NAME=%s
+DM_PATH=%s
+
+if [ -b "$DM_PATH" ]; then
+	echo "Encrypted device "$BLOCK_PATH" already opened at "$DM_PATH""
+else
+  echo "Opening encrypted device "$BLOCK_PATH" at "$DM_PATH""
+  cryptsetup luksOpen --verbose --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
+fi
+`
 )
 
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
@@ -576,18 +592,12 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 	return v1.Container{
 		Name:  containerName,
 		Image: c.spec.CephVersion.Image,
+		// Running via bash allows us to check whether the device is already opened or not
+		// If we don't the cryptsetup command will fail saying the device is already opened
 		Command: []string{
-			"cryptsetup",
-		},
-		// Runs "cryptsetup --verbose --key-file /etc/ceph/luks_key --allow-discards luksOpen /set1-data-0-7dwll set1-data-0-7dwll-block-dmcrypt"
-		Args: []string{
-			"--verbose",
-			"--key-file",
-			encryptionKeyPath(),
-			"--allow-discards",
-			"luksOpen",
-			fmt.Sprintf("/%s", pvcName),
-			encryptionDMName(pvcName, blockType),
+			"/bin/bash",
+			"-c",
+			fmt.Sprintf(openEncryptedBlock, encryptionKeyPath(), fmt.Sprintf("/%s", pvcName), encryptionDMName(pvcName, blockType), encryptionDMPath(pvcName, blockType)),
 		},
 		VolumeDevices: []v1.VolumeDevice{
 			{
