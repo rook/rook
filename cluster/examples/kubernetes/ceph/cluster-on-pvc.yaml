@@ -96,6 +96,7 @@ spec:
               - rook-ceph-osd
               - rook-ceph-osd-prepare
       resources:
+      # These are the OSD daemon limits. For OSD prepare limits, see the separate section below for "prepareosd" resources
       #   limits:
       #     cpu: "500m"
       #     memory: "4Gi"
@@ -145,6 +146,14 @@ spec:
       #       - ReadWriteOnce
       # Scheduler name for OSD pod placement
       # schedulerName: osd-scheduler
+  resources:
+  #  prepareosd:
+  #    limits:
+  #      cpu: "200m"
+  #      memory: "200Mi"
+  #   requests:
+  #      cpu: "200m"
+  #      memory: "200Mi"
   disruptionManagement:
     managePodBudgets: false
     osdMaintenanceTimeout: 30
