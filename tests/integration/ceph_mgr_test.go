@@ -128,7 +128,7 @@ func (suite *CephMgrSuite) waitForOrchestrationModule() {
 		logger.Info("%s", output)
 		if err == nil {
 			logger.Info("Rook Toolbox ready to execute commands")
-			break
+			return
 		}
 		time.Sleep(2 * time.Second)
 	}
