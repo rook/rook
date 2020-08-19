@@ -62,13 +62,20 @@ spec:
       encrypted: false
       # Since the OSDs could end up on any node, an effort needs to be made to spread the OSDs
       # across nodes as much as possible. Unfortunately the pod anti-affinity breaks down
-      # as soon as you have more than one OSD per node. If you have more OSDs than nodes, K8s may
-      # choose to schedule many of them on the same node. What we need is the Pod Topology
-      # Spread Constraints.
-      # Another approach for a small number of OSDs is to create a separate device set for each
-      # zone (or other set of nodes with a common label) so that the OSDs will end up on different
-      # nodes. This would require adding nodeAffinity to the placement here.
+      # as soon as you have more than one OSD per node. The topology spread constraints will
+      # give us an even spread on K8s 1.18 or newer.
       placement:
+        topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - rook-ceph-osd
+      preparePlacement:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -86,14 +93,13 @@ spec:
               topologyKey: kubernetes.io/hostname
         topologySpreadConstraints:
         - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: DoNotSchedule
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
           labelSelector:
             matchExpressions:
             - key: app
               operator: In
               values:
-              - rook-ceph-osd
               - rook-ceph-osd-prepare
       resources:
       #   limits:

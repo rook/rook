@@ -128,7 +128,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	if !osdProps.onPVC() {
 		cephv1.GetOSDPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec)
 	} else {
-		osdProps.placement.ApplyToPodSpec(&podSpec)
+		osdProps.getPreparePlacement().ApplyToPodSpec(&podSpec)
 	}
 
 	podMeta := metav1.ObjectMeta{
