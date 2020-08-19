@@ -72,7 +72,20 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 	k8sutil.AddRookVersionLabelToJob(job)
 	controller.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
 	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.clusterInfo.OwnerRef)
+
+	// override the resources of all the init containers and main container with the expected osd prepare resources
+	c.applyResourcesToAllContainers(&podSpec.Spec, cephv1.GetPrepareOSDResources(c.spec.Resources))
 	return job, nil
+}
+
+// applyResourcesToAllContainers applies consistent resource requests for all containers and all init containers in the pod
+func (c *Cluster) applyResourcesToAllContainers(spec *v1.PodSpec, resources v1.ResourceRequirements) {
+	for i := range spec.InitContainers {
+		spec.InitContainers[i].Resources = resources
+	}
+	for i := range spec.Containers {
+		spec.Containers[i].Resources = resources
+	}
 }
 
 func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.RestartPolicy, provisionConfig *provisionConfig) (*v1.PodTemplateSpec, error) {
