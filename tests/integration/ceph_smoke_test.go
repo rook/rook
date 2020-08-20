@@ -88,7 +88,7 @@ func (suite *SmokeSuite) SetupSuite() {
 		usePVC:                  false,
 		mons:                    3,
 		rbdMirrorWorkers:        1,
-		rookCephCleanup:         false,
+		rookCephCleanup:         true,
 		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: smokeSuiteMinimalTestVersion,
 		rookVersion:             installer.VersionMaster,
@@ -301,6 +301,9 @@ func (suite *SmokeSuite) TestCreateRBDMirrorClient() {
 	rbdMirrorName := "my-rbd-mirror"
 
 	err := suite.helper.RBDMirrorClient.Create(suite.namespace, rbdMirrorName, 1)
+	require.Nil(suite.T(), err)
+
+	err = suite.helper.RBDMirrorClient.Delete(suite.namespace, rbdMirrorName)
 	require.Nil(suite.T(), err)
 }
 
