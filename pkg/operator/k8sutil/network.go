@@ -26,6 +26,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// publicNetworkSelectorKeyName is the network selector key for the ceph public network
+	publicNetworkSelectorKeyName = "public"
+)
+
 // NetworkAttachmentConfig represents the configuration of the NetworkAttachmentDefinitions object
 type NetworkAttachmentConfig struct {
 	CniVersion string `json:"cniVersion"`
@@ -110,7 +115,7 @@ func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 	shortSyntax := false
 	jsonSyntax := false
 
-	for _, ns := range net.Selectors {
+	for k, ns := range net.Selectors {
 		var multusMap map[string]string
 		err := json.Unmarshal([]byte(ns), &multusMap)
 
@@ -120,7 +125,14 @@ func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 			shortSyntax = true
 		}
 
-		v = append(v, string(ns))
+		isCsi := strings.Contains(objectMeta.Labels["app"], "csi-")
+		if isCsi {
+			if k == publicNetworkSelectorKeyName {
+				v = append(v, string(ns))
+			}
+		} else {
+			v = append(v, string(ns))
+		}
 	}
 
 	if shortSyntax && jsonSyntax {
