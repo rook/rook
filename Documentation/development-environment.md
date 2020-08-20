@@ -214,3 +214,7 @@ For more information or if you are experiencing issues, please create an issue a
 ## Using Vagrant on Linux with libvirt
 
 See https://github.com/noahdesu/kubensis.
+
+## Using CodeReady Containers for setting up single node openshift 4.x cluster
+
+See https://code-ready.github.io/crc/
