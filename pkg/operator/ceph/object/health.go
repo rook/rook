@@ -168,7 +168,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 		return errors.Wrapf(err, "failed to run bucket health checks for object store %q", c.namespacedName.Name)
 	}
 
-	logger.Debug("successfully checked object store endpoint for object store %q", c.namespacedName.Name)
+	logger.Debugf("successfully checked object store endpoint for object store %q", c.namespacedName.Name)
 
 	// Update the EndpointStatus in the CR to reflect the healthyness
 	updateStatusBucket(c.client, c.namespacedName, cephv1.ConditionConnected, "")

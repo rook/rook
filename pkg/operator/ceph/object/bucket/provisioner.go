@@ -311,7 +311,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 // initializeCreateOrGrant sets common provisioner receiver fields and
 // the services and sessions needed to provision.
 func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) error {
-	logger.Infof("initializing and setting CreateOrGrant services")
+	logger.Info("initializing and setting CreateOrGrant services")
 
 	// set the bucket name
 	obc := options.ObjectBucketClaim
