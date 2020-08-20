@@ -29,6 +29,7 @@ require (
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
+	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/tools v0.0.0-20200319210407-521f4a0cd458 // indirect
 	google.golang.org/grpc v1.26.0 // indirect
 	gopkg.in/ini.v1 v1.51.1 // indirect
@@ -50,6 +51,7 @@ require (
 // This looks "horrible", but is due to the Rook including k8s.io/kubernetes directly which is not recommended,
 // ee https://github.com/kubernetes/kubernetes/issues/79384#issuecomment-505725449
 replace (
+	golang.org/x/text => golang.org/x/text v0.3.3
 	k8s.io/api => k8s.io/api v0.17.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.17.2
