@@ -50,6 +50,8 @@ make IMAGES="cassandra" build
 make IMAGES="cassandra ceph" build
 ```
 
+If you want to use `podman` instead of `docker` then uninstall `docker` packages from your machine, make will automatically pick up `podman`.
+
 ### Development Settings
 
 To provide consistent whitespace and other formatting in your `go` and other source files (e.g., Markdown), it is recommended you apply
