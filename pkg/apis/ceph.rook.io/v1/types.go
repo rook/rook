@@ -740,8 +740,9 @@ type ClientSpec struct {
 }
 
 type CleanupPolicySpec struct {
-	Confirmation  CleanupConfirmationProperty `json:"confirmation,omitempty"`
-	SanitizeDisks SanitizeDisksSpec           `json:"sanitizeDisks"`
+	Confirmation              CleanupConfirmationProperty `json:"confirmation,omitempty"`
+	SanitizeDisks             SanitizeDisksSpec           `json:"sanitizeDisks"`
+	AllowUninstallWithVolumes bool                        `json:"allowUninstallWithVolumes,omitempty"`
 }
 
 type CleanupConfirmationProperty string
