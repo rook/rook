@@ -25,7 +25,7 @@ metadata:
   namespace: rook-system
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-operator
 rules:
@@ -49,7 +49,7 @@ rules:
   verbs: [ "*" ]
 ---
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-operator
 roleRef:
@@ -74,7 +74,7 @@ metadata:
   namespace: rook-system
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-agent
 rules:
@@ -89,7 +89,7 @@ rules:
   verbs: [ "get", "list", "watch", "create", "update" ]
 ---
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-agent
 roleRef:
@@ -130,7 +130,7 @@ metadata:
   namespace: mycluster
 ---
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-api
   namespace: mycluster
@@ -149,7 +149,7 @@ rules:
   verbs: [ "get", "list", "create" ]
 ---
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-api
   namespace: mycluster
@@ -173,7 +173,7 @@ metadata:
   namespace: mycluster
 ---
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
   namespace: mycluster
@@ -183,7 +183,7 @@ rules:
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
 ---
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
   namespace: mycluster
@@ -218,7 +218,7 @@ The `rook-system` service account is responsible for launching all pods, service
 
 ```yaml
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-system
 rules:
@@ -236,7 +236,7 @@ rules:
   verbs: [ "*" ]
 ---
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-system
   namespace: rook-system
@@ -280,7 +280,7 @@ metadata:
   namespace: mycluster
 ---
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-cluster
   namespace: mycluster
@@ -290,7 +290,7 @@ rules:
   verbs: [ "get", "list", "watch", "create", "update", "delete" ]
 ---
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-cluster
   namespace: mycluster
@@ -304,7 +304,7 @@ subjects:
   namespace: rook-system
 ---
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-system
   namespace: mycluster

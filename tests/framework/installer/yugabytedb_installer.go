@@ -154,7 +154,7 @@ func (y *YugabyteDBInstaller) RemoveAllYugabyteDBResources(systemNS, namespace s
 		checkError(y.T(), err, "cannot uninstall hostpath provisioner")
 	}
 
-	y.k8sHelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	y.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
 	logger.Infof("done removing the operator from namespace %s", systemNS)
 
 	return nil

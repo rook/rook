@@ -42,7 +42,7 @@ metadata:
   name: ` + namespace + `
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: rook-edgefs-cluster-mgmt
@@ -61,7 +61,7 @@ rules:
   verbs: ["get", "list", "watch", "create", "update", "delete"]
 ---
 # The role for the operator to manage resources in the system namespace
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: rook-edgefs-system
@@ -78,7 +78,7 @@ rules:
   verbs: ["get", "list", "watch", "create", "update", "delete"]
 ---
 # The cluster role for managing the Rook CRDs
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: rook-edgefs-global
@@ -120,7 +120,7 @@ metadata:
 ---
 # Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-edgefs-system
   namespace: ` + namespace + `
@@ -138,7 +138,7 @@ subjects:
 ---
 # Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-edgefs-global
   labels:
@@ -200,7 +200,7 @@ metadata:
   namespace: ` + namespace + `
 ---
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-edgefs-cluster
   namespace: ` + namespace + `
@@ -217,7 +217,7 @@ rules:
 ---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-edgefs-cluster-mgmt
   namespace: ` + namespace + `
@@ -232,7 +232,7 @@ subjects:
 ---
 # Allow the pods in this namespace to work with configmaps
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-edgefs-cluster
   namespace: ` + namespace + `

@@ -755,7 +755,7 @@ spec:
 # OLM: BEGIN OBJECTBUCKET ROLEBINDING
 ---
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-object-bucket
 roleRef:
@@ -799,7 +799,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: rook-ceph-cluster-mgmt
@@ -829,7 +829,7 @@ rules:
   - delete
 ---
 # The role for the operator to manage resources in its own namespace
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: rook-ceph-system
@@ -874,7 +874,7 @@ rules:
   - get
 ---
 # The cluster role for managing the Rook CRDs
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: rook-ceph-global
@@ -986,7 +986,7 @@ rules:
 ---
 # Aspects of ceph-mgr that require cluster-wide access
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-cluster
   labels:
@@ -1015,7 +1015,7 @@ rules:
   - watch
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-object-bucket
   labels:
@@ -1063,7 +1063,7 @@ metadata:
 ---
 # Grant the operator, agent, and discovery agents access to resources in the namespace
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system
   namespace: rook-ceph
@@ -1081,7 +1081,7 @@ subjects:
 ---
 # Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-global
   labels:
@@ -1136,7 +1136,7 @@ metadata:
 # OLM: BEGIN CLUSTER ROLE
 ---
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
   namespace: rook-ceph
@@ -1149,7 +1149,7 @@ rules:
   verbs: [ "get", "list", "create", "update", "delete" ]
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
 rules:
@@ -1163,7 +1163,7 @@ rules:
 ---
 # Aspects of ceph-mgr that require access to the system namespace
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system
 rules:
@@ -1178,7 +1178,7 @@ rules:
 ---
 # Aspects of ceph-mgr that operate within the cluster's namespace
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph
@@ -1215,7 +1215,7 @@ rules:
 # OLM: BEGIN CMD REPORTER ROLE
 ---
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph
@@ -1237,7 +1237,7 @@ rules:
 ---
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
   namespace: rook-ceph
@@ -1252,7 +1252,7 @@ subjects:
 ---
 # Allow the osd pods in this namespace to work with configmaps
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
   namespace: rook-ceph
@@ -1267,7 +1267,7 @@ subjects:
 ---
 # Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph
@@ -1282,7 +1282,7 @@ subjects:
 ---
 # Allow the ceph mgr to access the rook system resources necessary for the mgr modules
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system
   namespace: rook-ceph
@@ -1297,7 +1297,7 @@ subjects:
 ---
 # Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-cluster
 roleRef:
@@ -1312,7 +1312,7 @@ subjects:
 ---
 # Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
 roleRef:
@@ -1328,7 +1328,7 @@ subjects:
 # OLM: BEGIN CMD REPORTER ROLEBINDING
 ---
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph

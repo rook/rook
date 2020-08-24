@@ -72,7 +72,7 @@ For more information on using the Ceph feature to limit access to CephFS paths, 
 **This ClusterRole is needed no matter if you want to use a RoleBinding per namespace or a ClusterRoleBinding.**
 
 ```yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: rook-ceph-agent-mount
@@ -101,7 +101,7 @@ Replace `namespace: name-of-namespace-with-mountsecret` according to the name of
 
 ```yaml
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-agent-mount
   namespace: name-of-namespace-with-mountsecret
@@ -124,7 +124,7 @@ This ClusterRoleBinding only needs to be created once, as it covers the whole cl
 
 ```yaml
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-agent-mount
   labels:

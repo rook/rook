@@ -182,9 +182,9 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	err = UninstallHostPathProvisioner(h.k8shelper)
 	checkError(h.T(), err, "cannot uninstall hostpath provisioner")
 
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("run-nfs-client-provisioner", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("nfs-client-provisioner-runner", nil)
+	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("run-nfs-client-provisioner", nil)
+	h.k8shelper.Clientset.RbacV1().ClusterRoles().Delete("nfs-client-provisioner-runner", nil)
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 }
 

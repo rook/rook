@@ -1578,7 +1578,7 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 
 	for i := 0; i < RetryLoop; i++ {
 		var err error
-		if _, err = k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Get("anon-user-access", metav1.GetOptions{}); err == nil {
+		if _, err = k8sh.Clientset.RbacV1().ClusterRoleBindings().Get("anon-user-access", metav1.GetOptions{}); err == nil {
 			break
 		}
 		logger.Warningf("failed to get anon-user-access clusterrolebinding, will try again: %+v", err)

@@ -145,7 +145,7 @@ func (h *CockroachDBInstaller) UninstallCockroachDB(systemNamespace, namespace s
 	err = UninstallHostPathProvisioner(h.k8shelper)
 	checkError(h.T(), err, "cannot uninstall hostpath provisioner")
 
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 }
 
