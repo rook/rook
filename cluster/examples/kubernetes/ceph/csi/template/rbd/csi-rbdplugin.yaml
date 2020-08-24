@@ -36,10 +36,6 @@ spec:
             - "--v={{ .LogLevel }}"
             - "--csi-address=/csi/csi.sock"
             - "--kubelet-registration-path={{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
-          lifecycle:
-            preStop:
-              exec:
-                  command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
