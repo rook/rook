@@ -421,7 +421,7 @@ For example,
 
 ```yaml
   network:
-    hostNetwork: true
+    provider: host
 ```
 
 > IMPORTANT: Changing this setting is not supported in a running Rook cluster. Host networking
