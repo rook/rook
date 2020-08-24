@@ -179,10 +179,6 @@ const (
                 - "--v=5"
                 - "--csi-address=/csi/csi.sock"
                 - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com/csi.sock"
-              lifecycle:
-                preStop:
-                  exec:
-                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-rbdplugin /registration/csi-rbdplugin-reg.sock"]
               env:
                 - name: KUBE_NODE_NAME
                   valueFrom:
@@ -440,10 +436,6 @@ const (
                 - "--v=5"
                 - "--csi-address=/csi/csi.sock"
                 - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/csi.sock"
-              lifecycle:
-                preStop:
-                  exec:
-                      command: ["/bin/sh", "-c", "rm -rf /registration/csi-cephfsplugin /registration/csi-cephfsplugin-reg.sock"]
               env:
                 - name: KUBE_NODE_NAME
                   valueFrom:
