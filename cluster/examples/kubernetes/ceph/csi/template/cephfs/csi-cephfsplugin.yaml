@@ -35,10 +35,6 @@ spec:
             - "--v={{ .LogLevel }}"
             - "--csi-address=/csi/csi.sock"
             - "--kubelet-registration-path={{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/csi.sock"
-          lifecycle:
-            preStop:
-              exec:
-                  command: ["/bin/sh", "-c", "rm -rf /registration/{{ .DriverNamePrefix }}cephfs.csi.ceph.com /registration/{{ .DriverNamePrefix }}cephfs.csi.ceph.com-reg.sock"]
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
