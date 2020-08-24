@@ -110,6 +110,10 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 
 			// For LV mode
 			lvPath = getDeviceLVPath(context, fmt.Sprintf("/mnt/%s", a.nodeName))
+			lvBackedPV, err := sys.IsLV(fmt.Sprintf("/mnt/%s", a.nodeName), context.Executor)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to check device type")
+			}
 
 			// List THE existing OSD configured with ceph-volume lvm mode
 			lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, lvPath, skipLVRelease, lvBackedPV)
@@ -117,9 +121,13 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 				logger.Infof("failed to get device already provisioned by ceph-volume lvm. %v", err)
 			}
 			osds = append(osds, lvmOsds...)
+			if len(osds) > 0 {
+				// "ceph-volume raw list" lists the existing OSD even if it is configured with lvm mode, so escape here to avoid dupe.
+				return osds, nil
+			}
 
 			// List THE existing OSD configured with ceph-volume raw mode
-			if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) && !lvBackedPV {
+			if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
 				// For block mode
 				block = fmt.Sprintf("/mnt/%s", a.nodeName)
 
@@ -143,7 +151,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		}
 
 		// List existing OSD(s) configured with ceph-volume lvm mode
-		lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, lvPath, false, lvBackedPV)
+		lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, lvPath, false, false)
 		if err != nil {
 			logger.Infof("failed to get devices already provisioned by ceph-volume. %v", err)
 		}
@@ -172,9 +180,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 
 	// Update LVM configuration file
 	// Only do this after Ceph Nautilus 14.2.6 since it will use the ceph-volume raw mode by default and not LVM anymore
-	//
-	// Or keep doing this if the PV is backend by an LV already
-	if !a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) || lvBackedPV {
+	if !a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
 		if err := UpdateLVMConfig(context, a.pvcBacked, lvBackedPV); err != nil {
 			return nil, errors.Wrap(err, "failed to update lvm configuration file")
 		}
@@ -199,7 +205,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	osds = append(osds, lvmOsds...)
 
 	// List THE configured OSD with ceph-volume raw mode
-	if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) && !lvBackedPV {
+	if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
 		// When the block is encrypted we need to list against the encrypted device mapper
 		if !isEncrypted {
 			block = fmt.Sprintf("/mnt/%s", a.nodeName)
@@ -220,8 +226,10 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	var baseArgs []string
 
 	cephVolumeMode := "lvm"
-	if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) && !lvBackedPV {
+	if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
 		cephVolumeMode = "raw"
+	} else if lvBackedPV {
+		return "", "", "", errors.New("OSD on LV-backed PVC requires new Ceph to use raw mode")
 	}
 
 	// Create a specific log directory so that each prepare command will have its own log
@@ -278,20 +286,12 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			var err error
 			var deviceArg string
 
-			if lvBackedPV {
-				// pass 'vg/lv' to ceph-volume
-				deviceArg, err = sys.GetLVName(context.Executor, device.Config.Name)
-				if err != nil {
-					return "", "", "", errors.Wrapf(err, "failed to get lv name from device path %q", device.Config.Name)
-				}
-			} else {
-				deviceArg = device.Config.Name
-				logger.Info("devlink names:")
-				for _, devlink := range device.PersistentDevicePaths {
-					logger.Info(devlink)
-					if strings.HasPrefix(devlink, "/dev/mapper") {
-						deviceArg = devlink
-					}
+			deviceArg = device.Config.Name
+			logger.Info("devlink names:")
+			for _, devlink := range device.PersistentDevicePaths {
+				logger.Info(devlink)
+				if strings.HasPrefix(devlink, "/dev/mapper") {
+					deviceArg = devlink
 				}
 			}
 
@@ -335,7 +335,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			}
 			logger.Infof("%v", op)
 			// if raw mode is used or PV on LV, let's return the path of the device
-			if lvBackedPV || cephVolumeMode == "raw" && !isEncrypted {
+			if cephVolumeMode == "raw" && !isEncrypted {
 				blockPath = deviceArg
 			} else if cephVolumeMode == "raw" && isEncrypted {
 				blockPath = getEncryptedBlockPath(op, oposd.DmcryptBlockType)
