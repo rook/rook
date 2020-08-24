@@ -699,7 +699,7 @@ func GetObjectBucketProvisioner(c *clusterd.Context, namespace string) string {
 	provName := bucketProvisionerName
 	obcWatchOnNamespace, err := k8sutil.GetOperatorSetting(c.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_OBC_WATCH_OPERATOR_NAMESPACE", "false")
 	if err != nil {
-		logger.Warningf("failed to verify if obc should watch the operator namespace or all of them, watching all")
+		logger.Warning("failed to verify if obc should watch the operator namespace or all of them, watching all")
 	} else {
 		if strings.EqualFold(obcWatchOnNamespace, "true") {
 			provName = fmt.Sprintf("%s.%s", namespace, bucketProvisionerName)

@@ -91,7 +91,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 	}
 	if c.store.Spec.Gateway.Instances < 1 {
 		// Set the minimum of at least one instance
-		logger.Warningf("spec.gateway.instances must be set to at least 1")
+		logger.Warning("spec.gateway.instances must be set to at least 1")
 		c.store.Spec.Gateway.Instances = 1
 	}
 
@@ -182,7 +182,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 	// scale down scenario
 	deps, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
 	if err != nil {
-		logger.Warning("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
+		logger.Warningf("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
 	}
 
 	currentRgwInstances := int(len(deps.Items))
@@ -213,7 +213,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		// verify scale down was successful
 		deps, err = k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
 		if err != nil {
-			logger.Warning("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
+			logger.Warningf("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
 		}
 		currentRgwInstances = len(deps.Items)
 		if currentRgwInstances == desiredRgwInstances {
@@ -251,7 +251,7 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 	logger.Debugf("looking for legacy deployment in object store %q", c.store.Name)
 	deps, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
 	if err != nil {
-		logger.Warning("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
+		logger.Warningf("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
 	}
 	for _, d := range deps.Items {
 		if d.Name == instanceName(c.store.Name) {
