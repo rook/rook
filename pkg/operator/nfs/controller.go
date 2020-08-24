@@ -19,6 +19,7 @@ package nfs
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -158,8 +159,8 @@ func (r *NFSServerReconciler) reconcileNFSServerConfig(ctx context.Context, cr *
 		nfsGaneshaConfig := `
 EXPORT {
 	Export_Id = ` + fmt.Sprintf("%v", id) + `;
-	Path = /` + claimName + `;
-	Pseudo = /` + claimName + `;
+	Path = ` + path.Join("/", claimName) + `;
+	Pseudo = ` + path.Join("/", claimName) + `;
 	Protocols = 4;
 	Transports = TCP;
 	Sectype = sys;
@@ -287,12 +288,16 @@ func (r *NFSServerReconciler) reconcileNFSServer(ctx context.Context, cr *nfsv1a
 
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      shareName,
-				MountPath: "/" + claimName,
+				MountPath: path.Join("/", claimName),
 			})
 		}
 
 		sts.Spec.Template.Spec.Volumes = volumes
-		sts.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+		for i, container := range sts.Spec.Template.Spec.Containers {
+			if container.Name == "nfs-server" || container.Name == "nfs-provisioner" {
+				sts.Spec.Template.Spec.Containers[i].VolumeMounts = volumeMounts
+			}
+		}
 
 		return nil
 	})

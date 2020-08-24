@@ -17,6 +17,8 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
+	"path"
 	"reflect"
 	"testing"
 
@@ -92,7 +94,7 @@ func (r *resource) Generate() *nfsv1alpha1.NFSServer {
 }
 
 func TestNFSServerReconciler_Reconcile(t *testing.T) {
-	expectedStatefulSet := func(scheme *runtime.Scheme, cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
+	expectedServerFunc := func(scheme *runtime.Scheme, cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
 		sts := newStatefulSetForNFSServer(cr)
 		sts.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: newLabels(cr),
@@ -137,14 +139,24 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      shareName,
-				MountPath: "/" + claimName,
+				MountPath: path.Join("/", claimName),
 			})
 		}
 		sts.Status.ReadyReplicas = int32(cr.Spec.Replicas)
 		sts.Spec.Template.Spec.Volumes = volumes
-		sts.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+		for i, container := range sts.Spec.Template.Spec.Containers {
+			if container.Name == "nfs-server" || container.Name == "nfs-provisioner" {
+				sts.Spec.Template.Spec.Containers[i].VolumeMounts = volumeMounts
+			}
+		}
 
 		return sts
+	}
+
+	expectedServerServiceFunc := func(scheme *runtime.Scheme, cr *nfsv1alpha1.NFSServer) *corev1.Service {
+		svc := newServiceForNFSServer(cr)
+		_ = controllerutil.SetControllerReference(cr, svc, scheme)
+		return svc
 	}
 
 	rr := reconcile.Request{
@@ -208,10 +220,17 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 			scheme := clientgoscheme.Scheme
 			scheme.AddKnownTypes(nfsv1alpha1.SchemeGroupVersion, tt.cr)
 
+			expectedServer := expectedServerFunc(scheme, tt.cr)
+			expectedServerService := expectedServerServiceFunc(scheme, tt.cr)
+
 			objs := []runtime.Object{
 				tt.cr,
-				expectedStatefulSet(scheme, tt.cr),
+				expectedServer,
+				expectedServerService,
 			}
+
+			expectedServer.GetObjectKind().SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("StatefulSet"))
+			expectedServerService.GetObjectKind().SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 
 			fc := fake.NewFakeClient(objs...)
 			fr := record.NewFakeRecorder(2)
@@ -229,6 +248,24 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NFSServerReconciler.Reconcile() = %v, want %v", got, tt.want)
+			}
+
+			gotServer := &appsv1.StatefulSet{}
+			if err := fc.Get(context.Background(), tt.args.req.NamespacedName, gotServer); err != nil {
+				t.Errorf("NFSServerReconciler.Reconcile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotServer, expectedServer) {
+				t.Errorf("NFSServerReconciler.Reconcile() = %v, want %v", gotServer, expectedServer)
+			}
+
+			gotServerService := &corev1.Service{}
+			if err := fc.Get(context.Background(), tt.args.req.NamespacedName, gotServerService); err != nil {
+				t.Errorf("NFSServerReconciler.Reconcile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotServerService, expectedServerService) {
+				t.Errorf("NFSServerReconciler.Reconcile() = %v, want %v", gotServerService, expectedServerService)
 			}
 		})
 	}
