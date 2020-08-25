@@ -428,6 +428,11 @@ func (in *StorageClassDeviceSet) DeepCopyInto(out *StorageClassDeviceSet) {
 	*out = *in
 	in.Resources.DeepCopyInto(&out.Resources)
 	in.Placement.DeepCopyInto(&out.Placement)
+	if in.PreparePlacement != nil {
+		in, out := &in.PreparePlacement, &out.PreparePlacement
+		*out = new(Placement)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
 		*out = make(map[string]string, len(*in))
@@ -512,6 +517,11 @@ func (in *VolumeSource) DeepCopyInto(out *VolumeSource) {
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	in.Placement.DeepCopyInto(&out.Placement)
+	if in.PreparePlacement != nil {
+		in, out := &in.PreparePlacement, &out.PreparePlacement
+		*out = new(Placement)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
 		*out = make(map[string]string, len(*in))
