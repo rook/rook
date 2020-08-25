@@ -36,3 +36,18 @@ spec:
       for: 5s
       labels:
         severity: critical
+  - name: cluster-services-alert.rules
+    rules:
+    - alert: ClusterObjectStoreState
+      annotations:
+        description: Cluster Object Store is in unhealthy state for more than 15s.
+          Please check Ceph cluster health or RGW connection.
+        message: Cluster Object Store is in unhealthy state. Please check Ceph cluster
+          health or RGW connection.
+        severity_level: error
+        storage_type: RGW
+      expr: |
+        ocs_rgw_health_status{job="ocs-metrics-exporter"} > 1
+      for: 15s
+      labels:
+        severity: critical
