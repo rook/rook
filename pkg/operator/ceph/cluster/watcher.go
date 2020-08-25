@@ -78,7 +78,7 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		return false
 	}
 
-	valid, _ := k8sutil.ValidNode(*node, cluster.Spec.Placement.All())
+	valid, _ := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement))
 	if valid {
 		nodeName := node.Name
 		hostname, ok := node.Labels[v1.LabelHostname]
