@@ -572,6 +572,7 @@ func deleteCSIDriverResources(
 }
 
 func applyCephClusterNetworkConfig(objectMeta *metav1.ObjectMeta, rookclientset rookclient.Interface) (bool, error) {
+	var isMultusApplied bool
 	cephClusters, err := rookclientset.CephV1().CephClusters(objectMeta.Namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return false, errors.Errorf("failed to find CephClusters in namespace %q", objectMeta.Namespace)
@@ -582,10 +583,11 @@ func applyCephClusterNetworkConfig(objectMeta *metav1.ObjectMeta, rookclientset 
 			if err != nil {
 				return false, errors.Wrapf(err, "failed to apply multus configuration to CephCluster %q", cephCluster.Name)
 			}
+			isMultusApplied = true
 		}
 	}
 
-	return true, nil
+	return isMultusApplied, nil
 }
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
