@@ -384,7 +384,15 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				// CONFIGMAP WHITELIST
 				// Only reconcile on rook-config-override CM changes
 				isCMTConfigOverride := isCMTConfigOverride(e.ObjectNew)
-				if !isCMTConfigOverride {
+				if isCMTConfigOverride {
+					logger.Debugf("do reconcile when the cm is %s", k8sutil.ConfigOverrideName)
+					return true
+				}
+
+				// If the resource is a ConfigMap we don't reconcile
+				_, ok := e.ObjectNew.(*corev1.ConfigMap)
+				if ok {
+					logger.Debugf("do not reconcile on configmap that is not %q", k8sutil.ConfigOverrideName)
 					return false
 				}
 
@@ -397,7 +405,7 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				}
 
 				// If the resource is a deployment we don't reconcile
-				_, ok := e.ObjectNew.(*appsv1.Deployment)
+				_, ok = e.ObjectNew.(*appsv1.Deployment)
 				if ok {
 					return false
 				}
