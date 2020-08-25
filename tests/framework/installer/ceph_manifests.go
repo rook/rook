@@ -668,6 +668,15 @@ spec:
               type: boolean
             parameters:
               type: object
+            mirrored:
+              properties:
+                enabled:
+                  type: boolean
+                mode:
+                  type: string
+                  enum:
+                  - image
+                  - pool
   subresources:
     status: {}
 ---
@@ -784,6 +793,10 @@ spec:
               type: integer
               minimum: 1
               maximum: 100
+            peers:
+              properties:
+                secretNames:
+                  type: array
   subresources:
     status: {}`
 }
@@ -2033,7 +2046,14 @@ spec:
     size: ` + replicaSize + `
     targetSizeRatio: .5
     requireSafeReplicaSize: false
-  compressionMode: aggressive`
+  compressionMode: aggressive
+  mirroring:
+    enabled: true
+    mode: image
+  statusCheck:
+    mirror:
+      disabled: false
+      interval: 10s`
 }
 
 func (m *CephManifestsMaster) GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string {

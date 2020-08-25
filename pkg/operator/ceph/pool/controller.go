@@ -32,11 +32,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -66,9 +64,16 @@ var _ reconcile.Reconciler = &ReconcileCephBlockPool{}
 
 // ReconcileCephBlockPool reconciles a CephBlockPool object
 type ReconcileCephBlockPool struct {
-	client  client.Client
-	scheme  *runtime.Scheme
-	context *clusterd.Context
+	client            client.Client
+	scheme            *runtime.Scheme
+	context           *clusterd.Context
+	clusterInfo       *cephclient.ClusterInfo
+	blockPoolChannels map[string]*blockPoolHealth
+}
+
+type blockPoolHealth struct {
+	stopChan          chan struct{}
+	monitoringRunning bool
 }
 
 // Add creates a new CephBlockPool Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -85,9 +90,10 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Rec
 		panic(err)
 	}
 	return &ReconcileCephBlockPool{
-		client:  mgr.GetClient(),
-		scheme:  mgrScheme,
-		context: context,
+		client:            mgr.GetClient(),
+		scheme:            mgrScheme,
+		context:           context,
+		blockPoolChannels: make(map[string]*blockPoolHealth),
 	}
 }
 
@@ -116,7 +122,7 @@ func (r *ReconcileCephBlockPool) Reconcile(request reconcile.Request) (reconcile
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime loggin interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
-		logger.Errorf("failed to reconcile %v", err)
+		logger.Errorf("failed to reconcile. %v", err)
 	}
 
 	return reconcileResponse, err
@@ -132,12 +138,12 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrap(err, "failed to get CephBlockPool")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get CephBlockPool")
 	}
 
 	// The CR was just created, initializing status fields
 	if cephBlockPool.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing, nil)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -153,7 +159,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			// Remove finalizer
 			err = opcontroller.RemoveFinalizer(r.client, cephBlockPool)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to remove finalizer")
 			}
 
 			// Return and do not requeue. Successful deletion.
@@ -165,21 +171,33 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// Populate clusterInfo during each reconcile
 	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")
+	}
+	r.clusterInfo = clusterInfo
+
+	// Initialize the channel for this object store
+	// This allows us to track multiple CephBlockPool in the same namespace
+	_, poolChannelExists := r.blockPoolChannels[cephBlockPool.Name]
+	if !poolChannelExists {
+		r.blockPoolChannels[cephBlockPool.Name] = &blockPoolHealth{
+			stopChan:          make(chan struct{}),
+			monitoringRunning: false,
+		}
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephBlockPool)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add finalizer")
 	}
 
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
+
 		logger.Debugf("deleting pool %q", cephBlockPool.Name)
 		err := deletePool(r.context, clusterInfo, cephBlockPool)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
+			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
 		}
 
 		// disable RBD stats collection if cephBlockPool was deleted
@@ -187,10 +205,19 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			logger.Errorf("failed to disable stats collection for pool(s). %v", err)
 		}
 
+		// If the ceph block pool is still in the map, we must remove it during CR deletion
+		if poolChannelExists {
+			// Close the channel to stop the mirroring status
+			close(r.blockPoolChannels[cephBlockPool.Name].stopChan)
+
+			// Remove ceph block pool from the map
+			delete(r.blockPoolChannels, cephBlockPool.Name)
+		}
+
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.client, cephBlockPool)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to remove finalizer")
 		}
 
 		// Return and do not requeue. Successful deletion.
@@ -199,15 +226,13 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 	// validate the pool settings
 	if err := ValidatePool(r.context, clusterInfo, cephBlockPool); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "invalid pool CR %q spec", cephBlockPool.Name)
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "invalid pool CR %q spec", cephBlockPool.Name)
 	}
-
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
 
 	// Get CephCluster version
 	cephVersion, err := opcontroller.GetImageVersion(cephCluster)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to fetch ceph version from cephcluster %q", cephCluster.Name)
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to fetch ceph version from cephcluster %q", cephCluster.Name)
 	}
 
 	// If the CephCluster has enabled the "pg_autoscaler" module and is running Nautilus
@@ -225,7 +250,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// CREATE/UPDATE
 	reconcileResponse, err = r.reconcileCreatePool(clusterInfo, cephBlockPool)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure, nil)
 		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
 
@@ -234,8 +259,37 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, errors.Wrap(err, "failed to enable/disable stats collection for pool(s)")
 	}
 
-	// Set Ready status, we are done reconciling
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	// ADD PEERS
+	logger.Debug("reconciling create rbd mirror peer configuration")
+	if cephBlockPool.Spec.Mirroring.Enabled {
+		// Always create a bootstrap peer token in case another cluster wants to add us as a peer
+		reconcileResponse, err = r.createBootstrapPeerSecret(cephBlockPool, request.NamespacedName)
+		if err != nil {
+			updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure, nil)
+			return reconcileResponse, errors.Wrapf(err, "failed to create rbd-mirror bootstrap peer for pool %q.", cephBlockPool.GetName())
+		}
+
+		// Check if rbd-mirror CR and daemons are running
+		logger.Debug("listing rbd-mirror CR")
+		// Run the goroutine to update the mirroring status
+		if !cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
+			// Start monitoring object store
+			if r.blockPoolChannels[cephBlockPool.Name].monitoringRunning {
+				logger.Debug("external rgw endpoint monitoring go routine already running!")
+			} else {
+				checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &cephBlockPool.Spec.StatusCheck, cephBlockPool.Name)
+				go checker.checkMirroring(r.blockPoolChannels[cephBlockPool.Name].stopChan)
+			}
+		}
+
+		// Set Ready status, we are done reconciling
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, generateStatusInfo(cephBlockPool))
+
+		// If not mirrored there is no Status Info field to fulfil
+	} else {
+		// Set Ready status, we are done reconciling
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, nil)
+	}
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -245,7 +299,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.ClusterInfo, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
 	err := createPool(r.context, clusterInfo, cephBlockPool)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
 
 	// Let's return here so that on the initial creation we don't check for update right away
@@ -281,31 +335,6 @@ func deletePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	}
 
 	return nil
-}
-
-// updateStatus updates a pool CR with the given status
-func updateStatus(client client.Client, poolName types.NamespacedName, status string) {
-	pool := &cephv1.CephBlockPool{}
-	err := client.Get(context.TODO(), poolName, pool)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
-			return
-		}
-		logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
-		return
-	}
-
-	if pool.Status == nil {
-		pool.Status = &cephv1.Status{}
-	}
-
-	pool.Status.Phase = status
-	if err := opcontroller.UpdateStatus(client, pool); err != nil {
-		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
-		return
-	}
-	logger.Debugf("pool %q status updated to %q", poolName, status)
 }
 
 func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {

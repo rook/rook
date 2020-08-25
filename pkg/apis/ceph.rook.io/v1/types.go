@@ -291,8 +291,8 @@ type CrashCollectorSpec struct {
 type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              PoolSpec `json:"spec"`
-	Status            *Status  `json:"status"`
+	Spec              PoolSpec             `json:"spec"`
+	Status            *CephBlockPoolStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -327,6 +327,42 @@ type PoolSpec struct {
 
 	// EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
 	EnableRBDStats bool `json:"enableRBDStats"`
+
+	// The mirroring settings
+	Mirroring MirroringSpec `json:"mirroring"`
+
+	// The mirroring statusCheck
+	StatusCheck MirrorHealthCheckSpec `json:"statusCheck"`
+}
+
+type MirrorHealthCheckSpec struct {
+	Mirror HealthCheckSpec `json:"mirror,omitempty"`
+}
+
+type CephBlockPoolStatus struct {
+	Phase           ConditionType        `json:"phase,omitempty"`
+	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
+	MirroringInfo   *MirroringInfoSpec   `json:"mirroringInfo,omitempty"`
+	// Use only info and put mirroringStatus in it?
+	Info map[string]string `json:"info,omitempty"`
+}
+
+// MirroringStatusSpec is the status of the pool mirroring
+type MirroringStatusSpec struct {
+	Summary     SummarySpec `json:"summary,omitempty"`
+	LastChecked string      `json:"lastChecked,omitempty"`
+	LastChanged string      `json:"lastChanged,omitempty"`
+	Details     string      `json:"details,omitempty"`
+}
+
+type SummarySpec map[string]interface{}
+
+// MirroringInfoSpec is the status of the pool mirroring
+type MirroringInfoSpec struct {
+	Summary     SummarySpec `json:"summary,omitempty"`
+	LastChecked string      `json:"lastChecked,omitempty"`
+	LastChanged string      `json:"lastChanged,omitempty"`
+	Details     string      `json:"details,omitempty"`
 }
 
 type Status struct {
@@ -343,6 +379,15 @@ type ReplicatedSpec struct {
 
 	// RequireSafeReplicaSize if false allows you to set replica 1
 	RequireSafeReplicaSize bool `json:"requireSafeReplicaSize"`
+}
+
+// MirroredSpec represents the setting for a mirrored pool
+type MirroringSpec struct {
+	// Enabled whether this pool is mirrored or not
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Mode is the mirroring mode: either "pool" or "image"
+	Mode string `json:"mode,omitempty"`
 }
 
 // ErasureCodeSpec represents the spec for erasure code in a pool
@@ -780,6 +825,9 @@ type RBDMirroringSpec struct {
 	// Count represents the number of rbd mirror instance to run
 	Count int `json:"count"`
 
+	// RBDMirroringPeerSpec represents the peers spec
+	Peers RBDMirroringPeerSpec `json:"peers,omitempty"`
+
 	// The affinity to place the rgw pods (default is to place on any available node)
 	Placement rookv1.Placement `json:"placement"`
 
@@ -794,4 +842,9 @@ type RBDMirroringSpec struct {
 
 	// PriorityClassName sets priority class on the rbd mirror pods
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
+type RBDMirroringPeerSpec struct {
+	// SecretNames represents the Kubernetes Secret names to add rbd-mirror peers
+	SecretNames []string `json:"secretNames,omitempty"`
 }

@@ -11,6 +11,11 @@ metadata:
 spec:
   # the number of rbd-mirror daemons to deploy
   count: 1
+  # list of Kubernetes Secrets containing the peer token
+  # for more details see: https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#bootstrap-peers
+  #peers:
+    #secretNames:
+      #- secondary-cluster-peer
   # The affinity rules to apply to the mds deployment
   placement:
   #  nodeAffinity:

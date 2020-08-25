@@ -77,13 +77,13 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		// Start the deployment
 		d, err := r.makeDeployment(daemonConf, cephRBDMirror)
 		if err != nil {
-			return errors.Wrap(err, "failed to create deployment")
+			return errors.Wrap(err, "failed to create rbd-mirror deployment")
 		}
 
 		// Set owner ref to cephRBDMirror object
 		err = controllerutil.SetControllerReference(cephRBDMirror, d, r.scheme)
 		if err != nil {
-			return errors.Wrapf(err, "failed to set owner reference for ceph filesystem %q secret", d.Name)
+			return errors.Wrapf(err, "failed to set owner reference for ceph rbd-mirror %q secret", d.Name)
 		}
 
 		// Set the deployment hash as an annotation
@@ -143,7 +143,7 @@ func (r *ReconcileCephRBDMirror) removeExtraMirrors(cephRBDMirror *cephv1.CephRB
 		}
 		index, err := k8sutil.NameToIndex(daemonName)
 		if err != nil {
-			logger.Warningf("unrecognized rbdmirror %s with label %s", deploy.Name, daemonName)
+			logger.Warningf("unrecognized rbd-mirror %s with label %s", deploy.Name, daemonName)
 			continue
 		}
 		if index >= cephRBDMirror.Spec.Count {

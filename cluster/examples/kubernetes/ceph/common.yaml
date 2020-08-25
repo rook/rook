@@ -282,6 +282,10 @@ spec:
               type: integer
               minimum: 1
               maximum: 100
+            peers:
+              properties:
+                secretNames:
+                  type: array
   subresources:
     status: {}
 # OLM: END CEPH RBD MIRROR CRD
@@ -681,6 +685,15 @@ spec:
               type: boolean
             parameters:
               type: object
+            mirroring:
+              properties:
+                enabled:
+                  type: boolean
+                mode:
+                  type: string
+                  enum:
+                  - image
+                  - pool
   subresources:
     status: {}
 # OLM: END CEPH BLOCK POOL CRD

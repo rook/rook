@@ -51,8 +51,9 @@ type daemonConfig struct {
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
 
 // return the volume and matching volume mount for mounting the config override ConfigMap into
-// containers as "/rook/ceph/ceph.conf".
+// containers as "/etc/ceph/ceph.conf".
 func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
+	secretAndConfigMapVolumeProjections := []v1.VolumeProjection{}
 	name := k8sutil.ConfigOverrideName // configmap name and name of volume
 	dir := config.EtcCephDir
 	file := "ceph.conf"
@@ -67,13 +68,21 @@ func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	// won't be able to read the ceph.conf and the container will die, the "restart" count will increase in k8s
 	// This will mislead users thinking something won't wrong but that a false positive
 	mode := int32(0444)
-	v := v1.Volume{Name: name, VolumeSource: v1.VolumeSource{
-		ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{
-			Name: name},
-			Items: []v1.KeyToPath{
-				{Key: k8sutil.ConfigOverrideVal, Path: file, Mode: &mode},
+	projectionConfigMap := &v1.ConfigMapProjection{Items: []v1.KeyToPath{{Key: k8sutil.ConfigOverrideVal, Path: file, Mode: &mode}}}
+	projectionConfigMap.Name = name
+	configMapProjection := v1.VolumeProjection{
+		ConfigMap: projectionConfigMap,
+	}
+	secretAndConfigMapVolumeProjections = append(secretAndConfigMapVolumeProjections, configMapProjection)
+
+	v := v1.Volume{
+		Name: name,
+		VolumeSource: v1.VolumeSource{
+			Projected: &v1.ProjectedVolumeSource{
+				Sources: secretAndConfigMapVolumeProjections,
 			},
-		}}}
+		},
+	}
 
 	// configmap's "config" to "/etc/ceph/ceph.conf"
 	m := v1.VolumeMount{

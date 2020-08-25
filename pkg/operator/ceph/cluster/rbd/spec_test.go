@@ -79,13 +79,16 @@ func TestPodSpec(t *testing.T) {
 	s := scheme.Scheme
 	object := []runtime.Object{rbdMirror}
 	cl := fake.NewFakeClientWithScheme(s, object...)
-	r := &ReconcileCephRBDMirror{client: cl, scheme: s}
+	r := &ReconcileCephRBDMirror{client: cl, scheme: s, peers: make(map[string]*peerSpec)}
 	r.cephClusterSpec = &cephCluster.Spec
 	r.clusterInfo = clusterInfo
 
 	d, err := r.makeDeployment(&daemonConf, rbdMirror)
 	assert.NoError(t, err)
 	assert.Equal(t, "rook-ceph-rbd-mirror-a", d.Name)
+	assert.Equal(t, 4, len(d.Spec.Template.Spec.Volumes))
+	assert.Equal(t, 1, len(d.Spec.Template.Spec.Volumes[0].Projected.Sources))
+	assert.Equal(t, 4, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
 
 	// Deployment should have Ceph labels
 	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
@@ -95,4 +98,15 @@ func TestPodSpec(t *testing.T) {
 	podTemplate.RunFullSuite(config.RbdMirrorType, "a", AppName, "ns", "ceph/ceph:myceph",
 		"200", "100", "600", "300", /* resources */
 		"my-priority-class")
+
+	// Test with peer
+	rbdMirror.Spec.Peers.SecretNames = append(rbdMirror.Spec.Peers.SecretNames, "foo")
+	p := cephclient.PeersSpec{UUID: "c9838c14-d9a1-4e69-b51e-09ff0a4d617c", SiteName: "foo", ClientName: "client.rbd-mirror-peer"}
+	r.peers["foo"] = &peerSpec{poolName: "foo", info: &cephclient.PoolMirroringInfo{Peers: []cephclient.PeersSpec{p}}}
+	d, err = r.makeDeployment(&daemonConf, rbdMirror)
+	assert.NoError(t, err)
+	// We now have the volume for the ConfigMap and the Secret
+	assert.Equal(t, 4, len(d.Spec.Template.Spec.Volumes))
+	assert.Equal(t, 3, len(d.Spec.Template.Spec.Volumes[0].Projected.Sources))
+	assert.Equal(t, 4, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
 }
