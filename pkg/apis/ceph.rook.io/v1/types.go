@@ -74,6 +74,9 @@ type ClusterSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.AnnotationsSpec `json:"annotations,omitempty"`
 
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.LabelsSpec `json:"labels,omitempty"`
+
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rookv1.PlacementSpec `json:"placement,omitempty"`
 
@@ -402,6 +405,9 @@ type MetadataServerSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
+
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
 
@@ -481,6 +487,9 @@ type GatewaySpec struct {
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rgw pods
 	Resources v1.ResourceRequirements `json:"resources"`
@@ -671,6 +680,9 @@ type GaneshaServerSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
+
 	// Resources set resource requests and limits
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 
@@ -772,6 +784,9 @@ type RBDMirroringSpec struct {
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rbd mirror pods
 	Resources v1.ResourceRequirements `json:"resources"`

@@ -131,7 +131,8 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `modules`: is the list of Ceph manager modules to enable
 * `crashCollector`: The settings for crash collector daemon(s).
   * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
-* `annotations`: [annotations configuration settings](#annotations-configuration-settings)
+* `annotations`: [annotations configuration settings](#annotations-and-labels)
+* `labels`: [labels configuration settings](#annotations-and-labels)
 * `placement`: [placement configuration settings](#placement-configuration-settings)
 * `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)
 * `priorityClassNames`: [priority class names configuration settings](#priority-class-names-configuration-settings)
@@ -377,16 +378,17 @@ A Drive Group is defined by a name, a Ceph Drive Group spec, and a Rook placemen
   (Optional) Default is no placement criteria, which matches all untainted nodes.
   The syntax is the same as for [other placement configuration](#placement-configuration-settings).
 
-### Annotations Configuration Settings
+### Annotations and Labels
 
-Annotations can be specified so that the Rook components will have those annotations added to them.
+Annotations and Labels can be specified so that the Rook components will have those annotations / labels added to them.
 
-You can set annotations for Rook components for the list of key value pairs:
+You can set annotations / labels for Rook components for the list of key value pairs:
 
-* `all`: Set annotations for all components
-* `mgr`: Set annotations for MGRs
-* `mon`: Set annotations for mons
-* `osd`: Set annotations for OSDs
+* `all`: Set annotations / labels for all components
+* `mgr`: Set annotations / labels for MGRs
+* `mon`: Set annotations / labels for mons
+* `osd`: Set annotations / labels for OSDs
+* `prepareosd`: Set annotations / labels for OSD Prepare Jobs
 
 When other keys are set, `all` will be merged together with the specific component.
 

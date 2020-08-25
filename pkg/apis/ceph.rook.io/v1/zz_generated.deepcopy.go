@@ -948,6 +948,23 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*out)[key] = outVal
 		}
 	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(rookiov1.LabelsSpec, len(*in))
+		for key, val := range *in {
+			var outVal map[string]string
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make(rookiov1.Labels, len(*in))
+				for key, val := range *in {
+					(*out)[key] = val
+				}
+			}
+			(*out)[key] = outVal
+		}
+	}
 	if in.Placement != nil {
 		in, out := &in.Placement, &out.Placement
 		*out = make(rookiov1.PlacementSpec, len(*in))
@@ -1280,6 +1297,13 @@ func (in *GaneshaServerSpec) DeepCopyInto(out *GaneshaServerSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(rookiov1.Labels, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	return
 }
@@ -1301,6 +1325,13 @@ func (in *GatewaySpec) DeepCopyInto(out *GatewaySpec) {
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
 		*out = make(rookiov1.Annotations, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(rookiov1.Labels, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -1349,6 +1380,13 @@ func (in *MetadataServerSpec) DeepCopyInto(out *MetadataServerSpec) {
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
 		*out = make(rookiov1.Annotations, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(rookiov1.Labels, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -1670,6 +1708,13 @@ func (in *RBDMirroringSpec) DeepCopyInto(out *RBDMirroringSpec) {
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
 		*out = make(rookiov1.Annotations, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(rookiov1.Labels, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}

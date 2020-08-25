@@ -70,6 +70,9 @@ spec:
     # A key/value list of annotations
     annotations:
     #  key: value
+    # A key/value list of labels
+    labels:
+    #  key: value
     resources:
     # The requests and limits set here, allow the object store gateway Pod(s) to use half of one CPU core and 1 gigabyte of memory
     #  limits:

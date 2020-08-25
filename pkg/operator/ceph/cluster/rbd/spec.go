@@ -48,6 +48,8 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
+	rbdMirror.Spec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
+	rbdMirror.Spec.Labels.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	if r.cephClusterSpec.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
@@ -76,6 +78,8 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	controller.AddCephVersionLabelToDeployment(r.clusterInfo.CephVersion, d)
+	rbdMirror.Spec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
+	rbdMirror.Spec.Labels.ApplyToObjectMeta(&d.ObjectMeta)
 
 	return d, nil
 }

@@ -29,6 +29,7 @@ spec:
   crashCollector:
     disable: false
   annotations:
+  labels:
   resources:
   removeOSDsIfOutAndSafeToRemove: false
   # When managing a Rook/Ceph cluster's OSD layouts with Drive Groups, the `storage` config is
