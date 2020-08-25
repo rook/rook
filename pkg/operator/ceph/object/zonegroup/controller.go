@@ -190,7 +190,7 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 	// Create/Update Ceph Zone Group
 	reconcileResponse, err = r.createCephZoneGroup(cephObjectZoneGroup)
 	if err != nil {
-		return r.setFailedStatus(request.NamespacedName, "failed to create ceph zone", err)
+		return r.setFailedStatus(request.NamespacedName, "failed to create ceph zone group", err)
 	}
 
 	// Set Ready status, we are done reconciling
@@ -262,10 +262,11 @@ func (r *ReconcileObjectZoneGroup) createCephZoneGroup(zoneGroup *cephv1.CephObj
 
 func (r *ReconcileObjectZoneGroup) reconcileObjectRealm(zoneGroup *cephv1.CephObjectZoneGroup) (reconcile.Result, error) {
 	// Verify the object realm API object actually exists
-	_, err := r.context.RookClientset.CephV1().CephObjectRealms(zoneGroup.Namespace).Get(zoneGroup.Spec.Realm, metav1.GetOptions{})
+	cephObjectRealm := &cephv1.CephObjectRealm{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: zoneGroup.Spec.Realm, Namespace: zoneGroup.Namespace}, cephObjectRealm)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return waitForRequeueIfObjectRealmNotReady, err
+			return waitForRequeueIfObjectRealmNotReady, errors.Wrapf(err, "realm %q not found", zoneGroup.Spec.Realm)
 		}
 		return waitForRequeueIfObjectRealmNotReady, errors.Wrapf(err, "error finding CephObjectRealm %s", zoneGroup.Spec.Realm)
 	}

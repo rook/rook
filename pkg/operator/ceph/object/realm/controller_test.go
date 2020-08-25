@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package objectuser to manage a rook object store.
+// Package realm to manage a rook object realm.
 package realm
 
 import (
@@ -42,7 +42,6 @@ import (
 var (
 	name         = "realm-a"
 	namespace    = "rook-ceph"
-	store        = "my-store"
 	realmGetJSON = `{
 		"id": "237e6250-5f7d-4b85-9359-8cb2b1848507",
 		"name": "realm-a",
@@ -148,7 +147,7 @@ func TestCephObjectRealmController(t *testing.T) {
 	}
 	r.context.Executor = executor
 
-	// Create a ReconcileObjectStoreUser object with the scheme and fake client.
+	// Create a ReconcileObjectRealm object with the scheme and fake client.
 	r = &ReconcileObjectRealm{client: cl, scheme: r.scheme, context: r.context}
 
 	res, err = r.Reconcile(req)
