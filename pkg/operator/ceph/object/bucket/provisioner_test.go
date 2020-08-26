@@ -100,5 +100,5 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	p.objectStoreName = store
 	err = p.populateDomainAndPort(sc)
 	assert.NoError(t, err)
-	assert.Equal(t, "rook-ceph-rgw-test-store.ns", p.storeDomainName)
+	assert.Equal(t, "rook-ceph-rgw-test-store.ns.svc.cluster.local", p.storeDomainName)
 }

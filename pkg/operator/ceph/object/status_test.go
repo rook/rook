@@ -37,7 +37,7 @@ func TestBuildStatusInfo(t *testing.T) {
 	statusInfo := buildStatusInfo(cephObjectStore)
 	assert.NotEmpty(t, statusInfo["endpoint"])
 	assert.Empty(t, statusInfo["secureEndpoint"])
-	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", statusInfo["endpoint"])
+	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:80", statusInfo["endpoint"])
 
 	// SecurePort enabled and Port disabled
 	cephObjectStore.Spec.Gateway.Port = 0
@@ -46,7 +46,7 @@ func TestBuildStatusInfo(t *testing.T) {
 	statusInfo = buildStatusInfo(cephObjectStore)
 	assert.NotEmpty(t, statusInfo["endpoint"])
 	assert.Empty(t, statusInfo["secureEndpoint"])
-	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph:443", statusInfo["endpoint"])
+	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:443", statusInfo["endpoint"])
 
 	// Both Port and SecurePort enabled
 	cephObjectStore.Spec.Gateway.Port = 80
@@ -55,6 +55,6 @@ func TestBuildStatusInfo(t *testing.T) {
 	statusInfo = buildStatusInfo(cephObjectStore)
 	assert.NotEmpty(t, statusInfo["endpoint"])
 	assert.NotEmpty(t, statusInfo["secureEndpoint"])
-	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", statusInfo["endpoint"])
-	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph:443", statusInfo["secureEndpoint"])
+	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:80", statusInfo["endpoint"])
+	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:443", statusInfo["secureEndpoint"])
 }
