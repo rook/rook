@@ -102,6 +102,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	controller.AddCephVersionLabelToDeployment(r.clusterInfo.CephVersion, deployment)
 	nfs.Spec.Server.Annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
+	nfs.Spec.Server.Labels.ApplyToObjectMeta(&deployment.ObjectMeta)
 
 	cephConfigVol, _ := cephConfigVolumeAndMount()
 	nfsConfigVol, _ := nfsConfigVolumeAndMount(cfg.ConfigConfigMap)
@@ -153,6 +154,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	}
 
 	nfs.Spec.Server.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
+	nfs.Spec.Server.Labels.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
 	// Multiple replicas of the nfs service would be handled by creating a service and a new deployment for each one, rather than increasing the pod count here
 	replicas := int32(1)

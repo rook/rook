@@ -23,47 +23,47 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAnnotationsMerge(t *testing.T) {
-	// No annotations defined
-	testAnnotations := rook.AnnotationsSpec{}
-	a := GetOSDAnnotations(testAnnotations)
+func TestLabelsMerge(t *testing.T) {
+	// No Labels defined
+	testLabels := rook.LabelsSpec{}
+	a := GetOSDLabels(testLabels)
 	assert.Nil(t, a)
 
-	// Only a specific component annotations without "all"
-	testAnnotations = rook.AnnotationsSpec{
+	// Only a specific component labels without "all"
+	testLabels = rook.LabelsSpec{
 		"mgr":       {"mgrkey": "mgrval"},
 		"mon":       {"monkey": "monval"},
 		"osd":       {"osdkey": "osdval"},
 		"rgw":       {"rgwkey": "rgwval"},
 		"rbdmirror": {"rbdmirrorkey": "rbdmirrorval"},
 	}
-	a = GetMgrAnnotations(testAnnotations)
+	a = GetMgrLabels(testLabels)
 	assert.Equal(t, "mgrval", a["mgrkey"])
 	assert.Equal(t, 1, len(a))
-	a = GetMonAnnotations(testAnnotations)
+	a = GetMonLabels(testLabels)
 	assert.Equal(t, "monval", a["monkey"])
 	assert.Equal(t, 1, len(a))
-	a = GetOSDAnnotations(testAnnotations)
+	a = GetOSDLabels(testLabels)
 	assert.Equal(t, "osdval", a["osdkey"])
 	assert.Equal(t, 1, len(a))
 
-	// No annotations matching the component
-	testAnnotations = rook.AnnotationsSpec{
+	// No Labels matching the component
+	testLabels = rook.LabelsSpec{
 		"mgr": {"mgrkey": "mgrval"},
 	}
-	a = GetMonAnnotations(testAnnotations)
+	a = GetMonLabels(testLabels)
 	assert.Nil(t, a)
 
 	// Merge with "all"
-	testAnnotations = rook.AnnotationsSpec{
+	testLabels = rook.LabelsSpec{
 		"all": {"allkey1": "allval1", "allkey2": "allval2"},
 		"mgr": {"mgrkey": "mgrval"},
 	}
-	a = GetMonAnnotations(testAnnotations)
+	a = GetMonLabels(testLabels)
 	assert.Equal(t, "allval1", a["allkey1"])
 	assert.Equal(t, "allval2", a["allkey2"])
 	assert.Equal(t, 2, len(a))
-	a = GetMgrAnnotations(testAnnotations)
+	a = GetMgrLabels(testLabels)
 	assert.Equal(t, "mgrval", a["mgrkey"])
 	assert.Equal(t, "allval1", a["allkey1"])
 	assert.Equal(t, "allval2", a["allkey2"])

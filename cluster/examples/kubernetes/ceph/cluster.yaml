@@ -138,8 +138,16 @@ spec:
 #    mon:
 #    osd:
 #    cleanup:
+#    prepareosd:
 # If no mgr annotations are set, prometheus scrape annotations will be set by default.
-#   mgr:
+#    mgr:
+  labels:
+#    all:
+#    mon:
+#    osd:
+#    cleanup:
+#    mgr:
+#    prepareosd:
   resources:
 # The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
 #    mgr:
