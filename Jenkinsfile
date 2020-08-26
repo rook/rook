@@ -97,9 +97,6 @@ pipeline {
                 }
             }
             steps {
-                // quick check that no files are modified for the go modules
-                sh 'build/run make -j\$(nproc) mod.check'
-                sh 'git diff-index --quiet HEAD || { echo "CHANGES FOUND. You may need to run make clean"; git status -s; exit 1; }'
                 // run the build
                 sh 'build/run make -j\$(nproc) build.all'
                 sh 'git status'
