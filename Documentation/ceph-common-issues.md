@@ -583,7 +583,7 @@ $ kubectl -n rook-ceph delete pod -l app=rook-ceph-operator
 
 ## Node hangs after reboot
 
-This issue is fixed in `cephcsi:v2.0.1` and newer.
+This issue is fixed in Rook v1.3 or later.
 
 ### Symptoms
 
