@@ -380,7 +380,7 @@ func emptyPool(pool cephv1.PoolSpec) bool {
 
 // BuildDomainName build the dns name to reach out the service endpoint
 func BuildDomainName(name, namespace string) string {
-	return fmt.Sprintf("%s-%s.%s", AppName, name, namespace)
+	return fmt.Sprintf("%s-%s.%s.%s", AppName, name, namespace, svcDNSSuffix)
 }
 
 // buildDNSEndpoint build the dns name to reach out the service endpoint
