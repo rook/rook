@@ -420,7 +420,7 @@ func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error
 	if err != nil {
 		return err
 	}
-	p.storeDomainName = fmt.Sprintf("%s-%s.%s", prefixObjectStoreSvc, name, namespace)
+	p.storeDomainName = fmt.Sprintf("%s-%s.%s.%s", prefixObjectStoreSvc, name, namespace, suffixObjectStoreSvc)
 	return nil
 }
 
