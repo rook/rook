@@ -16,5 +16,5 @@ jobs:
       run: GOPATH=$(go env GOPATH) make codegen
 
     - name: validate codegen
-      run: hack/validate-codegen.sh
+      run: hack/validate_modified_files.sh codegen
 
