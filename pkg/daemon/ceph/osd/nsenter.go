@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -77,11 +78,12 @@ func (ne *NSEnter) checkIfBinaryExistsOnHost() error {
 		err := ne.callNsEnter(binPath)
 		if err != nil {
 			logger.Debugf("failed to call nsenter. %v", err)
-			// If nsenter failed, let's try with the rootfs directly
+			// If nsenter failed, let's try with the rootfs directly but only lookup the binary and do not execute it
+			// This avoids mismatch libraries between the container and the host while executing
 			rootFSBinPath := filepath.Join(rootFSPath, binPath)
-			output, err := ne.context.Executor.ExecuteCommandWithCombinedOutput(rootFSBinPath, ne.binaryArgs...)
+			_, err := os.Stat(rootFSBinPath)
 			if err != nil {
-				logger.Debugf("failed to execute command on the host rootfs. %s. %v", output, err)
+				logger.Debugf("failed to lookup binary path %q on the host rootfs. %v", rootFSBinPath, err)
 				continue
 			}
 			binPath = rootFSBinPath
