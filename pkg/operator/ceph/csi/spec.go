@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
@@ -201,7 +202,7 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func startDrivers(clientset kubernetes.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
+func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
 	var (
 		err                                                   error
 		rbdPlugin, cephfsPlugin                               *apps.DaemonSet
@@ -380,6 +381,13 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		// apply resource request and limit to rbdplugin containers
 		applyResourcesToContainers(clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, ownerRef)
+		multusApplied, err := applyCephClusterNetworkConfig(&rbdPlugin.Spec.Template.ObjectMeta, rookclientset)
+		if err != nil {
+			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset: %+v", rbdPlugin)
+		}
+		if multusApplied {
+			rbdPlugin.Spec.Template.Spec.HostNetwork = false
+		}
 		err = k8sutil.CreateDaemonSet(csiRBDPlugin, namespace, clientset, rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbdplugin daemonset: %+v", rbdPlugin)
@@ -408,6 +416,10 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
+		_, err = applyCephClusterNetworkConfig(&rbdProvisionerDeployment.Spec.Template.ObjectMeta, rookclientset)
+		if err != nil {
+			return errors.Wrapf(err, "failed to apply network config to rbd plugin provisioner deployment: %+v", rbdProvisionerDeployment)
+		}
 		err = k8sutil.CreateDeployment(clientset, csiRBDProvisioner, namespace, rbdProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner deployment: %+v", rbdProvisionerDeployment)
@@ -428,6 +440,13 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		// apply resource request and limit to cephfs plugin containers
 		applyResourcesToContainers(clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, ownerRef)
+		multusApplied, err := applyCephClusterNetworkConfig(&cephfsPlugin.Spec.Template.ObjectMeta, rookclientset)
+		if err != nil {
+			return errors.Wrapf(err, "failed to apply network config to cephfs plugin daemonset: %+v", cephfsPlugin)
+		}
+		if multusApplied {
+			cephfsPlugin.Spec.Template.Spec.HostNetwork = false
+		}
 		err = k8sutil.CreateDaemonSet(csiCephFSPlugin, namespace, clientset, cephfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs plugin daemonset: %+v", cephfsPlugin)
@@ -456,6 +475,11 @@ func startDrivers(clientset kubernetes.Interface, namespace string, ver *version
 		cephfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		cephfsProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
 			Type: apps.RecreateDeploymentStrategyType,
+		}
+
+		_, err = applyCephClusterNetworkConfig(&cephfsProvisionerDeployment.Spec.Template.ObjectMeta, rookclientset)
+		if err != nil {
+			return errors.Wrapf(err, "failed to apply network config to cephfs plugin provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}
 		err = k8sutil.CreateDeployment(clientset, csiCephFSProvisioner, namespace, cephfsProvisionerDeployment)
 		if err != nil {
@@ -545,6 +569,25 @@ func deleteCSIDriverResources(
 		succeeded = false
 	}
 	return succeeded
+}
+
+func applyCephClusterNetworkConfig(objectMeta *metav1.ObjectMeta, rookclientset rookclient.Interface) (bool, error) {
+	var isMultusApplied bool
+	cephClusters, err := rookclientset.CephV1().CephClusters(objectMeta.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		return false, errors.Errorf("failed to find CephClusters in namespace %q", objectMeta.Namespace)
+	}
+	for _, cephCluster := range cephClusters.Items {
+		if cephCluster.Spec.Network.IsMultus() {
+			err = k8sutil.ApplyMultus(cephCluster.Spec.Network.NetworkSpec, objectMeta)
+			if err != nil {
+				return false, errors.Wrapf(err, "failed to apply multus configuration to CephCluster %q", cephCluster.Name)
+			}
+			isMultusApplied = true
+		}
+	}
+
+	return isMultusApplied, nil
 }
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object

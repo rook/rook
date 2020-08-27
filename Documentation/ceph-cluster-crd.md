@@ -220,6 +220,7 @@ To use host networking, set `provider: host`.
 #### Multus (EXPERIMENTAL)
 
 Rook has experimental support for Multus.
+Currently there is an [open issue](https://github.com/ceph/ceph-csi/issues/1323) in ceph-csi which explains the csi-rbdPlugin issue while using multus network.
 
 The selector keys are required to be `public` and `cluster` where each represent:
 
