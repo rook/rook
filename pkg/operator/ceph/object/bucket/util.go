@@ -42,6 +42,7 @@ const (
 	genUserLen           = 8
 	cephUser             = "cephUser"
 	prefixObjectStoreSvc = "rook-ceph-rgw"
+	suffixObjectStoreSvc = "svc.cluster.local"
 	accessKeyIdKey       = "accessKeyID"
 	secretSecretKeyKey   = "secretAccessKey"
 	objectStoreName      = "objectStoreName"

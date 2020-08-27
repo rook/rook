@@ -44,7 +44,8 @@ func NewS3Agent(accessKey, secretKey, endpoint string) (*S3Agent, error) {
 			WithEndpoint(endpoint).
 			WithS3ForcePathStyle(true).
 			WithMaxRetries(20).
-			WithDisableSSL(true))
+			WithDisableSSL(true).
+			WithLogLevel(aws.LogDebug))
 	if err != nil {
 		return nil, err
 	}
