@@ -1,4 +1,5 @@
 #!/bin/bash +e
+set -x
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 

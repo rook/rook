@@ -98,7 +98,14 @@ pipeline {
             }
             steps {
                 // run the build
-                sh 'build/run make -j\$(nproc) build.all'
+                script {
+                    if (env.isOfficialBuild == "false" && env.testProvider != "") {
+                        sh (script: "build/run make -j\$(nproc) IMAGES=${env.testProvider} build", returnStdout: true)
+                    } else {
+                        sh (script: "build/run make -j\$(nproc) build.all", returnStdout: true)
+                    }
+                }
+                sh 'docker images'
                 sh 'git status'
             }
         }
@@ -144,7 +151,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
+                sh (script: "cat _output/version | xargs tests/scripts/makeTestImages.sh save amd64 ${env.testProvider}", returnStdout: true)
                 stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script {
                     def data = [
@@ -217,7 +224,7 @@ def RunIntegrationTest(k, v) {
                     echo "running tests on k8s version ${v}"
                     unstash 'repo-amd64'
                     sh "tests/scripts/kubeadm.sh clean || 1"
-                    sh 'tests/scripts/makeTestImages.sh load amd64'
+                    sh (script: "tests/scripts/makeTestImages.sh load amd64 ${env.testProvider}", returnStdout: true)
                     sh "tests/scripts/kubeadm.sh up"
                     sh '''#!/bin/bash
                           export KUBECONFIG=$HOME/admin.conf
