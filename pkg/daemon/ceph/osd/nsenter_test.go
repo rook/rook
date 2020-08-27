@@ -51,23 +51,4 @@ func TestCheckIfBinaryExistsOnHost(t *testing.T) {
 	ne := NewNsenter(context, lvmCommandToCheck, []string{"help"})
 	err := ne.checkIfBinaryExistsOnHost()
 	assert.NoError(t, err)
-
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
-		logger.Infof("%s %v", command, args)
-		switch command {
-
-		case "/rootfs/usr/sbin/lvm":
-			return "success", nil
-
-		case "/rootfs/sbin/lvm":
-			return "success", nil
-
-		}
-		return "", errors.Errorf("unknown command %s %s", command, args)
-	}
-
-	context = &clusterd.Context{Executor: executor}
-	ne = NewNsenter(context, lvmCommandToCheck, []string{"help"})
-	err = ne.checkIfBinaryExistsOnHost()
-	assert.NoError(t, err)
 }
