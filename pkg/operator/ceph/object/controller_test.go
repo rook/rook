@@ -371,7 +371,7 @@ func TestCephObjectStoreController(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, cephv1.ConditionProgressing, objectStore.Status.Phase, objectStore)
 	assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
-	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", objectStore.Status.Info["endpoint"], objectStore)
+	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:80", objectStore.Status.Info["endpoint"], objectStore)
 	logger.Info("PHASE 3 DONE")
 
 	// Test the functionality of verifyObjectUserCleanup

@@ -48,7 +48,8 @@ func NewS3Agent(accessKey, secretKey, endpoint string) (*S3Agent, error) {
 			WithDisableSSL(true).
 			WithHTTPClient(&http.Client{
 				Timeout: time.Second * 15,
-			}),
+			}).
+			WithLogLevel(aws.LogDebug),
 	)
 	if err != nil {
 		return nil, err

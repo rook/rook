@@ -35,5 +35,5 @@ func TestBuildStatusInfo(t *testing.T) {
 
 	statusInfo := buildStatusInfo(cephObjectStore)
 	assert.NotEmpty(t, statusInfo["endpoint"])
-	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph:80", statusInfo["endpoint"])
+	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:80", statusInfo["endpoint"])
 }
