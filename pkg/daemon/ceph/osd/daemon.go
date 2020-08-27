@@ -167,31 +167,17 @@ func configRawDevice(name string, context *clusterd.Context) (*sys.LocalDisk, er
 	return rawDevice, nil
 }
 
-// Provision provisions an OSD
-func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
-
-	// Check for the presence of LVM on the host when NOT running on PVC
-	// since this scenario is still using LVM
-	if !agent.pvcBacked {
-		ne := NewNsenter(context, lvmCommandToCheck, []string{"help"})
-		err := ne.checkIfBinaryExistsOnHost()
-		if err != nil {
-			return errors.Wrapf(err, "binary %q does not exist on the host, make sure lvm2 package is installed", lvmCommandToCheck)
-		}
-	}
-
-	// set the initial orchestration status
-	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
-	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
+// writeCephConfig writes the ceph config so ceph commands can be executed
+func writeCephConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
 
 	// create the ceph.conf with the default settings
-	cephConfig, err := cephclient.CreateDefaultCephConfig(context, agent.clusterInfo)
+	cephConfig, err := cephclient.CreateDefaultCephConfig(context, clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to create default ceph config")
 	}
 
 	// write the latest config to the config dir
-	confFilePath, err := cephclient.GenerateConnectionConfigWithSettings(context, agent.clusterInfo, cephConfig)
+	confFilePath, err := cephclient.GenerateConnectionConfigWithSettings(context, clusterInfo, cephConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to write connection config")
 	}
@@ -209,9 +195,33 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	} else {
 		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %v", cephclient.DefaultConfigFilePath(), err)
 	}
+	return nil
+}
+
+// Provision provisions an OSD
+func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
+
+	// Check for the presence of LVM on the host when NOT running on PVC
+	// since this scenario is still using LVM
+	if !agent.pvcBacked {
+		ne := NewNsenter(context, lvmCommandToCheck, []string{"--help"})
+		err := ne.checkIfBinaryExistsOnHost()
+		if err != nil {
+			return errors.Wrapf(err, "binary %q does not exist on the host, make sure lvm2 package is installed", lvmCommandToCheck)
+		}
+	}
+
+	// set the initial orchestration status
+	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
+	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
+
+	if err := writeCephConfig(context, agent.clusterInfo); err != nil {
+		return errors.Wrap(err, "failed to generate ceph config")
+	}
 
 	logger.Infof("discovering hardware")
 
+	var err error
 	var rawDevices []*sys.LocalDisk
 	if agent.pvcBacked {
 		for i := range agent.devices {

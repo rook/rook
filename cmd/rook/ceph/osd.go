@@ -19,6 +19,7 @@ package ceph
 import (
 	"encoding/json"
 	"os"
+	"strings"
 
 	"k8s.io/client-go/kubernetes"
 
@@ -50,6 +51,10 @@ var osdStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Starts the osd daemon", // OSDs that were provisioned by ceph-volume
 }
+var osdRemoveCmd = &cobra.Command{
+	Use:   "remove",
+	Short: "Removes a set of OSDs from the cluster",
+}
 
 var (
 	osdDataDeviceFilter     string
@@ -67,6 +72,7 @@ var (
 	blockPath               string
 	lvBackedPV              bool
 	driveGroups             string
+	osdIDsToRemove          string
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -94,10 +100,14 @@ func addOSDFlags(command *cobra.Command) {
 	osdStartCmd.Flags().StringVar(&blockPath, "block-path", "", "Block path for the OSD created by ceph-volume")
 	osdStartCmd.Flags().BoolVar(&lvBackedPV, "lv-backed-pv", false, "Whether the PV located on LV")
 
+	// flags for removing OSDs that are unhealthy or otherwise should be purged from the cluster
+	osdRemoveCmd.Flags().StringVar(&osdIDsToRemove, "osd-ids", "", "OSD IDs to remove from the cluster")
+
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
 		provisionCmd,
-		osdStartCmd)
+		osdStartCmd,
+		osdRemoveCmd)
 }
 
 func addOSDConfigFlags(command *cobra.Command) {
@@ -120,10 +130,12 @@ func init() {
 	flags.SetFlagsFromEnv(osdConfigCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(provisionCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(osdStartCmd.Flags(), rook.RookEnvVarPrefix)
+	flags.SetFlagsFromEnv(osdRemoveCmd.Flags(), rook.RookEnvVarPrefix)
 
 	osdConfigCmd.RunE = writeOSDConfig
 	provisionCmd.RunE = prepareOSD
 	osdStartCmd.RunE = startOSD
+	osdRemoveCmd.RunE = removeOSDs
 }
 
 // Start the osd daemon if provisioned by ceph-volume
@@ -237,6 +249,29 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(err)
 	}
 
+	return nil
+}
+
+// Purge the desired OSDs from the cluster
+func removeOSDs(cmd *cobra.Command, args []string) error {
+	required := []string{"osd-ids"}
+	if err := flags.VerifyRequiredFlags(osdRemoveCmd, required); err != nil {
+		return err
+	}
+	required = []string{"mon-endpoints", "ceph-username", "ceph-secret"}
+	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
+		return err
+	}
+
+	commonOSDInit(osdRemoveCmd)
+
+	context := createContext()
+
+	// Run OSD remove sequence
+	err := osddaemon.RemoveOSDs(context, &clusterInfo, strings.Split(osdIDsToRemove, ","))
+	if err != nil {
+		rook.TerminateFatal(err)
+	}
 	return nil
 }
 
