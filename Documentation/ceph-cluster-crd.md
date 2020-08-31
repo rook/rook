@@ -1232,6 +1232,7 @@ However, the administrator might want to sanitize the drives in more depth with 
   * `dataSource`: indicate where to get random bytes from to write on the disk. Possible choices are 'zero' (default) or 'random'.
   Using random sources will consume entropy from the system and will take much more time then the zero source
   * `iteration`: overwrite N times instead of the default (1). Takes an integer value
+* `allowUninstallWithVolumes`: If set to true, then the cephCluster deletion doesn't wait for the PVCs to be deleted. Default is false.
 
 To automate activation of the cleanup, you can use the following command. **WARNING: DATA WILL BE PERMANENTLY DELETED**:
 
@@ -1241,3 +1242,5 @@ kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"clea
 
 Nothing will happen until the deletion of the CR is requested, so this can still be reverted.
 However, all new configuration by the operator will be blocked with this cleanup policy enabled.
+
+Rook waits for the deletion of PVs provisioned using the cephCluster before proceeding to delete the cephCluster. To force deletion of the cephCluster without waiting for the PVs to be deleted,  you can set the allowUninstallWithVolumes to true under spec.CleanupPolicy.
