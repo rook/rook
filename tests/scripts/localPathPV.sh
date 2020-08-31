@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-test_scratch_device=/dev/xvdc
+test_scratch_device=/dev/nvme0n1
 if [ $# -ge 1 ] ; then
   test_scratch_device=$1
 fi
@@ -13,8 +13,9 @@ if [ ! -b "${test_scratch_device}" ] ; then
   exit 1
 fi
 
-sudo rm -rf /var/lib/rook/rook-integration-test
-sudo mkdir -p /var/lib/rook/rook-integration-test/mon1 /var/lib/rook/rook-integration-test/mon2 /var/lib/rook/rook-integration-test/mon3
+random_string=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
+
+sudo mkdir -p /var/lib/rook/${random_string}/mon1 /var/lib/rook/${random_string}/mon2 /var/lib/rook/${random_string}/mon3
 
 node_name=$(kubectl get nodes -o jsonpath={.items[*].metadata.name})
 
