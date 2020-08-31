@@ -105,10 +105,10 @@ pipeline {
                 sh 'git status'
             }
         }
-        stage('Unit Tests') {
+        stage('Unit Tests for Release Builds') {
             when {
                 expression {
-                    return env.shouldBuild != "false"
+                    return env.shouldBuild != "false" && env.isOfficialBuild != "false"
                 }
             }
             steps {
