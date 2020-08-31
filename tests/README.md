@@ -142,3 +142,22 @@ To run specific tests inside a suite:
 ```console
 _output/tests/linux_amd64/integration -test.v -test.timeout 1800s -test.run CephSmokeSuite -testify.m TestARookClusterInstallation_SmokeTest
 ```
+
+### To run tests on OpenShift environment
+
+- Setup OpenShift environment and export KUBECONFIG before executing the tests.
+- Make sure `oc` executable file is in the PATH.
+- Only `CephSmokeSuite` is currently supported on OpenShift.
+- Set few environment variables:
+```
+export TEST_ENV_NAME=openshift
+export TEST_STORAGE_CLASS=gp2
+export TEST_BASE_DIR=/tmp
+export RETRY_MAX=40
+```
+
+
+To run a `CephSmokeSuite` (uses regex):
+```console
+$ go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
+```

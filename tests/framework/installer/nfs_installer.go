@@ -194,6 +194,6 @@ func (h *NFSInstaller) GatherAllNFSServerLogs(systemNamespace, namespace, testNa
 		return
 	}
 	logger.Infof("Gathering all logs from NFSServer %s", namespace)
-	h.k8shelper.GetLogsFromNamespace(systemNamespace, testName, testEnvName())
-	h.k8shelper.GetLogsFromNamespace(namespace, testName, testEnvName())
+	h.k8shelper.GetLogsFromNamespace(systemNamespace, testName, utils.TestEnvName())
+	h.k8shelper.GetLogsFromNamespace(namespace, testName, utils.TestEnvName())
 }

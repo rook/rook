@@ -54,8 +54,6 @@ type K8sHelper struct {
 }
 
 const (
-	// RetryLoop params for tests.
-	RetryLoop = 60
 	// RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
 	// TestMountPath is the path inside a test pod where storage is mounted
@@ -63,6 +61,16 @@ const (
 	//hostnameTestPrefix is a prefix added to the node hostname
 	hostnameTestPrefix = "test-prefix-this-is-a-very-long-hostname-"
 )
+
+// getCmd returns kubectl or oc if env var rook_test_openshift is
+// set to true
+func getCmd() string {
+	cmd := "kubectl"
+	if IsPlatformOpenShift() {
+		cmd = "oc"
+	}
+	return cmd
+}
 
 // CreateK8sHelper creates a instance of k8sHelper
 func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
@@ -87,7 +95,12 @@ func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 	return h, err
 }
 
-var k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "utils")
+var (
+	k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "utils")
+	cmd       = getCmd()
+	// RetryLoop params for tests.
+	RetryLoop = TestRetryNumber()
+)
 
 // GetK8sServerVersion returns k8s server version under test
 func (k8sh *K8sHelper) GetK8sServerVersion() string {
@@ -130,12 +143,12 @@ func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, container
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 	result, err := k8sh.executor.ExecuteCommandWithTimeout(15*time.Second, "kubectl", args...)
 	if err != nil {
-		k8slogger.Errorf("Failed to execute: kubectl %+v : %+v. %s", args, err, result)
+		k8slogger.Errorf("Failed to execute: %s %+v : %+v. %s", cmd, args, err, result)
 		if args[0] == "delete" {
 			// allow the tests to continue if we were deleting a resource that timed out
 			return result, nil
 		}
-		return result, fmt.Errorf("Failed to run: kubectl %v : %v", args, err)
+		return result, fmt.Errorf("Failed to run: %s %v : %v", cmd, args, err)
 	}
 	return result, nil
 }
@@ -143,15 +156,15 @@ func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 // KubectlWithStdin is wrapper for executing kubectl commands in stdin
 func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, error) {
 
-	cmdStruct := CommandArgs{Command: "kubectl", PipeToStdIn: stdin, CmdArgs: args}
+	cmdStruct := CommandArgs{Command: cmd, PipeToStdIn: stdin, CmdArgs: args}
 	cmdOut := ExecuteCommand(cmdStruct)
 
 	if cmdOut.ExitCode != 0 {
-		k8slogger.Errorf("Failed to execute stdin: kubectl %v : %v", args, cmdOut.Err.Error())
+		k8slogger.Errorf("Failed to execute stdin: %s %v : %v", cmd, args, cmdOut.Err.Error())
 		if strings.Contains(cmdOut.Err.Error(), "(NotFound)") || strings.Contains(cmdOut.StdErr, "(NotFound)") {
 			return cmdOut.StdErr, errors.NewNotFound(schema.GroupResource{}, "")
 		}
-		return cmdOut.StdErr, fmt.Errorf("Failed to run stdin: kubectl %v : %v", args, cmdOut.StdErr)
+		return cmdOut.StdErr, fmt.Errorf("Failed to run stdin: %s %v : %v", cmd, args, cmdOut.StdErr)
 	}
 	if cmdOut.StdOut == "" {
 		return cmdOut.StdErr, nil
@@ -170,7 +183,7 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 	// Parse the kubectl context to get the settings for client connections
 	var kc kubectlContext
 	if err := json.Unmarshal([]byte(context), &kc); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal kubectl config: %+v", err)
+		return nil, fmt.Errorf("failed to unmarshal %s config: %+v", cmd, err)
 	}
 
 	// find the current context
@@ -282,7 +295,7 @@ func (k8sh *K8sHelper) ExecWithRetry(retries int, namespace, podName, command st
 			time.Sleep(3 * time.Second)
 		}
 	}
-	return "", fmt.Errorf("kubectl exec command %s failed on pod %s in namespace %s. %+v", command, podName, namespace, err)
+	return "", fmt.Errorf("%s exec command %s failed on pod %s in namespace %s. %+v", cmd, command, podName, namespace, err)
 }
 
 // ResourceOperationFromTemplate performs a kubectl action from a template file after replacing its context

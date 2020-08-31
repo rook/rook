@@ -20,11 +20,6 @@ import (
 	"os"
 )
 
-// testEnvName gets the name of the test environment. In the CI it is "aws_1.18.x" or similar.
-func testEnvName() string {
-	return getEnvVarWithDefault("TEST_ENV_NAME", "localhost")
-}
-
 // testHelmPath gets the helm path
 func testHelmPath() string {
 	return getEnvVarWithDefault("TEST_HELM_PATH", "helm")
@@ -44,6 +39,14 @@ func testStorageProvider() string {
 func TestIsOfficialBuild() bool {
 	// PRs will set this to "false", but the official build will not set it, so we compare against "false"
 	return getEnvVarWithDefault("TEST_IS_OFFICIAL_BUILD", "") != "false"
+}
+
+func StorageClassName() string {
+	return getEnvVarWithDefault("TEST_STORAGE_CLASS", "")
+}
+
+func UsePVC() bool {
+	return StorageClassName() != ""
 }
 
 // baseTestDir gets the base test directory

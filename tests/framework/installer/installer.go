@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -69,6 +70,10 @@ func SkipTestSuite(name string) bool {
 }
 
 func SystemNamespace(namespace string) string {
+	if utils.IsPlatformOpenShift() {
+		logger.Infof("For openshift execution used system namespace: %s", namespace)
+		return namespace
+	}
 	return fmt.Sprintf("%s-system", namespace)
 }
 

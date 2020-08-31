@@ -93,10 +93,21 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 		h.k8shelper.ChangeHostnames()
 	}
 
-	err = h.startAdmissionController(namespace)
+	err = h.k8shelper.CreateNamespace(namespace)
 	if err != nil {
-		return fmt.Errorf("Failed to start admission controllers: %v", err)
+		if errors.IsAlreadyExists(err) {
+			logger.Warningf("Namespace %q already exists!!!", namespace)
+		} else {
+			return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
+		}
 	}
+	if !utils.IsPlatformOpenShift() {
+		err = h.startAdmissionController(namespace)
+		if err != nil {
+			return fmt.Errorf("Failed to start admission controllers: %v", err)
+		}
+	}
+
 	rookOperator := h.Manifests.GetRookOperator(namespace)
 	_, err = h.k8shelper.KubectlWithStdin(rookOperator, createFromStdinArgs...)
 	if err != nil {
@@ -175,9 +186,11 @@ func (h *CephInstaller) CreateRookOperatorViaHelm(namespace, chartSettings strin
 		return fmt.Errorf("Failed to get Version of helm chart %v, err : %v", helmChartName, err)
 	}
 
-	err = h.startAdmissionController(namespace)
-	if err != nil {
-		return fmt.Errorf("Failed to start admission controllers: %v", err)
+	if !utils.IsPlatformOpenShift() {
+		err = h.startAdmissionController(namespace)
+		if err != nil {
+			return fmt.Errorf("Failed to start admission controllers: %v", err)
+		}
 	}
 
 	err = h.helmHelper.InstallLocalRookHelmChart(helmChartName, helmDeployName, helmTag, namespace, chartSettings)
@@ -465,7 +478,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	}
 	if !h.k8shelper.IsPodInExpectedState("rook-ceph-operator", onamespace, "Running") {
 		logger.Error("rook-ceph-operator is not running")
-		h.k8shelper.GetLogsFromNamespace(onamespace, "test-setup", testEnvName())
+		h.k8shelper.GetLogsFromNamespace(onamespace, "test-setup", utils.TestEnvName())
 		logger.Error("rook-ceph-operator is not Running, abort!")
 		return false, err
 	}
@@ -496,7 +509,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	}
 	logger.Infof("installed rook operator and cluster : %s on k8s %s", namespace, h.k8sVersion)
 
-	if rookVersion != Version1_2 && h.k8shelper.VersionAtLeast("v1.15.0") {
+	if !utils.IsPlatformOpenShift() && rookVersion != Version1_2 && h.k8shelper.VersionAtLeast("v1.15.0") {
 		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", onamespace, "Running") {
 			assert.Fail(h.T(), "admission controller is not running")
 		}
@@ -742,7 +755,7 @@ func (h *CephInstaller) CollectOperatorLog(suiteName, testName, namespace string
 		return
 	}
 	name := fmt.Sprintf("%s_%s", suiteName, testName)
-	h.k8shelper.CollectPodLogsFromLabel(cephOperatorLabel, namespace, name, testEnvName())
+	h.k8shelper.CollectPodLogsFromLabel(cephOperatorLabel, namespace, name, utils.TestEnvName())
 }
 
 func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string) {
@@ -751,9 +764,9 @@ func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string)
 	}
 	logger.Infof("gathering all logs from the test")
 	for _, namespace := range namespaces {
-		h.k8shelper.GetLogsFromNamespace(namespace, testName, testEnvName())
-		h.k8shelper.GetPodDescribeFromNamespace(namespace, testName, testEnvName())
-		h.k8shelper.GetEventsFromNamespace(namespace, testName, testEnvName())
+		h.k8shelper.GetLogsFromNamespace(namespace, testName, utils.TestEnvName())
+		h.k8shelper.GetPodDescribeFromNamespace(namespace, testName, utils.TestEnvName())
+		h.k8shelper.GetEventsFromNamespace(namespace, testName, utils.TestEnvName())
 	}
 }
 

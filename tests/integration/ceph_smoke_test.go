@@ -84,9 +84,9 @@ func (suite *SmokeSuite) SetupSuite() {
 	smokeTestCluster := TestCluster{
 		namespace:               suite.namespace,
 		storeType:               "bluestore",
-		storageClassName:        "",
+		storageClassName:        installer.StorageClassName(),
 		useHelm:                 false,
-		usePVC:                  false,
+		usePVC:                  installer.UsePVC(),
 		mons:                    3,
 		rbdMirrorWorkers:        1,
 		rookCephCleanup:         true,
@@ -118,7 +118,9 @@ func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 }
 
 func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
-	runObjectE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
+	if !utils.IsPlatformOpenShift() {
+		runObjectE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
+	}
 }
 
 // Test to make sure all rook components are installed and Running
