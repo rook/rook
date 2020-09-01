@@ -280,8 +280,7 @@ func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) *v1.Ser
 			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
-			Selector: labels,
-			Type:     v1.ServiceTypeClusterIP,
+			Type: v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
 					Name:     servicePortMetricName,
@@ -290,6 +289,11 @@ func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) *v1.Ser
 				},
 			},
 		},
+	}
+
+	// If the cluster is external we don't need to add the selector
+	if name != ExternalMgrAppName {
+		svc.Spec.Selector = labels
 	}
 
 	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.clusterInfo.OwnerRef)
