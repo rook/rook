@@ -82,7 +82,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		usePVC:                  false,
 		mons:                    1,
 		rbdMirrorWorkers:        0,
-		rookCephCleanup:         false,
+		rookCephCleanup:         true,
 		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: upgradeMinimalTestVersion,
 		rookVersion:             installer.Version1_2,
