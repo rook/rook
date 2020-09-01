@@ -123,7 +123,7 @@ kubeadm_reset() {
 
 case "${1:-}" in
     up)
-        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
+        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}"
         install_master
         ${scriptdir}/makeTestImages.sh tag ${arch} || true
         ;;
@@ -136,7 +136,7 @@ case "${1:-}" in
             usage
             exit 1
         fi
-        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
+        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}"
         case "${2:-}" in
             master)
                 install_master
