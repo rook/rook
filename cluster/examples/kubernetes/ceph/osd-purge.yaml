@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rook-ceph-purge-osd
+  namespace: rook-ceph
+  labels:
+    app: rook-ceph-purge-osd
+spec:
+  template:
+    spec:
+      serviceAccountName: rook-ceph-system
+      containers:
+        - name: osd-removal
+          image: rook/ceph:master
+          # TODO: Insert the OSD ID in the last parameter that is to be removed
+          # The OSD IDs are a comma-separated list. For example: "0" or "0,2".
+          args: ["ceph", "osd", "remove", "--osd-ids", "<OSD-IDs>"]
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ROOK_MON_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  key: data
+                  name: rook-ceph-mon-endpoints
+            - name: ROOK_CEPH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: ceph-username
+                  name: rook-ceph-mon
+            - name: ROOK_CEPH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: ceph-secret
+                  name: rook-ceph-mon
+            - name: ROOK_CONFIG_DIR
+              value: /var/lib/rook
+            - name: ROOK_CEPH_CONFIG_OVERRIDE
+              value: /etc/rook/config/override.conf
+            - name: ROOK_FSID
+              valueFrom:
+                secretKeyRef:
+                  key: fsid
+                  name: rook-ceph-mon
+            - name: ROOK_LOG_LEVEL
+              value: DEBUG
+          volumeMounts:
+            - mountPath: /etc/ceph
+              name: ceph-conf-emptydir
+      volumes:
+        - emptyDir: {}
+          name: ceph-conf-emptydir
+      restartPolicy: Never
