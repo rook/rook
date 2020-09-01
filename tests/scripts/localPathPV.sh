@@ -1,16 +1,17 @@
 #!/bin/bash
+set -ex
 
-test_scratch_device=/dev/xvdc
+test_scratch_device=/dev/nvme0n1
 if [ $# -ge 1 ] ; then
   test_scratch_device=$1
 fi
 
+lsblk
+
 if [ ! -b "${test_scratch_device}" ] ; then
-  echo "invalid scratch device name: ${test_scratch_device}" >&2
+  echo "invalid scratch device, not a block device: ${test_scratch_device}" >&2
   exit 1
 fi
-
-lsblk
 
 sudo rm -rf /var/lib/rook/rook-integration-test
 sudo mkdir -p /var/lib/rook/rook-integration-test/mon1 /var/lib/rook/rook-integration-test/mon2 /var/lib/rook/rook-integration-test/mon3
@@ -29,11 +30,11 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual 
+  storageClassName: manual
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce 
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
@@ -54,11 +55,11 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual 
+  storageClassName: manual
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce 
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
@@ -79,11 +80,11 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual 
+  storageClassName: manual
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce 
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
@@ -104,15 +105,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual 
+  storageClassName: manual
   capacity:
     storage: 10Gi
   accessModes:
-    - ReadWriteOnce 
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Block
   local:
-    path: "${test_scratch_device}" 
+    path: "${test_scratch_device}"
   nodeAffinity:
       required:
         nodeSelectorTerms:
