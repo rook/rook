@@ -470,6 +470,9 @@ func realScheduleMonitor(c *Cluster, mon *monConfig) (SchedulingResult, error) {
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes,
 			controller.DaemonVolumesDataPVC(mon.ResourceName))
 		controller.AddVolumeMountSubPath(&d.Spec.Template.Spec, "ceph-daemon-data")
+
+		// Set the PVC label name so that it can be deleted on cleanup
+		d.Labels["pvc_name"] = pvcName
 	}
 
 	// caller should arrange for clean-up of the PVC only if it was created
@@ -616,7 +619,6 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		// non-optimal, but it is convenient to catch some failures early,
 		// before a decision is stored in the node mapping.
 		result, err := scheduleMonitor(c, mon)
-
 		if err != nil {
 			return errors.Wrap(err, "assignmon: error scheduling monitor")
 		}
