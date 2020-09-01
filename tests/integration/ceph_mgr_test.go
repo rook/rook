@@ -50,6 +50,9 @@ func TestCephMgrSuite(t *testing.T) {
 		t.Skip()
 	}
 
+	logger.Info("TEMPORARILY disable the mgr test suite until https://github.com/rook/rook/issues/5877 is resolved")
+	t.Skip()
+
 	s := new(CephMgrSuite)
 	defer func(s *CephMgrSuite) {
 		HandlePanics(recover(), s.cluster, s.T)
