@@ -80,7 +80,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint())
+	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), true)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrapf(err, "could not get user (user: %s)", stats.Owner)
 	}
 
-	s3svc, err := cephObject.NewS3Agent(*objectUser.AccessKey, *objectUser.SecretKey, p.getObjectStoreEndpoint())
+	s3svc, err := cephObject.NewS3Agent(*objectUser.AccessKey, *objectUser.SecretKey, p.getObjectStoreEndpoint(), true)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -250,7 +250,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return nil
 		}
 
-		s3svc, err := cephObject.NewS3Agent(*user.AccessKey, *user.SecretKey, p.getObjectStoreEndpoint())
+		s3svc, err := cephObject.NewS3Agent(*user.AccessKey, *user.SecretKey, p.getObjectStoreEndpoint(), true)
 		if err != nil {
 			return err
 		}

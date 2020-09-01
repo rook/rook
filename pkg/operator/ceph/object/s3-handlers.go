@@ -35,9 +35,13 @@ type S3Agent struct {
 	Client *s3.S3
 }
 
-func NewS3Agent(accessKey, secretKey, endpoint string) (*S3Agent, error) {
+func NewS3Agent(accessKey, secretKey, endpoint string, debug bool) (*S3Agent, error) {
 	const cephRegion = "us-east-1"
 
+	logLevel := aws.LogOff
+	if debug {
+		logLevel = aws.LogDebug
+	}
 	sess, err := session.NewSession(
 		aws.NewConfig().
 			WithRegion(cephRegion).
@@ -49,7 +53,7 @@ func NewS3Agent(accessKey, secretKey, endpoint string) (*S3Agent, error) {
 			WithHTTPClient(&http.Client{
 				Timeout: time.Second * 15,
 			}).
-			WithLogLevel(aws.LogDebug),
+			WithLogLevel(logLevel),
 	)
 	if err != nil {
 		return nil, err

@@ -303,18 +303,22 @@ func objectChanged(oldObj, newObj runtime.Object, objectName string) (bool, erro
 	currentResourceVersion, err := accessor.ResourceVersion(old)
 	if err == nil {
 		if err := accessor.SetResourceVersion(new, currentResourceVersion); err != nil {
-			return false, err
+			return false, errors.Wrapf(err, "failed to set resource version to %s", currentResourceVersion)
 		}
+	} else {
+		return false, errors.Wrap(err, "failed to query current resource version")
 	}
 
 	// Calculate diff between old and new object
 	diff, err := patch.DefaultPatchMaker.Calculate(old, new)
 	if err != nil {
 		doReconcile = true
-		return doReconcile, errors.Wrap(err, "failed to calculate object diff")
+		return doReconcile, errors.Wrap(err, "failed to calculate object diff but let's reconcile just in case")
 	} else if diff.IsEmpty() {
+		logger.Debug("diff is empty nothing to reconcile")
 		return doReconcile, nil
 	}
+	logger.Debugf("object diff is %s", diff.String())
 
 	return isValidEvent(diff.Patch, objectName), nil
 }
@@ -384,7 +388,15 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				// CONFIGMAP WHITELIST
 				// Only reconcile on rook-config-override CM changes
 				isCMTConfigOverride := isCMTConfigOverride(e.ObjectNew)
-				if !isCMTConfigOverride {
+				if isCMTConfigOverride {
+					logger.Debugf("do reconcile when the cm is %s", k8sutil.ConfigOverrideName)
+					return true
+				}
+
+				// If the resource is a ConfigMap we don't reconcile
+				_, ok := e.ObjectNew.(*corev1.ConfigMap)
+				if ok {
+					logger.Debugf("do not reconcile on configmap that is not %q", k8sutil.ConfigOverrideName)
 					return false
 				}
 
@@ -397,8 +409,9 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				}
 
 				// If the resource is a deployment we don't reconcile
-				_, ok := e.ObjectNew.(*appsv1.Deployment)
+				_, ok = e.ObjectNew.(*appsv1.Deployment)
 				if ok {
+					logger.Debug("do not reconcile deployments updates")
 					return false
 				}
 
@@ -407,6 +420,7 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				if err != nil {
 					logger.Errorf("failed to check if object %q changed. %v", objectName, err)
 				}
+
 				return objectChanged
 			}
 
@@ -423,28 +437,33 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 // if we should reconcile that event or not
 // The goal is to avoid double-reconcile as much as possible
 func isValidEvent(patch []byte, objectName string) bool {
-	patchString := string(patch)
-
 	var p map[string]interface{}
 	err := json.Unmarshal(patch, &p)
 	if err != nil {
-		logger.Infof("failed to unmarshal patch %v", err)
+		logger.Errorf("failed to unmarshal patch. %v", err)
+		return false
 	}
+	logger.Debugf("patch before trimming is %s", string(patch))
+
 	// don't reconcile on status update on an object (e.g. status "creating")
+	logger.Debugf("trimming 'status' field from patch")
 	delete(p, "status")
 
 	// Do not reconcile on metadata change since managedFields are often updated by the server
+	logger.Debugf("trimming 'metadata' field from patch")
 	delete(p, "metadata")
 
-	// If the patch is now empty, we don't reconcile, nothing changed
+	// If the patch is now empty, we don't reconcile
 	if len(p) == 0 {
+		logger.Debug("patch is empty after trimming")
 		return false
 	}
 
 	// Re-marshal to get the last diff
 	patch, err = json.Marshal(p)
 	if err != nil {
-		logger.Infof("controller will reconcile resource %q based on patch: %s", objectName, patchString)
+		logger.Errorf("failed to marshal patch. %v", err)
+		return false
 	}
 
 	// If after all the filtering there is still something in the patch, we reconcile

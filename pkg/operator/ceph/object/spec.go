@@ -248,9 +248,6 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 			Namespace: cephObjectStore.Namespace,
 			Labels:    labels,
 		},
-		Spec: v1.ServiceSpec{
-			Selector: labels,
-		},
 	}
 
 	if c.clusterSpec.Network.IsHost() {
@@ -262,6 +259,11 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	// When the cluster is external we must use the same one as the gateways are listening on
 	if c.clusterSpec.External.Enable {
 		destPort.IntVal = cephObjectStore.Spec.Gateway.Port
+	} else {
+		// If the cluster is not external we add the Selector
+		svc.Spec = v1.ServiceSpec{
+			Selector: labels,
+		}
 	}
 	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port, destPort.IntVal)
 	addPort(svc, "https", cephObjectStore.Spec.Gateway.SecurePort, cephObjectStore.Spec.Gateway.SecurePort)

@@ -342,6 +342,9 @@ func (c *Cluster) EnableServiceMonitor(service *v1.Service) error {
 	}
 	serviceMonitor.SetName(name)
 	serviceMonitor.SetNamespace(namespace)
+	if c.spec.External.Enable {
+		serviceMonitor.Spec.Endpoints[0].Port = ServiceExternalMetricName
+	}
 	k8sutil.SetOwnerRef(&serviceMonitor.ObjectMeta, &c.clusterInfo.OwnerRef)
 	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{namespace}
 	serviceMonitor.Spec.Selector.MatchLabels = service.GetLabels()
