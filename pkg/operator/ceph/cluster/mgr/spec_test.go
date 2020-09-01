@@ -118,7 +118,7 @@ func TestHttpBindFix(t *testing.T) {
 	clientset := optest.New(t, 1)
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
 	clusterSpec := cephv1.ClusterSpec{
-		Dashboard:       cephv1.DashboardSpec{Port: 1234},
+		Dashboard:       cephv1.DashboardSpec{Enabled: true, Port: 1234},
 		DataDirHostPath: "/var/lib/rook/",
 	}
 	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
