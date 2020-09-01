@@ -119,24 +119,26 @@ export TEST_BASE_DIR=WORKING_DIR
 export TEST_SCRATCH_DEVICE=<block device> # for example, TEST_SCRATCH_DEVICE=/dev/sdb
 ```
 
-Please note that the integration test erase the contents of TEST_SCRATCH_DEVICE.
+Please note that the integration test erases the contents of TEST_SCRATCH_DEVICE.
 
 To run all integration tests:
+```console
+_output/tests/linux_amd64/integration -test.v -test.timeout 1800s
 ```
-go test -v -timeout 1800s github.com/rook/rook/tests/integration
-```
-In addition, you can test only one storage provider. For example, you can skip but Ceph tests as follows.
+
+You can only run the tests of the specific storage provider. If you want to test only Ceph, run the test as follows.
 
 ```console
 export STORAGE_PROVIDER_TESTS=ceph
+_output/tests/linux_amd64/integration -test.v -test.timeout 1800s
 ```
 
 To run a specific suite (uses regex):
-```
-go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
+```console
+_output/tests/linux_amd64/integration -test.v -test.timeout 1800s -test.run CephSmokeSuite
 ```
 
 To run specific tests inside a suite:
-```
-go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
+```console
+_output/tests/linux_amd64/integration -test.v -test.timeout 1800s -test.run CephSmokeSuite -testify.m TestARookClusterInstallation_SmokeTest
 ```
