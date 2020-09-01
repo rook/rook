@@ -70,8 +70,14 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 
+	// Only add the dashboard init container if dashboard is enabled
+	if c.spec.Dashboard.Enabled {
+		podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, []v1.Container{
+			c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
+		}...)
+	}
+
 	podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, []v1.Container{
-		c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
 		c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
 	}...)
 
