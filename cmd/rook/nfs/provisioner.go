@@ -61,7 +61,11 @@ func startProvisioner(cmd *cobra.Command, args []string) error {
 		logger.Fatalf("Error getting server version: %v", err)
 	}
 
-	clientNFSProvisioner := nfs.NewNFSProvisioner(clientset, rookClientset)
+	clientNFSProvisioner, err := nfs.NewNFSProvisioner(clientset, rookClientset)
+	if err != nil {
+		return err
+	}
+
 	pc := controller.NewProvisionController(clientset, *provisioner, clientNFSProvisioner, serverVersion.GitVersion)
 	pc.Run(wait.NeverStop)
 	return nil

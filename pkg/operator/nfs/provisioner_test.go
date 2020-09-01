@@ -69,9 +69,12 @@ func newDummyPVC(name, namespace string, capacity apiresource.Quantity, storageC
 }
 
 func newDummyPV(name, scName, expectedPath string, expectedCapacity apiresource.Quantity, expectedReclaimPolicy corev1.PersistentVolumeReclaimPolicy) *corev1.PersistentVolume {
+	annotations := make(map[string]string)
+	annotations[projectBlockAnnotationKey] = ""
 	return &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:        name,
+			Annotations: annotations,
 		},
 		Spec: corev1.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: expectedReclaimPolicy,
@@ -95,11 +98,17 @@ func TestProvisioner_Provision(t *testing.T) {
 
 	defer os.RemoveAll(mountPath)
 
+	fakeQuoater, err := NewFakeProjectQuota()
+	if err != nil {
+		t.Error(err)
+	}
+
 	nfsserver := newCustomResource(types.NamespacedName{Name: "test-nfsserver", Namespace: "test-nfsserver"}).WithExports("share-1", "ReadWrite", "none", "test-claim").Generate()
 
 	type fields struct {
 		client     kubernetes.Interface
 		rookClient rookclient.Interface
+		quoater    Quotaer
 	}
 	type args struct {
 		options controller.ProvisionOptions
@@ -121,6 +130,7 @@ func TestProvisioner_Provision(t *testing.T) {
 				rookClient: rookclientfake.NewSimpleClientset(
 					nfsserver,
 				),
+				quoater: fakeQuoater,
 			},
 			args: args{
 				options: controller.ProvisionOptions{
@@ -157,6 +167,7 @@ func TestProvisioner_Provision(t *testing.T) {
 			p := &Provisioner{
 				client:     tt.fields.client,
 				rookClient: tt.fields.rookClient,
+				quotaer:    tt.fields.quoater,
 			}
 			got, err := p.Provision(tt.args.options)
 			if (err != nil) != tt.wantErr {
@@ -177,10 +188,16 @@ func TestProvisioner_Delete(t *testing.T) {
 
 	defer os.RemoveAll(mountPath)
 
+	fakeQuoater, err := NewFakeProjectQuota()
+	if err != nil {
+		t.Error(err)
+	}
+
 	nfsserver := newCustomResource(types.NamespacedName{Name: "test-nfsserver", Namespace: "test-nfsserver"}).WithExports("share-1", "ReadWrite", "none", "test-claim").Generate()
 	type fields struct {
 		client     kubernetes.Interface
 		rookClient rookclient.Interface
+		quoater    Quotaer
 	}
 	type args struct {
 		volume *corev1.PersistentVolume
@@ -201,6 +218,7 @@ func TestProvisioner_Delete(t *testing.T) {
 				rookClient: rookclientfake.NewSimpleClientset(
 					nfsserver,
 				),
+				quoater: fakeQuoater,
 			},
 			args: args{
 				volume: newDummyPV("share-1-pvc", "share-1", "/tmp/test-rook-nfs/test-claim/default-share-1-pvc-share-1-pvc", apiresource.MustParse("1Mi"), corev1.PersistentVolumeReclaimDelete),
@@ -212,6 +230,7 @@ func TestProvisioner_Delete(t *testing.T) {
 			p := &Provisioner{
 				client:     tt.fields.client,
 				rookClient: tt.fields.rookClient,
+				quotaer:    tt.fields.quoater,
 			}
 			if err := p.Delete(tt.args.volume); (err != nil) != tt.wantErr {
 				t.Errorf("Provisioner.Delete() error = %v, wantErr %v", err, tt.wantErr)

@@ -27,7 +27,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
  && echo "deb http://ppa.launchpad.net/gluster/libntirpc-1.7/ubuntu xenial main" > /etc/apt/sources.list.d/libntirpc-1.5.list \
  && echo "deb http://ppa.launchpad.net/gluster/glusterfs-5/ubuntu xenial main" > /etc/apt/sources.list.d/glusterfs-3.13.list \
  && apt-get update \
- && apt-get install -y netbase nfs-common dbus nfs-ganesha nfs-ganesha-vfs glusterfs-common \
+ && apt-get install -y netbase nfs-common dbus nfs-ganesha nfs-ganesha-vfs glusterfs-common xfsprogs \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
  && mkdir -p /run/rpcbind /export /var/run/dbus \
