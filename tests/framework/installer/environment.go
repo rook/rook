@@ -58,7 +58,7 @@ func baseTestDir() string {
 
 // TestScratchDevice get the scratch device to be used for OSD
 func TestScratchDevice() string {
-	return getEnvVarWithDefault("TEST_SCRATCH_DEVICE", "/dev/xvdc")
+	return getEnvVarWithDefault("TEST_SCRATCH_DEVICE", "/dev/nvme0n1")
 }
 
 func getEnvVarWithDefault(env, defaultValue string) string {
