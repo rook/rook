@@ -115,6 +115,8 @@ Now cluster is setup, services can be now created and attached to CSI provisione
 
 4. Create NFS service objects for tenants:
 
+> **NOTE**: Service names must contain only [lowercase alphanumeric characters or '-'](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names). Otherwise, corresponding EdgeFS NFS object names created in the next step will be invalid.
+
 ```console
 efscli service create nfs nfs-cola
 efscli service serve nfs-cola Hawaii/Cola/bk1
