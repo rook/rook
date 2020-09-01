@@ -5,7 +5,7 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 tarname=image.tar
 tarfile="${WORK_DIR}/tests/${tarname}"
 
-export KUBE_VERSION=${KUBE_VERSION:-"v1.13.1"}
+export KUBE_VERSION=${KUBE_VERSION:-"v1.15.12"}
 
 if [[ $KUBE_VERSION != v1.10* && $KUBE_VERSION != v1.11* ]] ; then
     skippreflightcheck=--ignore-preflight-errors=all
