@@ -44,7 +44,7 @@ spec:
   gateway:
     type: s3
     port: 80
-    securePort:
+    # securePort: 443
     instances: 1
   zone:
     name: zone-a
