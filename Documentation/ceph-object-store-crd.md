@@ -39,7 +39,7 @@ spec:
     type: s3
     sslCertificateRef:
     port: 80
-    securePort:
+    # securePort: 443
     instances: 1
     # A key/value list of annotations
     annotations:
@@ -79,7 +79,7 @@ spec:
 
 ### Pools
 
-The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](ceph-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster. 
+The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](ceph-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster.
 
 When the `zone` section is set pools with the object stores name will not be created since the object-store will the using the pools created by the ceph-object-zone.
 

@@ -50,7 +50,7 @@ spec:
     type: s3
     sslCertificateRef:
     port: 80
-    securePort:
+    # securePort: 443
     instances: 1
   healthCheck:
     bucket:
