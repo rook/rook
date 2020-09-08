@@ -98,7 +98,13 @@ pipeline {
             }
             steps {
                 // run the build
-                sh 'build/run make -j\$(nproc) build.all'
+                script {
+                    if (env.isOfficialBuild == "false") {
+                        sh (script: "build/run make -j\$(nproc) build", returnStdout: true)
+                    } else {
+                        sh (script: "build/run make -j\$(nproc) build.all", returnStdout: true)
+                    }
+                }
                 sh 'git status'
             }
         }
