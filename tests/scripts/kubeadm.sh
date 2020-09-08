@@ -5,7 +5,7 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 tarname=image.tar
 tarfile="${WORK_DIR}/tests/${tarname}"
 
-export KUBE_VERSION=${KUBE_VERSION:-"v1.13.1"}
+export KUBE_VERSION=${KUBE_VERSION:-"v1.15.12"}
 
 if [[ $KUBE_VERSION != v1.10* && $KUBE_VERSION != v1.11* ]] ; then
     skippreflightcheck=--ignore-preflight-errors=all
@@ -123,7 +123,7 @@ kubeadm_reset() {
 
 case "${1:-}" in
     up)
-        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
+        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}"
         install_master
         ${scriptdir}/makeTestImages.sh tag ${arch} || true
         ;;
@@ -136,7 +136,7 @@ case "${1:-}" in
             usage
             exit 1
         fi
-        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
+        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}"
         case "${2:-}" in
             master)
                 install_master

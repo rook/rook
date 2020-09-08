@@ -1,6 +1,6 @@
 #!/bin/bash +e
 
-KUBE_VERSION=${1:-"v1.13.1"}
+KUBE_VERSION=${1:-"v1.15.12"}
 ARCH=$(dpkg --print-architecture)
 null_str=
 KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00
