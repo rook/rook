@@ -75,14 +75,13 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileCephObjectStore reconciles a cephObjectStore object
 type ReconcileCephObjectStore struct {
-	client                 client.Client
-	bktclient              bktclient.Interface
-	scheme                 *runtime.Scheme
-	context                *clusterd.Context
-	cephClusterSpec        *cephv1.ClusterSpec
-	clusterInfo            *cephclient.ClusterInfo
-	objectStoreChannels    map[string]*objectStoreHealth
-	clusterResourceDeleted bool
+	client              client.Client
+	bktclient           bktclient.Interface
+	scheme              *runtime.Scheme
+	context             *clusterd.Context
+	cephClusterSpec     *cephv1.ClusterSpec
+	clusterInfo         *cephclient.ClusterInfo
+	objectStoreChannels map[string]*objectStoreHealth
 }
 
 type objectStoreHealth struct {
@@ -223,7 +222,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting store %q", cephObjectStore.Name)
 
-		if !r.clusterResourceDeleted {
+		if ok {
 			response, okToDelete := r.verifyObjectBucketCleanup(cephObjectStore)
 			if !okToDelete {
 				// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
@@ -238,12 +237,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 				return response, nil
 			}
 
-			// Close the channel to stop the healthcheck of the endpoint
-			close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
-
-			// Remove object store from the map
-			delete(r.objectStoreChannels, cephObjectStore.Name)
-
 			cfg := clusterConfig{
 				context:     r.context,
 				store:       cephObjectStore,
@@ -255,8 +248,11 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 				return reconcile.Result{}, errors.Wrapf(err, "failed to delete store %q", cephObjectStore.Name)
 			}
 
-			// Mark the ressource deletion as complete
-			r.clusterResourceDeleted = true
+			// Close the channel to stop the healthcheck of the endpoint
+			close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
+
+			// Remove object store from the map
+			delete(r.objectStoreChannels, cephObjectStore.Name)
 		}
 
 		// Remove finalizer
