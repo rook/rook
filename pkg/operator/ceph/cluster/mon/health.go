@@ -245,6 +245,51 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
 			logger.Errorf("failed to failover mon %q. %v", name, err)
 		}
 	}
+
+	// Check if there are orphaned mon resources that should be cleaned up.
+	// This should only be checked infrequently such as during a mon failover
+	// so we never cleanup mon resources when they are still in use in the middle
+	// of a reconcile.
+	c.removeOrphanMonResources()
+}
+
+func (c *Cluster) removeOrphanMonResources() {
+	logger.Info("checking for orphaned mon resources")
+
+	if c.spec.Mon.VolumeClaimTemplate == nil {
+		logger.Info("skipping check for orphaned mon pvcs since using the host path")
+		return
+	}
+
+	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)}
+	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(opts)
+	if err != nil {
+		logger.Infof("failed to check for orphaned mon pvcs. %v", err)
+		return
+	}
+
+	for _, pvc := range pvcs.Items {
+		logger.Debugf("checking if pvc %q is orphaned", pvc.Name)
+
+		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(pvc.Name, metav1.GetOptions{})
+		if err == nil {
+			logger.Debugf("skipping pvc removal since the mon daemon %q still requires it", pvc.Name)
+			continue
+		}
+		if !kerrors.IsNotFound(err) {
+			logger.Infof("skipping pvc removal since the mon daemon %q might still require it. %v", pvc.Name, err)
+			continue
+		}
+
+		logger.Infof("removing pvc %q since it is no longer needed for the mon daemon", pvc.Name)
+		var gracePeriod int64 // delete immediately
+		propagation := metav1.DeletePropagationForeground
+		options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+		err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(pvc.Name, options)
+		if err != nil {
+			logger.Warningf("failed to delete orphaned monitor pvc %q. %v", pvc.Name, err)
+		}
+	}
 }
 
 func (c *Cluster) updateMonDeploymentReplica(name string, enabled bool) error {
