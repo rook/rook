@@ -101,7 +101,13 @@ pipeline {
                 sh 'build/run make -j\$(nproc) mod.check'
                 sh 'git diff-index --quiet HEAD || { echo "CHANGES FOUND. You may need to run make clean"; git status -s; exit 1; }'
                 // run the build
-                sh 'build/run make -j\$(nproc) build.all'
+                script {
+                    if (env.isOfficialBuild == "false") {
+                        sh (script: "build/run make -j\$(nproc) build", returnStdout: true)
+                    } else {
+                        sh (script: "build/run make -j\$(nproc) build.all", returnStdout: true)
+                    }
+                }
                 sh 'git status'
             }
         }
