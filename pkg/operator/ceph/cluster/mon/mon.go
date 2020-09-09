@@ -574,19 +574,9 @@ func (c *Cluster) removeCanaryDeployments() {
 	}
 
 	for _, canary := range canaryDeployments.Items {
-		logger.Infof("cleaning up canary monitor deployment %q and canary pvc %q.", canary.Name, canary.Labels["pvc_name"])
+		logger.Infof("cleaning up canary monitor deployment %q", canary.Name)
 		if err := k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, canary.Name); err != nil {
 			logger.Warningf("failed to delete canary monitor deployment %q. %v", canary.Name, err)
-		}
-
-		if canary.Labels["pvc_name"] != "" {
-			var gracePeriod int64 // delete immediately
-			propagation := metav1.DeletePropagationForeground
-			options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-			err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(canary.Labels["pvc_name"], options)
-			if err != nil {
-				logger.Warningf("failed to delete canary monitor %q pvc %q. %v", canary.Name, canary.Labels["pvc_name"], err)
-			}
 		}
 	}
 }
