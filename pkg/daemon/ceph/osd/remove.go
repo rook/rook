@@ -47,18 +47,17 @@ func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds
 			logger.Errorf("invalid OSD ID: %s. %v", osdIDStr, err)
 			continue
 		}
-		logger.Debugf("validating status of osd.%d", osdID)
+		logger.Infof("validating status of osd.%d", osdID)
 		status, _, err := osdDump.StatusByID(int64(osdID))
 		if err != nil {
 			return errors.Wrapf(err, "failed to get osd status for osd %d", osdID)
-
 		}
 		const upStatus int64 = 1
 		if status == upStatus {
-			logger.Debugf("osd.%d is healthy. It cannot be removed unless it is 'down'", osdID)
+			logger.Infof("osd.%d is healthy. It cannot be removed unless it is 'down'", osdID)
 			continue
 		}
-		logger.Debugf("osd.%d is marked 'DOWN'. Removing it", osdID)
+		logger.Infof("osd.%d is marked 'DOWN'. Removing it", osdID)
 		removeOSD(context, clusterInfo, osdID)
 	}
 
