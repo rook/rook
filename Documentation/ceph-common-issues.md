@@ -806,10 +806,13 @@ Please refer to [Configuring Pools](ceph-advanced-configuration.md#configuring-p
 
 ### Symptoms
 
-There is a critical flaw in OSD on LV-backed PVC. LVM metadata can be corrupted if both the host and OSD container modify it simultaneously. For example, the administrator might modify it on the host, while the OSD initialization process in a container could modify it too. If you still decide to configure an OSD on LVM, please keep the following in mind to reduce the probability of this issue.
+There is a critical flaw in OSD on LV-backed PVC. LVM metadata can be corrupted if both the host and OSD container modify it simultaneously. For example, the administrator might modify it on the host, while the OSD initialization process in a container could modify it too. In addition, if `lvmetad` is running, the possibility of occurence gets higher. In this case, the change of LVM metadata in OSD container is not reflected to LVM metadata cache in host for a while.
+
+If you still decide to configure an OSD on LVM, please keep the following in mind to reduce the probability of this issue.
 
 ### Solution
 
+- Disable `lvmetad.`
 - Avoid configuration of LVs from the host. In addition, don't touch the VGs and physical volumes that back these LVs. 
 - Avoid incrementing the `count` field of `storageClassDeviceSets` and create a new LV that backs a OSD simultaneously.
 
