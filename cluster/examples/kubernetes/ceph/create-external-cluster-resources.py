@@ -111,17 +111,18 @@ class RadosJSON:
                 "Out of range port number: {}".format(port))
         return False
 
-    def endpoint_dial(self, endpoint_str):
-        try:
-            ep = "http://" + endpoint_str
-            r = requests.head(ep)
-            rc = r.status_code
-            if rc != 200:
-                raise ExecutionFailureException(
-                    "wrong return code {} on rgw endpoint http header request".format(rc))
-        except requests.ConnectionError:
-            raise ExecutionFailureException(
-                "failed to connect to rgw endpoint {}".format(ep))
+    def endpoint_dial(self, endpoint_str, timeout=3):
+        protocols = ["http", "https"]
+        for prefix in protocols:
+            try:
+                ep = "{}://{}".format(prefix, endpoint_str)
+                r = requests.head(ep, timeout=timeout)
+                if r.status_code == 200:
+                    return
+            except:
+                continue
+        raise ExecutionFailureException(
+            "unable to connect to endpoint: {}".format(endpoint_str))
 
     def __init__(self, arg_list=None):
         self.out_map = {}
