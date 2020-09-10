@@ -142,6 +142,7 @@ type osdProperties struct {
 	schedulerName       string
 	crushDeviceClass    string
 	encrypted           bool
+	deviceSetName       string
 	// Drive Groups which apply to the node
 	driveGroups cephv1.DriveGroupsSpec
 }
@@ -259,6 +260,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			crushDeviceClass: volume.CrushDeviceClass,
 			schedulerName:    volume.SchedulerName,
 			encrypted:        volume.Encrypted,
+			deviceSetName:    volume.Name,
 		}
 
 		logger.Debugf("osdProps are %+v", osdProps)
@@ -729,6 +731,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				pvcSize:             volumeSource.Size,
 				schedulerName:       volumeSource.SchedulerName,
 				encrypted:           volumeSource.Encrypted,
+				deviceSetName:       volumeSource.Name,
 			}
 			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
 			// or from the osd prepare job from initial creation.
