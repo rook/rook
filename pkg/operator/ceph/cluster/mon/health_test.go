@@ -106,6 +106,46 @@ func TestCheckHealth(t *testing.T) {
 		_, ok := c.ClusterInfo.Monitors[monName]
 		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list. %v", monName, c.ClusterInfo.Monitors))
 	}
+
+	deployments, err := clientset.AppsV1().Deployments(c.Namespace).List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(deployments.Items))
+
+	// no orphan resources to remove
+	c.removeOrphanMonResources()
+
+	// We expect mons to exist: a, g, h
+	// Check that their PVCs are not garbage collected after we create fake PVCs
+	badMon := "c"
+	goodMons := []string{"a", "g", "h"}
+	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{}
+	for _, name := range append(goodMons, badMon) {
+		m := &monConfig{ResourceName: "rook-ceph-mon-" + name, DaemonName: name}
+		pvc, err := c.makeDeploymentPVC(m, true)
+		assert.NoError(t, err)
+		_, err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Create(pvc)
+		assert.NoError(t, err)
+	}
+
+	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, 4, len(pvcs.Items))
+
+	// pvc "c" should be removed and the others should remain
+	c.removeOrphanMonResources()
+	pvcs, err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(pvcs.Items))
+	for _, pvc := range pvcs.Items {
+		found := false
+		for _, name := range goodMons {
+			if pvc.Name == "rook-ceph-mon-"+name {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, pvc.Name)
+	}
 }
 
 func TestScaleMonDeployment(t *testing.T) {
