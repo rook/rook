@@ -168,7 +168,7 @@ func TestHostNetwork(t *testing.T) {
 	c.spec.Network.HostNetwork = true
 
 	monConfig := testGenMonConfig("c")
-	pod, err := c.makeMonPod(monConfig, false, "")
+	pod, err := c.makeMonPod(monConfig, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, pod)
 	assert.Equal(t, true, pod.Spec.HostNetwork)
@@ -180,7 +180,7 @@ func TestHostNetwork(t *testing.T) {
 	assert.Equal(t, "arg not found: --public-bind-addr", message)
 
 	monConfig.Port = 6790
-	pod, err = c.makeMonPod(monConfig, false, "")
+	pod, err = c.makeMonPod(monConfig, false)
 	assert.NoError(t, err)
 	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
 	assert.Equal(t, "2.4.6.3:6790", val, message)
