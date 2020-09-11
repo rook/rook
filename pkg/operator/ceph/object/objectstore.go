@@ -44,7 +44,7 @@ const (
 	bucketProvisionerName = "ceph.rook.io/bucket"
 	AccessKeyName         = "access-key"
 	SecretKeyName         = "secret-key"
-	svcDNSSuffix          = "svc.cluster.local"
+	svcDNSSuffix          = "svc"
 )
 
 var (
