@@ -23,7 +23,7 @@ You can read further about the details and limitations of these volumes in the [
 First deploy the Rook NFS operator using the following commands:
 
 ```console
-git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
+git clone --single-branch --branch v1.3.11 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/nfs
 kubectl create -f operator.yaml
 ```

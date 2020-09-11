@@ -35,7 +35,7 @@ EdgeFS CSI plugins implement an interface between CSI enabled Container Orchestr
 * Kubernetes CSI drivers require `CSIDriver` and `CSINodeInfo` resource types
   [to be defined on the cluster](https://github.com/kubernetes-csi/docs/blob/460a49286fe164a78fde3114e893c48b572a36c8/book/src/Setup.md#csidriver-custom-resource-alpha).
   Check if they are already defined:
-  
+
   ```console
   kubectl get customresourcedefinition.apiextensions.k8s.io/csidrivers.csi.storage.k8s.io
   kubectl get customresourcedefinition.apiextensions.k8s.io/csinodeinfos.csi.storage.k8s.io
@@ -106,7 +106,7 @@ By using `k8sEdgefsNamespaces` and `k8sEdgefsMgmtPrefix` parameters, driver is c
 Check configuration options and create kubernetes secret for Edgefs CSI NFS plugin
 
 ```console
-git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
+git clone --single-branch --branch v1.3.11 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/edgefs/csi/nfs
 kubectl create secret generic edgefs-nfs-csi-driver-config --from-file=./edgefs-nfs-csi-driver-config.yaml
 ```
