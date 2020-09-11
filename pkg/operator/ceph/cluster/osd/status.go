@@ -265,7 +265,7 @@ func (c *Cluster) handleStatusConfigMapStatus(nodeName string, config *provision
 				c.startOSDDaemonsOnNode(nodeName, config, configMap, status)
 			}
 			// remove the status configmap that indicated the progress
-			if err := c.kv.ClearStore(fmt.Sprintf(orchestrationStatusMapName, nodeName)); err != nil {
+			if err := c.kv.ClearStore(k8sutil.TruncateNodeName(orchestrationStatusMapName, nodeName)); err != nil {
 				logger.Errorf("failed to remove the status configmap. %v", err)
 			}
 		}
