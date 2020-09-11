@@ -48,7 +48,7 @@ To turn off this node adjustment need to enable `skipHostPrepare` option in clus
 If you're feeling lucky, a simple EdgeFS Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 
 ```console
-git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
+git clone --single-branch --branch v1.3.11 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/edgefs
 kubectl create -f operator.yaml
 kubectl create -f cluster.yaml

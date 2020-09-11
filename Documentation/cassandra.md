@@ -21,7 +21,7 @@ To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [fo
 First deploy the Rook Cassandra Operator using the following commands:
 
 ```console
-git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
+git clone --single-branch --branch v1.3.11 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/cassandra
 kubectl apply -f operator.yaml
 ```
