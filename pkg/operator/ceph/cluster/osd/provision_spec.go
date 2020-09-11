@@ -67,6 +67,9 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 
 	if osdProps.onPVC() {
 		k8sutil.AddLabelToJob(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, job)
+		k8sutil.AddLabelToJob(CephDeviceSetLabelKey, osdProps.deviceSetName, job)
+		k8sutil.AddLabelToPod(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, &job.Spec.Template)
+		k8sutil.AddLabelToPod(CephDeviceSetLabelKey, osdProps.deviceSetName, &job.Spec.Template)
 	}
 
 	k8sutil.AddRookVersionLabelToJob(job)

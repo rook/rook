@@ -466,7 +466,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 	if osdProps.onPVC() {
 		k8sutil.AddLabelToDeployment(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, deployment)
+		k8sutil.AddLabelToDeployment(CephDeviceSetLabelKey, osdProps.deviceSetName, deployment)
 		k8sutil.AddLabelToPod(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, &deployment.Spec.Template)
+		k8sutil.AddLabelToPod(CephDeviceSetLabelKey, osdProps.deviceSetName, &deployment.Spec.Template)
 	}
 	if !osdProps.portable {
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
