@@ -826,7 +826,7 @@ spec:
                       done
                       # Wipe the specific disk in the CI that was running in raw mode
                       set +Ee
-                      block=/dev/xvdc
+                      block=/dev/nvme0n1
                       wipefs --all "$block"
                       dd if=/dev/zero of="$block" bs=1M count=100 oflag=direct,dsync
                       set -Ee

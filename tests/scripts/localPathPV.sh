@@ -20,15 +20,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual 
+  storageClassName: manual
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce 
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
-    path: "/var/lib/rook/${random_string}/mon1" 
+    path: "/var/lib/rook/${random_string}/mon1"
   nodeAffinity:
       required:
         nodeSelectorTerms:
@@ -45,15 +45,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual 
+  storageClassName: manual
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce 
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
-    path: "/var/lib/rook/${random_string}/mon2" 
+    path: "/var/lib/rook/${random_string}/mon2"
   nodeAffinity:
       required:
         nodeSelectorTerms:
@@ -70,15 +70,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual 
+  storageClassName: manual
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce 
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Filesystem
   local:
-    path: "/var/lib/rook/${random_string}/mon3" 
+    path: "/var/lib/rook/${random_string}/mon3"
   nodeAffinity:
       required:
         nodeSelectorTerms:
@@ -95,15 +95,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual 
+  storageClassName: manual
   capacity:
     storage: 10Gi
   accessModes:
-    - ReadWriteOnce 
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   volumeMode: Block
   local:
-    path: "/dev/xvdc" 
+    path: "/dev/nvme0n1"
   nodeAffinity:
       required:
         nodeSelectorTerms:
