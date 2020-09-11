@@ -471,11 +471,11 @@ func startDrivers(namespace string, clientset kubernetes.Interface, ver *version
 	}
 
 	if ver.Major > KubeMinMajor || (ver.Major == KubeMinMajor && ver.Minor >= provDeploymentSuppVersion) {
-		err = createCSIDriverInfo(clientset, RBDDriverName, ownerRef)
+		err = createCSIDriverInfo(clientset, RBDDriverName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
-		err = createCSIDriverInfo(clientset, CephFSDriverName, ownerRef)
+		err = createCSIDriverInfo(clientset, CephFSDriverName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
@@ -491,7 +491,7 @@ func StopCSIDrivers(namespace string, clientset kubernetes.Interface) error {
 }
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
-func createCSIDriverInfo(clientset kubernetes.Interface, name string, ownerRef *metav1.OwnerReference) error {
+func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
 	attach := true
 	mountInfo := false
 	// Create CSIDriver object
@@ -505,7 +505,6 @@ func createCSIDriverInfo(clientset kubernetes.Interface, name string, ownerRef *
 		},
 	}
 	csidrivers := clientset.StorageV1beta1().CSIDrivers()
-	k8sutil.SetOwnerRef(&csiDriver.ObjectMeta, ownerRef)
 	_, err := csidrivers.Create(csiDriver)
 	if err == nil {
 		logger.Infof("CSIDriver object created for driver %q", name)
