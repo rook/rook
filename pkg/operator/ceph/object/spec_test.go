@@ -22,6 +22,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
@@ -142,6 +143,11 @@ func TestValidateSpec(t *testing.T) {
 				Enable: false,
 			},
 		},
+		clusterInfo: &client.ClusterInfo{
+			CephCred: client.CephCred{
+				Username: "client.admin",
+			},
+		},
 	}
 
 	// valid store
@@ -173,8 +179,13 @@ func TestValidateSpec(t *testing.T) {
 	err = r.validateStore(s)
 	assert.Nil(t, err)
 
-	// external with no endpoints, failure
+	// external with no endpoints but ok since client.admin is used
 	r.cephClusterSpec.External.Enable = true
+	err = r.validateStore(s)
+	assert.NoError(t, err)
+
+	// external with no endpoints, failure
+	r.clusterInfo.CephCred.Username = "client.external"
 	err = r.validateStore(s)
 	assert.NotNil(t, err)
 
