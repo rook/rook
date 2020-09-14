@@ -158,7 +158,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	logger.Infof("Done with automatic upgrade from v1.2 to v1.3")
 	// Start the file test client now that the CSI driver is supported on nautilus
 	fsStorageClass := "file-upgrade"
-	assert.NoError(s.T(), s.helper.FSClient.CreateStorageClass(filesystemName, s.namespace, fsStorageClass))
+	assert.NoError(s.T(), s.helper.FSClient.CreateStorageClass(filesystemName, systemNamespace, s.namespace, fsStorageClass))
 	useCSI := true
 	createFilesystemConsumerPod(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName, fsStorageClass, useCSI)
 	defer func() {
