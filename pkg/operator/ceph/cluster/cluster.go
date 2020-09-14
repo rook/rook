@@ -145,7 +145,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.Namespace)
 	if err == nil {
 		// Write connection info (ceph config file and keyring) for ceph commands
-		err = mon.WriteConnectionConfig(c.context, clusterInfo)
+		err = mon.WriteConnectionConfig(c.context, clusterInfo, c.Namespace)
 		if err != nil {
 			logger.Errorf("failed to write config. attempting to continue. %v", err)
 		}

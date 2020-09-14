@@ -16,7 +16,15 @@ limitations under the License.
 
 package mon
 
-import v1 "k8s.io/api/core/v1"
+import (
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
+)
+
+// PodNamespaceEnvVar is the cluster namespace environment var
+func PodNamespaceEnvVar(namespace string) v1.EnvVar {
+	return v1.EnvVar{Name: k8sutil.PodNamespaceEnvVar, Value: namespace}
+}
 
 // ClusterNameEnvVar is the cluster name environment var
 func ClusterNameEnvVar(name string) v1.EnvVar {

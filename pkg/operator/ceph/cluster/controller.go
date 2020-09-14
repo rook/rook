@@ -323,7 +323,7 @@ func (c *ClusterController) configureExternalCephCluster(namespace, name string,
 
 	// Write connection info (ceph config file and keyring) for ceph commands
 	if cluster.Spec.CephVersion.Image == "" {
-		err = mon.WriteConnectionConfig(c.context, cluster.Info)
+		err = mon.WriteConnectionConfig(c.context, cluster.Info, namespace)
 		if err != nil {
 			logger.Errorf("failed to write config. attempting to continue. %v", err)
 		}

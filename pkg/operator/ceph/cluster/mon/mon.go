@@ -319,7 +319,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 	}
 
 	// make sure we have the connection info generated so connections can happen
-	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
+	if err := WriteConnectionConfig(c.context, c.ClusterInfo, c.Namespace); err != nil {
 		return err
 	}
 
@@ -790,7 +790,7 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	// write the latest config to the config dir
-	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
+	if err := WriteConnectionConfig(c.context, c.ClusterInfo, c.Namespace); err != nil {
 		return errors.Wrapf(err, "failed to write connection config for new mons")
 	}
 
