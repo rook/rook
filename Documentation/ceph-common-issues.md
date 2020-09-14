@@ -28,6 +28,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
 * [Too few PGs per OSD warning is shown](#too-few-pgs-per-osd-warning-is-shown)
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
+* [The Ceph-CSI driver was being unexpectedly removed](#the-ceph-csi-driver-was-being-unexpectedly-removed)
 
 ## Troubleshooting Techniques
 
@@ -817,3 +818,70 @@ If you still decide to configure an OSD on LVM, please keep the following in min
 - Avoid incrementing the `count` field of `storageClassDeviceSets` and create a new LV that backs a OSD simultaneously.
 
 You can know whether the above-mentioned tag exists tag with the command: `sudo lvs -o lv_name,lv_tags`. If the `lv_tag` field is empty in an LV corresponding to the OSD lv_tags, this OSD encountered the problem. In this case, please [retire this OSD](ceph-osd-mgmt.md#remove-an-osd) or replace with other new OSD before restarting.
+
+## The Ceph-CSI driver was being unexpectedly removed
+
+### Symptoms
+
+Sometimes the Ceph-CSI driver is unexpectedly removed by the garbage collector. For more detail, please refer to [this issue](https://github.com/rook/rook/issues/6162).
+
+This problem became apparent as missing pods of the Ceph-CSI driver like this.
+
+```console
+# kubectl -n rook-ceph get pod
+NAME                                                            READY   STATUS              RESTARTS   AGE
+...
+csi-cephfsplugin-6cb75                                          0/3     ContainerCreating   0          15h
+csi-cephfsplugin-9whpq                                          0/3     ContainerCreating   0          15h
+csi-cephfsplugin-bpn88                                          0/3     ContainerCreating   0          15h
+csi-cephfsplugin-gd6kk                                          0/3     ContainerCreating   0          15h
+csi-cephfsplugin-hbjkj                                          0/3     ContainerCreating   0          15h
+csi-cephfsplugin-jt48j                                          0/3     ContainerCreating   0          15h
+csi-cephfsplugin-mlj6w                                          0/3     ContainerCreating   0          15h
+csi-cephfsplugin-provisioner-67cdf965c6-764bx                   0/5     ContainerCreating   0          15h
+csi-cephfsplugin-provisioner-67cdf965c6-pq4wm                   0/5     ContainerCreating   0          15h
+csi-cephfsplugin-rx599                                          0/3     ContainerCreating   0          15h
+csi-rbdplugin-9v8kb                                             0/3     ContainerCreating   0          15h
+csi-rbdplugin-bccpt                                             0/3     ContainerCreating   0          15h
+csi-rbdplugin-bqlpc                                             0/3     ContainerCreating   0          15h
+csi-rbdplugin-f2fb9                                             0/3     ContainerCreating   0          15h
+csi-rbdplugin-h8hbc                                             0/3     ContainerCreating   0          15h
+csi-rbdplugin-l2wbz                                             0/3     ContainerCreating   0          15h
+csi-rbdplugin-njtt7                                             0/3     ContainerCreating   0          15h
+csi-rbdplugin-provisioner-78d6f54775-dq47m                      0/6     ContainerCreating   0          15h
+csi-rbdplugin-provisioner-78d6f54775-hc9nb                      0/6     ContainerCreating   0          15h
+csi-rbdplugin-tfn52                                             0/3     ContainerCreating   0          15h
+...
+```
+
+You hit this problem if ownerReference is set to rook-ceph-operator Deployment in the Ceph-CSI driver CRs (rook-ceph.cephfs.csi.ceph.com and rook-ceph.rbd.csi.ceph.com) as follows.
+
+```console
+$ kubectl get csidrivers.storage.k8s.io rook-ceph.rbd.csi.ceph.com -o yaml
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+...
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: false
+    controller: true
+    kind: Deployment
+    name: rook-ceph-operator
+    uid: 65f3c94b-adbd-4604-b01f-70d045a37e3b
+...
+```
+
+### Solution
+
+If you use Rook <= v1.3.10 or Rook <= v1.4.2, please follow the steps below.
+
+1. Delete the existing CSI drivers:
+
+```console
+kubectl delete csidriver rook-ceph.cephfs.csi.ceph.com
+kubectl delete csidriver rook-ceph.rbd.csi.ceph.com
+```
+
+2. Update to the latest patch release (v1.3.11 or v1.4.3 or newer)
+
+Otherwise, you'll need to restart the rook operator after deleting the csi drivers.
