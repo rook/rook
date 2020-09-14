@@ -1,0 +1,156 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: clusters.spdk.rook.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.status
+    name: STATUS
+    type: string
+  group: spdk.rook.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Cluster is the Schema for the clusters API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: ClusterSpec defines the desired state of Cluster
+          properties:
+            annotations:
+              additionalProperties:
+                type: string
+              description: Annotations
+              type: object
+            hugePages:
+              properties:
+                memSize:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                pageSize:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+              required:
+              - memSize
+              - pageSize
+              type: object
+            image:
+              type: string
+            spdkNodes:
+              items:
+                properties:
+                  hugePages:
+                    description: per node hugepage
+                    properties:
+                      memSize:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      pageSize:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    required:
+                    - memSize
+                    - pageSize
+                    type: object
+                  image:
+                    description: per node image
+                    type: string
+                  name:
+                    description: node to deploy spdk service, matches 'kubernetes.io/hostname'
+                      label
+                    type: string
+                  nvmeAutoDiscover:
+                    description: auto discover usable nvme devices
+                    type: boolean
+                  nvmePcieAddrs:
+                    description: pcie addresses of spdk managed nvme devices have
+                      to alias string type due to kubebuilder limitation https://github.com/kubernetes-sigs/controller-tools/issues/342
+                    items:
+                      description: 'pcie address format: domain:bus:slot.function
+                        "0000:01:00.0", or "01:00.0" with domain omitted'
+                      pattern: ^([0-9a-fA-F]{4}:)?[0-9a-fA-F]{2}:[0-9a-zA-F]{2}\.[0-7]$
+                      type: string
+                    type: array
+                  target:
+                    description: target configuration
+                    properties:
+                      addr:
+                        description: service address
+                        type: string
+                      port:
+                        maximum: 65535
+                        minimum: 1024
+                        type: integer
+                      type:
+                        enum:
+                        - nvme-rdma
+                        - nvme-tcp
+                        - iscsi
+                        type: string
+                    required:
+                    - type
+                    type: object
+                required:
+                - name
+                type: object
+              type: array
+          required:
+          - hugePages
+          - image
+          - spdkNodes
+          type: object
+        status:
+          description: ClusterStatus defines the observed state of Cluster
+          properties:
+            error:
+              type: string
+            status:
+              type: string
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

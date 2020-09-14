@@ -1,0 +1,16 @@
+apiVersion: spdk.rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: cluster-sample
+spec:
+  image: "cyb70289/spdk:20.07"
+  hugePages:
+    pageSize: 2Mi
+    memSize: 1Gi
+  spdkNodes:
+  - name: spdk-test-node
+    nvmePcieAddrs: ["00:01.0"]
+    target:
+      type: "nvme-tcp"
+      addr: "127.0.0.1"
+      port: 4420

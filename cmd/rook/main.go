@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/cmd/rook/edgefs"
 	"github.com/rook/rook/cmd/rook/nfs"
 	rook "github.com/rook/rook/cmd/rook/rook"
+	"github.com/rook/rook/cmd/rook/spdk"
 	"github.com/rook/rook/cmd/rook/util"
 	"github.com/rook/rook/cmd/rook/version"
 	"github.com/rook/rook/cmd/rook/yugabytedb"
@@ -47,6 +48,7 @@ func addCommands() {
 		nfs.Cmd,
 		cassandra.Cmd,
 		yugabytedb.Cmd,
+		spdk.Cmd,
 
 		// util commands
 		util.CmdReporterCmd,
