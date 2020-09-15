@@ -52,7 +52,7 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 	if canary {
 		labels["mon_canary"] = "true"
 	}
-	if c.spec.Mon.VolumeClaimTemplate != nil {
+	if c.spec.Mon.VolumeClaimTemplate != nil && includeNewLabels {
 		labels["pvc_name"] = monConfig.ResourceName
 	}
 
