@@ -118,15 +118,12 @@ func (a *Agent) Run() error {
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
-	for {
-		select {
-		case <-sigc:
-			logger.Infof("shutdown signal received, exiting...")
-			flexvolumeServer.StopAll()
-			close(stopChan)
-			return nil
-		}
-	}
+
+	<-sigc
+	logger.Infof("shutdown signal received, exiting...")
+	flexvolumeServer.StopAll()
+	close(stopChan)
+	return nil
 }
 
 // In 1.11 and newer there is a timing issue loading flex drivers.

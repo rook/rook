@@ -71,7 +71,7 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInf
 	}
 
 	// Start watchers
-	if cluster.watchersActivated == true {
+	if cluster.watchersActivated {
 		logger.Debugf("cluster is already being watched by bucket and client provisioner for cluster %q", cluster.Namespace)
 		return
 	}

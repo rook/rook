@@ -60,12 +60,8 @@ func (o *Operator) Run() error {
 	// watch for changes to the yugabytedb clusters
 	o.clusterController.StartWatch(v1.NamespaceAll, stopChan)
 
-	for {
-		select {
-		case <-signalChan:
-			logger.Infof("shutdown signal received, exiting...")
-			close(stopChan)
-			return nil
-		}
-	}
+	<-signalChan
+	logger.Infof("shutdown signal received, exiting...")
+	close(stopChan)
+	return nil
 }

@@ -475,7 +475,7 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 			okCheck = true
 		}
 
-		if okCheck != true || err != nil {
+		if !okCheck || err != nil {
 			logger.Errorf("failed to remove finalizer %s from cluster %s. %+v", fname, objectMeta.Name, err)
 			time.Sleep(retrySeconds)
 			continue

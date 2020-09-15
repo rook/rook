@@ -144,7 +144,7 @@ func (h *EdgefsInstaller) UninstallEdgefs(systemNamespace, namespace string) {
 	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("rook-edgefs-system-psp", nil)
 
 	err = h.k8shelper.DeleteResourceAndWait(false, "podsecuritypolicy", "privileged")
-	checkError(h.T(), err, fmt.Sprintf("cannot delete podsecuritypolicy `privileged`"))
+	checkError(h.T(), err, "cannot delete podsecuritypolicy `privileged`")
 
 	err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot delete namespace %s", namespace))

@@ -521,11 +521,7 @@ func isCMTConfigOverride(obj runtime.Object) bool {
 	}
 
 	objectName := cm.GetName()
-	if objectName == k8sutil.ConfigOverrideName {
-		return true
-	}
-
-	return false
+	return objectName == k8sutil.ConfigOverrideName
 }
 
 func isCMToIgnoreOnDelete(obj runtime.Object) bool {

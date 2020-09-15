@@ -45,7 +45,7 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 	defer c.orchMux.Unlock()
 
 	// check if there is an orchestration needed currently
-	if c.orchestrationNeeded == true && c.orchestrationRunning == false {
+	if c.orchestrationNeeded && !c.orchestrationRunning {
 		// there is an orchestration needed
 		// allow to enter the orchestration-loop
 		c.orchestrationNeeded = false

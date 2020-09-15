@@ -37,7 +37,6 @@ func (c *ClusterController) StartOperatorSettingsWatch(namespace string, stopCh 
 				return
 			}
 			c.operatorConfigChange(newObj)
-			return
 		}, nil, stopCh)
 }
 
@@ -66,5 +65,4 @@ func (c *ClusterController) operatorConfigChange(obj interface{}) {
 			logger.Errorf("%v", err)
 		}
 	}
-	return
 }

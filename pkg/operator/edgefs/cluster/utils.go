@@ -59,16 +59,13 @@ func ParseDevicesResurrectMode(resurrectMode string) edgefsv1.DevicesResurrectOp
 	switch resurrectModeToLower {
 	case "restore":
 		drm.NeedToResurrect = true
-		break
 	case "restorezap":
 		drm.NeedToResurrect = true
 		drm.NeedToZap = true
-		break
 	case "restorezapwait":
 		drm.NeedToResurrect = true
 		drm.NeedToZap = true
 		drm.NeedToWait = true
-		break
 	}
 
 	return drm
@@ -111,7 +108,7 @@ func (c *cluster) getClusterNodes() ([]rookv1.Node, error) {
 func (c *cluster) retrieveDeploymentConfig() (edgefsv1.ClusterDeploymentConfig, error) {
 
 	deploymentConfig := edgefsv1.ClusterDeploymentConfig{
-		DevConfig: make(map[string]edgefsv1.DevicesConfig, 0),
+		DevConfig: make(map[string]edgefsv1.DevicesConfig),
 	}
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(configName, metav1.GetOptions{})

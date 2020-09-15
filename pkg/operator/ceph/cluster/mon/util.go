@@ -41,14 +41,9 @@ func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 // convert the mon name to the numeric mon ID
 func fullNameToIndex(name string) (int, error) {
 	// remove the "rook-ceph-mon" prefix
-	if strings.HasPrefix(name, AppName) {
-		name = name[len(AppName):]
-	}
+	name = strings.TrimPrefix(name, AppName)
 	// remove the "-" prefix
-	if strings.HasPrefix(name, "-") {
-		name = name[1:]
-	}
-
+	name = strings.TrimPrefix(name, "-")
 	return k8sutil.NameToIndex(name)
 }
 

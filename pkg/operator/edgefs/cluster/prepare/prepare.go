@@ -173,33 +173,31 @@ func (c *Cluster) waitJob(job *batch.Job) error {
 
 	events := watch.ResultChan()
 	for {
-		select {
-		case event := <-events:
-			if event.Object == nil {
-				return fmt.Errorf("Result channel closed for Job %s", job.ObjectMeta.Name)
-			}
-			k8sJob, ok := event.Object.(*batch.Job)
-			if !ok {
-				return fmt.Errorf("Invalid Job event object: %T", event.Object)
-			}
-			conditions := k8sJob.Status.Conditions
-			for _, condition := range conditions {
-				if condition.Type == batch.JobComplete {
-					logger.Infof("Job %s reported complete", job.ObjectMeta.Name)
-					return nil
-				} else if condition.Type == batch.JobFailed {
-					return fmt.Errorf("Job %s failed", job.ObjectMeta.Name)
-				}
+		event := <-events
+		if event.Object == nil {
+			return fmt.Errorf("Result channel closed for Job %s", job.ObjectMeta.Name)
+		}
+		k8sJob, ok := event.Object.(*batch.Job)
+		if !ok {
+			return fmt.Errorf("Invalid Job event object: %T", event.Object)
+		}
+		conditions := k8sJob.Status.Conditions
+		for _, condition := range conditions {
+			if condition.Type == batch.JobComplete {
+				logger.Infof("Job %s reported complete", job.ObjectMeta.Name)
+				return nil
+			} else if condition.Type == batch.JobFailed {
+				return fmt.Errorf("Job %s failed", job.ObjectMeta.Name)
 			}
 		}
+
 	}
 }
 
 func (c *Cluster) deleteJob(job *batch.Job) error {
 	batchClient := c.context.Clientset.BatchV1()
 	jobsClient := batchClient.Jobs(job.ObjectMeta.Namespace)
-	var deletePropagation metav1.DeletionPropagation
-	deletePropagation = metav1.DeletePropagationForeground
+	deletePropagation := metav1.DeletePropagationForeground
 	err := jobsClient.Delete(job.ObjectMeta.Name, &metav1.DeleteOptions{PropagationPolicy: &deletePropagation})
 	if err != nil {
 		return fmt.Errorf("Failed to delete job %s", job.ObjectMeta.Name)

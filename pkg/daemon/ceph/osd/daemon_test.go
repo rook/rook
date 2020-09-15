@@ -179,53 +179,53 @@ func TestAvailableDevices(t *testing.T) {
 			logger.Infof("OUTPUT for %s %v", command, args)
 
 			if command == "lsblk" {
-				if strings.Index(args[3], "sdb") != -1 {
+				if strings.Contains(args[3], "sdb") {
 					// /dev/sdb has a partition
 					return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
-				} else if strings.Index(args[0], "vg1-lv") != -1 {
+				} else if strings.Contains(args[0], "vg1-lv") {
 					// /dev/mapper/vg1-lv* are LVs
 					return `TYPE="lvm"`, nil
-				} else if strings.Index(args[0], "sdt1") != -1 {
+				} else if strings.Contains(args[0], "sdt1") {
 					return `TYPE="part"`, nil
 				} else if strings.HasPrefix(args[0], "/dev") {
 					return `TYPE="disk"`, nil
 				}
 				return "", nil
 			} else if command == "blkid" {
-				if strings.Index(args[3], "sdb1") != -1 {
+				if strings.Contains(args[3], "sdb1") {
 					// partition sdb1 has a label MY-PART
 					return "MY-PART", nil
 				}
 			} else if command == "udevadm" {
-				if strings.Index(args[2], "sdc") != -1 {
+				if strings.Contains(args[2], "sdc") {
 					// /dev/sdc has a file system
 					return udevFSOutput, nil
-				} else if strings.Index(args[2], "sdt1") != -1 {
+				} else if strings.Contains(args[2], "sdt1") {
 					return udevPartOutput, nil
 				}
 
 				return "", nil
 			} else if command == "dmsetup" && args[0] == "info" {
-				if strings.Index(args[5], "vg1-lv1") != -1 {
+				if strings.Contains(args[5], "vg1-lv1") {
 					return "vg1-lv1", nil
-				} else if strings.Index(args[5], "vg1-lv2") != -1 {
+				} else if strings.Contains(args[5], "vg1-lv2") {
 					return "vg1-lv2", nil
 				}
 			} else if command == "dmsetup" && args[0] == "splitname" {
-				if strings.Index(args[2], "vg1-lv1") != -1 {
+				if strings.Contains(args[2], "vg1-lv1") {
 					return "vg1:lv1:", nil
-				} else if strings.Index(args[2], "vg1-lv2") != -1 {
+				} else if strings.Contains(args[2], "vg1-lv2") {
 					return "vg1:lv2:", nil
 				}
 			} else if command == "ceph-volume" {
 				if args[0] == "inventory" {
-					if strings.Index(args[3], "/mnt/set1-0-data-qfhfk") != -1 {
+					if strings.Contains(args[3], "/mnt/set1-0-data-qfhfk") {
 						return cvInventoryOutputNotAvailableBluestoreLabel, nil
-					} else if strings.Index(args[3], "sdb") != -1 {
+					} else if strings.Contains(args[3], "sdb") {
 						// sdb is locked
 						return cvInventoryOutputNotAvailableLocked, nil
-					} else if strings.Index(args[3], "sdc") != -1 {
+					} else if strings.Contains(args[3], "sdc") {
 						// sdc is too small
 						return cvInventoryOutputNotAvailableSmall, nil
 					}

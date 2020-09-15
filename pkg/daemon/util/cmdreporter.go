@@ -183,7 +183,7 @@ func (r *CmdReporter) runCommand() (stdout, stderr string, retcode int, err erro
 		retcode = 0
 	}
 
-	return string(capturedStdout.Bytes()), string(capturedStderr.Bytes()), retcode, nil
+	return capturedStdout.String(), capturedStderr.String(), retcode, nil
 }
 
 func (r *CmdReporter) saveToConfigMap(stdout, stderr string, retcode int) error {

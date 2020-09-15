@@ -52,7 +52,7 @@ func GetModifiedRookImagePath(originRookImage, addon string) string {
 	if len(addon) > 0 {
 		modifiedImageName = fmt.Sprintf("%s-%s", imageVersionParts[0], addon)
 	} else {
-		modifiedImageName = fmt.Sprintf("%s", imageVersionParts[0])
+		modifiedImageName = imageVersionParts[0]
 	}
 
 	imageParts[latestImagePartIndex] = fmt.Sprintf("%s:%s", modifiedImageName, modifiedImageTag)

@@ -80,7 +80,7 @@ func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) {
 			}
 		}
 	})
-	if errorFlag != false {
+	if errorFlag {
 		logger.Error("failed to set flag ", err)
 	}
 }
