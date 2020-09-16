@@ -357,7 +357,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 	envVars := []v1.EnvVar{
 		{Name: "ROOK_OPERATOR_NAMESPACE", Value: operatorNamespace},
 		{Name: "ROOK_CEPH_CLUSTER_CRD_VERSION", Value: rookcephv1.Version},
-		{Name: "ROOK_CEPH_CLUSTER_CRD_NAME", Value: c.clusterInfo.Namespace},
+		{Name: "ROOK_CEPH_CLUSTER_CRD_NAME", Value: c.clusterInfo.NamespacedName().Name},
 		k8sutil.PodIPEnvVar(podIPEnvVar),
 	}
 	return envVars

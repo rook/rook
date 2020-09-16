@@ -35,6 +35,7 @@ import (
 func TestPodSpec(t *testing.T) {
 	clientset := optest.New(t, 1)
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
 		CephVersion:        cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		Dashboard:          cephv1.DashboardSpec{Port: 1234},
@@ -93,6 +94,7 @@ func TestServiceSpec(t *testing.T) {
 func TestHostNetwork(t *testing.T) {
 	clientset := optest.New(t, 1)
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
 		Network:         cephv1.NetworkSpec{HostNetwork: true},
 		Dashboard:       cephv1.DashboardSpec{Port: 1234},
@@ -117,6 +119,7 @@ func TestHostNetwork(t *testing.T) {
 func TestHttpBindFix(t *testing.T) {
 	clientset := optest.New(t, 1)
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
 		Dashboard:       cephv1.DashboardSpec{Enabled: true, Port: 1234},
 		DataDirHostPath: "/var/lib/rook/",
@@ -144,6 +147,7 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 		DataDirHostPath: "/var/lib/rook/",
 	}
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	clusterInfo.SetName("test")
 	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
 
 	mgrTestConfig := mgrConfig{
