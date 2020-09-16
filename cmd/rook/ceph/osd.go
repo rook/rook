@@ -300,6 +300,10 @@ func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]stri
 
 // Parse the devices, which are sent as a JSON-marshalled list of device IDs with a StorageConfig spec
 func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
+	if devices == "" {
+		return []osddaemon.DesiredDevice{}, nil
+	}
+
 	configuredDevices := []osdcfg.ConfiguredDevice{}
 	err := json.Unmarshal([]byte(devices), &configuredDevices)
 	if err != nil {
