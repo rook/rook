@@ -17,7 +17,11 @@ limitations under the License.
 package client
 
 import (
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/test"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,13 +88,29 @@ func TestGenerateConfigFile(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	// create mocked cluster context and info
+	clientset := test.New(t, 3)
+
 	context := &clusterd.Context{
 		ConfigDir: configDir,
+		Clientset: clientset,
 	}
+
+	ns := "foo-cluster"
+	data := make(map[string]string, 1)
+	data["config"] = "[global]\n    bluestore_min_alloc_size_hdd = 4096"
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k8sutil.ConfigOverrideName,
+			Namespace: ns,
+		},
+		Data: data,
+	}
+	clientset.CoreV1().ConfigMaps(ns).Create(cm)
+
 	clusterInfo := &ClusterInfo{
 		FSID:          "myfsid",
 		MonitorSecret: "monsecret",
-		Namespace:     "foo-cluster",
+		Namespace:     ns,
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
@@ -110,6 +130,7 @@ func TestGenerateConfigFile(t *testing.T) {
 	actualConf, err := ini.Load(configFilePath)
 	assert.Nil(t, err)
 	verifyConfigValue(t, actualConf, "global", "fsid", clusterInfo.FSID)
+	verifyConfigValue(t, actualConf, "global", "bluestore_min_alloc_size_hdd", "4096")
 }
 
 func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, loggingLevel int) {

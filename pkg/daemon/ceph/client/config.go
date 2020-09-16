@@ -19,6 +19,9 @@ package client
 
 import (
 	"fmt"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net"
 	"os"
 	"path"
@@ -118,6 +121,10 @@ func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pat
 		return "", errors.Wrap(err, "failed to create global config section")
 	}
 
+	if err := mergeDefaultConfigWithRookConfigOverride(context, clusterInfo, configFile); err != nil {
+		return "", errors.Wrapf(err, "failed to merge global config with %q", k8sutil.ConfigOverrideName)
+	}
+
 	qualifiedUser := getQualifiedUser(clusterInfo.CephCred.Username)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
 		return "", errors.Wrap(err, "failed to add admin client config section")
@@ -131,6 +138,28 @@ func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pat
 	}
 
 	return filePath, nil
+}
+
+func mergeDefaultConfigWithRookConfigOverride(context *clusterd.Context, clusterInfo *ClusterInfo, configFile *ini.File) error {
+	cm, err := context.Clientset.CoreV1().ConfigMaps(clusterInfo.Namespace).Get(k8sutil.ConfigOverrideName, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to read configmap %q", k8sutil.ConfigOverrideName)
+		}
+		return nil
+	}
+
+	config, ok := cm.Data["config"]
+	if !ok || config == "" {
+		logger.Debugf("No ceph configuration override to merge as %q configmap is empty", k8sutil.ConfigOverrideName)
+		return nil
+	}
+
+	if err := configFile.Append([]byte(config)); err != nil {
+		return errors.Wrapf(err, "failed to load config data from %q", k8sutil.ConfigOverrideName)
+	}
+
+	return nil
 }
 
 // prepends "client." if a user namespace is not already specified
