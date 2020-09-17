@@ -32,19 +32,6 @@ type NodeUsage struct {
 	MonValid bool
 }
 
-// Look up the immutable node name from the hostname label
-func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool) {
-	for _, node := range nodes.Items {
-		if node.Labels[v1.LabelHostname] == hostname {
-			return node.Name, true
-		}
-		if node.Name == hostname {
-			return node.Name, true
-		}
-	}
-	return "", false
-}
-
 func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 	nr := &NodeInfo{
 		Name:     n.Name,

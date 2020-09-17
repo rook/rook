@@ -30,9 +30,6 @@ import (
 )
 
 const (
-	dataDirsEnvVarName = "ROOK_DATA_DIRECTORIES"
-	volumeNameDataDir  = "datadir"
-
 	/* Volumes definitions */
 	configVolumeName  = "edgefs-configdir"
 	configName        = "edgefs-config"

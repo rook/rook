@@ -87,10 +87,6 @@ func GetValidNodes(rookStorage rookv1.StorageScopeSpec, clientset kubernetes.Int
 	return RookNodesMatchingKubernetesNodes(rookStorage, validK8sNodes)
 }
 
-func generateUniqueVolumeSourceName(sourceName, pvcName string) string {
-	return fmt.Sprintf("%s-%s", sourceName, pvcName)
-}
-
 // GetNodeNameFromHostname returns the name of the node resource looked up by the hostname label
 // Typically these will be the same name, but sometimes they are not such as when nodes have a longer
 // dns name, but the hostname is short.

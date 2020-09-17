@@ -54,10 +54,9 @@ const (
 )
 
 var (
-	NautilusVersion    = cephv1.CephVersionSpec{Image: nautilusTestImage}
-	OctopusVersion     = cephv1.CephVersionSpec{Image: octopusTestImage}
-	MasterVersion      = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
-	globalTestJobIndex = 0
+	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage}
+	OctopusVersion  = cephv1.CephVersionSpec{Image: octopusTestImage}
+	MasterVersion   = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform

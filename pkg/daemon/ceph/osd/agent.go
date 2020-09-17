@@ -38,13 +38,6 @@ type OsdAgent struct {
 	storeConfig    config.StoreConfig
 	kv             *k8sutil.ConfigMapKVStore
 	pvcBacked      bool
-	configCounter  int32
-	osdsCompleted  chan struct{}
-}
-
-type device struct {
-	name     string
-	osdCount int
 }
 
 // NewAgent is the instantiation of the OSD agent

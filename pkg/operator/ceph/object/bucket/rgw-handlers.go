@@ -15,17 +15,6 @@ func (p *Provisioner) bucketExists(name string) (bool, error) {
 	return true, nil
 }
 
-func (p *Provisioner) bucketIsEmpty(name string) (bool, error) {
-	bucketStat, _, err := cephObject.GetBucketStats(p.objectContext, name)
-	if err != nil {
-		return false, errors.Wrapf(err, "error getting ceph bucket %q", name)
-	}
-	if bucketStat.NumberOfObjects == 0 {
-		return true, nil
-	}
-	return false, nil
-}
-
 func (p *Provisioner) userExists(name string) (bool, error) {
 	_, errCode, err := cephObject.GetUser(p.objectContext, name)
 	if errCode == cephObject.RGWErrorNotFound {

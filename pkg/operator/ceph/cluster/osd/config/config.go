@@ -20,7 +20,6 @@ package config
 import (
 	"strconv"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
@@ -29,8 +28,6 @@ const (
 	configStoreNameFmt = "rook-ceph-osd-%s-config"
 	osdDirsKeyName     = "osd-dirs"
 )
-
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "osd-config")
 
 func GetConfigStoreName(nodeName string) string {
 	return k8sutil.TruncateNodeName(configStoreNameFmt, nodeName)

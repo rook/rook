@@ -25,10 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const (
-	maxPerChar = 26
-)
-
 func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 	for _, rank := range quorum {
 		if rank == monitor.Rank {

@@ -19,7 +19,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -152,22 +151,6 @@ func UpdateCrushMapValue(pairs *[]string, key, value string) {
 	if !found {
 		*pairs = append(*pairs, property)
 	}
-}
-
-func isValidCrushFieldFormat(pair string) bool {
-	matched, err := regexp.MatchString("^.+=.+$", pair)
-	return matched && err == nil
-}
-
-func isCrushFieldSet(fieldName string, pairs []string) bool {
-	for _, p := range pairs {
-		kv := strings.Split(p, "=")
-		if len(kv) == 2 && kv[0] == fieldName && kv[1] != "" {
-			return true
-		}
-	}
-
-	return false
 }
 
 func formatProperty(name, value string) string {

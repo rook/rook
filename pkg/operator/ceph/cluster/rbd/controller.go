@@ -212,16 +212,6 @@ func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cep
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephRBDMirror) setFailedStatus(cephRBDMirror *cephv1.CephRBDMirror, errMessage string, err error) (reconcile.Result, error) {
-	cephRBDMirror.Status.Phase = k8sutil.ReconcileFailedStatus
-	errStatus := opcontroller.UpdateStatus(r.client, cephRBDMirror)
-	if errStatus != nil {
-		logger.Errorf("failed to set status. %v", errStatus)
-	}
-
-	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
-}
-
 // updateStatus updates an object with a given status
 func updateStatus(client client.Client, name types.NamespacedName, status string) {
 	rbdMirror := &cephv1.CephRBDMirror{}

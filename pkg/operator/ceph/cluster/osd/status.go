@@ -91,10 +91,6 @@ func (c *Cluster) handleOrchestrationFailure(config *provisionConfig, nodeName, 
 	UpdateNodeStatus(c.kv, nodeName, status)
 }
 
-func isStatusCompleted(status OrchestrationStatus) bool {
-	return status.Status == OrchestrationStatusCompleted || status.Status == OrchestrationStatusFailed
-}
-
 func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
 	if data == nil {
 		return nil

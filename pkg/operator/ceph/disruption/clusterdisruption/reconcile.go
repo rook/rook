@@ -58,7 +58,6 @@ type ReconcileClusterDisruption struct {
 	clusterMap          *ClusterMap
 	osdCrushLocationMap *OSDCrushLocationMap
 	maintenanceTimeout  time.Duration
-	clusterRetries      int
 }
 
 // Reconcile reconciles a node and ensures that it has a drain-detection deployment

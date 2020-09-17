@@ -18,8 +18,6 @@ package attachment
 
 import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type MockAttachment struct {
@@ -61,15 +59,5 @@ func (m *MockAttachment) Delete(namespace, name string) error {
 	if m.MockDelete != nil {
 		return m.MockDelete(namespace, name)
 	}
-	return nil
-}
-
-// Adds the list of known types to api.Scheme.
-func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(rookalpha.SchemeGroupVersion,
-		&rookalpha.Volume{},
-		&rookalpha.VolumeList{},
-	)
-	metav1.AddToGroupVersion(scheme, rookalpha.SchemeGroupVersion)
 	return nil
 }

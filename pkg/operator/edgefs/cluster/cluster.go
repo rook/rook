@@ -36,15 +36,6 @@ import (
 )
 
 const (
-	httpPortDefault           = int32(8080)
-	httpPortName              = "http"
-	grpcPortDefault           = int32(6789)
-	grpcPortName              = "grpc"
-	udpTotemPortDefault       = int32(5405)
-	udpTotemPortName          = "totem"
-	volumeNameDataDir         = "datadir"
-	defaultServiceAccountName = "rook-edgefs-cluster"
-
 	/* Volumes definitions */
 	configName = "edgefs-config"
 )

@@ -26,10 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	labelMismatchFormat = "label mismatch: expected={%s: %s} present={%s: %s}"
-)
-
 func checkLabel(key, value string, labels map[string]string) error {
 	v, ok := labels[key]
 	if !ok {

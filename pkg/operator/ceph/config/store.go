@@ -32,10 +32,7 @@ import (
 
 const (
 	// StoreName is the name of the configmap containing ceph configuration options
-	StoreName = "rook-ceph-config"
-
-	configVolumeName = "rook-ceph-config"
-
+	StoreName            = "rook-ceph-config"
 	monHostKey           = "mon_host"
 	monInitialMembersKey = "mon_initial_members"
 	// Msgr2port is the listening port of the messenger v2 protocol

@@ -44,8 +44,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-provisioner")
 
 // RookVolumeProvisioner is used to provision Rook volumes on Kubernetes
 type RookVolumeProvisioner struct {
-	context     *clusterd.Context
-	clusterInfo *client.ClusterInfo
+	context *clusterd.Context
 
 	// The flex driver vendor dir to use
 	flexDriverVendor string

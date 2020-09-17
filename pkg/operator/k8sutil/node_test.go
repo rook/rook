@@ -87,10 +87,6 @@ func taintReservedForOther() v1.Taint {
 	return v1.Taint{Key: "reservedForNOTRook", Effect: v1.TaintEffectNoSchedule}
 }
 
-func taintCordoned() v1.Taint {
-	return v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}
-}
-
 func taintAllWellKnown() []v1.Taint {
 	taints := []v1.Taint{}
 	for _, t := range WellKnownTaints {

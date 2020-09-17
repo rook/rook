@@ -17,8 +17,6 @@ limitations under the License.
 package integration
 
 import (
-	"errors"
-
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -264,21 +262,4 @@ func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, na
 	s3client.DeleteObjectInBucket(bucketname, objectKey)
 	s3client.DeleteBucket(bucketname)
 	helper.ObjectClient.DeleteUser(storeName, userid)*/
-}
-
-func getBucket(bucketname string, bucketList []rgw.ObjectBucket) (rgw.ObjectBucket, error) {
-	for _, bucket := range bucketList {
-		if bucket.Name == bucketname {
-			return bucket, nil
-		}
-	}
-	return rgw.ObjectBucket{}, errors.New("Bucket not found")
-}
-
-func getBucketSizeAndObjects(bucketname string, bucketList []rgw.ObjectBucket) (uint64, uint64, error) {
-	bkt, err := getBucket(bucketname, bucketList)
-	if err != nil {
-		return 0, 0, errors.New("Bucket not found")
-	}
-	return bkt.Size, bkt.NumberOfObjects, nil
 }

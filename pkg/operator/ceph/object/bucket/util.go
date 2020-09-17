@@ -55,24 +55,6 @@ func NewBucketController(cfg *rest.Config, p *Provisioner) (*provisioner.Provisi
 	return provisioner.NewProvisioner(cfg, provName, p, allNamespaces)
 }
 
-// Return the secret namespace and name from the passed storage class.
-func getSecretNamespaceAndName(sc *storagev1.StorageClass) (string, string) {
-
-	const (
-		scSecretNameKey = "secretName"
-		scSecretNSKey   = "secretNamespace"
-	)
-	return sc.Parameters[scSecretNSKey], sc.Parameters[scSecretNameKey]
-}
-
-func getAccessKeyId(secret *v1.Secret) string {
-	return string(secret.Data[accessKeyIdKey])
-}
-
-func getSecretAccessKey(secret *v1.Secret) string {
-	return string(secret.Data[secretSecretKeyKey])
-}
-
 func getObjectStoreName(sc *storagev1.StorageClass) string {
 	return sc.Parameters[objectStoreName]
 }

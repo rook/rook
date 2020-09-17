@@ -23,8 +23,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const containerName = "rook-nfs-operator"
-
 var operatorCmd = &cobra.Command{
 	Use:   "operator",
 	Short: "Runs the NFS operator to deploy and manage NFS server in kubernetes clusters",

@@ -82,7 +82,6 @@ type serviceStatus struct {
 }
 
 type service struct {
-	placement   map[string]string
 	ServiceName string `json:"Service_name"`
 	ServiceType string `json:"Service_type"`
 	Status      serviceStatus
