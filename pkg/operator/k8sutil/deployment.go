@@ -66,14 +66,18 @@ func UpdateDeploymentAndWait(context *clusterd.Context, modifiedDeployment *apps
 		return nil, fmt.Errorf("failed to get deployment %s. %+v", modifiedDeployment.Name, err)
 	}
 
-	// Check whether the current deployement and newly generated one are identical
+	// Check whether the current deployment and newly generated one are identical
+	patchChanged := false
 	patchResult, err := patch.DefaultPatchMaker.Calculate(currentDeployment, modifiedDeployment)
 	if err != nil {
-		return nil, fmt.Errorf("failed to calculate diff between current deployment %q and newly generated one. %v", currentDeployment.Name, err)
+		logger.Warningf("failed to calculate diff between current deployment %q and newly generated one. Assuming it changed. %v", currentDeployment.Name, err)
+		patchChanged = true
+	} else if !patchResult.IsEmpty() {
+		patchChanged = true
 	}
 
 	// If deployments are different, let's update!
-	if !patchResult.IsEmpty() {
+	if patchChanged {
 		logger.Infof("updating deployment %q after verifying it is safe to stop", modifiedDeployment.Name)
 
 		// Let's verify the deployment can be stopped
