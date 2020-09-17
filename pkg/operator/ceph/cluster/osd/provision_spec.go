@@ -146,6 +146,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	} else {
 		osdProps.getPreparePlacement().ApplyToPodSpec(&podSpec)
 	}
+	removeDuplicateEnvVars(&podSpec)
 
 	podMeta := metav1.ObjectMeta{
 		Name: AppName,
