@@ -34,13 +34,12 @@ const (
 	appName = "rook-edgefs-iscsi"
 
 	/* Volumes definitions */
-	serviceAccountName  = "rook-edgefs-cluster"
-	defaultTargetName   = "iqn.2018-11.edgefs.io"
-	defaultTargetParams = "{}"
-	dataVolumeName      = "edgefs-datadir"
-	stateVolumeFolder   = ".state"
-	etcVolumeFolder     = ".etc"
-	defaultPort         = 3260
+	serviceAccountName = "rook-edgefs-cluster"
+	defaultTargetName  = "iqn.2018-11.edgefs.io"
+	dataVolumeName     = "edgefs-datadir"
+	stateVolumeFolder  = ".state"
+	etcVolumeFolder    = ".etc"
+	defaultPort        = 3260
 )
 
 // Start the ISCSI manager

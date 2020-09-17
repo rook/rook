@@ -62,18 +62,15 @@ const (
 	FailureDomainKey  = "failure-domain"
 	prepareAppName    = "rook-ceph-osd-prepare"
 	prepareAppNameFmt = "rook-ceph-osd-prepare-%s"
-	legacyAppNameFmt  = "rook-ceph-osd-id-%d"
 	osdAppNameFmt     = "rook-ceph-osd-%d"
 	// OsdIdLabelKey is the OSD label key
-	OsdIdLabelKey                       = "ceph-osd-id"
-	clusterAvailableSpaceReserve        = 0.05
-	serviceAccountName                  = "rook-ceph-osd"
-	unknownID                           = -1
-	portableKey                         = "portable"
-	cephOsdPodMinimumMemory      uint64 = 2048 // minimum amount of memory in MB to run the pod
-	bluestorePVCMetadata                = "metadata"
-	bluestorePVCWal                     = "wal"
-	bluestorePVCData                    = "data"
+	OsdIdLabelKey                  = "ceph-osd-id"
+	serviceAccountName             = "rook-ceph-osd"
+	portableKey                    = "portable"
+	cephOsdPodMinimumMemory uint64 = 2048 // minimum amount of memory in MB to run the pod
+	bluestorePVCMetadata           = "metadata"
+	bluestorePVCWal                = "wal"
+	bluestorePVCData               = "data"
 )
 
 // Cluster keeps track of the OSDs

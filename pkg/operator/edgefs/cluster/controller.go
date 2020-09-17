@@ -49,13 +49,11 @@ var (
 const (
 	CustomResourceName         = "cluster"
 	CustomResourceNamePlural   = "clusters"
-	appName                    = "rook-edgefs"
 	clusterCreateInterval      = 6 * time.Second
 	clusterCreateTimeout       = 5 * time.Minute
 	updateClusterInterval      = 30 * time.Second
 	updateClusterTimeout       = 1 * time.Hour
 	clusterDeleteRetryInterval = 2 //seconds
-	clusterDeleteMaxRetries    = 15
 	defaultEdgefsImageName     = "edgefs/edgefs:latest"
 )
 

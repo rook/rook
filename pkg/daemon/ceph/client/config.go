@@ -19,14 +19,15 @@ package client
 
 import (
 	"fmt"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
@@ -42,9 +43,7 @@ const (
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
 	DefaultKeyringFile = "keyring"
 	// Msgr2port is the listening port of the messenger v2 protocol
-	Msgr2port   = 3300
-	msgr1Prefix = "v1:"
-	msgr2Prefix = "v2:"
+	Msgr2port = 3300
 )
 
 var (

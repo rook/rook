@@ -27,9 +27,8 @@ import (
 )
 
 const (
-	beforeOctopusTime            = "2006-01-02 15:04:05.999999999Z"
-	octopusAndAfterTime          = "2006-01-02T15:04:05.999999999Z"
-	operatorCephBaseImageVersion = "ROOK_CEPH_BASE_IMAGE_VERSION"
+	beforeOctopusTime   = "2006-01-02 15:04:05.999999999Z"
+	octopusAndAfterTime = "2006-01-02T15:04:05.999999999Z"
 )
 
 type ObjectBucketMetadata struct {

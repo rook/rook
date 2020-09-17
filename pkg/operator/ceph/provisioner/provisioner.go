@@ -35,7 +35,6 @@ import (
 )
 
 const (
-	attacherImageKey              = "attacherImage"
 	storageClassBetaAnnotationKey = "volume.beta.kubernetes.io/storage-class"
 	sizeMB                        = 1048576 // 1 MB
 )

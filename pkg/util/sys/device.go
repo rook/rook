@@ -44,7 +44,6 @@ const (
 	// LinearType is a linear type
 	LinearType = "linear"
 	sgdiskCmd  = "sgdisk"
-	mountCmd   = "mount"
 	// CephLVPrefix is the prefix of a LV owned by ceph-volume
 	CephLVPrefix = "ceph--"
 	// DeviceMapperPrefix is the prefix of a LV from the device mapper interface

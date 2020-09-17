@@ -26,10 +26,8 @@ import (
 )
 
 const (
-	osdStoreEnvVarName        = "ROOK_OSD_STORE"
 	osdDatabaseSizeEnvVarName = "ROOK_OSD_DATABASE_SIZE"
 	osdWalSizeEnvVarName      = "ROOK_OSD_WAL_SIZE"
-	osdJournalSizeEnvVarName  = "ROOK_OSD_JOURNAL_SIZE"
 	osdsPerDeviceEnvVarName   = "ROOK_OSDS_PER_DEVICE"
 	// EncryptedDeviceEnvVarName is used in the pod spec to indicate whether the OSD is encrypted or not
 	EncryptedDeviceEnvVarName = "ROOK_ENCRYPTED_DEVICE"

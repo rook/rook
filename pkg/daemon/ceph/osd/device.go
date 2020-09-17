@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	diskByPartUUID              = "/dev/disk/by-partuuid"
 	bootstrapOSDKeyringTemplate = `
 [client.bootstrap-osd]
 	key = %s

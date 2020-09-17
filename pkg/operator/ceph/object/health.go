@@ -33,7 +33,6 @@ const (
 	s3HealthCheckBucketName    = "rook-ceph-bucket-checker"
 	defaultHealthCheckInterval = 1 * time.Minute
 	s3HealthCheckObjectBody    = "Test Rook Object Data"
-	s3HealthCheckObjectBodyMD5 = "5f286306a2227a156ba770800e71b796"
 	s3HealthCheckObjectKey     = "rookHealthCheckTestObject"
 	contentType                = "plain/text"
 )

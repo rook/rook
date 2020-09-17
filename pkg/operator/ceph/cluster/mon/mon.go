@@ -62,9 +62,7 @@ const (
 	AppName = "rook-ceph-mon"
 	// OperatorCreds is the name of the secret
 	OperatorCreds     = "rook-ceph-operator-creds"
-	monNodeAttr       = "mon_node"
 	monClusterAttr    = "mon_cluster"
-	tprName           = "mon.rook.io"
 	fsidSecretNameKey = "fsid"
 	monSecretNameKey  = "mon-secret"
 	// AdminSecretName is the name of the admin secret

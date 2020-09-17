@@ -48,9 +48,8 @@ import (
 )
 
 const (
-	appName             = object.AppName
-	controllerName      = "ceph-object-store-user-controller"
-	cephObjectStoreKind = "CephObjectStoreUser"
+	appName        = object.AppName
+	controllerName = "ceph-object-store-user-controller"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)

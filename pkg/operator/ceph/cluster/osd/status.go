@@ -42,7 +42,6 @@ const (
 	provisioningLabelKey             = "provisioning"
 	nodeLabelKey                     = "node"
 	completeProvisionTimeout         = 20
-	completeProvisionSkipOSDTimeout  = 5
 )
 
 type provisionConfig struct {

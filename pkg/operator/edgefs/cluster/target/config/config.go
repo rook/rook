@@ -26,7 +26,6 @@ import (
 
 const (
 	configStoreNameFmt = "rook-edgefs-%s-config"
-	osdDirsKeyName     = "target-dirs"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "target-config")

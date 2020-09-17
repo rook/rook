@@ -36,15 +36,14 @@ const (
 	appName = "rook-edgefs-isgw"
 
 	/* ISGW definitions */
-	serviceAccountName      = "rook-edgefs-cluster"
-	defaultReplicationType  = "initial+continuous"
-	defaultDynamicFetchPort = 49678
-	defaultLocalIPAddr      = "0.0.0.0"
-	defaultLocalIPv6Addr    = "::"
-	defaultLocalPort        = 14000
-	dataVolumeName          = "edgefs-datadir"
-	stateVolumeFolder       = ".state"
-	etcVolumeFolder         = ".etc"
+	serviceAccountName     = "rook-edgefs-cluster"
+	defaultReplicationType = "initial+continuous"
+	defaultLocalIPAddr     = "0.0.0.0"
+	defaultLocalIPv6Addr   = "::"
+	defaultLocalPort       = 14000
+	dataVolumeName         = "edgefs-datadir"
+	stateVolumeFolder      = ".state"
+	etcVolumeFolder        = ".etc"
 )
 
 // Start the ISGW manager

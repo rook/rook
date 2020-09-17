@@ -27,7 +27,6 @@ import (
 )
 
 const (
-	keyringFileName     = "keyring"
 	bootstrapOsdKeyring = "bootstrap-osd/ceph.keyring"
 )
 

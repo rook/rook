@@ -36,9 +36,7 @@ import (
 )
 
 const (
-	cephVersionLabelKey = "ceph_version"
-	// Unfortunately this is a duplicate of the const EndpointConfigMapName in the mon package, but done to avoid import cycle
-	endpointConfigMapName   = "rook-ceph-mon-endpoints"
+	cephVersionLabelKey     = "ceph_version"
 	doNotReconcileLabelName = "do_not_reconcile"
 )
 

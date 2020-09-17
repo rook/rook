@@ -47,8 +47,6 @@ const (
 	appName                        = "rook-cockroachdb"
 	createInitRetryIntervalDefault = 6 * time.Second
 	createInitTimeout              = 5 * time.Minute
-	updateClusterInterval          = 30 * time.Second
-	updateClusterTimeout           = 1 * time.Hour
 	httpPortDefault                = int32(8080)
 	httpPortName                   = "http"
 	grpcPortDefault                = int32(26257)

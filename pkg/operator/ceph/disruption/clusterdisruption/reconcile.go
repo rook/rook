@@ -38,8 +38,7 @@ const (
 	osdDisruptionAppName = "rook-ceph-osd-disruption"
 	controllerName       = "clusterdisruption-controller"
 	// pdbStateMapName for the clusterdisruption pdb state map
-	pdbStateMapName    = "rook-ceph-pdbstatemap"
-	maxNamelessRetries = 20
+	pdbStateMapName = "rook-ceph-pdbstatemap"
 )
 
 var (
