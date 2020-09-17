@@ -10,7 +10,7 @@ on:
       - "master"
 jobs:
   golangci:
-    name: lint
+    name: golangci-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -24,7 +24,6 @@ jobs:
           # working-directory: somedir
 
           # Optional: golangci-lint command line arguments.
-          args: --disable-all -E gosimple --timeout=4m
-          
+          args: --disable-all -E gosimple,unused --timeout=4m
           # Optional: show only new issues if it's a pull request. The default value is `false`.
           # only-new-issues: true
