@@ -63,6 +63,7 @@ func TestPodContainer(t *testing.T) {
 	assert.Equal(t, "ceph", container.Args[2])
 	assert.Equal(t, "osd", container.Args[3])
 	assert.Equal(t, "provision", container.Args[4])
+	findDuplicateEnvVars(t, c.Spec)
 }
 
 func TestDaemonset(t *testing.T) {

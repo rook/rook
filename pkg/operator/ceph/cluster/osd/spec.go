@@ -443,6 +443,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		}
 	}
 
+	removeDuplicateEnvVars(&podTemplateSpec.Spec)
+
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploymentName,
@@ -493,6 +495,30 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	return deployment, nil
+}
+
+func removeDuplicateEnvVars(pod *v1.PodSpec) {
+	for i := range pod.Containers {
+		removeDuplicateEnvVarsFromContainer(&pod.Containers[i])
+	}
+	for i := range pod.InitContainers {
+		removeDuplicateEnvVarsFromContainer(&pod.InitContainers[i])
+	}
+}
+
+func removeDuplicateEnvVarsFromContainer(container *v1.Container) {
+	foundVars := map[string]string{}
+	vars := []v1.EnvVar{}
+	for _, v := range container.Env {
+		if _, ok := foundVars[v.Name]; ok {
+			logger.Infof("duplicate env var %q skipped on container %q", v.Name, container.Name)
+			continue
+		}
+
+		vars = append(vars, v)
+		foundVars[v.Name] = v.Value
+	}
+	container.Env = vars
 }
 
 // To get rook inside the container, the config init container needs to copy "tini" and "rook" binaries into a volume.
