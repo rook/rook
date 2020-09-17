@@ -146,10 +146,7 @@ func GetNodeHostNames(clientset kubernetes.Interface) (map[string]string, error)
 func GetNodeSchedulable(node v1.Node) bool {
 	// some unit tests set this to quickly emulate an unschedulable node; if this is set to true,
 	// we can shortcut deeper inspection for schedulability.
-	if node.Spec.Unschedulable {
-		return false
-	}
-	return true
+	return !node.Spec.Unschedulable
 }
 
 // NodeMeetsPlacementTerms returns true if the Rook placement allows the node to have resources scheduled

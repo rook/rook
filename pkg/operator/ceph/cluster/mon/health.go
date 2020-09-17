@@ -398,10 +398,8 @@ func (c *Cluster) removeMon(daemonName string) error {
 		logger.Errorf("failed to remove mon %q from quorum. %v", daemonName, err)
 	}
 	delete(c.ClusterInfo.Monitors, daemonName)
-	// check if a mapping exists for the mon
-	if _, ok := c.mapping.Node[daemonName]; ok {
-		delete(c.mapping.Node, daemonName)
-	}
+
+	delete(c.mapping.Node, daemonName)
 
 	// Remove the service endpoint
 	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(resourceName, options); err != nil {

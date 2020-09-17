@@ -74,7 +74,7 @@ func (vm *VolumeManager) Init() error {
 	if err != nil {
 		return err
 	}
-	if in == true {
+	if in {
 		logger.Noticef("volume manager is a builtin kernel module, don't load it manually")
 		return nil
 	}

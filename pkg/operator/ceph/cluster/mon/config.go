@@ -68,7 +68,7 @@ func (c *Cluster) genMonSharedKeyring() string {
 // return mon data dir path relative to the dataDirHostPath given a mon's name
 func dataDirRelativeHostPath(monName string) string {
 	monHostDir := monName // support legacy case where the mon name is "mon#" and not a lettered ID
-	if strings.Index(monName, "mon") == -1 {
+	if !strings.Contains(monName, "mon") {
 		// if the mon name doesn't have "mon" in it, mon dir is "mon-<ID>"
 		monHostDir = "mon-" + monName
 	}

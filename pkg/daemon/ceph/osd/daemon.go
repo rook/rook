@@ -107,17 +107,14 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) error {
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
-	for {
-		select {
-		case <-sigc:
-			logger.Infof("shutdown signal received, exiting...")
-			err := killCephOSDProcess(context, lvPath)
-			if err != nil {
-				return errors.Wrap(err, "failed to kill ceph-osd process")
-			}
-			return nil
-		}
+
+	<-sigc
+	logger.Infof("shutdown signal received, exiting...")
+	err := killCephOSDProcess(context, lvPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to kill ceph-osd process")
 	}
+	return nil
 }
 
 func killCephOSDProcess(context *clusterd.Context, lvPath string) error {

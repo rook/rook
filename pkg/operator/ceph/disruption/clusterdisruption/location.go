@@ -194,7 +194,7 @@ func getOSDsForNodes(osdDataList []OsdData, nodeList []*corev1.Node, failureDoma
 }
 
 func getFailureDomainMapForOsds(osdDataList []OsdData, failureDomainType string) (map[string][]OsdData, error) {
-	failureDomainMap := make(map[string][]OsdData, 0)
+	failureDomainMap := make(map[string][]OsdData)
 	unfoundOSDs := make([]string, 0)
 	var err error
 	for _, osdData := range osdDataList {

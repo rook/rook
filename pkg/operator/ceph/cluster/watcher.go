@@ -57,17 +57,17 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 	// Get CephCluster
 	cluster := c.getCephCluster()
 
-	if k8sutil.GetNodeSchedulable(*node) == false {
+	if !k8sutil.GetNodeSchedulable(*node) {
 		logger.Debugf("node watcher: skipping cluster update. added node %q is unschedulable", node.Labels[v1.LabelHostname])
 		return false
 	}
 
-	if k8sutil.NodeIsTolerable(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement).Tolerations, false) == false {
+	if !k8sutil.NodeIsTolerable(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement).Tolerations, false) {
 		logger.Debugf("node watcher: node since it is not tolerable for cluster %q, skipping", cluster.Namespace)
 		return false
 	}
 
-	if cluster.Spec.Storage.UseAllNodes == false {
+	if !cluster.Spec.Storage.UseAllNodes {
 		logger.Debugf("node watcher: do not use all Nodes in cluster %q, skipping", cluster.Namespace)
 		return false
 	}

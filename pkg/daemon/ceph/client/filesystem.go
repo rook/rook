@@ -170,10 +170,7 @@ func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name,
 // Rook to create multiple Ceph filesystems. False if Rook is not allowed to do so.
 func IsMultiFSEnabled() bool {
 	t := os.Getenv(MultiFsEnv)
-	if t == "true" {
-		return true
-	}
-	return false
+	return t == "true"
 }
 
 // SetNumMDSRanks sets the number of mds ranks (max_mds) for a Ceph filesystem.

@@ -96,7 +96,7 @@ func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersi
 	// execute an orchestration until
 	// there are no more unapplied changes to the cluster definition and
 	// while no other goroutine is already running a cluster update
-	for c.checkSetOrchestrationStatus() == true {
+	for c.checkSetOrchestrationStatus() {
 		if err != nil {
 			logger.Errorf("there was an orchestration error, but there is another orchestration pending; proceeding with next orchestration run (which may succeed). %v", err)
 		}

@@ -67,8 +67,6 @@ func cleanMonDirs(dataDirHostPath, monSecret string) {
 			logger.Infof("skipped clean up of the mon directory %q as the secret key did not match", monDir)
 		}
 	}
-
-	return
 }
 
 func secretKeyMatch(monDir, monSecret string) (bool, error) {

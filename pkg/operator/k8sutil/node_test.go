@@ -75,9 +75,7 @@ func TestValidNode(t *testing.T) {
 
 func testNode(taints []v1.Taint) v1.Node {
 	n := v1.Node{}
-	for _, t := range taints {
-		n.Spec.Taints = append(n.Spec.Taints, t)
-	}
+	n.Spec.Taints = append(n.Spec.Taints, taints...)
 	return n
 }
 

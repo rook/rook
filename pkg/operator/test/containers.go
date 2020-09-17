@@ -91,7 +91,7 @@ func (ct *ContainersTester) RunFullSuite(resourceExpectations ResourceLimitExpec
 func argEnvReferences(c *v1.Container) []string {
 	argRefSet := map[string]bool{}
 	for _, a := range c.Args {
-		argRefRegex, e := regexp.Compile("\\$\\(([a-zA-Z][a-zA-Z0-9_]*)\\)")
+		argRefRegex, e := regexp.Compile(`\$\(([a-zA-Z][a-zA-Z0-9_]*)\)`)
 		if e != nil {
 			panic("could not compile argument reference regexp")
 		}

@@ -81,7 +81,7 @@ func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 	}
 
 	h := &K8sHelper{executor: executor, Clientset: clientset, RookClientset: rookClientset, T: t}
-	if strings.Index(config.Host, "//10.") != -1 {
+	if strings.Contains(config.Host, "//10.") {
 		h.RunningInCluster = true
 	}
 	return h, err
@@ -148,7 +148,7 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 
 	if cmdOut.ExitCode != 0 {
 		k8slogger.Errorf("Failed to execute stdin: kubectl %v : %v", args, cmdOut.Err.Error())
-		if strings.Index(cmdOut.Err.Error(), "(NotFound)") != -1 || strings.Index(cmdOut.StdErr, "(NotFound)") != -1 {
+		if strings.Contains(cmdOut.Err.Error(), "(NotFound)") || strings.Contains(cmdOut.StdErr, "(NotFound)") {
 			return cmdOut.StdErr, errors.NewNotFound(schema.GroupResource{}, "")
 		}
 		return cmdOut.StdErr, fmt.Errorf("Failed to run stdin: kubectl %v : %v", args, cmdOut.StdErr)
@@ -556,7 +556,6 @@ func (k8sh *K8sHelper) GetEventsFromNamespace(namespace, testName, platformName 
 		return
 	}
 	file.WriteString(events)
-	return
 }
 
 func (k8sh *K8sHelper) appendPodDescribe(file *os.File, namespace, name string) {
@@ -1464,10 +1463,7 @@ func (k8sh *K8sHelper) RestoreHostnames() ([]string, error) {
 func (k8sh *K8sHelper) IsRookInstalled(namespace string) bool {
 	opts := metav1.GetOptions{}
 	_, err := k8sh.Clientset.CoreV1().Services(namespace).Get("rook-ceph-mgr", opts)
-	if err == nil {
-		return true
-	}
-	return false
+	return err == nil
 }
 
 // CollectPodLogsFromLabel collects logs for pods with the given label

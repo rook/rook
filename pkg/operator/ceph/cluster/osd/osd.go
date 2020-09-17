@@ -977,6 +977,4 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 			}
 		}
 	}
-
-	return
 }

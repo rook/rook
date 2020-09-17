@@ -51,7 +51,7 @@ func (v *CephCSIVersion) String() string {
 
 // Supported checks if the detected version is part of the known supported CSI versions
 func (v *CephCSIVersion) Supported() bool {
-	if v.isAtLeast(&minimum) == false {
+	if !v.isAtLeast(&minimum) {
 		return false
 	}
 

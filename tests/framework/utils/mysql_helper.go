@@ -120,10 +120,7 @@ func (h *MySQLHelper) TableRowCount() (count int) {
 // TableExists checks if a table exists
 func (h *MySQLHelper) TableExists() bool {
 	_, err := h.DB.Query("SELECT 1 FROM LONGHAUL LIMIT 1 ")
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // DeleteRandomRow deletes a random row

@@ -29,7 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/prepare"
 	"github.com/rook/rook/pkg/operator/edgefs/cluster/target"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -181,7 +181,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) (bool, 
 	// Skip preparation job in case of resurrect option is on
 	//
 
-	if c.Spec.SkipHostPrepare == false && dro.NeedToResurrect == false {
+	if !c.Spec.SkipHostPrepare && !dro.NeedToResurrect {
 		err = c.prepareHostNodes(rookImage, clusterReconfiguration.DeploymentConfig)
 		if err != nil {
 			logger.Errorf("Failed to create [%s] cluster preparation jobs. %+v", c.Namespace, err)

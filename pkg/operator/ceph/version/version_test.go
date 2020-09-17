@@ -24,11 +24,12 @@ import (
 )
 
 func TestToString(t *testing.T) {
-	assert.Equal(t, "14.0.0-0 nautilus", fmt.Sprintf("%s", &Nautilus))
-	assert.Equal(t, "15.0.0-0 octopus", fmt.Sprintf("%s", &Octopus))
+	assert.Equal(t, "14.0.0-0 nautilus", Nautilus.String())
+	assert.Equal(t, "15.0.0-0 octopus", Octopus.String())
+	receieved := CephVersion{-1, 0, 0, 0}
 
 	expected := fmt.Sprintf("-1.0.0-0 %s", unknownVersionString)
-	assert.Equal(t, expected, fmt.Sprintf("%s", &CephVersion{-1, 0, 0, 0}))
+	assert.Equal(t, expected, receieved.String())
 }
 
 func TestCephVersionFormatted(t *testing.T) {

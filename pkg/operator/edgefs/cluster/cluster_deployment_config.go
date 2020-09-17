@@ -49,7 +49,7 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1.Clust
 		DeploymentConfig: edgefsv1.ClusterDeploymentConfig{
 			DeploymentType: deploymentType,
 			TransportKey:   transportKey,
-			DevConfig:      make(map[string]edgefsv1.DevicesConfig, 0),
+			DevConfig:      make(map[string]edgefsv1.DevicesConfig),
 			NeedPrivileges: c.needPrivelege(deploymentType),
 		},
 	}

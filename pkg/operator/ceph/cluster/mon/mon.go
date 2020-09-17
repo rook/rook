@@ -674,7 +674,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 
 	// Ensure each of the mons have been created. If already created, it will be a no-op.
 	for i := 0; i < len(mons); i++ {
-		node, _ := c.mapping.Node[mons[i].DaemonName]
+		node := c.mapping.Node[mons[i].DaemonName]
 		err := c.startMon(mons[i], node)
 		if err != nil {
 			if c.isUpgrade {

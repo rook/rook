@@ -29,7 +29,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/server"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/informers/internalinterfaces"
 )
 
 const resyncPeriod = time.Second * 30
@@ -58,8 +57,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	rookImage := rook.GetOperatorImage(kubeClient, "")
 
 	// Only watch kubernetes resources relevant to our app
-	var tweakListOptionsFunc internalinterfaces.TweakListOptionsFunc
-	tweakListOptionsFunc = func(options *metav1.ListOptions) {
+	tweakListOptionsFunc := func(options *metav1.ListOptions) {
 
 		options.LabelSelector = fmt.Sprintf("%s=%s", "app", constants.AppName)
 	}
