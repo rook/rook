@@ -165,6 +165,6 @@ func (y *YugabyteDBInstaller) GatherAllLogs(systemNS, namespace, testName string
 		return
 	}
 	logger.Infof("Gathering all logs from yugabytedb cluster %s", namespace)
-	y.k8sHelper.GetLogsFromNamespace(systemNS, testName, testEnvName())
-	y.k8sHelper.GetLogsFromNamespace(namespace, testName, testEnvName())
+	y.k8sHelper.GetLogsFromNamespace(systemNS, testName, utils.TestEnvName())
+	y.k8sHelper.GetLogsFromNamespace(namespace, testName, utils.TestEnvName())
 }

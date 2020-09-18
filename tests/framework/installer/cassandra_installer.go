@@ -166,6 +166,6 @@ func (ci *CassandraInstaller) GatherAllCassandraLogs(systemNamespace, namespace,
 		return
 	}
 	logger.Infof("Gathering all logs from Cassandra Cluster %s", namespace)
-	ci.k8sHelper.GetLogsFromNamespace(systemNamespace, testName, testEnvName())
-	ci.k8sHelper.GetLogsFromNamespace(namespace, testName, testEnvName())
+	ci.k8sHelper.GetLogsFromNamespace(systemNamespace, testName, utils.TestEnvName())
+	ci.k8sHelper.GetLogsFromNamespace(namespace, testName, utils.TestEnvName())
 }

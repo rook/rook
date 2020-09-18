@@ -154,6 +154,6 @@ func (h *CockroachDBInstaller) GatherAllCockroachDBLogs(systemNamespace, namespa
 		return
 	}
 	logger.Infof("Gathering all logs from cockroachdb cluster %s", namespace)
-	h.k8shelper.GetLogsFromNamespace(systemNamespace, testName, testEnvName())
-	h.k8shelper.GetLogsFromNamespace(namespace, testName, testEnvName())
+	h.k8shelper.GetLogsFromNamespace(systemNamespace, testName, utils.TestEnvName())
+	h.k8shelper.GetLogsFromNamespace(namespace, testName, utils.TestEnvName())
 }
