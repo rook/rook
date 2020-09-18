@@ -47,7 +47,7 @@ func TestObjectChanged(t *testing.T) {
 				Size: oldReplicas,
 			},
 		},
-		Status: &cephv1.Status{
+		Status: &cephv1.CephBlockPoolStatus{
 			Phase: "",
 		},
 	}
@@ -62,7 +62,7 @@ func TestObjectChanged(t *testing.T) {
 				Size: oldReplicas,
 			},
 		},
-		Status: &cephv1.Status{
+		Status: &cephv1.CephBlockPoolStatus{
 			Phase: "",
 		},
 	}

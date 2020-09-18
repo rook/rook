@@ -73,6 +73,14 @@ type ReconcileCephRBDMirror struct {
 	client          client.Client
 	scheme          *runtime.Scheme
 	cephClusterSpec *cephv1.ClusterSpec
+	peers           map[string]*peerSpec
+}
+
+// peerSpec represents peer details
+type peerSpec struct {
+	info      *cephclient.PoolMirroringInfo
+	poolName  string
+	direction string
 }
 
 // Add creates a new cephRBDMirror Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -92,6 +100,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Rec
 		client:  mgr.GetClient(),
 		scheme:  mgrScheme,
 		context: context,
+		peers:   make(map[string]*peerSpec),
 	}
 }
 
@@ -130,6 +139,7 @@ func (r *ReconcileCephRBDMirror) Reconcile(request reconcile.Request) (reconcile
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime loggin interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
+		updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
 		logger.Errorf("failed to reconcile %v", err)
 	}
 
@@ -154,6 +164,11 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
 	}
 
+	// validate the pool settings
+	if err := validateSpec(&cephRBDMirror.Spec); err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "invalid rbd-mirror CR %q spec", cephRBDMirror.Name)
+	}
+
 	// Make sure a CephCluster is present otherwise do nothing
 	cephCluster, isReadyToReconcile, _, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
@@ -166,23 +181,29 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	// Always populate it during each reconcile
 	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// Populate CephVersion
 	daemon := string(opconfig.MonType)
 	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, daemon)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion
+
+	// Add bootstrap peer if any
+	logger.Debug("reconciling ceph rbd mirror peers addition")
+	reconcileResponse, err = r.reconcileAddBoostrapPeer(cephRBDMirror, request.NamespacedName)
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add ceph rbd mirror peer")
+	}
 
 	// CREATE/UPDATE
 	logger.Debug("reconciling ceph rbd mirror deployments")
 	reconcileResponse, err = r.reconcileCreateCephRBDMirror(cephRBDMirror)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
-		return reconcile.Result{}, errors.Wrap(err, "failed to create ceph rbd mirror deployments")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create ceph rbd mirror deployments")
 	}
 
 	// Set Ready status, we are done reconciling
@@ -200,13 +221,13 @@ func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cep
 		if err != nil {
 			// This handles the case where the operator is running, the external cluster has been upgraded and a CR creation is called
 			// If that's a major version upgrade we fail, if it's a minor version, we continue, it's not ideal but not critical
-			return reconcile.Result{}, errors.Wrap(err, "refusing to run new crd")
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "refusing to run new crd")
 		}
 	}
 
 	err := r.start(cephRBDMirror)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to start rbd mirror")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to start rbd mirror")
 	}
 
 	return reconcile.Result{}, nil

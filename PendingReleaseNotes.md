@@ -13,3 +13,5 @@ v1.5...
 ## Features
 
 ### Ceph
+
+* Ceph Block Pool: add mirroring support

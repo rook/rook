@@ -59,6 +59,53 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
 (see the [OSD configuration settings](ceph-cluster-crd.md#osd-configuration-settings). Filestore OSDs have
 [limitations](http://docs.ceph.com/docs/master/rados/operations/erasure-code/#erasure-coding-with-overwrites) that are unsafe and lower performance.
 
+### Mirroring
+
+RADOS Block Device (RBD) mirroring is a process of asynchronous replication of Ceph block device images between two or more Ceph clusters.
+Mirroring ensures point-in-time consistent replicas of all changes to an image, including reads and writes, block device resizing, snapshots, clones and flattening.
+It is generally useful when planning for Disaster Recovery.
+For clusters that are geographically distributed and stretching is not possible due to high latencies.
+
+The following will enable mirroring of the pool at the image level:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  replicated:
+    size: 3
+  mirroring:
+    enabled: true
+    mode: image
+```
+
+Once mirroring is enabled, Rook will by default create its own [bootstrap peer token](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#bootstrap-peers) so that it can be used by another cluster.
+The bootstrap peer token can be found in a Kubernetes Secret. The name of the Secret is present in the Status field of the CephBlockPool CR:
+
+```yaml
+status:
+  info:
+    rbdMirrorBootstrapPeerSecretName: replicapool-pool-peer-token
+```
+
+This secret can then be fetched like so:
+
+```console
+kubectl get secret -n rook-ceph replicapool-pool-peer-token -o jsonpath='{.data.token}'|base64 -d
+eyJmc2lkIjoiOTFlYWUwZGQtMDZiMS00ZDJjLTkxZjMtMTMxMWM5ZGYzODJiIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFEN1psOWZ3V1VGRHhBQWdmY0gyZi8xeUhYeGZDUTU5L1N0NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjEwLjEwMS4xOC4yMjM6MzMwMCx2MToxMC4xMDEuMTguMjIzOjY3ODldIn0=
+```
+
+The secret must be decoded. The result will be another base64 encoded blob that you will import in the destination cluster:
+
+```console
+external-cluster-console# rbd mirror pool peer bootstrap import <token file path>
+```
+
+See the official rbd mirror documentation on [how to add a bootstrap peer](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#bootstrap-peers).
+
 ## Pool Settings
 
 ### Metadata
@@ -87,6 +134,15 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
 * `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values) listed to the given pool
   * `target_size_ratio:` gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
   * `compression_mode`: Sets up the pool for inline compression when using a Bluestore OSD. If left unspecified does not setup any compression mode for the pool. Values supported are the same as Bluestore inline compression [modes](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression), such as `none`, `passive`, `aggressive`, and `force`.
+
+* `mirroring`: Sets up mirroring of the pool
+  * `enabled`: whether mirroring is enabled on that pool (default: false)
+  * `mode`: mirroring mode to run, possible values are "pool" or "image" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#enable-mirroring) for more details.
+
+* `statusCheck`: Sets up pool mirroring status
+  * `mirror`: displays the mirroring status
+    * `disabled`: whether to enable or disable pool mirroring status
+    * `interval`: time interval to refresh the mirroring status (default 60s)
 
 ### Add specific pool properties
 

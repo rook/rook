@@ -18,8 +18,10 @@ package pool
 
 import (
 	"context"
+	"os"
 	"testing"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -244,11 +246,16 @@ func TestDeletePool(t *testing.T) {
 // TestCephBlockPoolController runs ReconcileCephBlockPool.Reconcile() against a
 // fake client that tracks a CephBlockPool object.
 func TestCephBlockPoolController(t *testing.T) {
+	// Set DEBUG logging
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+
 	//
 	// TEST 1 SETUP
 	//
 	// FAILURE because no CephCluster
 	//
+	logger.Info("RUN 1")
 	var (
 		name           = "my-pool"
 		namespace      = "rook-ceph"
@@ -260,13 +267,14 @@ func TestCephBlockPoolController(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			UID:       types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
 		},
 		Spec: cephv1.PoolSpec{
 			Replicated: cephv1.ReplicatedSpec{
 				Size: replicas,
 			},
 		},
-		Status: &cephv1.Status{
+		Status: &cephv1.CephBlockPoolStatus{
 			Phase: "",
 		},
 	}
@@ -298,7 +306,12 @@ func TestCephBlockPoolController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewFakeClient(object...)
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
-	r := &ReconcileCephBlockPool{client: cl, scheme: s, context: c}
+	r := &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolChannels: make(map[string]*blockPoolHealth),
+	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -321,6 +334,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	//
 	// FAILURE we have a cluster but it's not ready
 	//
+	logger.Info("RUN 2")
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace,
@@ -347,8 +361,12 @@ func TestCephBlockPoolController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl = fake.NewFakeClient(object...)
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
-	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: c}
-
+	r = &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolChannels: make(map[string]*blockPoolHealth),
+	}
 	assert.True(t, res.Requeue)
 
 	//
@@ -356,7 +374,8 @@ func TestCephBlockPoolController(t *testing.T) {
 	//
 	// SUCCESS! The CephCluster is ready
 	//
-	cephCluster.Status.Phase = k8sutil.ReadyStatus
+	logger.Info("RUN 3")
+	cephCluster.Status.Phase = cephv1.ConditionReady
 	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	objects := []runtime.Object{
@@ -400,15 +419,66 @@ func TestCephBlockPoolController(t *testing.T) {
 
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
-	r = &ReconcileCephBlockPool{client: cl, scheme: s, context: c}
-
+	r = &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolChannels: make(map[string]*blockPoolHealth),
+	}
 	res, err = r.Reconcile(req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 
 	err = r.client.Get(context.TODO(), req.NamespacedName, pool)
 	assert.NoError(t, err)
-	assert.Equal(t, "Ready", pool.Status.Phase)
+	assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
+
+	//
+	// TEST 4: Mirroring
+	// No mirror mode set: failure
+	logger.Info("RUN 4")
+	pool.Spec.Mirroring.Enabled = true
+	err = r.client.Update(context.TODO(), pool)
+	assert.NoError(t, err)
+	res, err = r.Reconcile(req)
+	assert.Error(t, err)
+	assert.True(t, res.Requeue)
+
+	//
+	// TEST 5: Mirroring
+	// mirror mode set: Success
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "mirror" && args[1] == "pool" && args[2] == "peer" && args[3] == "bootstrap" && args[4] == "create" {
+				return `eyJmc2lkIjoiYzZiMDg3ZjItNzgyOS00ZGJiLWJjZmMtNTNkYzM0ZTBiMzVkIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBV1lsWmZVQ1Q2RGhBQVBtVnAwbGtubDA5YVZWS3lyRVV1NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMTExLjEwOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTA6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjEyOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTI6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjExOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTE6Njc4OV0ifQ==`, nil
+			}
+			return "", nil
+		},
+	}
+	c.Executor = executor
+	r = &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolChannels: make(map[string]*blockPoolHealth),
+	}
+
+	pool.Spec.Mirroring.Mode = "image"
+	err = r.client.Update(context.TODO(), pool)
+	assert.NoError(t, err)
+	res, err = r.Reconcile(req)
+	assert.NoError(t, err)
+	assert.False(t, res.Requeue)
+	err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+	assert.NoError(t, err)
+	assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
+	assert.NotEmpty(t, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], pool.Status.Info)
+
+	// fetch the secret
+	myPeerSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(pool.Status.Info[RBDMirrorBootstrapPeerSecretName], metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, myPeerSecret.Data["token"], myPeerSecret.Data)
+	assert.NotEmpty(t, myPeerSecret.Data["pool"])
 }
 
 func TestConfigureRBDStats(t *testing.T) {

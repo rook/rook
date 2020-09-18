@@ -21,7 +21,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,7 +34,7 @@ func TestUpdateStatus(t *testing.T) {
 			Namespace:  "rook-ceph",
 			Finalizers: []string{},
 		},
-		Status: &cephv1.Status{
+		Status: &cephv1.CephBlockPoolStatus{
 			Phase: "",
 		},
 	}
@@ -48,8 +47,8 @@ func TestUpdateStatus(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, fakeObject)
 	cl := fake.NewFakeClientWithScheme(s, object...)
 
-	fakeObject.Status.Phase = k8sutil.ReadyStatus
+	fakeObject.Status.Phase = cephv1.ConditionReady
 	err := UpdateStatus(cl, fakeObject)
 	assert.NoError(t, err)
-	assert.Equal(t, fakeObject.Status.Phase, k8sutil.ReadyStatus)
+	assert.Equal(t, fakeObject.Status.Phase, cephv1.ConditionReady)
 }

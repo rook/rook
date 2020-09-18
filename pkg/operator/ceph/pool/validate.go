@@ -98,5 +98,15 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo
 		}
 	}
 
+	// Validate mirroring settings
+	if p.Mirroring.Enabled {
+		switch p.Mirroring.Mode {
+		case "image", "pool":
+			break
+		default:
+			return errors.Errorf("unrecognized mirroring mode %q. only 'image and 'pool' are supported", p.Mirroring.Mode)
+		}
+	}
+
 	return nil
 }

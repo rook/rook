@@ -588,6 +588,15 @@ spec:
               type: boolean
             parameters:
               type: object
+            mirroring:
+              properties:
+                enabled:
+                  type: boolean
+                mode:
+                  type: string
+                  enum:
+                  - image
+                  - pool
   subresources:
     status: {}
 ---
@@ -698,5 +707,9 @@ spec:
               type: integer
               minimum: 1
               maximum: 100
+            peers:
+              properties:
+                secretNames:
+                  type: array
   subresources:
     status: {}
