@@ -50,19 +50,14 @@ import (
 
 const (
 	controllerName           = "ceph-cluster-controller"
-	crushConfigMapName       = "rook-crush-config"
-	crushmapCreatedKey       = "initialCrushMapCreated"
 	enableFlexDriver         = "ROOK_ENABLE_FLEX_DRIVER"
 	detectCephVersionTimeout = 15 * time.Minute
 )
 
 const (
 	// DefaultClusterName states the default name of the rook-cluster if not provided.
-	DefaultClusterName         = "rook-ceph"
-	clusterDeleteRetryInterval = 2 // seconds
-	clusterDeleteMaxRetries    = 15
-	disableHotplugEnv          = "ROOK_DISABLE_DEVICE_HOTPLUG"
-	minStoreResyncPeriod       = 10 * time.Hour // the minimum duration for forced Store resyncs.
+	DefaultClusterName = "rook-ceph"
+	disableHotplugEnv  = "ROOK_DISABLE_DEVICE_HOTPLUG"
 )
 
 var (

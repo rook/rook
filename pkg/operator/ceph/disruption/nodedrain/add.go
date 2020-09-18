@@ -18,7 +18,6 @@ package nodedrain
 
 import (
 	"reflect"
-	"time"
 
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
@@ -37,8 +36,7 @@ import (
 )
 
 const (
-	minStoreResyncPeriod = 10 * time.Hour
-	controllerName       = "nodedrain-controller"
+	controllerName = "nodedrain-controller"
 
 	// CanaryAppName is applied to nodedrain canary components (pods, deployments) with the key app
 	CanaryAppName = "rook-ceph-drain-canary"

@@ -142,8 +142,7 @@ const (
 	DefaultRBDGRPCMerticsPort        uint16 = 9090
 	DefaultRBDLivenessMerticsPort    uint16 = 9080
 
-	detectCSIVersionName   = "rook-ceph-csi-detect-version"
-	operatorDeploymentName = "rook-ceph-operator"
+	detectCSIVersionName = "rook-ceph-csi-detect-version"
 	// default log level for csi containers
 	defaultLogLevel uint8 = 0
 

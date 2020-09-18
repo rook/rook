@@ -35,7 +35,6 @@ import (
 )
 
 const (
-	fileMountPath        = "/tmp/rookfs"
 	filePodName          = "file-test"
 	fileMountUserPodName = "file-mountuser-test"
 	fileMountUser        = "filemountuser"

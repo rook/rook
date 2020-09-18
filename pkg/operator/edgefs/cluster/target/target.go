@@ -36,13 +36,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "edgefs-op-target
 
 const (
 	appName                   = "rook-edgefs-target"
-	targetAppNameFmt          = "rook-edgefs-target-id-%d"
-	appNameFmt                = "rook-edgefs-target-%s"
-	targetLabelKey            = "edgefs-target-id"
 	defaultServiceAccountName = "rook-edgefs-cluster"
-	labelingRetries           = 5
-	nodeTypeLabelFmt          = "%s-nodetype"
-	sleepTime                 = 5 // time beetween statefulset update check
 )
 
 // Cluster keeps track of the Targets

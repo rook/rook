@@ -44,8 +44,6 @@ import (
 )
 
 const (
-	replicatedType         = "replicated"
-	erasureCodeType        = "erasure-coded"
 	poolApplicationNameRBD = "rbd"
 	controllerName         = "ceph-block-pool-controller"
 )

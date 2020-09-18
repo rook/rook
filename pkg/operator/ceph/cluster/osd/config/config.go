@@ -26,7 +26,6 @@ import (
 const (
 	OSDFSStoreNameFmt  = "rook-ceph-osd-%d-fs-backup"
 	configStoreNameFmt = "rook-ceph-osd-%s-config"
-	osdDirsKeyName     = "osd-dirs"
 )
 
 func GetConfigStoreName(nodeName string) string {

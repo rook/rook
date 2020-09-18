@@ -33,7 +33,6 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-cfg-keyring")
 
 const (
-	keyKeyName      = "key"
 	keyringFileName = "keyring"
 )
 
