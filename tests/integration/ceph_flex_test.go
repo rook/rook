@@ -74,7 +74,6 @@ type CephFlexDriverSuite struct {
 	namespace   string
 	pvcNameRWO  string
 	pvcNameRWX  string
-	installer   *installer.CephInstaller
 	op          *TestCluster
 }
 

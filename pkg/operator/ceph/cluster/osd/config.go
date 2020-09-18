@@ -111,12 +111,6 @@ func osdOnSDNFlag(network cephv1.NetworkSpec) []string {
 	return args
 }
 
-func (c *Cluster) skipVolumeForDirectory(path string) bool {
-	// If attempting to add a directory at /var/lib/rook, we need to skip the volume and volume mount
-	// since the dataDirHostPath is always mounting at /var/lib/rook
-	return path == k8sutil.DataDir
-}
-
 func encryptionKeyPath() string {
 	return fmt.Sprintf("%s/%s", opconfig.EtcCephDir, encryptionKeyFileName)
 }

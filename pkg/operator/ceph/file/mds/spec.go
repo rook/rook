@@ -31,7 +31,6 @@ import (
 )
 
 const (
-	mdsDaemonCommand = "ceph-mds"
 	// MDS cache memory limit should be set to 50-60% of RAM reserved for the MDS container
 	// MDS uses approximately 125% of the value of mds_cache_memory_limit in RAM.
 	// Eventually we will tune this automatically: http://tracker.ceph.com/issues/36663

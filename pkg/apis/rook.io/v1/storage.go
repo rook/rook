@@ -129,16 +129,6 @@ func resolveString(setting *string, parent, defaultVal string) {
 	}
 }
 
-func resolveInt(setting *int, parent, defaultVal int) {
-	if *setting == 0 {
-		if parent != 0 {
-			*setting = parent
-		} else {
-			*setting = defaultVal
-		}
-	}
-}
-
 func newBool(val bool) *bool {
 	return &val
 }

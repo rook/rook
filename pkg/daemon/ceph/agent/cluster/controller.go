@@ -29,7 +29,6 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -45,7 +44,6 @@ var (
 // ClusterController monitors cluster events and reacts to clean up any affected volume attachments
 type ClusterController struct {
 	context              *clusterd.Context
-	scheme               *runtime.Scheme
 	volumeAttachment     attachment.Attachment
 	flexvolumeController flexvolume.VolumeController
 }

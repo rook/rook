@@ -136,7 +136,6 @@ type osdProperties struct {
 	placement           rookv1.Placement
 	preparePlacement    *rookv1.Placement
 	metadataDevice      string
-	location            string
 	portable            bool
 	tuneSlowDeviceClass bool
 	schedulerName       string
@@ -650,38 +649,6 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			logger.Infof("created deployment for osd %d", osd.ID)
 		}
 	}
-}
-
-// discover nodes which currently have osds scheduled on them. Return a mapping of
-// node names -> a list of osd deployments on the node
-func (c *Cluster) discoverStorageNodes() (map[string][]*apps.Deployment, error) {
-
-	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
-	osdDeployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(listOpts)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list osd deployment")
-	}
-	discoveredNodes := map[string][]*apps.Deployment{}
-	for _, osdDeployment := range osdDeployments.Items {
-		osdPodSpec := osdDeployment.Spec.Template.Spec
-
-		// get the node name from the node selector
-		nodeName, ok := osdPodSpec.NodeSelector[v1.LabelHostname]
-		if !ok || nodeName == "" {
-			logger.Debugf("skipping osd %s because osd deployment %s doesn't have a node name on its node selector: %+v", osdDeployment.Name, osdDeployment.Name, osdPodSpec.NodeSelector)
-			continue
-		}
-
-		if _, ok := discoveredNodes[nodeName]; !ok {
-			discoveredNodes[nodeName] = []*apps.Deployment{}
-		}
-
-		logger.Debugf("adding osd %s to node %s", osdDeployment.Name, nodeName)
-		osdCopy := osdDeployment
-		discoveredNodes[nodeName] = append(discoveredNodes[nodeName], &osdCopy)
-	}
-
-	return discoveredNodes, nil
 }
 
 func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {

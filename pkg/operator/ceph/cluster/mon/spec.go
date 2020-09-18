@@ -35,12 +35,8 @@ import (
 )
 
 const (
-	// Full path of command used to invoke the monmap tool
-	monmaptoolCommand = "/usr/bin/monmaptool"
 	// Full path of the command used to invoke the Ceph mon daemon
 	cephMonCommand = "ceph-mon"
-
-	monmapFile = "monmap"
 )
 
 func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool) map[string]string {

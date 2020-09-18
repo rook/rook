@@ -20,9 +20,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
-	claimClient "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	storagev1 "k8s.io/api/storage/v1"
 
@@ -38,21 +36,15 @@ type Provisioner struct {
 	objectContext   *cephObject.Context
 	clusterInfo     *client.ClusterInfo
 	bucketName      string
-	claimClientset  claimClient.Interface
 	storeDomainName string
 	storePort       int32
 	region          string
 	// access keys for acct for the bucket *owner*
-	cephUserName    string
-	accessKeyID     string
-	secretAccessKey string
-
-	s3Svc *s3.S3
-
+	cephUserName         string
+	accessKeyID          string
+	secretAccessKey      string
 	objectStoreName      string
 	endpoint             string
-	secretName           string
-	secretNamespace      string
 	additionalConfigData map[string]string
 }
 

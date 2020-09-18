@@ -60,10 +60,7 @@ var (
 	osdDataDeviceFilter     string
 	osdDataDevicePathFilter string
 	ownerRefID              string
-	mountSourcePath         string
-	mountPath               string
 	osdID                   int
-	copyBinariesPath        string
 	osdStoreType            string
 	osdStringID             string
 	osdUUID                 string

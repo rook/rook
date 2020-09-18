@@ -18,16 +18,6 @@ package osd
 
 import (
 	"encoding/json"
-	"fmt"
-
-	"github.com/google/uuid"
-
-	"github.com/pkg/errors"
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 const (
@@ -37,23 +27,7 @@ const (
 	key = %s
 	caps mon = "allow profile bootstrap-osd"
 `
-	// ratio of disk space that will be used by bluestore on a dir.  This is an upper bound and it
-	// is not preallocated (it is thinly provisioned).
-	bluestoreDirBlockSizeRatio = 1.0
 )
-
-type osdConfig struct {
-	// the root for all local config (e.g., /var/lib/rook)
-	configRoot string
-	// the root directory for this OSD (e.g., /var/lib/rook/osd0)
-	rootPath    string
-	id          int
-	uuid        uuid.UUID
-	dir         bool
-	storeConfig config.StoreConfig
-	kv          *k8sutil.ConfigMapKVStore
-	storeName   string
-}
 
 // Device is a device
 type Device struct {
@@ -86,45 +60,7 @@ type DeviceOsdIDEntry struct {
 	PersistentDevicePaths []string
 }
 
-type devicePartInfo struct {
-	// the path to the mount that needs to be unmounted after the configuration is completed
-	pathToUnmount string
-
-	// The UUID of the partition where the osd is found under /dev/disk/by-partuuid
-	deviceUUID string
-}
-
 func (m *DeviceOsdMapping) String() string {
 	b, _ := json.Marshal(m)
 	return string(b)
-}
-
-func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephclient.ClusterInfo) error {
-	// add auth privileges for the OSD, the bootstrap-osd privileges were very limited
-	if err := addOSDAuth(context, cluster, config.id, config.rootPath); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// gets the current mon map for the cluster
-func getMonMap(context *clusterd.Context, clusterInfo *client.ClusterInfo) ([]byte, error) {
-	// TODO: "entity": "client.bootstrap-osd",
-	args := []string{"mon", "getmap"}
-	buf, err := client.NewCephCommand(context, clusterInfo, args).Run()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get mon map")
-	}
-	return buf, nil
-}
-
-// add OSD auth privileges for the given OSD ID.  the bootstrap-osd privileges are limited and a real OSD needs more.
-func addOSDAuth(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int, osdDataPath string) error {
-	// get an existing auth or create a new auth for this OSD.  After this command is run, the new or existing
-	// keyring will be written to the keyring path specified.
-	osdEntity := fmt.Sprintf("osd.%d", osdID)
-	caps := []string{"osd", "allow *", "mon", "allow profile osd"}
-
-	return client.AuthGetOrCreate(context, clusterInfo, osdEntity, getOSDKeyringPath(osdDataPath), caps)
 }

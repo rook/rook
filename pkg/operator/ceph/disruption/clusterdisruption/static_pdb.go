@@ -37,16 +37,6 @@ func (r *ReconcileClusterDisruption) createStaticPDB(request types.NamespacedNam
 	return nil
 }
 
-// PDBs can't be updated, so we use a delete/create
-// This will change only with kube 1.15: https://github.com/kubernetes/kubernetes/issues/45398#issuecomment-495362316
-func (r *ReconcileClusterDisruption) updateStaticPDB(request types.NamespacedName, pdb *policyv1beta1.PodDisruptionBudget) error {
-	err := r.client.Delete(context.TODO(), pdb)
-	if err != nil {
-		return err
-	}
-	return r.createStaticPDB(request, pdb)
-}
-
 func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.NamespacedName, pdb *policyv1beta1.PodDisruptionBudget) error {
 	err := r.client.Get(context.TODO(), request, pdb)
 	if errors.IsNotFound(err) {

@@ -53,10 +53,6 @@ func GetSecretStore(context *clusterd.Context, clusterInfo *client.ClusterInfo, 
 	}
 }
 
-func keySecretName(resourceName string) string {
-	return resourceName + "-key" // all keys named by suffixing key to the resource name
-}
-
 func keyringSecretName(resourceName string) string {
 	return resourceName + "-keyring" // all keyrings named by suffixing keyring to the resource name
 }

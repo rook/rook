@@ -51,7 +51,6 @@ var (
 	clusterFSID                    = "ROOK_CLUSTER_FSID"
 	sanitizeMethod                 = "ROOK_SANITIZE_METHOD"
 	sanitizeDataSource             = "ROOK_SANITIZE_DATA_SOURCE"
-	sanitizeLayer                  = "ROOK_SANITIZE_LAYER"
 	sanitizeIteration              = "ROOK_SANITIZE_ITERATION"
 	sanitizeIterationDefault int32 = 1
 )

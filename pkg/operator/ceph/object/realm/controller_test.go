@@ -42,7 +42,6 @@ import (
 var (
 	name         = "realm-a"
 	namespace    = "rook-ceph"
-	store        = "my-store"
 	realmGetJSON = `{
 		"id": "237e6250-5f7d-4b85-9359-8cb2b1848507",
 		"name": "realm-a",

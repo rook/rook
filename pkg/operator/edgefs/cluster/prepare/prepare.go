@@ -18,7 +18,6 @@ limitations under the License.
 package prepare
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
@@ -50,7 +49,6 @@ type Cluster struct {
 	context        *clusterd.Context
 	resources      v1.ResourceRequirements
 	ownerRef       metav1.OwnerReference
-	ctx            context.Context
 }
 
 // New creates an instance of the prepare

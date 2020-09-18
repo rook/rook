@@ -19,7 +19,6 @@ package cluster
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -41,7 +40,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -68,8 +66,7 @@ const (
 )
 
 var (
-	logger        = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
-	finalizerName = fmt.Sprintf("%s.%s", opcontroller.ClusterResource.Name, opcontroller.ClusterResource.Group)
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 	// disallowedHostDirectories directories which are not allowed to be used
 	disallowedHostDirectories = []string{"/etc/ceph", "/rook", "/var/log/ceph"}
 )
@@ -97,7 +94,6 @@ type ClusterController struct {
 	operatorConfigCallbacks []func() error
 	addClusterCallbacks     []func() error
 	csiConfigMutex          *sync.Mutex
-	nodeStore               cache.Store
 	osdChecker              *osd.OSDHealthMonitor
 	client                  client.Client
 	namespacedName          types.NamespacedName

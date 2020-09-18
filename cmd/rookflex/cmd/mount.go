@@ -43,10 +43,6 @@ var (
 		Short: "Mounts the volume to the pod volume",
 		RunE:  handleMount,
 	}
-	keyringTemplate = `
-[client.%s]
-key = %s
-`
 )
 
 func init() {

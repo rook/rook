@@ -45,9 +45,6 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
 const (
 	// AppName is the name of Rook's Ceph mds (File) sub-app
 	AppName = "rook-ceph-mds"
-
-	keyringSecretKeyName = "keyring"
-
 	// timeout if mds is not ready for upgrade after some time
 	fsWaitForActiveTimeout = 3 * time.Minute
 	// minimum amount of memory in MB to run the pod
@@ -58,7 +55,6 @@ const (
 type Cluster struct {
 	clusterInfo     *cephclient.ClusterInfo
 	context         *clusterd.Context
-	rookVersion     string
 	clusterSpec     *cephv1.ClusterSpec
 	fs              cephv1.CephFilesystem
 	fsID            string

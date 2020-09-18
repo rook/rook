@@ -18,15 +18,10 @@ package integration
 import (
 	"testing"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
-)
-
-var (
-	hslogger = capnslog.NewPackageLogger("github.com/rook/rook", "helmSmokeTest")
 )
 
 // ***************************************************
@@ -59,11 +54,10 @@ func TestCephHelmSuite(t *testing.T) {
 
 type HelmSuite struct {
 	suite.Suite
-	helper          *clients.TestClient
-	kh              *utils.K8sHelper
-	op              *TestCluster
-	namespace       string
-	rookCephCleanup bool
+	helper    *clients.TestClient
+	kh        *utils.K8sHelper
+	op        *TestCluster
+	namespace string
 }
 
 func (hs *HelmSuite) SetupSuite() {

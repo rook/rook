@@ -50,8 +50,6 @@ var (
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions   = []CephVersion{Nautilus, Octopus}
 	unsupportedVersions = []CephVersion{Pacific}
-	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
-	allVersions = append(supportedVersions, unsupportedVersions...)
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)

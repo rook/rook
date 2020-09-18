@@ -24,10 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-type AdmissionController struct {
-	providerName string
-}
-
 var (
 	scheme    = runtime.NewScheme()
 	resources = []webhook.Validator{&cephv1.CephCluster{}, &cephv1.CephBlockPool{}}

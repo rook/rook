@@ -57,7 +57,6 @@ type NFSController struct {
 	NetworkSpec      rookv1.NetworkSpec
 	dataDirHostPath  string
 	dataVolumeSize   resource.Quantity
-	annotations      rookv1.Annotations
 	placement        rookv1.Placement
 	resources        v1.ResourceRequirements
 	resourceProfile  string
