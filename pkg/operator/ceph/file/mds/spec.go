@@ -110,7 +110,7 @@ func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
 
 func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	args := append(
-		controller.DaemonFlags(c.clusterInfo, mdsConfig.DaemonID),
+		controller.DaemonFlags(c.clusterInfo, c.clusterSpec, mdsConfig.DaemonID),
 		"--foreground",
 	)
 

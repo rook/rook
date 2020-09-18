@@ -216,7 +216,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			controller.DaemonFlags(c.ClusterInfo, monConfig.DaemonName),
+			controller.DaemonFlags(c.ClusterInfo, &c.spec, monConfig.DaemonName),
 			// needed so we can generate an initial monmap
 			// otherwise the mkfs will say: "0  no local addrs match monmap"
 			config.NewFlag("public-addr", monConfig.PublicIP),
@@ -249,7 +249,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			cephMonCommand,
 		},
 		Args: append(
-			controller.DaemonFlags(c.ClusterInfo, monConfig.DaemonName),
+			controller.DaemonFlags(c.ClusterInfo, &c.spec, monConfig.DaemonName),
 			"--foreground",
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.

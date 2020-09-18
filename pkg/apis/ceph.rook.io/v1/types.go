@@ -741,6 +741,9 @@ type NetworkSpec struct {
 
 	// HostNetwork to enable host network
 	HostNetwork bool `json:"hostNetwork"`
+
+	// IPFamily is the single stack IPv6 or IPv4 protocol
+	IPFamily IPFamilyType `json:"ipFamily,omitempty"`
 }
 
 // DisruptionManagementSpec configures management of daemon disruptions
@@ -848,3 +851,13 @@ type RBDMirroringPeerSpec struct {
 	// SecretNames represents the Kubernetes Secret names to add rbd-mirror peers
 	SecretNames []string `json:"secretNames,omitempty"`
 }
+
+// IPFamilyType represents the single stack Ipv4 or Ipv6 protocol.
+type IPFamilyType string
+
+const (
+	// IPv6 internet protocol version
+	IPv6 IPFamilyType = "IPv6"
+	// IPv4 internet protocol version
+	IPv4 IPFamilyType = "IPv4"
+)
