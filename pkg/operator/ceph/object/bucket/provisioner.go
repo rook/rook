@@ -518,7 +518,6 @@ func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error 
 		}
 	}
 	if maxSize != "" {
-		_, err = cephObject.SetQuotaUserMaxSize(p.objectContext, p.cephUserName, maxSize)
 		if _, err = cephObject.SetQuotaUserMaxSize(p.objectContext, p.cephUserName, maxSize); err != nil {
 			logger.Errorf("Setting MaxSize failed %v", err)
 			return err

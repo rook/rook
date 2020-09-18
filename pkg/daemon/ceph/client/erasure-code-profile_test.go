@@ -76,7 +76,6 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 				}
 				if deviceClass != "" {
 					assert.Equal(t, fmt.Sprintf("crush-device-class=%s", deviceClass), args[nextArg])
-					nextArg++
 				}
 				return "", nil
 			}

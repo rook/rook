@@ -271,7 +271,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// CREATE/UPDATE
-	reconcileResponse, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName)
+	_, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName)
 	if err != nil {
 		return r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
 	}

@@ -128,12 +128,11 @@ func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name,
 	}
 
 	logger.Infof("creating filesystem %q with metadata pool %q and data pools %v", name, metadataPool, dataPools)
-	args := []string{}
 	var err error
 
 	if IsMultiFSEnabled() {
 		// enable multiple file systems in case this is not the first
-		args = []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
+		args := []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
 		_, err = NewCephCommand(context, clusterInfo, args).Run()
 		if err != nil {
 			// continue if this fails
@@ -142,7 +141,7 @@ func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name,
 	}
 
 	// create the filesystem
-	args = []string{"fs", "new", name, metadataPool, dataPools[0]}
+	args := []string{"fs", "new", name, metadataPool, dataPools[0]}
 	// Force to use pre-existing pools
 	if force {
 		args = append(args, "--force")

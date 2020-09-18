@@ -58,15 +58,15 @@ func TestConfigureFlexVolume(t *testing.T) {
 
 func TestGetFlexDriverInfo(t *testing.T) {
 	// empty string, can't do anything with that, this is an error
-	vendor, driver, err := getFlexDriverInfo("")
+	_, _, err := getFlexDriverInfo("")
 	assert.NotNil(t, err)
 
 	// no driver dir found, this is an error
-	vendor, driver, err = getFlexDriverInfo("/a/b/c")
+	_, _, err = getFlexDriverInfo("/a/b/c")
 	assert.NotNil(t, err)
 
 	// well formed flex driver path, driver dir is last dir
-	vendor, driver, err = getFlexDriverInfo("/usr/libexec/kubernetes/kubelet-plugins/volume/exec/foo.bar.baz~biz")
+	vendor, driver, err := getFlexDriverInfo("/usr/libexec/kubernetes/kubelet-plugins/volume/exec/foo.bar.baz~biz")
 	assert.Nil(t, err)
 	assert.Equal(t, "foo.bar.baz", vendor)
 	assert.Equal(t, "biz", driver)
@@ -84,6 +84,6 @@ func TestGetFlexDriverInfo(t *testing.T) {
 	assert.Equal(t, "biz", driver)
 
 	// more flex volume info items than expected, this is an error
-	vendor, driver, err = getFlexDriverInfo("/usr/libexec/kubernetes/kubelet-plugins/volume/exec/foo.bar.baz~biz~buzz/")
+	_, _, err = getFlexDriverInfo("/usr/libexec/kubernetes/kubelet-plugins/volume/exec/foo.bar.baz~biz~buzz/")
 	assert.NotNil(t, err)
 }

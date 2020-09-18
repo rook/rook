@@ -310,7 +310,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 		},
 	}
 
-	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	_, _, _, err = a.initializeBlockPVC(context, devices, false)
 	assert.NotNil(t, err)
 
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
@@ -351,7 +351,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 		},
 	}
 
-	blockPath, metadataBlockPath, walBlockPath, err = a.initializeBlockPVC(context, devices, false)
+	_, _, _, err = a.initializeBlockPVC(context, devices, false)
 	assert.NotNil(t, err)
 
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {

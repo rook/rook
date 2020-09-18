@@ -108,6 +108,10 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 	endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
 
 	zoneIsMaster, err := checkZoneIsMaster(objContext)
+	if err != nil {
+		return errors.Wrap(err, "failed to find out zone in Master")
+	}
+
 	zoneGroupIsMaster := false
 	if zoneIsMaster {
 		_, err = RunAdminCommandNoMultisite(objContext, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)

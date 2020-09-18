@@ -64,6 +64,7 @@ func TestDeleteResource(t *testing.T) {
 	deleteError = nil
 	verifyCount = 0
 	err = DeleteResource(stubDelete, stubVerify, "test resource name", &DeleteOptions{}, defaultWaitOpts)
+	assert.NoError(t, err)
 	assert.Zero(t, verifyCount)
 
 	// Verify that the default wait options are picked up

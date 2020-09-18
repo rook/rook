@@ -152,7 +152,7 @@ func TestDaemonMapEntry(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, dummyVersions.Mon, m)
 
-	m, err = daemonMapEntry(&dummyVersions, "dummy")
+	_, err = daemonMapEntry(&dummyVersions, "dummy")
 	assert.Error(t, err)
 }
 

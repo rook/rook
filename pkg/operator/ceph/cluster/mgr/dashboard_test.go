@@ -65,6 +65,7 @@ func TestGetOrGeneratePassword(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(secret.Data))
 	passwordFromSecret, err := decodeSecret(secret)
+	assert.NoError(t, err)
 	assert.Equal(t, password, passwordFromSecret)
 
 	// We should retrieve the same password on the second call

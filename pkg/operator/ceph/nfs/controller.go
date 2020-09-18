@@ -223,7 +223,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// CREATE/UPDATE
 	logger.Debug("reconciling ceph nfs deployments")
-	reconcileResponse, err = r.reconcileCreateCephNFS(cephNFS)
+	_, err = r.reconcileCreateCephNFS(cephNFS)
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
 		return reconcile.Result{}, errors.Wrap(err, "failed to create ceph nfs deployments")

@@ -571,6 +571,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
+		if err != nil {
+			logger.Errorf("failed to delete cluster roles. %v ", err)
+		}
 
 		crdCheckerFunc := func() error {
 			_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(h.clusterName, metav1.GetOptions{})

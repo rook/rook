@@ -243,6 +243,7 @@ func TestDashboard(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster"}, storeName)
 	checkdashboard, err := checkDashboardUser(objContext)
+	assert.NoError(t, err)
 	assert.False(t, checkdashboard)
 	err = enableRGWDashboard(objContext)
 	assert.Nil(t, err)
@@ -256,6 +257,7 @@ func TestDashboard(t *testing.T) {
 	}
 	objContext.Context.Executor = executor
 	checkdashboard, err = checkDashboardUser(objContext)
+	assert.NoError(t, err)
 	assert.True(t, checkdashboard)
 	err = disableRGWDashboard(objContext)
 	assert.Nil(t, err)

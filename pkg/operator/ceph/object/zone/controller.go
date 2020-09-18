@@ -190,7 +190,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Create Ceph Zone
-	reconcileResponse, err = r.createCephZone(cephObjectZone, realmName)
+	_, err = r.createCephZone(cephObjectZone, realmName)
 	if err != nil {
 		return r.setFailedStatus(request.NamespacedName, "failed to create ceph zone", err)
 	}
