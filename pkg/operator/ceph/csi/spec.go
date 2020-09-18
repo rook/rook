@@ -555,14 +555,24 @@ func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
 		},
 	}
 	csidrivers := clientset.StorageV1beta1().CSIDrivers()
-	_, err := csidrivers.Create(csiDriver)
+	driver, err := csidrivers.Get(name, metav1.GetOptions{})
 	if err == nil {
-		logger.Infof("CSIDriver object created for driver %q", name)
-		return nil
+		// For csidriver we need to provide the resourceVersion when updating the object.
+		// From the docs (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata)
+		// > "This value MUST be treated as opaque by clients and passed unmodified back to the server"
+		csiDriver.ObjectMeta.ResourceVersion = driver.ObjectMeta.ResourceVersion
+		_, err = csidrivers.Update(csiDriver)
+		if err == nil {
+			logger.Infof("CSIDriver object updated for driver %q", name)
+		}
+		return err
 	}
-	if apierrors.IsAlreadyExists(err) {
-		logger.Infof("CSIDriver CRD already had been registered for %q", name)
-		return nil
+
+	if apierrors.IsNotFound(err) {
+		_, err = csidrivers.Create(csiDriver)
+		if err == nil {
+			logger.Infof("CSIDriver object created for driver %q", name)
+		}
 	}
 
 	return err
