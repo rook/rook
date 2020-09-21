@@ -120,20 +120,20 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
-	// Discover external Ceph version
-	externalVersion, err := client.GetCephMonVersion(c.context, cluster.ClusterInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to get external ceph mon version")
-	}
-	cluster.ClusterInfo.CephVersion = *externalVersion
-
-	// Populate ceph version
-	c.updateClusterCephVersion("", *externalVersion)
-
 	// enable monitoring if `monitoring: enabled: true`
 	// We need the Ceph version
 	if cluster.Spec.Monitoring.Enabled {
-		err := c.configureExternalClusterMonitoring(cluster)
+		// Discover external Ceph version to detect which service monitor to inject
+		externalVersion, err := client.GetCephMonVersion(c.context, cluster.ClusterInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to get external ceph mon version")
+		}
+		cluster.ClusterInfo.CephVersion = *externalVersion
+
+		// Populate ceph version
+		c.updateClusterCephVersion("", *externalVersion)
+
+		err = c.configureExternalClusterMonitoring(cluster)
 		if err != nil {
 			return errors.Wrap(err, "failed to configure external cluster monitoring")
 		}
