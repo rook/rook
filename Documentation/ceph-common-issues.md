@@ -28,6 +28,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
 * [Too few PGs per OSD warning is shown](#too-few-pgs-per-osd-warning-is-shown)
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
+* [OSD Prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 
 ## Troubleshooting Techniques
 
@@ -813,7 +814,20 @@ If you still decide to configure an OSD on LVM, please keep the following in min
 ### Solution
 
 - Disable `lvmetad.`
-- Avoid configuration of LVs from the host. In addition, don't touch the VGs and physical volumes that back these LVs. 
+- Avoid configuration of LVs from the host. In addition, don't touch the VGs and physical volumes that back these LVs.
 - Avoid incrementing the `count` field of `storageClassDeviceSets` and create a new LV that backs a OSD simultaneously.
 
 You can know whether the above-mentioned tag exists tag with the command: `sudo lvs -o lv_name,lv_tags`. If the `lv_tag` field is empty in an LV corresponding to the OSD lv_tags, this OSD encountered the problem. In this case, please [retire this OSD](ceph-osd-mgmt.md#remove-an-osd) or replace with other new OSD before restarting.
+
+## OSD prepare job fails due to low aio-max-nr setting
+
+If the Kernel is configured with a low [aio-max-nr setting](https://www.kernel.org/doc/Documentation/sysctl/fs.txt), the OSD prepare job might fail with the following error:
+
+```text
+exec: stderr: 2020-09-17T00:30:12.145+0000 7f0c17632f40 -1 bdev(0x56212de88700 /var/lib/ceph/osd/ceph-0//block) _aio_start io_setup(2) failed with EAGAIN; try increasing /proc/sys/fs/aio-max-nr
+```
+
+To overcome this, you need to increase the value of `fs.aio-max-nr` of your sysctl configuration (typically `/etc/sysctl.conf`).
+You can do this with your favorite configuration management system.
+
+Alternatively, you can have a [DaemonSet](https://github.com/rook/rook/issues/6279#issuecomment-694390514) to apply the configuration for you on all your nodes.
