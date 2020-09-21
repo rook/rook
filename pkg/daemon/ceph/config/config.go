@@ -19,6 +19,8 @@ package config
 
 import (
 	"fmt"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net"
 	"os"
 	"path"
@@ -40,9 +42,10 @@ const (
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
 	DefaultKeyringFile = "keyring"
 	// Msgr2port is the listening port of the messenger v2 protocol
-	Msgr2port   = 3300
-	msgr1Prefix = "v1:"
-	msgr2Prefix = "v2:"
+	Msgr2port          = 3300
+	msgr1Prefix        = "v1:"
+	msgr2Prefix        = "v2:"
+	ConfigOverrideName = "rook-config-override"
 )
 
 var (
@@ -83,14 +86,14 @@ func GetConfFilePath(root, clusterName string) string {
 
 // GenerateAdminConnectionConfig calls GenerateAdminConnectionConfigWithSettings with no settings
 // overridden.
-func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) (string, error) {
-	return GenerateAdminConnectionConfigWithSettings(context, cluster, nil)
+func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterInfo, namespace string) (string, error) {
+	return GenerateAdminConnectionConfigWithSettings(context, cluster, nil, namespace)
 }
 
 // GenerateAdminConnectionConfigWithSettings generates a Ceph config and keyring which will allow
 // the daemon to connect as an admin. Default config file settings can be overridden by specifying
 // some subset of settings.
-func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig) (string, error) {
+func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig, namespace string) (string, error) {
 	root := path.Join(context.ConfigDir, cluster.Name)
 	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
 	err := writeKeyring(AdminKeyring(cluster), keyringPath)
@@ -107,7 +110,7 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 		}
 	}
 
-	filePath, err := GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil)
+	filePath, err := GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, namespace, settings, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to write config to %s", root)
 	}
@@ -116,7 +119,7 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 }
 
 // GenerateConfigFile generates and writes a config file to disk.
-func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
+func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath, namespace string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
 
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
@@ -126,6 +129,10 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 	configFile, err := createGlobalConfigFileSection(context, cluster, globalConfig)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to create global config section")
+	}
+
+	if err := mergeDefaultConfigWithRookConfigOverride(context, cluster, configFile, namespace); err != nil {
+		return "", errors.Wrapf(err, "failed to merge global config with %q", ConfigOverrideName)
 	}
 
 	qualifiedUser := getQualifiedUser(user)
@@ -149,6 +156,28 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 	}
 
 	return filePath, nil
+}
+
+func mergeDefaultConfigWithRookConfigOverride(context *clusterd.Context, clusterInfo *ClusterInfo, configFile *ini.File, namespace string) error {
+	cm, err := context.Clientset.CoreV1().ConfigMaps(namespace).Get(ConfigOverrideName, metav1.GetOptions{})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to read configmap %q", ConfigOverrideName)
+		}
+		return nil
+	}
+
+	config, ok := cm.Data["config"]
+	if !ok || config == "" {
+		logger.Debugf("No ceph configuration override to merge as %q configmap is empty", ConfigOverrideName)
+		return nil
+	}
+
+	if err := configFile.Append([]byte(config)); err != nil {
+		return errors.Wrapf(err, "failed to load config data from %q", ConfigOverrideName)
+	}
+
+	return nil
 }
 
 // prepends "client." if a user namespace is not already specified

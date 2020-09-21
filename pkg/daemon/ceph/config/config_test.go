@@ -17,7 +17,10 @@ limitations under the License.
 package config
 
 import (
+	"fmt"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +31,36 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/kubernetes/fake"
 )
+
+// New creates a fake K8s cluster
+func New(t *testing.T, nodes int) *fake.Clientset {
+	clientset := fake.NewSimpleClientset()
+	for i := 0; i < nodes; i++ {
+		ready := v1.NodeCondition{Type: v1.NodeReady, Status: v1.ConditionTrue}
+		name := fmt.Sprintf("node%d", i)
+		n := &v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Status: v1.NodeStatus{
+				Conditions: []v1.NodeCondition{
+					ready,
+				},
+				Addresses: []v1.NodeAddress{
+					{
+						Type:    v1.NodeInternalIP,
+						Address: fmt.Sprintf("%d.%d.%d.%d", i, i, i, i),
+					},
+				},
+			},
+		}
+		_, err := clientset.CoreV1().Nodes().Create(n)
+		assert.Nil(t, err)
+	}
+	return clientset
+}
 
 func TestCreateDefaultCephConfig(t *testing.T) {
 	clusterInfo := &ClusterInfo{
@@ -85,9 +117,25 @@ func TestGenerateConfigFile(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	// create mocked cluster context and info
+	clientset := New(t, 3)
+
 	context := &clusterd.Context{
 		ConfigDir: configDir,
+		Clientset: clientset,
 	}
+
+	ns := "foo-cluster"
+	data := make(map[string]string, 1)
+	data["config"] = "[global]\n    bluestore_min_alloc_size_hdd = 4096"
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConfigOverrideName,
+			Namespace: ns,
+		},
+		Data: data,
+	}
+	clientset.CoreV1().ConfigMaps(ns).Create(cm)
+
 	clusterInfo := &ClusterInfo{
 		FSID:          "myfsid",
 		MonitorSecret: "monsecret",
@@ -103,7 +151,7 @@ func TestGenerateConfigFile(t *testing.T) {
 	assert.True(t, isInitialized)
 
 	// generate the config file to disk now
-	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), nil, nil)
+	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), ns, nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, filepath.Join(configDir, "foo-cluster.config"), configFilePath)
 
@@ -111,6 +159,7 @@ func TestGenerateConfigFile(t *testing.T) {
 	actualConf, err := ini.Load(configFilePath)
 	assert.Nil(t, err)
 	verifyConfigValue(t, actualConf, "global", "fsid", clusterInfo.FSID)
+	verifyConfigValue(t, actualConf, "global", "bluestore_min_alloc_size_hdd", "4096")
 }
 
 func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, loggingLevel int) {

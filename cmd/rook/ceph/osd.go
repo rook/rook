@@ -214,7 +214,8 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
-	err = osddaemon.Provision(context, agent, crushLocation)
+	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	err = osddaemon.Provision(context, agent, crushLocation, namespace)
 	if err != nil {
 		// something failed in the OSD orchestration, update the status map with failure details
 		status := oposd.OrchestrationStatus{

@@ -144,7 +144,7 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 }
 
 // Provision provisions an OSD
-func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
+func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, namespace string) error {
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
 	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
@@ -156,7 +156,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	}
 
 	// write the latest config to the config dir
-	confFilePath, err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig)
+	confFilePath, err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig, namespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write connection config")
 	}

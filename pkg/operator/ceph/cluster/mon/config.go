@@ -172,9 +172,9 @@ func ValidateAndLoadExternalClusterSecrets(context *clusterd.Context, namespace 
 }
 
 // WriteConnectionConfig save monitor connection config to disk
-func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
+func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo, namespace string) error {
 	// write the latest config to the config dir
-	if _, err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
+	if _, err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo, namespace); err != nil {
 		return errors.Wrapf(err, "failed to write connection config")
 	}
 

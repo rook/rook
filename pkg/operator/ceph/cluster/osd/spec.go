@@ -764,6 +764,7 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 		{Name: "ROOK_CLUSTER_ID", Value: string(c.ownerRef.UID)},
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+		opmon.PodNamespaceEnvVar(c.Namespace),
 		opmon.ClusterNameEnvVar(c.Namespace),
 		opmon.EndpointEnvVar(),
 		opmon.SecretEnvVar(),
