@@ -16,7 +16,7 @@ still you can use the Alpha snapshots. refer to
 [snapshot](https://github.com/rook/rook/blob/release-1.3/Documentation/ceph-csi-drivers.md#rbd-snapshots)
 on how to use snapshots.
 
-* We also need a `SnapshotClass` for volume snapshot to work. The purpose of a `SnapshotClass` is
+* We also need a `VolumeSnapshotClass` for volume snapshot to work. The purpose of a `VolumeSnapshotClass` is
 defined in [the kubernetes
 documentation](https://kubernetes.io/docs/concepts/storage/volume-snapshot-classes/).
 In short, as the documentation describes it:
