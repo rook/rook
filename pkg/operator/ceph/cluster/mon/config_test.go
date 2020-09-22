@@ -85,7 +85,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	secret.Data[adminSecretNameKey] = []byte(adminSecretNameKey)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(secret)
 	assert.NoError(t, err)
-	info, _, _, err = CreateOrLoadClusterInfo(context, namespace, ownerRef)
+	_, _, _, err = CreateOrLoadClusterInfo(context, namespace, ownerRef)
 	assert.Error(t, err)
 
 	// Load the external cluster with the legacy external creds

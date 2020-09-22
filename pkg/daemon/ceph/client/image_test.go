@@ -46,7 +46,7 @@ func TestCreateImage(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	clusterInfo := AdminClusterInfo("mycluster")
-	image, err := CreateImage(context, clusterInfo, "image1", "pool1", "", uint64(sizeMB)) // 1MB
+	_, err := CreateImage(context, clusterInfo, "image1", "pool1", "", uint64(sizeMB)) // 1MB
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "mocked detailed ceph error output stream"))
 
@@ -70,7 +70,7 @@ func TestCreateImage(t *testing.T) {
 
 	// 0 byte --> 0 MB
 	expectedSizeArg = "0"
-	image, err = CreateImage(context, clusterInfo, "image1", "pool1", "", uint64(0))
+	image, err := CreateImage(context, clusterInfo, "image1", "pool1", "", uint64(0))
 	assert.Nil(t, err)
 	assert.NotNil(t, image)
 	assert.True(t, createCalled)

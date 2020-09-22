@@ -122,7 +122,6 @@ func CreateOrUpdatePrometheusRule(prometheusRule *monitoringv1.PrometheusRule) (
 		}
 		prometheusRule.ObjectMeta.ResourceVersion = promRule.ObjectMeta.ResourceVersion
 
-		promRule, err = client.MonitoringV1().PrometheusRules(namespace).Update(prometheusRule)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update prometheusRule. %v", err)
 		}

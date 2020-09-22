@@ -560,7 +560,7 @@ func (k8sh *K8sHelper) GetEventsFromNamespace(namespace, testName, platformName 
 	}
 	defer file.Close()
 
-	args := append([]string{"get", "events", "-n", namespace})
+	args := []string{"get", "events", "-n", namespace}
 	events, err := k8sh.Kubectl(args...)
 	if err != nil {
 		logger.Errorf("failed to get events. %v. %v", args, err)

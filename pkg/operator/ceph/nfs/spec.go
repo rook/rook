@@ -207,9 +207,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 			nfsConfigMount,
 			dbusMount,
 		},
-		Env: append(
-			controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
-		),
+		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
 		Resources:       nfs.Spec.Server.Resources,
 		SecurityContext: mon.PodSecurityContext(),
 	}
@@ -233,10 +231,7 @@ func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
 		VolumeMounts: []v1.VolumeMount{
 			dbusMount,
 		},
-		Env: append(
-			// do not need access to Ceph env vars b/c not a Ceph daemon
-			k8sutil.ClusterDaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
-		),
+		Env:       k8sutil.ClusterDaemonEnvVars(r.cephClusterSpec.CephVersion.Image), // do not need access to Ceph env vars b/c not a Ceph daemon
 		Resources: nfs.Spec.Server.Resources,
 	}
 }

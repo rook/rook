@@ -241,7 +241,7 @@ func UnlinkUser(c *Context, id, bucket string) (string, int, error) {
 // EnableUserQuota will allows to enable quota defined for a user
 func EnableUserQuota(c *Context, id string) (string, error) {
 	logger.Debug("Enabling user quota for %q", id)
-	args := append([]string{"quota", "enable", "--quota-scope", "user", "--uid", id})
+	args := []string{"quota", "enable", "--quota-scope", "user", "--uid", id}
 	result, err := runAdminCommand(c, args...)
 	if err != nil {
 		err = errors.Wrap(err, "failed to enable quota for the user")

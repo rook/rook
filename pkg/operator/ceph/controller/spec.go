@@ -150,9 +150,8 @@ func CephVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []
 // RookVolumeMounts returns the common list of Kubernetes volume mounts for Rook containers.
 // This function is only used by OSDs.
 func RookVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
-	return append(
-		CephVolumeMounts(dataPaths, confGeneratedInPod),
-	)
+	return CephVolumeMounts(dataPaths, confGeneratedInPod)
+
 }
 
 // DaemonVolumesBase returns the common / static set of volumes.

@@ -119,12 +119,10 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Command: []string{
 			"ceph-mds",
 		},
-		Args:         args,
-		Image:        c.clusterSpec.CephVersion.Image,
-		VolumeMounts: controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
-		Env: append(
-			controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
-		),
+		Args:            args,
+		Image:           c.clusterSpec.CephVersion.Image,
+		VolumeMounts:    controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: mon.PodSecurityContext(),
 		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),

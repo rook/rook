@@ -265,10 +265,10 @@ func TestCmdReporterHelperProcess(*testing.T) {
 	}
 
 	if stdout != "" {
-		fmt.Fprintf(os.Stdout, stdout)
+		fmt.Fprint(os.Stdout, stdout)
 	}
 	if stderr != "" {
-		fmt.Fprintf(os.Stderr, stderr)
+		fmt.Fprint(os.Stderr, stderr)
 	}
 	if retcode != "" {
 		rc, err := strconv.Atoi(retcode)

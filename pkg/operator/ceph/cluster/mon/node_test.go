@@ -215,7 +215,7 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 	}
 
 	var info *NodeInfo
-	info, err = getNodeInfoFromNode(*node)
+	_, err = getNodeInfoFromNode(*node)
 	assert.NotNil(t, err)
 
 	node.Status.Addresses[0].Type = v1.NodeInternalIP
