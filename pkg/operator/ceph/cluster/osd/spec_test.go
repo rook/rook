@@ -331,6 +331,22 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
 	blkMetaInitCont = deployment.Spec.Template.Spec.InitContainers[8]
 	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
+
+	// Test tune Fast settings when OSD on PVC
+	osdProp.tuneFastDeviceClass = true
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.NoError(t, err)
+	for flag, val := range defaultTuneFastSettings {
+		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, opconfig.NewFlag(flag, val))
+	}
+
+	// Test tune Slow settings when OSD on PVC
+	osdProp.tuneSlowDeviceClass = true
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.NoError(t, err)
+	for flag, val := range defaultTuneSlowSettings {
+		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, opconfig.NewFlag(flag, val))
+	}
 }
 
 func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue string, expectedFound bool) {
