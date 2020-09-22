@@ -146,6 +146,30 @@ fi
 `
 )
 
+// OSDs on PVC using a certain fast storage class need to do some tuning
+var defaultTuneFastSettings = map[string]string{
+	"osd_op_num_threads_per_shard_ssd":        "2",          // Default value of osd_op_num_threads_per_shard for SSDs
+	"osd_op_num_shards_ssd":                   "8",          // Default value of osd_op_num_shards for SSDs
+	"osd_recovery_sleep_ssd":                  "0",          // Time in seconds to sleep before next recovery or backfill op for SSDs
+	"osd_snap_trim_sleep_ssd":                 "0",          // Time in seconds to sleep before next snap trim for SSDs
+	"osd_delete_sleep_ssd":                    "0",          // Time in seconds to sleep before next removal transaction for SSDs
+	"bluestore_min_alloc_size_ssd":            "4096",       // Default min_alloc_size value for SSDs
+	"bluestore_prefer_deferred_size_ssd":      "0",          // Default value of bluestore_prefer_deferred_size for SSDs
+	"bluestore_compression_min_blob_size_ssd": "8912",       // Default value of bluestore_compression_min_blob_size for SSDs
+	"bluestore_compression_max_blob_size_ssd": "65536",      // Default value of bluestore_compression_max_blob_size for SSDs
+	"bluestore_max_blob_size_ssd":             "65536",      // Default value of bluestore_max_blob_size for SSDs
+	"bluestore_cache_size_ssd":                "3221225472", // Default value of bluestore_cache_size for SSDs
+	"bluestore_throttle_cost_per_io_ssd":      "4000",       // Default value of bluestore_throttle_cost_per_io for SSDs
+	"bluestore_deferred_batch_ops_ssd":        "16",         // Default value of bluestore_deferred_batch_ops for SSDs
+}
+
+// OSDs on PVC using a certain slow storage class need to do some tuning
+var defaultTuneSlowSettings = map[string]string{
+	"osd_recovery_sleep":  "0.1", // Time in seconds to sleep before next recovery or backfill op
+	"osd_snap_trim_sleep": "2",   // Time in seconds to sleep before next snap trim
+	"osd_delete_sleep":    "2",   // Time in seconds to sleep before next removal transaction
+}
+
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
 	// If running on Octopus, we don't need to use the host PID namespace
 	var hostPID = !c.clusterInfo.CephVersion.IsAtLeastOctopus()
@@ -220,20 +244,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		{Name: "ROOK_IS_DEVICE", Value: "true"},
 	}...)
 
-	// If the OSD runs on PVC
-	if osdProps.onPVC() {
-		// add the PVC size to the pod spec so that if the size changes the OSD will be restarted and pick up the change
-		envVars = append(envVars, v1.EnvVar{Name: "ROOK_OSD_PVC_SIZE", Value: osdProps.pvcSize})
-
-		// Append tuning flag if necessary
-		if osdProps.tuneSlowDeviceClass {
-			err := c.osdRunFlagTuningOnPVC(osd.ID)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to apply tuning on osd %q", strconv.Itoa(osd.ID))
-			}
-		}
-	}
-
 	var command []string
 	var args []string
 	// If the OSD was prepared with ceph-volume and running on PVC and using the LVM mode
@@ -276,6 +286,23 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"--setuser", "ceph",
 			"--setgroup", "ceph",
 			fmt.Sprintf("--crush-location=%s", osd.Location),
+		}
+	}
+
+	// If the OSD runs on PVC
+	if osdProps.onPVC() {
+		// add the PVC size to the pod spec so that if the size changes the OSD will be restarted and pick up the change
+		envVars = append(envVars, v1.EnvVar{Name: "ROOK_OSD_PVC_SIZE", Value: osdProps.pvcSize})
+
+		// Append slow tuning flag if necessary
+		if osdProps.tuneSlowDeviceClass {
+			for flag, val := range defaultTuneSlowSettings {
+				args = append(args, opconfig.NewFlag(flag, val))
+			}
+		} else if osdProps.tuneFastDeviceClass { // Append fast tuning flag if necessary
+			for flag, val := range defaultTuneFastSettings {
+				args = append(args, opconfig.NewFlag(flag, val))
+			}
 		}
 	}
 
