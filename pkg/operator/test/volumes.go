@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 /*
@@ -86,7 +86,7 @@ func HumanReadableVolumes(volumes []v1.Volume) string {
 // HumanReadableVolume returns a string representation of a Kubernetes volume which is more compact
 // and human readable than the default string go prints.
 func HumanReadableVolume(v *v1.Volume) string {
-	sourceString := "something went wrong parsing the volume source in HumanReadableVolume()"
+	var sourceString string
 	if v.VolumeSource.EmptyDir != nil {
 		sourceString = "EmptyDir"
 	} else if v.VolumeSource.HostPath != nil {

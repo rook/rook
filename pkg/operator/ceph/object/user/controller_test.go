@@ -292,6 +292,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectUser)
+	assert.NoError(t, err)
 	assert.Equal(t, "Ready", objectUser.Status.Phase, objectUser)
 	logger.Info("PHASE 5 DONE")
 }

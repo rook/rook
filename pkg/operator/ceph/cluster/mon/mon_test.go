@@ -317,6 +317,7 @@ func TestWaitForQuorum(t *testing.T) {
 		return clienttest.MonInQuorumResponseFromMons(mons), nil
 	}
 	context, err := newTestStartClusterWithQuorumResponse(t, namespace, quorumResponse)
+	assert.NoError(t, err)
 	requireAllInQuorum := false
 	expectedMons := []string{"a"}
 	clusterInfo := &client.ClusterInfo{Namespace: namespace}

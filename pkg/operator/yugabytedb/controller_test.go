@@ -418,7 +418,7 @@ func TestOnAdd(t *testing.T) {
 	assert.Equal(t, 0, (&limCPU).Cmp(resource.MustParse(podCPULimitDefault)))
 
 	reqMem, reqOk := container.Resources.Requests[v1.ResourceMemory]
-	limMem, limOk := container.Resources.Limits[v1.ResourceMemory]
+	limMem := container.Resources.Limits[v1.ResourceMemory]
 	assert.True(t, reqOk)
 	assert.True(t, reqOk)
 	assert.Equal(t, 0, (&reqMem).Cmp(resource.MustParse(masterMemLimitDefault)))
@@ -508,7 +508,7 @@ func TestOnAdd(t *testing.T) {
 
 	reqMem, reqOk = container.Resources.Requests[v1.ResourceMemory]
 	limMem, limOk = container.Resources.Limits[v1.ResourceMemory]
-	assert.True(t, reqOk)
+	assert.True(t, limOk)
 	assert.True(t, reqOk)
 	assert.Equal(t, 0, (&reqMem).Cmp(resource.MustParse(tserverMemLimitDefault)))
 	assert.Equal(t, 0, (&limMem).Cmp(resource.MustParse(tserverMemLimitDefault)))
@@ -1046,6 +1046,7 @@ func verifyAllComponentsExist(t *testing.T, clientset *fake.Clientset, namespace
 
 	// verify Master statefulSet is created
 	statefulSets, err := clientset.AppsV1().StatefulSets(namespace).Get(addCRNameSuffix(masterName), metav1.GetOptions{})
+	assert.NoError(t, err)
 	assert.NotNil(t, statefulSets)
 
 	// verify Master pods are created

@@ -137,6 +137,7 @@ func TestParseDesiredDevices(t *testing.T) {
 	devices = string(marshalledDevices)
 
 	result, err = parseDevices(devices)
+	assert.NoError(t, err)
 	assert.Equal(t, "sdd", result[0].Name)
 	assert.Equal(t, "sde", result[1].Name)
 	assert.Equal(t, "sdf", result[2].Name)

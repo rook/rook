@@ -44,7 +44,7 @@ func TestGenerateNetworkSettings(t *testing.T) {
 		"public": "public-network-attach-def",
 	}
 
-	cephNetwork, err := generateNetworkSettings(ctx, ns, netSelector)
+	_, err := generateNetworkSettings(ctx, ns, netSelector)
 	assert.Error(t, err)
 
 	//
@@ -87,7 +87,7 @@ func TestGenerateNetworkSettings(t *testing.T) {
 	// Create public network definition
 	ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(network)
 
-	cephNetwork, err = generateNetworkSettings(ctx, ns, netSelector)
+	cephNetwork, err := generateNetworkSettings(ctx, ns, netSelector)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
 

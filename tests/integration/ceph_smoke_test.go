@@ -250,6 +250,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 
 	// Verify the Kubernetes Secret has been created (bootstrap peer token)
 	pool, err := suite.k8sh.RookClientset.CephV1().CephBlockPools(suite.namespace).Get(poolName, metav1.GetOptions{})
+	assert.NoError(suite.T(), err)
 	if pool.Spec.Mirroring.Enabled {
 		secretName := pool.Status.Info[oppool.RBDMirrorBootstrapPeerSecretName]
 		assert.NotEmpty(suite.T(), secretName)

@@ -393,7 +393,8 @@ func TestCephObjectStoreController(t *testing.T) {
 			Kind: "CephObjectStoreUser",
 		},
 	}
-	objectUser, _ = r.context.RookClientset.CephV1().CephObjectStoreUsers(objectStore.Namespace).Create(objectUser)
+	_, err = r.context.RookClientset.CephV1().CephObjectStoreUsers(objectStore.Namespace).Create(objectUser)
+	assert.NoError(t, err)
 	_, okToDelete = r.verifyObjectUserCleanup(objectStore)
 	assert.False(t, okToDelete)
 	logger.Info("PHASE 4 DONE")

@@ -184,17 +184,17 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	// Create/Pull Ceph Realm
 	if cephObjectRealm.Spec.IsPullRealm() {
 		logger.Debug("pull section in spec found")
-		reconcileResponse, err = r.pullCephRealm(cephObjectRealm)
+		_, err = r.pullCephRealm(cephObjectRealm)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 	} else {
-		reconcileResponse, err = r.createRealmKeys(cephObjectRealm)
+		_, err = r.createRealmKeys(cephObjectRealm)
 		if err != nil {
 			return r.setFailedStatus(request.NamespacedName, "failed to create keys for realm", err)
 		}
 
-		reconcileResponse, err = r.createCephRealm(cephObjectRealm)
+		_, err = r.createCephRealm(cephObjectRealm)
 		if err != nil {
 			return r.setFailedStatus(request.NamespacedName, "failed to create ceph realm", err)
 		}

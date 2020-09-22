@@ -22,6 +22,7 @@ import (
 
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -130,6 +131,7 @@ func (ci *CassandraInstaller) DeleteCassandraCluster(namespace string) {
 		return err
 	}
 	err = ci.k8sHelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
+	assert.NoError(ci.T(), err)
 
 	// Delete Namespace
 	logger.Infof("Deleting Cassandra Cluster namespace %s", namespace)

@@ -188,7 +188,7 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Create/Update Ceph Zone Group
-	reconcileResponse, err = r.createCephZoneGroup(cephObjectZoneGroup)
+	_, err = r.createCephZoneGroup(cephObjectZoneGroup)
 	if err != nil {
 		return r.setFailedStatus(request.NamespacedName, "failed to create ceph zone group", err)
 	}

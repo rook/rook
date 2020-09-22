@@ -153,9 +153,6 @@ func TestCreateFilesystem(t *testing.T) {
 func TestCreateNopoolFilesystem(t *testing.T) {
 	clientset := testop.New(t, 3)
 	configDir, _ := ioutil.TempDir("", "")
-	// Output to check multiple filesystem creation
-	fses := `[{"name":"myfs"}]`
-
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
@@ -193,16 +190,6 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
-
-	// Test multiple filesystem creation
-	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
-			if contains(args, "ls") {
-				return fses, nil
-			}
-			return "{\"key\":\"mysecurekey\"}", errors.New("multiple fs")
-		},
-	}
 }
 func contains(arr []string, str string) bool {
 	for _, a := range arr {

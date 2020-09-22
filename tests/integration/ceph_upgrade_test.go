@@ -192,8 +192,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	// Verify reading and writing to the test clients
 	newFile = "post-octopus-upgrade-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
-	rbdFilesToRead = append(rbdFilesToRead, newFile)
-	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
+	_ = append(rbdFilesToRead, newFile)
+	_ = append(cephfsFilesToRead, newFile)
 	logger.Infof("Verified upgrade from nautilus to octopus")
 }
 
