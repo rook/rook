@@ -60,12 +60,19 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 					continue
 				}
 
-				if pvcTemplate.Name == bluestorePVCData {
+				// The PVC type must be from a predefined set such as "data" and "metadata". These names must be enforced if the wal/db are specified
+				// with a separate device, but if there is a single volume template we can assume it is always the data template.
+				pvcType := pvcTemplate.Name
+				if len(storageClassDeviceSet.VolumeClaimTemplates) == 1 {
+					pvcType = bluestorePVCData
+				}
+
+				if pvcType == bluestorePVCData {
 					pvcSize := pvc.Spec.Resources.Requests[v1.ResourceStorage]
 					dataSize = pvcSize.String()
 					crushDeviceClass = pvcTemplate.Annotations["crushDeviceClass"]
 				}
-				pvcSources[pvcTemplate.Name] = v1.PersistentVolumeClaimVolumeSource{
+				pvcSources[pvcType] = v1.PersistentVolumeClaimVolumeSource{
 					ClaimName: pvc.GetName(),
 					ReadOnly:  false,
 				}
