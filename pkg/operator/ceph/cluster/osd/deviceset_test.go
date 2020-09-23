@@ -16,6 +16,7 @@ limitations under the License.
 package osd
 
 import (
+	"fmt"
 	"testing"
 
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
@@ -28,6 +29,11 @@ import (
 )
 
 func TestPrepareDeviceSets(t *testing.T) {
+	testPrepareDeviceSets(t, true)
+	testPrepareDeviceSets(t, false)
+}
+
+func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 	clientset := testexec.New(t, 1)
 	context := &clusterd.Context{
 		Clientset: clientset,
@@ -36,6 +42,9 @@ func TestPrepareDeviceSets(t *testing.T) {
 	claim := v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{
 		StorageClassName: &storageClass,
 	}}
+	if setTemplateName {
+		claim.Name = "randomname"
+	}
 	deviceSet := rookv1.StorageClassDeviceSet{
 		Name:                 "mydata",
 		Count:                1,
@@ -62,7 +71,11 @@ func TestPrepareDeviceSets(t *testing.T) {
 	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.Namespace).List(metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pvcs.Items))
-	assert.Equal(t, "mydata-data-0-", pvcs.Items[0].GenerateName)
+	expectedName := claim.Name
+	if !setTemplateName {
+		expectedName = "data"
+	}
+	assert.Equal(t, fmt.Sprintf("mydata-%s-0-", expectedName), pvcs.Items[0].GenerateName)
 	assert.Equal(t, cluster.Namespace, pvcs.Items[0].Namespace)
 }
 
