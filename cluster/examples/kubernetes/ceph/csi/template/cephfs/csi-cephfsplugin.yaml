@@ -16,7 +16,6 @@ spec:
         contains: csi-cephfsplugin-metrics
     spec:
       serviceAccount: rook-csi-cephfs-plugin-sa
-      hostNetwork: true
       {{ if .PluginPriorityClassName }}
       priorityClassName: {{ .PluginPriorityClassName }}
       {{ end }}
