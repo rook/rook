@@ -15,7 +15,8 @@ spec:
   dataPool:
     replicated:
       size: 1
-    compressionMode: none
+    parameters:
+      compression_mode: none
   preservePoolsOnDelete: false
   gateway:
     type: s3

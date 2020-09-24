@@ -18,7 +18,8 @@ spec:
       replicated:
         size: 1
         requireSafeReplicaSize: false
-      compressionMode: none
+      parameters:
+        compression_mode: none
   preservePoolsOnDelete: false
   metadataServer:
     activeCount: 1
