@@ -114,16 +114,18 @@ func (p *PoolOperation) DeletePool(blockClient *BlockOperation, clusterInfo *cli
 	blockImagesList, _ := blockClient.ListImagesInPool(clusterInfo, poolName)
 	for _, blockImage := range blockImagesList {
 		logger.Infof("force deleting block image %q in pool %q", blockImage, poolName)
+		max := 10
 		// Wait and retry up to 10 times/seconds to delete RBD images
-		for i := 0; i < 10; i++ {
+		for i := 0; i < max; i++ {
 			err := blockClient.DeleteBlockImage(clusterInfo, blockImage)
-			if err != nil {
-				logger.Infof("failed deleting image %q from %q. %v", blockImage, poolName, err)
-				time.Sleep(2 * time.Second)
-			} else {
+			if err == nil {
 				break
 			}
-			return fmt.Errorf("gave up waiting for image %q from %q to be deleted. %v", blockImage, poolName, err)
+			logger.Infof("failed deleting image %q from %q. %v", blockImage, poolName, err)
+			time.Sleep(2 * time.Second)
+			if i == max-1 {
+				return fmt.Errorf("gave up waiting for image %q from %q to be deleted. %v", blockImage, poolName, err)
+			}
 		}
 	}
 

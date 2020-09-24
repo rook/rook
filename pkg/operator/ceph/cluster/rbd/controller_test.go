@@ -74,7 +74,6 @@ func TestCephRBDMirrorController(t *testing.T) {
 		},
 		TypeMeta: controllerTypeMeta,
 	}
-	cephCluster := &cephv1.CephCluster{}
 
 	// Objects to track in the fake client.
 	object := []runtime.Object{
@@ -146,7 +145,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 	//
 	// FAILURE we have a cluster but it's not ready
 	//
-	cephCluster = &cephv1.CephCluster{
+	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace,
 			Namespace: namespace,

@@ -286,14 +286,17 @@ func getFlexDriverInfo(flexDriverPath string) (vendor, driver string, err error)
 	parts := strings.Split(flexDriverPath, string(os.PathSeparator))
 	for i := len(parts) - 1; i >= 0; i-- {
 		p := parts[i]
-		if matched, _ := regexp.Match(".+~.+", []byte(p)); matched {
-			// found a match for the flex driver directory name pattern
-			flexInfo := strings.Split(p, "~")
-			if len(flexInfo) > 2 {
-				return "", "", errors.Errorf("unexpected number of items in flex driver info %+v from path %s", flexInfo, flexDriverPath)
-			}
+		matched, err := regexp.Compile(".+~.+")
+		if err == nil {
+			if matched.Match([]byte(p)) {
+				// found a match for the flex driver directory name pattern
+				flexInfo := strings.Split(p, "~")
+				if len(flexInfo) > 2 {
+					return "", "", errors.Errorf("unexpected number of items in flex driver info %+v from path %s", flexInfo, flexDriverPath)
+				}
 
-			return flexInfo[0], flexInfo[1], nil
+				return flexInfo[0], flexInfo[1], nil
+			}
 		}
 	}
 

@@ -76,7 +76,7 @@ func AuthUpdateCaps(context *clusterd.Context, clusterInfo *ClusterInfo, name st
 // AuthGetCaps gets the capabilities for the given user.
 func AuthGetCaps(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (caps map[string]string, error error) {
 	logger.Infof("getting ceph auth caps for %q", name)
-	args := append([]string{"auth", "get", name})
+	args := []string{"auth", "get", name}
 	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get caps for %q", name)
