@@ -19,13 +19,29 @@ package nfs
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 )
 
 const (
-	userID = "admin"
+	keyringTemplate = `
+[%s]
+        key = %s
+        caps mon = "allow r"
+        caps osd = "%s"
+`
 )
+
+func getNFSUserID(nodeID string) string {
+	return fmt.Sprintf("nfs-ganesha.%s", nodeID)
+}
+
+func getNFSClientID(n *cephv1.CephNFS, name string) string {
+	return fmt.Sprintf("client.%s", getNFSUserID(getNFSNodeID(n, name)))
+}
 
 func getNFSNodeID(n *cephv1.CephNFS, name string) string {
 	return fmt.Sprintf("%s.%s", n.Name, name)
@@ -46,8 +62,35 @@ func getRadosURL(n *cephv1.CephNFS, nodeID string) string {
 	return url
 }
 
+func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error {
+	osdCaps := fmt.Sprintf("allow rw pool=%s", n.Spec.RADOS.Pool)
+	if n.Spec.RADOS.Namespace != "" {
+		osdCaps = fmt.Sprintf("%s namespace=%s", osdCaps, n.Spec.RADOS.Namespace)
+	}
+
+	caps := []string{"mon", "allow r", "osd", osdCaps}
+	user := getNFSClientID(n, name)
+
+	// Get owner reference
+	ref, err := opcontroller.GetControllerObjectOwnerReference(n, r.scheme)
+	if err != nil || ref == nil {
+		return errors.Wrapf(err, "failed to get controller %q owner reference", n.Name)
+	}
+
+	s := keyring.GetSecretStore(r.context, r.clusterInfo, ref)
+
+	key, err := s.GenerateKey(user, caps)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create user %s", user)
+	}
+
+	keyring := fmt.Sprintf(keyringTemplate, user, key, osdCaps)
+	return s.CreateOrUpdate(instanceName(n, name), keyring)
+}
+
 func getGaneshaConfig(n *cephv1.CephNFS, name string) string {
 	nodeID := getNFSNodeID(n, name)
+	userID := getNFSUserID(nodeID)
 	url := getRadosURL(n, nodeID)
 	return `
 NFS_CORE_PARAM {
