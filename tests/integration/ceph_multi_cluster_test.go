@@ -178,7 +178,7 @@ func (o MCTestOperations) Setup() {
 		root, err := installer.FindRookRoot()
 		require.NoError(o.T(), err, "failed to get rook root")
 		cmdArgs := utils.CommandArgs{Command: filepath.Join(root, localPathPVCmd),
-			CmdArgs: []string{installer.TestScratchDevice(), installer.TestScratchDevice2()}}
+			CmdArgs: []string{"setup", installer.TestScratchDevice(), installer.TestScratchDevice2()}}
 		cmdOut := utils.ExecuteCommand(cmdArgs)
 		require.NoError(o.T(), cmdOut.Err)
 	}
@@ -236,6 +236,12 @@ func (o MCTestOperations) Setup() {
 // Teardown is a wrapper for tearDown after suite
 func (o MCTestOperations) Teardown() {
 	o.installer.UninstallRookFromMultipleNS(o.systemNamespace, o.namespace1, o.namespace2)
+
+	if o.testOverPVC {
+		cmdArgs := utils.CommandArgs{Command: localPathPVCmd, CmdArgs: []string{"teardown"}}
+		cmdOut := utils.ExecuteCommand(cmdArgs)
+		require.NoError(o.T(), cmdOut.Err)
+	}
 }
 
 func (o MCTestOperations) startCluster(namespace, store string) error {
