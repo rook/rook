@@ -33,7 +33,8 @@ spec:
     replicated:
       size: 1
       requireSafeReplicaSize: true
-    compressionMode: none
+    parameters:
+      compression_mode: none
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
