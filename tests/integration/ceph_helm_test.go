@@ -18,7 +18,6 @@ package integration
 import (
 	"testing"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -59,7 +58,7 @@ type HelmSuite struct {
 	suite.Suite
 	helper            *clients.TestClient
 	kh                *utils.K8sHelper
-	op                *TestCluster
+	op                *MCTestOperations
 	operatorNamespace string
 	clusterNamespaces []string
 	poolName          string
