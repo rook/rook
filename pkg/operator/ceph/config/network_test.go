@@ -85,7 +85,8 @@ func TestGenerateNetworkSettings(t *testing.T) {
 	}
 
 	// Create public network definition
-	ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(network)
+	_, err = ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(network)
+	assert.NoError(t, err)
 
 	cephNetwork, err := generateNetworkSettings(ctx, ns, netSelector)
 	assert.NoError(t, err)
@@ -132,7 +133,8 @@ func TestGenerateNetworkSettings(t *testing.T) {
 	}
 
 	// Create cluster network definition
-	ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(network2)
+	_, err = ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(network2)
+	assert.NoError(t, err)
 
 	cephNetwork, err = generateNetworkSettings(ctx, ns, netSelector)
 	assert.NoError(t, err)

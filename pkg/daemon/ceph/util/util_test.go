@@ -33,9 +33,12 @@ func TestFindDevicePath(t *testing.T) {
 	}
 	defer os.RemoveAll(mockRBDSysBusPath)
 	dev0Path := filepath.Join(mockRBDSysBusPath, "devices", "3")
-	os.MkdirAll(dev0Path, 0777)
-	ioutil.WriteFile(filepath.Join(dev0Path, "name"), []byte("myimage1"), 0777)
-	ioutil.WriteFile(filepath.Join(dev0Path, "pool"), []byte("mypool1"), 0777)
+	err = os.MkdirAll(dev0Path, 0777)
+	assert.NoError(t, err)
+	err = ioutil.WriteFile(filepath.Join(dev0Path, "name"), []byte("myimage1"), 0777)
+	assert.NoError(t, err)
+	err = ioutil.WriteFile(filepath.Join(dev0Path, "pool"), []byte("mypool1"), 0777)
+	assert.NoError(t, err)
 	mappedImageFile, _ := FindRBDMappedFile("myimage1", "mypool1", mockRBDSysBusPath)
 	assert.Equal(t, "3", mappedImageFile)
 }

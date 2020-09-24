@@ -158,8 +158,8 @@ func (ci *CassandraInstaller) UninstallCassandra(systemNamespace string, namespa
 
 	//Remove "anon-user-access"
 	logger.Info("Removing anon-user-access ClusterRoleBinding")
-	ci.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
-
+	err = ci.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	assert.NoError(ci.T(), err)
 	logger.Info("Successfully deleted all cassandra operator related objects.")
 }
 

@@ -114,12 +114,13 @@ func (suite *NfsSuite) TestNfsServerInstallation() {
 	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim-bigger")
 	require.NoError(suite.T(), err)
 	assert.True(suite.T(), true, suite.checkReadData(podList))
-	suite.rwClient.Delete()
+	err = suite.rwClient.Delete()
+	assert.NoError(suite.T(), err)
 
 	// verify another smaller export is running OK
 	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
-	defer suite.rwClient.Delete()
+	defer suite.rwClient.Delete() //nolint, delete a nfs consuming pod in rook
 	podList, err = suite.rwClient.CreateWriteClient("nfs-pv-claim")
 	require.NoError(suite.T(), err)
 	assert.True(suite.T(), true, suite.checkReadData(podList))

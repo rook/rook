@@ -214,9 +214,10 @@ func (s *UpgradeSuite) upgradeCephVersion(newCephImage string, numOSDs int) {
 	//
 	// Upgrade Ceph version, for example from Mimic to Nautilus.
 	//
-	s.k8sh.Kubectl("-n", s.namespace, "patch", "CephCluster", s.namespace, "--type=merge",
+	_, err = s.k8sh.Kubectl("-n", s.namespace, "patch", "CephCluster", s.namespace, "--type=merge",
 		"-p", fmt.Sprintf(`{"spec": {"cephVersion": {"image": "%s"}}}`, newCephImage))
 
+	assert.NoError(s.T(), err)
 	s.waitForUpgradedDaemons(oldCephVersion, "ceph-version", numOSDs, false)
 }
 

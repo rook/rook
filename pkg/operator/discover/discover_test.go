@@ -63,10 +63,10 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 			},
 		},
 	}
-	clientset.CoreV1().Pods("rook-system").Create(&pod)
-
+	_, err := clientset.CoreV1().Pods("rook-system").Create(&pod)
+	assert.NoError(t, err)
 	// start a basic cluster
-	err := a.Start(namespace, "rook/rook:myversion", "mysa", false)
+	err = a.Start(namespace, "rook/rook:myversion", "mysa", false)
 	assert.Nil(t, err)
 
 	// check daemonset parameters

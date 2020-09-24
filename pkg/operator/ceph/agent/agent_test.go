@@ -55,13 +55,14 @@ func TestStartAgentDaemonset(t *testing.T) {
 			},
 		},
 	}
-	clientset.CoreV1().Pods("rook-system").Create(&pod)
+	_, err := clientset.CoreV1().Pods("rook-system").Create(&pod)
+	assert.NoError(t, err)
 
 	namespace := "ns"
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/rook:myversion", "mysa")
+	err = a.Start(namespace, "rook/rook:myversion", "mysa")
 	assert.Nil(t, err)
 
 	// check daemonset parameters
@@ -106,7 +107,8 @@ func TestGetContainerImage(t *testing.T) {
 			},
 		},
 	}
-	clientset.CoreV1().Pods("Default").Create(&pod)
+	_, err := clientset.CoreV1().Pods("Default").Create(&pod)
+	assert.NoError(t, err)
 
 	// start a basic cluster
 	returnPod, err := k8sutil.GetRunningPod(clientset)
@@ -171,13 +173,14 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 			},
 		},
 	}
-	clientset.CoreV1().Pods("rook-system").Create(&pod)
+	_, err := clientset.CoreV1().Pods("rook-system").Create(&pod)
+	assert.NoError(t, err)
 
 	namespace := "ns"
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/test", "mysa")
+	err = a.Start(namespace, "rook/test", "mysa")
 	assert.Nil(t, err)
 
 	// check daemonset toleration

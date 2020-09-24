@@ -87,7 +87,12 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInf
 	// note: the error return below is ignored and is expected to be removed from the
 	//   bucket library's `NewProvisioner` function
 	bucketController, _ := bucket.NewBucketController(c.context.KubeConfig, bucketProvisioner)
-	go bucketController.Run(cluster.stopCh)
+	go func() {
+		err := bucketController.Run(cluster.stopCh)
+		if err != nil {
+			logger.Errorf("failed to run bucket controller. %v", err)
+		}
+	}()
 
 	// enable the cluster watcher once
 	cluster.watchersActivated = true

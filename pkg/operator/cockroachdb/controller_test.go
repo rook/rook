@@ -167,7 +167,7 @@ func TestOnAdd(t *testing.T) {
 	controller.createInitRetryInterval = 1 * time.Millisecond
 
 	// in a background thread, simulate the pods running (fake statefulsets don't automatically do that)
-	go simulatePodsRunning(clientset, namespace, cluster.Spec.Storage.NodeCount)
+	go simulatePodsRunning(t, clientset, namespace, cluster.Spec.Storage.NodeCount)
 
 	// call onAdd given the specified cluster
 	controller.onAdd(cluster)
@@ -230,7 +230,7 @@ func TestOnAdd(t *testing.T) {
 	assert.True(t, initCalled)
 }
 
-func simulatePodsRunning(clientset *fake.Clientset, namespace string, podCount int) {
+func simulatePodsRunning(t *testing.T, clientset *fake.Clientset, namespace string, podCount int) {
 	for i := 0; i < podCount; i++ {
 		pod := &v1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
@@ -240,6 +240,7 @@ func simulatePodsRunning(clientset *fake.Clientset, namespace string, podCount i
 			},
 			Status: v1.PodStatus{Phase: v1.PodRunning},
 		}
-		clientset.CoreV1().Pods(namespace).Create(pod)
+		_, err := clientset.CoreV1().Pods(namespace).Create(pod)
+		assert.NoError(t, err)
 	}
 }

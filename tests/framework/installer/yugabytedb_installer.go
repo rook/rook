@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -154,7 +155,8 @@ func (y *YugabyteDBInstaller) RemoveAllYugabyteDBResources(systemNS, namespace s
 		checkError(y.T(), err, "cannot uninstall hostpath provisioner")
 	}
 
-	y.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	err = y.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	assert.NoError(y.T(), err)
 	logger.Infof("done removing the operator from namespace %s", systemNS)
 
 	return nil

@@ -279,7 +279,8 @@ func (suite *SmokeSuite) TestPoolResize() {
 	}
 
 	// clean up the pool
-	suite.helper.PoolClient.DeletePool(suite.helper.BlockClient, clusterInfo, poolName)
+	err = suite.helper.PoolClient.DeletePool(suite.helper.BlockClient, clusterInfo, poolName)
+	assert.NoError(suite.T(), err)
 }
 
 // Smoke Test for Client CRD

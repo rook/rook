@@ -82,7 +82,8 @@ func (y *YugabyteDBSuite) Setup() {
 
 func (y *YugabyteDBSuite) Teardown() {
 	y.ybdbInstaller.GatherAllLogs(y.systemNS, y.namespace, y.T().Name())
-	y.ybdbInstaller.RemoveAllYugabyteDBResources(y.systemNS, y.namespace)
+	err := y.ybdbInstaller.RemoveAllYugabyteDBResources(y.systemNS, y.namespace)
+	assert.NoError(y.T(), err)
 }
 
 func (y *YugabyteDBSuite) TestYBClusterComponents() {

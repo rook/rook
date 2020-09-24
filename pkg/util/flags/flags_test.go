@@ -38,12 +38,14 @@ func TestStringFlags(t *testing.T) {
 	assert.Equal(t, "foo,bar are required for test", err.Error())
 
 	// one argument is missing
-	cmd.Flags().Set("foo", "fooval")
+	err = cmd.Flags().Set("foo", "fooval")
+	assert.NoError(t, err)
 	err = VerifyRequiredFlags(cmd, []string{"foo", "bar"})
 	assert.Equal(t, "bar is required for test", err.Error())
 
 	// no arguments are missing
-	cmd.Flags().Set("bar", "barval")
+	err = cmd.Flags().Set("bar", "barval")
+	assert.NoError(t, err)
 	err = VerifyRequiredFlags(cmd, []string{"foo", "bar"})
 	assert.Nil(t, err)
 }
@@ -59,8 +61,10 @@ func TestGetFlagsAndValues(t *testing.T) {
 	cmd.Flags().StringVar(&arg1, "foo-data", "", "test 1")
 	cmd.Flags().StringVar(&arg2, "bar-secret", "", "test 2")
 
-	cmd.Flags().Set("foo-data", "1234")
-	cmd.Flags().Set("bar-secret", "mypassword")
+	err := cmd.Flags().Set("foo-data", "1234")
+	assert.NoError(t, err)
+	err = cmd.Flags().Set("bar-secret", "mypassword")
+	assert.NoError(t, err)
 
 	// get all flags and their values, providing no filter.  all of them should be returned.
 	flagValues := GetFlagsAndValues(cmd.Flags(), "")

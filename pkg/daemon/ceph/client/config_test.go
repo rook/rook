@@ -17,15 +17,16 @@ limitations under the License.
 package client
 
 import (
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/test"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/test"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
@@ -105,7 +106,8 @@ func TestGenerateConfigFile(t *testing.T) {
 		},
 		Data: data,
 	}
-	clientset.CoreV1().ConfigMaps(ns).Create(cm)
+	_, err = clientset.CoreV1().ConfigMaps(ns).Create(cm)
+	assert.NoError(t, err)
 
 	clusterInfo := &ClusterInfo{
 		FSID:          "myfsid",

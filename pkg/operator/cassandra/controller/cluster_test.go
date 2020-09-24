@@ -76,7 +76,7 @@ func TestCreateRack(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cc := newFakeClusterController(test.kubeObjects, nil)
+			cc := newFakeClusterController(t, test.kubeObjects, nil)
 
 			if err := cc.createRack(test.rack, test.cluster); err == nil {
 				if test.expectedErr {
@@ -141,7 +141,7 @@ func TestScaleUpRack(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			cc := newFakeClusterController(test.kubeObjects, nil)
+			cc := newFakeClusterController(t, test.kubeObjects, nil)
 
 			test.cluster.Status = cassandrav1alpha1.ClusterStatus{
 				Racks: map[string]*cassandrav1alpha1.RackStatus{
@@ -203,7 +203,7 @@ func TestScaleDownRack(t *testing.T) {
 
 		kubeObjects := append(memberServices, sts)
 		rookObjects := []runtime.Object{c}
-		cc := newFakeClusterController(kubeObjects, rookObjects)
+		cc := newFakeClusterController(t, kubeObjects, rookObjects)
 
 		err := cc.scaleDownRack(r, c)
 		require.NoErrorf(t, err, "Unexpected error while scaling down: %v", err)
@@ -225,7 +225,7 @@ func TestScaleDownRack(t *testing.T) {
 		kubeObjects := append(memberServices, sts)
 		rookObjects := []runtime.Object{c}
 
-		cc := newFakeClusterController(kubeObjects, rookObjects)
+		cc := newFakeClusterController(t, kubeObjects, rookObjects)
 
 		svc, err := cc.serviceLister.Services(c.Namespace).Get(memberName)
 		require.NoErrorf(t, err, "Unexpected error while getting MemberService: %v", err)

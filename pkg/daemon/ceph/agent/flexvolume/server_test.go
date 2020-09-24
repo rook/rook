@@ -33,7 +33,8 @@ func TestConfigureFlexVolume(t *testing.T) {
 	driverDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(driverDir)
 	driverFile := path.Join(driverDir, flexvolumeDriverFileName)
-	os.OpenFile(driverFile, os.O_RDONLY|os.O_CREATE, 0755)
+	_, err := os.OpenFile(driverFile, os.O_RDONLY|os.O_CREATE, 0755)
+	assert.NoError(t, err)
 
 	driverName := "rook"
 	os.Setenv("POD_NAMESPACE", driverName)
@@ -42,7 +43,7 @@ func TestConfigureFlexVolume(t *testing.T) {
 	defer os.Setenv(agent.RookEnableSelinuxRelabelingEnv, "")
 	os.Setenv(agent.RookEnableFSGroupEnv, "false")
 	defer os.Setenv(agent.RookEnableFSGroupEnv, "")
-	err := configureFlexVolume(driverFile, driverDir, driverName)
+	err = configureFlexVolume(driverFile, driverDir, driverName)
 	assert.Nil(t, err)
 	_, err = os.Stat(path.Join(driverDir, "rook"))
 	assert.False(t, os.IsNotExist(err))

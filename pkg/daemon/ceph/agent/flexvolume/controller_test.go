@@ -109,7 +109,8 @@ func TestAttachAlreadyExist(t *testing.T) {
 			Phase: "running",
 		},
 	}
-	clientset.CoreV1().Pods("Default").Create(&pod)
+	_, err := clientset.CoreV1().Pods("Default").Create(&pod)
+	assert.NoError(t, err)
 
 	existingCRD := &rookalpha.Volume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -180,7 +181,8 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 			Phase: "running",
 		},
 	}
-	clientset.CoreV1().Pods("Default").Create(&pod)
+	_, err := clientset.CoreV1().Pods("Default").Create(&pod)
+	assert.NoError(t, err)
 
 	existingCRD := &rookalpha.Volume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -457,7 +459,8 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 			NodeName: "node1",
 		},
 	}
-	clientset.CoreV1().Pods("Default").Create(&pod)
+	_, err := clientset.CoreV1().Pods("Default").Create(&pod)
+	assert.NoError(t, err)
 
 	// existing record of old attachment. Pod namespace and name must much with the new attachment input to simulate that the new attachment is for the same pod
 	existingCRD := &rookalpha.Volume{
@@ -733,7 +736,8 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 			},
 		},
 	}
-	clientset.CoreV1().PersistentVolumes().Create(pv)
+	_, err := clientset.CoreV1().PersistentVolumes().Create(pv)
+	assert.NoError(t, err)
 
 	sc := storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -742,7 +746,8 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 		Provisioner: "ceph.rook.io/rook",
 		Parameters:  map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3"},
 	}
-	clientset.StorageV1().StorageClasses().Create(&sc)
+	_, err = clientset.StorageV1().StorageClasses().Create(&sc)
+	assert.NoError(t, err)
 
 	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -754,7 +759,8 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 			NodeName: "node1",
 		},
 	}
-	clientset.CoreV1().Pods("testnamespace").Create(&pod)
+	_, err = clientset.CoreV1().Pods("testnamespace").Create(&pod)
+	assert.NoError(t, err)
 
 	opts := AttachOptions{
 		VolumeName: "pvc-123",
@@ -766,7 +772,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 		volumeManager: &manager.FakeVolumeManager{},
 	}
 
-	err := controller.GetAttachInfoFromMountDir(opts.MountDir, &opts)
+	err = controller.GetAttachInfoFromMountDir(opts.MountDir, &opts)
 	assert.Nil(t, err)
 
 	assert.Equal(t, "pod123", opts.PodID)
@@ -801,7 +807,9 @@ func testParseClusterNamespace(t *testing.T, namespaceParameter string) {
 		Provisioner: "ceph.rook.io/rook",
 		Parameters:  map[string]string{"pool": "testpool", namespaceParameter: "testCluster", "fsType": "ext3"},
 	}
-	clientset.StorageV1().StorageClasses().Create(&sc)
+	_, err := clientset.StorageV1().StorageClasses().Create(&sc)
+	assert.NoError(t, err)
+
 	volumeAttachment, err := attachment.New(context)
 	assert.Nil(t, err)
 

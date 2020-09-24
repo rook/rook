@@ -59,15 +59,18 @@ func TestNodeAffinity(t *testing.T) {
 	// label nodes so they appear as not scheduable / invalid
 	node, _ := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "foo"}
-	clientset.CoreV1().Nodes().Update(node)
+	_, err := clientset.CoreV1().Nodes().Update(node)
+	assert.NoError(t, err)
 
 	node, _ = clientset.CoreV1().Nodes().Get("node1", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "bar"}
-	clientset.CoreV1().Nodes().Update(node)
+	_, err = clientset.CoreV1().Nodes().Update(node)
+	assert.NoError(t, err)
 
 	node, _ = clientset.CoreV1().Nodes().Get("node2", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "baz"}
-	clientset.CoreV1().Nodes().Update(node)
+	_, err = clientset.CoreV1().Nodes().Update(node)
+	assert.NoError(t, err)
 }
 
 // this tests can 3 mons with hostnetworking on the same host is rejected

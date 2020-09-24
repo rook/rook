@@ -156,10 +156,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	}
 
 	// Force purge the s3 object before starting anything
-	err = cleanupObjectHealthCheck(s3client, c.objContext.UID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to perform object cleanup for object store %q", c.namespacedName.Name)
-	}
+	cleanupObjectHealthCheck(s3client, c.objContext.UID)
 
 	// Bucket health test
 	err = c.testBucketHealth(s3client, bucketName)
@@ -175,12 +172,13 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	return nil
 }
 
-func cleanupObjectHealthCheck(s3client *S3Agent, objectStoreUID string) error {
+func cleanupObjectHealthCheck(s3client *S3Agent, objectStoreUID string) {
 	bucketToDelete := genUniqueBucketName(objectStoreUID)
 	logger.Debugf("deleting object %q from bucket %q", s3HealthCheckObjectKey, bucketToDelete)
 	_, err := s3client.DeleteObjectInBucket(bucketToDelete, s3HealthCheckObjectKey)
-
-	return err
+	if err != nil {
+		logger.Errorf("failed to delete object in bucket. %v", err)
+	}
 }
 
 func (c *bucketChecker) cleanupHealthCheck() {

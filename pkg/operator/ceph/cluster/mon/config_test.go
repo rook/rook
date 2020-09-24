@@ -34,7 +34,8 @@ import (
 func TestCreateClusterSecrets(t *testing.T) {
 	clientset := test.New(t, 1)
 	configDir := "ns"
-	os.MkdirAll(configDir, 0755)
+	err := os.MkdirAll(configDir, 0755)
+	assert.NoError(t, err)
 	defer os.RemoveAll(configDir)
 	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q=="
 	executor := &exectest.MockExecutor{
