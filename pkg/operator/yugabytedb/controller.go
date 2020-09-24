@@ -72,7 +72,7 @@ const (
 	envPodIP                    = "POD_IP"
 	envPodIPVal                 = "status.podIP"
 	envPodNameVal               = "metadata.name"
-	yugabyteDBImageName         = "yugabytedb/yugabyte:2.0.10.0-b4"
+	yugabyteDBImageName         = "yugabytedb/yugabyte:2.2.2.0-b15"
 	podCPULimitDefault          = "2"
 	masterMemLimitDefault       = "2Gi"
 	tserverMemLimitDefault      = "4Gi"
