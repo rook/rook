@@ -22,7 +22,8 @@ spec:
         dataChunks: 2
         codingChunks: 1
       # Inline compression mode for the data pool
-      compressionMode: none
+      parameters:
+        compression_mode: none
   # Whether to preserve metadata and data pools on filesystem deletion
   preservePoolsOnDelete: true
   # The metadata service (mds) configuration
