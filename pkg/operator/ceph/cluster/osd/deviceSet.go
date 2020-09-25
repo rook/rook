@@ -60,7 +60,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 					pvcTemplate.Name = bluestorePVCData
 				}
 
-				pvc, newPVC, err := c.createStorageClassDeviceSetPVC(existingPVCs, storageClassDeviceSet.Name, pvcTemplate, i)
+				pvc, err := c.createStorageClassDeviceSetPVC(existingPVCs, storageClassDeviceSet.Name, pvcTemplate, i)
 				if err != nil {
 					config.addError("failed to create osd for storageClassDeviceSet %q for count %d. %v", storageClassDeviceSet.Name, i, err)
 					continue
@@ -81,9 +81,6 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 				pvcSources[pvcType] = v1.PersistentVolumeClaimVolumeSource{
 					ClaimName: pvc.GetName(),
 					ReadOnly:  false,
-				}
-				if newPVC {
-					logger.Infof("successfully provisioned pvc %q for VolumeClaimTemplates %q for storageClassDeviceSet %q of set %v", pvc.GetName(), pvcTemplate.GetName(), storageClassDeviceSet.Name, i)
 				}
 			}
 
@@ -107,7 +104,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 	return volumeSources
 }
 
-func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolumeClaim, storageClassDeviceSetName string, pvcTemplate v1.PersistentVolumeClaim, setIndex int) (*v1.PersistentVolumeClaim, bool, error) {
+func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolumeClaim, storageClassDeviceSetName string, pvcTemplate v1.PersistentVolumeClaim, setIndex int) (*v1.PersistentVolumeClaim, error) {
 	// old labels and PVC ID for backward compatibility
 	pvcStorageClassDeviceSetPVCId := legacyDeviceSetPVCID(storageClassDeviceSetName, setIndex)
 
@@ -125,16 +122,16 @@ func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.Per
 
 		// Update the PVC in case the size changed
 		c.updatePVCIfChanged(pvc, existingPVC)
-		return existingPVC, false, nil
+		return existingPVC, nil
 	}
 
 	// No PVC found, creating a new one
 	deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Create(pvc)
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "failed to create pvc %q for storageClassDeviceSet %q", pvc.GetGenerateName(), storageClassDeviceSetName)
+		return nil, errors.Wrapf(err, "failed to create pvc %q for storageClassDeviceSet %q", pvc.GetGenerateName(), storageClassDeviceSetName)
 	}
-	logger.Debugf("just created pvc %q", deployedPVC.Name)
-	return deployedPVC, true, nil
+	logger.Infof("successfully provisioned PVC %q", deployedPVC.Name)
+	return deployedPVC, nil
 }
 
 func (c *Cluster) updatePVCIfChanged(desiredPVC *v1.PersistentVolumeClaim, currentPVC *v1.PersistentVolumeClaim) {
@@ -183,7 +180,7 @@ func (c *Cluster) getExistingOSDPVCs() (map[string]*v1.PersistentVolumeClaim, er
 	selector := metav1.ListOptions{LabelSelector: CephDeviceSetPVCIDLabelKey}
 	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).List(selector)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to detect pvcs")
+		return nil, errors.Wrap(err, "failed to detect pvcs")
 	}
 	result := map[string]*v1.PersistentVolumeClaim{}
 	for i, pvc := range pvcs.Items {
