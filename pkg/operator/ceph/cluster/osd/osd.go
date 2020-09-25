@@ -227,6 +227,12 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 		return
 	}
 
+	existingDeployments, err := c.getExistingOSDDeploymentsOnPVCs()
+	if err != nil {
+		config.addError("failed to query existing OSD deployments on PVCs. %v", err)
+		return
+	}
+
 	for _, volume := range c.ValidStorage.VolumeSources {
 		dataSource, dataOK := volume.PVCSources[bluestorePVCData]
 
@@ -296,34 +302,23 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			}
 		}
 
-		// Update the orchestration status of this pvc to the starting state
-		status := OrchestrationStatus{Status: OrchestrationStatusStarting, PvcBackedOSD: true}
-		c.updateOSDStatus(osdProps.crushHostname, status)
-
 		// Skip OSD prepare if deployment already exists for the PVC
-		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s=%s",
-			k8sutil.AppAttr, AppName,
-			OSDOverPVCLabelKey, dataSource.ClaimName,
-		)}
-
-		osdDeployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(listOpts)
-		if err != nil {
-			config.addError("failed to check if OSD daemon exists for pvc %q. %v", osdProps.crushHostname, err)
-			continue
-		}
-
-		if len(osdDeployments.Items) != 0 {
+		if osdDeployment, ok := existingDeployments[dataSource.ClaimName]; ok {
 			logger.Infof("skip OSD prepare pod creation as OSD daemon already exists for %q", osdProps.crushHostname)
-			osds, err := c.getOSDInfo(&osdDeployments.Items[0])
+			osds, err := c.getOSDInfo(osdDeployment)
 			if err != nil {
 				config.addError("failed to get osdInfo for pvc %q. %v", osdProps.crushHostname, err)
 				continue
 			}
 			// Update the orchestration status of this pvc to the completed state
-			status = OrchestrationStatus{OSDs: osds, Status: OrchestrationStatusCompleted, PvcBackedOSD: true}
+			status := OrchestrationStatus{OSDs: osds, Status: OrchestrationStatusCompleted, PvcBackedOSD: true}
 			c.updateOSDStatus(osdProps.crushHostname, status)
 			continue
 		}
+
+		// Update the orchestration status of this pvc to the starting state
+		status := OrchestrationStatus{Status: OrchestrationStatusStarting, PvcBackedOSD: true}
+		c.updateOSDStatus(osdProps.crushHostname, status)
 
 		job, err := c.makeJob(osdProps, config)
 		if err != nil {
@@ -344,6 +339,24 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 	}
 	logger.Infof("start osds after provisioning is completed, if needed")
 	c.completeProvision(config)
+}
+
+func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (map[string]*apps.Deployment, error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
+
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(listOpts)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query existing OSD deployments")
+	}
+
+	result := map[string]*apps.Deployment{}
+	for i, deployment := range deployments.Items {
+		if pvcID, ok := deployment.Labels[OSDOverPVCLabelKey]; ok {
+			result[pvcID] = &deployments.Items[i]
+		}
+	}
+
+	return result, nil
 }
 
 func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
