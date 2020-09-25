@@ -73,7 +73,6 @@ type MultiClusterDeploySuite struct {
 	namespace2 string
 	op         *MCTestOperations
 	poolName   string
-	useHelm    bool
 }
 
 // Deploy Multiple Rook clusters

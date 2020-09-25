@@ -43,7 +43,6 @@ const (
 	flexDriverMinimalTestVersion      = "1.15.0"
 	cephMasterSuiteMinimalTestVersion = "1.16.0"
 	multiClusterMinimalTestVersion    = "1.16.0"
-	helmMinimalTestVersion            = "1.17.0"
 	upgradeMinimalTestVersion         = "1.18.0"
 	smokeSuiteMinimalTestVersion      = "1.19.0"
 )

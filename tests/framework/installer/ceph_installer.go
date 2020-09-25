@@ -541,7 +541,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		if h.cleanupHost {
 			// Add cleanup policy to the ceph cluster
 			// Add cleanup policy to the ceph cluster but NOT the external one
-			if clusterNum == 0 || h.useHelm == true {
+			if clusterNum == 0 || h.useHelm {
 				err = h.addCleanupPolicy(namespace)
 				assert.NoError(h.T(), err)
 			}
@@ -563,7 +563,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 		if !h.T().Failed() {
 			// Only check the Ceph status for the first cluster
 			// The second cluster is external so the check won't work since the first cluster is gone
-			if clusterNum == 0 || h.useHelm == true {
+			if clusterNum == 0 || h.useHelm {
 				// if the test passed, check that the ceph status is HEALTH_OK before we tear the cluster down
 				h.checkCephHealthStatus(namespace)
 			}

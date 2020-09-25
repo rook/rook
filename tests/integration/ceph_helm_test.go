@@ -62,7 +62,6 @@ type HelmSuite struct {
 	operatorNamespace string
 	clusterNamespaces []string
 	poolName          string
-	rookCephCleanup   bool
 }
 
 func (hs *HelmSuite) SetupSuite() {
