@@ -211,11 +211,6 @@ func (p Provisioner) Delete(ob *bktv1alpha1.ObjectBucket) error {
 	}
 	logger.Infof("Delete: deleting bucket %q for OB %q", p.bucketName, ob.Name)
 
-	_, _, err = cephObject.UnlinkUser(p.objectContext, p.cephUserName, p.bucketName)
-	if err != nil {
-		return err
-	}
-
 	if err := p.deleteOBCResource(p.bucketName); err != nil {
 		return errors.Wrapf(err, "error deleting OBCResource bucket %q", p.bucketName)
 	}

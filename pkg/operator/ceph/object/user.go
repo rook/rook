@@ -224,20 +224,6 @@ func LinkUser(c *Context, id, bucket string) (string, int, error) {
 	return result, RGWErrorNone, nil
 }
 
-// UnlinkUser will unlink the user from a bucket
-func UnlinkUser(c *Context, id, bucket string) (string, int, error) {
-	logger.Infof("Unlinking (user: %s) (bucket: %s)", id, bucket)
-	args := []string{"bucket", "unlink", "--uid", id, "--bucket", bucket}
-	result, err := runAdminCommand(c, args...)
-	if err != nil {
-		return "", RGWErrorUnknown, err
-	}
-	if strings.Contains(result, "bucket entry point user mismatch") {
-		return "", RGWErrorNotFound, err
-	}
-	return result, RGWErrorNone, nil
-}
-
 // EnableUserQuota will allows to enable quota defined for a user
 func EnableUserQuota(c *Context, id string) (string, error) {
 	logger.Debug("Enabling user quota for %q", id)
