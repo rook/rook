@@ -175,6 +175,14 @@ func validateClusterSpec(spec yugabytedbv1alpha1.YBClusterSpec) error {
 		return err
 	}
 
+	if &spec.Master.VolumeClaimTemplate == nil { //nolint, ok to ignore this test
+		return fmt.Errorf("VolumeClaimTemplate unavailable in Master spec.")
+	}
+
+	if &spec.TServer.VolumeClaimTemplate == nil { //nolint, ok to ignore this test
+		return fmt.Errorf("VolumeClaimTemplate unavailable in TServer spec.")
+	}
+
 	if err := validateResourceSpec(spec.Master.Resource, false); err != nil {
 		return errors.Wrap(err, "failed to validate resource spec")
 	}
@@ -187,7 +195,7 @@ func validateClusterSpec(spec yugabytedbv1alpha1.YBClusterSpec) error {
 }
 
 func validateResourceSpec(resourceSpec v1.ResourceRequirements, isTServer bool) error {
-	if (len(resourceSpec.Requests) != 0) && (len(resourceSpec.Limits) != 0) {
+	if (&resourceSpec.Requests == nil || len(resourceSpec.Requests) != 0) && (&resourceSpec.Limits == nil || len(resourceSpec.Limits) != 0) { //nolint, ok to ignore this test
 		reqCPU, reqOk := resourceSpec.Requests[v1.ResourceCPU]
 		limCPU, limOk := resourceSpec.Limits[v1.ResourceCPU]
 		podName := "Master"
@@ -371,8 +379,10 @@ func createMasterContainerCommand(namespace, serviceName string, masterCompleteN
 		"--logtostderr",
 	}
 
-	if memLimit, ok := getMemoryLimitBytes(resources); ok {
-		command = append(command, fmt.Sprintf("--memory_limit_hard_bytes=%d", memLimit))
+	if &resources.Limits != nil { //nolint, ok to ignore this test
+		if memLimit, ok := getMemoryLimitBytes(resources); ok {
+			command = append(command, fmt.Sprintf("--memory_limit_hard_bytes=%d", memLimit))
+		}
 	}
 
 	return command
@@ -391,8 +401,10 @@ func createTServerContainerCommand(namespace, serviceName, masterServiceName str
 		"--logtostderr",
 	}
 
-	if memLimit, ok := getMemoryLimitBytes(resources); ok {
-		command = append(command, fmt.Sprintf("--memory_limit_hard_bytes=%d", memLimit))
+	if &resources.Limits != nil { //nolint, ok to ignore this test
+		if memLimit, ok := getMemoryLimitBytes(resources); ok {
+			command = append(command, fmt.Sprintf("--memory_limit_hard_bytes=%d", memLimit))
+		}
 	}
 
 	return command
@@ -472,9 +484,11 @@ func (c *cluster) addCRNameSuffix(str string) string {
 func getResourceSpec(resourceSpec v1.ResourceRequirements, isTServerStatefulset bool) v1.ResourceRequirements {
 	resources := resourceSpec
 
-	resources = v1.ResourceRequirements{
-		Requests: make(map[v1.ResourceName]resource.Quantity),
-		Limits:   make(map[v1.ResourceName]resource.Quantity),
+	if &resources == nil { //nolint, ok to ignore this test
+		resources = v1.ResourceRequirements{
+			Requests: make(map[v1.ResourceName]resource.Quantity),
+			Limits:   make(map[v1.ResourceName]resource.Quantity),
+		}
 	}
 
 	if len(resources.Requests) != 0 || len(resources.Limits) != 0 {
@@ -487,13 +501,13 @@ func getResourceSpec(resourceSpec v1.ResourceRequirements, isTServerStatefulset 
 		memoryLimit = tserverMemLimitDefault
 	}
 
-	if len(resources.Requests) == 0 {
+	if &resources.Requests == nil || len(resources.Requests) == 0 { //nolint, ok to ignore this test
 		resources.Requests = make(map[v1.ResourceName]resource.Quantity)
 		resources.Requests[v1.ResourceCPU] = resource.MustParse(podCPULimitDefault)
 		resources.Requests[v1.ResourceMemory] = resource.MustParse(memoryLimit)
 	}
 
-	if len(resources.Limits) == 0 {
+	if &resources.Limits == nil || len(resources.Limits) == 0 { //nolint, ok to ignore this test
 		resources.Limits = make(map[v1.ResourceName]resource.Quantity)
 		resources.Limits[v1.ResourceCPU] = resource.MustParse(podCPULimitDefault)
 		resources.Limits[v1.ResourceMemory] = resource.MustParse(memoryLimit)
