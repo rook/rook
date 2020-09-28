@@ -54,9 +54,10 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v={{ .LogLevel }}"
-            - "--csiTimeout=150s"
+            - "--timeout=150s"
             - "--leader-election"
             - "--leader-election-namespace={{ .Namespace }}"
+            - "--handle-volume-inuse-error=false"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -71,8 +72,7 @@ spec:
             - "--v={{ .LogLevel }}"
             - "--timeout=150s"
             - "--retry-interval-start=500ms"
-            - "--enable-leader-election=true"
-            - "--leader-election-type=leases"
+            - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
