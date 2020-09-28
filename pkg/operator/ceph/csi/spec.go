@@ -98,11 +98,11 @@ var (
 var (
 	// image names
 	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.1.0"
-	DefaultRegistrarImage   = "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
-	DefaultProvisionerImage = "quay.io/k8scsi/csi-provisioner:v1.6.0"
-	DefaultAttacherImage    = "quay.io/k8scsi/csi-attacher:v2.1.0"
-	DefaultSnapshotterImage = "quay.io/k8scsi/csi-snapshotter:v2.1.1"
-	DefaultResizerImage     = "quay.io/k8scsi/csi-resizer:v0.4.0"
+	DefaultRegistrarImage   = "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
+	DefaultProvisionerImage = "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.0"
+	DefaultAttacherImage    = "k8s.gcr.io/sig-storage/csi-attacher:v3.0.0"
+	DefaultSnapshotterImage = "k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.0"
+	DefaultResizerImage     = "k8s.gcr.io/sig-storage/csi-resizer:v1.0.0"
 )
 
 const (

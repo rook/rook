@@ -506,11 +506,11 @@ The default upstream images are included below, which you can change to your des
 
 ```yaml
 ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.1.0"
-ROOK_CSI_REGISTRAR_IMAGE: "quay.io/k8scsi/csi-node-driver-registrar:v1.2.0"
-ROOK_CSI_PROVISIONER_IMAGE: "quay.io/k8scsi/csi-provisioner:v1.6.0"
-ROOK_CSI_SNAPSHOTTER_IMAGE: "quay.io/k8scsi/csi-snapshotter:v2.1.1"
-ROOK_CSI_ATTACHER_IMAGE: "quay.io/k8scsi/csi-attacher:v2.1.0"
-ROOK_CSI_RESIZER_IMAGE: "quay.io/k8scsi/csi-resizer:v0.4.0"
+ROOK_CSI_REGISTRAR_IMAGE: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
+ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.0"
+ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.0"
+ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.0.0"
+ROOK_CSI_RESIZER_IMAGE: "k8s.gcr.io/sig-storage/csi-resizer:v1.0.0"
 ```
 
 ### Use default images
@@ -525,10 +525,10 @@ You can use the below command to see the CSI images currently being used in the 
 ```console
 # kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
 quay.io/cephcsi/cephcsi:v3.1.0
-quay.io/k8scsi/csi-attacher:v2.1.0
-quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
-quay.io/k8scsi/csi-provisioner:v1.6.0
-quay.io/k8scsi/csi-resizer:v0.4.0
-quay.io/k8scsi/csi-snapshotter:v2.1.1
-quay.io/k8scsi/csi-resizer:v0.4.0
+k8s.gcr.io/sig-storage/csi-attacher:v3.0.0
+k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1
+k8s.gcr.io/sig-storage/csi-provisioner:v2.0.0
+k8s.gcr.io/sig-storage/k8scsi/csi-resizer:v1.0.0
+k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.0
+k8s.gcr.io/sig-storage/csi-resizer:v1.0.0
 ```
