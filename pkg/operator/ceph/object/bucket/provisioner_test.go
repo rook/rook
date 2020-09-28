@@ -44,29 +44,6 @@ func TestPopulateDomainAndPort(t *testing.T) {
 		},
 	}
 
-	// No endpoint and no CephObjectStore
-	err := p.populateDomainAndPort(sc)
-	assert.Error(t, err)
-
-	// Endpoint is set but port is missing
-	sc.Parameters["endpoint"] = "192.168.0.1"
-	err = p.populateDomainAndPort(sc)
-	assert.Error(t, err)
-
-	// Endpoint is set but IP is missing
-	sc.Parameters["endpoint"] = ":80"
-	err = p.populateDomainAndPort(sc)
-	assert.Error(t, err)
-
-	// Endpoint is correct
-	sc.Parameters["endpoint"] = "192.168.0.1:80"
-	err = p.populateDomainAndPort(sc)
-	assert.NoError(t, err)
-	assert.Equal(t, "192.168.0.1", p.storeDomainName)
-	assert.Equal(t, int32(80), p.storePort)
-
-	// No endpoint but a CephObjectStore
-	sc.Parameters["endpoint"] = ""
 	sc.Parameters["objectStoreNamespace"] = namespace
 	sc.Parameters["objectStoreName"] = store
 	cephObjectStore := &cephv1.CephObjectStore{
@@ -93,7 +70,7 @@ func TestPopulateDomainAndPort(t *testing.T) {
 		},
 	}
 
-	_, err = p.context.RookClientset.CephV1().CephObjectStores(namespace).Create(cephObjectStore)
+	_, err := p.context.RookClientset.CephV1().CephObjectStores(namespace).Create(cephObjectStore)
 	assert.NoError(t, err)
 	_, err = p.context.Clientset.CoreV1().Services(namespace).Create(svc)
 	assert.NoError(t, err)

@@ -42,7 +42,6 @@ const (
 	cephUser             = "cephUser"
 	objectStoreName      = "objectStoreName"
 	objectStoreNamespace = "objectStoreNamespace"
-	objectStoreEndpoint  = "endpoint"
 )
 
 func NewBucketController(cfg *rest.Config, p *Provisioner) (*provisioner.Provisioner, error) {
@@ -59,10 +58,6 @@ func getObjectStoreName(sc *storagev1.StorageClass) string {
 
 func getObjectStoreNameSpace(sc *storagev1.StorageClass) string {
 	return sc.Parameters[objectStoreNamespace]
-}
-
-func getObjectStoreEndpoint(sc *storagev1.StorageClass) string {
-	return sc.Parameters[objectStoreEndpoint]
 }
 
 func getBucketName(ob *bktv1alpha1.ObjectBucket) string {

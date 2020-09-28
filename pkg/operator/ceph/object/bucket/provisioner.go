@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
@@ -44,7 +43,6 @@ type Provisioner struct {
 	accessKeyID          string
 	secretAccessKey      string
 	objectStoreName      string
-	endpoint             string
 	additionalConfigData map[string]string
 }
 
@@ -326,7 +324,6 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 	p.setObjectStoreName(sc)
 	p.setRegion(sc)
 	p.setAdditionalConfigData(obc.Spec.AdditionalConfig)
-	p.setEndpoint(sc)
 	err = p.setObjectContext()
 	if err != nil {
 		return err
@@ -352,7 +349,6 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 	p.setBucketName(getBucketName(ob))
 	p.cephUserName = getCephUser(ob)
 	p.objectStoreName = getObjectStoreName(sc)
-	p.setEndpoint(sc)
 	err = p.setObjectContext()
 	if err != nil {
 		return err
@@ -398,7 +394,7 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 func (p *Provisioner) setObjectContext() error {
 	msg := "error building object.Context: store %s cannot be empty"
 	// p.endpoint means we point to an external cluster
-	if p.objectStoreName == "" && p.endpoint == "" {
+	if p.objectStoreName == "" {
 		return errors.Errorf(msg, "name")
 	}
 
@@ -411,6 +407,8 @@ func (p *Provisioner) setObjectContext() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to set multisite on provisioner's objectContext")
 	}
+
+	p.objectContext.Endpoint = store.Status.Info["endpoint"]
 
 	return nil
 }
@@ -458,10 +456,6 @@ func (p *Provisioner) setAdditionalConfigData(additionalConfigData map[string]st
 	p.additionalConfigData = additionalConfigData
 }
 
-func (p *Provisioner) setEndpoint(sc *storagev1.StorageClass) {
-	p.endpoint = sc.Parameters[objectStoreEndpoint]
-}
-
 func (p *Provisioner) setRegion(sc *storagev1.StorageClass) {
 	const key = "region"
 	p.region = sc.Parameters[key]
@@ -472,25 +466,12 @@ func (p Provisioner) getObjectStoreEndpoint() string {
 }
 
 func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
-	endpoint := getObjectStoreEndpoint(sc)
-	// if endpoint is present, let's introspect it
-	if endpoint != "" {
-		p.storeDomainName = cephutil.GetIPFromEndpoint(endpoint)
-		if p.storeDomainName == "" {
-			return errors.New("failed to discover endpoint IP (is empty)")
-		}
-		p.storePort = cephutil.GetPortFromEndpoint(endpoint)
-		if p.storePort == 0 {
-			return errors.New("failed to discover endpoint port (is empty)")
-		}
-		// If no endpoint exists let's see if CephObjectStore exists
-	} else {
-		if err := p.setObjectStoreDomainName(sc); err != nil {
-			return errors.Wrap(err, "failed to set object store domain name")
-		}
-		if err := p.setObjectStorePort(sc); err != nil {
-			return errors.Wrap(err, "failed to set object store port")
-		}
+
+	if err := p.setObjectStoreDomainName(sc); err != nil {
+		return errors.Wrap(err, "failed to set object store domain name")
+	}
+	if err := p.setObjectStorePort(sc); err != nil {
+		return errors.Wrap(err, "failed to set object store port")
 	}
 
 	return nil
