@@ -65,6 +65,10 @@ function checkEnvVars() {
             exit 1
         fi
     fi
+    if [[ "$ROOK_EXTERNAL_ADMIN_SECRET" != "admin-secret" ]] && [ -n "$ROOK_EXTERNAL_USER_SECRET" ] ; then
+        echo "Providing both ROOK_EXTERNAL_ADMIN_SECRET and ROOK_EXTERNAL_USER_SECRET is not supported, choose one only."
+        exit 1
+    fi
 }
 
 function importSecret() {
