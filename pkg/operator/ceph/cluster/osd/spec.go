@@ -126,7 +126,7 @@ if [ -b "$DM_PATH" ]; then
 	echo "Encrypted device "$BLOCK_PATH" already opened at "$DM_PATH""
 else
   echo "Opening encrypted device "$BLOCK_PATH" at "$DM_PATH""
-  cryptsetup luksOpen --verbose --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
+  cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
 fi
 `
 )
