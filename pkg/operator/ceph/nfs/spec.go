@@ -92,9 +92,10 @@ func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonC
 }
 
 func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig) (*apps.Deployment, error) {
+	resourceName := instanceName(nfs, cfg.ID)
 	deployment := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(nfs, cfg.ID),
+			Name:      resourceName,
 			Namespace: nfs.Namespace,
 			Labels:    getLabels(nfs, cfg.ID, true),
 		},
@@ -109,7 +110,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	dbusVol, _ := dbusVolumeAndMount()
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
-			r.connectionConfigInitContainer(nfs),
+			r.connectionConfigInitContainer(nfs, cfg.ID),
 		},
 		Containers: []v1.Container{
 			r.daemonContainer(nfs, cfg),
@@ -122,7 +123,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 			// override configs, because nfs-ganesha is not a Ceph daemon; it wouldn't observe any
 			// overrides anyway
 			cephConfigVol,
-			keyring.Volume().Admin(),
+			keyring.Volume().Resource(resourceName),
 			nfsConfigVol,
 			dbusVol,
 		},
@@ -139,7 +140,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   instanceName(nfs, cfg.ID),
+			Name:   resourceName,
 			Labels: getLabels(nfs, cfg.ID, true),
 		},
 		Spec: podSpec,
@@ -169,16 +170,16 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	return deployment, nil
 }
 
-func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS) v1.Container {
+func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS, name string) v1.Container {
 	_, cephConfigMount := cephConfigVolumeAndMount()
 
 	return controller.GenerateMinimalCephConfInitContainer(
-		"client.admin",
-		keyring.VolumeMount().AdminKeyringFilePath(),
+		getNFSClientID(nfs, name),
+		keyring.VolumeMount().KeyringFilePath(),
 		r.cephClusterSpec.CephVersion.Image,
 		[]v1.VolumeMount{
 			cephConfigMount,
-			keyring.VolumeMount().Admin(),
+			keyring.VolumeMount().Resource(instanceName(nfs, name)),
 		},
 		nfs.Spec.Server.Resources,
 		mon.PodSecurityContext(),
@@ -203,7 +204,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 		Image: r.cephClusterSpec.CephVersion.Image,
 		VolumeMounts: []v1.VolumeMount{
 			cephConfigMount,
-			keyring.VolumeMount().Admin(),
+			keyring.VolumeMount().Resource(instanceName(nfs, cfg.ID)),
 			nfsConfigMount,
 			dbusMount,
 		},

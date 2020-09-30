@@ -41,9 +41,10 @@ import (
 )
 
 var (
-	name             = "my-nfs"
-	namespace        = "rook-ceph"
-	dummyVersionsRaw = `
+	name                      = "my-nfs"
+	namespace                 = "rook-ceph"
+	nfsCephAuthGetOrCreateKey = `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`
+	dummyVersionsRaw          = `
 	{
 		"mon": {
 			"ceph version 14.2.8 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 3
@@ -207,6 +208,9 @@ func TestCephNFSController(t *testing.T) {
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return nfsCephAuthGetOrCreateKey, nil
 			}
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil

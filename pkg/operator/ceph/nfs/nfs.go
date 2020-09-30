@@ -72,6 +72,11 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
 			},
 		}
 
+		err = r.generateKeyring(n, id)
+		if err != nil {
+			return errors.Wrapf(err, "failed to generate keyring for %q", id)
+		}
+
 		// create the deployment
 		deployment, err := r.makeDeployment(n, cfg)
 		if err != nil {
