@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -135,13 +136,16 @@ func (h *EdgefsInstaller) UninstallEdgefs(systemNamespace, namespace string) {
 	checkError(h.T(), err, "cannot uninstall rook-edgefs-operator")
 
 	logger.Info("Removing privileged-psp-user ClusterRoles")
-	h.k8shelper.Clientset.RbacV1().ClusterRoles().Delete("privileged-psp-user", nil)
+	err = h.k8shelper.Clientset.RbacV1().ClusterRoles().Delete("privileged-psp-user", nil)
+	assert.NoError(h.T(), err)
 
 	logger.Info("Removing rook-edgefs-cluster-psp ClusterRoleBinding")
-	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("rook-edgefs-cluster-psp", nil)
+	err = h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("rook-edgefs-cluster-psp", nil)
+	assert.NoError(h.T(), err)
 
 	logger.Info("Removing rook-edgefs-system-psp ClusterRoleBinding")
-	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("rook-edgefs-system-psp", nil)
+	err = h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("rook-edgefs-system-psp", nil)
+	assert.NoError(h.T(), err)
 
 	err = h.k8shelper.DeleteResourceAndWait(false, "podsecuritypolicy", "privileged")
 	checkError(h.T(), err, "cannot delete podsecuritypolicy `privileged`")

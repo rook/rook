@@ -272,6 +272,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 		assert.NoError(s.T(), err, "we should be able to write to the `/foo` directory on CephFS")
 
 		cleanupFilesystemConsumer(helper, k8sh, s, namespace, fileMountUserPodName)
+		assert.NoError(s.T(), err)
 	}
 
 	// Start the NFS daemons
@@ -279,6 +280,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 	// Cleanup the filesystem and its clients
 	cleanupFilesystemConsumer(helper, k8sh, s, namespace, filePodName)
+	assert.NoError(s.T(), err)
 	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 	err = helper.FSClient.DeleteStorageClass(storageClassName)
@@ -326,7 +328,8 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 		k8sh.PrintPodDescribe(namespace, podName)
 		assert.Fail(s.T(), fmt.Sprintf("make sure %s pod is terminated", podName))
 	}
-	helper.FSClient.DeletePVC(namespace, podName)
+	err = helper.FSClient.DeletePVC(namespace, podName)
+	assert.NoError(s.T(), err)
 	logger.Infof("File system consumer deleted")
 }
 
@@ -375,7 +378,8 @@ func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	logger.Infof("Cleaning up file system")
 	err := k8sh.DeletePod(namespace, podName)
 	assert.NoError(s.T(), err)
-	helper.FSClient.Delete(filesystemName, namespace)
+	err = helper.FSClient.Delete(filesystemName, namespace)
+	assert.NoError(s.T(), err)
 }
 
 func createPodWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podName, namespace, filesystemName, storageClassName string, mountUser, useCSI bool) error {

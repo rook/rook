@@ -191,7 +191,8 @@ func TestRunner_Run(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(cm)
+	_, err := k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(cm)
+	assert.NoError(t, err)
 	r, err := NewCmdReporter(k8s, []string{"some-command"}, []string{"some", "args"}, "preexisting-configmap", "preexisting-namespace")
 	assert.NoError(t, err)
 	assert.Error(t, r.Run())
@@ -213,7 +214,8 @@ func TestRunner_Run(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(cm)
+	_, err = k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(cm)
+	assert.NoError(t, err)
 	r, err = NewCmdReporter(k8s, []string{"some-command"}, []string{"some", "args"}, "preexisting-configmap", "preexisting-namespace")
 	assert.NoError(t, err)
 	assert.NoError(t, r.Run())

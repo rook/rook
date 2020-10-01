@@ -50,12 +50,14 @@ func TestAdminKeyringStore(t *testing.T) {
 
 	// create key
 	clusterInfo.CephCred.Secret = "adminsecretkey"
-	k.Admin().CreateOrUpdate(clusterInfo)
+	err := k.Admin().CreateOrUpdate(clusterInfo)
+	assert.NoError(t, err)
 	assertKeyringData(fmt.Sprintf(adminKeyringTemplate, "adminsecretkey"))
 
 	// update key
 	clusterInfo.CephCred.Secret = "differentsecretkey"
-	k.Admin().CreateOrUpdate(clusterInfo)
+	err = k.Admin().CreateOrUpdate(clusterInfo)
+	assert.NoError(t, err)
 	assertKeyringData(fmt.Sprintf(adminKeyringTemplate, "differentsecretkey"))
 }
 
@@ -69,7 +71,8 @@ func TestAdminVolumeAndMount(t *testing.T) {
 	s := GetSecretStore(ctx, clusterInfo, &owner)
 
 	clusterInfo.CephCred.Secret = "adminsecretkey"
-	s.Admin().CreateOrUpdate(clusterInfo)
+	err := s.Admin().CreateOrUpdate(clusterInfo)
+	assert.NoError(t, err)
 
 	v := Volume().Admin()
 	m := VolumeMount().Admin()

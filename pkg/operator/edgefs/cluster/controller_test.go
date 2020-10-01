@@ -47,7 +47,7 @@ func TestClusterDelete(t *testing.T) {
 	// create the cluster controller and tell it that the cluster has been deleted
 	controller := NewClusterController(context, "")
 	clusterToDelete := &edgefsv1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
-	controller.handleDelete(clusterToDelete, time.Microsecond)
+	controller.handleDelete(clusterToDelete, time.Microsecond) //nolint, condition when cluster doesn't exist needs to check
 }
 
 func TestClusterChanged(t *testing.T) {

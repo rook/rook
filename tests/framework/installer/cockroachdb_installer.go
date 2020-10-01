@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -145,7 +146,8 @@ func (h *CockroachDBInstaller) UninstallCockroachDB(systemNamespace, namespace s
 	err = UninstallHostPathProvisioner(h.k8shelper)
 	checkError(h.T(), err, "cannot uninstall hostpath provisioner")
 
-	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	err = h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	assert.NoError(h.T(), err)
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 }
 

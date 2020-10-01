@@ -378,7 +378,8 @@ func deletePVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite,
 		assert.True(s.T(), retryPVCheck(k8sh, pvName, true, "Released"))
 		assert.NoError(s.T(), retryBlockImageCountCheck(helper, clusterInfo, 1), "Make sure a block is retained")
 		logger.Infof("Block Storage retained")
-		k8sh.Kubectl("delete", "pv", pvName)
+		_, err = k8sh.Kubectl("delete", "pv", pvName)
+		assert.NoError(s.T(), err)
 	}
 }
 
@@ -505,7 +506,10 @@ func checkPoolDeleted(helper *clients.TestClient, s suite.Suite, namespace, name
 
 func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo, poolname, storageclassname, blockname, podName string, requireBlockImagesRemoved bool) {
 	logger.Infof("Cleaning up block storage")
-	k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
+	err := k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
+	if err != nil {
+		logger.Errorf("failed to delete pod. %v", err)
+	}
 	deleteBlockLite(helper, k8sh, s, clusterInfo, poolname, storageclassname, blockname, requireBlockImagesRemoved)
 }
 

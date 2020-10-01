@@ -341,7 +341,7 @@ func TestOnAdd(t *testing.T) {
 		Controller: controller,
 	}
 
-	cluster := simulateARunningYugabyteCluster(controllerSet, namespace, int32(3), false)
+	cluster := simulateARunningYugabyteCluster(t, controllerSet, namespace, int32(3), false)
 
 	expectedServicePorts := []v1.ServicePort{
 		{Name: uiPortName, Port: masterUIPortDefault, TargetPort: intstr.FromInt(int(masterUIPortDefault))},
@@ -576,7 +576,7 @@ func TestOnAddWithTServerUI(t *testing.T) {
 		Controller: controller,
 	}
 
-	simulateARunningYugabyteCluster(controllerSet, namespace, int32(1), true)
+	simulateARunningYugabyteCluster(t, controllerSet, namespace, int32(1), true)
 
 	expectedServicePorts := []v1.ServicePort{
 		{Name: uiPortName, Port: masterUIPortDefault, TargetPort: intstr.FromInt(int(masterUIPortDefault))},
@@ -621,7 +621,7 @@ func TestOnUpdate_replicaCount(t *testing.T) {
 		Controller: controller,
 	}
 
-	cluster := simulateARunningYugabyteCluster(controllerSet, namespace, int32(initialReplicatCount), false)
+	cluster := simulateARunningYugabyteCluster(t, controllerSet, namespace, int32(initialReplicatCount), false)
 
 	// Verify all must-have components exist before updation.
 	verifyAllComponentsExist(t, clientset, namespace)
@@ -690,7 +690,7 @@ func TestOnUpdate_volumeClaimTemplate(t *testing.T) {
 		Controller: controller,
 	}
 
-	cluster := simulateARunningYugabyteCluster(controllerSet, namespace, int32(initialReplicatCount), false)
+	cluster := simulateARunningYugabyteCluster(t, controllerSet, namespace, int32(initialReplicatCount), false)
 
 	// Verify all must-have components exist before updation.
 	verifyAllComponentsExist(t, clientset, namespace)
@@ -760,7 +760,7 @@ func TestOnUpdate_updateNetworkPorts(t *testing.T) {
 		Controller: controller,
 	}
 
-	cluster := simulateARunningYugabyteCluster(controllerSet, namespace, int32(initialReplicatCount), false)
+	cluster := simulateARunningYugabyteCluster(t, controllerSet, namespace, int32(initialReplicatCount), false)
 
 	verifyAllComponentsExist(t, clientset, namespace)
 
@@ -848,7 +848,7 @@ func TestOnUpdate_addTServerUIPort(t *testing.T) {
 		Controller: controller,
 	}
 
-	cluster := simulateARunningYugabyteCluster(controllerSet, namespace, int32(initialReplicatCount), false)
+	cluster := simulateARunningYugabyteCluster(t, controllerSet, namespace, int32(initialReplicatCount), false)
 
 	verifyAllComponentsExist(t, clientset, namespace)
 
@@ -945,7 +945,7 @@ func TestOnUpdate_removeTServerUIPort(t *testing.T) {
 		Controller: controller,
 	}
 
-	cluster := simulateARunningYugabyteCluster(controllerSet, namespace, int32(initialReplicatCount), true)
+	cluster := simulateARunningYugabyteCluster(t, controllerSet, namespace, int32(initialReplicatCount), true)
 
 	verifyAllComponentsExist(t, clientset, namespace)
 
@@ -1069,7 +1069,7 @@ func verifyAllComponentsExist(t *testing.T, clientset *fake.Clientset, namespace
 	assert.NotNil(t, pods)
 }
 
-func simulateARunningYugabyteCluster(controllerSet *ControllerSet, namespace string, replicaCount int32, addTServerUIService bool) *yugabytedbv1alpha1.YBCluster {
+func simulateARunningYugabyteCluster(t *testing.T, controllerSet *ControllerSet, namespace string, replicaCount int32, addTServerUIService bool) *yugabytedbv1alpha1.YBCluster {
 	cluster := &yugabytedbv1alpha1.YBCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ClusterName,
@@ -1123,8 +1123,8 @@ func simulateARunningYugabyteCluster(controllerSet *ControllerSet, namespace str
 	}
 
 	// in a background thread, simulate running pods for Master & TServer processes. (fake statefulsets don't automatically do that)
-	go simulateMasterPodsRunning(controllerSet.ClientSet, namespace, replicaCount)
-	go simulateTServerPodsRunning(controllerSet.ClientSet, namespace, replicaCount)
+	go simulateMasterPodsRunning(t, controllerSet.ClientSet, namespace, replicaCount)
+	go simulateTServerPodsRunning(t, controllerSet.ClientSet, namespace, replicaCount)
 
 	// Wait for Pods to start & go to running state
 	waitForPodsToStart(controllerSet.ClientSet, namespace, replicaCount)
@@ -1135,12 +1135,12 @@ func simulateARunningYugabyteCluster(controllerSet *ControllerSet, namespace str
 	return cluster
 }
 
-func simulateMasterPodsRunning(clientset *fake.Clientset, namespace string, podCount int32) {
-	simulatePodsRunning(clientset, namespace, podCount, addCRNameSuffix(masterName))
+func simulateMasterPodsRunning(t *testing.T, clientset *fake.Clientset, namespace string, podCount int32) {
+	simulatePodsRunning(t, clientset, namespace, podCount, addCRNameSuffix(masterName))
 }
 
-func simulateTServerPodsRunning(clientset *fake.Clientset, namespace string, podCount int32) {
-	simulatePodsRunning(clientset, namespace, podCount, addCRNameSuffix(tserverName))
+func simulateTServerPodsRunning(t *testing.T, clientset *fake.Clientset, namespace string, podCount int32) {
+	simulatePodsRunning(t, clientset, namespace, podCount, addCRNameSuffix(tserverName))
 }
 
 func waitForPodsToStart(clientset *fake.Clientset, namespace string, podCount int32) {
@@ -1183,7 +1183,7 @@ func isPodsRunning(clientset *fake.Clientset, namespace, label string, podCount 
 	return nil
 }
 
-func simulatePodsRunning(clientset *fake.Clientset, namespace string, podCount int32, podName string) {
+func simulatePodsRunning(t *testing.T, clientset *fake.Clientset, namespace string, podCount int32, podName string) {
 	for i := 0; i < int(podCount); i++ {
 		pod := &v1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1193,7 +1193,10 @@ func simulatePodsRunning(clientset *fake.Clientset, namespace string, podCount i
 			},
 			Status: v1.PodStatus{Phase: v1.PodRunning},
 		}
-		clientset.CoreV1().Pods(namespace).Create(pod)
+		_, err := clientset.CoreV1().Pods(namespace).Create(pod)
+		if err != nil {
+			assert.NoError(t, err)
+		}
 	}
 }
 

@@ -24,6 +24,6 @@ jobs:
           # working-directory: somedir
 
           # Optional: golangci-lint command line arguments.
-          args: --disable-all -E gosimple,unused,deadcode,ineffassign,staticcheck --timeout=4m
+          args: --timeout=4m
           # Optional: show only new issues if it's a pull request. The default value is `false`.
           # only-new-issues: true

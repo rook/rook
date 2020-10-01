@@ -64,10 +64,12 @@ func TestStore(t *testing.T) {
 	i1 := clienttest.CreateTestClusterInfo(1) // cluster w/ one mon
 	i3 := clienttest.CreateTestClusterInfo(3) // same cluster w/ 3 mons
 
-	s.CreateOrUpdate(i1)
+	err := s.CreateOrUpdate(i1)
+	assert.NoError(t, err)
 	assertConfigStore(i1)
 
-	s.CreateOrUpdate(i3)
+	err = s.CreateOrUpdate(i3)
+	assert.NoError(t, err)
 	assertConfigStore(i3)
 }
 
@@ -80,7 +82,8 @@ func TestEnvVarsAndFlags(t *testing.T) {
 	owner := metav1.OwnerReference{}
 
 	s := GetStore(ctx, ns, &owner)
-	s.CreateOrUpdate(clienttest.CreateTestClusterInfo(3))
+	err := s.CreateOrUpdate(clienttest.CreateTestClusterInfo(3))
+	assert.NoError(t, err)
 
 	v := StoredMonHostEnvVars()
 	f := StoredMonHostEnvVarFlags()

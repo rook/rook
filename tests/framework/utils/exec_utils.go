@@ -104,7 +104,10 @@ func ExecuteCommand(cmdStruct CommandArgs) CommandOut {
 	}
 
 	if cmdStruct.PipeToStdIn != "" {
-		stdin.Write([]byte(cmdStruct.PipeToStdIn))
+		_, err = stdin.Write([]byte(cmdStruct.PipeToStdIn))
+		if err != nil {
+			return CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String(), Err: err}
+		}
 		stdin.Close()
 	}
 

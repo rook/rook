@@ -137,7 +137,8 @@ func TestCreateClient(t *testing.T) {
 	}
 
 	configDir := namespace
-	os.MkdirAll(configDir, 0755)
+	err := os.MkdirAll(configDir, 0755)
+	assert.NoError(t, err)
 	defer os.RemoveAll(configDir)
 	clusterInfo, _, _, err := mon.CreateOrLoadClusterInfo(context, namespace, &metav1.OwnerReference{})
 	assert.NoError(t, err)

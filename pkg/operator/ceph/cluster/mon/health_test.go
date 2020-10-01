@@ -209,7 +209,8 @@ func TestCheckHealthNotFound(t *testing.T) {
 	}
 	c.maxMonID = 4
 
-	c.saveMonConfig()
+	err := c.saveMonConfig()
+	assert.NoError(t, err)
 
 	// Check if the two mons are found in the configmap
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})

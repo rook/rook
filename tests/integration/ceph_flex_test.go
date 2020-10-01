@@ -166,13 +166,17 @@ func (s *CephFlexDriverSuite) statefulSetDataCleanup(poolName, storageClassName,
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	// Delete stateful set
-	s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
-	s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
-	s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
+	err := s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
+	assert.NoError(s.T(), err)
+	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	assert.NoError(s.T(), err)
+	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
+	assert.NoError(s.T(), err)
+
 	// Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
 	// Delete storageclass and pool
-	err := s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, poolName)
+	err = s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, poolName)
 	require.Nil(s.T(), err)
 	err = s.testClient.BlockClient.DeleteStorageClass(storageClassName)
 	require.Nil(s.T(), err)
@@ -227,16 +231,22 @@ func (s *CephFlexDriverSuite) setupPVCs() {
 func (s *CephFlexDriverSuite) TearDownSuite() {
 	logger.Infof("Cleaning up block storage")
 
-	s.kh.DeletePods(
+	_, err := s.kh.DeletePods(
 		"setup-block-rwo", "setup-block-rwx", "rwo-block-rw-one", "rwo-block-rw-two", "rwo-block-ro-one",
 		"rwo-block-ro-two", "rwx-block-rw-one", "rwx-block-rw-two", "rwx-block-ro-one", "rwx-block-ro-two")
-
-	s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWO)
-	s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWX)
-	s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwo")
-	s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwx")
-	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, "block-pool-rwo")
-	s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, "block-pool-rwx")
+	assert.NoError(s.T(), err)
+	err = s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWO)
+	assert.NoError(s.T(), err)
+	err = s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWX)
+	assert.NoError(s.T(), err)
+	err = s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwo")
+	assert.NoError(s.T(), err)
+	err = s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwx")
+	assert.NoError(s.T(), err)
+	err = s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, "block-pool-rwo")
+	assert.NoError(s.T(), err)
+	err = s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, "block-pool-rwx")
+	assert.NoError(s.T(), err)
 	s.op.Teardown()
 }
 

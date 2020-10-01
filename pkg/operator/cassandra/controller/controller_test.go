@@ -17,11 +17,13 @@ limitations under the License.
 package controller
 
 import (
+	"testing"
 	"time"
 
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	rookScheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	rookinformers "github.com/rook/rook/pkg/client/informers/externalversions"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubeinformers "k8s.io/client-go/informers"
@@ -37,11 +39,14 @@ const informerResyncPeriod = time.Millisecond
 // newFakeClusterController returns a ClusterController with fake clientsets
 // and informers.
 // The kubeObjects and rookObjects given as input are injected into the informers' cache.
-func newFakeClusterController(kubeObjects []runtime.Object, rookObjects []runtime.Object) *ClusterController {
+func newFakeClusterController(t *testing.T, kubeObjects []runtime.Object, rookObjects []runtime.Object) *ClusterController {
 
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
 	// logged for sample-controller types.
-	rookScheme.AddToScheme(scheme.Scheme)
+	err := rookScheme.AddToScheme(scheme.Scheme)
+	if err != nil {
+		assert.NoError(t, err)
+	}
 
 	kubeClient := kubefake.NewSimpleClientset(kubeObjects...)
 	rookClient := rookfake.NewSimpleClientset(rookObjects...)

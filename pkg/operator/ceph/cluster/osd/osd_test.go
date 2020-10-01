@@ -180,7 +180,8 @@ func TestAddRemoveNode(t *testing.T) {
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:   "osdPod",
 		Labels: map[string]string{k8sutil.AppAttr: AppName}}}
-	c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(osdPod)
+	_, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(osdPod)
+	assert.NoError(t, err)
 
 	// mock the ceph calls that will be called during remove node
 	context.Executor = &exectest.MockExecutor{

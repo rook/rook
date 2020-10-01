@@ -93,21 +93,25 @@ func TestKeyringStore(t *testing.T) {
 	}
 
 	// create first key
-	k.CreateOrUpdate("test-resource", "qwertyuiop")
+	err := k.CreateOrUpdate("test-resource", "qwertyuiop")
+	assert.NoError(t, err)
 	assertKeyringData("test-resource-keyring", "qwertyuiop")
 
 	// create second key
-	k.CreateOrUpdate("second-resource", "asdfghjkl")
+	err = k.CreateOrUpdate("second-resource", "asdfghjkl")
+	assert.NoError(t, err)
 	assertKeyringData("test-resource-keyring", "qwertyuiop")
 	assertKeyringData("second-resource-keyring", "asdfghjkl")
 
 	// update a key
-	k.CreateOrUpdate("second-resource", "lkjhgfdsa")
+	err = k.CreateOrUpdate("second-resource", "lkjhgfdsa")
+	assert.NoError(t, err)
 	assertKeyringData("test-resource-keyring", "qwertyuiop")
 	assertKeyringData("second-resource-keyring", "lkjhgfdsa")
 
 	// delete a key
-	k.Delete("test-resource")
+	err = k.Delete("test-resource")
+	assert.NoError(t, err)
 	assertDoesNotExist("test-resource-keyring")
 	assertKeyringData("second-resource-keyring", "lkjhgfdsa")
 }
@@ -119,8 +123,10 @@ func TestResourceVolumeAndMount(t *testing.T) {
 	}
 	owner := metav1.OwnerReference{}
 	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: "ns"}, &owner)
-	k.CreateOrUpdate("test-resource", "qwertyuiop")
-	k.CreateOrUpdate("second-resource", "asdfgyhujkl")
+	err := k.CreateOrUpdate("test-resource", "qwertyuiop")
+	assert.NoError(t, err)
+	err = k.CreateOrUpdate("second-resource", "asdfgyhujkl")
+	assert.NoError(t, err)
 
 	v := Volume().Resource("test-resource")
 	m := VolumeMount().Resource("test-resource")

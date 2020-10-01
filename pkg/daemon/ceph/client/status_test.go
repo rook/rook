@@ -112,7 +112,8 @@ func TestIsClusterClean(t *testing.T) {
 
 func TestGetMDSRank(t *testing.T) {
 	var statusFake CephStatus
-	json.Unmarshal(statusFakeRaw, &statusFake)
+	err := json.Unmarshal(statusFakeRaw, &statusFake)
+	assert.NoError(t, err)
 
 	mdsRankFake, err := getMDSRank(statusFake, "myfs-b")
 	assert.Nil(t, err)
@@ -121,7 +122,8 @@ func TestGetMDSRank(t *testing.T) {
 
 func TestIsCephHealthy(t *testing.T) {
 	var statusFake CephStatus
-	json.Unmarshal(statusFakeRaw, &statusFake)
+	err := json.Unmarshal(statusFakeRaw, &statusFake)
+	assert.NoError(t, err)
 
 	statusFake.Health.Status = "HEALTH_WARN"
 	s := isCephHealthy(statusFake)

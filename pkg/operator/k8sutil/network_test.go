@@ -87,7 +87,8 @@ func TestNetwork_ApplyMultusShort(t *testing.T) {
 	}
 
 	objMeta := metav1.ObjectMeta{}
-	ApplyMultus(net, &objMeta)
+	err := ApplyMultus(net, &objMeta)
+	assert.NoError(t, err)
 
 	assert.Contains(t, objMeta.Annotations, "k8s.v1.cni.cncf.io/networks")
 	assert.Contains(t, objMeta.Annotations["k8s.v1.cni.cncf.io/networks"], "macvlan@net1")
@@ -104,7 +105,8 @@ func TestNetwork_ApplyMultusJSON(t *testing.T) {
 	}
 
 	objMeta := metav1.ObjectMeta{}
-	ApplyMultus(net, &objMeta)
+	err := ApplyMultus(net, &objMeta)
+	assert.NoError(t, err)
 
 	assert.Contains(t, objMeta.Annotations, "k8s.v1.cni.cncf.io/networks")
 	assert.Contains(t, objMeta.Annotations["k8s.v1.cni.cncf.io/networks"], `{"name": "macvlan", "interface": "net1"}`)

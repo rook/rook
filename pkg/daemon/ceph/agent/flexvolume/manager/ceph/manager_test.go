@@ -68,7 +68,8 @@ func TestInitLoadRBDModSingleMajor(t *testing.T) {
 	context := &clusterd.Context{
 		Executor: executor,
 	}
-	NewVolumeManager(context)
+	_, err := NewVolumeManager(context)
+	assert.NoError(t, err)
 	assert.True(t, modInfoCalled)
 	assert.True(t, modprobeCalled)
 }
@@ -96,7 +97,8 @@ func TestInitLoadRBDModNoSingleMajor(t *testing.T) {
 	context := &clusterd.Context{
 		Executor: executor,
 	}
-	NewVolumeManager(context)
+	_, err := NewVolumeManager(context)
+	assert.NoError(t, err)
 	assert.True(t, modInfoCalled)
 	assert.True(t, modprobeCalled)
 }
@@ -112,7 +114,8 @@ func TestAttach(t *testing.T) {
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
-	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	assert.NoError(t, err)
 
 	runCount := 1
 
@@ -155,8 +158,8 @@ func TestAttach(t *testing.T) {
 			called:   0,
 		},
 	}
-	mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
-
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
+	assert.NoError(t, err)
 	devicePath, err := vm.Attach("image1", "testpool", "admin", "never-gonna-give-you-up", clusterNamespace)
 	assert.Equal(t, "/dev/rbd3", devicePath)
 	assert.Nil(t, err)
@@ -198,7 +201,8 @@ func TestDetach(t *testing.T) {
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
-	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	assert.NoError(t, err)
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -234,8 +238,9 @@ func TestDetach(t *testing.T) {
 			called:   0,
 		},
 	}
-	mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
-	err := vm.Detach("image1", "testpool", "admin", "", clusterNamespace, false)
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
+	assert.NoError(t, err)
+	err = vm.Detach("image1", "testpool", "admin", "", clusterNamespace, false)
 	assert.Nil(t, err)
 }
 
@@ -250,7 +255,8 @@ func TestDetachCustomKeyring(t *testing.T) {
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
-	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	assert.NoError(t, err)
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -286,8 +292,9 @@ func TestDetachCustomKeyring(t *testing.T) {
 			called:   0,
 		},
 	}
-	mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
-	err := vm.Detach("image1", "testpool", "user1", "", clusterNamespace, false)
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
+	assert.NoError(t, err)
+	err = vm.Detach("image1", "testpool", "user1", "", clusterNamespace, false)
 	assert.Nil(t, err)
 }
 
