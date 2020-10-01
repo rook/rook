@@ -239,7 +239,7 @@ csi:
   #rbdLivenessMetricsPort: 9080
   #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
-    #image: quay.io/cephcsi/cephcsi:v3.1.0
+    #image: quay.io/cephcsi/cephcsi:v3.1.1
   #registrar:
     #image: quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
   #provisioner:
