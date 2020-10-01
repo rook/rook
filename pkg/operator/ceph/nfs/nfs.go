@@ -57,7 +57,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
 			return errors.Wrap(err, "failed to create config")
 		}
 
-		err = r.addRADOSConfigFile(n, id)
+		err = r.addRADOSConfigFile(n)
 		if err != nil {
 			return errors.Wrap(err, "failed to create RADOS config object")
 		}
@@ -125,9 +125,8 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
 }
 
 // Create empty config file for new ganesha server
-func (r *ReconcileCephNFS) addRADOSConfigFile(n *cephv1.CephNFS, name string) error {
-	nodeID := getNFSNodeID(n, name)
-	config := getGaneshaConfigObject(nodeID)
+func (r *ReconcileCephNFS) addRADOSConfigFile(n *cephv1.CephNFS) error {
+	config := getGaneshaConfigObject(n.Name)
 	cmd := "rados"
 	args := []string{
 		"--pool", n.Spec.RADOS.Pool,

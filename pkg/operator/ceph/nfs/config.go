@@ -47,18 +47,18 @@ func getNFSNodeID(n *cephv1.CephNFS, name string) string {
 	return fmt.Sprintf("%s.%s", n.Name, name)
 }
 
-func getGaneshaConfigObject(nodeID string) string {
-	return fmt.Sprintf("conf-%s", nodeID)
+func getGaneshaConfigObject(clusterName string) string {
+	return fmt.Sprintf("conf-nfs.%s", clusterName)
 }
 
-func getRadosURL(n *cephv1.CephNFS, nodeID string) string {
+func getRadosURL(n *cephv1.CephNFS) string {
 	url := fmt.Sprintf("rados://%s/", n.Spec.RADOS.Pool)
 
 	if n.Spec.RADOS.Namespace != "" {
 		url += n.Spec.RADOS.Namespace + "/"
 	}
 
-	url += getGaneshaConfigObject(nodeID)
+	url += getGaneshaConfigObject(n.Name)
 	return url
 }
 
@@ -91,7 +91,7 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 func getGaneshaConfig(n *cephv1.CephNFS, name string) string {
 	nodeID := getNFSNodeID(n, name)
 	userID := getNFSUserID(nodeID)
-	url := getRadosURL(n, nodeID)
+	url := getRadosURL(n)
 	return `
 NFS_CORE_PARAM {
 	Enable_NLM = false;
