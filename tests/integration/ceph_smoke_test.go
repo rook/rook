@@ -64,6 +64,11 @@ func TestCephSmokeSuite(t *testing.T) {
 		t.Skip()
 	}
 
+	// Skip the suite if CSI is not supported
+	kh, err := utils.CreateK8sHelper(func() *testing.T { return t })
+	require.NoError(t, err)
+	checkSkipCSITest(t, kh)
+
 	s := new(SmokeSuite)
 	defer func(s *SmokeSuite) {
 		HandlePanics(recover(), s.op, s.T)
