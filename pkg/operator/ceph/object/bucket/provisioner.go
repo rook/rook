@@ -410,14 +410,23 @@ func (p *Provisioner) setObjectContext() error {
 		return errors.Errorf(msg, "name")
 	}
 
-	store, err := p.getObjectStore()
-	if err != nil {
-		return errors.Wrap(err, "failed to get cephObjectStore")
-	}
+	// We don't need the CephObjectStore if an endpoint is provided
+	// In 1.3, OBC external is working with an Endpoint (from the SC param) and in 1.4 we have a CephObjectStore but we must keep backward compatibility
+	// In 1.4, the Endpoint from the SC is not expected and never used so we will enter the "else" condition which gets a CephObjectStore and it is present
+	if p.endpoint != "" {
+		p.objectContext = cephObject.NewContext(p.context, p.clusterInfo, p.objectStoreName)
+	} else {
+		// Get CephObjectStore
+		store, err := p.getObjectStore()
+		if err != nil {
+			return errors.Wrap(err, "failed to get cephObjectStore")
+		}
 
-	p.objectContext, err = cephObject.NewMultisiteContext(p.context, p.clusterInfo, store)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set multisite on provisioner's objectContext")
+		// Set multisite context
+		p.objectContext, err = cephObject.NewMultisiteContext(p.context, p.clusterInfo, store)
+		if err != nil {
+			return errors.Wrap(err, "failed to set multisite on provisioner's objectContext")
+		}
 	}
 
 	return nil
