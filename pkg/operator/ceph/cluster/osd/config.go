@@ -37,11 +37,6 @@ const (
 key = %s
 `
 
-	// OSDs on PVC using a certain storage class need to do some tuning
-	osdRecoverySleep = "0.1"
-	osdSnapTrimSleep = "2"
-	osdDeleteSleep   = "2"
-
 	// OsdEncryptionSecretNameKeyName is the key name of the Secret that contains the OSD encryption key
 	// #nosec G101 since this is not leaking any hardcoded credentials, it's just the secret key name
 	OsdEncryptionSecretNameKeyName = "dmcrypt-key"
@@ -66,29 +61,6 @@ func (c *Cluster) generateKeyring(osdID int) (string, error) {
 
 	keyring := fmt.Sprintf(keyringTemplate, osdIDStr, key)
 	return keyring, s.CreateOrUpdate(deploymentName, keyring)
-}
-
-func (c *Cluster) osdRunFlagTuningOnPVC(osdID int) error {
-	who := fmt.Sprintf("osd.%d", osdID)
-	do := make(map[string]string)
-
-	// Time in seconds to sleep before next recovery or backfill op
-	do["osd_recovery_sleep"] = osdRecoverySleep
-	// Time in seconds to sleep before next snap trim
-	do["osd_snap_trim_sleep"] = osdSnapTrimSleep
-	// Time in seconds to sleep before next removal transaction
-	do["osd_delete_sleep"] = osdDeleteSleep
-
-	monStore := opconfig.GetMonStore(c.context, c.clusterInfo)
-
-	for flag, val := range do {
-		err := monStore.Set(who, flag, val)
-		if err != nil {
-			return errors.Wrapf(err, "failed to set %q to %q on %q", flag, val, who)
-		}
-	}
-
-	return nil
 }
 
 // PrivilegedContext returns a privileged Pod security context

@@ -135,6 +135,7 @@ type osdProperties struct {
 	metadataDevice      string
 	portable            bool
 	tuneSlowDeviceClass bool
+	tuneFastDeviceClass bool
 	schedulerName       string
 	crushDeviceClass    string
 	encrypted           bool
@@ -705,6 +706,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				preparePlacement:    volumeSource.PreparePlacement,
 				portable:            volumeSource.Portable,
 				tuneSlowDeviceClass: volumeSource.TuneSlowDeviceClass,
+				tuneFastDeviceClass: volumeSource.TuneFastDeviceClass,
 				pvcSize:             volumeSource.Size,
 				schedulerName:       volumeSource.SchedulerName,
 				encrypted:           volumeSource.Encrypted,

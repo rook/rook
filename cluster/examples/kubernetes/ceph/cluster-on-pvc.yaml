@@ -58,6 +58,10 @@ spec:
       # Rook can configure the OSD running on PVC to accommodate that by tuning some of the Ceph internal
       # Currently, "gp2" has been identified as such
       tuneDeviceClass: true
+      # Certain storage class in the Cloud are fast
+      # Rook can configure the OSD running on PVC to accommodate that by tuning some of the Ceph internal
+      # Currently, "managed-premium" has been identified as such
+      tuneFastDeviceClass: false
       # whether to encrypt the deviceSet or not
       encrypted: false
       # Since the OSDs could end up on any node, an effort needs to be made to spread the OSDs
