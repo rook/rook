@@ -329,7 +329,7 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 		assert.Fail(s.T(), fmt.Sprintf("make sure %s pod is terminated", podName))
 	}
 	err = helper.FSClient.DeletePVC(namespace, podName)
-	assert.NoError(s.T(), err)
+	assertNoErrorUnlessNotFound(s, err)
 	logger.Infof("File system consumer deleted")
 }
 

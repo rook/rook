@@ -167,9 +167,9 @@ func (s *CephFlexDriverSuite) statefulSetDataCleanup(poolName, storageClassName,
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	// Delete stateful set
 	err := s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
-	assert.NoError(s.T(), err)
+	assertNoErrorUnlessNotFound(s.Suite, err)
 	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
-	assert.NoError(s.T(), err)
+	assertNoErrorUnlessNotFound(s.Suite, err)
 	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
 	assert.NoError(s.T(), err)
 
@@ -236,9 +236,9 @@ func (s *CephFlexDriverSuite) TearDownSuite() {
 		"rwo-block-ro-two", "rwx-block-rw-one", "rwx-block-rw-two", "rwx-block-ro-one", "rwx-block-ro-two")
 	assert.NoError(s.T(), err)
 	err = s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWO)
-	assert.NoError(s.T(), err)
+	assertNoErrorUnlessNotFound(s.Suite, err)
 	err = s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWX)
-	assert.NoError(s.T(), err)
+	assertNoErrorUnlessNotFound(s.Suite, err)
 	err = s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwo")
 	assert.NoError(s.T(), err)
 	err = s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwx")
