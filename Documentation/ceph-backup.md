@@ -1,12 +1,12 @@
 ---
-title: Back Up
-weight: 2200
+title: Backup
+weight: 11250
 indent: true
 ---
 
-# Back Up
+# Velero Backup
 
-Back Up of Ceph helps you recover your data when a disaster occurs.
+A backup of Ceph helps you recover your data when a disaster occurs.
 
 ## Requirements
 
@@ -319,7 +319,7 @@ We need to save Volumes, Volumes Claims, ConfigMaps, Secrets and Services.
 velero backup create <BackupName> --include-namespaces rook-ceph --include-resources pv,pvc,services,configmaps,secrets --default-volumes-to-restic
 ```
 
-**IMPORTANT:** make sure to back up the bucket's configmaps and secrets that are located in a different namespace.
+**IMPORTANT:** In addition to backing up the resources in the `rook-ceph` namespace, make sure to back up the bucket's configmaps and secrets that are located in the application namespace.
 
 As Velero change ClusterIP from `MON` services on restore, we need to backup the `yamls` so `MON` can form quorum again.
 
@@ -441,7 +441,7 @@ kubectl apply -f mon-service-b.yaml
 kubectl apply -f mon-service-c.yaml
 ```
 
-After that we need to create cluster.
+Now we need to create cluster with the same settings that were used in the original cluster. In particular, the cluster-on-pvc.yaml settings should be identical or else your cluster may not be restored as expected.
 
 ```console
 kubectl apply -f common.yaml
@@ -449,7 +449,7 @@ kubectl apply -f operator.yaml
 kubectl apply -f cluster-on-pvc.yaml
 ```
 
-Owner reference will be attached to `MON` services.
+`metadata.ownerReferences` will be attached to `MON` services by the operator.
 
 Now we can deploy the object store and check for the added data:
 
