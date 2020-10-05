@@ -78,7 +78,7 @@ metadata:
   name: zone-a
   namespace: rook-ceph
 spec:
-  zonegroup: zonegroup-a
+  zoneGroup: zonegroup-a
   metadataPool:
     failureDomain: host
     replicated:

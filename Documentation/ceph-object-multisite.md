@@ -185,7 +185,7 @@ The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin comma
 The following command, run via the toolbox, deletes the realm.
 
 ```console
-radosgw-admin realm rm --rgw-realm=realm-a
+radosgw-admin realm delete --rgw-realm=realm-a
 ```
 
 ## Zone Group Deletion
@@ -202,7 +202,7 @@ The following command, run via the toolbox, deletes the zone group.
 
 ```console
 radosgw-admin zonegroup delete --rgw-realm=realm-a --rgw-zonegroup=zone-group-a
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zone-group=zone-group-a
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a
 ```
 
 ## Deleting and Reconfiguring the Ceph Object Zone
@@ -229,8 +229,8 @@ There are two scenarios possible when deleting a zone.
 The following commands, run via the toolbox, deletes the zone if there is only one zone in the zone group.
 
 ```console
-radosgw-admin zone rm --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
+radosgw-admin zone delete --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
 ```
 
 In the other scenario, there are more than one zones in a zone group.
@@ -242,10 +242,10 @@ Please read the following [documentation](https://docs.ceph.com/docs/master/rado
 The following commands, run via toolboxes, remove the zone from the zone group first, then delete the zone.
 
 ```console
-radosgw-admin zonegroup rm --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
-radosgw-admin zone rm --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zone-group=zone-group-a --rgw-zone=zone-a
+radosgw-admin zonegroup rm --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
+radosgw-admin zone delete --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
 ```
 
 When a zone is deleted, the pools for that zone are not deleted.
