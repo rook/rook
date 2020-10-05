@@ -45,6 +45,16 @@ spec:
 
 > **NOTE**: Kubernetes version 1.13.0 or greater is required to provision OSDs on PVCs.
 
+A Ceph PVC-based Cluster stores the `MONs` and `OSDs` data in PVCs.
+
+We can create the Ceph based cluster as follow:
+
+```console
+kubectl create -f cluster-on-pvc.yaml
+```
+
+In the following example `local-storage` matchs our Storage Class. however, you need to adjust it to match the one from your provider. For example, for GKE is `standard`, in EKS is `gp2`...
+
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephCluster

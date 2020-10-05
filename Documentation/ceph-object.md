@@ -242,8 +242,42 @@ cat /tmp/rookObj-download
 
 ## Access External to the Cluster
 
-Rook sets up the object storage so pods will have access internal to the cluster. If your applications are running outside the cluster,
-you will need to setup an external service through a `NodePort`.
+There are two possible approaches:
+
+### Port-Forward
+
+Rook sets up the object storage so pods will have access internal to the cluster. 
+
+For adding data from our computer we can use the `aws cli` through `port-forward`. [Here]
+(https://docs.aws.amazon.com/es_es/cli/latest/userguide/cli-chap-install.html) you have a reference of how to install the CLI.
+
+After that, follow the next steps:
+1. Open a new terminal and execute:
+   ```console
+   kubectl port-forward -n rook-ceph service/rook-ceph-rgw-my-store 8080:80
+   ```
+2. Export the following environment variables:
+   ```console
+   export AWS_HOST=`kubectl get configmap -n rook-ceph ceph-delete-bucket -o 'jsonpath={.data.BUCKET_HOST}';echo`
+   export AWS_ENDPOINT=localhost:8080
+   export BUCKET_NAME=`kubectl get configmap -n rook-ceph ceph-delete-bucket -o 'jsonpath={.data.BUCKET_NAME}';echo`
+   export AWS_ACCESS_KEY_ID=`kubectl get secret -n rook-ceph ceph-delete-bucket -o 'jsonpath={.data.AWS_ACCESS_KEY_ID}' | base64 --decode;echo`
+   export AWS_SECRET_ACCESS_KEY=`kubectl get secret -n rook-ceph ceph-delete-bucket -o 'jsonpath={.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode;echo`
+   ```
+
+Now, we can add example data:
+```console
+for i in {1..10};do aws s3 cp /etc/hosts s3://${BUCKET_NAME}/$i --endpoint-url http://${AWS_ENDPOINT};done
+```
+
+We can list the data with:
+```console
+aws s3 ls s3://${BUCKET_NAME} --endpoint-url http://${AWS_ENDPOINT}
+```
+
+### External service
+
+However, in some cases `port-forward` is not viable and you will need to setup an external service through a `NodePort`.
 
 First, note the service that exposes RGW internal to the cluster. We will leave this service intact and create a new service for external access.
 
