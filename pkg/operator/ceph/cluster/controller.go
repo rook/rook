@@ -378,13 +378,10 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 		}
 
 		// close the goroutines watching the health of the cluster (mons, osds, ceph status)
-		var isDisabled bool
 		for _, daemon := range monitorDaemonList {
-			isDisabled = isMonitoringDisabled(daemon, cluster.Spec)
-			if _, ok := cluster.monitoringChannels[daemon]; ok {
-				if !isDisabled {
-					close(cluster.monitoringChannels[daemon].stopChan)
-				}
+			if monitoring, ok := cluster.monitoringChannels[daemon]; ok && monitoring.monitoringRunning {
+				close(cluster.monitoringChannels[daemon].stopChan)
+				cluster.monitoringChannels[daemon].monitoringRunning = false
 			}
 		}
 	}
