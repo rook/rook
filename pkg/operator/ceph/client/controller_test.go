@@ -106,7 +106,7 @@ func TestGenerateClient(t *testing.T) {
 
 func TestCreateClient(t *testing.T) {
 	clientset := testop.New(t, 1)
-	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q=="
+	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q==" //nolint:gosec // This is just a var name, not a real secret
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -119,7 +119,7 @@ func TestCreateClient(t *testing.T) {
 			logger.Infof("COMMAND: %s %v", command, args)
 			if command == "ceph-authtool" && args[0] == "--create-keyring" {
 				filename := args[1]
-				assert.NoError(t, ioutil.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0644))
+				assert.NoError(t, ioutil.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0600))
 			}
 			return "", nil
 		},

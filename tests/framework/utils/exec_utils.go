@@ -51,7 +51,7 @@ func ExecuteCommand(cmdStruct CommandArgs) CommandOut {
 
 	var outBuffer, errBuffer bytes.Buffer
 
-	cmd := exec.Command(cmdStruct.Command, cmdStruct.CmdArgs...)
+	cmd := exec.Command(cmdStruct.Command, cmdStruct.CmdArgs...) //nolint:gosec // We safely suppress gosec in tests file
 
 	cmd.Env = append(cmd.Env, cmdStruct.EnvironmentVariable...)
 

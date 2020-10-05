@@ -392,7 +392,7 @@ func (h *CephInstaller) GetRookExternalClusterMonConfigMap(namespace string) (*v
 
 // GetRookExternalClusterMonSecret gets the monitor kubernetes secret of the external cluster
 func (h *CephInstaller) GetRookExternalClusterMonSecret(namespace string) (*v1.Secret, error) {
-	secretName := "rook-ceph-mon"
+	secretName := "rook-ceph-mon" //nolint:gosec // We safely suppress gosec in tests file
 
 	externalSecret, err := h.k8shelper.Clientset.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil {
@@ -427,7 +427,7 @@ func (h *CephInstaller) initTestDir(namespace string) (string, error) {
 		}
 	} else {
 		// Compose a random test directory name without actually creating it since not running on the localhost
-		r := rand.Int()
+		r := rand.Int() //nolint:gosec // We safely suppress gosec in tests file
 		testDir = path.Join(testDir, fmt.Sprintf("test-%d", r))
 	}
 	return testDir, nil

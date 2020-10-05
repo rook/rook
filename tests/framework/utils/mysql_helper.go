@@ -81,7 +81,7 @@ func (h *MySQLHelper) InsertRandomData(dataSize int) sql.Result {
 	}
 	defer stmtIns.Close()
 
-	result, err := stmtIns.Exec(rand.Intn(100000000), fake.CharactersN(dataSize), fake.CharactersN(dataSize), fake.CharactersN(dataSize), fake.CharactersN(dataSize), fake.CharactersN(dataSize))
+	result, err := stmtIns.Exec(rand.Intn(100000000), fake.CharactersN(dataSize), fake.CharactersN(dataSize), fake.CharactersN(dataSize), fake.CharactersN(dataSize), fake.CharactersN(dataSize)) //nolint:gosec // We safely suppress gosec in tests file
 	if err != nil {
 		panic(err)
 	}
@@ -139,7 +139,7 @@ func (h *MySQLHelper) DeleteRandomRow() sql.Result {
 		}
 	}
 
-	result1, err := h.DB.Exec("DELETE FROM LONGHAUL WHERE id= " + strconv.Itoa(id))
+	result1, err := h.DB.Exec("DELETE FROM LONGHAUL WHERE id= " + strconv.Itoa(id)) //nolint:gosec // We safely suppress gosec in tests file
 	if err != nil {
 		panic(err)
 	}

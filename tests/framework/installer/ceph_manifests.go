@@ -2367,8 +2367,8 @@ parameters:
 
 func (m *CephManifestsMaster) GetFileStorageClassDef(fsName, storageClassName, systemNamespace, namespace string) string {
 	// Create a CSI driver storage class
-	csiCephFSNodeSecret := "rook-csi-cephfs-node"
-	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner"
+	csiCephFSNodeSecret := "rook-csi-cephfs-node"               //nolint:gosec // We safely suppress gosec in tests file
+	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner" //nolint:gosec // We safely suppress gosec in tests file
 	return `
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
