@@ -93,9 +93,6 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 	}
 }
 
-func TestCreateReplicaPool(t *testing.T) {
-	testCreateReplicaPool(t, "", "", "", "")
-}
 func TestCreateReplicaPoolWithFailureDomain(t *testing.T) {
 	testCreateReplicaPool(t, "osd", "mycrushroot", "", "")
 }

@@ -19,6 +19,8 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -302,9 +304,17 @@ func CreateECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, poo
 }
 
 func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string, pool cephv1.PoolSpec, pgCount, appName string) error {
-	// create a crush rule for a replicated pool, if a failure domain is specified
-	if err := createReplicationCrushRule(context, clusterInfo, poolName, pool); err != nil {
-		return err
+	// Create a CRUSH rule for stretched clusters
+	if pool.Replicated.ReplicasPerFailureDomain != 0 {
+		err := createStretchedReplicationCrushRule(context, clusterInfo, poolName, pool)
+		if err != nil {
+			return errors.Wrap(err, "failed to create stretched replicated crush rule")
+		}
+	} else {
+		// create a crush rule for a replicated pool, if a failure domain is specified
+		if err := createReplicationCrushRule(context, clusterInfo, poolName, pool); err != nil {
+			return errors.Wrap(err, "failed to create replicated crush rule")
+		}
 	}
 
 	args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", poolName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
@@ -326,17 +336,104 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 	return nil
 }
 
+func createStretchedReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, ruleName string, pool cephv1.PoolSpec) error {
+	// set the crush failure domain to the "host" if not already specified
+	if pool.FailureDomain == "" {
+		pool.FailureDomain = cephv1.DefaultFailureDomain
+	}
+	// set the crush failure sub domain to the "host" if not already specified
+	if pool.Replicated.SubFailureDomain == "" {
+		pool.Replicated.SubFailureDomain = cephv1.DefaultFailureDomain
+	}
+	// set the crush root to the default if not already specified
+	if pool.CrushRoot == "" {
+		pool.CrushRoot = cephv1.DefaultCRUSHRoot
+	}
+
+	// Get the current CRUSH map
+	var crushMap CrushMap
+	crushMap, err := GetCrushMap(context, clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get crush map")
+	}
+
+	// Fetch the compiled crush map
+	compiledCRUSHMapFilePath, err := GetCompiledCrushMap(context, clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get crush map")
+	}
+	defer func() {
+		err := os.Remove(compiledCRUSHMapFilePath)
+		if err != nil {
+			logger.Errorf("failed to remove file %q. %v", compiledCRUSHMapFilePath, err)
+		}
+	}()
+
+	// Decompile the plain text to CRUSH binary format
+	err = decompileCRUSHMap(context, compiledCRUSHMapFilePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to compile crush map")
+	}
+	decompiledCRUSHMapFilePath := buildDecompileCRUSHFileName(compiledCRUSHMapFilePath)
+	defer func() {
+		err := os.Remove(decompiledCRUSHMapFilePath)
+		if err != nil {
+			logger.Errorf("failed to remove file %q. %v", decompiledCRUSHMapFilePath, err)
+		}
+	}()
+
+	// Build plain text rule
+	plainRule := buildStretchClusterPlainCrushRule(crushMap, ruleName, pool)
+
+	// Append plain rule to the decompiled crush map
+	f, err := os.OpenFile(filepath.Clean(decompiledCRUSHMapFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0400)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open decompiled crush map %q", decompiledCRUSHMapFilePath)
+	}
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			logger.Errorf("failed to close file %q. %v", f.Name(), err)
+		}
+	}()
+
+	// Append the new crush rule into the crush map
+	if _, err := f.WriteString(plainRule); err != nil {
+		return errors.Wrapf(err, "failed to append replicated plain crush rule to decompiled crush map %q", decompiledCRUSHMapFilePath)
+	}
+
+	// Compile the plain text to CRUSH binary format
+	err = compileCRUSHMap(context, decompiledCRUSHMapFilePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to compile crush map")
+	}
+	defer func() {
+		err := os.Remove(buildCompileCRUSHFileName(decompiledCRUSHMapFilePath))
+		if err != nil {
+			logger.Errorf("failed to remove file %q. %v", buildCompileCRUSHFileName(decompiledCRUSHMapFilePath), err)
+		}
+	}()
+
+	// Inject the new CRUSH Map
+	err = injectCRUSHMap(context, clusterInfo, buildCompileCRUSHFileName(decompiledCRUSHMapFilePath))
+	if err != nil {
+		return errors.Wrap(err, "failed to inject crush map")
+	}
+
+	return nil
+}
+
 func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, ruleName string, pool cephv1.PoolSpec) error {
 	failureDomain := pool.FailureDomain
 	if failureDomain == "" {
 		failureDomain = cephv1.DefaultFailureDomain
 	}
-
 	// set the crush root to the default if not already specified
-	crushRoot := "default"
-	if pool.CrushRoot != "" {
-		crushRoot = pool.CrushRoot
+	crushRoot := pool.CrushRoot
+	if pool.CrushRoot == "" {
+		crushRoot = cephv1.DefaultCRUSHRoot
 	}
+
 	args := []string{"osd", "crush", "rule", "create-replicated", ruleName, crushRoot, failureDomain}
 
 	var deviceClass string

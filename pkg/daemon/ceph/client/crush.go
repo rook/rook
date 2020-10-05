@@ -19,6 +19,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
@@ -51,24 +52,28 @@ type CrushMap struct {
 			Pos    int `json:"pos"`
 		} `json:"items"`
 	} `json:"buckets"`
-	Rules []struct {
-		ID      int    `json:"rule_id"`
-		Name    string `json:"rule_name"`
-		Ruleset int    `json:"ruleset"`
-		Type    int    `json:"type"`
-		MinSize int    `json:"min_size"`
-		MaxSize int    `json:"max_size"`
-		Steps   []struct {
-			Operation string `json:"op"`
-			Number    int    `json:"num"`
-			Item      int    `json:"item"`
-			ItemName  string `json:"item_name"`
-			Type      string `json:"type"`
-		} `json:"steps"`
-	} `json:"rules"`
+	Rules    []ruleSpec `json:"rules"`
 	Tunables struct {
 		// Add if necessary
 	} `json:"tunables"`
+}
+
+type ruleSpec struct {
+	ID      int        `json:"rule_id"`
+	Name    string     `json:"rule_name"`
+	Ruleset int        `json:"ruleset"`
+	Type    int        `json:"type"`
+	MinSize int        `json:"min_size"`
+	MaxSize int        `json:"max_size"`
+	Steps   []stepSpec `json:"steps"`
+}
+
+type stepSpec struct {
+	Operation string `json:"op"`
+	Number    uint   `json:"num"`
+	Item      int    `json:"item"`
+	ItemName  string `json:"item_name"`
+	Type      string `json:"type"`
 }
 
 // CrushFindResult is go representation of the Ceph osd find command output
@@ -94,6 +99,25 @@ func GetCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo) (CrushMap,
 	}
 
 	return c, nil
+}
+
+// GetCompiledCrushMap fetches the Ceph compiled version of the CRUSH map
+func GetCompiledCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo) (string, error) {
+	compiledCrushMapFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to generate temporarily file")
+	}
+
+	args := []string{"osd", "getcrushmap", "--out-file", compiledCrushMapFile.Name()}
+	exec := NewCephCommand(context, clusterInfo, args)
+	exec.OutputFile = false
+	exec.JsonOutput = false
+	buf, err := exec.Run()
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get compiled crush map. %s", string(buf))
+	}
+
+	return compiledCrushMapFile.Name(), nil
 }
 
 // FindOSDInCrushMap finds an OSD in the CRUSH map
@@ -166,4 +190,60 @@ func GetOSDOnHost(context *clusterd.Context, clusterInfo *ClusterInfo, node stri
 	}
 
 	return string(buf), nil
+}
+
+func compileCRUSHMap(context *clusterd.Context, crushMapPath string) error {
+	mapFile := buildCompileCRUSHFileName(crushMapPath)
+	args := []string{"--compile", crushMapPath, "--outfn", mapFile}
+	output, err := context.Executor.ExecuteCommandWithOutput("crushtool", args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to compile crush map %q. %s", mapFile, output)
+	}
+
+	return nil
+}
+
+func decompileCRUSHMap(context *clusterd.Context, crushMapPath string) error {
+	mapFile := buildDecompileCRUSHFileName(crushMapPath)
+	args := []string{"--decompile", crushMapPath, "--outfn", mapFile}
+	output, err := context.Executor.ExecuteCommandWithOutput("crushtool", args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to decompile crush map %q. %s", mapFile, output)
+	}
+
+	return nil
+}
+
+func injectCRUSHMap(context *clusterd.Context, clusterInfo *ClusterInfo, crushMapPath string) error {
+	args := []string{"osd", "setcrushmap", "--in-file", crushMapPath}
+	exec := NewCephCommand(context, clusterInfo, args)
+	exec.OutputFile = false
+	exec.JsonOutput = false
+	buf, err := exec.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to inject crush map %q. %s", crushMapPath, string(buf))
+	}
+
+	return nil
+}
+
+func setCRUSHMap(context *clusterd.Context, clusterInfo *ClusterInfo, crushMapPath string) error {
+	args := []string{"osd", "crush", "set", crushMapPath}
+	exec := NewCephCommand(context, clusterInfo, args)
+	exec.OutputFile = false
+	exec.JsonOutput = false
+	buf, err := exec.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set crush map %q. %s", crushMapPath, string(buf))
+	}
+
+	return nil
+}
+
+func buildDecompileCRUSHFileName(crushMapPath string) string {
+	return fmt.Sprintf("%s.decompiled", crushMapPath)
+}
+
+func buildCompileCRUSHFileName(crushMapPath string) string {
+	return fmt.Sprintf("%s.compiled", crushMapPath)
 }

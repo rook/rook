@@ -340,6 +340,10 @@ spec:
                       type: integer
                     requireSafeReplicaSize:
                       type: boolean
+                    replicasPerFailureDomain:
+                      type: integer
+                    subFailureDomain:
+                      type: string
                 erasureCoded:
                   properties:
                     dataChunks:
@@ -374,6 +378,10 @@ spec:
                         type: integer
                       requireSafeReplicaSize:
                         type: boolean
+                    replicasPerFailureDomain:
+                      type: integer
+                    subFailureDomain:
+                      type: string
                   erasureCoded:
                     properties:
                       dataChunks:
@@ -491,6 +499,10 @@ spec:
                       type: integer
                     requireSafeReplicaSize:
                       type: boolean
+                    replicasPerFailureDomain:
+                      type: integer
+                    subFailureDomain:
+                      type: string
                 erasureCoded:
                   properties:
                     dataChunks:
@@ -519,6 +531,10 @@ spec:
                       type: integer
                     requireSafeReplicaSize:
                       type: boolean
+                    replicasPerFailureDomain:
+                      type: integer
+                    subFailureDomain:
+                      type: string
                 erasureCoded:
                   properties:
                     dataChunks:
@@ -651,6 +667,10 @@ spec:
                   type: number
                 requireSafeReplicaSize:
                   type: boolean
+                replicasPerFailureDomain:
+                  type: integer
+                subFailureDomain:
+                  type: string
             erasureCoded:
               properties:
                 dataChunks:
