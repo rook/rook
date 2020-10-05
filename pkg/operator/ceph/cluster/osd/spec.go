@@ -122,11 +122,26 @@ BLOCK_PATH=%s
 DM_NAME=%s
 DM_PATH=%s
 
+function open_encrypted_block {
+	echo "Opening encrypted device $BLOCK_PATH at $DM_PATH"
+	cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
+}
+
 if [ -b "$DM_PATH" ]; then
-	echo "Encrypted device "$BLOCK_PATH" already opened at "$DM_PATH""
+	echo "Encrypted device $BLOCK_PATH already opened at $DM_PATH"
+	for field in $(dmsetup table "$DM_NAME"); do
+		if [[ "$field" =~ ^[0-9]+\:[0-9]+ ]]; then
+			underlaying_block="/sys/dev/block/$field"
+			if [ ! -d "$underlaying_block" ]; then
+				echo "Underlaying block device $underlaying_block of crypt $DM_NAME disappeared!"
+				echo "Removing stale dm device $DM_NAME"
+				dmsetup remove --force "$DM_NAME"
+				open_encrypted_block
+			fi
+		fi
+	done
 else
-  echo "Opening encrypted device "$BLOCK_PATH" at "$DM_PATH""
-  cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
+	open_encrypted_block
 fi
 `
 )
