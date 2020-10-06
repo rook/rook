@@ -6,6 +6,8 @@ indent: true
 
 # EdgeFS Scale-Out SMB CRD
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 Rook allows creation and customization of EdgeFS SMB/CIFS filesystems through the custom resource definitions (CRDs).
 The following settings are available for customization of EdgeFS SMB services.
 

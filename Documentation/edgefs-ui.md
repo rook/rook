@@ -6,6 +6,8 @@ indent: true
 
 # EdgeFS Dashboard and User Interface
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 EdgeFS comes with built-in local cluster Dashboard and User Interface.
 
 The dashboard is a very helpful tool to give you an overview of the status of your cluster, including overall health,
