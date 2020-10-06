@@ -761,8 +761,11 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		}
 
 		// If no block is specified let's take the one we discovered
+		var blockPath string
 		if block == "" {
-			block = osdInfo.Device
+			blockPath = osdInfo.Device
+		} else {
+			blockPath = block
 		}
 
 		osd := oposd.OSDInfo{
@@ -774,7 +777,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			// During the last attach it could end up with a different /dev/ name
 			// Thus in the activation sequence we might activate the wrong OSD and have OSDInfo messed up
 			// Hence, let's use the PVC name instead which will always remain consistent
-			BlockPath:     block,
+			BlockPath:     blockPath,
 			MetadataPath:  metadataBlock,
 			WalPath:       walBlock,
 			SkipLVRelease: true,
