@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rook-vault-token
+  namespace: rook-ceph
+data:
+  token: ROOK_TOKEN

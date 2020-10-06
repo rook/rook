@@ -22,8 +22,10 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -40,6 +42,7 @@ const (
 	activateOSDVolumeName                         = "activate-osd"
 	activateOSDMountPath                          = "/var/lib/ceph/osd/ceph-"
 	blockPVCMapperInitContainer                   = "blkdevmapper"
+	blockEncryptionKMSGetKEKInitContainer         = "encryption-kms-get-kek"
 	blockEncryptionOpenInitContainer              = "encryption-open"
 	blockEncryptionOpenMetadataInitContainer      = "encryption-open-metadata"
 	blockEncryptionOpenWalInitContainer           = "encryption-open-wal"
@@ -58,10 +61,10 @@ const (
 	// DmcryptMetadataType is a portion of the device mapper name for the encrypted OSD on PVC block
 	DmcryptMetadataType = "db-dmcrypt"
 	// DmcryptWalType is a portion of the device mapper name for the encrypted OSD on PVC wal
-	DmcryptWalType      = "wal-dmcrypt"
-	dmcryptBlockName    = "block"
-	dmcryptMetadataName = "block.db"
-	dmcryptWalName      = "block.wal"
+	DmcryptWalType        = "wal-dmcrypt"
+	bluestoreBlockName    = "block"
+	bluestoreMetadataName = "block.db"
+	bluestoreWalName      = "block.wal"
 )
 
 const (
@@ -122,6 +125,9 @@ BLOCK_PATH=%s
 DM_NAME=%s
 DM_PATH=%s
 
+# Helps debugging
+dmsetup version
+
 function open_encrypted_block {
 	echo "Opening encrypted device $BLOCK_PATH at $DM_PATH"
 	cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
@@ -143,6 +149,49 @@ if [ -b "$DM_PATH" ]; then
 else
 	open_encrypted_block
 fi
+`
+	// #nosec G101 no leak just variable names
+	getKEKFromVaultWithToken = `
+# DO NOT RUN WITH -x TO AVOID LEAKING VAULT_TOKEN
+set -e
+
+KEK_NAME=%s
+KEY_PATH=%s
+VAULT_DEFAULT_BACKEND=v1
+CURL_PAYLOAD=$(mktemp)
+ARGS=(--request GET --header "X-Vault-Token: ${VAULT_TOKEN}")
+
+# If a vault namespace is set
+if [ -n "$VAULT_NAMESPACE" ]; then
+	ARGS+=(--header "X-Vault-Namespace: ${VAULT_NAMESPACE}")
+fi
+
+# If SSL is configured but self-signed CA is used
+if [ -n "$VAULT_SKIP_VERIFY" ] && [[ "$VAULT_SKIP_VERIFY" == "true" ]]; then
+	ARGS+=(--insecure)
+fi
+
+# TLS args
+if [ -n "$VAULT_CACERT" ]; then
+	ARGS+=(--cacert "${VAULT_CACERT}")
+fi
+if [ -n "$VAULT_CLIENT_CERT" ]; then
+	ARGS+=(--cert "${VAULT_CLIENT_CERT}")
+fi
+if [ -n "$VAULT_CLIENT_KEY" ]; then
+	ARGS+=(--key "${VAULT_CLIENT_KEY}")
+fi
+
+# Check KV backend
+if [ -z "$VAULT_BACKEND" ]; then
+	VAULT_BACKEND=$VAULT_DEFAULT_BACKEND
+fi
+
+# Get the Key Encryption Key
+curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_BACKEND"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
+
+# Put the KEK in a file for cryptsetup to read
+python3 -c "import sys, json; print(json.load(sys.stdin)[\"data\"][\"$KEK_NAME\"], end='')" < "$CURL_PAYLOAD" > "$KEY_PATH"
 `
 )
 
@@ -168,6 +217,12 @@ var defaultTuneSlowSettings = map[string]string{
 	"osd_recovery_sleep":  "0.1", // Time in seconds to sleep before next recovery or backfill op
 	"osd_snap_trim_sleep": "2",   // Time in seconds to sleep before next snap trim
 	"osd_delete_sleep":    "2",   // Time in seconds to sleep before next removal transaction
+}
+
+var cpArgs = []string{
+	"--archive",     // Archive mode preserves the specified attributes
+	"--dereference", // always follow symbolic links in SOURCE to avoid broken links when copying dm devs
+	"--verbose",
 }
 
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
@@ -210,8 +265,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
 		// If encrypted let's add the secret key mount path
 		if osdProps.encrypted && osd.CVMode == "raw" {
-			encryptedVol, _ := getEncryptionVolume(osdProps.pvc.ClaimName)
+			encryptedVol, _ := c.getEncryptionVolume(osdProps)
 			volumes = append(volumes, encryptedVol)
+			if c.spec.Security.KeyManagementService.IsEnabled() {
+				encryptedVol, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+				volumes = append(volumes, encryptedVol)
+			}
 		}
 	}
 
@@ -374,7 +433,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	// needed for luksOpen synchronization when devices are encrypted and the osd is prepared with LVM
-	hostIPC := osdProps.storeConfig.EncryptedDevice
+	hostIPC := osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
 
 	initContainers := make([]v1.Container, 0, 4)
 	if doConfigInit {
@@ -396,23 +455,25 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	if osdProps.onPVC() && osd.CVMode == "raw" {
+		// Copy main block device to an empty dir
+		initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
+		// Copy main block.db device to an empty dir
+		if osdProps.onPVCWithMetadata() {
+			initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
+		}
+		// Copy main block.wal device to an empty dir
+		if osdProps.onPVCWithWal() {
+			initContainers = append(initContainers, c.getPVCWalInitContainerActivate(osdDataDirPath, osdProps))
+		}
 		if osdProps.encrypted {
 			// Open the encrypted disk
-			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdProps)...)
+			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdDataDirPath, osdProps)...)
 			// Copy the encrypted block to the osd data location, e,g: /var/lib/ceph/osd/ceph-0/block
 			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps)...)
 			// Print the encrypted block status
 			initContainers = append(initContainers, c.getEncryptedStatusPVCInitContainer(osdDataDirPath, osdProps))
 			// Resize the encrypted device if necessary, this must be done after the encrypted block is opened
 			initContainers = append(initContainers, c.getExpandEncryptedPVCInitContainer(osdDataDirPath, osdProps))
-		} else {
-			initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
-			if osdProps.onPVCWithMetadata() {
-				initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
-			}
-			if osdProps.onPVCWithWal() {
-				initContainers = append(initContainers, c.getPVCWalInitContainerActivate(osdDataDirPath, osdProps))
-			}
 		}
 		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
 		initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
@@ -638,25 +699,30 @@ func (c *Cluster) getPVCInitContainer(osdProps osdProperties) v1.Container {
 		Command: []string{
 			"cp",
 		},
-		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.pvc.ClaimName), fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName)},
+		Args: append(cpArgs, fmt.Sprintf("/%s", osdProps.pvc.ClaimName), fmt.Sprintf("/mnt/%s", osdProps.pvc.ClaimName)),
 		VolumeDevices: []v1.VolumeDevice{
 			{
 				Name:       osdProps.pvc.ClaimName,
 				DevicePath: fmt.Sprintf("/%s", osdProps.pvc.ClaimName),
 			},
 		},
-		VolumeMounts: []v1.VolumeMount{
-			{
-				MountPath: "/mnt",
-				Name:      fmt.Sprintf("%s-bridge", osdProps.pvc.ClaimName),
-			},
-		},
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMount(osdProps.pvc.ClaimName)},
 		SecurityContext: opmon.PodSecurityContext(),
 		Resources:       osdProps.resources,
 	}
 }
 
 func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
+	cpDestinationName := path.Join(mountPath, bluestoreBlockName)
+	// Encrypted is a special
+	// We have an initial "cp" to copy the pvc to an empty dir, typically we copy it in /var/lib/ceph/osd/ceph-0/block
+	// BUT we encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
+	// So when encrypted we first copy to /var/lib/ceph/osd/ceph-0/block-tmp
+	// Then open the encrypted block and finally copy it to /var/lib/ceph/osd/ceph-0/block
+	// If we don't do this "cp" will fail to copy the special block file
+	if osdProps.encrypted {
+		cpDestinationName = encryptionBlockDestinationCopy(mountPath, bluestoreBlockName)
+	}
 
 	return v1.Container{
 		Name:  blockPVCMapperInitContainer,
@@ -664,7 +730,7 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 		Command: []string{
 			"cp",
 		},
-		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.pvc.ClaimName), path.Join(mountPath, dmcryptBlockName)},
+		Args: append(cpArgs, fmt.Sprintf("/%s", osdProps.pvc.ClaimName), cpDestinationName),
 		VolumeDevices: []v1.VolumeDevice{
 			{
 				Name:       osdProps.pvc.ClaimName,
@@ -677,7 +743,7 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 	}
 }
 
-func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequirements, containerName, pvcName, blockType string) v1.Container {
+func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequirements, containerName, pvcName, volumeMountPVCName, cryptBlockType, blockType, mountPath string) v1.Container {
 	return v1.Container{
 		Name:  containerName,
 		Image: c.spec.CephVersion.Image,
@@ -686,43 +752,73 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(openEncryptedBlock, encryptionKeyPath(), fmt.Sprintf("/%s", pvcName), encryptionDMName(pvcName, blockType), encryptionDMPath(pvcName, blockType)),
+			fmt.Sprintf(openEncryptedBlock, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), encryptionDMName(pvcName, cryptBlockType), encryptionDMPath(pvcName, cryptBlockType)),
 		},
-		VolumeDevices: []v1.VolumeDevice{
-			{
-				Name:       pvcName,
-				DevicePath: fmt.Sprintf("/%s", pvcName),
-			},
-		},
-		VolumeMounts:    []v1.VolumeMount{getDeviceMapperMount()},
-		SecurityContext: opmon.PodSecurityContext(),
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
+		SecurityContext: PrivilegedContext(),
 		Resources:       resources,
 	}
 }
 
-func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(osdProps osdProperties) []v1.Container {
+func (c *Cluster) generateVaultGetKEK(osdProps osdProperties) v1.Container {
+	return v1.Container{
+		Name:  blockEncryptionKMSGetKEKInitContainer,
+		Image: c.spec.CephVersion.Image,
+		Command: []string{
+			"/bin/bash",
+			"-c",
+			fmt.Sprintf(getKEKFromVaultWithToken, kms.GenerateOSDEncryptionSecretName(osdProps.pvc.ClaimName), encryptionKeyPath()),
+		},
+		Env:       kms.VaultConfigToEnvVar(c.spec),
+		Resources: osdProps.resources,
+	}
+}
+
+func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(mountPath string, osdProps osdProperties) []v1.Container {
 	containers := []v1.Container{}
 
+	// If a KMS is enabled we need to add an init container to fetch the KEK
+	if c.spec.Security.KeyManagementService.IsEnabled() {
+		kmsProvider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
+		// Get Vault KEK from KMS container
+		if kmsProvider == secrets.TypeVault {
+			if c.spec.Security.KeyManagementService.IsTokenAuthEnabled() {
+				getKEKFromKMSContainer := c.generateVaultGetKEK(osdProps)
+
+				// Volume mount to store the encrypted key
+				_, volMount := c.getEncryptionVolume(osdProps)
+				getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, volMount)
+
+				// Now let's see if there is a TLS config we need to mount as well
+				_, vaultVolMount := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+				getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, vaultVolMount)
+
+				// Add the container to the list of containers
+				containers = append(containers, getKEKFromKMSContainer)
+			}
+		}
+	}
+
 	// Main block container
-	blockContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenInitContainer, osdProps.pvc.ClaimName, DmcryptBlockType)
-	_, volMount := getEncryptionVolume(osdProps.pvc.ClaimName)
+	blockContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenInitContainer, osdProps.pvc.ClaimName, osdProps.pvc.ClaimName, DmcryptBlockType, bluestoreBlockName, mountPath)
+	_, volMount := c.getEncryptionVolume(osdProps)
 	blockContainer.VolumeMounts = append(blockContainer.VolumeMounts, volMount)
 	containers = append(containers, blockContainer)
 
 	// If there is a metadata PVC
-	if osdProps.metadataPVC.ClaimName != "" {
-		metadataContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenMetadataInitContainer, osdProps.metadataPVC.ClaimName, DmcryptMetadataType)
+	if osdProps.onPVCWithMetadata() {
+		metadataContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenMetadataInitContainer, osdProps.metadataPVC.ClaimName, osdProps.pvc.ClaimName, DmcryptMetadataType, bluestoreMetadataName, mountPath)
 		// We use the same key for both block and block.db so we must use osdProps.pvc.ClaimName for the getEncryptionVolume()
-		_, volMount := getEncryptionVolume(osdProps.pvc.ClaimName)
+		_, volMount := c.getEncryptionVolume(osdProps)
 		metadataContainer.VolumeMounts = append(metadataContainer.VolumeMounts, volMount)
 		containers = append(containers, metadataContainer)
 	}
 
 	// If there is a wal PVC
-	if osdProps.walPVC.ClaimName != "" {
-		metadataContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenWalInitContainer, osdProps.walPVC.ClaimName, DmcryptWalType)
+	if osdProps.onPVCWithWal() {
+		metadataContainer := c.generateEncryptionOpenBlockContainer(osdProps.resources, blockEncryptionOpenWalInitContainer, osdProps.walPVC.ClaimName, osdProps.pvc.ClaimName, DmcryptWalType, bluestoreWalName, mountPath)
 		// We use the same key for both block and block.db so we must use osdProps.pvc.ClaimName for the getEncryptionVolume()
-		_, volMount := getEncryptionVolume(osdProps.pvc.ClaimName)
+		_, volMount := c.getEncryptionVolume(osdProps)
 		metadataContainer.VolumeMounts = append(metadataContainer.VolumeMounts, volMount)
 		containers = append(containers, metadataContainer)
 	}
@@ -737,10 +833,10 @@ func (c *Cluster) generateEncryptionCopyBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"cp",
 		},
-		Args: []string{"-a", encryptionDMPath(pvcName, blockType), path.Join(mountPath, blockName)},
+		Args: append(cpArgs, encryptionDMPath(pvcName, blockType), path.Join(mountPath, blockName)),
 		// volumeMountPVCName is crucial, especially when the block we copy is the metadata block
 		// its value must be the name of the block PV so that all init containers use the same bridge (the emptyDir shared by all the init containers)
-		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName)},
+		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
 		SecurityContext: opmon.PodSecurityContext(),
 		Resources:       resources,
 	}
@@ -748,16 +844,16 @@ func (c *Cluster) generateEncryptionCopyBlockContainer(resources v1.ResourceRequ
 
 func (c *Cluster) getPVCEncryptionInitContainerActivate(mountPath string, osdProps osdProperties) []v1.Container {
 	containers := []v1.Container{}
-	containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionInitContainer, osdProps.pvc.ClaimName, mountPath, osdProps.pvc.ClaimName, dmcryptBlockName, DmcryptBlockType))
+	containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionInitContainer, osdProps.pvc.ClaimName, mountPath, osdProps.pvc.ClaimName, bluestoreBlockName, DmcryptBlockType))
 
 	// If there is a metadata PVC
 	if osdProps.metadataPVC.ClaimName != "" {
-		containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionMetadataInitContainer, osdProps.metadataPVC.ClaimName, mountPath, osdProps.pvc.ClaimName, dmcryptMetadataName, DmcryptMetadataType))
+		containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionMetadataInitContainer, osdProps.metadataPVC.ClaimName, mountPath, osdProps.pvc.ClaimName, bluestoreMetadataName, DmcryptMetadataType))
 	}
 
 	// If there is a wal PVC
 	if osdProps.walPVC.ClaimName != "" {
-		containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionWalInitContainer, osdProps.walPVC.ClaimName, mountPath, osdProps.pvc.ClaimName, dmcryptWalName, DmcryptWalType))
+		containers = append(containers, c.generateEncryptionCopyBlockContainer(osdProps.resources, blockPVCMapperEncryptionWalInitContainer, osdProps.walPVC.ClaimName, mountPath, osdProps.pvc.ClaimName, bluestoreWalName, DmcryptWalType))
 	}
 
 	return containers
@@ -774,7 +870,7 @@ func (c *Cluster) getPVCMetadataInitContainer(mountPath string, osdProps osdProp
 		Command: []string{
 			"cp",
 		},
-		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName), fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName)},
+		Args: append(cpArgs, fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName), fmt.Sprintf("/srv/%s", osdProps.metadataPVC.ClaimName)),
 		VolumeDevices: []v1.VolumeDevice{
 			{
 				Name:       osdProps.metadataPVC.ClaimName,
@@ -793,13 +889,24 @@ func (c *Cluster) getPVCMetadataInitContainer(mountPath string, osdProps osdProp
 }
 
 func (c *Cluster) getPVCMetadataInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
+	cpDestinationName := path.Join(mountPath, bluestoreMetadataName)
+	// Encrypted is a special
+	// We have an initial "cp" to copy the pvc to an empty dir, typically we copy it in /var/lib/ceph/osd/ceph-0/block
+	// BUT we encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
+	// So when encrypted we first copy to /var/lib/ceph/osd/ceph-0/block-tmp
+	// Then open the encrypted block and finally copy it to /var/lib/ceph/osd/ceph-0/block
+	// If we don't do this "cp" will fail to copy the special block file
+	if osdProps.encrypted {
+		cpDestinationName = encryptionBlockDestinationCopy(mountPath, bluestoreMetadataName)
+	}
+
 	return v1.Container{
 		Name:  blockPVCMetadataMapperInitContainer,
 		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"cp",
 		},
-		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName), path.Join(mountPath, "block.db")},
+		Args: append(cpArgs, fmt.Sprintf("/%s", osdProps.metadataPVC.ClaimName), cpDestinationName),
 		VolumeDevices: []v1.VolumeDevice{
 			{
 				Name:       osdProps.metadataPVC.ClaimName,
@@ -821,7 +928,7 @@ func (c *Cluster) getPVCWalInitContainer(mountPath string, osdProps osdPropertie
 		Command: []string{
 			"cp",
 		},
-		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), fmt.Sprintf("/wal/%s", osdProps.walPVC.ClaimName)},
+		Args: append(cpArgs, fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), fmt.Sprintf("/wal/%s", osdProps.walPVC.ClaimName)),
 		VolumeDevices: []v1.VolumeDevice{
 			{
 				Name:       osdProps.walPVC.ClaimName,
@@ -840,13 +947,24 @@ func (c *Cluster) getPVCWalInitContainer(mountPath string, osdProps osdPropertie
 }
 
 func (c *Cluster) getPVCWalInitContainerActivate(mountPath string, osdProps osdProperties) v1.Container {
+	cpDestinationName := path.Join(mountPath, bluestoreWalName)
+	// Encrypted is a special
+	// We have an initial "cp" to copy the pvc to an empty dir, typically we copy it in /var/lib/ceph/osd/ceph-0/block
+	// BUT we encryption we need a second block copy, the copy of the opened encrypted block which ultimately will be at /var/lib/ceph/osd/ceph-0/block
+	// So when encrypted we first copy to /var/lib/ceph/osd/ceph-0/block-tmp
+	// Then open the encrypted block and finally copy it to /var/lib/ceph/osd/ceph-0/block
+	// If we don't do this "cp" will fail to copy the special block file
+	if osdProps.encrypted {
+		cpDestinationName = encryptionBlockDestinationCopy(mountPath, bluestoreWalName)
+	}
+
 	return v1.Container{
 		Name:  blockPVCWalMapperInitContainer,
 		Image: c.spec.CephVersion.Image,
 		Command: []string{
 			"cp",
 		},
-		Args: []string{"-a", fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), path.Join(mountPath, "block.wal")},
+		Args: append(cpArgs, fmt.Sprintf("/%s", osdProps.walPVC.ClaimName), cpDestinationName),
 		VolumeDevices: []v1.VolumeDevice{
 			{
 				Name:       osdProps.walPVC.ClaimName,

@@ -245,3 +245,13 @@ func TestStorageScopeSpec_NodeWithNameExists(t *testing.T) {
 	assert.True(t, spec.NodeWithNameExists("node1"))
 	assert.True(t, spec.NodeWithNameExists("node2"))
 }
+
+func TestIsOnPVCEncrypted(t *testing.T) {
+	s := &StorageScopeSpec{}
+	assert.False(t, s.IsOnPVCEncrypted())
+
+	s.StorageClassDeviceSets = []StorageClassDeviceSet{
+		{Encrypted: true},
+	}
+	assert.True(t, s.IsOnPVCEncrypted())
+}

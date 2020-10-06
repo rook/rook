@@ -95,7 +95,8 @@ func configOverrideConfigMapVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	return v, m
 }
 
-func confGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
+// ConfGeneratedInPodVolumeAndMount generate an empty dir of /etc/ceph
+func ConfGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 	name := "ceph-conf-emptydir"
 	dir := config.EtcCephDir
 	v := v1.Volume{Name: name, VolumeSource: v1.VolumeSource{
@@ -118,7 +119,7 @@ func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, confGener
 	}
 	configVolume, _ := configOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
-		configVolume, _ = confGeneratedInPodVolumeAndMount()
+		configVolume, _ = ConfGeneratedInPodVolumeAndMount()
 	}
 
 	v := []v1.Volume{
@@ -135,7 +136,7 @@ func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, confGener
 func CephVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []v1.VolumeMount {
 	_, configMount := configOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
-		_, configMount = confGeneratedInPodVolumeAndMount()
+		_, configMount = ConfGeneratedInPodVolumeAndMount()
 	}
 
 	v := []v1.VolumeMount{

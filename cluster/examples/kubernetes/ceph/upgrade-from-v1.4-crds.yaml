@@ -94,3 +94,226 @@ spec:
                   type: array
   subresources:
     status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephclusters.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephCluster
+    listKind: CephClusterList
+    plural: cephclusters
+    singular: cephcluster
+  scope: Namespaced
+  version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            annotations: {}
+            cephVersion:
+              properties:
+                allowUnsupported:
+                  type: boolean
+                image:
+                  type: string
+            dashboard:
+              properties:
+                enabled:
+                  type: boolean
+                urlPrefix:
+                  type: string
+                port:
+                  type: integer
+                  minimum: 0
+                  maximum: 65535
+                ssl:
+                  type: boolean
+            dataDirHostPath:
+              pattern: ^/(\S+)
+              type: string
+            disruptionManagement:
+              properties:
+                machineDisruptionBudgetNamespace:
+                  type: string
+                managePodBudgets:
+                  type: boolean
+                osdMaintenanceTimeout:
+                  type: integer
+                manageMachineDisruptionBudgets:
+                  type: boolean
+            skipUpgradeChecks:
+              type: boolean
+            continueUpgradeAfterChecksEvenIfNotHealthy:
+              type: boolean
+            mon:
+              properties:
+                allowMultiplePerNode:
+                  type: boolean
+                count:
+                  maximum: 9
+                  minimum: 0
+                  type: integer
+                volumeClaimTemplate: {}
+            mgr:
+              properties:
+                modules:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      enabled:
+                        type: boolean
+            network:
+              properties:
+                hostNetwork:
+                  type: boolean
+                provider:
+                  type: string
+                selectors: {}
+            storage:
+              properties:
+                disruptionManagement:
+                  properties:
+                    machineDisruptionBudgetNamespace:
+                      type: string
+                    managePodBudgets:
+                      type: boolean
+                    osdMaintenanceTimeout:
+                      type: integer
+                    manageMachineDisruptionBudgets:
+                      type: boolean
+                useAllNodes:
+                  type: boolean
+                nodes:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      config:
+                        properties:
+                          metadataDevice:
+                            type: string
+                          storeType:
+                            type: string
+                            pattern: ^(bluestore)$
+                          databaseSizeMB:
+                            type: string
+                          walSizeMB:
+                            type: string
+                          journalSizeMB:
+                            type: string
+                          osdsPerDevice:
+                            type: string
+                          encryptedDevice:
+                            type: string
+                            pattern: ^(true|false)$
+                      useAllDevices:
+                        type: boolean
+                      deviceFilter:
+                        type: string
+                      devicePathFilter:
+                        type: string
+                      devices:
+                        type: array
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            config: {}
+                      resources: {}
+                  type: array
+                useAllDevices:
+                  type: boolean
+                deviceFilter:
+                  type: string
+                devicePathFilter:
+                  type: string
+                config: {}
+                storageClassDeviceSets: {}
+            driveGroups:
+              type: array
+              nullable: true
+              items:
+                properties:
+                  name:
+                    type: string
+                  spec: {}
+                  placement: {}
+                required:
+                - name
+                - spec
+            monitoring:
+              properties:
+                enabled:
+                  type: boolean
+                rulesNamespace:
+                  type: string
+                externalMgrEndpoints:
+                  type: array
+                  items:
+                    properties:
+                      ip:
+                        type: string
+            removeOSDsIfOutAndSafeToRemove:
+              type: boolean
+            external:
+              properties:
+                enable:
+                  type: boolean
+            cleanupPolicy:
+              properties:
+                confirmation:
+                  type: string
+                  pattern: ^$|^yes-really-destroy-data$
+                sanitizeDisks:
+                  properties:
+                    method:
+                      type: string
+                      pattern: ^(complete|quick)$
+                    dataSource:
+                      type: string
+                      pattern: ^(zero|random)$
+                    iteration:
+                      type: integer
+                      format: int32
+            security:
+              properties:
+                kms:
+                  properties:
+                    connectionDetails:
+                      type: object
+                    tokenSecretName:
+                      type: string
+            placement: {}
+            resources: {}
+            healthCheck: {}
+  subresources:
+    status: {}
+  additionalPrinterColumns:
+    - name: DataDirHostPath
+      type: string
+      description: Directory used on the K8s nodes
+      JSONPath: .spec.dataDirHostPath
+    - name: MonCount
+      type: string
+      description: Number of MONs
+      JSONPath: .spec.mon.count
+    - name: Age
+      type: date
+      JSONPath: .metadata.creationTimestamp
+    - name: Phase
+      type: string
+      description: Phase
+      JSONPath: .status.phase
+    - name: Message
+      type: string
+      description: Message
+      JSONPath: .status.message
+    - name: Health
+      type: string
+      description: Ceph Health
+      JSONPath: .status.ceph.health

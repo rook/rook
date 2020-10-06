@@ -1452,6 +1452,16 @@ spec:
                     iteration:
                       type: integer
                       format: int32
+            security:
+              properties:
+                kms:
+                  properties:
+                    connectionDetails:
+                      type: object
+                      nullable: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    tokenSecretName:
+                      type: string
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string

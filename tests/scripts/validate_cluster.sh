@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -xE
 
+: "${DAEMON_TO_VALIDATE:=${1}}"
+if [ -z "$DAEMON_TO_VALIDATE" ]; then
+  DAEMON_TO_VALIDATE=all
+fi
+
 trap display_status ERR
 
 #############
@@ -90,10 +95,47 @@ function display_status {
 test_csi
 test_demo_mon
 test_demo_mgr
-test_demo_osd
-test_demo_rgw
-test_demo_mds
-test_demo_rbd_mirror
+
+if [[ "$DAEMON_TO_VALIDATE" == "all" ]]; then
+  daemons_list="osd mds rgw rbd_mirror"
+else
+  # change commas to space
+  comma_to_space=${DAEMON_TO_VALIDATE//,/ }
+
+  # transform to an array
+  IFS=" " read -r -a array <<< "$comma_to_space"
+
+  # sort and remove potential duplicate
+  daemons_list=$(echo "${array[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+fi
+
+for daemon in $daemons_list; do
+  case "$daemon" in
+    mon)
+      continue
+      ;;
+    mgr)
+      continue
+      ;;
+    osd)
+      test_demo_osd
+      ;;
+    mds)
+      test_demo_mds
+      ;;
+    rgw)
+      test_demo_rgw
+      ;;
+    rbd_mirror)
+      test_demo_rbd_mirror
+      ;;
+    *)
+      log "ERROR: unknown daemon to validate!"
+      log "Available daemon are: mon mgr osd mds rgw rbd_mirror"
+      exit 1
+      ;;
+  esac
+done
 
 echo "Ceph is up and running, have a look!"
 $EXEC_COMMAND -s

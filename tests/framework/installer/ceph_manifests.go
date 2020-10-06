@@ -1544,6 +1544,14 @@ spec:
                     iteration:
                       type: integer
                       format: int32
+            security:
+              properties:
+                kms:
+                  properties:
+                    connectionDetails:
+                      type: object
+                    tokenSecretName:
+                      type: string
             placement: {}
             resources: {}
   additionalPrinterColumns:

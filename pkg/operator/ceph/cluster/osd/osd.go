@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -284,16 +285,24 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 				continue
 			}
 
-			// Store the kube secret here!
-			s := generateOSDEncryptedKeySecret(osdProps.pvc.ClaimName, c.clusterInfo.Namespace, key)
+			// Initialize the KMS code
+			kmsConfig := kms.NewConfig(c.context, &c.spec, c.clusterInfo)
 
-			// Set the ownerref to the Secret
-			k8sutil.SetOwnerRef(&s.ObjectMeta, &c.clusterInfo.OwnerRef)
+			// We could set an env var in the Operator or a global var instead of the API call?
+			// Hopefully, the API is cheap and we can always retrieve the token if it has changed...
+			if c.spec.Security.KeyManagementService.IsTokenAuthEnabled() {
+				err := kms.SetTokenToEnvVar(c.context, c.spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, c.clusterInfo.Namespace)
+				if err != nil {
+					errMsg := fmt.Sprintf("failed to fetch kms token secret %q", c.spec.Security.KeyManagementService.TokenSecretName)
+					config.addError(errMsg)
+					continue
+				}
+			}
 
-			// Create the Kubernetes Secret
-			_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(s)
-			if err != nil && !kerrors.IsAlreadyExists(err) {
-				errMsg := fmt.Sprintf("failed to save ceph osd encryption key as a secret for pvc %q. %v", osdProps.pvc.ClaimName, err)
+			// Generate and store the encrypted key in whatever KMS is configured
+			err = kmsConfig.PutSecret(osdProps.pvc.ClaimName, key)
+			if err != nil {
+				errMsg := fmt.Sprintf("failed to store secret. %v", err)
 				config.addError(errMsg)
 				continue
 			}
@@ -674,7 +683,6 @@ func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {
 }
 
 func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
-
 	for _, volumeSource := range c.ValidStorage.VolumeSources {
 		// The data PVC template is required.
 		dataSource, dataOK := volumeSource.PVCSources[bluestorePVCData]

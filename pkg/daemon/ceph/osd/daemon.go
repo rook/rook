@@ -205,6 +205,18 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 		if err != nil {
 			return errors.Wrapf(err, "binary %q does not exist on the host, make sure lvm2 package is installed", lvmCommandToCheck)
 		}
+		// Init KMS store, retrieve the KEK and store it as an env var for ceph-volume
+	} else {
+		err := setKEKinEnv(context, agent.clusterInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to set kek as an environment variable")
+		}
+	}
+
+	// Print dmsetup version
+	err := dmsetupVersion(context)
+	if err != nil {
+		return errors.Wrap(err, "failed to print device mapper version")
 	}
 
 	// set the initial orchestration status
@@ -217,7 +229,6 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 
 	logger.Infof("discovering hardware")
 
-	var err error
 	var rawDevices []*sys.LocalDisk
 	if agent.pvcBacked {
 		for i := range agent.devices {
