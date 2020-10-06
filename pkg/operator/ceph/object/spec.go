@@ -151,7 +151,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		},
 		Args: append(
 			append(
-				controller.DaemonFlags(c.clusterInfo, strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
+				controller.DaemonFlags(c.clusterInfo, c.clusterSpec, strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
 				"--foreground",
 				cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
 				cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)),
