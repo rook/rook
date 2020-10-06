@@ -6,6 +6,8 @@ indent: true
 
 # EdgeFS VDEV Management
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 EdgeFS can run on top of any block device. It can be a raw physical or virtual disk (RT-RD type). Or it can be a directory on a local filesystem (RT-LFS type).
 In case of a local filesystem, VDEV function will be emulated via memory-mapped files and as such, management of the files is a responsibility of underlying filesystem of choice. (e.g. ext4, xfs, zfs, etc).
 This document describes the management of VDEVs built on top of raw disks (RT-RD type).

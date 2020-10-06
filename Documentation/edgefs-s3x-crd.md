@@ -6,6 +6,8 @@ indent: true
 
 # Edge-X S3 CRD
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 The API provides access to advanced EdgeFS Object interfaces, such as access to Key-Value store, S3 Object Append mode, S3 Object RW mode and S3 Object Stream Session (POSIX compatible) mode. A Stream Session encompasses a series of edits to one object made by one source that are saved as one or more versions during a specific finite time duration. A Stream Session must be isolated while it is open. That is, users working through this session will not see updates to this object from other sessions.Stream Session allows high-performance POSIX-style access to an object and thus it is beneficial for client applications to use HTTP/1.1 Persistent Connection extensions, to minimize latency between updates or reads.
 
 For more detailes on API please refer to [Edge-S3 API](https://edgex.docs.apiary.io/).

@@ -6,6 +6,8 @@ indent: true
 
 # EdgeFS ISGW (Inter-Segment GateWay) CRD
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 EdgeFS Inter-Segment Gateway link is a building block for EdgeFS cross-site, cross-cloud global namespace synchronization functionality.
 
 It distributes modified chunks of data asynchronously and enables seamless as well as geographically transparent access to files, objects and block devices.

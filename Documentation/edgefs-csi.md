@@ -7,6 +7,8 @@ indent: true
 
 # EdgeFS Rook integrated CSI driver, provisioner, attacher and snapshotter
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 [Container Storage Interface (CSI)](https://github.com/container-storage-interface/) driver, provisioner, attacher and snapshotter for EdgeFS Scale-Out NFS/ISCSI services
 
 ## Overview
