@@ -6,6 +6,8 @@ indent: true
 
 # EdgeFS Upgrades
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 This guide will walk you through the manual steps to upgrade the software in a Rook EdgeFS cluster
 from one version to the next. Rook EdgeFS is a multi-cloud distributed software system and
 therefore there are multiple components to individually upgrade in the sequence defined in this

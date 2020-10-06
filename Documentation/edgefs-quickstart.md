@@ -8,6 +8,8 @@ indent: true
 
 # EdgeFS Data Fabric Quickstart
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 EdgeFS Data Fabric virtualzing common storage protocols and enables multi-cluster, multi-region data flow topologies.
 
 This guide will walk you through the basic setup of a EdgeFS cluster namespaces and enable you to consume S3 object, NFS/SMB file access, and iSCSI block storage

@@ -8,6 +8,8 @@ indent: true
 
 # EdgeFS Monitoring
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 Each Rook EdgeFS cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 If you do not have Prometheus running, follow the steps below to enable monitoring of Rook. If your cluster already
 contains a Prometheus instance, it will automatically discover Rooks scrape endpoint using the standard
