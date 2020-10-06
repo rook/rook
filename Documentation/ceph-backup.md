@@ -35,7 +35,7 @@ For example:
 
 ## Create Back Up
 
-We need to save Volumes, Volumes Claims, ConfigMaps, Secrets and Services.
+We need to save Volumes, Volumes Claims, ConfigMaps, Secrets and Services in `rook-ceph` namespace.
 
 ```console
 velero backup create <BackupName> --include-namespaces rook-ceph --include-resources pv,pvc,services,configmaps,secrets --default-volumes-to-restic
@@ -140,6 +140,10 @@ spec:
 status:
   loadBalancer: {}
 ```
+
+### Backup of `PersistentVolumeClaims` using Ceph Shared Filesystem or Block Storage
+
+In addition, if you want to persist the `PersistentVolumeClaims` that make use of Ceph [Shared Filesystem](ceph-filesystem.md) or [Block Storage](ceph-block.md), you need to use Velero `opt-in pod volume backup` approach. Please take at look [here](https://velero.io/docs/v1.5/restic/#using-opt-in-pod-volume-backup).
 
 ## Restore Back Up
 
