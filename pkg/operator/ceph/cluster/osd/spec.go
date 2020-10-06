@@ -338,6 +338,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	args = append(args, opconfig.LoggingFlags()...)
 	args = append(args, osdOnSDNFlag(c.spec.Network)...)
 
+	if c.spec.Network.IPFamily == cephv1.IPv6 {
+		args = append(args, opconfig.NewFlag("ms-bind-ipv6", "true"))
+	}
+
 	osdDataDirPath := activateOSDMountPath + osdID
 	if osdProps.onPVC() && osd.CVMode == "lvm" {
 		// Let's use the old bridge for these lvm based pvc osds

@@ -244,6 +244,10 @@ The Network attachment definitions should be using whereabouts cni.
 If Rook cannot find the provided Network attachment definition it will fail running the Ceph OSD pods.
 You can add the Multus network attachment selection annotation selecting the created network attachment definition on `selectors`.
 
+#### IPFamily
+
+Provide single-stack IPv4 or IPv6 protocol to assign corresponding addresses to pods and services. This field is optional. Possible inputs are IPv6 and IPv4. Empty value will be treated as IPv4. Kubernetes version should be at least v1.13 to run IPv6. Dual-stack is not supported by ceph.
+
 ### Node Settings
 
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.

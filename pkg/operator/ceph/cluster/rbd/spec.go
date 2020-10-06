@@ -113,7 +113,7 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 			"rbd-mirror",
 		},
 		Args: append(
-			controller.DaemonFlags(r.clusterInfo, daemonConfig.DaemonID),
+			controller.DaemonFlags(r.clusterInfo, r.cephClusterSpec, daemonConfig.DaemonID),
 			"--foreground",
 			"--name="+fullDaemonName(daemonConfig.DaemonID),
 		),
