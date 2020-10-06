@@ -5,6 +5,8 @@ weight: 4000
 
 # EdgeFS Data Fabric
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 [EdgeFS](http://edgefs.io) is high-performance and fault-tolerant decentralized data fabric with virtualized access to S3 object, NFS/SMB file, NoSQL and iSCSI block.
 
 EdgeFS is capable of spanning unlimited number of geographically distributed sites (Geo-site), connected with each other as one global name space data fabric running on top of Kubernetes platform, providing persistent, fault-tolerant and high-performance volumes for stateful Kubernetes Applications.

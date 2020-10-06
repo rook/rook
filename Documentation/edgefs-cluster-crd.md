@@ -6,6 +6,8 @@ indent: true
 
 # EdgeFS Cluster CRD
 
+[Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)
+
 Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).
 
 ## Sample

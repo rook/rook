@@ -21,7 +21,7 @@ High-level Storage Provider design documents:
 | Storage Provider            | Status | Description                                                                                                                                            |
 | --------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [Ceph](ceph-storage.md)     | Stable | Ceph is a highly scalable distributed storage solution for block storage, object storage, and shared filesystems with years of production deployments. |
-| [EdgeFS](edgefs-storage.md) | Stable | EdgeFS is high-performance and fault-tolerant decentralized data fabric with access to object, file, NoSQL and block.                         |
+| [EdgeFS](edgefs-storage.md) | [Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989) | EdgeFS is high-performance and fault-tolerant decentralized data fabric with access to object, file, NoSQL and block.                         |
 
 Low level design documentation for supported list of storage systems collected at [design docs](https://github.com/rook/rook/tree/master/design) section.
 
