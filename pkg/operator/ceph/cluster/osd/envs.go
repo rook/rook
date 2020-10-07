@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"gopkg.in/ini.v1"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -33,14 +34,19 @@ const (
 	EncryptedDeviceEnvVarName = "ROOK_ENCRYPTED_DEVICE"
 	// CephVolumeEncryptedKeyEnvVarName is the env variable used by ceph-volume to encrypt the OSD (raw mode)
 	// Hardcoded in ceph-volume do NOT touch
-	CephVolumeEncryptedKeyEnvVarName = "CEPH_VOLUME_DMCRYPT_SECRET"
-	osdMetadataDeviceEnvVarName      = "ROOK_METADATA_DEVICE"
-	osdWalDeviceEnvVarName           = "ROOK_WAL_DEVICE"
-	pvcBackedOSDVarName              = "ROOK_PVC_BACKED_OSD"
-	blockPathVarName                 = "ROOK_BLOCK_PATH"
-	cvModeVarName                    = "ROOK_CV_MODE"
-	lvBackedPVVarName                = "ROOK_LV_BACKED_PV"
-	CrushDeviceClassVarName          = "ROOK_OSD_CRUSH_DEVICE_CLASS"
+	CephVolumeEncryptedKeyEnvVarName    = "CEPH_VOLUME_DMCRYPT_SECRET"
+	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
+	osdWalDeviceEnvVarName              = "ROOK_WAL_DEVICE"
+	pvcBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
+	blockPathVarName                    = "ROOK_BLOCK_PATH"
+	cvModeVarName                       = "ROOK_CV_MODE"
+	lvBackedPVVarName                   = "ROOK_LV_BACKED_PV"
+	CrushDeviceClassVarName             = "ROOK_OSD_CRUSH_DEVICE_CLASS"
+	tcmallocMaxTotalThreadCacheBytesEnv = "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES"
+)
+
+var (
+	cephEnvConfigFile = "/etc/sysconfig/ceph"
 )
 
 func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.EnvVar {
@@ -195,4 +201,25 @@ func osdActivateEnvVar() []v1.EnvVar {
 	}
 
 	return append(cephVolumeEnvVar(), monEnvVars...)
+}
+
+func getTcmallocMaxTotalThreadCacheBytes(tcmallocMaxTotalThreadCacheBytes string) v1.EnvVar {
+	var value string
+	// If empty we read the default value from the file coming with the package
+	if tcmallocMaxTotalThreadCacheBytes == "" {
+		value = getTcmallocMaxTotalThreadCacheBytesFromFile()
+	} else {
+		value = tcmallocMaxTotalThreadCacheBytes
+	}
+
+	return v1.EnvVar{Name: tcmallocMaxTotalThreadCacheBytesEnv, Value: value}
+}
+
+func getTcmallocMaxTotalThreadCacheBytesFromFile() string {
+	iniCephEnvConfigFile, err := ini.Load(cephEnvConfigFile)
+	if err != nil {
+		return ""
+	}
+
+	return iniCephEnvConfigFile.Section("").Key(tcmallocMaxTotalThreadCacheBytesEnv).String()
 }

@@ -242,6 +242,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()},
 		{Name: "ROOK_IS_DEVICE", Value: "true"},
+		getTcmallocMaxTotalThreadCacheBytes(""),
 	}...)
 
 	var command []string
@@ -538,6 +539,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		cephv1.GetOSDPlacement(c.spec.Placement).ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	} else {
 		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	}
+
+	// Change TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES if the OSD has been annotated with a value
+	osdAnnotations := cephv1.GetOSDAnnotations(c.spec.Annotations)
+	tcmallocMaxTotalThreadCacheBytes, ok := osdAnnotations[tcmallocMaxTotalThreadCacheBytesEnv]
+	if ok && tcmallocMaxTotalThreadCacheBytes != "" {
+		deployment.Spec.Template.Spec.Containers[0].Env = append(deployment.Spec.Template.Spec.Containers[0].Env, getTcmallocMaxTotalThreadCacheBytes(tcmallocMaxTotalThreadCacheBytes))
 	}
 
 	return deployment, nil

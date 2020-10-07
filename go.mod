@@ -32,7 +32,7 @@ require (
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/tools v0.0.0-20200319210407-521f4a0cd458 // indirect
 	google.golang.org/grpc v1.26.0 // indirect
-	gopkg.in/ini.v1 v1.51.1 // indirect
+	gopkg.in/ini.v1 v1.51.1
 	k8s.io/api v0.17.2
 	k8s.io/apiextensions-apiserver v0.17.2
 	k8s.io/apimachinery v0.17.2
