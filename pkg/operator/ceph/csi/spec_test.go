@@ -19,7 +19,8 @@ package csi
 import (
 	"testing"
 
-	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
+	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
@@ -39,11 +40,14 @@ func TestStartCSI(t *testing.T) {
 		SnapshotterImage: "image",
 	}
 	clientset := test.New(t, 3)
-	var rookclientset rookclient.Interface
+	context := &clusterd.Context{
+		Clientset:     clientset,
+		RookClientset: rookfake.NewSimpleClientset(),
+	}
 	serverVersion, err := clientset.Discovery().ServerVersion()
 	if err != nil {
 		assert.Nil(t, err)
 	}
-	err = startDrivers(clientset, rookclientset, "ns", serverVersion, nil)
+	err = startDrivers(context, "ns", serverVersion, nil)
 	assert.Nil(t, err)
 }

@@ -17,17 +17,20 @@ limitations under the License.
 package csi
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/clusterd"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8scsi "k8s.io/api/storage/v1beta1"
@@ -201,7 +204,7 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
+func startDrivers(context *clusterd.Context, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
 	var (
 		err                                                   error
 		rbdPlugin, cephfsPlugin                               *apps.DaemonSet
@@ -225,7 +228,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	tp.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
 
 	// If not set or set to anything but "false", the kernel client will be enabled
-	kClient, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_FORCE_CEPHFS_KERNEL_CLIENT", "true")
+	kClient, err := k8sutil.GetOperatorSetting(context.Clientset, controllerutil.OperatorSettingConfigMapName, "CSI_FORCE_CEPHFS_KERNEL_CLIENT", "true")
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_FORCE_CEPHFS_KERNEL_CLIENT setting")
 	}
@@ -235,38 +238,38 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		tp.ForceCephFSKernelClient = "true"
 	}
 	// parse GRPC and Liveness ports
-	tp.CephFSGRPCMetricsPort, err = getPortFromConfig(clientset, "CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
+	tp.CephFSGRPCMetricsPort, err = getPortFromConfig(context.Clientset, "CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI CephFS GRPC metrics port.")
 	}
-	tp.CephFSLivenessMetricsPort, err = getPortFromConfig(clientset, "CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)
+	tp.CephFSLivenessMetricsPort, err = getPortFromConfig(context.Clientset, "CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI CephFS liveness metrics port.")
 	}
 
-	tp.RBDGRPCMetricsPort, err = getPortFromConfig(clientset, "CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
+	tp.RBDGRPCMetricsPort, err = getPortFromConfig(context.Clientset, "CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI RBD GRPC metrics port.")
 	}
-	tp.RBDLivenessMetricsPort, err = getPortFromConfig(clientset, "CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
+	tp.RBDLivenessMetricsPort, err = getPortFromConfig(context.Clientset, "CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
 	}
 
 	// default value `system-node-critical` is the highest available priority
-	tp.PluginPriorityClassName, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PLUGIN_PRIORITY_CLASSNAME", "")
+	tp.PluginPriorityClassName, err = k8sutil.GetOperatorSetting(context.Clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PLUGIN_PRIORITY_CLASSNAME", "")
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_PLUGIN_PRIORITY_CLASSNAME setting")
 	}
 
 	// default value `system-cluster-critical` is applied for some
 	// critical pods in cluster but less priority than plugin pods
-	tp.ProvisionerPriorityClassName, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PROVISIONER_PRIORITY_CLASSNAME", "")
+	tp.ProvisionerPriorityClassName, err = k8sutil.GetOperatorSetting(context.Clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PROVISIONER_PRIORITY_CLASSNAME", "")
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_PROVISIONER_PRIORITY_CLASSNAME setting")
 	}
 
-	updateStrategy, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate)
+	updateStrategy, err := k8sutil.GetOperatorSetting(context.Clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY setting")
 	}
@@ -276,7 +279,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		tp.CephFSPluginUpdateStrategy = rollingUpdate
 	}
 
-	updateStrategy, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_RBD_PLUGIN_UPDATE_STRATEGY", rollingUpdate)
+	updateStrategy, err = k8sutil.GetOperatorSetting(context.Clientset, controllerutil.OperatorSettingConfigMapName, "CSI_RBD_PLUGIN_UPDATE_STRATEGY", rollingUpdate)
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_RBD_PLUGIN_UPDATE_STRATEGY setting")
 	}
@@ -288,7 +291,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 
 	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
 
-	tp.ResizerImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
+	tp.ResizerImage, err = k8sutil.GetOperatorSetting(context.Clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
 	if err != nil {
 		return errors.Wrap(err, "failed to load ROOK_CSI_RESIZER_IMAGE setting")
 	}
@@ -303,7 +306,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		logger.Warning("CSI Block volume expansion requires Kubernetes version >=1.16.0")
 	}
 
-	logLevel, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_LOG_LEVEL", "")
+	logLevel, err := k8sutil.GetOperatorSetting(context.Clientset, controllerutil.OperatorSettingConfigMapName, "CSI_LOG_LEVEL", "")
 	if err != nil {
 		// logging a warning and intentionally continuing with the default log level
 		logger.Warningf("failed to load CSI_LOG_LEVEL. Defaulting to %d. %v", defaultLogLevel, err)
@@ -319,7 +322,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 
 	tp.ProvisionerReplicas = 2
-	nodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	nodes, err := context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err == nil {
 		if len(nodes.Items) == 1 {
 			tp.ProvisionerReplicas = 1
@@ -364,24 +367,24 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 
 	// get provisioner toleration and node affinity
-	provisionerTolerations := getToleration(clientset, true)
-	provisionerNodeAffinity := getNodeAffinity(clientset, true)
+	provisionerTolerations := getToleration(context.Clientset, true)
+	provisionerNodeAffinity := getNodeAffinity(context.Clientset, true)
 	// get plugin toleration and node affinity
-	pluginTolerations := getToleration(clientset, false)
-	pluginNodeAffinity := getNodeAffinity(clientset, false)
+	pluginTolerations := getToleration(context.Clientset, false)
+	pluginNodeAffinity := getNodeAffinity(context.Clientset, false)
 	if rbdPlugin != nil {
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		// apply resource request and limit to rbdplugin containers
-		applyResourcesToContainers(clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
+		applyResourcesToContainers(context.Clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, ownerRef)
-		multusApplied, err := applyCephClusterNetworkConfig(&rbdPlugin.Spec.Template.ObjectMeta, rookclientset)
+		multusApplied, err := applyCephClusterNetworkConfig(context, &rbdPlugin.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset: %+v", rbdPlugin)
 		}
 		if multusApplied {
 			rbdPlugin.Spec.Template.Spec.HostNetwork = false
 		}
-		err = k8sutil.CreateDaemonSet(csiRBDPlugin, namespace, clientset, rbdPlugin)
+		err = k8sutil.CreateDaemonSet(csiRBDPlugin, namespace, context.Clientset, rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbdplugin daemonset: %+v", rbdPlugin)
 		}
@@ -391,7 +394,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	if rbdProvisionerDeployment != nil {
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		// apply resource request and limit to rbd provisioner containers
-		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
+		applyResourcesToContainers(context.Clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, ownerRef)
 		antiAffinity := GetPodAntiAffinity("app", csiRBDProvisioner)
 		rbdProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
@@ -399,11 +402,11 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
-		_, err = applyCephClusterNetworkConfig(&rbdProvisionerDeployment.Spec.Template.ObjectMeta, rookclientset)
+		_, err = applyCephClusterNetworkConfig(context, &rbdProvisionerDeployment.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
-		err = k8sutil.CreateDeployment(clientset, csiRBDProvisioner, namespace, rbdProvisionerDeployment)
+		err = k8sutil.CreateDeployment(context.Clientset, csiRBDProvisioner, namespace, rbdProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
@@ -412,7 +415,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 
 	if rbdService != nil {
 		k8sutil.SetOwnerRef(&rbdService.ObjectMeta, ownerRef)
-		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, rbdService)
+		_, err = k8sutil.CreateOrUpdateService(context.Clientset, namespace, rbdService)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create rbd service: %+v", rbdService)
 		}
@@ -421,16 +424,16 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	if cephfsPlugin != nil {
 		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		// apply resource request and limit to cephfs plugin containers
-		applyResourcesToContainers(clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
+		applyResourcesToContainers(context.Clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, ownerRef)
-		multusApplied, err := applyCephClusterNetworkConfig(&cephfsPlugin.Spec.Template.ObjectMeta, rookclientset)
+		multusApplied, err := applyCephClusterNetworkConfig(context, &cephfsPlugin.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin daemonset: %+v", cephfsPlugin)
 		}
 		if multusApplied {
 			cephfsPlugin.Spec.Template.Spec.HostNetwork = false
 		}
-		err = k8sutil.CreateDaemonSet(csiCephFSPlugin, namespace, clientset, cephfsPlugin)
+		err = k8sutil.CreateDaemonSet(csiCephFSPlugin, namespace, context.Clientset, cephfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs plugin daemonset: %+v", cephfsPlugin)
 		}
@@ -441,7 +444,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		// get resource details for cephfs provisioner
 		// apply resource request and limit to cephfs provisioner containers
-		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
+		applyResourcesToContainers(context.Clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, ownerRef)
 		antiAffinity := GetPodAntiAffinity("app", csiCephFSProvisioner)
 		cephfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
@@ -449,11 +452,11 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
-		_, err = applyCephClusterNetworkConfig(&cephfsProvisionerDeployment.Spec.Template.ObjectMeta, rookclientset)
+		_, err = applyCephClusterNetworkConfig(context, &cephfsProvisionerDeployment.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}
-		err = k8sutil.CreateDeployment(clientset, csiCephFSProvisioner, namespace, cephfsProvisionerDeployment)
+		err = k8sutil.CreateDeployment(context.Clientset, csiCephFSProvisioner, namespace, cephfsProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}
@@ -461,20 +464,20 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 	if cephfsService != nil {
 		k8sutil.SetOwnerRef(&cephfsService.ObjectMeta, ownerRef)
-		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, cephfsService)
+		_, err = k8sutil.CreateOrUpdateService(context.Clientset, namespace, cephfsService)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create rbd service: %+v", cephfsService)
 		}
 	}
 
 	if EnableRBD {
-		err = createCSIDriverInfo(clientset, RBDDriverName)
+		err = createCSIDriverInfo(context.Clientset, RBDDriverName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
 	}
 	if EnableCephFS {
-		err = createCSIDriverInfo(clientset, CephFSDriverName)
+		err = createCSIDriverInfo(context.Clientset, CephFSDriverName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
@@ -534,11 +537,12 @@ func deleteCSIDriverResources(
 	return succeeded
 }
 
-func applyCephClusterNetworkConfig(objectMeta *metav1.ObjectMeta, rookclientset rookclient.Interface) (bool, error) {
+func applyCephClusterNetworkConfig(ctx *clusterd.Context, objectMeta *metav1.ObjectMeta) (bool, error) {
 	var isMultusApplied bool
-	cephClusters, err := rookclientset.CephV1().CephClusters(objectMeta.Namespace).List(metav1.ListOptions{})
+	cephClusters := &v1.CephClusterList{}
+	err := ctx.Client.List(context.TODO(), cephClusters, &client.ListOptions{})
 	if err != nil {
-		return false, errors.Errorf("failed to find CephClusters in namespace %q", objectMeta.Namespace)
+		return false, errors.Wrapf(err, "failed to find CephClusters")
 	}
 	for _, cephCluster := range cephClusters.Items {
 		if cephCluster.Spec.Network.IsMultus() {
