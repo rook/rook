@@ -414,6 +414,10 @@ func (p *Provisioner) setObjectContext() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to set multisite on provisioner's objectContext")
 		}
+		if p.objectContext.Endpoint != "" {
+			p.objectContext.Endpoint = store.Status.Info["endpoint"]
+
+		}
 	}
 
 	return nil
