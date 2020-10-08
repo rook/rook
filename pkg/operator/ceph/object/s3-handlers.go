@@ -48,7 +48,7 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool) (*S3Agent, er
 			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
 			WithEndpoint(endpoint).
 			WithS3ForcePathStyle(true).
-			WithMaxRetries(20).
+			WithMaxRetries(5).
 			WithDisableSSL(true).
 			WithHTTPClient(&http.Client{
 				Timeout: time.Second * 15,
