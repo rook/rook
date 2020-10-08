@@ -39,7 +39,8 @@ import (
 const (
 	controllerName = "ceph-crashcollector-controller"
 	// AppName is the value to the "app" label for the ceph-crash pods
-	AppName = "rook-ceph-crashcollector"
+	AppName    = "rook-ceph-crashcollector"
+	prunerName = "rook-ceph-crashcollector-pruner"
 	// NodeNameLabel is a node name label
 	NodeNameLabel = "node_name"
 )

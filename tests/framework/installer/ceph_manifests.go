@@ -69,6 +69,7 @@ type clusterSettings struct {
 	StorageClassName string
 	skipOSDCreation  bool
 	CephVersion      cephv1.CephVersionSpec
+	useCrashPruner   bool
 }
 
 // clusterExternalSettings represents the settings of an external cluster
@@ -207,6 +208,8 @@ spec:
                   properties:
                     disable:
                       type: boolean
+                    daysToRetain:
+                      type: integer
                 network:
                   type: object
                   nullable: true
@@ -2376,6 +2379,7 @@ rules:
   - batch
   resources:
   - jobs
+  - cronjobs
   verbs:
   - get
   - list
@@ -3382,6 +3386,11 @@ func (m *CephManifestsMaster) GetRookCluster(settings *clusterSettings) string {
 		crushRoot = `crushRoot: "custom-root"`
 	}
 
+	pruner := "# daysToRetain not specified;"
+	if settings.useCrashPruner {
+		pruner = "daysToRetain: 5"
+	}
+
 	if settings.UsePVCs {
 		return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
@@ -3411,6 +3420,7 @@ spec:
     hostNetwork: false
   crashCollector:
     disable: false
+    ` + pruner + `
   storage:
     config:
       ` + crushRoot + `
@@ -3451,6 +3461,9 @@ spec:
   dataDirHostPath: ` + settings.DataDirHostPath + `
   network:
     hostNetwork: false
+  crashCollector:
+    disable: false
+    ` + pruner + `
   mon:
     count: ` + strconv.Itoa(settings.Mons) + `
     allowMultiplePerNode: true

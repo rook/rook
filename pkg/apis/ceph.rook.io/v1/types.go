@@ -314,7 +314,8 @@ type ExternalSpec struct {
 
 // CrashCollectorSpec represents options to configure the crash controller
 type CrashCollectorSpec struct {
-	Disable bool `json:"disable"`
+	Disable      bool `json:"disable"`
+	DaysToRetain uint `json:"daysToRetain,omitempty"`
 }
 
 // +genclient

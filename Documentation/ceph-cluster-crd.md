@@ -198,6 +198,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `modules`: is the list of Ceph manager modules to enable
 * `crashCollector`: The settings for crash collector daemon(s).
   * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
+  * `daysToRetain`: specifies the number of days to keep crash entries in the Ceph cluster. By default the entries are kept indefinitely.
 * `annotations`: [annotations configuration settings](#annotations-and-labels)
 * `labels`: [labels configuration settings](#annotations-and-labels)
 * `placement`: [placement configuration settings](#placement-configuration-settings)
