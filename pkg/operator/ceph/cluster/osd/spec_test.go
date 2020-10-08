@@ -93,6 +93,11 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		PriorityClassNames: map[rookv1.KeyType]string{
 			cephv1.KeyOSD: "my-priority-class",
 		},
+		Annotations: rookv1.AnnotationsSpec{
+			"osd": map[string]string{
+				"TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES": "134217728",
+			},
+		},
 	}
 	c := New(context, clusterInfo, spec, "rook/rook:myversion")
 
@@ -145,7 +150,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, AppName, deployment.Spec.Template.ObjectMeta.Name)
 	assert.Equal(t, AppName, deployment.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.clusterInfo.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, 0, len(deployment.Spec.Template.ObjectMeta.Annotations))
+	assert.Equal(t, 1, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
 	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
@@ -158,6 +163,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, spec.CephVersion.Image, cont.Image)
 	assert.Equal(t, 7, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
+	verifyEnvVar(t, cont.Env, "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES", "134217728", true)
 
 	// Test OSD on PVC with LVM
 	osdProp = osdProperties{
