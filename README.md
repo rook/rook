@@ -2,8 +2,8 @@
 
 [![CNCF Status](https://img.shields.io/badge/cncf%20status-graduated-blue.svg)](https://www.cncf.io/projects)
 [![Build Status](https://jenkins.rook.io/buildStatus/icon?job=rook/rook/master)](https://jenkins.rook.io/blue/organizations/jenkins/rook%2Frook/activity)
-[![GitHub release](https://img.shields.io/github/release/rook/rook/all.svg?style=flat-square)](https://github.com/rook/rook/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/rook/rook.svg)](https://img.shields.io/docker/pulls/rook/rook.svg)
+[![GitHub release](https://img.shields.io/github/release/rook/rook/all.svg)](https://github.com/rook/rook/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/rook/ceph)](https://hub.docker.com/u/rook)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1599/badge)](https://bestpractices.coreinfrastructure.org/projects/1599)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Frook%2Frook.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Frook%2Frook?ref=badge_shield)
