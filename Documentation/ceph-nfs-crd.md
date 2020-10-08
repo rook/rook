@@ -75,13 +75,13 @@ spec:
 
 ## EXPORT Block Configuration
 
-Each daemon will have a stock configuration with no exports defined, and that includes a RADOS object via:
+All daemons within a cluster will share configuration with no exports defined, and that includes a RADOS object via:
 
 ```ini
-%url  rados://<pool>/<namespace>/conf-<nodeid>
+%url  rados://<pool>/<namespace>/conf-nfs.<clustername>
 ```
 
-The pool and namespace are configured via the spec's RADOS block. The nodeid is a value automatically assigned internally by rook. Nodeids start with "a" and go through "z", at which point they become two letters ("aa" to "az").
+The pool and namespace are configured via the spec's RADOS block.
 
 When a server is started, it will create the included object if it does not already exist. It is possible to prepopulate the included objects prior to starting the server. The format for these objects is documented in the [NFS Ganesha](https://github.com/nfs-ganesha/nfs-ganesha/wiki) project.
 
