@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package objectzone to manage a rook object zone.
+// Package zone to manage a rook object zone.
 package zone
 
 import (
@@ -287,8 +287,9 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 }
 
 func (r *ReconcileObjectZone) reconcileObjectZoneGroup(zone *cephv1.CephObjectZone) (string, reconcile.Result, error) {
-	// Verify the object zone API object actually exists
-	zoneGroup, err := r.context.RookClientset.CephV1().CephObjectZoneGroups(zone.Namespace).Get(zone.Spec.ZoneGroup, metav1.GetOptions{})
+	// empty zoneGroup gets filled by r.client.Get()
+	zoneGroup := &cephv1.CephObjectZoneGroup{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: zone.Spec.ZoneGroup, Namespace: zone.Namespace}, zoneGroup)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return "", waitForRequeueIfObjectZoneGroupNotReady, err
