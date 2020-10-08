@@ -195,6 +195,9 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 	// #nosec G204 Rook controls the input to the exec arguments
 	cmd := exec.Command(command, arg...)
 	cmdOut, err := cmd.CombinedOutput()
+	if err != nil {
+		cmdOut = []byte(fmt.Sprintf("%s. %s", string(cmdOut), string(err.(*exec.ExitError).Stderr)))
+	}
 	// if there was anything that went to stdout/stderr then log it, even before we return an error
 	if string(cmdOut) != "" {
 		logger.Debug(string(cmdOut))
