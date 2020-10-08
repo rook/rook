@@ -88,13 +88,13 @@ The bootstrap peer token can be found in a Kubernetes Secret. The name of the Se
 ```yaml
 status:
   info:
-    rbdMirrorBootstrapPeerSecretName: replicapool-pool-peer-token
+    rbdMirrorBootstrapPeerSecretName: pool-peer-token-replicapool
 ```
 
 This secret can then be fetched like so:
 
 ```console
-kubectl get secret -n rook-ceph replicapool-pool-peer-token -o jsonpath='{.data.token}'|base64 -d
+kubectl get secret -n rook-ceph pool-peer-token-replicapool -o jsonpath='{.data.token}'|base64 -d
 eyJmc2lkIjoiOTFlYWUwZGQtMDZiMS00ZDJjLTkxZjMtMTMxMWM5ZGYzODJiIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFEN1psOWZ3V1VGRHhBQWdmY0gyZi8xeUhYeGZDUTU5L1N0NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjEwLjEwMS4xOC4yMjM6MzMwMCx2MToxMC4xMDEuMTguMjIzOjY3ODldIn0=
 ```
 
