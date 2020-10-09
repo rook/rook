@@ -14,15 +14,6 @@ through the use of local PVs.
 ## StorageClassDeviceSet struct
 
 ```go
-// File: pkg/apis/ceph.rook.io/v1/types.go
-package v1
-
-import (
-    v1 "k8s.io/api/core/v1"
-
-    rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-)
-
 struct StorageClassDeviceSet {
     Name                 string // A unique identifier for the set
     Count                int // Number of devices in this set
