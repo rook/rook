@@ -956,7 +956,7 @@ func (h *CephInstaller) waitForCleanupJobs(namespace string) error {
 	}
 
 	logger.Info("waiting for job(s) to cleanup the host...")
-	err := wait.Poll(5*time.Second, 90*time.Second, allRookCephCleanupJobs)
+	err := wait.Poll(5*time.Second, 180*time.Second, allRookCephCleanupJobs)
 	if err != nil {
 		return fmt.Errorf("failed to wait for clean up jobs to complete. %+v", err)
 	}
