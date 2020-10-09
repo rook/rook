@@ -131,11 +131,7 @@ func (h *CephInstaller) startAdmissionController(namespace string) error {
 	if !h.k8shelper.VersionAtLeast("v1.15.0") {
 		return nil
 	}
-	currDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to find current working directory. %v", err)
-	}
-	rootPath, err := findRookRoot(currDir)
+	rootPath, err := FindRookRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find rook root. %v", err)
 	}
@@ -151,7 +147,7 @@ func (h *CephInstaller) startAdmissionController(namespace string) error {
 	return nil
 }
 
-func findRookRoot(workingDir string) (string, error) {
+func FindRookRoot() (string, error) {
 	const folderToFind = "tests"
 	workingDirectory, err := os.Getwd()
 	if err != nil {
@@ -172,7 +168,7 @@ func findRookRoot(workingDir string) (string, error) {
 		return parentPath, nil
 	}
 
-	return "", fmt.Errorf("rook root not found above directory %s", workingDir)
+	return "", fmt.Errorf("rook root not found above directory %s", workingDirectory)
 }
 
 // CreateRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
