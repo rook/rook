@@ -123,24 +123,24 @@ Please note that the integration test erases the contents of TEST_SCRATCH_DEVICE
 
 To run all integration tests:
 ```console
-_output/tests/linux_amd64/integration -test.v -test.timeout 1800s
+go test -v -timeout 1800s github.com/rook/rook/tests/integration
 ```
 
-You can only run the tests of the specific storage provider. If you want to test only Ceph, run the test as follows.
+In addition, you can choose to test only one storage provider. For example, you can run Ceph tests as follows.
 
 ```console
 export STORAGE_PROVIDER_TESTS=ceph
-_output/tests/linux_amd64/integration -test.v -test.timeout 1800s
+go test -v -timeout 1800s github.com/rook/rook/tests/integration
 ```
 
 To run a specific suite (uses regex):
 ```console
-_output/tests/linux_amd64/integration -test.v -test.timeout 1800s -test.run CephSmokeSuite
+go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 ```
 
 To run specific tests inside a suite:
 ```console
-_output/tests/linux_amd64/integration -test.v -test.timeout 1800s -test.run CephSmokeSuite -testify.m TestARookClusterInstallation_SmokeTest
+go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
 ```
 
 ### To run tests on OpenShift environment
@@ -155,7 +155,6 @@ export TEST_STORAGE_CLASS=gp2
 export TEST_BASE_DIR=/tmp
 export RETRY_MAX=40
 ```
-
 
 To run a `CephSmokeSuite` (uses regex):
 ```console
