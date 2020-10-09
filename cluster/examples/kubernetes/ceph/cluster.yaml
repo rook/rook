@@ -38,9 +38,11 @@ spec:
   skipUpgradeChecks: false
   # Whether or not continue if PGs are not clean during an upgrade
   continueUpgradeAfterChecksEvenIfNotHealthy: false
-  # set the amount of mons to be started
   mon:
+    # Set the number of mons to be started. Must be an odd number, and is generally recommended to be 3.
     count: 3
+    # The mons should be on unique nodes. For production, at least 3 nodes are recommended for this reason.
+    # Mons should only be allowed on the same node for test environments where data loss is acceptable.
     allowMultiplePerNode: false
   mgr:
     modules:
