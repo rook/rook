@@ -1,6 +1,6 @@
 ---
-title: Ceph OSD Management
-weight: 10610
+title: OSD Management
+weight: 11140
 indent: true
 ---
 

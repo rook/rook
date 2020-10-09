@@ -339,28 +339,3 @@ In order to support this external operator mode, rook detects if the operator is
 
 * Connecting to Kubernetes API will load the config from the user `~/.kube/config`.
 * Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called. For example, in cockroachdb
-
-### Building locally
-
-Building a single rook binary for all operators:
-
-```console
-make GO_STATIC_PACKAGES=github.com/rook/rook/cmd/rook go.build
-```
-
-Note: the binary output location is `_output/bin/linux_amd64/rook` on linux, and `_output/bin/darwin_amd64/rook` on mac.
-
-### Running locally
-
-The command-line flag: `--operator-image <image>` should be used to allow running outside of a pod since some operators read the image from the pod. This is a pattern where the operator pod is based on the image of the actual storage provider image (currently used by ceph, edgefs, cockroachdb). The image url should be passed manually (for now) to match the operator's Dockerfile `FROM` statement.
-
-The next sections describe the supported operators and their notes.
-
-### CockroachDB
-
-```console
-_output/bin/darwin_amd64/rook cockroachdb operator --operator-image cockroachdb/cockroach:v2.0.2
-```
-
-* Set `--operator-image` to the base image of [cockroachdb Dockerfile](../images/cockroachdb/Dockerfile#L15)
-* The execution of `/cockroach/cockroach init` in [initCluster()](../pkg/operator/cockroachdb/controller.go#L490) runs in a kubernetes job to complete the clusterization of its pods.

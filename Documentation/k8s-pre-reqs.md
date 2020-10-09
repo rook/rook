@@ -160,29 +160,7 @@ After doing this for all service accounts all pods should be able to pull the im
 
 ## Bootstrapping Kubernetes
 
-Rook will run wherever Kubernetes is running. Here are some simple environments to help you get started with Rook.
+Rook will run wherever Kubernetes is running. Here are a couple of simple environments to help you get started with Rook.
 
-### Minikube
-
-To install `minikube`, refer to this [page](https://github.com/kubernetes/minikube/releases). Once you have `minikube` installed, start a cluster by doing the following:
-
-```console
-$ minikube start
-Starting local Kubernetes cluster...
-Starting VM...
-SSH-ing files into VM...
-Setting up certs...
-Starting cluster components...
-Connecting to cluster...
-Setting up kubeconfig...
-Kubectl is now configured to use the cluster.
-```
-
-After these steps, your minikube cluster is ready to install Rook on.
-
-### Kubeadm
-
-You can easily spin up Rook on top of a `kubeadm` cluster.
-You can find the instructions on how to install kubeadm in the [Install `kubeadm`](https://kubernetes.io/docs/setup/independent/install-kubeadm/) page.
-
-By using `kubeadm`, you can use Rook in just a few minutes!
+* [Minikube](https://github.com/kubernetes/minikube/releases): A single-node cluster, simplest to get started
+* [Kubeadm](https://kubernetes.io/docs/setup/independent/install-kubeadm/): One or more nodes for more comprehensive deployments

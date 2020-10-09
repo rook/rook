@@ -1,6 +1,6 @@
 ---
-title: Ceph Common Issues
-weight: 10600
+title: Common Issues
+weight: 11120
 indent: true
 ---
 
@@ -28,7 +28,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
 * [Too few PGs per OSD warning is shown](#too-few-pgs-per-osd-warning-is-shown)
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
-* [OSD Prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
+* [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 
 ## Troubleshooting Techniques
 
