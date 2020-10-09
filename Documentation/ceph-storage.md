@@ -24,7 +24,7 @@ The operator will monitor the storage daemons to ensure the cluster is healthy. 
 other adjustments are made as the cluster grows or shrinks.  The operator will also watch for desired state changes
 requested by the api service and apply the changes.
 
-The Rook operator also initializes the agents that are needed for consuming the storage. Rook automatically configures the Ceph-CSI driver to mount the storage to your pods. Rook's flex driver is still also configured automatically, though will soon be deprecated in favor of the CSI driver.
+The Rook operator also initializes the agents that are needed for consuming the storage. Rook automatically configures the Ceph-CSI driver to mount the storage to your pods. Rook's flex driver is also available, though it is not enabled by default and will soon be deprecated in favor of the CSI driver.
 
 ![Rook Components on Kubernetes](media/kubernetes.png)
 
