@@ -18,6 +18,7 @@ package integration
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -156,7 +157,10 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 func (o MCTestOperations) Setup() {
 	var err error
 	if o.testOverPVC {
-		cmdArgs := utils.CommandArgs{Command: localPathPVCmd, CmdArgs: []string{installer.TestScratchDevice()}}
+		root, err := installer.FindRookRoot()
+		require.NoError(o.T(), err, "failed to get rook root")
+		cmdArgs := utils.CommandArgs{Command: filepath.Join(root, localPathPVCmd),
+			CmdArgs: []string{installer.TestScratchDevice()}}
 		cmdOut := utils.ExecuteCommand(cmdArgs)
 		require.NoError(o.T(), cmdOut.Err)
 	}
