@@ -26,7 +26,7 @@ type CephManifestsV1_2 struct {
 	imageTag string
 }
 
-func (m *CephManifestsV1_2) GetRookCRDs() string {
+func (m *CephManifestsV1_2) GetRookCRDs(v1ExtensionsSupported bool) string {
 	return `
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -1874,7 +1874,6 @@ spec:
     sslCertificateRef:
     port: ` + strconv.Itoa(port) + `
     instances: ` + strconv.Itoa(replicaCount) + `
-    allNodes: false
 `
 }
 

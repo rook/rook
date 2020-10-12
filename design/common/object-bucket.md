@@ -53,7 +53,6 @@ spec:
     port: 80
     securePort: 443
     instances: 3
-    allNodes: false
 ```
 
 Now create the object store.
