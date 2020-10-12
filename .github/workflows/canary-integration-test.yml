@@ -1,0 +1,78 @@
+name: Canary integration test
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.15
+
+    - name: setup minikube
+      uses: opsgang/ga-setup-minikube@v0.1.1
+      with:
+        minikube-version: 1.13.0
+        k8s-version: 1.19.2
+
+    - name: use local disk
+      run: |
+        sudo swapoff --all --verbose
+        sudo umount /mnt
+        # search for the device since it keeps changing between sda and sdb
+        sudo wipefs --all --force /dev/$(lsblk|awk '/14G/ {print $1}'| head -1)1
+        sudo lsblk
+
+    - name: configure minikube
+      run: |
+        minikube config set vm-driver docker
+        minikube config set kubernetes-version v1.19.2
+        minikube start --memory 6g --cpus=2
+        minikube update-context
+        kubectl cluster-info
+        kubectl get pods -n kube-system
+        # minikube docker driver uses docker in docker and the minikube container does not have the lvm binary so let's copy it from the host inside the minikube container
+        docker cp /sbin/lvm $(docker ps|awk '/minikube/ {print $1}'):/sbin/lvm
+
+    - name: build rook
+      run: |
+        eval $(minikube docker-env -p minikube --shell=$SHELL)
+        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
+        docker images
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+
+    - name: deploy rook
+      run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        sed -i "s|#deviceFilter:|deviceFilter: $(lsblk|awk '/14G/ {print $1}'| head -1)|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/cluster-test.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/object-test.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/pool-test.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/filesystem-test.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/rbdmirror.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/nfs-test.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+
+    - name: wait for prepare pod
+      run: |
+        timeout 300 sh -c 'until kubectl -n rook-ceph logs -f job/rook-ceph-osd-prepare-minikube; do sleep 5; done'
+
+    - name: wait for ceph to be ready
+      run: |
+        hack/validate_cluster.sh
+        kubectl -n rook-ceph get pods
+
+    - name: test external script create-external-cluster-resources.py
+      run: |
+        kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/create-external-cluster-resources.py $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}'):/etc/ceph
+        kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
+        # write a test file
+        # copy the test file
+        # execute the test file
+

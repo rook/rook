@@ -1,0 +1,17 @@
+apiVersion: ceph.rook.io/v1
+kind: CephNFS
+metadata:
+  name: my-nfs
+  namespace: rook-ceph
+spec:
+  rados:
+    # RADOS pool where NFS client recovery data is stored.
+    # In this example the data pool for the "myfs" filesystem is used.
+    # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
+    pool: myfs-data0
+    # RADOS namespace where NFS client recovery data is stored in the pool.
+    namespace: nfs-ns
+  # Settings for the NFS server
+  server:
+    # the number of active NFS servers
+    active: 1
