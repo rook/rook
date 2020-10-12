@@ -442,10 +442,15 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
 	storeFlag := "--bluestore"
 
+	logPath := "/tmp/ceph-log"
+	if err := os.MkdirAll(logPath, 0700); err != nil {
+		return errors.Wrapf(err, "failed to create dir %q", logPath)
+	}
+
 	// Use stdbuf to capture the python output buffer such that we can write to the pod log as the logging happens
 	// instead of using the default buffering that will log everything after ceph-volume exits
 	baseCommand := "stdbuf"
-	baseArgs := []string{"-oL", cephVolumeCmd, "lvm", "batch", "--prepare", storeFlag, "--yes"}
+	baseArgs := []string{"-oL", cephVolumeCmd, "--log-path", logPath, "lvm", "batch", "--prepare", storeFlag, "--yes"}
 	if a.storeConfig.EncryptedDevice {
 		baseArgs = append(baseArgs, encryptedFlag)
 	}
@@ -541,6 +546,11 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 				// execute ceph-volume immediately with the device-specific setting instead of batching up multiple devices together
 				if err := context.Executor.ExecuteCommand(baseCommand, immediateExecuteArgs...); err != nil {
+					cvLog := readCVLogContent("/tmp/ceph-log/ceph-volume.log")
+					if cvLog != "" {
+						logger.Errorf("%s", cvLog)
+					}
+
 					return errors.Wrap(err, "failed ceph-volume")
 				}
 
