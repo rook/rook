@@ -49,45 +49,66 @@ class ExecutionFailureException(Exception):
 class RadosJSON:
     EXTERNAL_USER_NAME = "client.healthchecker"
     EMPTY_OUTPUT_LIST = "Empty output list"
+    DEFAULT_RGW_POOL_PREFIX = "default"
 
     @classmethod
     def gen_arg_parser(cls, args_to_parse=None):
         argP = argparse.ArgumentParser()
-        argP.add_argument("--verbose", "-v",
+
+        common_group = argP.add_argument_group('common')
+        common_group.add_argument("--verbose", "-v",
                           action='store_true', default=False)
-        argP.add_argument("--ceph-conf", "-c",
+        common_group.add_argument("--ceph-conf", "-c",
                           help="Provide a ceph conf file.", type=str)
-        argP.add_argument("--run-as-user", "-u",
-                          help="Provides a user name to check the cluster's health status, must be prefixed by 'client.'",
-                          default=cls.EXTERNAL_USER_NAME, type=str)
-        argP.add_argument("--format", "-t", choices=["json", "bash"],
-                          default='json', help="Provides the output format (json | bash)")
-        argP.add_argument("--cluster-name", default="openshift-storage",
+        common_group.add_argument("--run-as-user", "-u", default="", type=str,
+                          help="Provides a user name to check the cluster's health status, must be prefixed by 'client.'")
+        common_group.add_argument("--cluster-name", default="openshift-storage",
                           help="Ceph cluster name")
-        argP.add_argument("--output", "-o", default="",
-                          help="Output will be stored into the provided file")
-        argP.add_argument("--cephfs-filesystem-name", default="",
-                          help="Provides the name of the Ceph filesystem")
-        argP.add_argument("--cephfs-data-pool-name", default="",
-                          help="Provides the name of the cephfs data pool")
-        argP.add_argument("--rbd-data-pool-name", default="", required=True,
-                          help="Provides the name of the RBD datapool")
-        argP.add_argument("--namespace", default="",
+        common_group.add_argument("--namespace", default="",
                           help="Namespace where CephCluster is running")
-        argP.add_argument("--rgw-pool-prefix", default="default",
+        common_group.add_argument("--rgw-pool-prefix", default="",
                           help="RGW Pool prefix")
-        argP.add_argument("--rgw-endpoint", default="", required=False,
+
+        output_group = argP.add_argument_group('output')
+        output_group.add_argument("--format", "-t", choices=["json", "bash"],
+                          default='json', help="Provides the output format (json | bash)")
+        output_group.add_argument("--output", "-o", default="",
+                          help="Output will be stored into the provided file")
+        output_group.add_argument("--cephfs-filesystem-name", default="",
+                          help="Provides the name of the Ceph filesystem")
+        output_group.add_argument("--cephfs-data-pool-name", default="",
+                          help="Provides the name of the cephfs data pool")
+        output_group.add_argument("--rbd-data-pool-name", default="", required=False,
+                          help="Provides the name of the RBD datapool")
+        output_group.add_argument("--rgw-endpoint", default="", required=False,
                           help="Rados GateWay endpoint (in <IP>:<PORT> format)")
-        argP.add_argument("--monitoring-endpoint", default="", required=False,
+        output_group.add_argument("--monitoring-endpoint", default="", required=False,
                           help="Ceph Manager prometheus exporter endpoints comma separated list of <IP> entries")
-        argP.add_argument("--monitoring-endpoint-port", default="9283", required=False,
+        output_group.add_argument("--monitoring-endpoint-port", default="9283", required=False,
                           help="Ceph Manager prometheus exporter port")
+
+        upgrade_group = argP.add_argument_group('upgrade')
+        upgrade_group.add_argument("--upgrade", action='store_true', default=False,
+                          help="Upgrades the 'user' with all the permissions needed for the new cluster version")
+
         if args_to_parse:
             assert type(args_to_parse) == list, \
                 "Argument to 'gen_arg_parser' should be a list"
         else:
             args_to_parse = sys.argv[1:]
         return argP.parse_args(args_to_parse)
+
+    def _check_conflicting_options(self):
+        if not self._arg_parser.upgrade and not self._arg_parser.rbd_data_pool_name:
+            raise ExecutionFailureException(
+                "Either '--upgrade' or '--rbd-data-pool-name <pool_name>' should be specified")
+        if self._arg_parser.upgrade and self._arg_parser.rbd_data_pool_name:
+            raise ExecutionFailureException(
+                "Both '--upgrade' and '--rbd-data-pool-name <pool_name>' should not be specified, choose only one")
+        # a user name must be provided while using '--upgrade' option
+        if not self._arg_parser.run_as_user and self._arg_parser.upgrade:
+            raise ExecutionFailureException(
+                "Please provide an existing user-name through '--run-as-user' (or '-u') flag while upgrading")
 
     def _invalid_endpoint(self, endpoint_str):
         try:
@@ -132,11 +153,24 @@ class RadosJSON:
         self.out_map = {}
         self._excluded_keys = set()
         self._arg_parser = self.gen_arg_parser(args_to_parse=arg_list)
+        self._check_conflicting_options()
+        self.run_as_user = self._arg_parser.run_as_user
         self.output_file = self._arg_parser.output
         self.ceph_conf = self._arg_parser.ceph_conf
-        self.run_as_user = self._arg_parser.run_as_user
-        if not self.run_as_user:
+        self.MIN_USER_CAP_PERMISSIONS = {
+                'mgr': 'allow command config',
+                'mon': 'allow r, allow command quorum_status, allow command version',
+                'osd': "allow rwx pool={0}.rgw.meta, " +
+                       "allow r pool=.rgw.root, " +
+                       "allow rw pool={0}.rgw.control, " +
+                       "allow rx pool={0}.rgw.log, " +
+                       "allow x pool={0}.rgw.buckets.index"
+        }
+        # if user not provided, give a default user
+        if not self.run_as_user and not self._arg_parser.upgrade:
             self.run_as_user = self.EXTERNAL_USER_NAME
+        if not self._arg_parser.rgw_pool_prefix and not self._arg_parser.upgrade:
+            self._arg_parser.rgw_pool_prefix = self.DEFAULT_RGW_POOL_PREFIX
         if self.ceph_conf:
             self.cluster = rados.Rados(conffile=self.ceph_conf)
         else:
@@ -159,7 +193,9 @@ class RadosJSON:
             print("Return Val: {}\nCommand Output: {}\nError Message: {}\n----------\n".format(
                   ret_val, cmd_out, err_msg))
         json_out = {}
-        if ret_val == 0:
+        # if there is no error (i.e; ret_val is ZERO) and 'cmd_out' is not empty
+        # then convert 'cmd_out' to a json output
+        if ret_val == 0 and cmd_out:
             json_out = json.loads(cmd_out)
         return ret_val, json_out, err_msg
 
@@ -351,13 +387,9 @@ class RadosJSON:
     def create_checkerKey(self):
         cmd_json = {"prefix": "auth get-or-create",
                     "entity": self.run_as_user,
-                    "caps": ["mon", "allow r, allow command quorum_status, allow command version",
-                             "mgr", "allow command config",
-                             "osd", ("allow rwx pool={0}.rgw.meta, " +
-                                     "allow r pool=.rgw.root, " +
-                                     "allow rw pool={0}.rgw.control, " +
-                                     "allow rx pool={0}.rgw.log, " +
-                                     "allow x pool={0}.rgw.buckets.index").format(self._arg_parser.rgw_pool_prefix)],
+                    "caps": ["mon", self.MIN_USER_CAP_PERMISSIONS['mon'],
+                             "mgr", self.MIN_USER_CAP_PERMISSIONS['mgr'],
+                             "osd", self.MIN_USER_CAP_PERMISSIONS['osd'].format(self._arg_parser.rgw_pool_prefix)],
                     "format": "json"}
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
@@ -385,7 +417,7 @@ class RadosJSON:
         for pool in pools_to_validate:
             if not self.cluster.pool_exists(pool):
                 raise ExecutionFailureException(
-                    "The provided pool {} does not exist".format(pool))
+                    "The provided pool, '{}', does not exist".format(pool))
         self._excluded_keys.add('CLUSTER_NAME')
         self.get_cephfs_data_pool_details()
         self.out_map['NAMESPACE'] = self._arg_parser.namespace
@@ -528,9 +560,59 @@ class RadosJSON:
             })
         return json.dumps(json_out)+LINESEP
 
+    def upgrade_user_permissions(self):
+        # check whether the given user exists or not
+        cmd_json = {"prefix": "auth get", "entity": self.run_as_user, "format": "json"}
+        ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
+        if ret_val != 0 or len(json_out) == 0:
+            raise ExecutionFailureException("'auth get {}' command failed.\n".format(self.run_as_user) +
+                "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
+        j_first = json_out[0]
+        existing_caps = j_first['caps']
+        osd_cap = "osd"
+        cap_keys = ["mon", "mgr", "osd"]
+        for eachCap in cap_keys:
+            min_cap_values = self.MIN_USER_CAP_PERMISSIONS.get(eachCap, '')
+            cur_cap_values = existing_caps.get(eachCap, '')
+            # detect rgw-pool-prefix
+            if eachCap == osd_cap:
+                # if directly provided through '--rgw-pool-prefix' argument, use it
+                if self._arg_parser.rgw_pool_prefix:
+                    min_cap_values = min_cap_values.format(self._arg_parser.rgw_pool_prefix)
+                # or else try to detect one from the existing/current osd cap values
+                else:
+                    rc = re.compile(r' pool=([^.]+)\.rgw\.[^ ]*')
+                    # 'findall()' method will give a list of prefixes
+                    # and 'set' will eliminate any duplicates
+                    cur_rgw_pool_prefix_list = list(set(rc.findall(cur_cap_values)))
+                    if len(cur_rgw_pool_prefix_list) != 1:
+                        raise ExecutionFailureException("Unable to determine 'rgw-pool-prefx'. Please provide one with '--rgw-pool-prefix' flag")
+                    min_cap_values = min_cap_values.format(cur_rgw_pool_prefix_list[0])
+            cur_cap_perm_list = [x.strip() for x in cur_cap_values.split(',') if x.strip()]
+            min_cap_perm_list = [x.strip() for x in min_cap_values.split(',') if x.strip()]
+            min_cap_perm_list.extend(cur_cap_perm_list)
+            # eliminate duplicates without using 'set'
+            # set re-orders items in the list and we have to keep the order
+            new_cap_perm_list = []
+            [new_cap_perm_list.append(x) for x in min_cap_perm_list if x not in new_cap_perm_list]
+            existing_caps[eachCap] = ", ".join(new_cap_perm_list)
+        cmd_json = {"prefix": "auth caps",
+                    "entity": self.run_as_user,
+                    "caps": ["mon", existing_caps["mon"],
+                             "mgr", existing_caps["mgr"],
+                             "osd", existing_caps["osd"]],
+                    "format": "json"}
+        ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
+        if ret_val != 0:
+            raise ExecutionFailureException("'auth caps {}' command failed.\n".format(self.run_as_user) +
+                "Error: {}".format(err_msg))
+        print("Updated user, {}, successfully.".format(self.run_as_user))
+
     def main(self):
         generated_output = ''
-        if self._arg_parser.format == 'json':
+        if self._arg_parser.upgrade:
+            self.upgrade_user_permissions()
+        elif self._arg_parser.format == 'json':
             generated_output = self.gen_json_out()
         elif self._arg_parser.format == 'bash':
             generated_output = self.gen_shell_out()
