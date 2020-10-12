@@ -63,7 +63,7 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 	}
 
 	if !k8sutil.NodeIsTolerable(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement).Tolerations, false) {
-		logger.Debugf("node watcher: node since it is not tolerable for cluster %q, skipping", cluster.Namespace)
+		logger.Debugf("node watcher: node %q is not tolerable for cluster %q, skipping", node.Name, cluster.Namespace)
 		return false
 	}
 
