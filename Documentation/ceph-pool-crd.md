@@ -106,6 +106,44 @@ external-cluster-console# rbd mirror pool peer bootstrap import <token file path
 
 See the official rbd mirror documentation on [how to add a bootstrap peer](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#bootstrap-peers).
 
+### Data spread across subdomains
+
+Imagine the following topology with datacenters containing racks and then hosts:
+
+```text
+.
+├── datacenter-1
+│   ├── rack-1
+│   │   ├── host-1
+│   │   ├── host-2
+│   └── rack-2
+│       ├── host-3
+│       ├── host-4
+└── datacenter-2
+    ├── rack-3
+    │   ├── host-5
+    │   ├── host-6
+    └── rack-4
+        ├── host-7
+        └── host-8
+```
+
+As an administrator I would like to place 4 copies across both datacenter where each copy inside a datacenter is across a rack.
+This can be achieved by the following:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  replicated:
+    size: 4
+    replicasPerFailureDomain: 2
+    subFailureDomain: rack
+```
+
 ## Pool Settings
 
 ### Metadata
@@ -118,6 +156,9 @@ See the official rbd mirror documentation on [how to add a bootstrap peer](https
 * `replicated`: Settings for a replicated pool. If specified, `erasureCoded` settings must not be specified.
   * `size`: The desired number of copies to make of the data in the pool.
   * `requireSafeReplicaSize`: set to false if you want to create a pool with size 1, setting pool size 1 could lead to data loss without recovery. Make sure you are *ABSOLUTELY CERTAIN* that is what you want.
+  * `replicasPerFailureDomain`: Sets up the number of replicas to place in a given failure domain. For instance, if the failure domain is a datacenter (cluster is
+stretched) then you will have 2 replicas per datacenter where each replica ends up on a different host. This gives you a total of 4 replicas and for this, the `size` must be set to 4. The default is 1.
+  * `subFailureDomain`: Name of the CRUSH bucket representing a sub-failure domain. In a stretched configuration this option represent the "last" bucket where replicas will end up being written. Imagine the cluster is stretched across two datacenters, you can then have 2 copies per datacenter and each copy on a different CRUSH bucket. The default is "host".
 * `erasureCoded`: Settings for an erasure-coded pool. If specified, `replicated` settings must not be specified. See below for more details on [erasure coding](#erasure-coding).
   * `dataChunks`: Number of chunks to divide the original object into
   * `codingChunks`: Number of coding chunks to generate

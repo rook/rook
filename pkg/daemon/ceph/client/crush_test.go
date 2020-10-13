@@ -294,3 +294,8 @@ func TestCrushName(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildCompiledDecompileCRUSHFileName(t *testing.T) {
+	assert.Equal(t, "/tmp/06399022.decompiled", buildDecompileCRUSHFileName("/tmp/06399022"))
+	assert.Equal(t, "/tmp/06399022.compiled", buildCompileCRUSHFileName("/tmp/06399022"))
+}

@@ -242,8 +242,6 @@ const (
 	ConditionFailure     ConditionType = "Failure"
 	ConditionUpgrading   ConditionType = "Upgrading"
 	ConditionDeleting    ConditionType = "Deleting"
-	// DefaultFailureDomain for PoolSpec
-	DefaultFailureDomain = "host"
 )
 
 type ClusterState string
@@ -301,6 +299,13 @@ type CephBlockPoolList struct {
 	metav1.ListMeta `json:"metadata"`
 	Items           []CephBlockPool `json:"items"`
 }
+
+const (
+	// DefaultFailureDomain for PoolSpec
+	DefaultFailureDomain = "host"
+	// DefaultCRUSHRoot is the default name of the CRUSH root bucket
+	DefaultCRUSHRoot = "default"
+)
 
 // PoolSpec represents the spec of ceph pool
 type PoolSpec struct {
@@ -379,6 +384,12 @@ type ReplicatedSpec struct {
 
 	// RequireSafeReplicaSize if false allows you to set replica 1
 	RequireSafeReplicaSize bool `json:"requireSafeReplicaSize"`
+
+	// ReplicasPerFailureDomain the number of replica in the specified failure domain
+	ReplicasPerFailureDomain uint `json:"replicasPerFailureDomain,omitempty"`
+
+	// SubFailureDomain the name of the sub-failure domain
+	SubFailureDomain string `json:"subFailureDomain,omitempty"`
 }
 
 // MirroredSpec represents the setting for a mirrored pool

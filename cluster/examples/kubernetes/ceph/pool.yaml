@@ -18,6 +18,10 @@ spec:
     # Disallow setting pool with replica 1, this could lead to data loss without recovery.
     # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
     requireSafeReplicaSize: true
+    # The number for replicas per failure domain, the value must be a divisor of the replica count. If specified, the most common value is 2 for stretch clusters, where the replica count would be 4.
+    # replicasPerFailureDomain: 2
+    # The name of the failure domain to place further down replicas
+    # subFailureDomain: host
   # Ceph CRUSH root location of the rule
   # For reference: https://docs.ceph.com/docs/nautilus/rados/operations/crush-map/#types-and-buckets
   #crushRoot: my-root

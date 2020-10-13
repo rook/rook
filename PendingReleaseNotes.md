@@ -17,3 +17,4 @@ v1.5...
 ### Ceph
 
 * Ceph Block Pool: add mirroring support
+* Ceph Block Pool: add `replicasPerFailureDomain` to set the number of replica in a failure domain ([#5591](https://github.com/rook/rook/issues/5591))

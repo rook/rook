@@ -83,9 +83,33 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo
 		}
 	}
 
+	// validate the crush subdomain if specified
+	if p.Replicated.SubFailureDomain != "" {
+		found := false
+		for _, t := range crush.Buckets {
+			if t.Name == p.Replicated.SubFailureDomain {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return errors.Errorf("unrecognized crush sub domain %s", p.Replicated.SubFailureDomain)
+		}
+	}
+
 	// validate pool replica size
-	if p.Replicated.Size == 1 && p.Replicated.RequireSafeReplicaSize {
-		return errors.Errorf("error pool size is %d and requireSafeReplicaSize is %t, must be false", p.Replicated.Size, p.Replicated.RequireSafeReplicaSize)
+	if p.IsReplicated() {
+		if p.Replicated.Size == 1 && p.Replicated.RequireSafeReplicaSize {
+			return errors.Errorf("error pool size is %d and requireSafeReplicaSize is %t, must be false", p.Replicated.Size, p.Replicated.RequireSafeReplicaSize)
+		}
+
+		if p.Replicated.Size <= p.Replicated.ReplicasPerFailureDomain {
+			return errors.Errorf("error pool size is %d and replicasPerFailureDomain is %d, size must be greater", p.Replicated.Size, p.Replicated.ReplicasPerFailureDomain)
+		}
+
+		if p.Replicated.ReplicasPerFailureDomain != 0 && p.Replicated.Size%p.Replicated.ReplicasPerFailureDomain != 0 {
+			return errors.Errorf("error replicasPerFailureDomain is %d must be a factor of the replica count %d", p.Replicated.ReplicasPerFailureDomain, p.Replicated.Size)
+		}
 	}
 
 	// validate pool compression mode if specified
