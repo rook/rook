@@ -83,7 +83,7 @@ func TestCheckHealth(t *testing.T) {
 	c.maxMonID = 4
 
 	// mock out the scheduler to return node0
-	scheduleMonitor = func(c *Cluster, mon *monConfig) (SchedulingResult, error) {
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
 		node, _ := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
 		return SchedulingResult{Node: node}, nil
 	}
