@@ -332,7 +332,14 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster, clusterO
 		cluster.Spec.Mon.Count = mon.DefaultMonCount
 	}
 	if cluster.Spec.Mon.Count%2 == 0 {
-		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
+		return errors.Errorf("mon count %d cannot be even, must be odd to support a healthy quorum", cluster.Spec.Mon.Count)
+	}
+	if !cluster.Spec.Mon.AllowMultiplePerNode {
+		// Check that there are enough nodes to have a chance of starting the requested number of mons
+		nodes, err := c.context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+		if err == nil && len(nodes.Items) < cluster.Spec.Mon.Count {
+			return errors.Errorf("cannot start %d mons on %d node(s) when allowMultiplePerNode is false", cluster.Spec.Mon.Count, len(nodes.Items))
+		}
 	}
 	if len(cluster.Spec.Storage.Directories) != 0 {
 		logger.Warning("running osds on directory is not supported anymore, use devices instead.")

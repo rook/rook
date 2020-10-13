@@ -9,15 +9,15 @@ indent: true
 Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).
 There are two different modes to create your cluster, depending on whether storage can be dynamically provisioned on which to base the Ceph cluster.
 
-1. Specify host paths and raw devices
-2. Specify the storage class Rook should use to consume storage via PVCs
+1. Specify [host paths and raw devices](#host-based-cluster)
+2. Specify the storage class Rook should use to consume storage [via PVCs](#pvc-based-cluster)
 
-Following is an example for each of these approaches.
+Following is an example for each of these approaches. More examples are included [later in this doc](#samples).
 
 ## Host-based Cluster
 
-To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices. Next example is where Mons and OSDs are backed by PVCs.
-More examples are included [later in this doc](#samples).
+To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices.
+The Ceph persistent data is stored directly on a host path (Ceph Mons) and on raw devices (Ceph OSDs).
 
 > **NOTE**: In addition to your CephCluster object, you need to create the namespace, service accounts, and RBAC rules for the namespace you are going to create the CephCluster in.
 > These resources are defined in the example `common.yaml`.
@@ -35,13 +35,17 @@ spec:
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
-    allowMultiplePerNode: true
+    allowMultiplePerNode: false
   storage:
     useAllNodes: true
     useAllDevices: true
 ```
 
 ## PVC-based Cluster
+
+In a "PVC-based cluster", the Ceph persistent data is stored on volumes requested from a storage class of your choice.
+This type of cluster is recommended in a cloud environment where volumes can be dynamically created and also
+in clusters where a local PV provisioner is available.
 
 > **NOTE**: Kubernetes version 1.13.0 or greater is required to provision OSDs on PVCs.
 
@@ -58,6 +62,7 @@ spec:
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
+    allowMultiplePerNode: false
     volumeClaimTemplate:
       spec:
         storageClassName: local-storage
@@ -170,8 +175,8 @@ A specific will contain a specific release of Ceph as well as security fixes fro
 
 ### Mon Settings
 
-* `count`: Set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified the default is set to `3` and `allowMultiplePerNode` is also set to `true`.
-* `allowMultiplePerNode`: Enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
+* `count`: Set the number of mons to be started. The number must be odd and between `1` and `9`. If not specified the default is set to `3`.
+* `allowMultiplePerNode`: Whether to allow the placement of multiple mons on a single node. Default is `false` for production. Should only be set to `true` in test environments.
 * `volumeClaimTemplate`: A `PersistentVolumeSpec` used by Rook to create PVCs
   for monitor storage. This field is optional, and when not provided, HostPath
   volume mounts are used.  The current set of fields from template that are used
@@ -538,7 +543,7 @@ spec:
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
-    allowMultiplePerNode: true
+    allowMultiplePerNode: false
   dashboard:
     enabled: true
   # cluster level storage configuration and selection
@@ -570,7 +575,7 @@ spec:
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
-    allowMultiplePerNode: true
+    allowMultiplePerNode: false
   dashboard:
     enabled: true
   # cluster level storage configuration and selection
@@ -611,7 +616,7 @@ spec:
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
-    allowMultiplePerNode: true
+    allowMultiplePerNode: false
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
@@ -658,7 +663,7 @@ spec:
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
-    allowMultiplePerNode: true
+    allowMultiplePerNode: false
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true

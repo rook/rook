@@ -10,6 +10,8 @@ v1.5...
 
 ### Ceph
 
+- Ceph mons require an odd number for a healthy quorum. An even number of mons is now disallowed.
+
 ## Features
 
 ### Ceph

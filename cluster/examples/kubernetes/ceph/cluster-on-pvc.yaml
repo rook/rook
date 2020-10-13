@@ -17,7 +17,10 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   mon:
+    # Set the number of mons to be started. Must be an odd number, and is generally recommended to be 3.
     count: 3
+    # The mons should be on unique nodes. For production, at least 3 nodes are recommended for this reason.
+    # Mons should only be allowed on the same node for test environments where data loss is acceptable.
     allowMultiplePerNode: false
     # A volume claim template can be specified in which case new monitors (and
     # monitors created during fail over) will construct a PVC based on the
