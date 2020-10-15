@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -8,6 +9,8 @@ kind: ServiceAccount
 metadata:
   name: rook-nfs-server
   namespace: rook-nfs
+=======
+>>>>>>> c22189ba7... nfs: update documentation and example
 ---
 # A default storageclass must be present
 apiVersion: v1
