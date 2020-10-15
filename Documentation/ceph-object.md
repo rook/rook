@@ -145,6 +145,7 @@ kubectl create -f storageclass-bucket-delete.yaml
 ```
 
 Based on this storage class, an object client can now request a bucket by creating an Object Bucket Claim (OBC).
+
 When the OBC is created, the Rook-Ceph bucket provisioner will create a new bucket. Notice that the OBC
 references the storage class that was created above.
 Save the following as `object-bucket-claim-delete.yaml` (the example is named as such due to the `Delete` reclaim policy):
@@ -224,19 +225,32 @@ To test the `CephObjectStore` we will install the `s3cmd` tool into the toolbox 
 yum --assumeyes install s3cmd
 ```
 
+Configure s3cmd `s3cmd --configure` with the ACCESS_KEY and other details as described here - https://github.com/s3tools/s3cmd
+
+
+### List the generated bucket name
+
+Note that to keep the bucket name unique we created the bucket with `generateBucketName`.
+Please see here for more details regarding OBC creation [Object Bucket Claim](ceph-object-bucket-claim.html)
+
+```console
+s3cmd ls                                                                           
+2020-10-15 05:56  s3://ceph-bkt-<xxx>
+```
+
 ### PUT or GET an object
 
 Upload a file to the newly created bucket
 
 ```console
 echo "Hello Rook" > /tmp/rookObj
-s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
+s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://ceph-bkt-<xxx>
 ```
 
 Download and verify the file from the bucket
 
 ```console
-s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
+s3cmd get s3://ceph-bkt-<xxx>/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
 cat /tmp/rookObj-download
 ```
 
