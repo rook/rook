@@ -22,7 +22,7 @@ import (
 
 // testHelmPath gets the helm path
 func testHelmPath() string {
-	return getEnvVarWithDefault("TEST_HELM_PATH", "helm")
+	return getEnvVarWithDefault("TEST_HELM_PATH", "/tmp/rook-tests-scripts-helm/helm")
 }
 
 // TestLogCollectionLevel gets whether to collect all logs

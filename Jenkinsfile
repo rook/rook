@@ -232,9 +232,7 @@ def RunIntegrationTest(k, v) {
                         echo "Running full regression"
                         sh '''#!/bin/bash
                               set -o pipefail
-                              export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
-                                  KUBECONFIG=$HOME/admin.conf \
-                                  TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/linux-amd64/helm \
+                              export KUBECONFIG=$HOME/admin.conf \
                                   TEST_ENV_NAME='''+"${k}"+''' \
                                   TEST_BASE_DIR="WORKING_DIR" \
                                   TEST_LOG_COLLECTION_LEVEL='''+"${env.getLogs}"+''' \

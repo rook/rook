@@ -3,7 +3,7 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 temp="/tmp/rook-tests-scripts-helm"
 
-HELM="helm"
+HELM="${temp}/helm"
 arch="${ARCH:-}"
 
 detectArch() {
@@ -27,15 +27,20 @@ detectArch() {
 }
 
 install() {
-    if ! helm_loc="$(type -p "helm")" || [[ -z ${helm_loc} ]]; then
-        # Download and unpack helm
+    # Download and unpack helm
+    if [ -x "${TEST_HELM_PATH}" ]; then
+        HELM="${TEST_HELM_PATH}"
+    else
         local dist
         dist="$(uname -s)"
         dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
         mkdir -p "${temp}"
         wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
-        tar -C "${temp}" -zxvf "${temp}/helm.tar.gz"
-        HELM="${temp}/${dist}-${arch}/helm"
+        tar -C "${temp}" -zxvf "${temp}/helm.tar.gz" --strip-components 1
+        # The following lines are workaround of a CI failure caused by the old-Jenkins-file-is-used-in-CI problem.
+        # These lines will be removed as soom as PR5991 is merged..
+        mkdir "${temp}/${dist}-${arch}"
+        ln -s "${HELM}" "${temp}/${dist}-${arch}/helm"
     fi
 
     # set up RBAC for helm
@@ -82,11 +87,8 @@ install() {
 }
 
 helm_reset() {
-    if ! helm_loc="$(type -p "helm")" || [[ -z ${helm_loc} ]]; then
-        local dist
-        dist="$(uname -s)"
-        dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
-        HELM="${temp}/${dist}-${arch}/helm"
+    if [ -x "${TEST_HELM_PATH}" ]; then
+        HELM="${TEST_HELM_PATH}"
     fi
     "${HELM}" reset
     # shellcheck disable=SC2021
