@@ -4,7 +4,7 @@ metadata:
   name: csi-rbdplugin-provisioner
   namespace: {{ .Namespace }}
 spec:
-  replicas: 2
+  replicas: {{ .ProvisionerReplicas }}
   selector:
     matchLabels:
      app: csi-rbdplugin-provisioner
