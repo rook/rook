@@ -57,6 +57,7 @@ type Param struct {
 	CephFSLivenessMetricsPort    uint16
 	RBDGRPCMetricsPort           uint16
 	RBDLivenessMetricsPort       uint16
+	ProvisionerReplicas          uint8
 }
 
 type templateParam struct {
@@ -323,6 +324,16 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		} else {
 			tp.LogLevel = uint8(l)
 		}
+	}
+
+	tp.ProvisionerReplicas = 2
+	nodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err == nil {
+		if len(nodes.Items) == 1 {
+			tp.ProvisionerReplicas = 1
+		}
+	} else {
+		logger.Errorf("failed to get nodes. Defaulting the number of replicas of provisioner pods to 2. %v", err)
 	}
 
 	if EnableRBD {
