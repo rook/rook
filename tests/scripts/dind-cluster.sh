@@ -129,9 +129,6 @@ function dind::create-volume {
 # This includes virtlet, for instance. Also this may be
 # useful in future if we want DIND nodes to pass
 # preflight checks.
-# Unfortunately we can't do this when using Mac Docker
-# (unless a remote docker daemon on Linux is used)
-# NB: there's no /boot on recent Mac dockers
 function dind::prepare-sys-mounts {
   if [[ ! ${is_moby_linux} ]]; then
     sys_volume_args=()
@@ -146,7 +143,6 @@ function dind::prepare-sys-mounts {
   if ! dind::volume-exists kubeadm-dind-sys; then
     dind::step "Saving a copy of docker host's /lib/modules"
     dind::create-volume kubeadm-dind-sys
-    # Use a dirty nsenter trick to fool Docker on Mac and grab system
     # /lib/modules into sys.tar file on kubeadm-dind-sys volume.
     local nsenter="nsenter --mount=/proc/1/ns/mnt --"
     docker run \
