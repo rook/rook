@@ -815,9 +815,11 @@ If you still decide to configure an OSD on LVM, please keep the following in min
 
 - Disable `lvmetad.`
 - Avoid configuration of LVs from the host. In addition, don't touch the VGs and physical volumes that back these LVs.
-- Avoid incrementing the `count` field of `storageClassDeviceSets` and create a new LV that backs a OSD simultaneously.
+- Avoid incrementing the `count` field of `storageClassDeviceSets` and create a new LV that backs an OSD simultaneously.
 
-You can know whether the above-mentioned tag exists tag with the command: `sudo lvs -o lv_name,lv_tags`. If the `lv_tag` field is empty in an LV corresponding to the OSD lv_tags, this OSD encountered the problem. In this case, please [retire this OSD](ceph-osd-mgmt.md#remove-an-osd) or replace with other new OSD before restarting.
+You can know whether the above-mentioned tag exists with the command: `sudo lvs -o lv_name,lv_tags`. If the `lv_tag` field is empty in an LV corresponding to the OSD lv_tags, this OSD encountered the problem. In this case, please [retire this OSD](ceph-osd-mgmt.md#remove-an-osd) or replace with other new OSD before restarting.
+
+This problem doesn't happen in newly created LV-backed PVCs because OSD container doesn't modify LVM metadata anymore. The existing lvm mode OSDs work continuously even thought upgrade your Rook. However, using the raw mode OSDs is recommended because of the above-mentioned problem. You can replace the existing OSDs with raw mode OSDs by retiring them and adding new OSDs one by one. See the documents [Remove an OSD](ceph-osd-mgmt.md#remove-an-osd) and [Add an OSD on a PVC](ceph-osd-mgmt.md#add-an-osd-on-a-pvc).
 
 ## OSD prepare job fails due to low aio-max-nr setting
 
