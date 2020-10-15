@@ -4,7 +4,7 @@ metadata:
   name: csi-cephfsplugin-provisioner
   namespace: {{ .Namespace }}
 spec:
-  replicas: 2
+  replicas: {{ .ProvisionerReplicas }}
   selector:
     matchLabels:
      app: csi-cephfsplugin-provisioner
