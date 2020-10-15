@@ -33,6 +33,8 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
   * Ceph
 * Yannis Zarkadas <yanniszarkadas@gmail.com> ([yanniszark](https://github.com/yanniszark))
   * Cassandra
+* Satoru Takeuchi <satoru.takeuchi@gmail.com> ([satoru-takeuchi](https://github.com/satoru-takeuchi))
+  * Ceph
 
 ## Emeritus maintainers
 
