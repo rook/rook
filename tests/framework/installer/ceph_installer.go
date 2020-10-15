@@ -406,11 +406,16 @@ func (h *CephInstaller) GetRookExternalClusterMonSecret(namespace string) (*v1.S
 }
 
 func (h *CephInstaller) initTestDir(namespace string) (string, error) {
-	h.hostPathToDelete = path.Join(baseTestDir(), "rook-test")
+	val, err := baseTestDir()
+	if err != nil {
+		return "", err
+	}
+
+	h.hostPathToDelete = path.Join(val, "rook-test")
 	testDir := path.Join(h.hostPathToDelete, namespace)
 
 	// skip the test dir creation if we are not running under "/data"
-	if baseTestDir() != "/data" {
+	if val != "/data" {
 		// Create the test dir on the local host
 		if err := os.MkdirAll(testDir, 0777); err != nil {
 			return "", err
