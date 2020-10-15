@@ -539,3 +539,7 @@ quay.io/k8scsi/csi-resizer:v0.4.0
 quay.io/k8scsi/csi-snapshotter:v2.1.1
 quay.io/k8scsi/csi-resizer:v0.4.0
 ```
+
+## Replace lvm mode OSDs with raw mode (if you use LV-backed PVC)
+
+For LV-backed PVC, we recommend replacing lvm mode OSDs with raw mode OSDs. See [common issue](Documentation/ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc).
