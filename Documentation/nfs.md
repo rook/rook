@@ -133,18 +133,125 @@ You can create scc with following command:
 oc create -f scc.yaml
 ```
 
+## Create Pod Security Policies (Recommended)
+
+We recommend you to create Pod Security Policies as well
+
+```yaml
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: rook-nfs-policy
+spec:
+  privileged: true
+  fsGroup:
+    rule: RunAsAny
+  allowedCapabilities:
+  - DAC_READ_SEARCH
+  - SYS_RESOURCE
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - secret
+  - hostPath
+```
+
+Save this file with name `psp.yaml` and create with following command:
+
+```console
+kubectl create -f psp.yaml
+```
+
 ## Create and Initialize NFS Server
 
 Now that the operator is running, we can create an instance of a NFS server by creating an instance of the `nfsservers.nfs.rook.io` resource.
 The various fields and options of the NFS server resource can be used to configure the server and its volumes to export.
 Full details of the available configuration options can be found in the [NFS CRD documentation](nfs-crd.md).
 
+Before we create NFS Server we need to create `ServiceAccount` and `RBAC` rules
+
+```yaml
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name:  rook-nfs
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-nfs-server
+  namespace: rook-nfs
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-nfs-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get"]
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    resourceNames: ["rook-nfs-policy"]
+    verbs: ["use"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups:
+    - nfs.rook.io
+    resources:
+    - "*"
+    verbs:
+    - "*"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-nfs-provisioner-runner
+subjects:
+  - kind: ServiceAccount
+    name: rook-nfs-server
+     # replace with namespace where provisioner is deployed
+    namespace: rook-nfs
+roleRef:
+  kind: ClusterRole
+  name: rook-nfs-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+```
+
+Save this file with name `rbac.yaml` and create with following command:
+
+```console
+kubectl create -f rbac.yaml
+```
+
 This guide has 2 main examples that demonstrate exporting volumes with a NFS server:
 
 1. [Default StorageClass example](#default-storageclass-example)
 1. [Rook Ceph volume example](#rook-ceph-volume-example)
 
-## Default StorageClass example
+### Default StorageClass example
 
 This first example will walk through creating a NFS server instance that exports storage that is backed by the default `StorageClass` for the environment you happen to be running in.
 In some environments, this could be a host path, in others it could be a cloud provider virtual disk.
@@ -153,10 +260,6 @@ Either way, this example requires a default `StorageClass` to exist.
 Start by saving the below NFS CRD instance definition to a file called `nfs.yaml`:
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name:  rook-nfs
 ---
 # A default storageclass must be present
 apiVersion: v1
@@ -197,6 +300,64 @@ With the `nfs.yaml` file saved, now create the NFS server as shown:
 kubectl create -f nfs.yaml
 ```
 
+### Rook Ceph volume example
+
+In this alternative example, we will use a different underlying volume as an export for the NFS server.
+These steps will walk us through exporting a Ceph RBD block volume so that clients can access it across the network.
+
+First, you have to [follow these instructions](ceph-quickstart.md) to deploy a sample Rook Ceph cluster that can be attached to the NFS server pod for sharing.
+After the Rook Ceph cluster is up and running, we can create proceed with creating the NFS server.
+
+Save this PVC and NFS Server instance as `nfs-ceph.yaml`:
+
+```yaml
+---
+# A rook ceph cluster must be running
+# Create a rook ceph cluster using examples in rook/cluster/examples/kubernetes/ceph
+# Refer to https://rook.io/docs/rook/master/ceph-quickstart.html for a quick rook cluster setup
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-ceph-claim
+  namespace: rook-nfs
+spec:
+  storageClassName: rook-ceph-block
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: nfs.rook.io/v1alpha1
+kind: NFSServer
+metadata:
+  name: rook-nfs
+  namespace: rook-nfs
+spec:
+  replicas: 1
+  exports:
+  - name: share1
+    server:
+      accessMode: ReadWrite
+      squash: "none"
+    # A Persistent Volume Claim must be created before creating NFS CRD instance.
+    # Create a Ceph cluster for using this example
+    # Create a ceph PVC after creating the rook ceph cluster using ceph-pvc.yaml
+    persistentVolumeClaim:
+      claimName: nfs-ceph-claim
+  # A key/value list of annotations
+  annotations:
+    rook: nfs
+```
+
+Create the NFS server instance that you saved in `nfs-ceph.yaml`:
+
+```console
+kubectl create -f nfs-ceph.yaml
+```
+
+### Verify NFS Server
+
 We can verify that a Kubernetes object has been created that represents our new NFS server and its export with the command below.
 
 ```console
@@ -217,7 +378,8 @@ rook-nfs-0   1/1       Running   0          2m
 
 If the NFS server pod is in the `Running` state, then we have successfully created an exported NFS share that clients can start to access over the network.
 
-### Accessing the Export
+
+## Accessing the Export
 
 Since Rook version v1.0, Rook supports dynamic provisioning of NFS.
 This example will be showing how dynamic provisioning feature can be used for nfs.
@@ -274,7 +436,7 @@ You can also save it as a file, eg: called `pvc.yaml` Then create PV claim with 
 kubectl create -f pvc.yaml
 ```
 
-### Consuming the Export
+## Consuming the Export
 
 Now we can consume the PV that we just created by creating an example web server app that uses the above `PersistentVolumeClaim` to claim the exported volume.
 There are 2 pods that comprise this example:
@@ -312,65 +474,6 @@ nfs-busybox-w3s4t
 
 ```
 
-## Rook Ceph volume example
-
-In this alternative example, we will use a different underlying volume as an export for the NFS server.
-These steps will walk us through exporting a Ceph RBD block volume so that clients can access it across the network.
-
-First, you have to [follow these instructions](ceph-quickstart.md) to deploy a sample Rook Ceph cluster that can be attached to the NFS server pod for sharing.
-After the Rook Ceph cluster is up and running, we can create proceed with creating the NFS server.
-
-Save this PVC and NFS CRD instance as `nfs-ceph.yaml`:
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name:  rook-nfs
----
-# A rook ceph cluster must be running
-# Create a rook ceph cluster using examples in rook/cluster/examples/kubernetes/ceph
-# Refer to https://rook.io/docs/rook/master/ceph-quickstart.html for a quick rook cluster setup
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nfs-ceph-claim
-  namespace: rook-nfs
-spec:
-  storageClassName: rook-ceph-block
-  accessModes:
-  - ReadWriteMany
-  resources:
-    requests:
-      storage: 2Gi
----
-apiVersion: nfs.rook.io/v1alpha1
-kind: NFSServer
-metadata:
-  name: rook-nfs
-  namespace: rook-nfs
-spec:
-  replicas: 1
-  exports:
-  - name: nfs-share
-    server:
-      accessMode: ReadWrite
-      squash: "none"
-    # A Persistent Volume Claim must be created before creating NFS CRD instance.
-    # Create a Ceph cluster for using this example
-    # Create a ceph PVC after creating the rook ceph cluster using ceph-pvc.yaml
-    persistentVolumeClaim:
-      claimName: nfs-ceph-claim
-```
-
-Create the NFS server instance that you saved in `nfs-ceph.yaml`:
-
-```console
-kubectl create -f nfs-ceph.yaml
-```
-
-After the NFS server pod is running, follow the same instructions from the previous example to access and consume the NFS share.
-
 ## Teardown
 
 To clean up all resources associated with this walk-through, you can run the commands below.
@@ -383,6 +486,9 @@ kubectl delete -f pvc.yaml
 kubectl delete -f pv.yaml
 kubectl delete -f nfs.yaml
 kubectl delete -f nfs-ceph.yaml
+kubectl delete -f rbac.yaml
+kubectl delete -f psp.yaml
+kubectl delete -f scc.yaml # if deployed
 kubectl delete -f operator.yaml
 kubectl delete -f provisioner.yaml
 kubectl delete -f webhook.yaml # if deployed
