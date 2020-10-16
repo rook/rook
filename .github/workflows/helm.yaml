@@ -1,0 +1,25 @@
+name: Helm
+
+on:
+  push:
+    branches:
+    - master
+    - nfs-chart
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Configure Git
+      run: |
+        git config user.name "$GITHUB_ACTOR"
+        git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+    - name: Release
+      uses: LukeCarrier/chart-releaser-action@v1.1.0
+      with:
+        charts_dir: cluster/charts
+      env:
+        CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
