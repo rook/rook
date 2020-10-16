@@ -1,0 +1,16 @@
+The Rook Operator has been installed. Check its status by running:
+  kubectl --namespace {{ .Release.Namespace }} get pods -l "app=rook-nfs-operator"
+
+Visit https://rook.io/docs/rook/master for instructions on how to create and configure Rook clusters
+
+Note: You cannot just create an NFSServer resource, you need to also create a namespace and
+install suitable RBAC roles and role bindings for the cluster. The Rook Operator will not do
+this for you. Sample NFSServer manifest templates that include RBAC resources are available:
+
+- https://rook.github.io/docs/rook/master/nfs.html
+- https://github.com/LukeCarrier/rook/blob/master/cluster/examples/kubernetes/nfs/nfs.yaml
+
+Important Notes:
+- The links above are for the unreleased master version, if you deploy a different release you must find matching manifests.
+- You must customise the 'NFSServer' resource at the bottom of the sample manifests to met your situation.
+- Any disk devices you add to the server in the 'NFSServer' must be empty (no filesystem and no partitions).

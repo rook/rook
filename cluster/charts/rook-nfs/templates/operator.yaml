@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-nfs-operator
+  labels:
+    app: rook-nfs-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-nfs-operator
+  template:
+    metadata:
+      labels:
+        app: rook-nfs-operator
+    spec:
+      serviceAccountName: rook-nfs-operator
+      containers:
+      - name: rook-nfs-operator
+        image: rook/nfs:master
+        imagePullPolicy: IfNotPresent
+        args: ["nfs", "operator"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
