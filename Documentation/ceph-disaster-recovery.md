@@ -81,18 +81,18 @@ ceph-mon \
     --log-stderr-prefix=debug \
     --default-log-to-file=false \
     --default-mon-cluster-log-to-file=false \
-    --mon-host=$(ROOK_CEPH_MON_HOST) \
-    --mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS) \
+    --mon-host=$ROOK_CEPH_MON_HOST \
+    --mon-initial-members=$ROOK_CEPH_MON_INITIAL_MEMBERS \
     --id=b \
     --setuser=ceph \
     --setgroup=ceph \
     --foreground \
     --public-addr=10.100.13.242 \
     --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
-    --public-bind-addr=$(ROOK_POD_IP)
+    --public-bind-addr=$ROOK_POD_IP
 ```
 
-(be sure to remove the single quotes around the `--log-stderr-prefix` flag)
+(be sure to remove the single quotes around the `--log-stderr-prefix` flag and the paranthesis around the variables being passed ROOK_CEPH_MON_HOST, ROOK_CEPH_MON_INITIAL_MEMBERS and ROOK_POD_IP )
 
 Patch the `rook-ceph-mon-b` Deployment to run a sleep instead of the `ceph mon` command:
 
@@ -122,15 +122,15 @@ ceph-mon \
     --log-stderr-prefix=debug \
     --default-log-to-file=false \
     --default-mon-cluster-log-to-file=false \
-    --mon-host=$(ROOK_CEPH_MON_HOST) \
-    --mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS) \
+    --mon-host=$ROOK_CEPH_MON_HOST \
+    --mon-initial-members=$ROOK_CEPH_MON_INITIAL_MEMBERS \
     --id=b \
     --setuser=ceph \
     --setgroup=ceph \
     --foreground \
     --public-addr=10.100.13.242 \
     --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
-    --public-bind-addr=$(ROOK_POD_IP) \
+    --public-bind-addr=$ROOK_POD_IP \
     --extract-monmap=${monmap_path}
 
 # review the contents of the monmap
@@ -155,15 +155,15 @@ ceph-mon \
     --log-stderr-prefix=debug \
     --default-log-to-file=false \
     --default-mon-cluster-log-to-file=false \
-    --mon-host=$(ROOK_CEPH_MON_HOST) \
-    --mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS) \
+    --mon-host=$ROOK_CEPH_MON_HOST \
+    --mon-initial-members=$ROOK_CEPH_MON_INITIAL_MEMBERS \
     --id=b \
     --setuser=ceph \
     --setgroup=ceph \
     --foreground \
     --public-addr=10.100.13.242 \
     --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
-    --public-bind-addr=$(ROOK_POD_IP) \
+    --public-bind-addr=$ROOK_POD_IP \
     --inject-monmap=${monmap_path}
 ```
 
