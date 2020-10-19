@@ -114,7 +114,7 @@ func getHostPathProvisionerDeployment() (string, error) {
 	// The hostpath provisioner project is readonly so we can't submit a PR.
 	// Until we replace this completely, we'll just replace the necessary string.
 	deploymentResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerDeployment)
-	response, err := http.Get(deploymentResourceURL)
+	response, err := http.Get(deploymentResourceURL) //nolint:gosec // We safely suppress gosec in tests file
 	if err != nil {
 		return "", fmt.Errorf("failed to get hostpath provisioner deployment. %+v", err)
 	}

@@ -1442,7 +1442,7 @@ func (k8sh *K8sHelper) ChangeHostnames() error {
 		if !strings.HasPrefix(hostname, hostnameTestPrefix) {
 			node.Labels[v1.LabelHostname] = hostnameTestPrefix + hostname
 			logger.Infof("changed hostname of node %s to %s", node.Name, node.Labels[v1.LabelHostname])
-			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node)
+			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node) //nolint:gosec // We safely suppress gosec in tests file
 			if err != nil {
 				return err
 			}
@@ -1463,7 +1463,7 @@ func (k8sh *K8sHelper) RestoreHostnames() ([]string, error) {
 		if strings.HasPrefix(hostname, hostnameTestPrefix) {
 			node.Labels[v1.LabelHostname] = hostname[len(hostnameTestPrefix):]
 			logger.Infof("restoring hostname of node %s to %s", node.Name, node.Labels[v1.LabelHostname])
-			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node)
+			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node) //nolint:gosec // We safely suppress gosec in tests file
 			if err != nil {
 				return nil, err
 			}

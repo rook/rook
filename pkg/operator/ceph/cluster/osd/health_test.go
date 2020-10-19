@@ -162,7 +162,8 @@ func TestOSDRestartIfStuck(t *testing.T) {
 	assert.NoError(t, err)
 	for _, node := range nodes.Items {
 		node.Status.Conditions[0].Status = v1.ConditionFalse
-		_, err := context.Clientset.CoreV1().Nodes().Update(&node)
+		localnode := node
+		_, err := context.Clientset.CoreV1().Nodes().Update(&localnode)
 		assert.NoError(t, err)
 	}
 

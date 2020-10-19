@@ -226,7 +226,7 @@ func TestRunner_Run(t *testing.T) {
 func mockExecCommand(command string, args ...string) *exec.Cmd {
 	cs := []string{"-test.run=TestCmdReporterHelperProcess", "--", command}
 	cs = append(cs, args...)
-	cmd := exec.Command(os.Args[0], cs...)
+	cmd := exec.Command(os.Args[0], cs...) //nolint:gosec //Rook controls the input to the exec arguments
 	// the existing environment will contain variables which define the desired return from the
 	// fake command which will be run.
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")

@@ -38,7 +38,7 @@ const (
 	filePodName          = "file-test"
 	fileMountUserPodName = "file-mountuser-test"
 	fileMountUser        = "filemountuser"
-	fileMountSecret      = "file-mountuser-cephkey"
+	fileMountSecret      = "file-mountuser-cephkey" //nolint:gosec // We safely suppress gosec in tests file
 )
 
 func fileSystemCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, storageClassName, systemNamespace string) {
