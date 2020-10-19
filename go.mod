@@ -39,7 +39,7 @@ require (
 	k8s.io/apiserver v0.17.2
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/code-generator v0.17.2
-	k8s.io/kube-controller-manager v0.0.0
+	k8s.io/kube-controller-manager v0.17.2
 	k8s.io/kubernetes v1.17.2
 	k8s.io/utils v0.0.0-20200229041039-0a110f9eb7ab
 	sigs.k8s.io/controller-runtime v0.5.2
