@@ -24,10 +24,12 @@ to your command line tool of choice.
 ### Install Kubernetes
 You can choose any Kubernetes flavor of your choice.  The test framework only depends on kubectl being configured.
 The framework also provides scripts to install Kubernetes. There are two scripts to start the cluster:
-1. **Minikube** (recommended for MacOS): Run [minikube.sh](/tests/scripts/minikube.sh) to setup a single-node Minikube Kubernetes.
 1. **Kubeadm** (recommended for Ubuntu): run [kubeadm.sh](/tests/scripts/kubeadm.sh) to setup a single-node K8s cluster using kubeadm
+1. **Minikube** (recommended for non-Ubuntu): Run [minikube.sh](/tests/scripts/minikube.sh) to setup a single-node Minikube Kubernetes.
 
-#### Minikube (recommended for MacOS)
+Minikube scripts only support "docker" and "none" as vm-driver.
+
+#### Minikube (recommended for non-Ubuntu)
 Starting the cluster on Minikube is as simple as running:
 ```console
 tests/scripts/minikube.sh up
