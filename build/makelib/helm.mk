@@ -20,7 +20,7 @@ HELM_CHARTS_DIR ?= $(ROOT_DIR)/cluster/charts
 HELM_OUTPUT_DIR ?= $(OUTPUT_DIR)/charts
 
 HELM_HOME := $(abspath $(CACHE_DIR)/helm)
-HELM_VERSION := v2.16.7
+HELM_VERSION := v3.3.4
 HELM := $(TOOLS_HOST_DIR)/helm-$(HELM_VERSION)
 HELM_INDEX := $(HELM_OUTPUT_DIR)/index.yaml
 export HELM_HOME
@@ -34,7 +34,6 @@ $(HELM):
 	@curl -sL https://get.helm.sh/helm-$(HELM_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
 	@mv $(TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/helm $(HELM)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
-	@$(HELM) init -c
 
 # TODO: after helm 3.0 released just pass --set image.tag=foo
 # to helm lint and helm package steps
