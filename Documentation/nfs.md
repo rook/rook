@@ -234,7 +234,8 @@ parameters:
   exportName: share1
   nfsServerName: rook-nfs
   nfsServerNamespace: rook-nfs
-provisioner: rook.io/nfs-provisioner
+# Use the format nfs.rook.io/<server name>-provisioner
+provisioner: nfs.rook.io/rook-nfs-provisioner
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 ```
