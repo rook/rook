@@ -36,7 +36,7 @@ install() {
         dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
         mkdir -p "${temp}"
         wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
-        tar -C "${temp}" -zxvf "${temp}/helm.tar.gz" --strip-components 1
+        tar -C "${temp}" -xvf "${temp}/helm.tar.gz" --strip-components 1
         # The following lines are workaround of a CI failure caused by the old-Jenkins-file-is-used-in-CI problem.
         # These lines will be removed as soom as PR5991 is merged..
         mkdir "${temp}/${dist}-${arch}"
