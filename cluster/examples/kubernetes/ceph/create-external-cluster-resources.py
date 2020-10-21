@@ -41,6 +41,13 @@ except ModuleNotFoundError:
     # for 3.x
     from io import StringIO
 
+try:
+    # for 2.7.x
+    from urlparse import urlparse
+except ModuleNotFoundError:
+    # for 3.x
+    from urllib.parse import urlparse
+
 
 class ExecutionFailureException(Exception):
     pass
@@ -115,7 +122,7 @@ class RadosJSON:
             ipv4, port = endpoint_str.split(':')
         except ValueError:
             raise ExecutionFailureException(
-                "Not a proper endpoint: {}, <IP>:<PORT>, format is expected".format(endpoint_str))
+                "Not a proper endpoint: {}, <IPv4>:<PORT>, format is expected".format(endpoint_str))
         ipParts = ipv4.split('.')
         if len(ipParts) != 4:
             raise ExecutionFailureException(
@@ -217,9 +224,21 @@ class RadosJSON:
         ip_port = str(q_leader_details['public_addr'].split('/')[0])
         return "{}={}".format(str(q_leader_name), ip_port)
 
+    def _join_host_port(self, endpoint, port):
+        port = "{}".format(port)
+        # regex to check the given endpoint is enclosed in square brackets
+        ipv6_regx = re.compile(r'^\[[^]]*\]$')
+        # endpoint has ':' in it and if not (already) enclosed in square brackets
+        if endpoint.count(':') and not ipv6_regx.match(endpoint):
+            endpoint = '[{}]'.format(endpoint)
+        if not port:
+            return endpoint
+        return ':'.join([endpoint, port])
+
     def get_active_ceph_mgr(self):
         if self._arg_parser.monitoring_endpoint:
-            return self._arg_parser.monitoring_endpoint+':'+self._arg_parser.monitoring_endpoint_port
+            monitoring_endpoint_ip = self._arg_parser.monitoring_endpoint
+            monitoring_endpoint_port = self._arg_parser.monitoring_endpoint_port
         else:
             cmd_json = {"prefix": "mgr services", "format": "json"}
             ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
@@ -232,10 +251,27 @@ class RadosJSON:
             if not monitoring_endpoint:
                 raise ExecutionFailureException(
                     "'prometheus' service not found, is the exporter enabled?'.\n")
+            try:
+                parsed_endpoint = urlparse(monitoring_endpoint)
+            except ValueError:
+                raise ExecutionFailureException(
+                        "invalid endpoint: {}".format(monitoring_endpoint))
+            monitoring_endpoint_ip = parsed_endpoint.hostname
+            monitoring_endpoint_port = parsed_endpoint.port
 
-            monitoring_endpoint = monitoring_endpoint.replace("http://", "")
-            monitoring_endpoint = monitoring_endpoint.replace("/", "")
-            return monitoring_endpoint
+        if not monitoring_endpoint_port:
+            monitoring_endpoint_port = ''
+
+        try:
+            import socket
+            monitoring_endpoint_ip = socket.gethostbyname(monitoring_endpoint_ip)
+        except:
+            raise ExecutionFailureException(
+                "unable to convert a hostname to an IP address, monitoring host name: {}".format(monitoring_endpoint_ip))
+        monitoring_endpoint = self._join_host_port(monitoring_endpoint_ip, monitoring_endpoint_port)
+        self._invalid_endpoint(monitoring_endpoint)
+        self.endpoint_dial(monitoring_endpoint)
+        return monitoring_endpoint_ip, monitoring_endpoint_port
 
     def create_cephCSIKeyring_cephFSProvisioner(self):
         '''
@@ -437,10 +473,8 @@ class RadosJSON:
             self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_cephFSNode()
             self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_cephFSProvisioner()
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
-        self.out_map['MONITORING_ENDPOINT'] = self.get_active_ceph_mgr().split(":")[
-            0]
-        self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_ceph_mgr().split(":")[
-            1]
+        self.out_map['MONITORING_ENDPOINT'], \
+                self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_ceph_mgr()
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
 
