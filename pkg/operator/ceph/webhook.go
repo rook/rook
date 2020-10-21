@@ -127,7 +127,7 @@ func createWebhookDeployment(context *clusterd.Context, admissionImage string) e
 	secretVolumeMount := getSecretVolumeMount()
 
 	antiAffinity := csi.GetPodAntiAffinity(k8sutil.AppAttr, appName)
-	admissionControllerDeployment := getDeployment(secretVolume, antiAffinity, admissionImage, admission_parameters, secretVolumeMount)
+	admissionControllerDeployment := getDeployment(context, secretVolume, antiAffinity, admissionImage, admission_parameters, secretVolumeMount)
 
 	err := k8sutil.CreateDeployment(context.Clientset, appName, namespace, &admissionControllerDeployment)
 	if err != nil {
@@ -137,8 +137,17 @@ func createWebhookDeployment(context *clusterd.Context, admissionImage string) e
 	return nil
 }
 
-func getDeployment(secretVolume corev1.Volume, antiAffinity corev1.PodAntiAffinity, admissionImage string, admission_parameters []string, secretVolumeMount corev1.VolumeMount) v1.Deployment {
+func getDeployment(context *clusterd.Context, secretVolume corev1.Volume, antiAffinity corev1.PodAntiAffinity,
+	admissionImage string, admission_parameters []string, secretVolumeMount corev1.VolumeMount) v1.Deployment {
 	var replicas int32 = 2
+	nodes, err := context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err == nil {
+		if len(nodes.Items) == 1 {
+			replicas = 1
+		}
+	} else {
+		logger.Errorf("failed to get nodes. Defaulting the number of replicas of admission controller pods to 2. %v", err)
+	}
 
 	admissionControllerDeployment := v1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
