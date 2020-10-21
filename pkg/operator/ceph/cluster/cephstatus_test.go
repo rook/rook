@@ -91,6 +91,33 @@ func TestCephStatus(t *testing.T) {
 	assert.Equal(t, osdDownMsg.Severity, aggregateStatus.Details["OSD_DOWN"].Severity)
 	assert.Equal(t, pgAvailMsg.Summary.Message, aggregateStatus.Details["PG_AVAILABILITY"].Message)
 	assert.Equal(t, pgAvailMsg.Severity, aggregateStatus.Details["PG_AVAILABILITY"].Severity)
+
+	// Test for storage capacity of the ceph cluster when there is no disk
+	newStatus = &cephclient.CephStatus{
+		PgMap: cephclient.PgMap{TotalBytes: 0},
+	}
+	aggregateStatus = toCustomResourceStatus(currentStatus, newStatus)
+	assert.Equal(t, 0, int(aggregateStatus.Capacity.TotalBytes))
+	assert.Equal(t, "", aggregateStatus.Capacity.LastUpdated)
+
+	// Test for storage capacity of the ceph cluster when the disk of size 1024 bytes attached
+	newStatus = &cephclient.CephStatus{
+		PgMap: cephclient.PgMap{TotalBytes: 1024},
+	}
+	aggregateStatus = toCustomResourceStatus(currentStatus, newStatus)
+	assert.Equal(t, 1024, int(aggregateStatus.Capacity.TotalBytes))
+	assert.Equal(t, formatTime(time.Now().UTC()), aggregateStatus.Capacity.LastUpdated)
+
+	// Test for storage capacity of the ceph cluster when initially there is a disk of size
+	// 1024 bytes attached and then the disk is removed or newStatus.PgMap.TotalBytes is 0.
+	currentStatus.CephStatus.Capacity.TotalBytes = 1024
+	newStatus = &cephclient.CephStatus{
+		PgMap: cephclient.PgMap{TotalBytes: 0},
+	}
+
+	aggregateStatus = toCustomResourceStatus(currentStatus, newStatus)
+	assert.Equal(t, 1024, int(aggregateStatus.Capacity.TotalBytes))
+	assert.Equal(t, formatTime(time.Now().Add(-time.Minute).UTC()), formatTime(time.Now().Add(-time.Minute).UTC()))
 }
 
 func TestNewCephStatusChecker(t *testing.T) {
