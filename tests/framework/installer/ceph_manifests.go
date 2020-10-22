@@ -150,6 +150,8 @@ spec:
                       type: boolean
                     osdMaintenanceTimeout:
                       type: integer
+                    pgHealthCheckTimeout:
+                      type: integer
                     manageMachineDisruptionBudgets:
                       type: boolean
                 skipUpgradeChecks:
@@ -231,6 +233,8 @@ spec:
                         managePodBudgets:
                           type: boolean
                         osdMaintenanceTimeout:
+                          type: integer
+                        pgHealthCheckTimeout:
                           type: integer
                         manageMachineDisruptionBudgets:
                           type: boolean
@@ -1453,6 +1457,8 @@ spec:
                   type: boolean
                 osdMaintenanceTimeout:
                   type: integer
+                pgHealthCheckTimeout:
+                  type: integer
                 manageMachineDisruptionBudgets:
                   type: boolean
             skipUpgradeChecks:
@@ -1491,6 +1497,8 @@ spec:
                     managePodBudgets:
                       type: boolean
                     osdMaintenanceTimeout:
+                      type: integer
+                    pgHealthCheckTimeout:
                       type: integer
                     manageMachineDisruptionBudgets:
                       type: boolean
@@ -3426,6 +3434,7 @@ spec:
   disruptionManagement:
     managePodBudgets: false
     osdMaintenanceTimeout: 30
+    pgHealthCheckTimeout: 0
     manageMachineDisruptionBudgets: false
     machineDisruptionBudgetNamespace: openshift-machine-api`
 	}

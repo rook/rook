@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func createFakeReconcileClusterDisruptionr(t *testing.T, obj ...runtime.Object) *ReconcileClusterDisruption {
+func createFakeReconcileClusterDisruption(t *testing.T, obj ...runtime.Object) *ReconcileClusterDisruption {
 	scheme := scheme.Scheme
 	err := policyv1beta1.AddToScheme(scheme)
 	if err != nil {
@@ -45,7 +45,7 @@ func createFakeReconcileClusterDisruptionr(t *testing.T, obj ...runtime.Object) 
 }
 
 func TestReconcileMonPDB(t *testing.T) {
-	r := createFakeReconcileClusterDisruptionr(t, &cephv1.CephCluster{})
+	r := createFakeReconcileClusterDisruption(t, &cephv1.CephCluster{})
 	testCases := []struct {
 		label                string
 		cephCluster          *cephv1.CephCluster
