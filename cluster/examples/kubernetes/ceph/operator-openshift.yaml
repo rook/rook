@@ -324,6 +324,18 @@ data:
 
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
+
+  # (Optional) Admission controller NodeAffinity.
+  # ADMISSION_CONTROLLER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
+  # (Optional) Admission controller tolerations list. Put here list of taints you want to tolerate in YAML format.
+  # Admission controller would be best to start on the same nodes as other ceph daemons.
+  # ADMISSION_CONTROLLER_TOLERATIONS: |
+  #   - effect: NoSchedule
+  #     key: node-role.kubernetes.io/controlplane
+  #     operator: Exists
+  #   - effect: NoExecute
+  #     key: node-role.kubernetes.io/etcd
+  #     operator: Exists
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
