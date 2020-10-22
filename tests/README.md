@@ -117,9 +117,10 @@ At least you should set the following variables.
 export TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/linux-amd64/helm
 export TEST_BASE_DIR=WORKING_DIR
 export TEST_SCRATCH_DEVICE=<block device> # for example, TEST_SCRATCH_DEVICE=/dev/sdb
+export TEST_SCRATCH_DEVICE2=<block device2>
 ```
 
-Please note that the integration test erases the contents of TEST_SCRATCH_DEVICE.
+Please note that the integration test erases the contents of TEST_SCRATCH_DEVICE and TEST_SCRATCH_DEVICE2.
 
 To run all integration tests:
 ```console
