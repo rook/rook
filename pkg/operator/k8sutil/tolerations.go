@@ -25,16 +25,16 @@ import (
 
 // This function takes raw YAML string and converts it to Kubernetes Tolerations array
 func YamlToTolerations(raw string) ([]v1.Toleration, error) {
-	var tolerations []v1.Toleration
 	if raw == "" {
-		return tolerations, nil
+		return []v1.Toleration{}, nil
 	}
 
 	rawJSON, err := yaml.YAMLToJSON([]byte(raw))
 	if err != nil {
-		return tolerations, err
+		return []v1.Toleration{}, err
 	}
 
+	var tolerations []v1.Toleration
 	err = json.Unmarshal(rawJSON, &tolerations)
 	if err != nil {
 		return []v1.Toleration{}, err
