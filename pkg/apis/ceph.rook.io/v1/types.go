@@ -802,9 +802,15 @@ type DisruptionManagementSpec struct {
 	ManagePodBudgets bool `json:"managePodBudgets,omitempty"`
 
 	// OSDMaintenanceTimeout sets how many additional minutes the DOWN/OUT interval is for drained failure domains
-	// it only works if managePodBudgetss is true.
+	// it only works if managePodBudgets is true.
 	// the default is 30 minutes
 	OSDMaintenanceTimeout time.Duration `json:"osdMaintenanceTimeout,omitempty"`
+
+	// PGHealthCheckTimeout is the time (in minutes) that the operator will wait for the placement groups to become
+	// healthy (active+clean) after a drain was completed and OSDs came back up. Rook will continue with the next drain
+	// if the timeout exceeds. It only works if managePodBudgets is true.
+	// No values or 0 means that the operator will wait until the placement groups are healthy before unblocking the next drain.
+	PGHealthCheckTimeout time.Duration `json:"pgHealthCheckTimeout,omitempty"`
 
 	// This enables management of machinedisruptionbudgets
 	ManageMachineDisruptionBudgets bool `json:"manageMachineDisruptionBudgets,omitempty"`

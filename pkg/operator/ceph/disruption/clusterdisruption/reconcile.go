@@ -25,18 +25,21 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 )
 
 const (
-	osdDisruptionAppName = "rook-ceph-osd-disruption"
-	controllerName       = "clusterdisruption-controller"
+	controllerName = "clusterdisruption-controller"
 	// pdbStateMapName for the clusterdisruption pdb state map
 	pdbStateMapName = "rook-ceph-pdbstatemap"
 )
@@ -46,17 +49,20 @@ var (
 
 	// Implement reconcile.Reconciler so the controller can reconcile objects
 	_ reconcile.Reconciler = &ReconcileClusterDisruption{}
+
+	// delete legacy drain canary pods and blocking OSD podDisruptionBudgets
+	deleteLegacyResources = true
 )
 
 // ReconcileClusterDisruption reconciles ReplicaSets
 type ReconcileClusterDisruption struct {
 	// client can be used to retrieve objects from the APIServer.
-	scheme              *runtime.Scheme
-	client              client.Client
-	context             *controllerconfig.Context
-	clusterMap          *ClusterMap
-	osdCrushLocationMap *OSDCrushLocationMap
-	maintenanceTimeout  time.Duration
+	scheme               *runtime.Scheme
+	client               client.Client
+	context              *controllerconfig.Context
+	clusterMap           *ClusterMap
+	maintenanceTimeout   time.Duration
+	pgHealthCheckTimeout time.Duration
 }
 
 // Reconcile reconciles a node and ensures that it has a drain-detection deployment
@@ -111,13 +117,32 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		// feature disabled for this cluster. not requeueing
 		return reconcile.Result{Requeue: false}, nil
 	}
-	//signal to the nodedrain controller to start
-	r.context.ReconcileCanaries.Update(true)
-	r.maintenanceTimeout = cephCluster.Spec.DisruptionManagement.OSDMaintenanceTimeout
+
+	if deleteLegacyResources {
+		// delete any legacy blocking pdbs for osd
+		err := r.deleteLegacyPDBForOSD(clusterInfo.Namespace)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		logger.Info("deleted all legacy blocking pdbs for osds")
+
+		// delete any legacy node drain canary pods
+		err = r.deleteDrainCanaryPods(clusterInfo.Namespace)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		logger.Info("deleted all legacy node drain canary pods")
+
+		deleteLegacyResources = false
+	}
+
+	r.maintenanceTimeout = cephCluster.Spec.DisruptionManagement.OSDMaintenanceTimeout * time.Minute
 	if r.maintenanceTimeout == 0 {
 		r.maintenanceTimeout = DefaultMaintenanceTimeout
 		logger.Debugf("Using default maintenance timeout: %v", r.maintenanceTimeout)
 	}
+
+	r.pgHealthCheckTimeout = cephCluster.Spec.DisruptionManagement.PGHealthCheckTimeout * time.Minute
 
 	//  reconcile the pools and get the failure domain
 	cephObjectStoreList, cephFilesystemList, poolFailureDomain, poolCount, err := r.processPools(request)
@@ -148,46 +173,28 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, nil
 	}
 
-	// get the osds with crush data populated
-	osdDataList, err := r.getOsdDataList(clusterInfo, request, poolFailureDomain)
+	// get all failure domains and the draining failure domains list
+	allFailureDomains, drainingFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, poolFailureDomain)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// get the list of nodes with ongoing drains
-	drainingNodes, err := r.getOngoingDrains(request)
+	// get the map that stores currently draining failure domain
+	pdbStateMap, err := r.initializePDBState(request)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	drainingOSDs, err := getOSDsForNodes(osdDataList, drainingNodes, poolFailureDomain)
+	err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomains, drainingFailureDomains)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	allFailureDomainsMap, err := getFailureDomainMapForOsds(osdDataList, poolFailureDomain)
-	if err != nil {
-		logger.Error(err)
-	}
-	drainingFailureDomainsMap, err := getFailureDomainMapForOsds(drainingOSDs, poolFailureDomain)
-	if err != nil {
-		logger.Error(err)
-	}
-
-	// get the map that stores which PDBs are intentionally down
-	pdbStateMap, err := r.initializePDBState(request, osdDataList)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomainsMap, drainingFailureDomainsMap)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	disabledPDB, ok := pdbStateMap.Data[disabledPDBKey]
+	disabledPDB, ok := pdbStateMap.Data[drainingFailureDomainKey]
 	if ok && len(disabledPDB) > 0 {
 		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -247,7 +254,7 @@ func (c *ClusterMap) GetCluster(namespace string) (*cephv1.CephCluster, bool) {
 	return cluster, true
 }
 
-// GetClusterMap returns the internal clustermap for iteration purporses
+// GetClusterNamespaces returns the internal clustermap for iteration purporses
 func (c *ClusterMap) GetClusterNamespaces() []string {
 	defer c.mux.Unlock()
 	c.mux.Lock()
@@ -256,4 +263,22 @@ func (c *ClusterMap) GetClusterNamespaces() []string {
 		namespaces = append(namespaces, cluster.Namespace)
 	}
 	return namespaces
+}
+
+func (r *ReconcileClusterDisruption) deleteDrainCanaryPods(namespace string) error {
+	err := r.client.DeleteAllOf(context.TODO(), &appsv1.Deployment{}, client.InNamespace(namespace),
+		client.MatchingLabels{k8sutil.AppAttr: "rook-ceph-drain-canary"})
+	if err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, "failed to delete all the legacy drain-canary pods")
+	}
+	return nil
+}
+
+func (r *ReconcileClusterDisruption) deleteLegacyPDBForOSD(namespace string) error {
+	err := r.client.DeleteAllOf(context.TODO(), &policyv1beta1.PodDisruptionBudget{}, client.InNamespace(namespace),
+		client.MatchingLabels{k8sutil.AppAttr: "rook-ceph-osd-pdb"})
+	if err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, "failed to delete all the legacy blocking podDisruptionBugets")
+	}
+	return nil
 }

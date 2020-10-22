@@ -19,6 +19,7 @@ package osd
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 )
@@ -32,6 +33,8 @@ const (
 	CephDeviceSetPVCIDLabelKey = "ceph.rook.io/DeviceSetPVCId"
 	// OSDOverPVCLabelKey is the Rook PVC label key
 	OSDOverPVCLabelKey = "ceph.rook.io/pvc"
+	// TopologyLocationLabel is the crush location label added to OSD deployments
+	TopologyLocationLabel = "topology-location-%s"
 )
 
 func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId string, setIndex int) map[string]string {
@@ -42,11 +45,26 @@ func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClas
 	}
 }
 
-func (c *Cluster) getOSDLabels(osdID int, failureDomainValue string, portable bool) map[string]string {
-	stringID := fmt.Sprintf("%d", osdID)
+func (c *Cluster) getOSDLabels(osd OSDInfo, failureDomainValue string, portable bool) map[string]string {
+	stringID := fmt.Sprintf("%d", osd.ID)
 	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, "osd", stringID, true)
 	labels[OsdIdLabelKey] = stringID
 	labels[FailureDomainKey] = failureDomainValue
 	labels[portableKey] = strconv.FormatBool(portable)
+	for k, v := range getOSDTopologyLocationLabels(osd.Location) {
+		labels[k] = v
+	}
+	return labels
+}
+
+func getOSDTopologyLocationLabels(topologyLocation string) map[string]string {
+	labels := map[string]string{}
+	locations := strings.Split(topologyLocation, " ")
+	for _, location := range locations {
+		loc := strings.Split(location, "=")
+		if len(loc) == 2 {
+			labels[fmt.Sprintf(TopologyLocationLabel, loc[0])] = loc[1]
+		}
+	}
 	return labels
 }
