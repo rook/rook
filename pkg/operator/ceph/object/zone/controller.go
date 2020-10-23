@@ -297,7 +297,7 @@ func (r *ReconcileObjectZone) reconcileObjectZoneGroup(zone *cephv1.CephObjectZo
 		return "", waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "error getting cephObjectZoneGroup %v", zone.Spec.ZoneGroup)
 	}
 
-	logger.Infof("CephObjectZoneGroup %v found", zoneGroup.Name)
+	logger.Debugf("CephObjectZoneGroup %v found", zoneGroup.Name)
 	return zoneGroup.Spec.Realm, reconcile.Result{}, nil
 }
 

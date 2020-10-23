@@ -401,7 +401,8 @@ func (r *ReconcileCephObjectStore) reconcileCephZone(store *cephv1.CephObjectSto
 func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1.CephObjectStore) (string, string, string, reconcile.Result, error) {
 	if cephObjectStore.Spec.IsMultisite() {
 		zoneName := cephObjectStore.Spec.Zone.Name
-		zone, err := r.context.RookClientset.CephV1().CephObjectZones(cephObjectStore.Namespace).Get(zoneName, metav1.GetOptions{})
+		zone := &cephv1.CephObjectZone{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: zoneName, Namespace: cephObjectStore.Namespace}, zone)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				return "", "", "", waitForRequeueIfObjectStoreNotReady, err
@@ -410,7 +411,8 @@ func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1
 		}
 		logger.Debugf("CephObjectZone resource %s found", zone.Name)
 
-		zonegroup, err := r.context.RookClientset.CephV1().CephObjectZoneGroups(cephObjectStore.Namespace).Get(zone.Spec.ZoneGroup, metav1.GetOptions{})
+		zonegroup := &cephv1.CephObjectZoneGroup{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: zone.Spec.ZoneGroup, Namespace: cephObjectStore.Namespace}, zonegroup)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				return "", "", "", waitForRequeueIfObjectStoreNotReady, err
@@ -419,7 +421,8 @@ func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1
 		}
 		logger.Debugf("CephObjectZoneGroup resource %s found", zonegroup.Name)
 
-		realm, err := r.context.RookClientset.CephV1().CephObjectRealms(cephObjectStore.Namespace).Get(zonegroup.Spec.Realm, metav1.GetOptions{})
+		realm := &cephv1.CephObjectRealm{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: zonegroup.Spec.Realm, Namespace: cephObjectStore.Namespace}, realm)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				return "", "", "", waitForRequeueIfObjectStoreNotReady, err
