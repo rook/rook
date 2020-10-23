@@ -86,7 +86,7 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo
 	// validate the crush subdomain if specified
 	if p.Replicated.SubFailureDomain != "" {
 		found := false
-		for _, t := range crush.Buckets {
+		for _, t := range crush.Types {
 			if t.Name == p.Replicated.SubFailureDomain {
 				found = true
 				break

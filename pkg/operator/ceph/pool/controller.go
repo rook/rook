@@ -192,7 +192,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
 
-		logger.Debugf("deleting pool %q", cephBlockPool.Name)
+		logger.Infof("deleting pool %q", cephBlockPool.Name)
 		err := deletePool(r.context, clusterInfo, cephBlockPool)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
