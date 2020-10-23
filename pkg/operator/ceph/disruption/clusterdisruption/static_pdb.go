@@ -19,40 +19,37 @@ package clusterdisruption
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const (
-	// MonPDBAppName for monitor daemon poddisruptionbudgets
-	MonPDBAppName = "rook-ceph-mon-pdb"
-)
-
-func (r *ReconcileClusterDisruption) createStaticPDB(request types.NamespacedName, pdb *policyv1beta1.PodDisruptionBudget) error {
+func (r *ReconcileClusterDisruption) createStaticPDB(pdb *policyv1beta1.PodDisruptionBudget) error {
 	err := r.client.Create(context.TODO(), pdb)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to create pdb %q", pdb.Name)
 	}
 	return nil
 }
 
-// PDBs can't be updated, so we use a delete/create
-// This will change only with kube 1.15: https://github.com/kubernetes/kubernetes/issues/45398#issuecomment-495362316
-func (r *ReconcileClusterDisruption) updateStaticPDB(request types.NamespacedName, pdb *policyv1beta1.PodDisruptionBudget) error {
-	err := r.client.Delete(context.TODO(), pdb)
-	if err != nil {
-		return err
-	}
-	return r.createStaticPDB(request, pdb)
-}
-
 func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.NamespacedName, pdb *policyv1beta1.PodDisruptionBudget) error {
-	err := r.client.Get(context.TODO(), request, pdb)
-	if errors.IsNotFound(err) {
-		return r.createStaticPDB(request, pdb)
-	} else if err != nil {
-		return err
+	existingPDB := &policyv1beta1.PodDisruptionBudget{}
+	err := r.client.Get(context.TODO(), request, existingPDB)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return r.createStaticPDB(pdb)
+		}
+		return errors.Wrapf(err, "failed to get pdb %q", pdb.Name)
+	}
+
+	if *existingPDB.Spec.MinAvailable != *pdb.Spec.MinAvailable {
+		err := r.client.Delete(context.TODO(), existingPDB)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete pdb %q", pdb.Name)
+		}
+		return r.createStaticPDB(pdb)
 	}
 	return nil
 }
