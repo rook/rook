@@ -93,11 +93,6 @@ const (
 	// pods and waiting for kubernetes scheduling to complete.
 	canaryRetries           = 30
 	canaryRetryDelaySeconds = 5
-
-	// Fallback pod anti affinity for mon pods to PreferredDuringSchedulingIgnoredDuringExecution
-	// if not in a case (e.g. HostNetworking, not AllowMultiplePerHost)
-	// needing RequiredDuringSchedulingIgnoredDuringExecution pod anti-affinity
-	PreferredDuringScheduling = true
 )
 
 var (
@@ -126,6 +121,7 @@ type Cluster struct {
 	ownerRef            metav1.OwnerReference
 	csiConfigMutex      *sync.Mutex
 	isUpgrade           bool
+	arbiterMon          string
 }
 
 // monConfig for a single monitor
@@ -138,6 +134,8 @@ type monConfig struct {
 	PublicIP string
 	// Port is the port on which the mon will listen for connections
 	Port int32
+	// The zone used for a stretch cluster
+	Zone string
 	// DataPathMap is the mapping relationship between mon data stored on the host and mon data
 	// stored in containers.
 	DataPathMap *config.DataPathMap
@@ -145,14 +143,17 @@ type monConfig struct {
 
 // Mapping is mon node and port mapping
 type Mapping struct {
-	Node map[string]*NodeInfo `json:"node"`
+	// This isn't really node info since it could also be for zones, but we leave it as "node" for backward compatibility.
+	Schedule map[string]*MonScheduleInfo `json:"node"`
 }
 
-// NodeInfo contains name and address of a node
-type NodeInfo struct {
-	Name     string
-	Hostname string
-	Address  string
+// MonScheduleInfo contains name and address of a node.
+type MonScheduleInfo struct {
+	// Name of the node. **json names are capitalized for backwards compat**
+	Name     string `json:"Name,omitempty"`
+	Hostname string `json:"Hostname,omitempty"`
+	Address  string `json:"Address,omitempty"`
+	Zone     string `json:"zone,omitempty"`
 }
 
 type SchedulingResult struct {
@@ -173,7 +174,7 @@ func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, o
 		monPodTimeout:       5 * time.Minute,
 		monTimeoutList:      map[string]time.Time{},
 		mapping: &Mapping{
-			Node: map[string]*NodeInfo{},
+			Schedule: map[string]*MonScheduleInfo{},
 		},
 		ownerRef:       ownerRef,
 		csiConfigMutex: csiConfigMutex,
@@ -218,7 +219,10 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string,
 
 func (c *Cluster) startMons(targetCount int) error {
 	// init the mon config
-	existingCount, mons := c.initMonConfig(targetCount)
+	existingCount, mons, err := c.initMonConfig(targetCount)
+	if err != nil {
+		return errors.Wrap(err, "failed to init mon config")
+	}
 
 	// Assign the mons to nodes
 	if err := c.assignMons(mons); err != nil {
@@ -281,11 +285,72 @@ func (c *Cluster) startMons(targetCount int) error {
 		}
 	}
 
+	if c.spec.IsStretchCluster() {
+		if err := c.configureStretchCluster(mons); err != nil {
+			return errors.Wrap(err, "failed to configure stretch mons")
+		}
+	}
+
 	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.ClusterInfo.Monitors))
 
 	// Check if there are orphaned mon resources that should be cleaned up at the end of a reconcile.
 	// There may be orphaned resources if a mon failover was aborted.
 	c.removeOrphanMonResources()
+
+	return nil
+}
+
+func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
+	if err := c.assignStretchMonsToZones(mons); err != nil {
+		return errors.Wrap(err, "failed to assign mons to zones")
+	}
+
+	// Enable the mon connectivity strategy
+	if err := client.EnableStretchElectionStrategy(c.context, c.ClusterInfo); err != nil {
+		return errors.Wrap(err, "failed to enable stretch cluster")
+	}
+
+	// Create the default crush rule for stretch clusters, that by default will also apply to all pools
+	if err := client.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, c.stretchFailureDomainName(), c.spec.Mon.StretchCluster.SubFailureDomain); err != nil {
+		return errors.Wrap(err, "failed to create default stretch rule")
+	}
+
+	return nil
+}
+
+func (c *Cluster) assignStretchMonsToZones(mons []*monConfig) error {
+	var arbiterZone string
+	for _, zone := range c.spec.Mon.StretchCluster.Zones {
+		if zone.Arbiter {
+			arbiterZone = zone.Name
+			break
+		}
+	}
+
+	// Set the location for each mon
+	domainName := c.stretchFailureDomainName()
+	for _, mon := range mons {
+		if mon.Zone == arbiterZone {
+			// remember the arbiter mon to be set later in the reconcile after the OSDs are configured
+			c.arbiterMon = mon.DaemonName
+		}
+		logger.Infof("setting mon %q to stretch %s=%s", mon.DaemonName, domainName, mon.Zone)
+		if err := client.SetMonStretchZone(c.context, c.ClusterInfo, mon.DaemonName, domainName, mon.Zone); err != nil {
+			return errors.Wrapf(err, "failed to set mon %q zone", mon.DaemonName)
+		}
+	}
+	return nil
+}
+
+func (c *Cluster) ConfigureArbiter() error {
+	if c.arbiterMon == "" {
+		return errors.New("arbiter not specified for the stretch cluster")
+	}
+
+	// Set the mon tiebreaker
+	if err := client.SetMonStretchTiebreaker(c.context, c.ClusterInfo, c.arbiterMon, c.stretchFailureDomainName()); err != nil {
+		return errors.Wrap(err, "failed to set mon tiebreaker")
+	}
 
 	return nil
 }
@@ -365,40 +430,89 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	return nil
 }
 
-func (c *Cluster) initMonConfig(size int) (int, []*monConfig) {
-	mons := []*monConfig{}
+func (c *Cluster) initMonConfig(size int) (int, []*monConfig, error) {
 
 	// initialize the mon pod info for mons that have been previously created
-	for _, monitor := range c.ClusterInfo.Monitors {
-		mons = append(mons, &monConfig{
-			ResourceName: resourceName(monitor.Name),
-			DaemonName:   monitor.Name,
-			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
-			DataPathMap: config.NewStatefulDaemonDataPathMap(
-				c.spec.DataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
-		})
-	}
+	mons := c.clusterInfoToMonConfig("")
 
 	// initialize mon info if we don't have enough mons (at first startup)
 	existingCount := len(c.ClusterInfo.Monitors)
 	for i := len(c.ClusterInfo.Monitors); i < size; i++ {
 		c.maxMonID++
-		mons = append(mons, c.newMonConfig(c.maxMonID))
+		zone, err := c.findAvailableZoneIfStretched(mons)
+		if err != nil {
+			return existingCount, mons, errors.Wrap(err, "stretch zone not available")
+		}
+		mons = append(mons, c.newMonConfig(c.maxMonID, zone))
 	}
 
-	return existingCount, mons
+	return existingCount, mons, nil
 }
 
-func (c *Cluster) newMonConfig(monID int) *monConfig {
+func (c *Cluster) clusterInfoToMonConfig(excludedMon string) []*monConfig {
+	mons := []*monConfig{}
+	for _, monitor := range c.ClusterInfo.Monitors {
+		if monitor.Name == excludedMon {
+			// Skip a mon if it is being failed over
+			continue
+		}
+		var zone string
+		schedule := c.mapping.Schedule[monitor.Name]
+		if schedule != nil {
+			zone = schedule.Zone
+		}
+		mons = append(mons, &monConfig{
+			ResourceName: resourceName(monitor.Name),
+			DaemonName:   monitor.Name,
+			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
+			Zone:         zone,
+			DataPathMap: config.NewStatefulDaemonDataPathMap(
+				c.spec.DataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
+		})
+	}
+	return mons
+}
+
+func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 	daemonName := k8sutil.IndexToName(monID)
 
 	return &monConfig{
 		ResourceName: resourceName(daemonName),
 		DaemonName:   daemonName,
 		Port:         DefaultMsgr1Port,
+		Zone:         zone,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.spec.DataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),
 	}
+}
+
+func (c *Cluster) findAvailableZoneIfStretched(mons []*monConfig) (string, error) {
+	if !c.spec.IsStretchCluster() {
+		return "", nil
+	}
+
+	// Build the count of current mons per zone
+	zoneCount := map[string]int{}
+	for _, m := range mons {
+		if m.Zone == "" {
+			return "", errors.Errorf("zone not found on mon %q", m.DaemonName)
+		}
+		zoneCount[m.Zone]++
+	}
+
+	// Find a zone in the stretch cluster that still needs an assignment
+	for _, zone := range c.spec.Mon.StretchCluster.Zones {
+		count, ok := zoneCount[zone.Name]
+		if !ok {
+			// The zone isn't currently assigned to any mon, so return it
+			return zone.Name, nil
+		}
+		if c.spec.Mon.Count == 5 && count == 1 && !zone.Arbiter {
+			// The zone only has 1 mon assigned, but needs 2 mons since it is not the arbiter
+			return zone.Name, nil
+		}
+	}
+	return "", errors.New("A zone is not available to assign a new mon")
 }
 
 // resourceName ensures the mon name has the rook-ceph-mon prefix
@@ -433,14 +547,14 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 
 	// setup affinity settings for pod scheduling
 	p := cephv1.GetMonPlacement(c.spec.Placement)
-	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec),
 		map[string]string{k8sutil.AppAttr: AppName}, nil)
 
 	// setup storage on the canary since scheduling will be affected when
 	// monitors are configured to use persistent volumes. the pvcName is set to
 	// the non-empty name of the PVC only when the PVC is created as a result of
 	// this call to the scheduler.
-	if c.spec.Mon.VolumeClaimTemplate == nil {
+	if c.monVolumeClaimTemplate(mon) == nil {
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes,
 			controller.DaemonVolumesDataHostPath(mon.DataPathMap)...)
 	} else {
@@ -543,7 +657,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	for _, m := range mons {
 		if c.spec.Network.IsHost() {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
-			node, ok := c.mapping.Node[m.DaemonName]
+			node, ok := c.mapping.Schedule[m.DaemonName]
 			if !ok {
 				return errors.New("mon doesn't exist in assignment map")
 			}
@@ -601,7 +715,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 	for _, mon := range mons {
 
 		// scheduling for this monitor has already been completed
-		if _, ok := c.mapping.Node[mon.DaemonName]; ok {
+		if _, ok := c.mapping.Schedule[mon.DaemonName]; ok {
 			logger.Debugf("assignmon: mon %s already scheduled", mon.DaemonName)
 			continue
 		}
@@ -618,20 +732,20 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		// start waiting for the deployment
 		monSchedulingWait.Add(1)
 
-		go func(deployment *apps.Deployment, monDaemonName string) {
+		go func(deployment *apps.Deployment, mon *monConfig) {
 			// signal that the mon is done scheduling
 			defer monSchedulingWait.Done()
 
 			result, err := waitForMonitorScheduling(c, deployment)
 			if err != nil {
-				logger.Errorf("failed to schedule mon %q. %v", monDaemonName, err)
+				logger.Errorf("failed to schedule mon %q. %v", mon.DaemonName, err)
 				failedMonSchedule = true
 				return
 			}
 
 			nodeChoice := result.Node
 			if nodeChoice == nil {
-				logger.Errorf("assignmon: could not schedule monitor %s", monDaemonName)
+				logger.Errorf("assignmon: could not schedule monitor %q", mon.DaemonName)
 				failedMonSchedule = true
 				return
 			}
@@ -639,24 +753,32 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			// store nil in the node mapping to indicate that an explicit node
 			// placement is not being made. otherwise, the node choice will map
 			// directly to a node selector on the monitor pod.
-			var nodeInfo *NodeInfo
-			if c.spec.Network.IsHost() || c.spec.Mon.VolumeClaimTemplate == nil {
-				logger.Infof("assignmon: mon %s assigned to node %s", monDaemonName, nodeChoice.Name)
-				nodeInfo, err = getNodeInfoFromNode(*nodeChoice)
+			var schedule *MonScheduleInfo
+			if c.spec.Network.IsHost() || c.monVolumeClaimTemplate(mon) == nil {
+				logger.Infof("assignmon: mon %s assigned to node %s", mon.DaemonName, nodeChoice.Name)
+				schedule, err = getNodeInfoFromNode(*nodeChoice)
 				if err != nil {
-					logger.Errorf("assignmon: couldn't get node info for node %s", nodeChoice.Name)
+					logger.Errorf("assignmon: couldn't get node info for node %q. %v", nodeChoice.Name, err)
 					failedMonSchedule = true
 					return
 				}
 			} else {
-				logger.Infof("assignmon: mon %s placement using native scheduler", monDaemonName)
+				logger.Infof("assignmon: mon %q placement using native scheduler", mon.DaemonName)
+			}
+
+			if c.spec.IsStretchCluster() {
+				if schedule == nil {
+					schedule = &MonScheduleInfo{}
+				}
+				logger.Infof("mon %q is assigned to zone %q", mon.DaemonName, mon.Zone)
+				schedule.Zone = mon.Zone
 			}
 
 			// protect against multiple goroutines updating the status at the same time
 			resultLock.Lock()
-			c.mapping.Node[monDaemonName] = nodeInfo
+			c.mapping.Schedule[mon.DaemonName] = schedule
 			resultLock.Unlock()
-		}(deployment, mon.DaemonName)
+		}(deployment, mon)
 	}
 
 	monSchedulingWait.Wait()
@@ -666,6 +788,25 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 	logger.Debug("assignmons: mons have been scheduled")
 	return nil
+}
+
+func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeClaim {
+	if !c.spec.IsStretchCluster() {
+		return c.spec.Mon.VolumeClaimTemplate
+	}
+
+	// If a stretch cluster, a zone can override the template from the default.
+	for _, zone := range c.spec.Mon.StretchCluster.Zones {
+		if zone.Name == mon.Zone {
+			if zone.VolumeClaimTemplate != nil {
+				// Found an override for the volume claim template in the zone
+				return zone.VolumeClaimTemplate
+			}
+			break
+		}
+	}
+	// Return the default template since one wasn't found in the zone
+	return c.spec.Mon.VolumeClaimTemplate
 }
 
 func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) error {
@@ -705,8 +846,8 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 
 	// Ensure each of the mons have been created. If already created, it will be a no-op.
 	for i := 0; i < len(mons); i++ {
-		node := c.mapping.Node[mons[i].DaemonName]
-		err := c.startMon(mons[i], node)
+		schedule := c.mapping.Schedule[mons[i].DaemonName]
+		err := c.startMon(mons[i], schedule)
 		if err != nil {
 			if c.isUpgrade {
 				// if we're upgrading, we don't want to risk the health of the cluster by continuing to upgrade
@@ -874,7 +1015,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 //           - if HostPath -> leave node selector as is
 //           - if PVC      -> remove node selector, if present
 //
-func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
+func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 	// check if the monitor deployment already exists. if the deployment does
 	// exist, also determine if it using pvc storage.
 	pvcExists := false
@@ -905,7 +1046,7 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 	// deployment spec created above does not specify persistent storage. here
 	// we add in PVC or HostPath storage based on an existing deployment OR on
 	// the current state of the CRD.
-	if pvcExists || (!deploymentExists && c.spec.Mon.VolumeClaimTemplate != nil) {
+	if pvcExists || (!deploymentExists && c.monVolumeClaimTemplate(m) != nil) {
 		pvcName := m.ResourceName
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, controller.DaemonVolumesDataPVC(pvcName))
 		controller.AddVolumeMountSubPath(&d.Spec.Template.Spec, "ceph-daemon-data")
@@ -926,16 +1067,16 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 		if c.spec.Network.IsHost() || !pvcExists {
 			p.PodAffinity = nil
 			p.PodAntiAffinity = nil
-			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec),
 				map[string]string{k8sutil.AppAttr: AppName}, existingDeployment.Spec.Template.Spec.NodeSelector)
 		} else {
-			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec),
 				map[string]string{k8sutil.AppAttr: AppName}, nil)
 		}
 		return c.updateMon(m, d)
 	}
 
-	if c.spec.Mon.VolumeClaimTemplate != nil {
+	if c.monVolumeClaimTemplate(m) != nil {
 		pvc, err := c.makeDeploymentPVC(m, false)
 		if err != nil {
 			return errors.Wrapf(err, "failed to make mon %s pvc", d.Name)
@@ -950,14 +1091,14 @@ func (c *Cluster) startMon(m *monConfig, node *NodeInfo) error {
 		}
 	}
 
-	if node == nil {
-		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
+	if schedule == nil {
+		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec),
 			map[string]string{k8sutil.AppAttr: AppName}, nil)
 	} else {
 		p.PodAffinity = nil
 		p.PodAntiAffinity = nil
-		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec), PreferredDuringScheduling,
-			map[string]string{k8sutil.AppAttr: AppName}, map[string]string{v1.LabelHostname: node.Hostname})
+		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec),
+			map[string]string{k8sutil.AppAttr: AppName}, map[string]string{v1.LabelHostname: schedule.Hostname})
 	}
 
 	logger.Debugf("Starting mon: %+v", d.Name)

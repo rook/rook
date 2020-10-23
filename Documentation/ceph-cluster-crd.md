@@ -7,10 +7,11 @@ indent: true
 # Ceph Cluster CRD
 
 Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).
-There are two different modes to create your cluster, depending on whether storage can be dynamically provisioned on which to base the Ceph cluster.
+There are primarily three different modes in which to create your cluster.
 
 1. Specify [host paths and raw devices](#host-based-cluster)
-2. Specify the storage class Rook should use to consume storage [via PVCs](#pvc-based-cluster)
+2. Dynamically provision storage underneath Rook by specifying the storage class Rook should use to consume storage [via PVCs](#pvc-based-cluster)
+3. Create a [Stretch cluster](#stretch-cluster) that distributes Ceph mons across three zones, while storage (OSDs) is only configured in two zones
 
 Following is an example for each of these approaches. More examples are included [later in this doc](#samples).
 
@@ -90,6 +91,68 @@ spec:
 ```
 
 For a more advanced scenario, such as adding a dedicated device you can refer to the [dedicated metadata device for OSD on PVC section](#dedicated-metadata-device-for-osd-on-pvc).
+
+## Stretch Cluster
+
+**Experimental Mode**
+
+For environments that only have two failure domains available where data can be replicated, consider
+the case where one failure domain is down and the data is still fully available in the
+remaining failure domain. To support this scenario, Ceph has recently integrated support for "stretch" clusters.
+
+Rook requires three zones. Two zones (A and B) will each run all types of Rook pods, which we call the "data" zones.
+Two mons run in each of the two data zones, while two replicas of the data are in each zone for a total of four data replicas.
+The third zone (arbiter) runs a single mon. No other Rook or Ceph daemons need to be run in the arbiter zone.
+
+For this example, we assume the desired failure domain is a zone. Another failure domain can also be specified with a
+known [topology node label](#osd-topology) which is already being used for OSD failure domains.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  dataDirHostPath: /var/lib/rook
+  mon:
+    # Five mons must be created for stretch mode
+    count: 5
+    allowMultiplePerNode: false
+    stretchCluster:
+      failureDomainLabel: topology.kubernetes.io/zone
+      subFailureDomain: host
+      zones:
+      - name: a
+        arbiter: true
+      - name: b
+      - name: c
+  cephVersion:
+    # Stretch cluster support upstream is only planned starting in Ceph Pacific.
+    # Until Pacific is released, the stretch cluster is **experimental**.
+    image: ceph/daemon-base:latest-master
+    allowUnsupported: true
+  # Either storageClassDeviceSets or the storage section can be specified for creating OSDs.
+  # This example uses all devices for simplicity.
+  storage:
+    useAllNodes: true
+    useAllDevices: true
+    deviceFilter: ""
+  # OSD placement is expected to include the non-arbiter zones
+  placement:
+    osd:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: In
+              values:
+              - b
+              - c
+```
+
+For more details, see the [Stretch Cluster design doc](https://github.com/rook/rook/blob/master/design/ceph/ceph-stretch-cluster.md).
 
 ## Settings
 
@@ -187,6 +250,15 @@ A specific will contain a specific release of Ceph as well as security fixes fro
   This setting only applies to new monitors that are created when the requested
   number of monitors increases, or when a monitor fails and is recreated. An
   [example CRD configuration is provided below](#using-pvc-storage-for-monitors).
+* `stretchCluster`: The stretch cluster settings that define the zones (or other failure domain labels) across which to configure the cluster.
+  * `failureDomainLabel`: The label that is expected on each node where the cluster is expected to be deployed. The labels must be found
+    in the list of well-known [topology labels](#osd-topology).
+  * `subFailureDomain`: With a zone, the data replicas must be spread across OSDs in the subFailureDomain. The default is `host`.
+  * `zones`: The failure domain names where the Mons and OSDs are expected to be deployed. There must be **three zones** specified in the list.
+    This element is always named `zone` even if a non-default `failureDomainLabel` is specified. The elements have two values:
+    * `name`: The name of the zone, which is the value of the domain label.
+    * `arbiter`: Whether the zone is expected to be the arbiter zone which only runs a single mon. Exactly one zone must be labeled `true`.
+      The two zones that are not the arbiter zone are expected to have OSDs deployed.
 
 If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
 

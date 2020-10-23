@@ -177,22 +177,19 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 
 }
 
-func testPodSpecPlacement(t *testing.T, requiredDuringScheduling, preferredDuringScheduling bool, req, pref int, placement *rookv1.Placement) {
+func testPodSpecPlacement(t *testing.T, requiredDuringScheduling bool, req, pref int, placement *rookv1.Placement) {
 	spec := v1.PodSpec{
 		InitContainers: []v1.Container{},
 		Containers:     []v1.Container{},
 		RestartPolicy:  v1.RestartPolicyAlways,
 	}
 
-	SetNodeAntiAffinityForPod(&spec, *placement, requiredDuringScheduling, preferredDuringScheduling, map[string]string{"app": "mon"}, nil)
+	SetNodeAntiAffinityForPod(&spec, *placement, requiredDuringScheduling, map[string]string{"app": "mon"}, nil)
 
 	// should have a required anti-affinity and no preferred anti-affinity
 	assert.Equal(t,
 		req,
 		len(spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
-	assert.Equal(t,
-		pref,
-		len(spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
 }
 
 func makePlacement() rookv1.Placement {
@@ -217,18 +214,13 @@ func makePlacement() rookv1.Placement {
 func TestPodSpecPlacement(t *testing.T) {
 	// no placement settings in the crd
 	p := rookv1.Placement{}
-	testPodSpecPlacement(t, true, true, 1, 0, &p)
-	testPodSpecPlacement(t, true, false, 1, 0, &p)
-	testPodSpecPlacement(t, false, true, 0, 1, &p)
-	testPodSpecPlacement(t, false, false, 0, 0, &p)
+	testPodSpecPlacement(t, true, 1, 0, &p)
+	testPodSpecPlacement(t, false, 0, 1, &p)
+	testPodSpecPlacement(t, false, 0, 0, &p)
 
 	// crd has other preferred and required anti-affinity setting
 	p = makePlacement()
-	testPodSpecPlacement(t, true, true, 2, 1, &p)
+	testPodSpecPlacement(t, true, 2, 1, &p)
 	p = makePlacement()
-	testPodSpecPlacement(t, true, false, 2, 1, &p)
-	p = makePlacement()
-	testPodSpecPlacement(t, false, true, 1, 2, &p)
-	p = makePlacement()
-	testPodSpecPlacement(t, false, false, 1, 1, &p)
+	testPodSpecPlacement(t, false, 1, 2, &p)
 }

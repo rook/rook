@@ -330,8 +330,15 @@ func (c *Cluster) failoverMon(name string) error {
 		}
 	}()
 
+	// remove the failed mon from a local list of the existing mons for finding a stretch zone
+	existingMons := c.clusterInfoToMonConfig(name)
+	zone, err := c.findAvailableZoneIfStretched(existingMons)
+	if err != nil {
+		return errors.Wrap(err, "failed to find available stretch zone")
+	}
+
 	// Start a new monitor
-	m := c.newMonConfig(c.maxMonID + 1)
+	m := c.newMonConfig(c.maxMonID+1, zone)
 	logger.Infof("starting new mon: %+v", m)
 
 	mConf := []*monConfig{m}
@@ -342,11 +349,11 @@ func (c *Cluster) failoverMon(name string) error {
 	}
 
 	if c.spec.Network.IsHost() {
-		node, ok := c.mapping.Node[m.DaemonName]
+		schedule, ok := c.mapping.Schedule[m.DaemonName]
 		if !ok {
 			return errors.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)
 		}
-		m.PublicIP = node.Address
+		m.PublicIP = schedule.Address
 	} else {
 		// Create the service endpoint
 		serviceIP, err := c.createService(m)
@@ -360,6 +367,23 @@ func (c *Cluster) failoverMon(name string) error {
 	// Start the deployment
 	if err := c.startDeployments(mConf, true); err != nil {
 		return errors.Wrapf(err, "failed to start new mon %s", m.DaemonName)
+	}
+
+	// Assign to a zone if a stretch cluster
+	if c.spec.IsStretchCluster() {
+		updateArbiter := false
+		if name == c.arbiterMon {
+			updateArbiter = true
+		}
+		if err := c.assignStretchMonsToZones([]*monConfig{m}); err != nil {
+			return errors.Wrap(err, "failed to assign mons to zones")
+		}
+		if updateArbiter {
+			// Update the arbiter mon for the stretch cluster if it changed
+			if err := c.ConfigureArbiter(); err != nil {
+				return errors.Wrap(err, "failed to configure stretch arbiter")
+			}
+		}
 	}
 
 	// Only increment the max mon id if the new pod started successfully
@@ -393,7 +417,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 	}
 	delete(c.ClusterInfo.Monitors, daemonName)
 
-	delete(c.mapping.Node, daemonName)
+	delete(c.mapping.Schedule, daemonName)
 
 	// Remove the service endpoint
 	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(resourceName, options); err != nil {

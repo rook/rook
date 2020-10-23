@@ -357,6 +357,14 @@ func createStretchedReplicationCrushRule(context *clusterd.Context, clusterInfo 
 		return errors.Wrap(err, "failed to get crush map")
 	}
 
+	// Check if the crush rule already exists
+	for _, rule := range crushMap.Rules {
+		if rule.Name == ruleName {
+			logger.Debugf("CRUSH rule %q already exists", ruleName)
+			return nil
+		}
+	}
+
 	// Fetch the compiled crush map
 	compiledCRUSHMapFilePath, err := GetCompiledCrushMap(context, clusterInfo)
 	if err != nil {

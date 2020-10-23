@@ -170,6 +170,26 @@ spec:
                     volumeClaimTemplate:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    stretchCluster:
+                      type: object
+                      nullable: true
+                      properties:
+                        failureDomainLabel:
+                          type: string
+                        subFailureDomain:
+                          type: string
+                        zones:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              arbiter:
+                                type: boolean
+                              volumeClaimTemplate:
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
                 mgr:
                   type: object
                   properties:

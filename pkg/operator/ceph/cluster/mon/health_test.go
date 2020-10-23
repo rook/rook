@@ -76,7 +76,7 @@ func TestCheckHealth(t *testing.T) {
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
-	c.mapping.Node["f"] = &NodeInfo{
+	c.mapping.Schedule["f"] = &MonScheduleInfo{
 		Name:    "node0",
 		Address: "",
 	}
@@ -201,10 +201,10 @@ func TestCheckHealthNotFound(t *testing.T) {
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
-	c.mapping.Node["a"] = &NodeInfo{
+	c.mapping.Schedule["a"] = &MonScheduleInfo{
 		Name: "node0",
 	}
-	c.mapping.Node["b"] = &NodeInfo{
+	c.mapping.Schedule["b"] = &MonScheduleInfo{
 		Name: "node0",
 	}
 	c.maxMonID = 4
@@ -220,7 +220,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 	}
 
 	// Because the mon a isn't in the MonInQuorumResponse() this will create a new mon
-	delete(c.mapping.Node, "b")
+	delete(c.mapping.Schedule, "b")
 	err = c.checkHealth()
 	assert.Nil(t, err)
 	// No updates in unit tests w/ workaround

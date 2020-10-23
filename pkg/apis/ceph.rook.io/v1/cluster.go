@@ -30,6 +30,10 @@ import (
 // will be registered for the validating webhook.
 var _ webhook.Validator = &CephCluster{}
 
+func (c *ClusterSpec) IsStretchCluster() bool {
+	return c.Mon.StretchCluster != nil && len(c.Mon.StretchCluster.Zones) > 0
+}
+
 func (c *CephCluster) ValidateCreate() error {
 	logger.Infof("validate create cephcluster %q", c.ObjectMeta.Name)
 
