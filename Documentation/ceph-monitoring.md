@@ -134,14 +134,14 @@ kubectl apply -f cluster.yaml
 
 The dashboards have been created by [@galexrt](https://github.com/galexrt). For feedback on the dashboards please reach out to him on the [Rook.io Slack](https://slack.rook.io).
 
-> **NOTE**: The dashboards are only compatible with Grafana 5.0.3 or higher.
+> **NOTE**: The dashboards are only compatible with Grafana 7.2.0 or higher.
 >
 > Also note that the dashboards are updated from time to time, to fix issues and improve them.
 
 The following Grafana dashboards are available:
 
 * [Ceph - Cluster](https://grafana.com/dashboards/2842)
-* [Ceph - OSD](https://grafana.com/dashboards/5336)
+* [Ceph - OSD (Single)](https://grafana.com/dashboards/5336)
 * [Ceph - Pools](https://grafana.com/dashboards/5342)
 
 ## Teardown
