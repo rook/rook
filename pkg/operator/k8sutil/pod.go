@@ -300,7 +300,7 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 }
 
 // SetNodeAntiAffinityForPod assign pod anti-affinity when pod should not be co-located
-func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rookv1.Placement, requiredDuringScheduling, preferredDuringScheduling bool,
+func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rookv1.Placement, requiredDuringScheduling bool,
 	labels, nodeSelector map[string]string) {
 	p.ApplyToPodSpec(pod)
 	pod.NodeSelector = nodeSelector
@@ -329,7 +329,7 @@ func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rookv1.Placement, requiredDuri
 	if requiredDuringScheduling {
 		paa.RequiredDuringSchedulingIgnoredDuringExecution =
 			append(paa.RequiredDuringSchedulingIgnoredDuringExecution, podAntiAffinity)
-	} else if preferredDuringScheduling {
+	} else {
 		paa.PreferredDuringSchedulingIgnoredDuringExecution =
 			append(paa.PreferredDuringSchedulingIgnoredDuringExecution, v1.WeightedPodAffinityTerm{
 				Weight:          50,

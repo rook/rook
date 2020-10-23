@@ -86,7 +86,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
-		Node: map[string]*NodeInfo{},
+		Schedule: map[string]*MonScheduleInfo{},
 	}
 
 	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(AppName, metav1.GetOptions{})
@@ -211,7 +211,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	monEndpointMap := map[string]*cephclient.MonInfo{}
 	maxMonID := -1
 	monMapping := &Mapping{
-		Node: map[string]*NodeInfo{},
+		Schedule: map[string]*MonScheduleInfo{},
 	}
 
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
@@ -249,7 +249,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 		logger.Errorf("invalid JSON in mon mapping. %v", err)
 	}
 
-	logger.Debugf("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
+	logger.Debugf("loaded: maxMonID=%d, mons=%+v, assignment=%+v", maxMonID, monEndpointMap, monMapping)
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 

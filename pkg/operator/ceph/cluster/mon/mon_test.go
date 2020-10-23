@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,14 +29,13 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -120,7 +120,7 @@ func newCluster(context *clusterd.Context, namespace string, allowMultiplePerNod
 		monPodTimeout:       1 * time.Second,
 		monTimeoutList:      map[string]time.Time{},
 		mapping: &Mapping{
-			Node: map[string]*NodeInfo{},
+			Schedule: map[string]*MonScheduleInfo{},
 		},
 		ownerRef: metav1.OwnerReference{},
 	}
@@ -248,7 +248,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	// update the config map
 	c.ClusterInfo.Monitors["a"].Endpoint = "2.3.4.5:6789"
 	c.maxMonID = 2
-	c.mapping.Node["a"] = &NodeInfo{
+	c.mapping.Schedule["a"] = &MonScheduleInfo{
 		Name:     "node0",
 		Address:  "1.1.1.1",
 		Hostname: "myhost",
@@ -345,4 +345,122 @@ func TestMonFoundInQuorum(t *testing.T) {
 	assert.True(t, monFoundInQuorum("b", response))
 	assert.True(t, monFoundInQuorum("c", response))
 	assert.False(t, monFoundInQuorum("d", response))
+}
+
+func TestFindAvailableZoneForStretchedMon(t *testing.T) {
+	c := &Cluster{spec: cephv1.ClusterSpec{
+		Mon: cephv1.MonSpec{
+			StretchCluster: &cephv1.StretchClusterSpec{
+				Zones: []cephv1.StretchClusterZoneSpec{
+					{Name: "a", Arbiter: true},
+					{Name: "b"},
+					{Name: "c"},
+				},
+			},
+		},
+	}}
+
+	// No mons are assigned to a zone yet
+	existingMons := []*monConfig{}
+	availableZone, err := c.findAvailableZoneIfStretched(existingMons)
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", availableZone)
+
+	// With 3 mons, we have one available zone
+	existingMons = []*monConfig{
+		{ResourceName: "x", Zone: "a"},
+		{ResourceName: "y", Zone: "b"},
+	}
+	c.spec.Mon.Count = 3
+	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	assert.NoError(t, err)
+	assert.Equal(t, "c", availableZone)
+
+	// With 3 mons and no available zones
+	existingMons = []*monConfig{
+		{ResourceName: "x", Zone: "a"},
+		{ResourceName: "y", Zone: "b"},
+		{ResourceName: "z", Zone: "c"},
+	}
+	c.spec.Mon.Count = 3
+	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	assert.Error(t, err)
+	assert.Equal(t, "", availableZone)
+
+	// With 5 mons and no available zones
+	existingMons = []*monConfig{
+		{ResourceName: "w", Zone: "a"},
+		{ResourceName: "x", Zone: "b"},
+		{ResourceName: "y", Zone: "b"},
+		{ResourceName: "z", Zone: "c"},
+		{ResourceName: "q", Zone: "c"},
+	}
+	c.spec.Mon.Count = 5
+	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	assert.Error(t, err)
+	assert.Equal(t, "", availableZone)
+
+	// With 5 mons and one available zone
+	existingMons = []*monConfig{
+		{ResourceName: "w", Zone: "a"},
+		{ResourceName: "x", Zone: "b"},
+		{ResourceName: "y", Zone: "b"},
+		{ResourceName: "z", Zone: "c"},
+	}
+	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	assert.NoError(t, err)
+	assert.Equal(t, "c", availableZone)
+
+	// With 5 mons and arbiter zone is available zone
+	existingMons = []*monConfig{
+		{ResourceName: "w", Zone: "b"},
+		{ResourceName: "x", Zone: "b"},
+		{ResourceName: "y", Zone: "c"},
+		{ResourceName: "z", Zone: "c"},
+	}
+	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	assert.NoError(t, err)
+	assert.Equal(t, "a", availableZone)
+}
+
+func TestStretchMonVolumeClaimTemplate(t *testing.T) {
+	generalSC := "generalSC"
+	zoneSC := "zoneSC"
+	defaultTemplate := &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &generalSC}}
+	zoneTemplate := &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &zoneSC}}
+	type fields struct {
+		spec cephv1.ClusterSpec
+	}
+	type args struct {
+		mon *monConfig
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *v1.PersistentVolumeClaim
+	}{
+		{"no template", fields{cephv1.ClusterSpec{}}, args{&monConfig{Zone: "z1"}}, nil},
+		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate},
+		{"default template with 3 zones", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
+			VolumeClaimTemplate: defaultTemplate,
+			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}}}}},
+			args{&monConfig{Zone: "z1"}},
+			defaultTemplate},
+		{"overridden template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
+			VolumeClaimTemplate: defaultTemplate,
+			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}}}}},
+			args{&monConfig{Zone: "z1"}},
+			zoneTemplate},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Cluster{
+				spec: tt.fields.spec,
+			}
+			if got := c.monVolumeClaimTemplate(tt.args.mon); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Cluster.monVolumeClaimTemplate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

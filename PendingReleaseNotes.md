@@ -18,6 +18,7 @@ v1.5...
 
 ### Ceph
 
+* Stretch clusters for mons and OSDs to work reliably across two datacenters (Experimental mode)
 * Ceph Block Pool: add mirroring support
 * Ceph Block Pool: add `replicasPerFailureDomain` to set the number of replica in a failure domain ([#5591](https://github.com/rook/rook/issues/5591))
 * Ceph Cluster: export the storage capacity of the ceph cluster ([#6475](https://github.com/rook/rook/pull/6475))
