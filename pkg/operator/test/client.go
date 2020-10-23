@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -48,7 +49,7 @@ func New(t *testing.T, nodes int) *fake.Clientset {
 				},
 			},
 		}
-		_, err := clientset.CoreV1().Nodes().Create(n)
+		_, err := clientset.CoreV1().Nodes().Create(context.TODO(), n, metav1.CreateOptions{})
 		assert.Nil(t, err)
 	}
 	return clientset
