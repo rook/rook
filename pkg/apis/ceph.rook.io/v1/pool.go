@@ -30,17 +30,33 @@ var (
 
 var _ webhook.Validator = &CephBlockPool{}
 
+func (p *PoolSpec) IsReplicated() bool {
+	return p.Replicated.Size > 0
+}
+
+func (p *PoolSpec) IsErasureCoded() bool {
+	return p.ErasureCoded.CodingChunks > 0 || p.ErasureCoded.DataChunks > 0
+}
+
+func (p *PoolSpec) IsCompressionEnabled() bool {
+	return p.CompressionMode != ""
+}
+
+func (p *ReplicatedSpec) IsTargetRatioEnabled() bool {
+	return p.TargetSizeRatio != 0
+}
+
 func (p *CephBlockPool) ValidateCreate() error {
 	logger.Infof("validate create cephblockpool %v", p)
 
-	err := ValidatePoolSpecs(p.Spec)
+	err := validatePoolSpec(p.Spec)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func ValidatePoolSpecs(ps PoolSpec) error {
+func validatePoolSpec(ps PoolSpec) error {
 	// Checks if either ErasureCoded or Replicated fields are set
 	if ps.ErasureCoded.CodingChunks <= 0 && ps.ErasureCoded.DataChunks <= 0 && ps.Replicated.TargetSizeRatio <= 0 && ps.Replicated.Size <= 0 {
 		return errors.New("invalid create: either of erasurecoded or replicated fields should be set")
@@ -69,7 +85,7 @@ func ValidatePoolSpecs(ps PoolSpec) error {
 func (p *CephBlockPool) ValidateUpdate(old runtime.Object) error {
 	logger.Info("validate update cephblockpool")
 	ocbp := old.(*CephBlockPool)
-	err := ValidatePoolSpecs(p.Spec)
+	err := validatePoolSpec(p.Spec)
 	if err != nil {
 		return err
 	}
