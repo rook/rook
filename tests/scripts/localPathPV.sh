@@ -6,6 +6,9 @@ if [ $# -ge 1 ] ; then
   test_scratch_device=$1
 fi
 
+db_device=$2
+wal_device=$3
+
 lsblk
 
 if [ ! -b "${test_scratch_device}" ] ; then
@@ -129,4 +132,81 @@ metadata:
   name: manual
 provisioner: kubernetes.io/no-provisioner
 volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
 eof
+
+function add_db_pvc {
+cat <<eof | kubectl apply -f -
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-vol5
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Block
+  local:
+    path: "${db_device}"
+  nodeAffinity:
+      required:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: rook.io/has-disk
+                operator: In
+                values:
+                - "true"
+eof
+}
+
+function add_wal_pvc {
+cat <<eof | kubectl apply -f -
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-vol6
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Block
+  local:
+    path: "${wal_device}"
+  nodeAffinity:
+      required:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: rook.io/has-disk
+                operator: In
+                values:
+                - "true"
+eof
+}
+
+########
+# MAIN #
+########
+
+# Add a db device if needed
+if [ -n "$db_device" ]; then
+  add_db_pvc
+fi
+
+# Add a wal device if needed
+if [ -n "$wal_device" ]; then
+  add_wal_pvc
+fi
+
+kubectl get pv

@@ -1,4 +1,3 @@
----
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -24,19 +23,19 @@ spec:
     disable: true
   storage:
     storageClassDeviceSets:
-    - name: set1
-      count: 1
-      portable: false
-      tuneDeviceClass: false
-      encrypted: true
-      volumeClaimTemplates:
-      - metadata:
-          name: data
-        spec:
-          resources:
-            requests:
-              storage: 10Gi
-          storageClassName: manual
-          volumeMode: Block
-          accessModes:
-          - ReadWriteOnce
+      - name: set1
+        count: 1
+        portable: false
+        tuneDeviceClass: false
+        encrypted: true
+        volumeClaimTemplates:
+          - metadata:
+              name: data
+            spec:
+              resources:
+                requests:
+                  storage: 10Gi
+              storageClassName: manual
+              volumeMode: Block
+              accessModes:
+                - ReadWriteOnce

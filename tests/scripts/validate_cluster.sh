@@ -84,6 +84,12 @@ function display_status {
 
   kubectl -n rook-ceph logs "$(kubectl -n rook-ceph -l app=rook-ceph-operator get pods -o jsonpath='{.items[*].metadata.name}')"
   kubectl -n rook-ceph get pods
+  kubectl -n rook-ceph describe job/"$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')"||true
+  kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+  kubectl get all -n rook-ceph -o wide
+  kubectl get all -n rook-ceph -o yaml
+  kubectl -n rook-ceph get cephcluster -o yaml
+  sudo lsblk
   set -x
 
   exit 1
@@ -140,3 +146,5 @@ done
 echo "Ceph is up and running, have a look!"
 $EXEC_COMMAND -s
 kubectl -n rook-ceph get pods
+kubectl -n rook-ceph logs "$(kubectl -n rook-ceph -l app=rook-ceph-operator get pods -o jsonpath='{.items[*].metadata.name}')"
+kubectl -n rook-ceph get cephcluster -o yaml
