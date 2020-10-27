@@ -255,6 +255,11 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
 	}
 
+	// preservePoolsOnDelete being set to true does not make sense because of data-loss concerns (see #6492).
+	if cephFilesystem.Spec.PreservePoolsOnDelete {
+		return reconcile.Result{}, errors.New("preservePoolsOnDelete has been deprecated. Set preserveFilesystemOnDelete instead")
+	}
+
 	err = createFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create filesystem %q", cephFilesystem.Name)

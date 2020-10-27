@@ -119,7 +119,8 @@ func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
 
 func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 	useCSI := true
-	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs", useCSI)
+	preserveFilesystemOnDelete := true
+	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs", useCSI, preserveFilesystemOnDelete)
 }
 
 func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {

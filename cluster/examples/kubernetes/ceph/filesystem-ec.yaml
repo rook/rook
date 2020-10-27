@@ -24,8 +24,8 @@ spec:
       # Inline compression mode for the data pool
       parameters:
         compression_mode: none
-  # Whether to preserve metadata and data pools on filesystem deletion
-  preservePoolsOnDelete: true
+  # Whether to preserve filesystem after CephFilesystem CRD deletion
+  preserveFilesystemOnDelete: true
   # The metadata service (mds) configuration
   metadataServer:
     # The number of active MDS instances

@@ -451,6 +451,9 @@ type FilesystemSpec struct {
 	// Preserve pools on filesystem deletion
 	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
 
+	// Preserve the fs in the cluster on CephFilesystem CR deletion. Setting this to true automatically implies PreservePoolsOnDelete is true.
+	PreserveFilesystemOnDelete bool `json:"preserveFilesystemOnDelete"`
+
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
 }

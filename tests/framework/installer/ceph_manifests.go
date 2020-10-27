@@ -664,6 +664,8 @@ spec:
                         x-kubernetes-preserve-unknown-fields: true
                 preservePoolsOnDelete:
                   type: boolean
+                preserveFilesystemOnDelete:
+                  type: boolean
             status:
               type: object
               x-kubernetes-preserve-unknown-fields: true
@@ -1675,6 +1677,8 @@ spec:
                   parameters:
                     type: object
             preservePoolsOnDelete:
+              type: boolean
+            preserveFilesystemOnDelete:
               type: boolean
   additionalPrinterColumns:
     - name: ActiveMDS

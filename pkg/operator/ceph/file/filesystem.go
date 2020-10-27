@@ -128,8 +128,8 @@ func deleteFilesystem(
 		return errors.Wrapf(err, "failed to down filesystem %q", fs.Name)
 	}
 
-	// Permanently remove the filesystem if it was created by rook
-	if len(fs.Spec.DataPools) != 0 {
+	// Permanently remove the filesystem if it was created by rook and the spec does not prevent it.
+	if len(fs.Spec.DataPools) != 0 && !fs.Spec.PreserveFilesystemOnDelete {
 		if err := client.RemoveFilesystem(context, clusterInfo, fs.Name, fs.Spec.PreservePoolsOnDelete); err != nil {
 			return errors.Wrapf(err, "failed to remove filesystem %q", fs.Name)
 		}

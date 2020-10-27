@@ -18,7 +18,7 @@ spec:
       replicated:
         size: 1
         requireSafeReplicaSize: false
-  preservePoolsOnDelete: false
+  preserveFilesystemOnDelete: false
   metadataServer:
     activeCount: 1
     activeStandby: true
