@@ -311,7 +311,7 @@ func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
 	}
 
 	// Create the default crush rule for stretch clusters, that by default will also apply to all pools
-	if err := client.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, c.stretchFailureDomainName(), c.spec.Mon.StretchCluster.SubFailureDomain); err != nil {
+	if err := client.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, &c.spec, c.stretchFailureDomainName()); err != nil {
 		return errors.Wrap(err, "failed to create default stretch rule")
 	}
 

@@ -148,7 +148,7 @@ func TestValidateSpec(t *testing.T) {
 
 	r := &ReconcileCephObjectStore{
 		context: context,
-		cephClusterSpec: &cephv1.ClusterSpec{
+		clusterSpec: &cephv1.ClusterSpec{
 			External: cephv1.ExternalSpec{
 				Enable: false,
 			},
@@ -190,7 +190,7 @@ func TestValidateSpec(t *testing.T) {
 	assert.Nil(t, err)
 
 	// external with no endpoints but ok since client.admin is used
-	r.cephClusterSpec.External.Enable = true
+	r.clusterSpec.External.Enable = true
 	err = r.validateStore(s)
 	assert.NoError(t, err)
 
