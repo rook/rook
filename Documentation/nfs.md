@@ -26,7 +26,6 @@ First deploy the Rook NFS operator using the following commands:
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/nfs
 kubectl create -f common.yaml
-kubectl create -f provisioner.yaml
 kubectl create -f operator.yaml
 ```
 
@@ -37,7 +36,6 @@ kubectl -n rook-nfs-system get pod
 
 NAME                                    READY   STATUS    RESTARTS   AGE
 rook-nfs-operator-879f5bf8b-gnwht       1/1     Running   0          29m
-rook-nfs-provisioner-65f4874c8f-kkz6b   1/1     Running   0          29m
 ```
 
 ## Deploy NFS Admission Webhook (Optional)
@@ -414,7 +412,7 @@ kubectl create -f sc.yaml
 2. `nfsServerName`: It is the name of the NFSServer instance.
 3. `nfsServerNamespace`: It namespace where the NFSServer instance is running.
 
-Once the above storageclass has been created create a PV claim referencing the storageclass as shown in the example given below.
+Once the above storageclass has been created, you can create a PV claim referencing the storageclass as shown in the example given below.
 
 ```yaml
 apiVersion: v1
