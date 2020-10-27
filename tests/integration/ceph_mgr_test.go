@@ -41,18 +41,6 @@ import (
 // Ceph orchestrator ls
 // **************************************************
 func TestCephMgrSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
-		t.Skip()
-	}
-	// Skip this test suite in master and release builds. If there is an issue
-	// running against Ceph master we don't want to block the official builds.
-	if installer.TestIsOfficialBuild() {
-		t.Skip()
-	}
-
-	logger.Info("TEMPORARILY disable the mgr test suite until https://github.com/rook/rook/issues/5877 is resolved")
-	t.Skip()
-
 	s := new(CephMgrSuite)
 	defer func(s *CephMgrSuite) {
 		HandlePanics(recover(), s.cluster, s.T)
