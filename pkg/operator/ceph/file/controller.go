@@ -218,7 +218,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	// validate the filesystem settings
-	if err := validateFilesystem(r.context, r.clusterInfo, cephFilesystem); err != nil {
+	if err := validateFilesystem(r.context, r.clusterInfo, r.cephClusterSpec, cephFilesystem); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "invalid object filesystem %q arguments", cephFilesystem.Name)
 	}
 

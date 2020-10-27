@@ -172,7 +172,8 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	if compressionMode != "" {
 		p.CompressionMode = compressionMode
 	}
-	err := CreateReplicatedPoolForApp(context, AdminClusterInfo("mycluster"), "mypool", p, DefaultPGCount, "myapp", cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}})
+	clusterSpec := &cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}}
+	err := CreateReplicatedPoolForApp(context, AdminClusterInfo("mycluster"), clusterSpec, "mypool", p, DefaultPGCount, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
 	if compressionMode != "" {

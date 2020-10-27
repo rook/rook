@@ -27,23 +27,35 @@ import (
 )
 
 // ValidatePool Validate the pool arguments
-func ValidatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.CephBlockPool) error {
+func ValidatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.CephBlockPool) error {
 	if p.Name == "" {
 		return errors.New("missing name")
 	}
 	if p.Namespace == "" {
 		return errors.New("missing namespace")
 	}
-	if err := ValidatePoolSpec(context, clusterInfo, &p.Spec); err != nil {
+	if err := ValidatePoolSpec(context, clusterInfo, clusterSpec, &p.Spec); err != nil {
 		return err
 	}
 	return nil
 }
 
 // ValidatePoolSpec validates the Ceph block pool spec CR
-func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo, p *cephv1.PoolSpec) error {
+func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.PoolSpec) error {
 	if p.IsReplicated() && p.IsErasureCoded() {
 		return errors.New("both replication and erasure code settings cannot be specified")
+	}
+
+	// validate pools for stretch clusters
+	if clusterSpec.IsStretchCluster() {
+		if p.IsReplicated() {
+			if p.Replicated.Size != 4 {
+				return errors.New("pools in a stretch cluster must have replication size 4")
+			}
+		}
+		if p.IsErasureCoded() {
+			return errors.New("erasure coded pools are not supported in stretch clusters")
+		}
 	}
 
 	var crush cephclient.CrushMap
