@@ -336,3 +336,21 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
 1. Bring the Rook Ceph operator back online by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `1`.
 1. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
 1. **STATE**: Now the new cluster should be up and running with authentication enabled. `ceph -s` output should not change much comparing to previous steps.
+
+## Backing up and restoring a cluster based on PVCs into a new Kubernetes cluster
+
+It is possible to migrate/restore an rook/ceph cluster from an exising Kubernetes cluster to a new one without resorting to SSH access or ceph tooling. This allows doing the migration using standard kubernetes resources only. This guide assumes the following
+1. You have a CephCluster that uses PVCs to persist mon and osd data. Let's call it the "old cluster"
+1. You can restore the PVCs as-is in the new cluster. Usually this is done by taking regular snapshots of the PVC volumes and using a tool that can re-create PVCs from these snapshots in the underlying cloud provider. Velero is one such tool. (https://github.com/vmware-tanzu/velero)
+1. You have regular backups of the secrets and configmaps in the rook-ceph namespace. Velero provides this functionality too.
+
+Do the following in the new cluster:
+1. Stop the rook operator by scaling the deployment `rook-ceph-operator` down to zero: `kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas 0`
+and deleting the other deployments. An example command to do this is `k -n rook-ceph delete deployment -l operator!=rook`
+1. Restore the rook PVCs to the new cluster.
+1. Copy the keyring and fsid secrets from the old cluster: `rook-ceph-mgr-a-keyring`, `rook-ceph-mon`, `rook-ceph-mons-keyring`, `rook-ceph-osd-0-keyring`, ...
+1. Delete mon services and copy them from the old cluster: `rook-ceph-mon-a`, `rook-ceph-mon-b`, ... Note that simply re-applying won't work because the goal here is to restore the `clusterIP` in each service and this field is immutable in `Service` resources.
+1. Copy the endpoints configmap from the old cluster: `rook-ceph-mon-endpoints`
+1. Scale the rook operator up again : `kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas 1`
+1. Wait until the reconciliation is over.
+
