@@ -201,6 +201,14 @@ type CephStatus struct {
 	LastChecked    string                       `json:"lastChecked,omitempty"`
 	LastChanged    string                       `json:"lastChanged,omitempty"`
 	PreviousHealth string                       `json:"previousHealth,omitempty"`
+	Capacity       Capacity                     `json:"capacity,omitempty"`
+}
+
+type Capacity struct {
+	TotalBytes     uint64 `json:"bytesTotal,omitempty"`
+	UsedBytes      uint64 `json:"bytesUsed,omitempty"`
+	AvailableBytes uint64 `json:"bytesAvailable,omitempty"`
+	LastUpdated    string `json:"lastUpdated,omitempty"`
 }
 
 type CephStorage struct {

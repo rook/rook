@@ -163,12 +163,23 @@ func toCustomResourceStatus(currentStatus cephv1.ClusterStatus, newStatus *cephc
 			Message:  message.Summary.Message,
 		}
 	}
+
+	if newStatus.PgMap.TotalBytes != 0 {
+		s.Capacity.TotalBytes = newStatus.PgMap.TotalBytes
+		s.Capacity.UsedBytes = newStatus.PgMap.UsedBytes
+		s.Capacity.AvailableBytes = newStatus.PgMap.AvailableBytes
+		s.Capacity.LastUpdated = formatTime(time.Now().UTC())
+	}
+
 	if currentStatus.CephStatus != nil {
 		s.PreviousHealth = currentStatus.CephStatus.PreviousHealth
 		s.LastChanged = currentStatus.CephStatus.LastChanged
 		if currentStatus.CephStatus.Health != s.Health {
 			s.PreviousHealth = currentStatus.CephStatus.Health
 			s.LastChanged = s.LastChecked
+		}
+		if newStatus.PgMap.TotalBytes == 0 {
+			s.Capacity = currentStatus.CephStatus.Capacity
 		}
 	}
 	return s
