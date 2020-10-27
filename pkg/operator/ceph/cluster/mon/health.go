@@ -245,21 +245,15 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
 			logger.Errorf("failed to failover mon %q. %v", name, err)
 		}
 	}
-
-	// Check if there are orphaned mon resources that should be cleaned up.
-	// This should only be checked infrequently such as during a mon failover
-	// so we never cleanup mon resources when they are still in use in the middle
-	// of a reconcile.
-	c.removeOrphanMonResources()
 }
 
 func (c *Cluster) removeOrphanMonResources() {
-	logger.Info("checking for orphaned mon resources")
-
 	if c.spec.Mon.VolumeClaimTemplate == nil {
-		logger.Info("skipping check for orphaned mon pvcs since using the host path")
+		logger.Debug("skipping check for orphaned mon pvcs since using the host path")
 		return
 	}
+
+	logger.Info("checking for orphaned mon resources")
 
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)}
 	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(opts)
