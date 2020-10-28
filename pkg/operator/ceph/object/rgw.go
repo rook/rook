@@ -83,12 +83,6 @@ func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName s
 
 func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) error {
 	// backward compatibility, triggered during updates
-	if c.store.Spec.Gateway.AllNodes {
-		// log we don't support that anymore
-		logger.Warningf(
-			"setting 'AllNodes' to %t is not supported anymore, please use 'instances' instead, removing old DaemonSets if any and replace them with Deployments in object store %s",
-			c.store.Spec.Gateway.AllNodes, c.store.Name)
-	}
 	if c.store.Spec.Gateway.Instances < 1 {
 		// Set the minimum of at least one instance
 		logger.Warning("spec.gateway.instances must be set to at least 1")
