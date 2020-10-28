@@ -200,7 +200,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 	cmd := exec.Command(command, arg...)
 	cmdOut, err := cmd.CombinedOutput()
 	if err != nil {
-		cmdOut = []byte(fmt.Sprintf("%s. %s", string(cmdOut), string(err.(*exec.ExitError).Stderr)))
+		cmdOut = []byte(fmt.Sprintf("%s. %s", string(cmdOut), assertErrorType(err)))
 	}
 	// if there was anything that went to stdout/stderr then log it, even before we return an error
 	if string(cmdOut) != "" {
@@ -282,7 +282,7 @@ func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 	} else {
 		output, err = cmd.Output()
 		if err != nil {
-			output = []byte(fmt.Sprintf("%s. %s", string(output), string(err.(*exec.ExitError).Stderr)))
+			output = []byte(fmt.Sprintf("%s. %s", string(output), assertErrorType(err)))
 		}
 	}
 
@@ -297,4 +297,15 @@ func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 
 func logCommand(command string, arg ...string) {
 	logger.Debugf("Running command: %s %s", command, strings.Join(arg, " "))
+}
+
+func assertErrorType(err error) string {
+	switch errType := err.(type) {
+	case *exec.ExitError:
+		return string(errType.Stderr)
+	case *exec.Error:
+		return errType.Error()
+	}
+
+	return ""
 }
