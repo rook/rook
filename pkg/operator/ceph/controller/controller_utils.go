@@ -48,6 +48,25 @@ var (
 	OperatorCephBaseImageVersion string
 )
 
+// canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.
+func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, controllerName string) bool {
+	// Get a list of all the keys causing the HEALTH_ERR status.
+	var healthErrKeys = make([]string, 0)
+	for key, health := range cephCluster.Status.CephStatus.Details {
+		if health.Severity == "HEALTH_ERR" {
+			healthErrKeys = append(healthErrKeys, key)
+		}
+	}
+
+	// If there is only one cause for HEALTH_ERR and it's on the allowed list of errors, ignore it.
+	var allowedErrStatus = []string{"MDS_ALL_DOWN"}
+	var ignoreHealthErr = len(healthErrKeys) == 1 && contains(allowedErrStatus, healthErrKeys[0])
+	if ignoreHealthErr {
+		logger.Debugf("%q: ignoring ceph status %q because only cause is %q (full status is %q)", controllerName, cephCluster.Status.CephStatus.Health, healthErrKeys[0], cephCluster.Status.CephStatus)
+	}
+	return ignoreHealthErr
+}
+
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
 func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.CephCluster, bool, bool, reconcile.Result) {
 	cephClusterExists := false
@@ -72,10 +91,13 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 
 	// read the CR status of the cluster
 	if cephCluster.Status.CephStatus != nil {
-		if cephCluster.Status.CephStatus.Health == "HEALTH_OK" || cephCluster.Status.CephStatus.Health == "HEALTH_WARN" {
+		var operatorDeploymentOk = cephCluster.Status.CephStatus.Health == "HEALTH_OK" || cephCluster.Status.CephStatus.Health == "HEALTH_WARN"
+
+		if operatorDeploymentOk || canIgnoreHealthErrStatusInReconcile(cephCluster, controllerName) {
 			logger.Debugf("%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, cephCluster.Status.CephStatus.Health)
 			return cephCluster, true, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		}
+
 		logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %q", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
 	}
 
