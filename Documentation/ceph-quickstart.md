@@ -16,6 +16,8 @@ from other pods running in your cluster.
 
 Kubernetes **v1.11** or higher is supported by Rook.
 
+**Important** If you are using K8s 1.15 or older, you will need to create a different version of the Rook CRDs. Create the `crd.yaml` found in the [pre-k8s-1.16](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/pre-k8s-1.16) subfolder of the example manifests.
+
 ## Prerequisites
 
 To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](k8s-pre-reqs.md).
@@ -75,6 +77,11 @@ kubectl create -f operator.yaml
 ## verify the rook-ceph-operator is in the `Running` state before proceeding
 kubectl -n rook-ceph get pod
 ```
+
+**NOTE**
+
+If you are using kubernetes v1.15 or older you need to create CRDs found here `/cluster/examples/kubernetes/ceph` as apiextension v1beta1 version of CustomResourceDefinition
+is deprecated in Kubernetes v1.16 and will no longer be supported from k8s v1.22.
 
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 

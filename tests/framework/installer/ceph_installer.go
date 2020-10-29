@@ -80,9 +80,14 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 	// creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
+	var v1ExtensionsSupported bool
+	minVersion := "v1.16.0"
+	if h.k8shelper.VersionAtLeast(minVersion) {
+		v1ExtensionsSupported = true
+	}
 	// creating rook resources
 	logger.Info("Creating Rook CRDs")
-	resources := h.Manifests.GetRookCRDs()
+	resources := h.Manifests.GetRookCRDs(v1ExtensionsSupported)
 	if _, err = h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...); err != nil {
 		return err
 	}

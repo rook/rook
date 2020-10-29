@@ -54,7 +54,8 @@ spec:
         # placement: # is ignored here in favor of Rook's placement below
         # host_pattern: # (deprecated in Ceph) is similarly ignored here in favor of Rook's placement
         # service_id: # is always set to the Drive Group name ("all_nodes" here)
-      placement: # example: omitting 'placement' or leaving it empty matches all untainted nodes
+      # omitting 'placement' or leaving it empty matches all untainted nodes
+      #placement: # omitting 'placement' or leaving it empty matches all untainted nodes
 
     # # Further examples
     # - name: nodes_by_hostname

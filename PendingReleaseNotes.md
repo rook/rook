@@ -11,6 +11,7 @@ v1.5...
 ### Ceph
 
 - Ceph mons require an odd number for a healthy quorum. An even number of mons is now disallowed.
+- Update deprecated CRD apiextensions.k8s.io/v1beta1 to v1 ([#6424](https://github.com/rook/rook/pull/6424))
 
 ## Features
 
