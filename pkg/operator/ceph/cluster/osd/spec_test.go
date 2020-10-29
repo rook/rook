@@ -378,6 +378,9 @@ func TestStorageSpecConfig(t *testing.T) {
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
 		Storage: rookv1.StorageScopeSpec{
+			Config: map[string]string{
+				"crushRoot": "custom-root",
+			},
 			Nodes: []rookv1.Node{
 				{
 					Name: "node1",
@@ -431,6 +434,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	verifyEnvVar(t, container.Env, "ROOK_OSD_DATABASE_SIZE", "10", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_WAL_SIZE", "20", true)
 	verifyEnvVar(t, container.Env, "ROOK_METADATA_DEVICE", "nvme093", true)
+	verifyEnvVar(t, container.Env, CrushRootVarName, "custom-root", true)
 }
 
 func TestHostNetwork(t *testing.T) {

@@ -142,7 +142,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		//
@@ -190,7 +190,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Create Ceph Zone
-	_, err = r.createCephZone(cephObjectZone, realmName)
+	_, err = r.createCephZone(cephObjectZone, realmName, cephCluster.Spec)
 	if err != nil {
 		return r.setFailedStatus(request.NamespacedName, "failed to create ceph zone", err)
 	}
@@ -203,7 +203,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
+func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmName string, cluster cephv1.ClusterSpec) (reconcile.Result, error) {
 	logger.Infof("creating object zone %q in zonegroup %q in realm %q", zone.Name, zone.Spec.ZoneGroup, realmName)
 
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
@@ -242,7 +242,7 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 			zoneIsMaster = true
 		}
 
-		err = r.createPoolsAndZone(objContext, zone, realmName, zoneIsMaster)
+		err = r.createPoolsAndZone(objContext, zone, realmName, zoneIsMaster, cluster)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -253,14 +253,14 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zone *cephv1.CephObjectZone, realmName string, zoneIsMaster bool) error {
+func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zone *cephv1.CephObjectZone, realmName string, zoneIsMaster bool, cluster cephv1.ClusterSpec) error {
 	// create pools for zone
 	logger.Debugf("creating pools ceph zone %q", zone.Name)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
 
-	err := object.CreatePools(objContext, zone.Spec.MetadataPool, zone.Spec.DataPool)
+	err := object.CreatePools(objContext, zone.Spec.MetadataPool, zone.Spec.DataPool, cluster)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create pools for zone %v", zone.Name)
 	}
