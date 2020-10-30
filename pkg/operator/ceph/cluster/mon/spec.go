@@ -169,6 +169,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*v1.Pod, error)
 		Spec: podSpec,
 	}
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pod.ObjectMeta)
+	cephv1.GetMonLabels(c.spec.Labels).ApplyToObjectMeta(&pod.ObjectMeta)
 
 	if c.spec.Network.IsHost() {
 		pod.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
