@@ -30,6 +30,10 @@ spec:
                   type: number
                 requireSafeReplicaSize:
                   type: boolean
+                replicasPerFailureDomain:
+                  type: integer
+                subFailureDomain:
+                  type: string
             erasureCoded:
               properties:
                 dataChunks:
