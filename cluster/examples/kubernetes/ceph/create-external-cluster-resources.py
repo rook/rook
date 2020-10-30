@@ -143,6 +143,7 @@ class RadosJSON:
                 "Out of range port number: {}".format(port))
         return False
 
+<<<<<<< HEAD
     def endpoint_dial(self, endpoint_str):
         try:
             ep = "http://" + endpoint_str
@@ -154,6 +155,24 @@ class RadosJSON:
         except requests.ConnectionError:
             raise ExecutionFailureException(
                 "failed to connect to rgw endpoint {}".format(ep))
+=======
+    def endpoint_dial(self, endpoint_str, timeout=3):
+        # if the 'cluster' instance is a dummy one,
+        # don't try to reach out to the endpoint
+        if isinstance(self.cluster, DummyRados):
+            return
+        protocols = ["http", "https"]
+        for prefix in protocols:
+            try:
+                ep = "{}://{}".format(prefix, endpoint_str)
+                r = requests.head(ep, timeout=timeout)
+                if r.status_code == 200:
+                    return
+            except:
+                continue
+        raise ExecutionFailureException(
+            "unable to connect to endpoint: {}".format(endpoint_str))
+>>>>>>> 7b8da65c8... ceph: fixed existing test cases
 
     def __init__(self, arg_list=None):
         self.out_map = {}
@@ -234,6 +253,16 @@ class RadosJSON:
             return endpoint
         return ':'.join([endpoint, port])
 
+    def _convert_hostname_to_ip(self, host_name):
+        # if 'cluster' instance is a dummy type,
+        # return a sample IP
+        if isinstance(self.cluster, DummyRados):
+            return "10.10.92.110"
+        import socket
+        ip = socket.gethostbyname(host_name)
+        del socket
+        return ip
+
     def get_active_ceph_mgr(self):
         if self._arg_parser.monitoring_endpoint:
             monitoring_endpoint_ip = self._arg_parser.monitoring_endpoint
@@ -262,8 +291,7 @@ class RadosJSON:
             monitoring_endpoint_port = ''
 
         try:
-            import socket
-            monitoring_endpoint_ip = socket.gethostbyname(monitoring_endpoint_ip)
+            monitoring_endpoint_ip = self._convert_hostname_to_ip(monitoring_endpoint_ip)
         except:
             raise ExecutionFailureException(
                 "unable to convert a hostname to an IP address, monitoring host name: {}".format(monitoring_endpoint_ip))
@@ -701,6 +729,8 @@ class DummyRados(object):
         self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs *=*"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map['''{"format": "json", "prefix": "mgr services"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
 
     def shutdown(self):
         pass
@@ -713,6 +743,9 @@ class DummyRados(object):
 
     def connect(self):
         pass
+
+    def pool_exists(self, pool_name):
+        return True
 
     def mon_command(self, cmd, out):
         json_cmd = json.loads(cmd)
@@ -732,14 +765,14 @@ class DummyRados(object):
 # python -m unittest --verbose <script_name_without_dot_py>
 class TestRadosJSON(unittest.TestCase):
     def setUp(self):
-        print("{}".format("I am in setup"))
+        print("\nI am in setup")
         self.rjObj = RadosJSON(['--rbd-data-pool-name=abc',
                                 '--rgw-endpoint=10.10.212.122:9000', '--format=json'])
         # for testing, we are using 'DummyRados' object
         self.rjObj.cluster = DummyRados.Rados()
 
     def tearDown(self):
-        print("{}".format("I am tearing down the setup"))
+        print("\nI am tearing down the setup\n")
         self.rjObj.shutdown()
 
     def test_method_main_output(self):
@@ -782,9 +815,9 @@ class TestRadosJSON(unittest.TestCase):
         # but no specific '--cephfs-filesystem-name' argument provided
         try:
             self.rjObj.get_cephfs_data_pool_details()
-            self.fail("An Exception was expected to be thrown")
+            print("As we are returning silently, no error thrown as expected")
         except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            self.fail("Supposed to get returned silently, but instead error thrown: {}".format(err))
         # pass an existing filesystem name
         try:
             self.rjObj._arg_parser.cephfs_filesystem_name = second_fs_details['name']
