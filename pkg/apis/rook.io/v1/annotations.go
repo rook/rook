@@ -24,7 +24,7 @@ func (a AnnotationsSpec) All() Annotations {
 	return a[KeyAll]
 }
 
-// ApplyToObjectMeta adds or overwrites if exists annotations to object meta.
+// ApplyToObjectMeta adds annotations to object meta unless the keys are already defined.
 func (a Annotations) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 	if t.Annotations == nil {
 		t.Annotations = map[string]string{}
