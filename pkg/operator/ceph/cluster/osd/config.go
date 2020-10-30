@@ -19,6 +19,7 @@ package osd
 import (
 	"encoding/base64"
 	"fmt"
+	"path"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -26,9 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -41,8 +40,6 @@ key = %s
 	// #nosec G101 since this is not leaking any hardcoded credentials, it's just the secret key name
 	OsdEncryptionSecretNameKeyName = "dmcrypt-key"
 	dmCryptKeySize                 = 128
-	// #nosec G101 since this is not leaking any hardcoded credentials, it's just the prefix of the secret name
-	osdEncryptionSecretNamePrefix = "rook-ceph-osd-encryption-key"
 )
 
 func (c *Cluster) generateKeyring(osdID int) (string, error) {
@@ -84,7 +81,7 @@ func osdOnSDNFlag(network cephv1.NetworkSpec) []string {
 }
 
 func encryptionKeyPath() string {
-	return fmt.Sprintf("%s/%s", opconfig.EtcCephDir, encryptionKeyFileName)
+	return path.Join(opconfig.EtcCephDir, encryptionKeyFileName)
 }
 
 func encryptionDMName(pvcName, blockType string) string {
@@ -92,7 +89,11 @@ func encryptionDMName(pvcName, blockType string) string {
 }
 
 func encryptionDMPath(pvcName, blockType string) string {
-	return fmt.Sprintf("/dev/mapper/%s", encryptionDMName(pvcName, blockType))
+	return path.Join("/dev/mapper", encryptionDMName(pvcName, blockType))
+}
+
+func encryptionBlockDestinationCopy(mountPath, blockType string) string {
+	return path.Join(mountPath, blockType) + "-tmp"
 }
 
 func generateDmCryptKey() (string, error) {
@@ -102,26 +103,6 @@ func generateDmCryptKey() (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(key), nil
-}
-
-func generateOSDEncryptedKeySecret(pvcName, namespace, key string) *v1.Secret {
-	return &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateOSDEncryptionSecretName(pvcName),
-			Namespace: namespace,
-			Labels: map[string]string{
-				"pvc_name": pvcName,
-			},
-		},
-		StringData: map[string]string{
-			OsdEncryptionSecretNameKeyName: key,
-		},
-		Type: k8sutil.RookType,
-	}
-}
-
-func generateOSDEncryptionSecretName(pvcName string) string {
-	return fmt.Sprintf("%s-%s", osdEncryptionSecretNamePrefix, pvcName)
 }
 
 func (c *Cluster) isCephVolumeRawModeSupported() bool {

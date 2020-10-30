@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"gopkg.in/ini.v1"
@@ -33,6 +34,7 @@ const (
 	osdsPerDeviceEnvVarName   = "ROOK_OSDS_PER_DEVICE"
 	// EncryptedDeviceEnvVarName is used in the pod spec to indicate whether the OSD is encrypted or not
 	EncryptedDeviceEnvVarName = "ROOK_ENCRYPTED_DEVICE"
+	PVCNameEnvVarName         = "ROOK_PVC_NAME"
 	// CephVolumeEncryptedKeyEnvVarName is the env variable used by ceph-volume to encrypt the OSD (raw mode)
 	// Hardcoded in ceph-volume do NOT touch
 	CephVolumeEncryptedKeyEnvVarName    = "CEPH_VOLUME_DMCRYPT_SECRET"
@@ -171,14 +173,20 @@ func crushDeviceClassEnvVar(crushDeviceClass string) v1.EnvVar {
 func encryptedDeviceEnvVar(encryptedDevice bool) v1.EnvVar {
 	return v1.EnvVar{Name: EncryptedDeviceEnvVarName, Value: strconv.FormatBool(encryptedDevice)}
 }
+func pvcNameEnvVar(pvcName string) v1.EnvVar {
+	return v1.EnvVar{Name: PVCNameEnvVarName, Value: pvcName}
+}
 
-func cephVolumeRawEncryptedEnvVar(pvcName string) v1.EnvVar {
+func cephVolumeRawEncryptedEnvVarFromSecret(osdProps osdProperties) v1.EnvVar {
 	return v1.EnvVar{
 		Name: CephVolumeEncryptedKeyEnvVarName,
 		ValueFrom: &v1.EnvVarSource{
-			SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
-				Name: generateOSDEncryptionSecretName(pvcName)},
-				Key: OsdEncryptionSecretNameKeyName},
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: kms.GenerateOSDEncryptionSecretName(osdProps.pvc.ClaimName),
+				},
+				Key: kms.OsdEncryptionSecretNameKeyName,
+			},
 		},
 	}
 }

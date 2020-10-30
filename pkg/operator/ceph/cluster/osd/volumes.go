@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/libopenstorage/secrets"
+	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	v1 "k8s.io/api/core/v1"
 )
@@ -176,16 +178,26 @@ func getUdevVolume() (v1.Volume, v1.VolumeMount) {
 	return volume, volumeMounts
 }
 
-func getEncryptionVolume(pvcName string) (v1.Volume, v1.VolumeMount) {
+func (c *Cluster) getEncryptionVolume(osdProps osdProperties) (v1.Volume, v1.VolumeMount) {
+	// Determine whether we have a KMS configuration
+	var isKMS bool
+	if len(c.spec.Security.KeyManagementService.ConnectionDetails) != 0 {
+		provider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
+		if provider == secrets.TypeVault {
+			isKMS = true
+		}
+	}
+
+	// Generate volume
 	var m int32 = 0400
 	volume := v1.Volume{
 		Name: osdEncryptionVolName,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName: generateOSDEncryptionSecretName(pvcName),
+				SecretName: kms.GenerateOSDEncryptionSecretName(osdProps.pvc.ClaimName),
 				Items: []v1.KeyToPath{
 					{
-						Key:  OsdEncryptionSecretNameKeyName,
+						Key:  kms.OsdEncryptionSecretNameKeyName,
 						Path: encryptionKeyFileName,
 					},
 				},
@@ -194,11 +206,26 @@ func getEncryptionVolume(pvcName string) (v1.Volume, v1.VolumeMount) {
 		},
 	}
 
+	// On the KMS use case, we want the volume mount to be in memory since we pass write the KEK
+	if isKMS {
+		volume.VolumeSource.Secret = nil
+		volume.VolumeSource = v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{
+				Medium: v1.StorageMediumMemory,
+			},
+		}
+	}
+
 	// Mounts /etc/ceph/luks_key
 	volumeMounts := v1.VolumeMount{
 		Name:      osdEncryptionVolName,
 		ReadOnly:  true,
 		MountPath: config.EtcCephDir,
+	}
+
+	// With KMS we must be able to write inside the directory to write the KEK
+	if isKMS {
+		volumeMounts.ReadOnly = false
 	}
 
 	return volume, volumeMounts

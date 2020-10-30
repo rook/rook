@@ -40,3 +40,23 @@ func TestCloseEncryptedDevice(t *testing.T) {
 	err := closeEncryptedDevice(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt")
 	assert.NoError(t, err)
 }
+
+func TestDmsetupVersion(t *testing.T) {
+	dmsetupOutput := `
+Library version:   1.02.154 (2018-12-07)
+Driver version:    4.40.0
+`
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("%s %v", command, args)
+		if command == "dmsetup" && args[0] == "version" {
+			return dmsetupOutput, nil
+		}
+
+		return "", errors.Errorf("unknown command %s %s", command, args)
+	}
+
+	context := &clusterd.Context{Executor: executor}
+	err := dmsetupVersion(context)
+	assert.NoError(t, err)
+}

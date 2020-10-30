@@ -28,6 +28,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -388,14 +390,24 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 		}
 	}
 
-	if cluster, ok := c.clusterMap[cluster.Namespace]; ok {
-		delete(c.clusterMap, cluster.Namespace)
-	}
-
 	// Only valid when the cluster is not external
 	if cluster.Spec.External.Enable {
 		purgeExternalCluster(c.context.Clientset, cluster.Namespace)
 		return reconcile.Result{}, true
+	}
+
+	// If the StorageClass retain policy of an encrypted cluster with KMS is Delete we also delete the keys
+	if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
+		// Delete keys from KMS
+		err := c.deleteOSDEncryptionKeyFromKMS(cluster)
+		if err != nil {
+			logger.Errorf("failed to delete osd encryption keys from kms. %v", err)
+			return reconcile.Result{}, true
+		}
+	}
+
+	if cluster, ok := c.clusterMap[cluster.Namespace]; ok {
+		delete(c.clusterMap, cluster.Namespace)
 	}
 
 	return reconcile.Result{}, true
@@ -522,6 +534,42 @@ func removeFinalizer(client client.Client, name types.NamespacedName) error {
 	err = opcontroller.RemoveFinalizer(client, cephCluster)
 	if err != nil {
 		return errors.Wrap(err, "failed to remove finalizer")
+	}
+
+	return nil
+}
+
+func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1.CephCluster) error {
+	// If the operator was stopped and we enter this code, the map is empty
+	if _, ok := c.clusterMap[currentCluster.Namespace]; !ok {
+		c.clusterMap[currentCluster.Namespace] = &cluster{ClusterInfo: &cephclient.ClusterInfo{Namespace: currentCluster.Namespace}}
+	}
+
+	// Fetch PVCs
+	osdPVCs, err := osd.GetExistingOSDPVCs(c.context, currentCluster.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "failed to list osd pvc")
+	}
+
+	// Initialize the KMS code
+	kmsConfig := kms.NewConfig(c.context, &currentCluster.Spec, c.clusterMap[currentCluster.Namespace].ClusterInfo)
+
+	// If token auth is used by the KMS we set it as an env variable
+	if currentCluster.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
+		err := kms.SetTokenToEnvVar(c.context, currentCluster.Spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, currentCluster.Namespace)
+		if err != nil {
+			return errors.Wrapf(err, "failed to fetch kms token secret %q", currentCluster.Spec.Security.KeyManagementService.TokenSecretName)
+		}
+	}
+
+	// Delete each PV KEK
+	for _, osdPVC := range osdPVCs {
+		// Generate and store the encrypted key in whatever KMS is configured
+		err = kmsConfig.DeleteSecret(osdPVC.Name)
+		if err != nil {
+			logger.Errorf("failed to delete secret. %v", err)
+			continue
+		}
 	}
 
 	return nil

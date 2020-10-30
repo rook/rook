@@ -43,8 +43,19 @@ func TestEncryptionKeyPath(t *testing.T) {
 	assert.Equal(t, "/etc/ceph/luks_key", encryptionKeyPath())
 }
 
-func TestGenerateOSDEncryptionSecretName(t *testing.T) {
-	assert.Equal(t, "rook-ceph-osd-encryption-key-set1-data-0-7dwll", generateOSDEncryptionSecretName("set1-data-0-7dwll"))
+func TestEncryptionBlockDestinationCopy(t *testing.T) {
+	m := "/var/lib/ceph/osd/ceph-0"
+	assert.Equal(t, "/var/lib/ceph/osd/ceph-0/block-tmp", encryptionBlockDestinationCopy(m, bluestoreBlockName))
+	assert.Equal(t, "/var/lib/ceph/osd/ceph-0/block.db-tmp", encryptionBlockDestinationCopy(m, bluestoreMetadataName))
+	assert.Equal(t, "/var/lib/ceph/osd/ceph-0/block.wal-tmp", encryptionBlockDestinationCopy(m, bluestoreWalName))
+}
+
+func TestEncryptionDMPath(t *testing.T) {
+	assert.Equal(t, "/dev/mapper/set1-data-0-6rqdn-block-dmcrypt", encryptionDMPath("set1-data-0-6rqdn", DmcryptBlockType))
+}
+
+func TestEncryptionDMName(t *testing.T) {
+	assert.Equal(t, "set1-data-0-6rqdn-block-dmcrypt", encryptionDMName("set1-data-0-6rqdn", DmcryptBlockType))
 }
 
 func TestClusterIsCephVolumeRAwModeSupported(t *testing.T) {

@@ -129,9 +129,23 @@ type ClusterSpec struct {
 
 	// Internal daemon healthchecks and liveness probe
 	HealthCheck CephClusterHealthCheckSpec `json:"healthCheck"`
+
+	// Security represents security settings
+	Security SecuritySpec `json:"security,omitempty"`
 }
 
-// VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
+// SecuritySpec is security spec to include various security items such as kms
+type SecuritySpec struct {
+	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+}
+
+// KeyManagementServiceSpec represent various details of the KMS server
+type KeyManagementServiceSpec struct {
+	ConnectionDetails map[string]string `json:"connectionDetails,omitempty"`
+	TokenSecretName   string            `json:"tokenSecretName,omitempty"`
+}
+
+// CephVersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
 	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.4
 	Image string `json:"image,omitempty"`

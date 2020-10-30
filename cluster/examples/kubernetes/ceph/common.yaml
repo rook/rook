@@ -300,6 +300,18 @@ spec:
                         iteration:
                           type: integer
                           format: int32
+                security:
+                  type: object
+                  properties:
+                    kms:
+                      type: object
+                      properties:
+                        connectionDetails:
+                          type: object
+                          nullable: true
+                          x-kubernetes-preserve-unknown-fields: true
+                        tokenSecretName:
+                          type: string
                 annotations:
                   type: object
                   nullable: true

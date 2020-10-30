@@ -331,7 +331,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				}
 
 				// Return failure
-				return "", "", "", errors.Wrapf(err, "failed to run ceph-volume. debug logs below:\n%s", cvLog)
+				return "", "", "", errors.Wrapf(err, "failed to run ceph-volume. %s. debug logs below:\n%s", op, cvLog)
 			}
 			logger.Infof("%v", op)
 			// if raw mode is used or PV on LV, let's return the path of the device

@@ -1,0 +1,10 @@
+          - metadata:
+              name: wal
+            spec:
+              resources:
+                requests:
+                  storage: 2Gi
+              storageClassName: manual
+              volumeMode: Block
+              accessModes:
+                - ReadWriteOnce

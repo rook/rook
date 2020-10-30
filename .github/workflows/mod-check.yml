@@ -16,5 +16,5 @@ jobs:
       run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
 
     - name: validate modcheck
-      run: hack/validate_modified_files.sh modcheck
+      run: tests/scripts/validate_modified_files.sh modcheck
 

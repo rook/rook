@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -113,6 +115,16 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	if osdProps.onPVC() {
 		// Create volume config for PVCs
 		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
+		if osdProps.encrypted {
+			// If a KMS is configured we populate
+			if c.spec.Security.KeyManagementService.IsEnabled() {
+				kmsProvider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
+				if kmsProvider == secrets.TypeVault {
+					volumeTLS, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+					volumes = append(volumes, volumeTLS)
+				}
+			}
+		}
 	}
 
 	if len(volumes) == 0 {
@@ -271,9 +283,20 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
 		envVars = append(envVars, crushDeviceClassEnvVar(osdProps.crushDeviceClass))
 		envVars = append(envVars, encryptedDeviceEnvVar(osdProps.encrypted))
+		envVars = append(envVars, pvcNameEnvVar(osdProps.pvc.ClaimName))
 
 		if osdProps.encrypted {
-			envVars = append(envVars, cephVolumeRawEncryptedEnvVar(osdProps.pvc.ClaimName))
+			// If a KMS is configured we populate
+			if c.spec.Security.KeyManagementService.IsEnabled() {
+				kmsProvider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
+				if kmsProvider == secrets.TypeVault {
+					_, volumeMountsTLS := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+					volumeMounts = append(volumeMounts, volumeMountsTLS)
+					envVars = append(envVars, kms.VaultConfigToEnvVar(c.spec)...)
+				}
+			} else {
+				envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
+			}
 		}
 	}
 

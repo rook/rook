@@ -30,6 +30,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -368,6 +369,15 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster, clusterO
 				}
 				return errors.Wrapf(err, "failed to fetch network attachment definition for selector %q", selector)
 			}
+		}
+	}
+
+	// Validate on-PVC cluster encryption KMS settings
+	if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
+		// Validate the KMS details
+		err := kms.ValidateConnectionDetails(c.context, cluster.Spec, cluster.Namespace)
+		if err != nil {
+			return errors.Wrap(err, "failed to validate kms connection details")
 		}
 	}
 

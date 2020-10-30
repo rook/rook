@@ -196,7 +196,7 @@ func OkToContinue(context *clusterd.Context, clusterInfo *ClusterInfo, deploymen
 }
 
 func okToStopDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, daemonType, daemonName string) error {
-	if !stringInSlice(daemonType, daemonNoCheck) {
+	if !StringInSlice(daemonType, daemonNoCheck) {
 		args := []string{daemonType, "ok-to-stop", daemonName}
 		buf, err := NewCephCommand(context, clusterInfo, args).Run()
 		if err != nil {
@@ -242,7 +242,8 @@ func okToContinueMDSDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, 
 	return nil
 }
 
-func stringInSlice(a string, list []string) bool {
+// StringInSlice return whether an element is in a slice
+func StringInSlice(a string, list []string) bool {
 	for _, b := range list {
 		if b == a {
 			return true

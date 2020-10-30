@@ -23,7 +23,9 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,7 +33,7 @@ import (
 func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv1.VolumeSource {
 	volumeSources := []rookv1.VolumeSource{}
 
-	existingPVCs, err := c.getExistingOSDPVCs()
+	existingPVCs, err := GetExistingOSDPVCs(c.context, c.clusterInfo.Namespace)
 	if err != nil {
 		config.addError("failed to detect existing OSD PVCs. %v", err)
 		return volumeSources
@@ -117,6 +119,7 @@ func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.Per
 		existingPVC = existingPVCs[pvcStorageClassDeviceSetPVCId]
 	}
 	pvc := makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId, setIndex, pvcTemplate)
+	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.clusterInfo.OwnerRef)
 
 	if existingPVC != nil {
 		logger.Infof("OSD PVC %q already exists", existingPVC.Name)
@@ -177,9 +180,10 @@ func makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDevi
 	}
 }
 
-func (c *Cluster) getExistingOSDPVCs() (map[string]*v1.PersistentVolumeClaim, error) {
+// GetExistingOSDPVCs fetches the list of OSD PVCs
+func GetExistingOSDPVCs(context *clusterd.Context, namespace string) (map[string]*v1.PersistentVolumeClaim, error) {
 	selector := metav1.ListOptions{LabelSelector: CephDeviceSetPVCIDLabelKey}
-	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).List(selector)
+	pvcs, err := context.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(selector)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to detect pvcs")
 	}

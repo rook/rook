@@ -156,6 +156,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the OSDs are `out` and `safe-to-destroy` when they are removed.
 * `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
+* `security`: [security settings](#security)
 
 ### Ceph container images
 
@@ -320,7 +321,7 @@ The following are the settings for Storage Class Device Sets which can be config
   However, if there are more OSDs than nodes, this anti-affinity will not be effective. Another placement scheme to consider is to add labels to the nodes in such a way that the OSDs can be grouped on those nodes, create multiple storageClassDeviceSets, and add node affinity to each of the device sets that will place the OSDs in those sets of nodes.
 
 * `preparePlacement`: The placement criteria for the preparation of the OSD devices. Creating OSDs is a two-step process and the prepare job may require different placement than the OSD daemons. If the `preparePlacement` is not specified, the `placement` will instead be applied for consistent placement for the OSD prepare jobs and OSD deployments. The `preparePlacement` is only useful for `portable` OSDs in the device sets. OSDs that are not portable will be tied to the host where the OSD prepare job initially runs.
-   * For example, provisioning may require topology spread constraints across zones, but the OSD daemons may require constraints across hosts within the zones.
+  * For example, provisioning may require topology spread constraints across zones, but the OSD daemons may require constraints across hosts within the zones.
 * `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
 * `tuneDeviceClass`: For example, Ceph cannot detect AWS volumes as HDDs from the storage class "gp2", so you can improve Ceph performance by setting this to true.
 * `tuneFastDeviceClass`: For example, Ceph cannot detect Azure disks as SSDs from the storage class "managed-premium", so you can improve Ceph performance by setting this to true..
@@ -367,7 +368,7 @@ application.
 
 Ceph supports adding devices as OSDs by Ceph Drive Group definitions in later versions of Ceph
 Octopus (v15.2.5+).
-See Ceph Drive Group docs for more info: https://docs.ceph.com/docs/master/cephadm/drivegroups/.
+See Ceph Drive Group docs for more [info](https://docs.ceph.com/docs/master/cephadm/drivegroups/).
 Drive Groups cannot be used to provision OSDs on PVCs.
 
 > **IMPORTANT:** When managing a Rook/Ceph cluster's OSD layouts with Drive Groups, the `storage`
@@ -378,6 +379,7 @@ Drive Groups cannot be used to provision OSDs on PVCs.
 > OSDs with Drive Groups on new Rook-Ceph clusters.
 
 A Drive Group is defined by a name, a Ceph Drive Group spec, and a Rook placement
+
 * `name`: A name for the Drive Group.
 * `spec`: The Ceph Drive group spec. Some components of the spec are treated differently in the
   context of Rook as noted below:
@@ -1139,7 +1141,7 @@ If the previous section has not been completed, the Rook Operator will still ack
 
 > **WARNING**: If no cluster is managed by the current Rook Operator, you need to inject `common.yaml`, then modify `cluster-external.yaml` and specify `rook-ceph` as `namespace`.
 
-If this is successfull you will see the CepCluster status as connected.
+If this is successful you will see the CepCluster status as connected.
 
 ```console
 kubectl get CephCluster -n rook-ceph-external
@@ -1252,3 +1254,125 @@ Nothing will happen until the deletion of the CR is requested, so this can still
 However, all new configuration by the operator will be blocked with this cleanup policy enabled.
 
 Rook waits for the deletion of PVs provisioned using the cephCluster before proceeding to delete the cephCluster. To force deletion of the cephCluster without waiting for the PVs to be deleted,  you can set the allowUninstallWithVolumes to true under spec.CleanupPolicy.
+
+### Security
+
+Rook has the ability to encrypt OSDs of clusters running on PVC via the flag (`encrypted: true`) in your `storageClassDeviceSets` [template](#pvc-based-cluster).
+By default, the Key Encryption Keys (also known as Data Encryption Keys) are stored in a Kubernetes Secret.
+
+However, if a Key Management System exists Rook is capable of using it. HashiCorp Vault is the only KMS currently supported by Rook.
+Please refer to the next section.
+
+The `security` section contains settings related to encryption of the cluster.
+
+* `security`:
+  * `kms`: Key Management System settings
+    * `connectionDetails`: the list of parameters representing kms connection details
+    * `tokenSecretName`: the name of the Kubernetes Secret containing the kms authentication token
+
+#### Vault KMS
+
+In order for Rook to connect to Vault, you must configure the following in your `CephCluster` template:
+
+```yaml
+security:
+  kms:
+    # name of the k8s config map containing all the kms connection details
+    connectionDetails:
+      KMS_PROVIDER: vault
+      VAULT_ADDR: https://vault.default.svc.cluster.local:8200
+      VAULT_BACKEND_PATH: rook
+    # name of the k8s secret containing the kms authentication token
+    tokenSecretName: rook-vault-token
+```
+
+Note: Rook supports **all** the Vault [environment variables](https://www.vaultproject.io/docs/commands#environment-variables).
+
+The Kubernetes Secret `rook-vault-token` should contain:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rook-vault-token
+  namespace: rook-ceph
+data:
+  token: <TOKEN> # base64 of a token to connect to Vault, for example: cy5GWXpsbzAyY2duVGVoRjhkWG5Bb3EyWjkK
+```
+
+As part of the token, here is an example of a policy that can be used:
+
+```hcl
+path "rook/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+path "sys/mounts" {
+capabilities = ["read"]
+}
+```
+
+You can write the policy like so and then create a token:
+
+```console
+vault policy write ocs /tmp/rook.hcl
+vault token create -policy=rook
+Key                  Value
+---                  -----
+token                s.FYzlo02cgnTehF8dXnAoq2Z9
+token_accessor       oMo7sAXQKbYtxU4HtO8k3pko
+token_duration       768h
+token_renewable      true
+token_policies       ["default" "rook"]
+identity_policies    []
+policies             ["default" "rook"]
+```
+
+In this example the backend path named `rook` is used it must be enabled in Vault with the following:
+
+```console
+vault secrets enable -path=rook kv
+```
+
+If a different path is used, the `VAULT_BACKEND_PATH` key in `connectionDetails` must be changed.
+
+Currently the token-based authentication is the only supported method.
+Later Rook is planning on supporting the [Vault Kubernetes native authentication](https://www.vaultproject.io/docs/auth/kubernetes).
+
+##### TLS configuration
+
+This is an advanced but recommended configuration for production deployments, in this case the `vault-connection-details` will look like:
+
+```yaml
+security:
+  kms:
+    # name of the k8s config map containing all the kms connection details
+    connectionDetails:
+      KMS_PROVIDER: vault
+      VAULT_ADDR: https://vault.default.svc.cluster.local:8200
+      VAULT_CACERT: <name of the k8s secret containing the PEM-encoded CA certificate>
+      VAULT_CLIENT_CERT: <name of the k8s secret containing the PEM-encoded client certificate>
+      VAULT_CLIENT_KEY: <name of the k8s secret containing the PEM-encoded private key>
+    # name of the k8s secret containing the kms authentication token
+    tokenSecretName: rook-vault-token
+```
+
+Each secret keys are expected to be:
+
+* VAULT_CACERT: `cert`
+* VAULT_CLIENT_CERT: `cert`
+* VAULT_CLIENT_KEY: `key`
+
+For instance `VAULT_CACERT` Secret named `vault-tls-ca-certificate` will look like:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-tls-ca-certificate
+  namespace: rook-ceph
+data:
+  cert: <PEM base64 encoded CA certificate>
+```
+
+Note: if you are using self-signed certificates (not known/approved by a proper CA) you must pass `VAULT_SKIP_VERIFY: true`.
+Communications will remain encrypted but the validity of the certificate will not be verified.
