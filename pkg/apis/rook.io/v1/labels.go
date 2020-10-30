@@ -24,7 +24,7 @@ func (a LabelsSpec) All() Labels {
 	return a[KeyAll]
 }
 
-// ApplyToObjectMeta adds or overwrites if exists Labels to object meta.
+// ApplyToObjectMeta adds labels to object meta unless the keys are already defined.
 func (a Labels) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 	if t.Labels == nil {
 		t.Labels = map[string]string{}
