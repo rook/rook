@@ -397,12 +397,12 @@ func TestTopologyLabels(t *testing.T) {
 
 	// load all the expected labels
 	nodeLabels = map[string]string{
-		"topology.kubernetes.io/region": "r1",
-		"topology.kubernetes.io/zone":   "z1",
-		"kubernetes.io/hostname":        "myhost",
-		"topology.rook.io/rack":         "rack1",
-		"topology.rook.io/row":          "row1",
-		"topology.rook.io/datacenter":   "d1",
+		corev1.LabelZoneRegionStable:        "r1",
+		corev1.LabelZoneFailureDomainStable: "z1",
+		"kubernetes.io/hostname":            "myhost",
+		"topology.rook.io/rack":             "rack1",
+		"topology.rook.io/row":              "row1",
+		"topology.rook.io/datacenter":       "d1",
 	}
 	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
 	assert.Equal(t, 6, len(topology))
@@ -425,10 +425,10 @@ func TestTopologyLabels(t *testing.T) {
 
 	// ensure deprecated k8s labels are overridden
 	nodeLabels = map[string]string{
-		"topology.kubernetes.io/region": "r1",
-		"topology.kubernetes.io/zone":   "z1",
-		corev1.LabelZoneRegion:          "oldregion",
-		corev1.LabelZoneFailureDomain:   "oldzone",
+		corev1.LabelZoneRegionStable:        "r1",
+		corev1.LabelZoneFailureDomainStable: "z1",
+		corev1.LabelZoneRegion:              "oldregion",
+		corev1.LabelZoneFailureDomain:       "oldzone",
 	}
 	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
 	assert.Equal(t, 2, len(topology))
