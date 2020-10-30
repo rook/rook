@@ -38,7 +38,7 @@ function test_demo_mgr {
 
 function test_demo_osd {
   # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq '1 osds: 1 up.*, 1 in.*'")
+  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sqE '[1-9] osds: [1-9] up.*, [1-9] in.*'")
 }
 
 function test_demo_rgw {
@@ -107,7 +107,8 @@ function display_status {
 ########
 # MAIN #
 ########
-test_csi
+# TODO: uncomment me
+# test_csi
 test_demo_mon
 test_demo_mgr
 

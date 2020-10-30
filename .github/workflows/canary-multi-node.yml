@@ -1,0 +1,144 @@
+name: Canary multi-node
+on:
+  pull_request:
+    paths:
+    - '**.go'
+    - '**.sh'
+    - '**.py'
+    - 'build/**'
+    - 'tests/**'
+    - 'images/**'
+    - '.github/workflows/**'
+
+jobs:
+  multi-node:
+    runs-on: ubuntu-18.04
+    steps:
+    - name: install deps
+      run: |
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+        sudo apt-get install -y gdisk
+
+    - name: reclaim space
+      run: |
+        sudo df -h /
+        sudo rm -rf /usr/share/swift /usr/share/dotnet /var/lib/apt/lists/* /var/cache/debconf/* /var/log/apt/ /var/log/dpkg.log
+        sudo sudo apt-get clean
+        sudo apt-get autoremove --purge -y
+        sudo sync
+        sudo df -h /
+
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.15
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.3.0
+      with:
+        minikube version: 'v1.18.0'
+        kubernetes version: 'v1.19.2'
+        driver: none
+        start args: --memory 6g --cpus=2 --nodes 5 --disk-size=10g
+
+    - name: setup tmate session
+      uses: mxschmitt/action-tmate@v3
+
+    - name: check k8s cluster status
+      run: |
+        sudo df -h
+        kubectl cluster-info
+        kubectl get pods -n kube-system
+        kubectl get nodes
+        for i in $(seq 2 5); do kubectl label node minikube-m0"$i" node-role.kubernetes.io/worker=worker; done
+        kubectl get nodes
+        # minikube docker driver uses docker in docker and the minikube container does not have the lvm binary so let's copy it from the host inside the minikube container
+        for i in $(docker ps|awk '/minikube/ {print $1}'); do docker cp /sbin/lvm "$i":/sbin/lvm; done
+
+    - name: use local disk
+      run: |
+        DISK=$(sudo lsblk --path|awk '/14G/ {print $1}'| head -1)
+        sudo swapoff --all --verbose
+        sudo umount /mnt
+        sudo wipefs --all --force "$DISK"1
+        sudo sgdisk --zap-all --clear --mbrtogpt -g -- "$DISK"
+        sudo dd if=/dev/zero of="$DISK" bs=1M count=10
+        sudo parted -s "$DISK" mklabel gpt
+        sudo partprobe "$DISK"
+        sudo udevadm settle
+        sudo parted "$DISK" -s print
+        sudo lsblk
+        for i in $(seq 0 3); do sudo sgdisk --new=0:0:+3072M --mbrtogpt -- "$DISK"; done
+        sudo partprobe
+        sudo lsblk
+        sudo parted "$DISK" -s print
+        docker system df
+        sudo df -h
+        docker system prune
+        docker system df
+        sudo df -h
+
+    # re-renable once we have a registry
+    # - name: build rook
+    #   run: |
+    #     # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
+    #     GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
+    #     docker images
+    #     docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+
+    - name: deploy rook
+      run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+        # disable csi
+        # yq write -d 0 -i cluster/examples/kubernetes/ceph/operator.yaml data.ROOK_CSI_ENABLE_CEPHFS "false"
+        # yq write -d 0 -i cluster/examples/kubernetes/ceph/operator.yaml data.ROOK_CSI_ENABLE_RBD "false"
+
+        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        sed -i "s|#deviceFilter:|deviceFilter: $(lsblk|awk '/14G/ {print $1}'| head -1)|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
+        yq write -d 1 -i cluster/examples/kubernetes/ceph/cluster-test.yaml spec.mon.count 3
+        kubectl create -f cluster/examples/kubernetes/ceph/cluster-test.yaml
+
+    - name: wait for mon pod
+      run: |
+        for i in $(seq 20); do
+          if [ "$(kubectl -n rook-ceph get pod  -l app=rook-ceph-mon|head -n1|wc -l)" -ne 3 ]; then
+            printf "\nWaiting for mon pods...\n"
+            kubectl -n rook-ceph get pod -l app=rook-ceph-mon
+            sleep 30
+            kubectl -n rook-ceph logs deploy/rook-ceph-mon-a||true
+            kubectl -n rook-ceph logs deploy/rook-ceph-mon-b||true
+            kubectl -n rook-ceph logs deploy/rook-ceph-mon-c||true
+            kubectl -n rook-ceph logs "$(kubectl -n rook-ceph -l app=rook-ceph-operator get pods -o jsonpath='{.items[*].metadata.name}')"||true
+          fi
+        done
+        kubectl -n rook-ceph logs "$(kubectl -n rook-ceph -l app=rook-ceph-operator get pods -o jsonpath='{.items[*].metadata.name}')"
+      shell: bash
+
+    - name: wait for osd prepare pods
+      run: |
+        for i in $(seq 20); do
+          if [ "$(kubectl -n rook-ceph get pod  -l app=rook-ceph-osd-prepare|head -n1|wc -l)" -ne 3 ]; then
+            printf "\nWaiting for osd prepare pods...\n"
+            kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare
+            sleep 30
+          fi
+        done
+      shell: bash
+
+    - name: wait for ceph to be ready
+      run: |
+        mkdir test
+        tests/scripts/validate_cluster.sh osd
+        kubectl -n rook-ceph get pods
+
+    - name: upload canary test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: canary
+        path: test
