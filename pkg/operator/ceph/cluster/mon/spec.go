@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,7 +76,7 @@ func (c *Cluster) stretchFailureDomainLabel() string {
 		return c.spec.Mon.StretchCluster.FailureDomainLabel
 	}
 	// The default topology label is for a zone
-	return "topology.kubernetes.io/zone"
+	return corev1.LabelZoneFailureDomainStable
 }
 
 func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) (*apps.Deployment, error) {

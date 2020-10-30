@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestOrderedCRUSHLabels(t *testing.T) {
@@ -41,12 +42,12 @@ func TestOrderedCRUSHLabels(t *testing.T) {
 func TestTopologyLabels(t *testing.T) {
 	// load all the expected labels
 	nodeLabels := map[string]string{
-		"topology.kubernetes.io/region": "r.region",
-		"topology.kubernetes.io/zone":   "z.zone",
-		"kubernetes.io/hostname":        "host.name",
-		"topology.rook.io/rack":         "r.rack",
-		"topology.rook.io/row":          "r.row",
-		"topology.rook.io/datacenter":   "d.datacenter",
+		corev1.LabelZoneRegionStable:        "r.region",
+		corev1.LabelZoneFailureDomainStable: "z.zone",
+		"kubernetes.io/hostname":            "host.name",
+		"topology.rook.io/rack":             "r.rack",
+		"topology.rook.io/row":              "r.row",
+		"topology.rook.io/datacenter":       "d.datacenter",
 	}
 	topology := ExtractOSDTopologyFromLabels(nodeLabels)
 	assert.Equal(t, 6, len(topology))
