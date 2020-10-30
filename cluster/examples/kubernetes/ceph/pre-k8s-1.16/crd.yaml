@@ -386,6 +386,8 @@ spec:
                     type: object
             preservePoolsOnDelete:
               type: boolean
+            preserveFilesystemOnDelete:
+              type: boolean
   additionalPrinterColumns:
     - name: ActiveMDS
       type: string

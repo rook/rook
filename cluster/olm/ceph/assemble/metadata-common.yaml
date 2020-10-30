@@ -378,7 +378,8 @@ metadata:
               "placement": {},
               "resources": {}
             },
-            "preservePoolsOnDelete": false
+            "preservePoolsOnDelete": false,
+            "preserveFilesystemOnDelete": false
           }
         },
         {

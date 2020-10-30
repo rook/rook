@@ -238,7 +238,7 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 
 // Smoke Test for File System Storage - Test check the following operations on Filesystem Storage in order
 // Create,Mount,Write,Read,Unmount and Delete.
-func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string, useCSI bool) {
+func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, filesystemName string, useCSI bool, preserveFilesystemOnDelete bool) {
 	if useCSI {
 		checkSkipCSITest(s.T(), k8sh)
 	}
@@ -248,6 +248,11 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("File Storage End To End Integration Test - create, mount, write to, read from, and unmount")
 	activeCount := 2
 	createFilesystem(helper, k8sh, s, namespace, filesystemName, activeCount)
+
+	if preserveFilesystemOnDelete {
+		_, err := k8sh.Kubectl("-n", namespace, "patch", "CephFilesystem", filesystemName, "--type=merge", "-p", `{"spec": {"preserveFilesystemOnDelete": true}}`)
+		assert.NoError(s.T(), err)
+	}
 
 	// Create a test pod where CephFS is consumed without user creds
 	storageClassName := "cephfs-storageclass"
@@ -285,6 +290,16 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	cleanupFilesystem(helper, k8sh, s, namespace, filesystemName)
 	err = helper.FSClient.DeleteStorageClass(storageClassName)
 	assertNoErrorUnlessNotFound(s, err)
+
+	if preserveFilesystemOnDelete {
+		fses, err := helper.FSClient.List(namespace)
+		assert.NoError(s.T(), err)
+		assert.Len(s.T(), fses, 1)
+		assert.Equal(s.T(), fses[0].Name, filesystemName)
+
+		err = helper.FSClient.Delete(filesystemName, namespace)
+		assert.NoError(s.T(), err)
+	}
 }
 
 func testNFSDaemons(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {

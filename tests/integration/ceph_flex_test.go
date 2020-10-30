@@ -110,7 +110,8 @@ func (s *CephFlexDriverSuite) AfterTest(suiteName, testName string) {
 
 func (s *CephFlexDriverSuite) TestFileSystem() {
 	useCSI := false
-	runFileE2ETest(s.testClient, s.kh, s.Suite, s.namespace, "smoke-test-fs", useCSI)
+	preserveFilesystemOnDelete := false
+	runFileE2ETest(s.testClient, s.kh, s.Suite, s.namespace, "smoke-test-fs", useCSI, preserveFilesystemOnDelete)
 }
 
 func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
