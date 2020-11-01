@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -76,12 +77,57 @@ func TestCreateFilesystem(t *testing.T) {
 	mds.UpdateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	configDir, _ := ioutil.TempDir("", "")
+
 	// Output to check multiple filesystem creation
 	fses := `[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":1,"data_pool_ids":[2],"data_pools":["myfs-data0"]}]`
 
+	createdFsResponse := `{"fs_name": "myfs", "metadata_pool": 2, "data_pools":[3]}`
+
+	isBasePoolOperation := func(command string, args []string) bool {
+		if reflect.DeepEqual(args[0:7], []string{"osd", "pool", "create", "myfs-metadata", "0", "replicated", "myfs-metadata"}) {
+			return true
+		} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", "myfs-metadata"}) {
+			return true
+		} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", "myfs-metadata", "size", "1"}) {
+			return true
+		} else if reflect.DeepEqual(args[0:7], []string{"osd", "pool", "create", "myfs-data0", "0", "replicated", "myfs-data0"}) {
+			return true
+		} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", "myfs-data0"}) {
+			return true
+		} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", "myfs-data0", "size", "1"}) {
+			return true
+		} else if reflect.DeepEqual(args[0:4], []string{"fs", "add_data_pool", "myfs", "myfs-data0"}) {
+			return true
+		}
+		return false
+	}
+
+	firstGet := true
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
-			return "{\"key\":\"mysecurekey\"}", nil
+			if contains(args, "fs") && contains(args, "get") {
+				if firstGet {
+					firstGet = false
+					return "", errors.New("fs doesn't exist")
+				}
+				return createdFsResponse, nil
+			} else if contains(args, "fs") && contains(args, "ls") {
+				return "[]", nil
+			} else if contains(args, "osd") && contains(args, "lspools") {
+				return "[]", nil
+			} else if isBasePoolOperation(command, args) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:5], []string{"fs", "new", "myfs", "myfs-metadata", "myfs-data0"}) {
+				return "", nil
+			} else if contains(args, "auth") && contains(args, "get-or-create-key") {
+				return "{\"key\":\"mysecurekey\"}", nil
+			} else if contains(args, "config") && contains(args, "mds_cache_memory_limit") {
+				return "", nil
+			} else if contains(args, "set") && contains(args, "max_mds") {
+				return "", nil
+			}
+			assert.Fail(t, "Unexpected command")
+			return "", nil
 		},
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
@@ -130,6 +176,48 @@ func TestCreateFilesystem(t *testing.T) {
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 	assert.ElementsMatch(t, []string{"rook-ceph-mds-myfs-a", "rook-ceph-mds-myfs-b"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// Increasing the number of data pools should be successful.
+	createDataOnePoolCount := 0
+	addDataOnePoolCount := 0
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+			if contains(args, "fs") && contains(args, "get") {
+				return createdFsResponse, nil
+			} else if isBasePoolOperation(command, args) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:4], []string{"osd", "pool", "create", "myfs-data1"}) {
+				createDataOnePoolCount++
+				return "", nil
+			} else if reflect.DeepEqual(args[0:4], []string{"fs", "add_data_pool", "myfs", "myfs-data1"}) {
+				addDataOnePoolCount++
+				return "", nil
+			} else if contains(args, "set") && contains(args, "max_mds") {
+				return "", nil
+			} else if contains(args, "auth") && contains(args, "get-or-create-key") {
+				return "{\"key\":\"mysecurekey\"}", nil
+			} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", "myfs-data1"}) {
+				return "", nil
+			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", "myfs-data1", "size", "1"}) {
+				return "", nil
+			}
+			assert.Fail(t, "Unexpected command")
+			return "", nil
+		},
+	}
+	context = &clusterd.Context{
+		Executor:  executor,
+		ConfigDir: configDir,
+		Clientset: clientset}
+	fs.Spec.DataPools = append(fs.Spec.DataPools, cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}})
+
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	assert.Nil(t, err)
+	validateStart(t, context, fs)
+	assert.ElementsMatch(t, []string{"rook-ceph-mds-myfs-a", "rook-ceph-mds-myfs-b"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	assert.Equal(t, 1, createDataOnePoolCount)
+	assert.Equal(t, 1, addDataOnePoolCount)
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// Test multiple filesystem creation
@@ -192,6 +280,7 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 }
+
 func contains(arr []string, str string) bool {
 	for _, a := range arr {
 		if a == str {

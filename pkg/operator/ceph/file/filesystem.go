@@ -192,26 +192,38 @@ func SetPoolSize(f *Filesystem, context *clusterd.Context, clusterInfo *client.C
 	return nil
 }
 
+// updateFilesystem ensures that a filesystem which already exists matches the provided spec.
+func (f *Filesystem) updateFilesystem(context *clusterd.Context, clusterInfo *client.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
+	// Even if the fs already exists, the num active mdses may have changed
+	if err := client.SetNumMDSRanks(context, clusterInfo, f.Name, spec.MetadataServer.ActiveCount); err != nil {
+		logger.Errorf(
+			fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", spec.MetadataServer.ActiveCount, f.Name) +
+				"this error is not critical, but mdses may not be as failure tolerant as desired. " +
+				fmt.Sprintf("USER should verify that the number of active mdses is %d with 'ceph fs get %s'", spec.MetadataServer.ActiveCount, f.Name) +
+				fmt.Sprintf(". %v", err),
+		)
+	}
+
+	if err := SetPoolSize(f, context, clusterInfo, clusterSpec, spec); err != nil {
+		return errors.Wrap(err, "failed to set pools size")
+	}
+
+	dataPoolNames := generateDataPoolNames(f, spec)
+	for i := range spec.DataPools {
+		if err := client.AddDataPoolToFilesystem(context, clusterInfo, f.Name, dataPoolNames[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // doFilesystemCreate starts the Ceph file daemons and creates the filesystem in Ceph.
 func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *client.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
 
 	_, err := client.GetFilesystem(context, clusterInfo, f.Name)
 	if err == nil {
 		logger.Infof("filesystem %s already exists", f.Name)
-		// Even if the fs already exists, the num active mdses may have changed
-
-		if err := client.SetNumMDSRanks(context, clusterInfo, f.Name, spec.MetadataServer.ActiveCount); err != nil {
-			logger.Errorf(
-				fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", spec.MetadataServer.ActiveCount, f.Name) +
-					"this error is not critical, but mdses may not be as failure tolerant as desired. " +
-					fmt.Sprintf("USER should verify that the number of active mdses is %d with 'ceph fs get %s'", spec.MetadataServer.ActiveCount, f.Name) +
-					fmt.Sprintf(". %v", err),
-			)
-		}
-		if err := SetPoolSize(f, context, clusterInfo, clusterSpec, spec); err != nil {
-			return errors.Wrap(err, "failed to set pools size")
-		}
-		return nil
+		return f.updateFilesystem(context, clusterInfo, clusterSpec, spec)
 	}
 	if len(spec.DataPools) == 0 {
 		return errors.New("at least one data pool must be specified")
