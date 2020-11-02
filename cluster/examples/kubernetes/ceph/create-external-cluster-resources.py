@@ -131,6 +131,7 @@ class RadosJSON:
     EXTERNAL_USER_NAME = "client.healthchecker"
     EMPTY_OUTPUT_LIST = "Empty output list"
     DEFAULT_RGW_POOL_PREFIX = "default"
+    DEFAULT_MONITORING_ENDPOINT_PORT = "9283"
 
     @classmethod
     def gen_arg_parser(cls, args_to_parse=None):
@@ -165,7 +166,7 @@ class RadosJSON:
                           help="Rados GateWay endpoint (in <IP>:<PORT> format)")
         output_group.add_argument("--monitoring-endpoint", default="", required=False,
                           help="Ceph Manager prometheus exporter endpoints comma separated list of <IP> entries")
-        output_group.add_argument("--monitoring-endpoint-port", default="9283", required=False,
+        output_group.add_argument("--monitoring-endpoint-port", default="", required=False,
                           help="Ceph Manager prometheus exporter port")
 
         upgrade_group = argP.add_argument_group('upgrade')
@@ -316,6 +317,8 @@ class RadosJSON:
     def _convert_hostname_to_ip(self, host_name):
         # if 'cluster' instance is a dummy type,
         # call the dummy instance's "convert" method
+        if not host_name:
+            raise ExecutionFailureException("Empty hostname provided")
         if isinstance(self.cluster, DummyRados):
             return self.cluster._convert_hostname_to_ip(host_name)
         import socket
@@ -324,10 +327,9 @@ class RadosJSON:
         return ip
 
     def get_active_ceph_mgr(self):
-        if self._arg_parser.monitoring_endpoint:
-            monitoring_endpoint_ip = self._arg_parser.monitoring_endpoint
-            monitoring_endpoint_port = self._arg_parser.monitoring_endpoint_port
-        else:
+        monitoring_endpoint_port = self._arg_parser.monitoring_endpoint_port
+        monitoring_endpoint_ip = self._arg_parser.monitoring_endpoint
+        if not monitoring_endpoint_ip:
             cmd_json = {"prefix": "mgr services", "format": "json"}
             ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
             # if there is an unsuccessful attempt,
@@ -345,10 +347,12 @@ class RadosJSON:
                 raise ExecutionFailureException(
                         "invalid endpoint: {}".format(monitoring_endpoint))
             monitoring_endpoint_ip = parsed_endpoint.hostname
-            monitoring_endpoint_port = parsed_endpoint.port
+            if not monitoring_endpoint_port:
+                monitoring_endpoint_port = "{}".format(parsed_endpoint.port)
 
+        # if monitoring endpoint port is not set, put a default mon port
         if not monitoring_endpoint_port:
-            monitoring_endpoint_port = ''
+            monitoring_endpoint_port = self.DEFAULT_MONITORING_ENDPOINT_PORT
 
         try:
             monitoring_endpoint_ip = self._convert_hostname_to_ip(monitoring_endpoint_ip)
@@ -930,42 +934,42 @@ class TestRadosJSON(unittest.TestCase):
         self.rjObj.main()
 
     def test_monitoring_endpoint_validation(self):
-        new_mon_ip = "10.22.31.131"
-        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc',
-                                '--rgw-endpoint=10.10.212.122:9000',
-                                '--monitoring-endpoint={}'.format(new_mon_ip),
-                                '--format=json'])
-        # for testing, we are using 'DummyRados' object
+        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc', '--format=json'])
         self.rjObj.cluster = DummyRados.Rados()
-        # check the provided monitoring ip is retrieved
-        mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
-        if mon_ip != new_mon_ip:
-            self.fail("Supposed to return monitoring IP: {}".format(new_mon_ip))
-        new_mon_port = "3534"
-        self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
-        _, mon_port = self.rjObj.get_active_ceph_mgr()
-        if mon_port != new_mon_port:
-            self.fail("Supposed to return monitoring port: {}".format(new_mon_port))
-        for bad_mon_ip in ["10.33.21.300", "172.32.4.9.21"]:
-            self.rjObj._arg_parser.monitoring_endpoint = bad_mon_ip
+
+        valid_ip_ports = [("10.22.31.131", "3534"),
+                ("10.177.3.81", ""), ("", ""), ("", "9092")]
+        for each_ip_port_pair in valid_ip_ports:
+            # reset monitoring ip and port
+            self.rjObj._arg_parser.monitoring_endpoint = ''
+            self.rjObj._arg_parser.monitoring_endpoint_port = ''
+            new_mon_ip, new_mon_port = each_ip_port_pair
+            check_ip_val = self.rjObj.cluster.dummy_host_ip_map.get(new_mon_ip, new_mon_ip)
+            check_port_val = RadosJSON.DEFAULT_MONITORING_ENDPOINT_PORT
+            if new_mon_ip:
+                self.rjObj._arg_parser.monitoring_endpoint = new_mon_ip
+            if new_mon_port:
+                check_port_val = new_mon_port
+                self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
+            # for testing, we are using 'DummyRados' object
+            mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+            if check_ip_val and check_ip_val != mon_ip:
+                self.fail("Expected IP: {}, Returned IP: {}".format(check_ip_val, mon_ip))
+            if check_port_val and check_port_val != mon_port:
+                self.fail("Expected Port: '{}', Returned Port: '{}'".format(check_port_val, mon_port))
+            print("MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
+
+        invalid_ip_ports = [("10.22.31.131.43", "5334"),
+                ("10.177.3.81", "90320"), ("", "73422"), ("10.292.12.8", "9092")]
+        for each_ip_port_pair in invalid_ip_ports:
+            new_mon_ip, new_mon_port = each_ip_port_pair
+            if new_mon_ip:
+                self.rjObj._arg_parser.monitoring_endpoint = new_mon_ip
+            if new_mon_port:
+                self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
             try:
                 mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+                print("[Wrong] MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
                 self.fail("An exception was expected")
             except ExecutionFailureException as err:
                 print("Exception thrown successfully: {}".format(err))
-        # invalid port
-        self.rjObj._arg_parser.monitoring_endpoint_port = "90000"
-        try:
-            mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
-            self.fail("An exception was expected")
-        except ExecutionFailureException as err:
-            print("Exception thrown successfully: {}".format(err))
-        # testing different monitoring port
-        new_mon_port = '9092'
-        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc', '--monitoring-endpoint-port={}'.format(new_mon_port),
-                                '--rgw-endpoint=10.10.212.122:9000', '--format=json'])
-        self.rjObj.cluster = DummyRados.Rados()
-        mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
-        if mon_port != new_mon_port:
-            self.fail("monitoring endpoint port is supposed to be: {}".format(new_mon_port))
-        print("MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
