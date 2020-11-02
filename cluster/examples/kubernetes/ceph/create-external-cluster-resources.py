@@ -241,9 +241,9 @@ class RadosJSON:
 
     def _convert_hostname_to_ip(self, host_name):
         # if 'cluster' instance is a dummy type,
-        # return a sample IP
+        # call the dummy instance's "convert" method
         if isinstance(self.cluster, DummyRados):
-            return "10.10.92.110"
+            return self.cluster._convert_hostname_to_ip(host_name)
         import socket
         ip = socket.gethostbyname(host_name)
         del socket
@@ -609,7 +609,7 @@ class RadosJSON:
 
     def upgrade_user_permissions(self):
         # check whether the given user exists or not
-        cmd_json = {"prefix": "auth get", "entity": self.run_as_user, "format": "json"}
+        cmd_json = {"prefix": "auth get", "entity": "{}".format(self.run_as_user), "format": "json"}
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         if ret_val != 0 or len(json_out) == 0:
             raise ExecutionFailureException("'auth get {}' command failed.\n".format(self.run_as_user) +
@@ -702,10 +702,12 @@ class DummyRados(object):
         self.cmd_output_map = {}
         self.cmd_names = {}
         self._init_cmd_output_map()
+        self.dummy_host_ip_map = {}
 
     def _init_cmd_output_map(self):
         self.cmd_names['fs ls'] = '''{"format": "json", "prefix": "fs ls"}'''
         self.cmd_names['quorum_status'] = '''{"format": "json", "prefix": "quorum_status"}'''
+        self.cmd_names['caps_change_default_pool_prefix'] = '''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}'''
         # all the commands and their output
         self.cmd_output_map[self.cmd_names['fs ls']
                             ] = '''[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":2,"data_pool_ids":[3],"data_pools":["myfs-data0"]}]'''
@@ -717,6 +719,9 @@ class DummyRados(object):
         self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
         self.cmd_output_map['''{"format": "json", "prefix": "mgr services"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
+        self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
+        self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map[self.cmd_names['caps_change_default_pool_prefix']] = '''[{}]'''
 
     def shutdown(self):
         pass
@@ -740,6 +745,19 @@ class DummyRados(object):
         return self.return_val, \
             cmd_output, \
             "{}".format(self.err_message).encode('utf-8')
+
+    def  _convert_hostname_to_ip(self, host_name):
+        ip_reg_x = re.compile(r'\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}')
+        # if provided host is directly an IP address, return the same
+        if ip_reg_x.match(host_name):
+            return host_name
+        import random
+        host_ip = self.dummy_host_ip_map.get(host_name, "")
+        if not host_ip:
+            host_ip = "172.9.{}.{}".format(random.randint(0, 255), random.randint(0, 255))
+            self.dummy_host_ip_map[host_name] = host_ip
+        del random
+        return host_ip
 
     @classmethod
     def Rados(conffile=None):
@@ -883,3 +901,68 @@ class TestRadosJSON(unittest.TestCase):
             self.fail("An Exception was expected to be thrown")
         except ExecutionFailureException as err:
             print("Successfully thrown error: {}".format(err))
+
+    def add_non_default_pool_prefix_cmd(self, non_default_pool_prefix):
+        json_cmd = json.loads(self.rjObj.cluster.cmd_names['caps_change_default_pool_prefix'])
+        cur_osd_caps = json_cmd['caps'][json_cmd['caps'].index('osd') + 1]
+        new_osd_caps = cur_osd_caps.replace('default.', '{}.'.format(non_default_pool_prefix))
+        all_osd_caps = "{}, {}".format(new_osd_caps, cur_osd_caps)
+        caps_list = [x.strip() for x in all_osd_caps.split(',') if x.strip()]
+        new_caps_list = []
+        [new_caps_list.append(x) for x in caps_list if x not in new_caps_list]
+        all_osd_caps = ", ".join(new_caps_list)
+        json_cmd['caps'][json_cmd['caps'].index('osd') + 1] = all_osd_caps
+        self.rjObj.cluster.cmd_names['caps_change_non_default_pool_prefix'] = json.dumps(json_cmd)
+        self.rjObj.cluster.cmd_output_map[
+                self.rjObj.cluster.cmd_names['caps_change_non_default_pool_prefix']] = '[{}]'
+
+    def test_upgrade_user_permissions(self):
+        self.rjObj = RadosJSON(['--upgrade', '--run-as-user=client.healthchecker'])
+        # for testing, we are using 'DummyRados' object
+        self.rjObj.cluster = DummyRados.Rados()
+        self.rjObj.main()
+        self.rjObj = RadosJSON(['--upgrade', '--run-as-user=client.healthchecker', '--rgw-pool-prefix=nonDefault'])
+        self.rjObj.cluster = DummyRados.Rados()
+        self.add_non_default_pool_prefix_cmd('nonDefault')
+        self.rjObj.main()
+
+    def test_monitoring_endpoint_validation(self):
+        new_mon_ip = "10.22.31.131"
+        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc',
+                                '--rgw-endpoint=10.10.212.122:9000',
+                                '--monitoring-endpoint={}'.format(new_mon_ip),
+                                '--format=json'])
+        # for testing, we are using 'DummyRados' object
+        self.rjObj.cluster = DummyRados.Rados()
+        # check the provided monitoring ip is retrieved
+        mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+        if mon_ip != new_mon_ip:
+            self.fail("Supposed to return monitoring IP: {}".format(new_mon_ip))
+        new_mon_port = "3534"
+        self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
+        _, mon_port = self.rjObj.get_active_ceph_mgr()
+        if mon_port != new_mon_port:
+            self.fail("Supposed to return monitoring port: {}".format(new_mon_port))
+        for bad_mon_ip in ["10.33.21.300", "172.32.4.9.21"]:
+            self.rjObj._arg_parser.monitoring_endpoint = bad_mon_ip
+            try:
+                mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+                self.fail("An exception was expected")
+            except ExecutionFailureException as err:
+                print("Exception thrown successfully: {}".format(err))
+        # invalid port
+        self.rjObj._arg_parser.monitoring_endpoint_port = "90000"
+        try:
+            mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+            self.fail("An exception was expected")
+        except ExecutionFailureException as err:
+            print("Exception thrown successfully: {}".format(err))
+        # testing different monitoring port
+        new_mon_port = '9092'
+        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc', '--monitoring-endpoint-port={}'.format(new_mon_port),
+                                '--rgw-endpoint=10.10.212.122:9000', '--format=json'])
+        self.rjObj.cluster = DummyRados.Rados()
+        mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+        if mon_port != new_mon_port:
+            self.fail("monitoring endpoint port is supposed to be: {}".format(new_mon_port))
+        print("MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
