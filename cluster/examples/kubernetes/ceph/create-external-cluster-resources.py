@@ -218,19 +218,6 @@ class RadosJSON:
                 "Out of range port number: {}".format(port))
         return False
 
-<<<<<<< HEAD
-    def endpoint_dial(self, endpoint_str):
-        try:
-            ep = "http://" + endpoint_str
-            r = requests.head(ep)
-            rc = r.status_code
-            if rc != 200:
-                raise ExecutionFailureException(
-                    "wrong return code {} on rgw endpoint http header request".format(rc))
-        except requests.ConnectionError:
-            raise ExecutionFailureException(
-                "failed to connect to rgw endpoint {}".format(ep))
-=======
     def endpoint_dial(self, endpoint_str, timeout=3):
         # if the 'cluster' instance is a dummy one,
         # don't try to reach out to the endpoint
@@ -247,7 +234,6 @@ class RadosJSON:
                 continue
         raise ExecutionFailureException(
             "unable to connect to endpoint: {}".format(endpoint_str))
->>>>>>> 7b8da65c8... ceph: fixed existing test cases
 
     def __init__(self, arg_list=None):
         self.out_map = {}
