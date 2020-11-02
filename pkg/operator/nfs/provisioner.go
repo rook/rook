@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -37,6 +40,7 @@ const (
 	nfsServerNameSCParam      = "nfsServerName"
 	nfsServerNamespaceSCParam = "nfsServerNamespace"
 	exportNameSCParam         = "exportName"
+	projectBlockAnnotationKey = "nfs.rook.io/project_block"
 )
 
 var (
@@ -46,17 +50,28 @@ var (
 type Provisioner struct {
 	client     kubernetes.Interface
 	rookClient rookclient.Interface
+	quotaer    Quotaer
 }
 
 var _ controller.Provisioner = &Provisioner{}
 
 // NewNFSProvisioner returns an instance of nfsProvisioner
-func NewNFSProvisioner(clientset kubernetes.Interface, rookClientset rookclient.Interface) *Provisioner {
-	return &Provisioner{clientset, rookClientset}
+func NewNFSProvisioner(clientset kubernetes.Interface, rookClientset rookclient.Interface) (*Provisioner, error) {
+	quotaer, err := NewProjectQuota()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Provisioner{
+		client:     clientset,
+		rookClient: rookClientset,
+		quotaer:    quotaer,
+	}, nil
 }
 
 func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.PersistentVolume, error) {
 	logger.Infof("nfs provisioner: ProvisionOptions %v", options)
+	annotations := make(map[string]string)
 
 	if options.PVC.Spec.Selector != nil {
 		return nil, fmt.Errorf("claim Selector is not supported")
@@ -114,16 +129,25 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 		return nil, errors.New("unable to create directory to provision new pv: " + err.Error())
 	}
 
+	capacity := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
+	block, err := p.createQuota(exportPath, fullPath, strconv.FormatInt(capacity.Value(), 10))
+	if err != nil {
+		return nil, err
+	}
+
+	annotations[projectBlockAnnotationKey] = block
+
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: options.PVName,
+			Name:        options.PVName,
+			Annotations: annotations,
 		},
 		Spec: v1.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: *options.StorageClass.ReclaimPolicy,
 			AccessModes:                   options.PVC.Spec.AccessModes,
 			MountOptions:                  options.StorageClass.MountOptions,
 			Capacity: v1.ResourceList{
-				v1.ResourceName(v1.ResourceStorage): options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
+				v1.ResourceName(v1.ResourceStorage): capacity,
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				NFS: &v1.NFSVolumeSource{
@@ -183,8 +207,53 @@ func (p *Provisioner) Delete(volume *v1.PersistentVolume) error {
 		return fmt.Errorf("No export name from storageclass is match with NFSServer %s in namespace %s", nfsserver.Name, nfsserver.Namespace)
 	}
 
+	block, ok := volume.Annotations[projectBlockAnnotationKey]
+	if !ok {
+		return fmt.Errorf("PV doesn't have an annotation with key %s", projectBlockAnnotationKey)
+	}
+
+	if err := p.removeQuota(exportPath, block); err != nil {
+		return err
+	}
+
 	fullPath := path.Join(exportPath, pvName)
 	return os.RemoveAll(fullPath)
+}
+
+func (p *Provisioner) createQuota(exportPath, directory string, limit string) (string, error) {
+	projectsFile := filepath.Join(exportPath, "projects")
+	if _, err := os.Stat(projectsFile); err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+
+		return "", fmt.Errorf("error checking projects file in directory %s: %v", exportPath, err)
+	}
+
+	return p.quotaer.CreateProjectQuota(projectsFile, directory, limit)
+}
+
+func (p *Provisioner) removeQuota(exportPath, block string) error {
+	var projectID uint16
+	projectsFile := filepath.Join(exportPath, "projects")
+	if _, err := os.Stat(projectsFile); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return fmt.Errorf("error checking projects file in directory %s: %v", exportPath, err)
+	}
+
+	re := regexp.MustCompile("(?m:^([0-9]+):(.+):(.+)$)")
+	allMatches := re.FindAllStringSubmatch(block, -1)
+	for _, match := range allMatches {
+		digits := match[1]
+		if id, err := strconv.ParseUint(string(digits), 10, 16); err == nil {
+			projectID = uint16(id)
+		}
+	}
+
+	return p.quotaer.RemoveProjectQuota(projectID, projectsFile, block)
 }
 
 func (p *Provisioner) storageClassForPV(pv *v1.PersistentVolume) (*storagev1.StorageClass, error) {

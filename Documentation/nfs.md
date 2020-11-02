@@ -244,9 +244,10 @@ Save this file with name `rbac.yaml` and create with following command:
 kubectl create -f rbac.yaml
 ```
 
-This guide has 2 main examples that demonstrate exporting volumes with a NFS server:
+This guide has 3 main examples that demonstrate exporting volumes with a NFS server:
 
 1. [Default StorageClass example](#default-storageclass-example)
+1. [XFS StorageClass example](#xfs-storageclass-example)
 1. [Rook Ceph volume example](#rook-ceph-volume-example)
 
 ### Default StorageClass example
@@ -296,6 +297,95 @@ With the `nfs.yaml` file saved, now create the NFS server as shown:
 
 ```console
 kubectl create -f nfs.yaml
+```
+
+### XFS StorageClass example
+
+Rook NFS support disk quota through `xfs_quota`. So if you need specify disk quota for your volumes you can follow this example.
+
+In this example, we will use an underlying volume mounted as `xfs` with `prjquota` option. Before you can create that underlying volume, you need to create `StorageClass` with `xfs` filesystem and `prjquota` mountOptions. Many distributed storage providers for Kubernetes support `xfs` filesystem. Typically by defining `fsType: xfs` or `fs: xfs` in storageClass parameters. But actually how to specify storage-class filesystem type is depend on the storage providers it self. You can see https://kubernetes.io/docs/concepts/storage/storage-classes/ for more details.
+
+Here is example `StorageClass` for GCE PD and AWS EBS
+
+- GCE PD
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard-xfs
+parameters:
+  type: pd-standard
+  fsType: xfs
+mountOptions:
+  - prjquota
+provisioner: kubernetes.io/gce-pd
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+```
+
+- AWS EBS
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard-xfs
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: io1
+  iopsPerGB: "10"
+  fsType: xfs
+mountOptions:
+  - prjquota
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+```
+
+Once you already have `StorageClass` with `xfs` filesystem and `prjquota` mountOptions you can create NFS server instance with the following example.
+
+```yaml
+---
+# A storage class with name standard-xfs must be present.
+# The storage class must be has xfs filesystem type  and prjquota mountOptions.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-xfs-claim
+  namespace: rook-nfs
+spec:
+  storageClassName: "standard-xfs"
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: nfs.rook.io/v1alpha1
+kind: NFSServer
+metadata:
+  name: rook-nfs
+  namespace: rook-nfs
+spec:
+  replicas: 1
+  exports:
+  - name: share1
+    server:
+      accessMode: ReadWrite
+      squash: "none"
+    # A Persistent Volume Claim must be created before creating NFS CRD instance.
+    persistentVolumeClaim:
+      claimName: nfs-xfs-claim
+  # A key/value list of annotations
+  annotations:
+    rook: nfs
+```
+
+Save this PVC and NFS Server instance as `nfs-xfs.yaml` and create with following command.
+
+```console
+kubectl create -f nfs-xfs.yaml
 ```
 
 ### Rook Ceph volume example
@@ -483,6 +573,7 @@ kubectl delete -f busybox-rc.yaml
 kubectl delete -f pvc.yaml
 kubectl delete -f pv.yaml
 kubectl delete -f nfs.yaml
+kubectl delete -f nfs-xfs.yaml
 kubectl delete -f nfs-ceph.yaml
 kubectl delete -f rbac.yaml
 kubectl delete -f psp.yaml
