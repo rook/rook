@@ -182,6 +182,12 @@ if [ -n "$VAULT_CLIENT_KEY" ]; then
 	ARGS+=(--key "${VAULT_CLIENT_KEY}")
 fi
 
+# For a request to any host/port, connect to VAULT_TLS_SERVER_NAME:request's original port instead
+# Used for SNI validation and correct certificate matching
+if [ -n "$VAULT_TLS_SERVER_NAME" ]; then
+	ARGS+=(--connect-to ::"${VAULT_TLS_SERVER_NAME}":)
+fi
+
 # Check KV backend
 if [ -z "$VAULT_BACKEND" ]; then
 	VAULT_BACKEND=$VAULT_DEFAULT_BACKEND
