@@ -18,13 +18,15 @@ package osd
 
 import (
 	"fmt"
+	"strconv"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
@@ -91,11 +93,11 @@ func removeOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID
 				logger.Errorf("failed to delete deployment for OSD %d. %v", osdID, err)
 			}
 		}
-		const pvcLabelName = "ceph.rook.io/pvc"
-		if pvcName, ok := deployment.GetLabels()[pvcLabelName]; ok {
-			prepareJobList, err := context.Clientset.BatchV1().Jobs(clusterInfo.Namespace).List(metav1.ListOptions{LabelSelector: pvcLabelName + pvcName})
+		if pvcName, ok := deployment.GetLabels()[osd.OSDOverPVCLabelKey]; ok {
+			labelSelector := fmt.Sprintf("%s=%s", osd.OSDOverPVCLabelKey, pvcName)
+			prepareJobList, err := context.Clientset.BatchV1().Jobs(clusterInfo.Namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
 			if err != nil && !kerrors.IsNotFound(err) {
-				logger.Errorf("failed to list prepareJobs with labels %q. %v ", pvcLabelName+pvcName, err)
+				logger.Errorf("failed to list osd prepare jobs with pvc %q. %v ", pvcName, err)
 			}
 			// Remove osd prepare job
 			for _, prepareJob := range prepareJobList.Items {
@@ -106,15 +108,17 @@ func removeOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID
 						logger.Errorf("failed to delete prepare job for osd %q. %v", prepareJob.GetName(), err)
 					}
 				}
-
-				logger.Infof("removing the OSD PVC %q", pvcName)
-				if err := context.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Delete(pvcName, &metav1.DeleteOptions{}); err != nil {
-					if err != nil {
-						// Continue deleting the OSD PVC even if PVC deletion fails
-						logger.Errorf("failed to delete pvc for OSD %q. %v", pvcName, err)
-					}
+			}
+			// Remove the OSD PVC
+			logger.Infof("removing the OSD PVC %q", pvcName)
+			if err := context.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Delete(pvcName, &metav1.DeleteOptions{}); err != nil {
+				if err != nil {
+					// Continue deleting the OSD PVC even if PVC deletion fails
+					logger.Errorf("failed to delete pvc for OSD %q. %v", pvcName, err)
 				}
 			}
+		} else {
+			logger.Infof("did not find a pvc name to remove for osd %q", deploymentName)
 		}
 	}
 
