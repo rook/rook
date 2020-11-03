@@ -41,15 +41,97 @@ except ModuleNotFoundError:
     # for 3.x
     from io import StringIO
 
+try:
+    # for 2.7.x
+    from urlparse import urlparse
+except ModuleNotFoundError:
+    # for 3.x
+    from urllib.parse import urlparse
+
 
 class ExecutionFailureException(Exception):
     pass
+
+################################################
+################## DummyRados ##################
+################################################
+# this is mainly for testing and could be used where 'rados' is not available
+class DummyRados(object):
+    def __init__(self):
+        self.return_val = 0
+        self.err_message = ''
+        self.state = 'connected'
+        self.cmd_output_map = {}
+        self.cmd_names = {}
+        self._init_cmd_output_map()
+        self.dummy_host_ip_map = {}
+
+    def _init_cmd_output_map(self):
+        self.cmd_names['fs ls'] = '''{"format": "json", "prefix": "fs ls"}'''
+        self.cmd_names['quorum_status'] = '''{"format": "json", "prefix": "quorum_status"}'''
+        self.cmd_names['caps_change_default_pool_prefix'] = '''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}'''
+        # all the commands and their output
+        self.cmd_output_map[self.cmd_names['fs ls']
+                            ] = '''[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":2,"data_pool_ids":[3],"data_pools":["myfs-data0"]}]'''
+        self.cmd_output_map[self.cmd_names['quorum_status']] = '''{"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_leader_name":"a","quorum_age":14385,"features":{"quorum_con":"4540138292836696063","quorum_mon":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"]},"monmap":{"epoch":1,"fsid":"af4e1673-0b72-402d-990a-22d2919d0f1c","modified":"2020-05-07T03:36:39.918035Z","created":"2020-05-07T03:36:39.918035Z","min_mon_release":15,"min_mon_release_name":"octopus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.110.205.174:3300","nonce":0},{"type":"v1","addr":"10.110.205.174:6789","nonce":0}]},"addr":"10.110.205.174:6789/0","public_addr":"10.110.205.174:6789/0","priority":0,"weight":0}]}}'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "profile rbd", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd","osd":"profile rbd"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs *=*"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map['''{"format": "json", "prefix": "mgr services"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
+        self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
+        self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map[self.cmd_names['caps_change_default_pool_prefix']] = '''[{}]'''
+
+    def shutdown(self):
+        pass
+
+    def get_fsid(self):
+        return 'af4e1673-0b72-402d-990a-22d2919d0f1c'
+
+    def conf_read_file(self):
+        pass
+
+    def connect(self):
+        pass
+
+    def pool_exists(self, pool_name):
+        return True
+
+    def mon_command(self, cmd, out):
+        json_cmd = json.loads(cmd)
+        json_cmd_str = json.dumps(json_cmd, sort_keys=True)
+        cmd_output = self.cmd_output_map[json_cmd_str]
+        return self.return_val, \
+            cmd_output, \
+            "{}".format(self.err_message).encode('utf-8')
+
+    def  _convert_hostname_to_ip(self, host_name):
+        ip_reg_x = re.compile(r'\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}')
+        # if provided host is directly an IP address, return the same
+        if ip_reg_x.match(host_name):
+            return host_name
+        import random
+        host_ip = self.dummy_host_ip_map.get(host_name, "")
+        if not host_ip:
+            host_ip = "172.9.{}.{}".format(random.randint(0, 255), random.randint(0, 255))
+            self.dummy_host_ip_map[host_name] = host_ip
+        del random
+        return host_ip
+
+    @classmethod
+    def Rados(conffile=None):
+        return DummyRados()
+
 
 
 class RadosJSON:
     EXTERNAL_USER_NAME = "client.healthchecker"
     EMPTY_OUTPUT_LIST = "Empty output list"
     DEFAULT_RGW_POOL_PREFIX = "default"
+    DEFAULT_MONITORING_ENDPOINT_PORT = "9283"
 
     @classmethod
     def gen_arg_parser(cls, args_to_parse=None):
@@ -84,7 +166,7 @@ class RadosJSON:
                           help="Rados GateWay endpoint (in <IP>:<PORT> format)")
         output_group.add_argument("--monitoring-endpoint", default="", required=False,
                           help="Ceph Manager prometheus exporter endpoints comma separated list of <IP> entries")
-        output_group.add_argument("--monitoring-endpoint-port", default="9283", required=False,
+        output_group.add_argument("--monitoring-endpoint-port", default="", required=False,
                           help="Ceph Manager prometheus exporter port")
 
         upgrade_group = argP.add_argument_group('upgrade')
@@ -115,7 +197,7 @@ class RadosJSON:
             ipv4, port = endpoint_str.split(':')
         except ValueError:
             raise ExecutionFailureException(
-                "Not a proper endpoint: {}, <IP>:<PORT>, format is expected".format(endpoint_str))
+                "Not a proper endpoint: {}, <IPv4>:<PORT>, format is expected".format(endpoint_str))
         ipParts = ipv4.split('.')
         if len(ipParts) != 4:
             raise ExecutionFailureException(
@@ -137,6 +219,10 @@ class RadosJSON:
         return False
 
     def endpoint_dial(self, endpoint_str, timeout=3):
+        # if the 'cluster' instance is a dummy one,
+        # don't try to reach out to the endpoint
+        if isinstance(self.cluster, DummyRados):
+            return
         protocols = ["http", "https"]
         for prefix in protocols:
             try:
@@ -217,10 +303,33 @@ class RadosJSON:
         ip_port = str(q_leader_details['public_addr'].split('/')[0])
         return "{}={}".format(str(q_leader_name), ip_port)
 
+    def _join_host_port(self, endpoint, port):
+        port = "{}".format(port)
+        # regex to check the given endpoint is enclosed in square brackets
+        ipv6_regx = re.compile(r'^\[[^]]*\]$')
+        # endpoint has ':' in it and if not (already) enclosed in square brackets
+        if endpoint.count(':') and not ipv6_regx.match(endpoint):
+            endpoint = '[{}]'.format(endpoint)
+        if not port:
+            return endpoint
+        return ':'.join([endpoint, port])
+
+    def _convert_hostname_to_ip(self, host_name):
+        # if 'cluster' instance is a dummy type,
+        # call the dummy instance's "convert" method
+        if not host_name:
+            raise ExecutionFailureException("Empty hostname provided")
+        if isinstance(self.cluster, DummyRados):
+            return self.cluster._convert_hostname_to_ip(host_name)
+        import socket
+        ip = socket.gethostbyname(host_name)
+        del socket
+        return ip
+
     def get_active_ceph_mgr(self):
-        if self._arg_parser.monitoring_endpoint:
-            return self._arg_parser.monitoring_endpoint+':'+self._arg_parser.monitoring_endpoint_port
-        else:
+        monitoring_endpoint_port = self._arg_parser.monitoring_endpoint_port
+        monitoring_endpoint_ip = self._arg_parser.monitoring_endpoint
+        if not monitoring_endpoint_ip:
             cmd_json = {"prefix": "mgr services", "format": "json"}
             ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
             # if there is an unsuccessful attempt,
@@ -232,10 +341,28 @@ class RadosJSON:
             if not monitoring_endpoint:
                 raise ExecutionFailureException(
                     "'prometheus' service not found, is the exporter enabled?'.\n")
+            try:
+                parsed_endpoint = urlparse(monitoring_endpoint)
+            except ValueError:
+                raise ExecutionFailureException(
+                        "invalid endpoint: {}".format(monitoring_endpoint))
+            monitoring_endpoint_ip = parsed_endpoint.hostname
+            if not monitoring_endpoint_port:
+                monitoring_endpoint_port = "{}".format(parsed_endpoint.port)
 
-            monitoring_endpoint = monitoring_endpoint.replace("http://", "")
-            monitoring_endpoint = monitoring_endpoint.replace("/", "")
-            return monitoring_endpoint
+        # if monitoring endpoint port is not set, put a default mon port
+        if not monitoring_endpoint_port:
+            monitoring_endpoint_port = self.DEFAULT_MONITORING_ENDPOINT_PORT
+
+        try:
+            monitoring_endpoint_ip = self._convert_hostname_to_ip(monitoring_endpoint_ip)
+        except:
+            raise ExecutionFailureException(
+                "unable to convert a hostname to an IP address, monitoring host name: {}".format(monitoring_endpoint_ip))
+        monitoring_endpoint = self._join_host_port(monitoring_endpoint_ip, monitoring_endpoint_port)
+        self._invalid_endpoint(monitoring_endpoint)
+        self.endpoint_dial(monitoring_endpoint)
+        return monitoring_endpoint_ip, monitoring_endpoint_port
 
     def create_cephCSIKeyring_cephFSProvisioner(self):
         '''
@@ -437,10 +564,8 @@ class RadosJSON:
             self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_cephFSNode()
             self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_cephFSProvisioner()
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
-        self.out_map['MONITORING_ENDPOINT'] = self.get_active_ceph_mgr().split(":")[
-            0]
-        self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_ceph_mgr().split(":")[
-            1]
+        self.out_map['MONITORING_ENDPOINT'], \
+                self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_ceph_mgr()
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
 
@@ -562,7 +687,7 @@ class RadosJSON:
 
     def upgrade_user_permissions(self):
         # check whether the given user exists or not
-        cmd_json = {"prefix": "auth get", "entity": self.run_as_user, "format": "json"}
+        cmd_json = {"prefix": "auth get", "entity": "{}".format(self.run_as_user), "format": "json"}
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         if ret_val != 0 or len(json_out) == 0:
             raise ExecutionFailureException("'auth get {}' command failed.\n".format(self.run_as_user) +
@@ -646,67 +771,19 @@ if __name__ == '__main__':
 ################################################
 ##################### TEST #####################
 ################################################
-# this is mainly for testing and could be used where 'rados' is not available
-class DummyRados(object):
-    def __init__(self):
-        self.return_val = 0
-        self.err_message = ''
-        self.state = 'connected'
-        self.cmd_output_map = {}
-        self.cmd_names = {}
-        self._init_cmd_output_map()
-
-    def _init_cmd_output_map(self):
-        self.cmd_names['fs ls'] = '''{"format": "json", "prefix": "fs ls"}'''
-        self.cmd_names['quorum_status'] = '''{"format": "json", "prefix": "quorum_status"}'''
-        # all the commands and their output
-        self.cmd_output_map[self.cmd_names['fs ls']
-                            ] = '''[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":2,"data_pool_ids":[3],"data_pools":["myfs-data0"]}]'''
-        self.cmd_output_map[self.cmd_names['quorum_status']] = '''{"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_leader_name":"a","quorum_age":14385,"features":{"quorum_con":"4540138292836696063","quorum_mon":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"]},"monmap":{"epoch":1,"fsid":"af4e1673-0b72-402d-990a-22d2919d0f1c","modified":"2020-05-07T03:36:39.918035Z","created":"2020-05-07T03:36:39.918035Z","min_mon_release":15,"min_mon_release_name":"octopus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.110.205.174:3300","nonce":0},{"type":"v1","addr":"10.110.205.174:6789","nonce":0}]},"addr":"10.110.205.174:6789/0","public_addr":"10.110.205.174:6789/0","priority":0,"weight":0}]}}'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "profile rbd", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd","osd":"profile rbd"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs *=*"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
-
-    def shutdown(self):
-        pass
-
-    def get_fsid(self):
-        return 'af4e1673-0b72-402d-990a-22d2919d0f1c'
-
-    def conf_read_file(self):
-        pass
-
-    def connect(self):
-        pass
-
-    def mon_command(self, cmd, out):
-        json_cmd = json.loads(cmd)
-        json_cmd_str = json.dumps(json_cmd, sort_keys=True)
-        cmd_output = self.cmd_output_map[json_cmd_str]
-        return self.return_val, \
-            cmd_output, \
-            "{}".format(self.err_message).encode('utf-8')
-
-    @classmethod
-    def Rados(conffile=None):
-        return DummyRados()
-
-
 # inorder to test the package,
 # cd <script_directory>
 # python -m unittest --verbose <script_name_without_dot_py>
 class TestRadosJSON(unittest.TestCase):
     def setUp(self):
-        print("{}".format("I am in setup"))
+        print("\nI am in setup")
         self.rjObj = RadosJSON(['--rbd-data-pool-name=abc',
                                 '--rgw-endpoint=10.10.212.122:9000', '--format=json'])
         # for testing, we are using 'DummyRados' object
         self.rjObj.cluster = DummyRados.Rados()
 
     def tearDown(self):
-        print("{}".format("I am tearing down the setup"))
+        print("\nI am tearing down the setup\n")
         self.rjObj.shutdown()
 
     def test_method_main_output(self):
@@ -749,9 +826,9 @@ class TestRadosJSON(unittest.TestCase):
         # but no specific '--cephfs-filesystem-name' argument provided
         try:
             self.rjObj.get_cephfs_data_pool_details()
-            self.fail("An Exception was expected to be thrown")
+            print("As we are returning silently, no error thrown as expected")
         except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            self.fail("Supposed to get returned silently, but instead error thrown: {}".format(err))
         # pass an existing filesystem name
         try:
             self.rjObj._arg_parser.cephfs_filesystem_name = second_fs_details['name']
@@ -831,3 +908,68 @@ class TestRadosJSON(unittest.TestCase):
             self.fail("An Exception was expected to be thrown")
         except ExecutionFailureException as err:
             print("Successfully thrown error: {}".format(err))
+
+    def add_non_default_pool_prefix_cmd(self, non_default_pool_prefix):
+        json_cmd = json.loads(self.rjObj.cluster.cmd_names['caps_change_default_pool_prefix'])
+        cur_osd_caps = json_cmd['caps'][json_cmd['caps'].index('osd') + 1]
+        new_osd_caps = cur_osd_caps.replace('default.', '{}.'.format(non_default_pool_prefix))
+        all_osd_caps = "{}, {}".format(new_osd_caps, cur_osd_caps)
+        caps_list = [x.strip() for x in all_osd_caps.split(',') if x.strip()]
+        new_caps_list = []
+        [new_caps_list.append(x) for x in caps_list if x not in new_caps_list]
+        all_osd_caps = ", ".join(new_caps_list)
+        json_cmd['caps'][json_cmd['caps'].index('osd') + 1] = all_osd_caps
+        self.rjObj.cluster.cmd_names['caps_change_non_default_pool_prefix'] = json.dumps(json_cmd)
+        self.rjObj.cluster.cmd_output_map[
+                self.rjObj.cluster.cmd_names['caps_change_non_default_pool_prefix']] = '[{}]'
+
+    def test_upgrade_user_permissions(self):
+        self.rjObj = RadosJSON(['--upgrade', '--run-as-user=client.healthchecker'])
+        # for testing, we are using 'DummyRados' object
+        self.rjObj.cluster = DummyRados.Rados()
+        self.rjObj.main()
+        self.rjObj = RadosJSON(['--upgrade', '--run-as-user=client.healthchecker', '--rgw-pool-prefix=nonDefault'])
+        self.rjObj.cluster = DummyRados.Rados()
+        self.add_non_default_pool_prefix_cmd('nonDefault')
+        self.rjObj.main()
+
+    def test_monitoring_endpoint_validation(self):
+        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc', '--format=json'])
+        self.rjObj.cluster = DummyRados.Rados()
+
+        valid_ip_ports = [("10.22.31.131", "3534"),
+                ("10.177.3.81", ""), ("", ""), ("", "9092")]
+        for each_ip_port_pair in valid_ip_ports:
+            # reset monitoring ip and port
+            self.rjObj._arg_parser.monitoring_endpoint = ''
+            self.rjObj._arg_parser.monitoring_endpoint_port = ''
+            new_mon_ip, new_mon_port = each_ip_port_pair
+            check_ip_val = self.rjObj.cluster.dummy_host_ip_map.get(new_mon_ip, new_mon_ip)
+            check_port_val = RadosJSON.DEFAULT_MONITORING_ENDPOINT_PORT
+            if new_mon_ip:
+                self.rjObj._arg_parser.monitoring_endpoint = new_mon_ip
+            if new_mon_port:
+                check_port_val = new_mon_port
+                self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
+            # for testing, we are using 'DummyRados' object
+            mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+            if check_ip_val and check_ip_val != mon_ip:
+                self.fail("Expected IP: {}, Returned IP: {}".format(check_ip_val, mon_ip))
+            if check_port_val and check_port_val != mon_port:
+                self.fail("Expected Port: '{}', Returned Port: '{}'".format(check_port_val, mon_port))
+            print("MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
+
+        invalid_ip_ports = [("10.22.31.131.43", "5334"),
+                ("10.177.3.81", "90320"), ("", "73422"), ("10.292.12.8", "9092")]
+        for each_ip_port_pair in invalid_ip_ports:
+            new_mon_ip, new_mon_port = each_ip_port_pair
+            if new_mon_ip:
+                self.rjObj._arg_parser.monitoring_endpoint = new_mon_ip
+            if new_mon_port:
+                self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
+            try:
+                mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+                print("[Wrong] MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
+                self.fail("An exception was expected")
+            except ExecutionFailureException as err:
+                print("Exception thrown successfully: {}".format(err))
