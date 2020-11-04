@@ -24,6 +24,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 const (
@@ -47,18 +48,21 @@ func getNFSNodeID(n *cephv1.CephNFS, name string) string {
 	return fmt.Sprintf("%s.%s", n.Name, name)
 }
 
-func getGaneshaConfigObject(clusterName string) string {
-	return fmt.Sprintf("conf-nfs.%s", clusterName)
+func getGaneshaConfigObject(n *cephv1.CephNFS, version cephver.CephVersion, name string) string {
+	if version.IsAtLeastOctopus() {
+		return fmt.Sprintf("conf-nfs.ganesha-%s", n.Name)
+	}
+	return fmt.Sprintf("conf-%s", getNFSNodeID(n, name))
 }
 
-func getRadosURL(n *cephv1.CephNFS) string {
+func getRadosURL(n *cephv1.CephNFS, version cephver.CephVersion, name string) string {
 	url := fmt.Sprintf("rados://%s/", n.Spec.RADOS.Pool)
 
 	if n.Spec.RADOS.Namespace != "" {
 		url += n.Spec.RADOS.Namespace + "/"
 	}
 
-	url += getGaneshaConfigObject(n.Name)
+	url += getGaneshaConfigObject(n, version, name)
 	return url
 }
 
@@ -88,10 +92,10 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 	return s.CreateOrUpdate(instanceName(n, name), keyring)
 }
 
-func getGaneshaConfig(n *cephv1.CephNFS, name string) string {
+func getGaneshaConfig(n *cephv1.CephNFS, version cephver.CephVersion, name string) string {
 	nodeID := getNFSNodeID(n, name)
 	userID := getNFSUserID(nodeID)
-	url := getRadosURL(n)
+	url := getRadosURL(n, version, name)
 	return `
 NFS_CORE_PARAM {
 	Enable_NLM = false;

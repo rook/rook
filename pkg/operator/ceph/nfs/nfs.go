@@ -57,7 +57,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
 			return errors.Wrap(err, "failed to create config")
 		}
 
-		err = r.addRADOSConfigFile(n)
+		err = r.addRADOSConfigFile(n, id)
 		if err != nil {
 			return errors.Wrap(err, "failed to create RADOS config object")
 		}
@@ -125,8 +125,8 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
 }
 
 // Create empty config file for new ganesha server
-func (r *ReconcileCephNFS) addRADOSConfigFile(n *cephv1.CephNFS) error {
-	config := getGaneshaConfigObject(n.Name)
+func (r *ReconcileCephNFS) addRADOSConfigFile(n *cephv1.CephNFS, name string) error {
+	config := getGaneshaConfigObject(n, r.clusterInfo.CephVersion, name)
 	cmd := "rados"
 	args := []string{
 		"--pool", n.Spec.RADOS.Pool,
@@ -173,11 +173,11 @@ func (r *ReconcileCephNFS) runGaneshaRadosGrace(nfs *cephv1.CephNFS, name, actio
 func (r *ReconcileCephNFS) generateConfigMap(n *cephv1.CephNFS, name string) *v1.ConfigMap {
 
 	data := map[string]string{
-		"config": getGaneshaConfig(n, name),
+		"config": getGaneshaConfig(n, r.clusterInfo.CephVersion, name),
 	}
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s-%s", AppName, n.Name, name),
+			Name:      instanceName(n, name),
 			Namespace: n.Namespace,
 			Labels:    getLabels(n, name, true),
 		},
