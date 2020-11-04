@@ -516,7 +516,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	}
 	logger.Infof("installed rook operator and cluster : %s on k8s %s", namespace, h.k8sVersion)
 
-	if !utils.IsPlatformOpenShift() && rookVersion != Version1_2 && h.k8shelper.VersionAtLeast("v1.15.0") {
+	if !utils.IsPlatformOpenShift() && h.k8shelper.VersionAtLeast("v1.15.0") {
 		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", onamespace, "Running") {
 			assert.Fail(h.T(), "admission controller is not running")
 		}
@@ -843,7 +843,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 		k8sVersion:      version.String(),
 		CephVersion:     cephVersion,
 		cleanupHost:     cleanupHost,
-		changeHostnames: rookVersion != Version1_2 && k8shelp.VersionAtLeast("v1.13.0"),
+		changeHostnames: k8shelp.VersionAtLeast("v1.18.0"),
 		T:               t,
 	}
 	flag.Parse()
