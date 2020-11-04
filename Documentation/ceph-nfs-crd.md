@@ -78,8 +78,10 @@ spec:
 All daemons within a cluster will share configuration with no exports defined, and that includes a RADOS object via:
 
 ```ini
-%url  rados://<pool>/<namespace>/conf-nfs.<clustername>
+%url  rados://<pool>/<namespace>/conf-nfs.ganesha-<clustername>
 ```
+
+> **NOTE**: This format of nfs-ganesha config object name was introduced in Ceph Octopus Version. In older versions, each daemon has it's own config object and with the name as *conf-<clustername>.<nodeid>*. The nodeid is a value automatically assigned internally by rook. Nodeids start with "a" and go through "z", at which point they become two letters ("aa" to "az").
 
 The pool and namespace are configured via the spec's RADOS block.
 
