@@ -54,8 +54,7 @@ var (
 	cvLogDir      = ""
 	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
 	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
-
-	isEncrypted = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
+	isEncrypted                     = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
 )
 
 type osdInfoBlock struct {

@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -532,6 +533,150 @@ func TestConfigureCVDevices(t *testing.T) {
 		assert.Equal(t, true, deviceOSD.LVBackedPV)
 		assert.Equal(t, "lvm", deviceOSD.CVMode)
 		assert.Equal(t, "bluestore", deviceOSD.Store)
+	}
+}
+
+func testBaseArgs(args []string) error {
+	if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" && args[4] == "lvm" && args[5] == "batch" && args[6] == "--prepare" && args[7] == "--bluestore" && args[8] == "--yes" {
+		return nil
+	}
+
+	return errors.Errorf("unknown args %s ", args)
+}
+
+func TestInitializeBlock(t *testing.T) {
+	// Common vars for all the tests
+	devices := &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{
+			"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda"}},
+		},
+	}
+
+	// Test default behavior
+	{
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" {
+				return nil
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--report" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}}, nodeName: "node1"}
+		context := &clusterd.Context{Executor: executor}
+
+		err := a.initializeDevices(context, devices)
+		assert.NoError(t, err, "failed default behavior test")
+		logger.Info("success, go to next test")
+	}
+
+	// Test encryption behavior
+	{
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// First command
+			if args[9] == "--dmcrypt" && args[10] == "--osds-per-device" && args[11] == "1" && args[12] == "/dev/sda" {
+				return nil
+			}
+
+			// Second command
+			if args[9] == "--dmcrypt" && args[10] == "--osds-per-device" && args[11] == "1" && args[12] == "/dev/sda" && args[13] == "--report" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}}, nodeName: "node1", storeConfig: config.StoreConfig{EncryptedDevice: true}}
+		context := &clusterd.Context{Executor: executor}
+
+		err := a.initializeDevices(context, devices)
+		assert.NoError(t, err, "failed encryption test")
+		logger.Info("success, go to next test")
+	}
+
+	// Test multiple OSD per device
+	{
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "3" && args[11] == "/dev/sda" {
+				return nil
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "3" && args[11] == "/dev/sda" && args[12] == "--report" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}}, nodeName: "node1", storeConfig: config.StoreConfig{OSDsPerDevice: 3}}
+		context := &clusterd.Context{Executor: executor}
+
+		err := a.initializeDevices(context, devices)
+		assert.NoError(t, err, "failed multiple osd test")
+		logger.Info("success, go to next test")
+	}
+
+	// Test crush device class
+	{
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--crush-device-class" && args[13] == "hybrid" {
+				return nil
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--crush-device-class" && args[13] == "hybrid" && args[14] == "--report" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}}, nodeName: "node1", storeConfig: config.StoreConfig{DeviceClass: "hybrid"}}
+		context := &clusterd.Context{Executor: executor}
+		err := a.initializeDevices(context, devices)
+		assert.NoError(t, err, "failed crush device class test")
+		logger.Info("success, go to next test")
 	}
 }
 
