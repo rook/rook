@@ -536,8 +536,8 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				}...)
 
 				logger.Infof("Base command - %+v", baseCommand)
-				logger.Infof("immediateReportArgs - %+v", baseCommand)
 				logger.Infof("immediateExecuteArgs - %+v", immediateExecuteArgs)
+				logger.Infof("immediateReportArgs - %+v", immediateReportArgs)
 				if err := context.Executor.ExecuteCommand(baseCommand, immediateReportArgs...); err != nil {
 					return errors.Wrap(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
 				}
