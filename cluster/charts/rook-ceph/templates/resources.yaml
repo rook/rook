@@ -282,6 +282,18 @@ spec:
                         iteration:
                           type: integer
                           format: int32
+                security:
+                  type: object
+                  properties:
+                    kms:
+                      type: object
+                      properties:
+                        connectionDetails:
+                          type: object
+                          nullable: true
+                          x-kubernetes-preserve-unknown-fields: true
+                        tokenSecretName:
+                          type: string
                 annotations:
                   type: object
                   nullable: true
@@ -1272,7 +1284,9 @@ spec:
               x-kubernetes-preserve-unknown-fields: true
       subresources:
         status: {}
+---    
 {{- else }}
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -1438,6 +1452,7 @@ spec:
                   type: boolean
             placement: {}
             resources: {}
+            security: {}
             cleanupPolicy:
               properties:
                 confirmation:
@@ -1454,16 +1469,6 @@ spec:
                     iteration:
                       type: integer
                       format: int32
-            security:
-              properties:
-                kms:
-                  properties:
-                    connectionDetails:
-                      type: object
-                      nullable: true
-                      x-kubernetes-preserve-unknown-fields: true
-                    tokenSecretName:
-                      type: string
   additionalPrinterColumns:
     - name: DataDirHostPath
       type: string

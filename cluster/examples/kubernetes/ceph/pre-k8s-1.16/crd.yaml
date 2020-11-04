@@ -202,6 +202,7 @@ spec:
                     iteration:
                       type: integer
                       format: int32
+            security: {}
             placement: {}
             resources: {}
             healthCheck: {}
