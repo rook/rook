@@ -349,9 +349,13 @@ available with Ceph-CSI v3.0.
 First apply new resources. This includes slightly modified privileges (RBAC) needed by the Operator
 and updates to the Custom Resource Definitions (CRDs).
 
+> **IMPORTANT:** If you are using Kubernetes version v1.15 or lower, you will need to manually
+> modify the `upgrade-from-v1.4-apply.yaml` file to use
+> `rbac.authorization.k8s.io/v1beta1` instead of `rbac.authorization.k8s.io/v1`
+> You will also need to apply `pre-k8s-1.16/crd.yaml` instead of `upgrade-from-v1.4-crds.yaml`.
+
 ```sh
-kubectl delete -f upgrade-from-v1.3-delete.yaml
-kubectl apply -f upgrade-from-v1.3-apply.yaml -f upgrade-from-v1.3-crds.yaml
+kubectl apply -f upgrade-from-v1.4-apply.yaml -f upgrade-from-v1.4-crds.yaml
 ```
 
 ## 3. Update Ceph CSI version to v3.0
