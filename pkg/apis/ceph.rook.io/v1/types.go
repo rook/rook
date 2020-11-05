@@ -380,9 +380,10 @@ type MirrorHealthCheckSpec struct {
 }
 
 type CephBlockPoolStatus struct {
-	Phase           ConditionType        `json:"phase,omitempty"`
-	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
-	MirroringInfo   *MirroringInfoSpec   `json:"mirroringInfo,omitempty"`
+	Phase                  ConditionType               `json:"phase,omitempty"`
+	MirroringStatus        *MirroringStatusSpec        `json:"mirroringStatus,omitempty"`
+	MirroringInfo          *MirroringInfoSpec          `json:"mirroringInfo,omitempty"`
+	SnapshotScheduleStatus *SnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
 	// Use only info and put mirroringStatus in it?
 	Info map[string]string `json:"info,omitempty"`
 }
@@ -399,6 +400,14 @@ type SummarySpec map[string]interface{}
 
 // MirroringInfoSpec is the status of the pool mirroring
 type MirroringInfoSpec struct {
+	Summary     SummarySpec `json:"summary,omitempty"`
+	LastChecked string      `json:"lastChecked,omitempty"`
+	LastChanged string      `json:"lastChanged,omitempty"`
+	Details     string      `json:"details,omitempty"`
+}
+
+// SnapshotScheduleStatus is the status of the snapshot schedule
+type SnapshotScheduleStatusSpec struct {
 	Summary     SummarySpec `json:"summary,omitempty"`
 	LastChecked string      `json:"lastChecked,omitempty"`
 	LastChanged string      `json:"lastChanged,omitempty"`
@@ -427,13 +436,25 @@ type ReplicatedSpec struct {
 	SubFailureDomain string `json:"subFailureDomain,omitempty"`
 }
 
-// MirroredSpec represents the setting for a mirrored pool
+// MirroringSpec represents the setting for a mirrored pool
 type MirroringSpec struct {
 	// Enabled whether this pool is mirrored or not
 	Enabled bool `json:"enabled,omitempty"`
 
 	// Mode is the mirroring mode: either "pool" or "image"
 	Mode string `json:"mode,omitempty"`
+
+	// SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
+	SnapshotSchedules []SnapshotScheduleSpec `json:"snapshotSchedules,omitempty"`
+}
+
+// SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
+type SnapshotScheduleSpec struct {
+	// Interval represent the periodicity of the snapshot.
+	Interval string `json:"interval,omitempty"`
+
+	// StartTime indicates when to start the snapshot
+	StartTime string `json:"startTime,omitempty"`
 }
 
 // ErasureCodeSpec represents the spec for erasure code in a pool

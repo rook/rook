@@ -31,29 +31,29 @@ const (
 )
 
 type mirrorChecker struct {
-	context         *clusterd.Context
-	interval        time.Duration
-	client          client.Client
-	clusterInfo     *cephclient.ClusterInfo
-	namespacedName  types.NamespacedName
-	healthCheckSpec *cephv1.MirrorHealthCheckSpec
-	poolName        string
+	context        *clusterd.Context
+	interval       time.Duration
+	client         client.Client
+	clusterInfo    *cephclient.ClusterInfo
+	namespacedName types.NamespacedName
+	poolSpec       *cephv1.PoolSpec
+	poolName       string
 }
 
 // newMirrorChecker creates a new HealthChecker object
-func newMirrorChecker(context *clusterd.Context, client client.Client, clusterInfo *cephclient.ClusterInfo, namespacedName types.NamespacedName, healthCheckSpec *cephv1.MirrorHealthCheckSpec, poolName string) *mirrorChecker {
+func newMirrorChecker(context *clusterd.Context, client client.Client, clusterInfo *cephclient.ClusterInfo, namespacedName types.NamespacedName, poolSpec *cephv1.PoolSpec, poolName string) *mirrorChecker {
 	c := &mirrorChecker{
-		context:         context,
-		interval:        defaultHealthCheckInterval,
-		clusterInfo:     clusterInfo,
-		namespacedName:  namespacedName,
-		client:          client,
-		healthCheckSpec: healthCheckSpec,
-		poolName:        poolName,
+		context:        context,
+		interval:       defaultHealthCheckInterval,
+		clusterInfo:    clusterInfo,
+		namespacedName: namespacedName,
+		client:         client,
+		poolSpec:       poolSpec,
+		poolName:       poolName,
 	}
 
 	// allow overriding the check interval
-	checkInterval := healthCheckSpec.Mirror.Interval
+	checkInterval := poolSpec.StatusCheck.Mirror.Interval
 	if checkInterval != "" {
 		if duration, err := time.ParseDuration(checkInterval); err == nil {
 			logger.Infof("pool mirroring status check interval for block pool %q is %q", namespacedName.Name, checkInterval)
@@ -69,7 +69,7 @@ func (c *mirrorChecker) checkMirroring(stopCh chan struct{}) {
 	// check the mirroring health immediately before starting the loop
 	err := c.checkMirroringHealth()
 	if err != nil {
-		c.updateStatusMirroring(nil, nil, err.Error())
+		c.updateStatusMirroring(nil, nil, nil, err.Error())
 		logger.Debugf("failed to check pool mirroring status for ceph block pool %q. %v", c.namespacedName.Name, err)
 	}
 
@@ -83,7 +83,7 @@ func (c *mirrorChecker) checkMirroring(stopCh chan struct{}) {
 			logger.Debugf("checking pool mirroring status %q", c.namespacedName.Name)
 			err := c.checkMirroringHealth()
 			if err != nil {
-				c.updateStatusMirroring(nil, nil, err.Error())
+				c.updateStatusMirroring(nil, nil, nil, err.Error())
 				logger.Debugf("failed to check pool mirroring status for ceph block pool %q. %v", c.namespacedName.Name, err)
 			}
 		}
@@ -94,17 +94,26 @@ func (c *mirrorChecker) checkMirroringHealth() error {
 	// Check mirroring status
 	mirrorStatus, err := cephclient.GetPoolMirroringStatus(c.context, c.clusterInfo, c.poolName)
 	if err != nil {
-		c.updateStatusMirroring(nil, nil, err.Error())
+		c.updateStatusMirroring(nil, nil, nil, err.Error())
 	}
 
 	// Check mirroring info
 	mirrorInfo, err := cephclient.GetPoolMirroringInfo(c.context, c.clusterInfo, c.poolName)
 	if err != nil {
-		c.updateStatusMirroring(nil, nil, err.Error())
+		c.updateStatusMirroring(nil, nil, nil, err.Error())
+	}
+
+	// If snapshot scheduling is enabled let's add it to the status
+	snapSchedStatus := []cephclient.SnapshotScheduleStatus{}
+	if c.poolSpec.Mirroring.SnapshotSchedulesEnabled() {
+		snapSchedStatus, err = cephclient.GetSnapshotScheduleStatus(c.context, c.clusterInfo, c.poolName)
+		if err != nil {
+			c.updateStatusMirroring(nil, nil, nil, err.Error())
+		}
 	}
 
 	// On success
-	c.updateStatusMirroring(mirrorStatus, mirrorInfo, "")
+	c.updateStatusMirroring(mirrorStatus, mirrorInfo, snapSchedStatus, "")
 
 	return nil
 }

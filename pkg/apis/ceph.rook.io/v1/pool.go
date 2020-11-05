@@ -106,3 +106,8 @@ func (p *CephBlockPool) ValidateUpdate(old runtime.Object) error {
 func (p *CephBlockPool) ValidateDelete() error {
 	return nil
 }
+
+// SnapshotSchedulesEnabled returns whether snapshot schedules are desired
+func (p *MirroringSpec) SnapshotSchedulesEnabled() bool {
+	return len(p.SnapshotSchedules) > 0
+}

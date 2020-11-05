@@ -685,6 +685,13 @@ spec:
                   enum:
                   - image
                   - pool
+                snapshotSchedules:
+                  type: object
+                  properties:
+                    interval:
+                      type: string
+                    startTime:
+                      type: string
   subresources:
     status: {}
 
