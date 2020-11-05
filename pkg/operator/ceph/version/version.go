@@ -47,11 +47,14 @@ var (
 	// Pacific Ceph version
 	Pacific = CephVersion{16, 0, 0, 0}
 
+	// cephVolumeLVMDiskSortingCephVersion introduced a major regression in c-v and thus is not suitable for production
+	cephVolumeLVMDiskSortingCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 13}
+
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions   = []CephVersion{Nautilus, Octopus}
-	unsupportedVersions = []CephVersion{Pacific}
-	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
-	allVersions = append(supportedVersions, unsupportedVersions...)
+	supportedVersions = []CephVersion{Nautilus, Octopus}
+
+	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
+	unsupportedVersions = []CephVersion{cephVolumeLVMDiskSortingCephVersion}
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)
@@ -132,8 +135,22 @@ func (v *CephVersion) Supported() bool {
 	return false
 }
 
+// Unsupported checks if a given release is supported
+func (v *CephVersion) Unsupported() bool {
+	for _, sv := range unsupportedVersions {
+		if v.isExactly(sv) {
+			return true
+		}
+	}
+	return false
+}
+
 func (v *CephVersion) isRelease(other CephVersion) bool {
 	return v.Major == other.Major
+}
+
+func (v *CephVersion) isExactly(other CephVersion) bool {
+	return v.Major == other.Major && v.Minor == other.Minor && v.Extra == other.Extra
 }
 
 // IsNautilus checks if the Ceph version is Nautilus
