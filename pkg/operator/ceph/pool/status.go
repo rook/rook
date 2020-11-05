@@ -56,7 +56,7 @@ func updateStatus(client client.Client, poolName types.NamespacedName, status ce
 }
 
 // updateStatusBucket updates an object with a given status
-func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephclient.PoolMirroringStatus, mirrorInfo *cephclient.PoolMirroringInfo, details string) {
+func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephclient.PoolMirroringStatus, mirrorInfo *cephclient.PoolMirroringInfo, snapSchedStatus []cephclient.SnapshotScheduleStatus, details string) {
 	blockPool := &cephv1.CephBlockPool{}
 	if err := c.client.Get(context.TODO(), c.namespacedName, blockPool); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -69,7 +69,9 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephclient.PoolMirro
 	if blockPool.Status == nil {
 		blockPool.Status = &cephv1.CephBlockPoolStatus{}
 	}
-	blockPool.Status.MirroringStatus, blockPool.Status.MirroringInfo = toCustomResourceStatus(blockPool.Status.MirroringStatus, mirrorStatus, blockPool.Status.MirroringInfo, mirrorInfo, details)
+
+	// Update the CephBlockPool CR status field
+	blockPool.Status.MirroringStatus, blockPool.Status.MirroringInfo, blockPool.Status.SnapshotScheduleStatus = toCustomResourceStatus(blockPool.Status.MirroringStatus, mirrorStatus, blockPool.Status.MirroringInfo, mirrorInfo, blockPool.Status.SnapshotScheduleStatus, snapSchedStatus, details)
 	if err := opcontroller.UpdateStatus(c.client, blockPool); err != nil {
 		logger.Errorf("failed to set ceph block pool %q mirroring status. %v", c.namespacedName.Name, err)
 		return
@@ -78,9 +80,13 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephclient.PoolMirro
 	logger.Debugf("ceph block pool %q mirroring status updated", c.namespacedName.Name)
 }
 
-func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroringStatus *cephclient.PoolMirroringStatus, currentInfo *cephv1.MirroringInfoSpec, mirroringInfo *cephclient.PoolMirroringInfo, details string) (*cephv1.MirroringStatusSpec, *cephv1.MirroringInfoSpec) {
+func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroringStatus *cephclient.PoolMirroringStatus,
+	currentInfo *cephv1.MirroringInfoSpec, mirroringInfo *cephclient.PoolMirroringInfo,
+	currentSnapSchedStatus *cephv1.SnapshotScheduleStatusSpec, snapSchedStatus []cephclient.SnapshotScheduleStatus,
+	details string) (*cephv1.MirroringStatusSpec, *cephv1.MirroringInfoSpec, *cephv1.SnapshotScheduleStatusSpec) {
 	mirroringStatusSpec := &cephv1.MirroringStatusSpec{}
 	mirroringInfoSpec := &cephv1.MirroringInfoSpec{}
+	snapshotScheduleStatusSpec := &cephv1.SnapshotScheduleStatusSpec{}
 
 	// mirroringStatus will be nil in case of an error to fetch it
 	if mirroringStatus != nil {
@@ -113,5 +119,20 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 		mirroringInfoSpec.LastChanged = currentInfo.LastChecked
 	}
 
-	return mirroringStatusSpec, mirroringInfoSpec
+	// snapSchedStatus will be nil in case of an error to fetch it
+	if len(snapSchedStatus) != 0 {
+		if snapshotScheduleStatusSpec.Summary == nil {
+			snapshotScheduleStatusSpec.Summary = make(map[string]interface{})
+		}
+		snapshotScheduleStatusSpec.LastChecked = time.Now().UTC().Format(time.RFC3339)
+		snapshotScheduleStatusSpec.Summary["summary"] = snapSchedStatus
+	}
+	// Always display the details, typically an error
+	snapshotScheduleStatusSpec.Details = details
+
+	if currentSnapSchedStatus != nil {
+		snapshotScheduleStatusSpec.LastChanged = currentSnapSchedStatus.LastChecked
+	}
+
+	return mirroringStatusSpec, mirroringInfoSpec, snapshotScheduleStatusSpec
 }

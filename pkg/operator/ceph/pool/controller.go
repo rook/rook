@@ -232,6 +232,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to fetch ceph version from cephcluster %q", cephCluster.Name)
 	}
+	r.clusterInfo.CephVersion = *cephVersion
 
 	// If the CephCluster has enabled the "pg_autoscaler" module and is running Nautilus
 	// we force the pg_autoscale_mode to "on"
@@ -275,7 +276,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			if r.blockPoolChannels[cephBlockPool.Name].monitoringRunning {
 				logger.Debug("external rgw endpoint monitoring go routine already running!")
 			} else {
-				checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &cephBlockPool.Spec.StatusCheck, cephBlockPool.Name)
+				checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &cephBlockPool.Spec, cephBlockPool.Name)
 				go checker.checkMirroring(r.blockPoolChannels[cephBlockPool.Name].stopChan)
 			}
 		}
