@@ -575,6 +575,8 @@ spec:
                   properties:
                     failureDomain:
                       type: string
+                    deviceClass:
+                      type: string
                     crushRoot:
                       type: string
                     replicated:
@@ -621,6 +623,8 @@ spec:
                     type: object
                     properties:
                       failureDomain:
+                        type: string
+                      deviceClass:
                         type: string
                       crushRoot:
                         type: string
