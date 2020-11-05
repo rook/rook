@@ -164,6 +164,10 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 			}
 			logger.Warningf("unsupported ceph version detected: %q, pursuing", version)
 		}
+
+		if version.Unsupported() {
+			logger.Errorf("UNSUPPORTED: ceph version %q detected, it is recommended to rollback to the previous pin-point stable release, pursuing anyways", version)
+		}
 	}
 
 	// The following tries to determine if the operator can proceed with an upgrade because we come from an OnAdd() call
