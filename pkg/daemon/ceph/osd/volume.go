@@ -54,8 +54,7 @@ var (
 	cvLogDir      = ""
 	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
 	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
-
-	isEncrypted = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
+	isEncrypted                     = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
 )
 
 type osdInfoBlock struct {
@@ -524,10 +523,10 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 					deviceArg,
 				}...)
 
-				if device.Config.DeviceClass != "" {
+				if a.storeConfig.DeviceClass != "" {
 					immediateExecuteArgs = append(immediateExecuteArgs, []string{
 						crushDeviceClassFlag,
-						device.Config.DeviceClass,
+						a.storeConfig.DeviceClass,
 					}...)
 				}
 
@@ -537,8 +536,8 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 				}...)
 
 				logger.Infof("Base command - %+v", baseCommand)
-				logger.Infof("immediateReportArgs - %+v", baseCommand)
 				logger.Infof("immediateExecuteArgs - %+v", immediateExecuteArgs)
+				logger.Infof("immediateReportArgs - %+v", immediateReportArgs)
 				if err := context.Executor.ExecuteCommand(baseCommand, immediateReportArgs...); err != nil {
 					return errors.Wrap(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
 				}
