@@ -56,6 +56,8 @@ class ExecutionFailureException(Exception):
 ################## DummyRados ##################
 ################################################
 # this is mainly for testing and could be used where 'rados' is not available
+
+
 class DummyRados(object):
     def __init__(self):
         self.return_val = 0
@@ -108,7 +110,7 @@ class DummyRados(object):
             cmd_output, \
             "{}".format(self.err_message).encode('utf-8')
 
-    def  _convert_hostname_to_ip(self, host_name):
+    def _convert_hostname_to_ip(self, host_name):
         ip_reg_x = re.compile(r'\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}')
         # if provided host is directly an IP address, return the same
         if ip_reg_x.match(host_name):
@@ -116,7 +118,8 @@ class DummyRados(object):
         import random
         host_ip = self.dummy_host_ip_map.get(host_name, "")
         if not host_ip:
-            host_ip = "172.9.{}.{}".format(random.randint(0, 255), random.randint(0, 255))
+            host_ip = "172.9.{}.{}".format(
+                random.randint(0, 255), random.randint(0, 255))
             self.dummy_host_ip_map[host_name] = host_ip
         del random
         return host_ip
@@ -124,7 +127,6 @@ class DummyRados(object):
     @classmethod
     def Rados(conffile=None):
         return DummyRados()
-
 
 
 class RadosJSON:
@@ -139,39 +141,39 @@ class RadosJSON:
 
         common_group = argP.add_argument_group('common')
         common_group.add_argument("--verbose", "-v",
-                          action='store_true', default=False)
+                                  action='store_true', default=False)
         common_group.add_argument("--ceph-conf", "-c",
-                          help="Provide a ceph conf file.", type=str)
+                                  help="Provide a ceph conf file.", type=str)
         common_group.add_argument("--run-as-user", "-u", default="", type=str,
-                          help="Provides a user name to check the cluster's health status, must be prefixed by 'client.'")
+                                  help="Provides a user name to check the cluster's health status, must be prefixed by 'client.'")
         common_group.add_argument("--cluster-name", default="openshift-storage",
-                          help="Ceph cluster name")
+                                  help="Ceph cluster name")
         common_group.add_argument("--namespace", default="",
-                          help="Namespace where CephCluster is running")
+                                  help="Namespace where CephCluster is running")
         common_group.add_argument("--rgw-pool-prefix", default="",
-                          help="RGW Pool prefix")
+                                  help="RGW Pool prefix")
 
         output_group = argP.add_argument_group('output')
         output_group.add_argument("--format", "-t", choices=["json", "bash"],
-                          default='json', help="Provides the output format (json | bash)")
+                                  default='json', help="Provides the output format (json | bash)")
         output_group.add_argument("--output", "-o", default="",
-                          help="Output will be stored into the provided file")
+                                  help="Output will be stored into the provided file")
         output_group.add_argument("--cephfs-filesystem-name", default="",
-                          help="Provides the name of the Ceph filesystem")
+                                  help="Provides the name of the Ceph filesystem")
         output_group.add_argument("--cephfs-data-pool-name", default="",
-                          help="Provides the name of the cephfs data pool")
+                                  help="Provides the name of the cephfs data pool")
         output_group.add_argument("--rbd-data-pool-name", default="", required=False,
-                          help="Provides the name of the RBD datapool")
+                                  help="Provides the name of the RBD datapool")
         output_group.add_argument("--rgw-endpoint", default="", required=False,
-                          help="Rados GateWay endpoint (in <IP>:<PORT> format)")
+                                  help="Rados GateWay endpoint (in <IP>:<PORT> format)")
         output_group.add_argument("--monitoring-endpoint", default="", required=False,
-                          help="Ceph Manager prometheus exporter endpoints comma separated list of <IP> entries")
+                                  help="Ceph Manager prometheus exporter endpoints comma separated list of <IP> entries")
         output_group.add_argument("--monitoring-endpoint-port", default="", required=False,
-                          help="Ceph Manager prometheus exporter port")
+                                  help="Ceph Manager prometheus exporter port")
 
         upgrade_group = argP.add_argument_group('upgrade')
         upgrade_group.add_argument("--upgrade", action='store_true', default=False,
-                          help="Upgrades the 'user' with all the permissions needed for the new cluster version")
+                                   help="Upgrades the 'user' with all the permissions needed for the new cluster version")
 
         if args_to_parse:
             assert type(args_to_parse) == list, \
@@ -244,13 +246,13 @@ class RadosJSON:
         self.output_file = self._arg_parser.output
         self.ceph_conf = self._arg_parser.ceph_conf
         self.MIN_USER_CAP_PERMISSIONS = {
-                'mgr': 'allow command config',
-                'mon': 'allow r, allow command quorum_status, allow command version',
-                'osd': "allow rwx pool={0}.rgw.meta, " +
-                       "allow r pool=.rgw.root, " +
-                       "allow rw pool={0}.rgw.control, " +
-                       "allow rx pool={0}.rgw.log, " +
-                       "allow x pool={0}.rgw.buckets.index"
+            'mgr': 'allow command config',
+            'mon': 'allow r, allow command quorum_status, allow command version',
+            'osd': "allow rwx pool={0}.rgw.meta, " +
+            "allow r pool=.rgw.root, " +
+            "allow rw pool={0}.rgw.control, " +
+            "allow rx pool={0}.rgw.log, " +
+            "allow x pool={0}.rgw.buckets.index"
         }
         # if user not provided, give a default user
         if not self.run_as_user and not self._arg_parser.upgrade:
@@ -345,7 +347,7 @@ class RadosJSON:
                 parsed_endpoint = urlparse(monitoring_endpoint)
             except ValueError:
                 raise ExecutionFailureException(
-                        "invalid endpoint: {}".format(monitoring_endpoint))
+                    "invalid endpoint: {}".format(monitoring_endpoint))
             monitoring_endpoint_ip = parsed_endpoint.hostname
             if not monitoring_endpoint_port:
                 monitoring_endpoint_port = "{}".format(parsed_endpoint.port)
@@ -355,11 +357,13 @@ class RadosJSON:
             monitoring_endpoint_port = self.DEFAULT_MONITORING_ENDPOINT_PORT
 
         try:
-            monitoring_endpoint_ip = self._convert_hostname_to_ip(monitoring_endpoint_ip)
+            monitoring_endpoint_ip = self._convert_hostname_to_ip(
+                monitoring_endpoint_ip)
         except:
             raise ExecutionFailureException(
                 "unable to convert a hostname to an IP address, monitoring host name: {}".format(monitoring_endpoint_ip))
-        monitoring_endpoint = self._join_host_port(monitoring_endpoint_ip, monitoring_endpoint_port)
+        monitoring_endpoint = self._join_host_port(
+            monitoring_endpoint_ip, monitoring_endpoint_port)
         self._invalid_endpoint(monitoring_endpoint)
         self.endpoint_dial(monitoring_endpoint)
 
@@ -568,11 +572,12 @@ class RadosJSON:
         self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = ''
         # create CephFS node and provisioner keyring only when MDS exists
         if self.out_map['CEPHFS_FS_NAME'] and self.out_map['CEPHFS_POOL_NAME']:
-            self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_cephFSNode()
+            self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_cephFSNode(
+            )
             self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_cephFSProvisioner()
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
         self.out_map['MONITORING_ENDPOINT'], \
-                self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_ceph_mgr()
+            self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_ceph_mgr()
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
 
@@ -694,11 +699,12 @@ class RadosJSON:
 
     def upgrade_user_permissions(self):
         # check whether the given user exists or not
-        cmd_json = {"prefix": "auth get", "entity": "{}".format(self.run_as_user), "format": "json"}
+        cmd_json = {"prefix": "auth get", "entity": "{}".format(
+            self.run_as_user), "format": "json"}
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         if ret_val != 0 or len(json_out) == 0:
             raise ExecutionFailureException("'auth get {}' command failed.\n".format(self.run_as_user) +
-                "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
+                                            "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
         j_first = json_out[0]
         existing_caps = j_first['caps']
         osd_cap = "osd"
@@ -710,23 +716,30 @@ class RadosJSON:
             if eachCap == osd_cap:
                 # if directly provided through '--rgw-pool-prefix' argument, use it
                 if self._arg_parser.rgw_pool_prefix:
-                    min_cap_values = min_cap_values.format(self._arg_parser.rgw_pool_prefix)
+                    min_cap_values = min_cap_values.format(
+                        self._arg_parser.rgw_pool_prefix)
                 # or else try to detect one from the existing/current osd cap values
                 else:
                     rc = re.compile(r' pool=([^.]+)\.rgw\.[^ ]*')
                     # 'findall()' method will give a list of prefixes
                     # and 'set' will eliminate any duplicates
-                    cur_rgw_pool_prefix_list = list(set(rc.findall(cur_cap_values)))
+                    cur_rgw_pool_prefix_list = list(
+                        set(rc.findall(cur_cap_values)))
                     if len(cur_rgw_pool_prefix_list) != 1:
-                        raise ExecutionFailureException("Unable to determine 'rgw-pool-prefx'. Please provide one with '--rgw-pool-prefix' flag")
-                    min_cap_values = min_cap_values.format(cur_rgw_pool_prefix_list[0])
-            cur_cap_perm_list = [x.strip() for x in cur_cap_values.split(',') if x.strip()]
-            min_cap_perm_list = [x.strip() for x in min_cap_values.split(',') if x.strip()]
+                        raise ExecutionFailureException(
+                            "Unable to determine 'rgw-pool-prefx'. Please provide one with '--rgw-pool-prefix' flag")
+                    min_cap_values = min_cap_values.format(
+                        cur_rgw_pool_prefix_list[0])
+            cur_cap_perm_list = [x.strip()
+                                 for x in cur_cap_values.split(',') if x.strip()]
+            min_cap_perm_list = [x.strip()
+                                 for x in min_cap_values.split(',') if x.strip()]
             min_cap_perm_list.extend(cur_cap_perm_list)
             # eliminate duplicates without using 'set'
             # set re-orders items in the list and we have to keep the order
             new_cap_perm_list = []
-            [new_cap_perm_list.append(x) for x in min_cap_perm_list if x not in new_cap_perm_list]
+            [new_cap_perm_list.append(
+                x) for x in min_cap_perm_list if x not in new_cap_perm_list]
             existing_caps[eachCap] = ", ".join(new_cap_perm_list)
         cmd_json = {"prefix": "auth caps",
                     "entity": self.run_as_user,
@@ -737,7 +750,7 @@ class RadosJSON:
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         if ret_val != 0:
             raise ExecutionFailureException("'auth caps {}' command failed.\n".format(self.run_as_user) +
-                "Error: {}".format(err_msg))
+                                            "Error: {}".format(err_msg))
         print("Updated user, {}, successfully.".format(self.run_as_user))
 
     def main(self):
@@ -835,7 +848,8 @@ class TestRadosJSON(unittest.TestCase):
             self.rjObj.get_cephfs_data_pool_details()
             print("As we are returning silently, no error thrown as expected")
         except ExecutionFailureException as err:
-            self.fail("Supposed to get returned silently, but instead error thrown: {}".format(err))
+            self.fail(
+                "Supposed to get returned silently, but instead error thrown: {}".format(err))
         # pass an existing filesystem name
         try:
             self.rjObj._arg_parser.cephfs_filesystem_name = second_fs_details['name']
@@ -917,25 +931,30 @@ class TestRadosJSON(unittest.TestCase):
             print("Successfully thrown error: {}".format(err))
 
     def add_non_default_pool_prefix_cmd(self, non_default_pool_prefix):
-        json_cmd = json.loads(self.rjObj.cluster.cmd_names['caps_change_default_pool_prefix'])
+        json_cmd = json.loads(
+            self.rjObj.cluster.cmd_names['caps_change_default_pool_prefix'])
         cur_osd_caps = json_cmd['caps'][json_cmd['caps'].index('osd') + 1]
-        new_osd_caps = cur_osd_caps.replace('default.', '{}.'.format(non_default_pool_prefix))
+        new_osd_caps = cur_osd_caps.replace(
+            'default.', '{}.'.format(non_default_pool_prefix))
         all_osd_caps = "{}, {}".format(new_osd_caps, cur_osd_caps)
         caps_list = [x.strip() for x in all_osd_caps.split(',') if x.strip()]
         new_caps_list = []
         [new_caps_list.append(x) for x in caps_list if x not in new_caps_list]
         all_osd_caps = ", ".join(new_caps_list)
         json_cmd['caps'][json_cmd['caps'].index('osd') + 1] = all_osd_caps
-        self.rjObj.cluster.cmd_names['caps_change_non_default_pool_prefix'] = json.dumps(json_cmd)
+        self.rjObj.cluster.cmd_names['caps_change_non_default_pool_prefix'] = json.dumps(
+            json_cmd)
         self.rjObj.cluster.cmd_output_map[
-                self.rjObj.cluster.cmd_names['caps_change_non_default_pool_prefix']] = '[{}]'
+            self.rjObj.cluster.cmd_names['caps_change_non_default_pool_prefix']] = '[{}]'
 
     def test_upgrade_user_permissions(self):
-        self.rjObj = RadosJSON(['--upgrade', '--run-as-user=client.healthchecker'])
+        self.rjObj = RadosJSON(
+            ['--upgrade', '--run-as-user=client.healthchecker'])
         # for testing, we are using 'DummyRados' object
         self.rjObj.cluster = DummyRados.Rados()
         self.rjObj.main()
-        self.rjObj = RadosJSON(['--upgrade', '--run-as-user=client.healthchecker', '--rgw-pool-prefix=nonDefault'])
+        self.rjObj = RadosJSON(
+            ['--upgrade', '--run-as-user=client.healthchecker', '--rgw-pool-prefix=nonDefault'])
         self.rjObj.cluster = DummyRados.Rados()
         self.add_non_default_pool_prefix_cmd('nonDefault')
         self.rjObj.main()
@@ -951,7 +970,8 @@ class TestRadosJSON(unittest.TestCase):
             self.rjObj._arg_parser.monitoring_endpoint = ''
             self.rjObj._arg_parser.monitoring_endpoint_port = ''
             new_mon_ip, new_mon_port = each_ip_port_pair
-            check_ip_val = self.rjObj.cluster.dummy_host_ip_map.get(new_mon_ip, new_mon_ip)
+            check_ip_val = self.rjObj.cluster.dummy_host_ip_map.get(
+                new_mon_ip, new_mon_ip)
             check_port_val = RadosJSON.DEFAULT_MONITORING_ENDPOINT_PORT
             if new_mon_ip:
                 self.rjObj._arg_parser.monitoring_endpoint = new_mon_ip
@@ -961,13 +981,15 @@ class TestRadosJSON(unittest.TestCase):
             # for testing, we are using 'DummyRados' object
             mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
             if check_ip_val and check_ip_val != mon_ip:
-                self.fail("Expected IP: {}, Returned IP: {}".format(check_ip_val, mon_ip))
+                self.fail("Expected IP: {}, Returned IP: {}".format(
+                    check_ip_val, mon_ip))
             if check_port_val and check_port_val != mon_port:
-                self.fail("Expected Port: '{}', Returned Port: '{}'".format(check_port_val, mon_port))
+                self.fail("Expected Port: '{}', Returned Port: '{}'".format(
+                    check_port_val, mon_port))
             print("MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
 
         invalid_ip_ports = [("10.22.31.131.43", "5334"),
-                ("10.177.3.81", "90320"), ("", "73422"), ("10.292.12.8", "9092")]
+                            ("10.177.3.81", "90320"), ("", "73422"), ("10.292.12.8", "9092")]
         for each_ip_port_pair in invalid_ip_ports:
             new_mon_ip, new_mon_port = each_ip_port_pair
             if new_mon_ip:
