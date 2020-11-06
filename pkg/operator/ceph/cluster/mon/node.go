@@ -32,8 +32,8 @@ type NodeUsage struct {
 	MonValid bool
 }
 
-func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
-	nr := &NodeInfo{
+func getNodeInfoFromNode(n v1.Node) (*MonScheduleInfo, error) {
+	nr := &MonScheduleInfo{
 		Name:     n.Name,
 		Hostname: n.Labels[v1.LabelHostname],
 	}

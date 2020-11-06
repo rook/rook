@@ -23,10 +23,10 @@ import (
 )
 
 const (
-	crushReplicatedType        = 1
-	ruleMinSizeDefault         = 1
-	ruleMaxSizeDefault         = 10
-	stretchedCRUSHRuleTemplate = `
+	crushReplicatedType      = 1
+	ruleMinSizeDefault       = 1
+	ruleMaxSizeDefault       = 10
+	twoStepCRUSHRuleTemplate = `
 rule %s {
         id %d
         type replicated
@@ -44,9 +44,9 @@ var (
 	stepEmit = &stepSpec{Operation: "emit"}
 )
 
-func buildStretchClusterPlainCrushRule(crushMap CrushMap, ruleName string, pool cephv1.PoolSpec) string {
+func buildTwoStepPlainCrushRule(crushMap CrushMap, ruleName string, pool cephv1.PoolSpec) string {
 	return fmt.Sprintf(
-		stretchedCRUSHRuleTemplate,
+		twoStepCRUSHRuleTemplate,
 		ruleName,
 		generateRuleID(crushMap.Rules),
 		ruleMinSizeDefault,
@@ -57,7 +57,7 @@ func buildStretchClusterPlainCrushRule(crushMap CrushMap, ruleName string, pool 
 	)
 }
 
-func buildStretchClusterCrushRule(crushMap CrushMap, ruleName string, pool cephv1.PoolSpec) *ruleSpec {
+func buildTwoStepCrushRule(crushMap CrushMap, ruleName string, pool cephv1.PoolSpec) *ruleSpec {
 	/*
 		The complete CRUSH rule looks like this:
 
@@ -82,11 +82,11 @@ func buildStretchClusterCrushRule(crushMap CrushMap, ruleName string, pool cephv
 		Type:    crushReplicatedType,
 		MinSize: ruleMinSizeDefault,
 		MaxSize: ruleMaxSizeDefault,
-		Steps:   buildStretchClusterCrushSteps(pool),
+		Steps:   buildTwoStepCrushSteps(pool),
 	}
 }
 
-func buildStretchClusterCrushSteps(pool cephv1.PoolSpec) []stepSpec {
+func buildTwoStepCrushSteps(pool cephv1.PoolSpec) []stepSpec {
 	// Create CRUSH rule steps
 	steps := []stepSpec{}
 

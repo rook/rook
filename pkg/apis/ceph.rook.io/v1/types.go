@@ -280,7 +280,20 @@ const (
 type MonSpec struct {
 	Count                int                       `json:"count,omitempty"`
 	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode,omitempty"`
+	StretchCluster       *StretchClusterSpec       `json:"stretchCluster,omitempty"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+type StretchClusterSpec struct {
+	FailureDomainLabel string                   `json:"failureDomainLabel,omitempty"`
+	SubFailureDomain   string                   `json:"subFailureDomain,omitempty"`
+	Zones              []StretchClusterZoneSpec `json:"zones,omitempty"`
+}
+
+type StretchClusterZoneSpec struct {
+	Name                string                    `json:"name,omitempty"`
+	Arbiter             bool                      `json:"arbiter,omitempty"`
+	VolumeClaimTemplate *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 }
 
 // MgrSpec represents options to configure a ceph mgr

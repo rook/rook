@@ -17,9 +17,17 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
+	"syscall"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
+)
+
+const (
+	defaultStretchCrushRuleName = "default_stretch_cluster_rule"
 )
 
 // MonStatusResponse represents the response from a quorum_status mon_command (subset of all available fields, only
@@ -65,4 +73,58 @@ func GetMonQuorumStatus(context *clusterd.Context, clusterInfo *ClusterInfo) (Mo
 	}
 
 	return resp, nil
+}
+
+// EnableStretchElectionStrategy enables the mon connectivity algorithm for stretch clusters
+func EnableStretchElectionStrategy(context *clusterd.Context, clusterInfo *ClusterInfo) error {
+	args := []string{"mon", "set", "election_strategy", "connectivity"}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrap(err, "failed to enable stretch cluster election strategy")
+	}
+	logger.Infof("successfully enabled stretch cluster election strategy. %s", string(buf))
+	return nil
+}
+
+// CreateDefaultStretchCrushRule creates the default CRUSH rule for the stretch cluster
+func CreateDefaultStretchCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, failureDomain string) error {
+	pool := cephv1.PoolSpec{
+		FailureDomain: failureDomain,
+		Replicated:    cephv1.ReplicatedSpec{SubFailureDomain: clusterSpec.Mon.StretchCluster.SubFailureDomain},
+	}
+	if err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, defaultStretchCrushRuleName, pool); err != nil {
+		return errors.Wrap(err, "failed to create default stretch crush rule")
+	}
+	logger.Info("successfully created the default stretch crush rule")
+	return nil
+}
+
+// SetMonStretchZone sets the location of a mon in the stretch cluster
+func SetMonStretchZone(context *clusterd.Context, clusterInfo *ClusterInfo, monName, failureDomain, zone string) error {
+	args := []string{"mon", "set_location", monName, fmt.Sprintf("%s=%s", failureDomain, zone)}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrap(err, "failed to set mon stretch zone")
+	}
+	output := string(buf)
+	logger.Debug(output)
+	logger.Infof("successfully set mon %q stretch zone to %q", monName, zone)
+	return nil
+}
+
+// SetMonStretchTiebreaker sets the tiebreaker mon in the stretch cluster
+func SetMonStretchTiebreaker(context *clusterd.Context, clusterInfo *ClusterInfo, monName, bucketType string) error {
+	logger.Infof("enabling stretch mode with mon arbiter %q with crush rule %q in failure domain %q", monName, defaultStretchCrushRuleName, bucketType)
+	args := []string{"mon", "enable_stretch_mode", monName, defaultStretchCrushRuleName, bucketType}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
+			logger.Infof("stretch mode is already enabled. %s", string(buf))
+			return nil
+		}
+		return errors.Wrap(err, "failed to set mon stretch zone")
+	}
+	logger.Debug(string(buf))
+	logger.Infof("successfully set mon tiebreaker %q in failure domain %q", monName, bucketType)
+	return nil
 }

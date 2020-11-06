@@ -285,7 +285,7 @@ func ExtractTopologyFromLabels(labels map[string]string, additionalTopologyIDs [
 
 	// check for the region k8s topology label that is GA in 1.17.
 	// TODO: Replace with a const when we update to the K8s 1.17 go-client.
-	region, ok = labels["topology.kubernetes.io/region"]
+	region, ok = labels[corev1.LabelZoneRegionStable]
 	if ok {
 		topology[regionLabel] = region
 	}
@@ -299,7 +299,7 @@ func ExtractTopologyFromLabels(labels map[string]string, additionalTopologyIDs [
 
 	// check for the zone k8s topology label that is GA in 1.17.
 	// TODO: Replace with a const when we update to the K8s 1.17 go-client.
-	zone, ok = labels["topology.kubernetes.io/zone"]
+	zone, ok = labels[corev1.LabelZoneFailureDomainStable]
 	if ok {
 		topology[zoneLabel] = zone
 	}

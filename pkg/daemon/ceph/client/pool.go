@@ -149,9 +149,9 @@ func GetPoolDetails(context *clusterd.Context, clusterInfo *ClusterInfo, name st
 	return poolDetails, nil
 }
 
-func CreatePoolWithProfile(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string, pool cephv1.PoolSpec, appName string, cluster cephv1.ClusterSpec) error {
+func CreatePoolWithProfile(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, poolName string, pool cephv1.PoolSpec, appName string) error {
 	if pool.IsReplicated() {
-		return CreateReplicatedPoolForApp(context, clusterInfo, poolName, pool, DefaultPGCount, appName, cluster)
+		return CreateReplicatedPoolForApp(context, clusterInfo, clusterSpec, poolName, pool, DefaultPGCount, appName)
 	}
 
 	if !pool.IsErasureCoded() {
@@ -303,29 +303,40 @@ func CreateECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, poo
 	return nil
 }
 
-func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string, pool cephv1.PoolSpec, pgCount, appName string, cluster cephv1.ClusterSpec) error {
-	// Create a CRUSH rule for stretched clusters
-	if pool.Replicated.ReplicasPerFailureDomain != 0 {
-		err := createStretchedReplicationCrushRule(context, clusterInfo, poolName, pool, cluster)
-		if err != nil {
-			return errors.Wrap(err, "failed to create stretched replicated crush rule")
-		}
+func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, poolName string, pool cephv1.PoolSpec, pgCount, appName string) error {
+	// The crush rule name is the same as the pool unless we have a stretch cluster.
+	crushRuleName := poolName
+	if clusterSpec.IsStretchCluster() {
+		// A stretch cluster enforces using the same crush rule for all pools.
+		// The stretch cluster rule is created initially by the operator when the stretch cluster is configured
+		// so there is no need to create a new crush rule for the pools here.
+		crushRuleName = defaultStretchCrushRuleName
 	} else {
-		// create a crush rule for a replicated pool, if a failure domain is specified
-		if err := createReplicationCrushRule(context, clusterInfo, poolName, pool, cluster); err != nil {
-			return errors.Wrap(err, "failed to create replicated crush rule")
+		if pool.Replicated.ReplicasPerFailureDomain != 0 {
+			// Create a two-step CRUSH rule for pools other than stretch clusters
+			err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool)
+			if err != nil {
+				return errors.Wrapf(err, "failed to create two-step crush rule %q", crushRuleName)
+			}
+		} else {
+			// create a crush rule for a replicated pool, if a failure domain is specified
+			if err := createReplicationCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool); err != nil {
+				return errors.Wrapf(err, "failed to create replicated crush rule %q", crushRuleName)
+			}
 		}
 	}
 
-	args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", poolName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
+	args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", crushRuleName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
 	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to create replicated pool %s. %s", poolName, string(output))
 	}
 
-	// the pool is type replicated, set the size for the pool now that it's been created
-	if err := SetPoolReplicatedSizeProperty(context, clusterInfo, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
-		return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolName, pool.Replicated.Size)
+	if !clusterSpec.IsStretchCluster() {
+		// the pool is type replicated, set the size for the pool now that it's been created
+		if err := SetPoolReplicatedSizeProperty(context, clusterInfo, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
+			return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolName, pool.Replicated.Size)
+		}
 	}
 
 	if err = setCommonPoolProperties(context, clusterInfo, pool, poolName, appName); err != nil {
@@ -336,7 +347,7 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 	return nil
 }
 
-func createStretchedReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, ruleName string, pool cephv1.PoolSpec, cluster cephv1.ClusterSpec) error {
+func createTwoStepCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, ruleName string, pool cephv1.PoolSpec) error {
 	// set the crush failure domain to the "host" if not already specified
 	if pool.FailureDomain == "" {
 		pool.FailureDomain = cephv1.DefaultFailureDomain
@@ -347,7 +358,7 @@ func createStretchedReplicationCrushRule(context *clusterd.Context, clusterInfo 
 	}
 	// set the crush root to the default if not already specified
 	if pool.CrushRoot == "" {
-		pool.CrushRoot = GetCrushRootFromSpec(&cluster)
+		pool.CrushRoot = GetCrushRootFromSpec(clusterSpec)
 	}
 
 	// Get the current CRUSH map
@@ -355,6 +366,14 @@ func createStretchedReplicationCrushRule(context *clusterd.Context, clusterInfo 
 	crushMap, err := GetCrushMap(context, clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get crush map")
+	}
+
+	// Check if the crush rule already exists
+	for _, rule := range crushMap.Rules {
+		if rule.Name == ruleName {
+			logger.Debugf("CRUSH rule %q already exists", ruleName)
+			return nil
+		}
 	}
 
 	// Fetch the compiled crush map
@@ -383,7 +402,7 @@ func createStretchedReplicationCrushRule(context *clusterd.Context, clusterInfo 
 	}()
 
 	// Build plain text rule
-	plainRule := buildStretchClusterPlainCrushRule(crushMap, ruleName, pool)
+	plainRule := buildTwoStepPlainCrushRule(crushMap, ruleName, pool)
 
 	// Append plain rule to the decompiled crush map
 	f, err := os.OpenFile(filepath.Clean(decompiledCRUSHMapFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0400)
@@ -423,7 +442,7 @@ func createStretchedReplicationCrushRule(context *clusterd.Context, clusterInfo 
 	return nil
 }
 
-func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, ruleName string, pool cephv1.PoolSpec, cluster cephv1.ClusterSpec) error {
+func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, ruleName string, pool cephv1.PoolSpec) error {
 	failureDomain := pool.FailureDomain
 	if failureDomain == "" {
 		failureDomain = cephv1.DefaultFailureDomain
@@ -431,7 +450,7 @@ func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterI
 	// set the crush root to the default if not already specified
 	crushRoot := pool.CrushRoot
 	if pool.CrushRoot == "" {
-		crushRoot = GetCrushRootFromSpec(&cluster)
+		crushRoot = GetCrushRootFromSpec(clusterSpec)
 	}
 
 	args := []string{"osd", "crush", "rule", "create-replicated", ruleName, crushRoot, failureDomain}

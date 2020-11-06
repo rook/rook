@@ -167,6 +167,13 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		return errors.Wrap(err, "failed to start ceph osds")
 	}
 
+	// If a stretch cluster, enable the arbiter after the OSDs are created with the CRUSH map
+	if c.Spec.IsStretchCluster() {
+		if err := c.mons.ConfigureArbiter(); err != nil {
+			return errors.Wrap(err, "failed to configure stretch arbiter")
+		}
+	}
+
 	logger.Infof("done reconciling ceph cluster in namespace %q", c.Namespace)
 
 	// We should be done updating by now
@@ -221,7 +228,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 			c.configureCephMonitoring(cluster, clusterInfo)
 		}
 
-		err = c.configureLocalCephCluster(cluster, clusterObj)
+		err = c.configureLocalCephCluster(cluster)
 		if err != nil {
 			return errors.Wrap(err, "failed to configure local ceph cluster")
 		}
@@ -235,9 +242,9 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	return nil
 }
 
-func (c *ClusterController) configureLocalCephCluster(cluster *cluster, clusterObj *cephv1.CephCluster) error {
+func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	// Cluster Spec validation
-	err := c.preClusterStartValidation(cluster, clusterObj)
+	err := c.preClusterStartValidation(cluster)
 	if err != nil {
 		return errors.Wrap(err, "failed to perform validation before cluster creation")
 	}
@@ -328,7 +335,7 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 }
 
 // Validate the cluster Specs
-func (c *ClusterController) preClusterStartValidation(cluster *cluster, clusterObj *cephv1.CephCluster) error {
+func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 
 	if cluster.Spec.Mon.Count == 0 {
 		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
@@ -346,6 +353,9 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster, clusterO
 	}
 	if len(cluster.Spec.Storage.Directories) != 0 {
 		logger.Warning("running osds on directory is not supported anymore, use devices instead.")
+	}
+	if err := validateStretchCluster(cluster); err != nil {
+		return err
 	}
 	if cluster.Spec.Network.IsMultus() {
 		_, isPublic := cluster.Spec.Network.Selectors[config.PublicNetworkSelectorKeyName]
@@ -382,6 +392,31 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster, clusterO
 	}
 
 	logger.Debug("cluster spec successfully validated")
+	return nil
+}
+
+func validateStretchCluster(cluster *cluster) error {
+	if !cluster.Spec.IsStretchCluster() {
+		return nil
+	}
+	if len(cluster.Spec.Mon.StretchCluster.Zones) != 3 {
+		return errors.Errorf("expecting exactly three zones for the stretch cluster, but found %d", len(cluster.Spec.Mon.StretchCluster.Zones))
+	}
+	if cluster.Spec.Mon.Count != 3 && cluster.Spec.Mon.Count != 5 {
+		return errors.Errorf("invalid number of mons %d for a stretch cluster, expecting 5 (recommended) or 3 (minimal)", cluster.Spec.Mon.Count)
+	}
+	arbitersFound := 0
+	for _, zone := range cluster.Spec.Mon.StretchCluster.Zones {
+		if zone.Arbiter {
+			arbitersFound++
+		}
+		if zone.Name == "" {
+			return errors.New("missing zone name for the stretch cluster")
+		}
+	}
+	if arbitersFound != 1 {
+		return errors.Errorf("expecting to find exactly one arbiter zone, but found %d", arbitersFound)
+	}
 	return nil
 }
 

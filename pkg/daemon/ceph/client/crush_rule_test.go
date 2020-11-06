@@ -40,7 +40,7 @@ func TestBuildStretchClusterCrushRule(t *testing.T) {
 		},
 	}
 
-	rule := buildStretchClusterCrushRule(crushMap, "stretched", *pool)
+	rule := buildTwoStepCrushRule(crushMap, "stretched", *pool)
 	assert.Equal(t, 2, rule.ID)
 }
 
@@ -52,7 +52,7 @@ func TestBuildCrushSteps(t *testing.T) {
 			ReplicasPerFailureDomain: 2,
 		},
 	}
-	steps := buildStretchClusterCrushSteps(*pool)
+	steps := buildTwoStepCrushSteps(*pool)
 	assert.Equal(t, 4, len(steps))
 	assert.Equal(t, cephv1.DefaultCRUSHRoot, steps[0].ItemName)
 	assert.Equal(t, "datacenter", steps[1].Type)
