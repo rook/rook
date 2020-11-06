@@ -1,0 +1,23 @@
+name: Codespell
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+  pull_request:
+    branches:
+      - "master"
+jobs:
+  codespell:
+    name: codespell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: codespell
+        uses: codespell-project/actions-codespell@master
+        with:
+          skip: .git,*.png,*.jpg,*.svg
+          ignore_words_list: aks,keyserver,atleast,dne,ser,ist,files',ba,dum,iam,te
+          check_filenames: true
+          check_hidden: true
