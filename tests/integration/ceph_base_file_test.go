@@ -358,6 +358,7 @@ func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 
 // Test File System Creation on Rook that was installed on a custom namespace i.e. Namespace != "rook" and delete it again
 func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+	checkSkipCSITest(s.T(), k8sh)
 	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	activeCount := 1

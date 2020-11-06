@@ -40,8 +40,8 @@ import (
 )
 
 func checkSkipCSITest(t *testing.T, k8sh *utils.K8sHelper) {
-	if !k8sh.VersionAtLeast("v1.13.0") {
-		logger.Info("Skipping tests as kube version is less than 1.13.0 for the CSI driver")
+	if !k8sh.VersionAtLeast("v1.14.0") {
+		logger.Info("Skipping tests as kube version is less than 1.14.0 for the CSI driver")
 		t.Skip()
 	}
 }
