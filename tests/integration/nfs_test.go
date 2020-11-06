@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/apimachinery/pkg/util/version"
 )
 
 // *******************************************************
@@ -73,6 +74,12 @@ func (suite *NfsSuite) Setup() {
 	suite.instanceCount = 1
 
 	k8shelper, err := utils.CreateK8sHelper(suite.T)
+	v := version.MustParseSemantic(k8shelper.GetK8sServerVersion())
+	if !v.AtLeast(version.MustParseSemantic("1.14.0")) {
+		logger.Info("Skipping NFS tests when not at least K8s v1.14")
+		suite.T().Skip()
+	}
+
 	require.NoError(suite.T(), err)
 	suite.k8shelper = k8shelper
 
