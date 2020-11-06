@@ -59,8 +59,8 @@ After the cluster is running, you can create [block, object, or file](#storage) 
 
 The Rook documentation is focused around starting Rook in a production environment. Examples are also
 provided to relax some settings for test environments. When creating the cluster later in this guide, consider these example cluster manifests:
-- [cluster.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml): Cluster settings for a production cluster running on bare metal
-- [cluster-on-pvc.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster-on-pvc.yaml): Cluster settings for a production cluster running in a dynamic cloud environment
+- [cluster.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml): Cluster settings for a production cluster running on bare metal. Requires at least three worker nodes.
+- [cluster-on-pvc.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster-on-pvc.yaml): Cluster settings for a production cluster running in a dynamic cloud environment.
 - [cluster-test.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster-test.yaml): Cluster settings for a test environment such as minikube.
 
 See the [Ceph examples](ceph-examples.md) for more details.
