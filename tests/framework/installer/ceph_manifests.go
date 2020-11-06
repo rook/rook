@@ -1508,7 +1508,6 @@ spec:
                 storageClassDeviceSets: {}
             driveGroups:
               type: array
-              nullable: true
               items:
                 properties:
                   name:

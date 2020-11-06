@@ -154,11 +154,12 @@ pipeline {
                 stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script {
                     def data = [
+                        "aws_1.11.x": "v1.11.10",
+                        "aws_1.13.x": "v1.13.12",
                         "aws_1.15.x": "v1.15.12",
-                        "aws_1.16.x": "v1.16.15",
-                        "aws_1.17.x": "v1.17.9",
-                        "aws_1.18.x": "v1.18.6",
-                        "aws_1.19.x": "v1.19.0"
+                        "aws_1.17.x": "v1.17.13",
+                        "aws_1.18.x": "v1.18.10",
+                        "aws_1.19.x": "v1.19.3"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
