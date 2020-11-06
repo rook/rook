@@ -45,7 +45,7 @@ Now that your operator is running, let's create your Ceph storage cluster. This 
 that will influence how the operator configures the storage. It is important to understand the various ways to configure
 the cluster. These examples represent a very small set of the different ways to configure the storage.
 
-* `cluster.yaml`: This file contains common settings for a production storage cluster. Requires at least three nodes.
+* `cluster.yaml`: This file contains common settings for a production storage cluster. Requires at least three worker nodes.
 * `cluster-test.yaml`: Settings for a test cluster where redundancy is not configured. Requires only a single node.
 * `cluster-on-pvc.yaml`: This file contains common settings for backing the Ceph Mons and OSDs by PVs. Useful when running in cloud environments or where local PVs have been created for Ceph to consume.
 * `cluster-with-drive-groups.yaml`: This file contains example configurations for creating advanced
@@ -66,8 +66,8 @@ Now we are ready to setup [block](https://ceph.com/ceph-storage/block-storage/),
 
 Ceph can provide raw block device volumes to pods. Each example below sets up a storage class which can then be used to provision a block device in kubernetes pods. The storage class is defined with [a pool](http://docs.ceph.com/docs/master/rados/operations/pools/) which defines the level of data redundancy in Ceph:
 
-* `storageclass.yaml`: This example illustrates replication of 3 for production scenarios and requires at least three nodes. Your data is replicated on three different kubernetes worker nodes and intermittent or long-lasting single node failures will not result in data unavailability or loss.
-* `storageclass-ec.yaml`: Configures erasure coding for data durability rather than replication. [Ceph's erasure coding](http://docs.ceph.com/docs/master/rados/operations/erasure-code/) is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three nodes. See the [Erasure coding](ceph-pool-crd.md#erasure-coded) documentation for more details.
+* `storageclass.yaml`: This example illustrates replication of 3 for production scenarios and requires at least three worker nodes. Your data is replicated on three different kubernetes worker nodes and intermittent or long-lasting single node failures will not result in data unavailability or loss.
+* `storageclass-ec.yaml`: Configures erasure coding for data durability rather than replication. [Ceph's erasure coding](http://docs.ceph.com/docs/master/rados/operations/erasure-code/) is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three worker nodes. See the [Erasure coding](ceph-pool-crd.md#erasure-coded) documentation for more details.
 * `storageclass-test.yaml`: Replication of 1 for test scenarios and it requires only a single node. Do not use this for applications that store valuable data or have high-availability storage requirements, since a single node failure can result in data loss.
 
 The storage classes are found in different sub-directories depending on the driver:
@@ -83,8 +83,8 @@ Ceph filesystem (CephFS) allows the user to 'mount' a shared posix-compliant fol
 
 File storage contains multiple pools that can be configured for different scenarios:
 
-* `filesystem.yaml`: Replication of 3 for production scenarios. Requires at least three nodes.
-* `filesystem-ec.yaml`: Erasure coding for production scenarios. Requires at least three nodes.
+* `filesystem.yaml`: Replication of 3 for production scenarios. Requires at least three worker nodes.
+* `filesystem-ec.yaml`: Erasure coding for production scenarios. Requires at least three worker nodes.
 * `filesystem-test.yaml`: Replication of 1 for test scenarios. Requires only a single node.
 
 Dynamic provisioning is possible with the CSI driver. The storage class for shared filesystems is found in the `csi/cephfs` directory.
@@ -97,9 +97,9 @@ Ceph supports storing blobs of data called objects that support HTTP(s)-type get
 
 Object storage contains multiple pools that can be configured for different scenarios:
 
-* `object.yaml`: Replication of 3 for production scenarios.  Requires at least three nodes.
-* `object-openshift.yaml`: Replication of 3 with rgw in a port range valid for OpenShift.  Requires at least three nodes.
-* `object-ec.yaml`: Erasure coding rather than replication for production scenarios.  Requires at least three nodes.
+* `object.yaml`: Replication of 3 for production scenarios.  Requires at least three worker nodes.
+* `object-openshift.yaml`: Replication of 3 with rgw in a port range valid for OpenShift. Requires at least three worker nodes.
+* `object-ec.yaml`: Erasure coding rather than replication for production scenarios. Requires at least three worker nodes.
 * `object-test.yaml`: Replication of 1 for test scenarios. Requires only a single node.
 
 See the [Object Store CRD](ceph-object-store-crd.md) topic for more details on the settings.
