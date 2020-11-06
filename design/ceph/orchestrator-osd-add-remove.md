@@ -108,7 +108,7 @@ Orchestrator CLI or Dashboard interface.
 
 #### Reporting Status
 Rook should report failure messages back to the Rook Orchestrator Mgr Module via a `CephCluster`
-`status` mechanism so that the Orchestrator Module can take appropriate actions ot notify the user
+`status` mechanism so that the Orchestrator Module can take appropriate actions to notify the user
 of failure. Rook may report successful statuses back if needed by the Orchestrator Module; however,
 limiting the information reported back will keep the `CephCluster` resource's `status` field smaller
 and less unwieldy for users.

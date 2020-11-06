@@ -21,7 +21,7 @@ The following high level features are targeted for Rook v1.5 (November 2020). Fo
   * RGW Multi-site replication improvements towards declaring the feature stable
   * Multus networking configuration declared stable
   * Support IPv6 single stack configuration [#3850](https://github.com/rook/rook/issues/3850)
-  * Enabing the admission controller by default [#6242](https://github.com/rook/rook/issues/6242)
+  * Enabling the admission controller by default [#6242](https://github.com/rook/rook/issues/6242)
 * NFS
   * A quota for disk usage can now be set and enforced for each NFS PV [#5788](https://github.com/rook/rook/issues/5788)
   * NFS PV's can be deleted and cleaned up [#3074](https://github.com/rook/rook/issues/3074)

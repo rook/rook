@@ -81,7 +81,7 @@ func GetK8SVersion(clientset kubernetes.Interface) (*version.Version, error) {
 
 // Hash stableName computes a stable pseudorandom string suitable for inclusion in a Kubernetes object name from the given seed string.
 // Do **NOT** edit this function in a way that would change its output as it needs to
-// provide consistent mappings from string to hash accross versions of rook.
+// provide consistent mappings from string to hash across versions of rook.
 func Hash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:16])
@@ -94,7 +94,7 @@ func Hash(s string) string {
 // https://stackoverflow.com/a/50451893
 // https://stackoverflow.com/a/32294443
 // Do **NOT** edit this function in a way that would change its output as it needs to
-// provide consistent mappings from string to hash accross versions of rook.
+// provide consistent mappings from string to hash across versions of rook.
 func TruncateNodeName(format, nodeName string) string {
 	if len(nodeName)+len(fmt.Sprintf(format, "")) > validation.DNS1035LabelMaxLength {
 		hashed := Hash(nodeName)
@@ -148,7 +148,7 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 }
 
 // Add the rook version to the labels. This should *not* be used on pod specifications, because this
-// will result in the deployment/daemonset/ect. recreating all of its pods even if an update
+// will result in the deployment/daemonset/etc. recreating all of its pods even if an update
 // wouldn't otherwise be required. Upgrading unnecessarily increases risk for loss of data
 // reliability, even if only briefly.
 //

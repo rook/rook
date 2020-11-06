@@ -32,7 +32,7 @@ const (
 )
 
 // Add the Ceph version to the given labels.  This should *not* be used on pod specifications,
-// because this will result in the deployment/daemonset/ect. recreating all of its pods even if an
+// because this will result in the deployment/daemonset/etc. recreating all of its pods even if an
 // update wouldn't otherwise be required. Upgrading unnecessarily increases risk for loss of data
 // reliability, even if only briefly.
 func addCephVersionLabel(cephVersion version.CephVersion, labels map[string]string) {

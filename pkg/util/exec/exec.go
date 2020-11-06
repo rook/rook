@@ -34,7 +34,7 @@ import (
 // Executor is the main interface for all the exec commands
 type Executor interface {
 	ExecuteCommand(command string, arg ...string) error
-	ExecuteCommandWithEnv(env []string, comand string, arg ...string) error
+	ExecuteCommandWithEnv(env []string, command string, arg ...string) error
 	ExecuteCommandWithOutput(command string, arg ...string) (string, error)
 	ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error)
 	ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error)

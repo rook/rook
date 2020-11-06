@@ -55,7 +55,7 @@ spec:
 * `name`: The name of the NFS system to create, which must match existing EdgeFS service.
 * `namespace`: The namespace of the Rook cluster where the NFS service is created.
 * `instances`: The number of active NFS service instances. EdgeFS NFS service is Multi-Head capable, such so that multiple PODs can mount same tenant's buckets via different endpoints. [EdgeFS CSI provisioner](edgefs-csi.md) orchestrates distribution and load balancing across NFS service instances in round-robin or random policy ways.
-* `relaxedDirUpdates`: If set to `true` then it will significantly improve performance of directory operations by defering updates, guaranteeing eventual directory consistency. This option is recommended when a bucket exported via single NFS instance and it is not a destination for ISGW Link synchronization.
+* `relaxedDirUpdates`: If set to `true` then it will significantly improve performance of directory operations by deferring updates, guaranteeing eventual directory consistency. This option is recommended when a bucket exported via single NFS instance and it is not a destination for ISGW Link synchronization.
 * `chunkCacheSize`: Limit amount of memory allocated for dynamic chunk cache. By default NFS pod uses up to 75% of available memory as chunk caching area. This option can influence this allocation strategy.
 * `annotations`: Key value pair list of annotations to add.
 * `placement`: The NFS PODs can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/edgefs/cluster.yaml).

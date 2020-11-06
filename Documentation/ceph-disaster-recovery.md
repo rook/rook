@@ -92,7 +92,7 @@ ceph-mon \
     --public-bind-addr=$ROOK_POD_IP
 ```
 
-(be sure to remove the single quotes around the `--log-stderr-prefix` flag and the paranthesis around the variables being passed ROOK_CEPH_MON_HOST, ROOK_CEPH_MON_INITIAL_MEMBERS and ROOK_POD_IP )
+(be sure to remove the single quotes around the `--log-stderr-prefix` flag and the parenthesis around the variables being passed ROOK_CEPH_MON_HOST, ROOK_CEPH_MON_INITIAL_MEMBERS and ROOK_POD_IP )
 
 Patch the `rook-ceph-mon-b` Deployment to run a sleep instead of the `ceph mon` command:
 
@@ -339,7 +339,7 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
 
 ## Backing up and restoring a cluster based on PVCs into a new Kubernetes cluster
 
-It is possible to migrate/restore an rook/ceph cluster from an exising Kubernetes cluster to a new one without resorting to SSH access or ceph tooling. This allows doing the migration using standard kubernetes resources only. This guide assumes the following
+It is possible to migrate/restore an rook/ceph cluster from an existing Kubernetes cluster to a new one without resorting to SSH access or ceph tooling. This allows doing the migration using standard kubernetes resources only. This guide assumes the following
 1. You have a CephCluster that uses PVCs to persist mon and osd data. Let's call it the "old cluster"
 1. You can restore the PVCs as-is in the new cluster. Usually this is done by taking regular snapshots of the PVC volumes and using a tool that can re-create PVCs from these snapshots in the underlying cloud provider. Velero is one such tool. (https://github.com/vmware-tanzu/velero)
 1. You have regular backups of the secrets and configmaps in the rook-ceph namespace. Velero provides this functionality too.

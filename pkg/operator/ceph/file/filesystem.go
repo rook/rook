@@ -267,7 +267,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 	}
 
 	// create the filesystem ('fs new' needs to be forced in order to reuse pre-existing pools)
-	// if only one pool is created new it wont work (to avoid inconsistencies).
+	// if only one pool is created new it won't work (to avoid inconsistencies).
 	if err := client.CreateFilesystem(context, clusterInfo, f.Name, metadataPoolName, dataPoolNames, !poolsCreated); err != nil {
 		return err
 	}

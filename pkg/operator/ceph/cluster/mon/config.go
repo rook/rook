@@ -342,7 +342,7 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 	return ExtractKey(string(contents))
 }
 
-// ExtractKey retrives mon secret key from the keyring file
+// ExtractKey retrieves mon secret key from the keyring file
 func ExtractKey(contents string) (string, error) {
 	secret := ""
 	slice := strings.Fields(sys.Grep(string(contents), "key"))

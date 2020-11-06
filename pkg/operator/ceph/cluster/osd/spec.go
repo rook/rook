@@ -139,7 +139,7 @@ if [ -b "$DM_PATH" ]; then
 		if [[ "$field" =~ ^[0-9]+\:[0-9]+ ]]; then
 			underlaying_block="/sys/dev/block/$field"
 			if [ ! -d "$underlaying_block" ]; then
-				echo "Underlaying block device $underlaying_block of crypt $DM_NAME disappeared!"
+				echo "Underlying block device $underlaying_block of crypt $DM_NAME disappeared!"
 				echo "Removing stale dm device $DM_NAME"
 				dmsetup remove --force "$DM_NAME"
 				open_encrypted_block

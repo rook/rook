@@ -433,7 +433,7 @@ spec:
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "false"
         # Provide customised regex as the values using comma. For eg. regex for rbd based volume, value will be like "(?i)rbd[0-9]+".
-        # In case of more than one regex, use comma to seperate between them.
+        # In case of more than one regex, use comma to separate between them.
         # Default regex will be "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
         # add regex expression after putting a comma to blacklist a disk
         # If value is empty, the default regex will be used.

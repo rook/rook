@@ -11,7 +11,7 @@ This script uses k8s' CertificateSigningRequest API to a generate a
 certificate signed by k8s CA suitable for use with trace-context-injector webhook
 services. This requires permissions to create and approve CSR. See
 https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster for
-detailed explantion and additional instructions.
+detailed explanation and additional instructions.
 
 The server key/cert k8s CA cert are stored in a k8s secret.
 

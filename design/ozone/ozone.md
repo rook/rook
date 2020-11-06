@@ -220,10 +220,10 @@ spec:
   features: # these are not components but confiuration groups
      prometheus: true
      tracing: true
-  ozoneVersion: #see Ceph versioning doc for mor details
+  ozoneVersion: #see Ceph versioning doc for more details
     image: apache/ozone:0.4.1
     allowUnsupported: false
-  upgradePolicy: #see Ceph versioning doc for mor details (Won't be implmented in Phase 1)
+  upgradePolicy: #see Ceph versioning doc for more details (Won't be implemented in Phase 1)
     ozoneVersion:
       image: apache/ozone:0.5.0
       allowUnsupported: false
@@ -238,7 +238,7 @@ spec:
          generated-with: rook
 ```
 
-The type of the `storage` attribute is `StorageScopeSpec` which is a [common Rook type](https://github.com/rook/rook/blob/818ad9c7ca4d352a9bed202e619d47b05f1a4dab/pkg/apis/rook.io/v1alpha2/types.go), and can be used to specifiy the details of the storage (eg. volumeClaimTemplates, nodeCounts, etc.)
+The type of the `storage` attribute is `StorageScopeSpec` which is a [common Rook type](https://github.com/rook/rook/blob/818ad9c7ca4d352a9bed202e619d47b05f1a4dab/pkg/apis/rook.io/v1alpha2/types.go), and can be used to specify the details of the storage (eg. volumeClaimTemplates, nodeCounts, etc.)
 
 ## Operator capabilities
 

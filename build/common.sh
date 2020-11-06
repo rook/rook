@@ -42,7 +42,7 @@ function check_git() {
     # see https://github.com/git/git/blob/master/Documentation/RelNotes/2.8.3.txt#L33
     local gitversion=$(git --version | cut -d" " -f3)
     if (( $(ver ${gitversion}) > $(ver 2.6.6) && $(ver ${gitversion}) < $(ver 2.8.3) )); then
-        echo WARN: your running git version ${gitversion} which has a bug realted to relative
+        echo WARN: your running git version ${gitversion} which has a bug related to relative
         echo WARN: submodule paths. Please consider upgrading to 2.8.3 or later
     fi
 }

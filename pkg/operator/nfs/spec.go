@@ -67,7 +67,7 @@ func newServiceForNFSServer(cr *nfsv1alpha1.NFSServer) *corev1.Service {
 }
 
 func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
-	privilaged := true
+	privileged := true
 	replicas := int32(cr.Spec.Replicas)
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -117,7 +117,7 @@ func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
 							TerminationMessagePath:   "/dev/termination-log",
 							TerminationMessagePolicy: corev1.TerminationMessageReadFile,
 							SecurityContext: &corev1.SecurityContext{
-								Privileged: &privilaged,
+								Privileged: &privileged,
 							},
 						},
 					},

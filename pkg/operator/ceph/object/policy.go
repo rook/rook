@@ -125,7 +125,7 @@ const (
 type PolicyStatement struct {
 	// Sid (optional) is the PolicyStatement's unique  identifier
 	Sid string `json:"Sid"`
-	// Effect determins whether the Action(s) are 'Allow'ed or 'Deny'ed.
+	// Effect determines whether the Action(s) are 'Allow'ed or 'Deny'ed.
 	Effect effect `json:"Effect"`
 	// Principle is/are the Ceph user names affected by this PolicyStatement
 	// Must be in the format of 'arn:aws:iam:::user/<ceph-user>'
