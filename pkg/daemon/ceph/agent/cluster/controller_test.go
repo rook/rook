@@ -274,7 +274,7 @@ func TestClusterDeleteMultiAttachmentRace(t *testing.T) {
 	clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleClusterDelete(clusterToDelete, time.Millisecond)
 
-	// both attachments should have made it all the way through the clean up process, meaing that Delete
+	// both attachments should have made it all the way through the clean up process, meaning that Delete
 	// (which is idempotent) should have been called twice.
 	assert.Equal(t, 2, deleteCount)
 }

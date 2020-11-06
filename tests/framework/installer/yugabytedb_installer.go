@@ -50,7 +50,7 @@ func (y *YugabyteDBInstaller) InstallYugabyteDB(systemNS, ns string, count int) 
 	} else if !isDefStorageClassPresent {
 		logger.Info("Default storage class not set. Creating one.")
 
-		// Mark the installationa attempt of a host path provisioner, for removal later.
+		// Mark the installation attempt of a host path provisioner, for removal later.
 		y.hostPathProvisionerInstalled = true
 
 		if err := InstallHostPathProvisioner(y.k8sHelper); err != nil {

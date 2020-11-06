@@ -91,7 +91,7 @@ endif
 # the build. Please keep them in sync.
 
 # we run go build with -i which on most system's would want to install packages
-# into the system's root dir. using our own pkg dir avoid thats
+# into the system's root dir. using our own pkg dir avoid this
 ifneq ($(GO_PKG_DIR),)
 GO_PKG_BASE_DIR := $(abspath $(GO_PKG_DIR)/$(PLATFORM))
 GO_PKG_STATIC_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)_static

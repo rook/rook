@@ -34,7 +34,7 @@ default to pod networking.
 
 Rook operators can define storage cluster's network using network provider.
 Network provider example includes host, and multus. To configure the cluster
-network, cluster CRD needs to tell the network provider the appropiate
+network, cluster CRD needs to tell the network provider the appropriate
 `NetworkInterfaceSelector`. `NetworkInterfaceSelector` will be provided as list
 of `interfaces` key-value.
 
@@ -77,7 +77,7 @@ On the other hand, multi-plugin CNI plugin needs to know the network attachment
 definition's name and vice versa. Multi-plugin such as multus may seem to follow
 _Network Attachment Selection Annotation_ documented at [Kubernetes Network
 Custom Resource Definition De-facto Standard][network-crd]. However, their
-implemtation has extra features not covered by the standard such as
+implementation has extra features not covered by the standard such as
 `@<interface-name>` notation or `interfaceRequest` property documented
 [here][multus-annotation].
 

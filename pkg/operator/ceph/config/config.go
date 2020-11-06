@@ -63,15 +63,15 @@ const (
 )
 
 var (
-	// VarLibCephDir is simply "/var/lib/ceph". It is made overwriteable only for unit tests where it
+	// VarLibCephDir is simply "/var/lib/ceph". It is made overwritable only for unit tests where it
 	// may be needed to send data intended for /var/lib/ceph to a temporary test dir.
 	VarLibCephDir = "/var/lib/ceph"
 
-	// EtcCephDir is simply "/etc/ceph". It is made overwriteable only for unit tests where it
+	// EtcCephDir is simply "/etc/ceph". It is made overwritable only for unit tests where it
 	// may be needed to send data intended for /etc/ceph to a temporary test dir.
 	EtcCephDir = "/etc/ceph"
 
-	// VarLogCephDir defines Ceph logging directory. It is made overwriteable only for unit tests where it
+	// VarLogCephDir defines Ceph logging directory. It is made overwritable only for unit tests where it
 	// may be needed to send data intended for /var/log/ceph to a temporary test dir.
 	VarLogCephDir = "/var/log/ceph"
 

@@ -79,7 +79,7 @@ func (c *cluster) createClusterReconfigurationSpec(existingConfig edgefsv1.Clust
 		if nodeDevConfig, ok := existingConfig.DevConfig[node.Name]; ok {
 			devicesConfig = nodeDevConfig
 		} else {
-			// create ned devices config for new node
+			// create new devices config for new node
 			devicesConfig, err = c.createDevicesConfig(deploymentType, node, dro)
 			if err != nil {
 				logger.Warningf("Can't create DevicesConfig for %s node, Error: %+v", node.Name, err)
@@ -150,7 +150,7 @@ func (c *cluster) getClusterFailureDomain() (string, error) {
 		case "zone":
 			failureDomain = "zone"
 		default:
-			return "", fmt.Errorf("Unknow failure domain %s, skipped", c.Spec.FailureDomain)
+			return "", fmt.Errorf("Unknown failure domain %s, skipped", c.Spec.FailureDomain)
 		}
 	}
 	return failureDomain, nil

@@ -41,7 +41,7 @@ const (
 )
 
 func (r *ReconcileCephBlockPool) createBootstrapPeerSecret(cephBlockPool *cephv1.CephBlockPool, namespacedName types.NamespacedName) (reconcile.Result, error) {
-	// Create rbd mirror boostrap peer token
+	// Create rbd mirror bootstrap peer token
 	boostrapToken, err := cephclient.CreateRBDMirrorBootstrapPeer(r.context, r.clusterInfo, cephBlockPool.Name)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create rbd-mirror bootstrap peer")

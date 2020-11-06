@@ -944,7 +944,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 
 	// If length is one, this clearly indicates that all the osds are running the same version
 	// If this is the first time we are creating a cluster length will be 0
-	// On an initial OSD boostrap, by the time we reach this code, the OSDs haven't registered yet
+	// On an initial OSD bootstrap, by the time we reach this code, the OSDs haven't registered yet
 	// Basically, this task is happening too quickly and OSD pods are not running yet.
 	// That's not an issue since it's an initial bootstrap and not an update.
 	if len(versions.Osd) == 1 {

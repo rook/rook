@@ -50,9 +50,9 @@ type CephManifests interface {
 	GetPVCClone(cloneClaimName, parentClaimName, namespace, storageClassName, accessModes, size string) string
 	GetSnapshot(snapshotName, claimName, snapshotClassName, namespace string) string
 	GetPod(podName, claimName, namespace, mountPoint string, readOnly bool) string
-	GetFilesystem(namepace, name string, activeCount int) string
-	GetNFS(namepace, name, pool string, daemonCount int) string
-	GetRBDMirror(namepace, name string, daemonCount int) string
+	GetFilesystem(namespace, name string, activeCount int) string
+	GetNFS(namespace, name, pool string, daemonCount int) string
+	GetRBDMirror(namespace, name string, daemonCount int) string
 	GetObjectStore(namespace, name string, replicaCount, port int) string
 	GetObjectStoreUser(namespace, name, displayName, store string) string
 	GetBucketStorageClass(namespace, storeName, storageClassName, reclaimPolicy, region string) string

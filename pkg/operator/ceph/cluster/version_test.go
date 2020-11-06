@@ -64,7 +64,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, m)
 
-	// 3nd test - spec version is lower than running cluster? what's going on?
+	// 3rd test - spec version is lower than running cluster? what's going on?
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {

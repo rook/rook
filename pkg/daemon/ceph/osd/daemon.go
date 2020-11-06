@@ -240,7 +240,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 			rawDevices = append(rawDevices, rawDevice)
 		}
 	} else {
-		// We still need to use 'lsblk' as the underlaying way to discover devices
+		// We still need to use 'lsblk' as the underlying way to discover devices
 		// Ideally, we would use the "ceph-volume inventory" command instead
 		// However, it suffers from some limitation such as exposing available partitions and LVs
 		// See: https://tracker.ceph.com/issues/43579
@@ -374,7 +374,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		// udevadm does not support device path different than /dev or /sys
 		//
 		// So earlier lsblk extracted the '/dev' path, hence the device.Name property
-		// device.Name can be 'xvdca', later this is formated to '/dev/xvdca'
+		// device.Name can be 'xvdca', later this is formatted to '/dev/xvdca'
 		var err error
 		var isAvailable bool
 		rejectedReason := ""

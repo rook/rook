@@ -67,7 +67,7 @@ In the CephClusterStatus, we can either remove the `Status.State` and `Status.Me
 
 ### Examples
 
-Consider a cluster is being created. The RookConditions is an array that can store multiple Conditions. So the progression of the cluster being created can be seen in the RookConditions as shown in the example below. The Ceph Cluster gets created after it establishes a succesfull Connection. The `RookCondition` will show in the slice that the `Connecting` Condition will be in `Condition.Status` False. The `Connected` and `Progressing` Types will be set to True.
+Consider a cluster is being created. The RookConditions is an array that can store multiple Conditions. So the progression of the cluster being created can be seen in the RookConditions as shown in the example below. The Ceph Cluster gets created after it establishes a successful Connection. The `RookCondition` will show in the slice that the `Connecting` Condition will be in `Condition.Status` False. The `Connected` and `Progressing` Types will be set to True.
 
 	   Before:
 		ClusterStatus{
