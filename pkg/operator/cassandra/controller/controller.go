@@ -149,7 +149,7 @@ func New(
 		//Deletion handling:
 		// Atm, the only thing left behind will be the state, ie
 		// the PVCs that the StatefulSets don't erase.
-		// This behaviour may actually be preferrable to deleting them,
+		// This behaviour may actually be preferable to deleting them,
 		// since it ensures that no data will be lost if someone accidentally
 		// deletes the cluster.
 	})

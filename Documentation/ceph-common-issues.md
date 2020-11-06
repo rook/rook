@@ -757,7 +757,7 @@ Also, if you are in the need of specific features and wonder if CSI is capable o
 
 ### Investigation
 
-This hapens when the following conditions are satisfied.
+This happens when the following conditions are satisfied.
 
 - The problematic RBD device and the corresponding OSDs are co-located.
 - There is an XFS filesystem on top of this device.
@@ -808,7 +808,7 @@ Please refer to [Configuring Pools](ceph-advanced-configuration.md#configuring-p
 
 ### Symptoms
 
-There is a critical flaw in OSD on LV-backed PVC. LVM metadata can be corrupted if both the host and OSD container modify it simultaneously. For example, the administrator might modify it on the host, while the OSD initialization process in a container could modify it too. In addition, if `lvmetad` is running, the possibility of occurence gets higher. In this case, the change of LVM metadata in OSD container is not reflected to LVM metadata cache in host for a while.
+There is a critical flaw in OSD on LV-backed PVC. LVM metadata can be corrupted if both the host and OSD container modify it simultaneously. For example, the administrator might modify it on the host, while the OSD initialization process in a container could modify it too. In addition, if `lvmetad` is running, the possibility of occurrence gets higher. In this case, the change of LVM metadata in OSD container is not reflected to LVM metadata cache in host for a while.
 
 If you still decide to configure an OSD on LVM, please keep the following in mind to reduce the probability of this issue.
 

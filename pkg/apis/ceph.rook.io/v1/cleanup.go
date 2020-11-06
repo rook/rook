@@ -26,10 +26,10 @@ const (
 	// SanitizeMethodComplete will sanitize everything on the disk
 	SanitizeMethodComplete SanitizeMethodProperty = "complete"
 
-	// SanitizeMethodQuick will sanitize metdata only on the disk
+	// SanitizeMethodQuick will sanitize metadata only on the disk
 	SanitizeMethodQuick SanitizeMethodProperty = "quick"
 
-	// DeleteDataDirOnHostsConfirmation represents the validation to destry dataDirHostPath
+	// DeleteDataDirOnHostsConfirmation represents the validation to destroy dataDirHostPath
 	DeleteDataDirOnHostsConfirmation CleanupConfirmationProperty = "yes-really-destroy-data"
 )
 

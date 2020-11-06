@@ -6,7 +6,7 @@ A Rook Ceph cluster.
 
 ## Ceph Object Realm Walkthrough
 
-The resource descibed in this design document represents the realm in the [Ceph Multisite data model](/design/ceph/object/ceph-multisite-overview.md).
+The resource described in this design document represents the realm in the [Ceph Multisite data model](/design/ceph/object/ceph-multisite-overview.md).
 
 ### Creating an Object Realm
 

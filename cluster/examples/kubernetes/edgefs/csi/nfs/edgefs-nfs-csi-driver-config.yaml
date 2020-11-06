@@ -10,8 +10,8 @@ k8sEdgefsMgmtPrefix: rook-edgefs-mgr # edgefs cluster management prefix
 #Edgefs csi operatins options
 cluster: cltest #substitution edgefs cluster name for csi operations
 tenant: test    #substitution edgefs tenant name for csi operations
-#serviceFilter: "nfs01" #List of comma delimeted allowed service names to filter
+#serviceFilter: "nfs01" #List of comma delimited allowed service names to filter
 
-# Edgefs connnection options
+# Edgefs connection options
 username: admin #edgefs k8s cluster grpc connection username
 password: admin #edgefs k8s cluster  grpc connection password

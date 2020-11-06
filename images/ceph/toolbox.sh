@@ -30,7 +30,7 @@ write_endpoints() {
     endpoints=$(cat ${MON_CONFIG})
 
     # filter out the mon names
-    # external cluster can have numbers or hypens in mon names, handling them in regex
+    # external cluster can have numbers or hyphens in mon names, handling them in regex
     mon_endpoints=$(echo ${endpoints} | sed 's/[a-z0-9_-]\+=//g')
 
     DATE=$(date)

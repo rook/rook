@@ -112,7 +112,7 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 			// In resurrection case we only need to adjust networking selections
 			// in ccow.json, ccowd.json and corosync.conf. And keep device transport
 			// same as before. Resurrection is "best effort" feature, we cannot
-			// guarnatee that cluster can be reconfigured, but at least we do try.
+			// guarantee that cluster can be reconfigured, but at least we do try.
 
 			rtDevices = make([]edgefsv1.RTDevice, 0)
 			rtSlaveDevices = make([]edgefsv1.RTDevices, 0)
@@ -132,7 +132,7 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 			case "zone":
 				failureDomain = 2
 			default:
-				logger.Infof("Unknow failure domain %s, skipped", c.Spec.FailureDomain)
+				logger.Infof("Unknown failure domain %s, skipped", c.Spec.FailureDomain)
 			}
 		}
 		commitWait := 1

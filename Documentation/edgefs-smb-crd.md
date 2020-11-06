@@ -61,7 +61,7 @@ spec:
 * `name`: The name of the SMB system to create, which must match existing EdgeFS service.
 * `namespace`: The namespace of the Rook cluster where the SMB service is created.
 * `instances`: The number of active SMB service instances. EdgeFS SMB service is Multi-Head capable, such so that multiple PODs can mount same tenant's buckets via different endpoints.
-* `relaxedDirUpdates`: If set to `true` then it will significantly improve performance of directory operations by defering updates, guaranteeing eventual directory consistency. This option is recommended when a bucket exported via single SMB instance and it is not a destination for ISGW Link synchronization.
+* `relaxedDirUpdates`: If set to `true` then it will significantly improve performance of directory operations by deferring updates, guaranteeing eventual directory consistency. This option is recommended when a bucket exported via single SMB instance and it is not a destination for ISGW Link synchronization.
 * `chunkCacheSize`: Limit amount of memory allocated for dynamic chunk cache. By default SMB pod uses up to 75% of available memory as chunk caching area. This option can influence this allocation strategy.
 * `annotations`: Key value pair list of annotations to add.
 * `placement`: The SMB PODs can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/edgefs/cluster.yaml).

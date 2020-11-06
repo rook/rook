@@ -150,7 +150,7 @@ func matchUdevEvent(text string, matches, exclusions []string) (bool, error) {
 func rawUdevBlockMonitor(c chan string, matches, exclusions []string) {
 	defer close(c)
 
-	// stdbuf -oL performs line bufferred output
+	// stdbuf -oL performs line buffered output
 	cmd := exec.Command("stdbuf", "-oL", "udevadm", "monitor", "-u", "-k", "-s", "block")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

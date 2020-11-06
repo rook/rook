@@ -55,7 +55,7 @@ func (a *OsdAgent) configureDriveGroups(context *clusterd.Context) error {
 
 func (a *OsdAgent) driveGroupsAreSupported(context *clusterd.Context) bool {
 	// Call `ceph-volume drive-group` command with no args:
-	// if supported, will return 0 (and help message which we ingore), else returns nonzero (error)
+	// if supported, will return 0 (and help message which we ignore), else returns nonzero (error)
 	_, err := callCephVolume(context, true, cvDriveGroupsCommand)
 	return err == nil
 }

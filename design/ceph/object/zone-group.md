@@ -6,7 +6,7 @@ A Rook Ceph cluster. Ideally a ceph-object-realm resource would have been starte
 
 ## Ceph Object Zone Group Walkthrough
 
-The resource descibed in this design document represents the zone group in the [Ceph Multisite data model](/design/ceph/object/ceph-multisite-overview.md).
+The resource described in this design document represents the zone group in the [Ceph Multisite data model](/design/ceph/object/ceph-multisite-overview.md).
 
 
 ### Creating an Ceph Object Zone Group

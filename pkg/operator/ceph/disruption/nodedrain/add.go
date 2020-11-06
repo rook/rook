@@ -101,7 +101,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 		return err
 	}
 
-	// Watch for changes to the osd pod nodename and enqueue thier nodes
+	// Watch for changes to the osd pod nodename and enqueue their nodes
 	err = c.Watch(
 		&source.Kind{Type: &corev1.Pod{}},
 		&handler.EnqueueRequestsFromMapFunc{
