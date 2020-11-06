@@ -131,10 +131,10 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) (bool, 
 	dro := ParseDevicesResurrectMode(c.Spec.DevicesResurrectMode)
 	logger.Infof("DevicesResurrect options: %+v", dro)
 
-	// Retrive existing cluster config from Kubernetes ConfigMap
+	// Retrieve existing cluster config from Kubernetes ConfigMap
 	existingConfig, err := c.retrieveDeploymentConfig()
 	if err != nil {
-		return true, fmt.Errorf("Failed to retrive DeploymentConfig for cluster [%s]. Error: %s", c.Namespace, err)
+		return true, fmt.Errorf("Failed to retrieve DeploymentConfig for cluster [%s]. Error: %s", c.Namespace, err)
 	}
 
 	clusterReconfiguration, err := c.createClusterReconfigurationSpec(existingConfig, clusterNodes, dro)

@@ -105,7 +105,7 @@ func GetContainers(maxContainerCapacity int64, devices []sys.LocalDisk, storeCon
 		return nil, fmt.Errorf("No available disks for container")
 	}
 
-	// calculates max containers count for avalable devices
+	// calculates max containers count for available devices
 	numContainers := int(math.Ceil(float64(totalCapacity) / float64(maxCap)))
 	maxSSDPerContainer := int(math.Ceil(float64(len(ssds)) / float64(numContainers)))
 	maxHDDPerContainer := int(math.Ceil(float64(len(hdds)) / float64(numContainers)))

@@ -12,6 +12,6 @@ cluster: cltest #substitution edgefs cluster name for csi operations
 tenant: test    #substitution edgefs tenant name for csi operations
 bucket: bk1     #substitution edgefs bucket name for csi operations
 
-# Edgefs connnection options
+# Edgefs connection options
 username: admin #edgefs k8s cluster grpc connection username
 password: admin #edgefs k8s cluster  grpc connection password

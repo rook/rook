@@ -779,7 +779,7 @@ if __name__ == '__main__':
     try:
         rjObj.main()
     except ExecutionFailureException as err:
-        print("Excecution Failed: {}".format(err))
+        print("Execution Failed: {}".format(err))
     except KeyError as kErr:
         print("KeyError: %s", kErr)
     except OSError as osErr:

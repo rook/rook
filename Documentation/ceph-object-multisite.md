@@ -60,7 +60,7 @@ To begin doing this, the admin needs 2 pieces of information:
 
 To pull a Ceph realm from a remote Ceph cluster, an `endpoint` must be added to the CephObjectRealm's `pull` section in the `spec`. This endpoint must be from the master zone in the master zone group of that realm. 
 
-If an admin does not know of an endpoint that fits this critera, the admin can find such an endpoint on the remote Ceph cluster (via the tool box if it is a Rook Ceph Cluster) by runnning:
+If an admin does not know of an endpoint that fits this criteria, the admin can find such an endpoint on the remote Ceph cluster (via the tool box if it is a Rook Ceph Cluster) by running:
 
 ```
 radosgw-admin zonegroup get --rgw-realm=$REALM_NAME --rgw-zonegroup=$MASTER_ZONEGROUP_NAME
@@ -280,5 +280,5 @@ When an object-store (created in a zone) is deleted, the endpoint for that objec
 kubectl delete -f object-store.yaml
 ```
 
-Removing object store(s) from the master zone of the master zone group should be done with caution. When all of theses object-stores are deleted the period cannot be updated and that realm cannot be pulled.
+Removing object store(s) from the master zone of the master zone group should be done with caution. When all of these object-stores are deleted the period cannot be updated and that realm cannot be pulled.
 

@@ -44,7 +44,7 @@ import (
 	storagev1util "k8s.io/kubernetes/pkg/apis/storage/v1/util"
 )
 
-// K8sHelper is a helper for common kubectl commads
+// K8sHelper is a helper for common kubectl commands
 type K8sHelper struct {
 	executor         *exec.CommandExecutor
 	Clientset        *kubernetes.Clientset

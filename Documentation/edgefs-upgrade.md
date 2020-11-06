@@ -58,7 +58,7 @@ And replace EdgeFS operator to new stable 'v1' version
 kubectl -n rook-edgefs-system set image deploy/rook-edgefs-operator rook-edgefs-operator=rook/edgefs:v1.1.0
 ```
 
-Then you could update your cluster's EdgeFS image for latest one as discribed below.
+Then you could update your cluster's EdgeFS image for latest one as described below.
 
 ## EdgeFS Version Upgrade
 

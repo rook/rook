@@ -18,7 +18,7 @@ This script will help us achieve the following tasks
 1. Creates self-signed certificate.
 1. Creates a Certificate Signing Request(CSR) for the certificate and gets it approved from the Kubernetes cluster.
 1. Stores these certificates as a Kubernetes Secret.
-1. Creates a Service Account, ClusterRole and ClusterRoleBindings for running the webhook server with minimal priviledges.
+1. Creates a Service Account, ClusterRole and ClusterRoleBindings for running the webhook server with minimal privileges.
 1. Creates ValidatingWebhookConfig and fills the CA bundle with the appropriate value from the cluster.
 
 Run the following commands:

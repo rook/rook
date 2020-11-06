@@ -133,7 +133,7 @@ that could be made to improve the Rook and CSI integration:
 
 Extend CephBlockPool and CephFilesystem CRDs to automatically provision Storage
 Classes when so configured. Instead of requiring an administrator to create a
-CRD and a Storage Class, add metatdata to the CRD such that Rook will
+CRD and a Storage Class, add metadata to the CRD such that Rook will
 automatically create storage classes based on that additional metadata.
 
 #### Select Flex Provisioning or CSI based on CephCluster CRD

@@ -253,7 +253,7 @@ func getMDSRank(status CephStatus, fsName string) (int, error) {
 	return mdsRank, nil
 }
 
-// MdsActiveOrStandbyReplay returns wether a given MDS is active or in standby
+// MdsActiveOrStandbyReplay returns whether a given MDS is active or in standby
 func MdsActiveOrStandbyReplay(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) error {
 	status, err := Status(context, clusterInfo)
 	if err != nil {

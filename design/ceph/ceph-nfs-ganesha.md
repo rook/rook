@@ -4,10 +4,10 @@
 and [RGW] backends. It can export Ceph's filesystem namespaces and Object
 gateway namespaces over NFSv4 protocol.
 
-Rook already orchestrates Ceph filesytem and Object store (or RGW) on
+Rook already orchestrates Ceph filesystem and Object store (or RGW) on
 Kubernetes (k8s). It can be extended to orchestrate NFS-Ganesha server daemons
-as highly available and  scalable NFS gateway pods to the Ceph filesytem and
-Object Store. This will allow NFS client applications to use the Ceph filesytem
+as highly available and  scalable NFS gateway pods to the Ceph filesystem and
+Object Store. This will allow NFS client applications to use the Ceph filesystem
 and object store setup by rook.
 
 This feature mainly differs from the feature to add NFS as an another
