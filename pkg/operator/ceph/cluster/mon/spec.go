@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -29,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,11 +50,33 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 	if canary {
 		labels["mon_canary"] = "true"
 	}
-	if c.spec.Mon.VolumeClaimTemplate != nil && includeNewLabels {
-		labels["pvc_name"] = monConfig.ResourceName
+	if includeNewLabels {
+		if c.monVolumeClaimTemplate(monConfig) != nil {
+			labels["pvc_name"] = monConfig.ResourceName
+		}
+		if monConfig.Zone != "" {
+			labels["stretch-zone"] = monConfig.Zone
+		}
 	}
 
 	return labels
+}
+
+func (c *Cluster) stretchFailureDomainName() string {
+	label := c.stretchFailureDomainLabel()
+	index := strings.Index(label, "/")
+	if index == -1 {
+		return label
+	}
+	return label[index+1:]
+}
+
+func (c *Cluster) stretchFailureDomainLabel() string {
+	if c.spec.Mon.StretchCluster.FailureDomainLabel != "" {
+		return c.spec.Mon.StretchCluster.FailureDomainLabel
+	}
+	// The default topology label is for a zone
+	return corev1.LabelZoneFailureDomainStable
 }
 
 func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) (*apps.Deployment, error) {
@@ -92,7 +116,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) (*apps.Deplo
 }
 
 func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*v1.PersistentVolumeClaim, error) {
-	template := c.spec.Mon.VolumeClaimTemplate
+	template := c.monVolumeClaimTemplate(m)
 	volumeMode := v1.PersistentVolumeFilesystem
 	pvc := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -156,7 +180,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*v1.Pod, error)
 	}
 
 	// Replace default unreachable node toleration
-	if c.spec.Mon.VolumeClaimTemplate != nil {
+	if c.monVolumeClaimTemplate(monConfig) != nil {
 		k8sutil.AddUnreachableNodeToleration(&podSpec)
 	}
 
@@ -177,6 +201,14 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*v1.Pod, error)
 		if err := k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &pod.ObjectMeta); err != nil {
 			return nil, err
 		}
+	}
+
+	if c.spec.IsStretchCluster() {
+		nodeAffinity, err := k8sutil.GenerateNodeAffinity(fmt.Sprintf("%s=%s", c.stretchFailureDomainLabel(), monConfig.Zone))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to generate mon %q node affinity", monConfig.DaemonName)
+		}
+		pod.Spec.Affinity = &v1.Affinity{NodeAffinity: nodeAffinity}
 	}
 
 	return pod, nil

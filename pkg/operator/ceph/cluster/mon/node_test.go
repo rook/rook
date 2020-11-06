@@ -217,7 +217,7 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 		},
 	}
 
-	var info *NodeInfo
+	var info *MonScheduleInfo
 	_, err = getNodeInfoFromNode(*node)
 	assert.NotNil(t, err)
 

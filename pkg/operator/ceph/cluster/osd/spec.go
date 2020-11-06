@@ -632,7 +632,7 @@ func removeDuplicateEnvVarsFromContainer(container *v1.Container) {
 	vars := []v1.EnvVar{}
 	for _, v := range container.Env {
 		if _, ok := foundVars[v.Name]; ok {
-			logger.Infof("duplicate env var %q skipped on container %q", v.Name, container.Name)
+			logger.Debugf("duplicate env var %q skipped on container %q", v.Name, container.Name)
 			continue
 		}
 

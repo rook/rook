@@ -58,14 +58,15 @@ func TestCreatePool(t *testing.T) {
 	p.Spec.Replicated.Size = 1
 	p.Spec.Replicated.RequireSafeReplicaSize = false
 
-	err := createPool(context, clusterInfo, p, cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{cephclient.CrushRootConfigKey: "cluster-crush-root"}}})
+	clusterSpec := &cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{cephclient.CrushRootConfigKey: "cluster-crush-root"}}}
+	err := createPool(context, clusterInfo, clusterSpec, p)
 	assert.Nil(t, err)
 
 	// succeed with EC
 	p.Spec.Replicated.Size = 0
 	p.Spec.ErasureCoded.CodingChunks = 1
 	p.Spec.ErasureCoded.DataChunks = 2
-	err = createPool(context, clusterInfo, p, cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{cephclient.CrushRootConfigKey: "cluster-crush-root"}}})
+	err = createPool(context, clusterInfo, clusterSpec, p)
 	assert.Nil(t, err)
 }
 

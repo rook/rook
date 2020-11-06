@@ -51,9 +51,10 @@ the cluster. These examples represent a very small set of the different ways to 
 * `cluster-with-drive-groups.yaml`: This file contains example configurations for creating advanced
   OSD layouts on nodes using Ceph Drive Groups.
   [See docs for more](Documentation/ceph-cluster-crd.md#storage-selection-via-ceph-drive-groups)
-* `cluster-external`: Connect to an [external Ceph cluster](ceph-cluster-crd.md#external-cluster) with minimal access to monitor the health of the cluster and connect to the storage.
-* `cluster-external-management`: Connect to an [external Ceph cluster](ceph-cluster-crd.md#external-cluster) with the admin key of the external cluster to enable
+* `cluster-external.yaml`: Connect to an [external Ceph cluster](ceph-cluster-crd.md#external-cluster) with minimal access to monitor the health of the cluster and connect to the storage.
+* `cluster-external-management.yaml`: Connect to an [external Ceph cluster](ceph-cluster-crd.md#external-cluster) with the admin key of the external cluster to enable
   remote creation of pools and configure services such as an [Object Store](ceph-object.md) or a [Shared Filesystem](ceph-filesystem.md).
+* `cluster-stretched.yaml`: Create a cluster in "stretched" mode, with five mons stretched across three zones, and the OSDs across two zones. See the [Stretch documentation](ceph-cluster-crd.md#stretch-cluster).
 
 See the [Cluster CRD](ceph-cluster-crd.md) topic for more details and more examples for the settings.
 

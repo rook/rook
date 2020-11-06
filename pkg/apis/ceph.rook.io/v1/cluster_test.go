@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	v1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_validateUpdatedCephCluster(t *testing.T) {
@@ -47,4 +49,43 @@ func Test_validateUpdatedCephCluster(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCephClusterValidateCreate(t *testing.T) {
+	c := &CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rook-ceph",
+		},
+		Spec: ClusterSpec{
+			DataDirHostPath: "/var/lib/rook",
+		},
+	}
+	err := c.ValidateCreate()
+	assert.NoError(t, err)
+	c.Spec.External.Enable = true
+	c.Spec.Monitoring = MonitoringSpec{
+		Enabled:        true,
+		RulesNamespace: "rook-ceph",
+	}
+	err = c.ValidateCreate()
+	assert.Error(t, err)
+}
+
+func TestCephClusterValidateUpdate(t *testing.T) {
+	c := &CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rook-ceph",
+		},
+		Spec: ClusterSpec{
+			DataDirHostPath: "/var/lib/rook",
+		},
+	}
+	err := c.ValidateCreate()
+	assert.NoError(t, err)
+
+	// Updating the CRD specs with invalid values
+	uc := c.DeepCopy()
+	uc.Spec.DataDirHostPath = "var/rook"
+	err = uc.ValidateUpdate(c)
+	assert.Error(t, err)
 }

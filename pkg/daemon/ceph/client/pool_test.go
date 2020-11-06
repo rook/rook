@@ -172,7 +172,8 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	if compressionMode != "" {
 		p.CompressionMode = compressionMode
 	}
-	err := CreateReplicatedPoolForApp(context, AdminClusterInfo("mycluster"), "mypool", p, DefaultPGCount, "myapp", cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}})
+	clusterSpec := &cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}}
+	err := CreateReplicatedPoolForApp(context, AdminClusterInfo("mycluster"), clusterSpec, "mypool", p, DefaultPGCount, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
 	if compressionMode != "" {
@@ -263,5 +264,56 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 	}
 
 	err = SetPoolReplicatedSizeProperty(context, AdminClusterInfo("mycluster"), poolName, "1")
+	assert.NoError(t, err)
+}
+
+func TestCreateStretchCrushRule(t *testing.T) {
+	testCreateStretchCrushRule(t, true)
+	testCreateStretchCrushRule(t, false)
+}
+
+func testCreateStretchCrushRule(t *testing.T, alreadyExists bool) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "osd" {
+			if args[1] == "getcrushmap" {
+				return "", nil
+			}
+			if args[1] == "setcrushmap" {
+				if alreadyExists {
+					return "", errors.New("setcrushmap not expected for already existing crush rule")
+				}
+				return "", nil
+			}
+		}
+		if command == "crushtool" {
+			switch {
+			case args[0] == "--decompile" || args[0] == "--compile":
+				if alreadyExists {
+					return "", errors.New("--compile or --decompile not expected for already existing crush rule")
+				}
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command (file): %s %v", command, args)
+		if args[0] == "osd" && args[1] == "crush" && args[2] == "dump" {
+			return testCrushMap, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	clusterInfo := AdminClusterInfo("mycluster")
+	clusterSpec := &cephv1.ClusterSpec{}
+	poolSpec := cephv1.PoolSpec{}
+	ruleName := "testrule"
+	if alreadyExists {
+		ruleName = "replicated_ruleset"
+	}
+
+	err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, ruleName, poolSpec)
 	assert.NoError(t, err)
 }

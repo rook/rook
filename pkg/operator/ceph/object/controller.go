@@ -79,7 +79,7 @@ type ReconcileCephObjectStore struct {
 	bktclient           bktclient.Interface
 	scheme              *runtime.Scheme
 	context             *clusterd.Context
-	cephClusterSpec     *cephv1.ClusterSpec
+	clusterSpec         *cephv1.ClusterSpec
 	clusterInfo         *cephclient.ClusterInfo
 	objectStoreChannels map[string]*objectStoreHealth
 }
@@ -194,7 +194,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 		return reconcileResponse, nil
 	}
-	r.cephClusterSpec = &cephCluster.Spec
+	r.clusterSpec = &cephCluster.Spec
 
 	// Initialize the channel for this object store
 	// This allows us to track multiple ObjectStores in the same namespace
@@ -240,7 +240,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			cfg := clusterConfig{
 				context:     r.context,
 				store:       cephObjectStore,
-				clusterSpec: r.cephClusterSpec,
+				clusterSpec: r.clusterSpec,
 				clusterInfo: r.clusterInfo,
 			}
 			err = cfg.deleteStore()
@@ -289,9 +289,9 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		context:     r.context,
 		clusterInfo: r.clusterInfo,
 		store:       cephObjectStore,
-		rookVersion: r.cephClusterSpec.CephVersion.Image,
-		clusterSpec: r.cephClusterSpec,
-		DataPathMap: opconfig.NewStatelessDaemonDataPathMap(opconfig.RgwType, cephObjectStore.Name, cephObjectStore.Namespace, r.cephClusterSpec.DataDirHostPath),
+		rookVersion: r.clusterSpec.CephVersion.Image,
+		clusterSpec: r.clusterSpec,
+		DataPathMap: opconfig.NewStatelessDaemonDataPathMap(opconfig.RgwType, cephObjectStore.Name, cephObjectStore.Namespace, r.clusterSpec.DataDirHostPath),
 		client:      r.client,
 		scheme:      r.scheme,
 	}
@@ -301,7 +301,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	var serviceIP string
 	var err error
 
-	if r.cephClusterSpec.External.Enable {
+	if r.clusterSpec.External.Enable {
 		logger.Info("reconciling external object store")
 
 		// RECONCILE SERVICE
@@ -351,7 +351,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		// Reconcile Pool Creation
 		if !cephObjectStore.Spec.IsMultisite() {
 			logger.Info("reconciling object store pools")
-			err = CreatePools(objContext, cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool, cluster)
+			err = CreatePools(objContext, r.clusterSpec, cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool)
 			if err != nil {
 				return r.setFailedStatus(namespacedName, "failed to create object pools", err)
 			}
@@ -482,7 +482,7 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 		return
 	}
 
-	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck, r.cephClusterSpec.External.Enable)
+	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck, r.clusterSpec.External.Enable)
 	logger.Info("starting rgw healthcheck")
 	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
 }

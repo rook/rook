@@ -57,7 +57,7 @@ func createFilesystem(
 ) error {
 	if len(fs.Spec.DataPools) != 0 {
 		f := newFS(fs.Name, fs.Namespace)
-		if err := f.doFilesystemCreate(context, clusterInfo, fs.Spec, *clusterSpec); err != nil {
+		if err := f.doFilesystemCreate(context, clusterInfo, clusterSpec, fs.Spec); err != nil {
 			return errors.Wrapf(err, "failed to create filesystem %q", fs.Name)
 		}
 	}
@@ -137,7 +137,7 @@ func deleteFilesystem(
 	return nil
 }
 
-func validateFilesystem(context *clusterd.Context, clusterInfo *client.ClusterInfo, f *cephv1.CephFilesystem) error {
+func validateFilesystem(context *clusterd.Context, clusterInfo *client.ClusterInfo, clusterSpec *cephv1.ClusterSpec, f *cephv1.CephFilesystem) error {
 	if f.Name == "" {
 		return errors.New("missing name")
 	}
@@ -151,12 +151,12 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *client.ClusterIn
 	if len(f.Spec.DataPools) == 0 {
 		return nil
 	}
-	if err := pool.ValidatePoolSpec(context, clusterInfo, &f.Spec.MetadataPool); err != nil {
+	if err := pool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &f.Spec.MetadataPool); err != nil {
 		return errors.Wrap(err, "invalid metadata pool")
 	}
 	for _, p := range f.Spec.DataPools {
 		localpoolSpec := p
-		if err := pool.ValidatePoolSpec(context, clusterInfo, &localpoolSpec); err != nil {
+		if err := pool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localpoolSpec); err != nil {
 			return errors.Wrap(err, "Invalid data pool")
 		}
 	}
@@ -173,10 +173,10 @@ func newFS(name, namespace string) *Filesystem {
 }
 
 // SetPoolSize function sets the sizes for MetadataPool and dataPool
-func SetPoolSize(f *Filesystem, context *clusterd.Context, clusterInfo *client.ClusterInfo, spec cephv1.FilesystemSpec, cluster cephv1.ClusterSpec) error {
+func SetPoolSize(f *Filesystem, context *clusterd.Context, clusterInfo *client.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
 	// generating the metadata pool's name
 	metadataPoolName := generateMetaDataPoolName(f)
-	err := client.CreatePoolWithProfile(context, clusterInfo, metadataPoolName, spec.MetadataPool, "", cluster)
+	err := client.CreatePoolWithProfile(context, clusterInfo, clusterSpec, metadataPoolName, spec.MetadataPool, "")
 	if err != nil {
 		return errors.Wrapf(err, "failed to update metadata pool %q", metadataPoolName)
 	}
@@ -184,7 +184,7 @@ func SetPoolSize(f *Filesystem, context *clusterd.Context, clusterInfo *client.C
 	dataPoolNames := generateDataPoolNames(f, spec)
 	for i, pool := range spec.DataPools {
 		poolName := dataPoolNames[i]
-		err := client.CreatePoolWithProfile(context, clusterInfo, poolName, pool, "", cluster)
+		err := client.CreatePoolWithProfile(context, clusterInfo, clusterSpec, poolName, pool, "")
 		if err != nil {
 			return errors.Wrapf(err, "failed to update datapool  %q", poolName)
 		}
@@ -193,7 +193,7 @@ func SetPoolSize(f *Filesystem, context *clusterd.Context, clusterInfo *client.C
 }
 
 // doFilesystemCreate starts the Ceph file daemons and creates the filesystem in Ceph.
-func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *client.ClusterInfo, spec cephv1.FilesystemSpec, cluster cephv1.ClusterSpec) error {
+func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *client.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
 
 	_, err := client.GetFilesystem(context, clusterInfo, f.Name)
 	if err == nil {
@@ -208,7 +208,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 					fmt.Sprintf(". %v", err),
 			)
 		}
-		if err := SetPoolSize(f, context, clusterInfo, spec, cluster); err != nil {
+		if err := SetPoolSize(f, context, clusterInfo, clusterSpec, spec); err != nil {
 			return errors.Wrap(err, "failed to set pools size")
 		}
 		return nil
@@ -242,7 +242,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 	metadataPoolName := generateMetaDataPoolName(f)
 	if _, poolFound := reversedPoolMap[metadataPoolName]; !poolFound {
 		poolsCreated = true
-		err = client.CreatePoolWithProfile(context, clusterInfo, metadataPoolName, spec.MetadataPool, "", cluster)
+		err = client.CreatePoolWithProfile(context, clusterInfo, clusterSpec, metadataPoolName, spec.MetadataPool, "")
 		if err != nil {
 			return errors.Wrapf(err, "failed to create metadata pool %q", metadataPoolName)
 		}
@@ -253,7 +253,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		poolName := dataPoolNames[i]
 		if _, poolFound := reversedPoolMap[poolName]; !poolFound {
 			poolsCreated = true
-			err = client.CreatePoolWithProfile(context, clusterInfo, poolName, pool, "", cluster)
+			err = client.CreatePoolWithProfile(context, clusterInfo, clusterSpec, poolName, pool, "")
 			if err != nil {
 				return errors.Wrapf(err, "failed to create data pool %q", poolName)
 			}

@@ -44,30 +44,31 @@ func TestValidateSpec(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
 	clusterInfo := &client.ClusterInfo{Namespace: "ns"}
 	fs := &cephv1.CephFilesystem{}
+	clusterSpec := &cephv1.ClusterSpec{}
 
 	// missing name
-	assert.NotNil(t, validateFilesystem(context, clusterInfo, fs))
+	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
 	fs.Name = "myfs"
 
 	// missing namespace
-	assert.NotNil(t, validateFilesystem(context, clusterInfo, fs))
+	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
 	fs.Namespace = "myns"
 
 	// missing data pools
-	assert.NotNil(t, validateFilesystem(context, clusterInfo, fs))
+	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
 	p := cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, p)
 
 	// missing metadata pool
-	assert.NotNil(t, validateFilesystem(context, clusterInfo, fs))
+	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
 	fs.Spec.MetadataPool = p
 
 	// missing mds count
-	assert.NotNil(t, validateFilesystem(context, clusterInfo, fs))
+	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
 	fs.Spec.MetadataServer.ActiveCount = 1
 
 	// valid!
-	assert.Nil(t, validateFilesystem(context, clusterInfo, fs))
+	assert.Nil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
 }
 
 func TestCreateFilesystem(t *testing.T) {
