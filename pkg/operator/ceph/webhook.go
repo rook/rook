@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/apps/v1"
@@ -28,16 +29,19 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	appName                  = "rook-ceph-admission-controller"
-	secretVolumeName         = "webhook-certificates" // #nosec G101 This is just a var name, not a real secret
-	serviceAccountName       = "rook-ceph-admission-controller"
-	portName                 = "webhook-api"
-	servicePort        int32 = 443
-	serverPort         int32 = 8079
-	tlsDir                   = "/etc/webhook"
+	appName                                  = "rook-ceph-admission-controller"
+	secretVolumeName                         = "webhook-certificates" // #nosec G101 This is just a var name, not a real secret
+	serviceAccountName                       = "rook-ceph-admission-controller"
+	portName                                 = "webhook-api"
+	servicePort                        int32 = 443
+	serverPort                         int32 = 8079
+	tlsDir                                   = "/etc/webhook"
+	admissionControllerTolerationsEnv        = "ADMISSION_CONTROLLER_TOLERATIONS"
+	admissionControllerNodeAffinityEnv       = "ADMISSION_CONTROLLER_NODE_AFFINITY"
 )
 
 var (
@@ -188,7 +192,9 @@ func getDeployment(context *clusterd.Context, secretVolume corev1.Volume, antiAf
 					ServiceAccountName: serviceAccountName,
 					Affinity: &corev1.Affinity{
 						PodAntiAffinity: &antiAffinity,
+						NodeAffinity:    getNodeAffinity(context.Clientset),
 					},
+					Tolerations: getTolerations(context.Clientset),
 				},
 			},
 		},
@@ -215,4 +221,39 @@ func getSecretVolume() corev1.Volume {
 		},
 	}
 	return secretVolume
+}
+
+func getTolerations(clientset kubernetes.Interface) []corev1.Toleration {
+	// Add toleration if any
+	tolerations := []corev1.Toleration{}
+	tolerationsRaw, err := k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, admissionControllerTolerationsEnv, "")
+	if err != nil {
+		logger.Warningf("toleration will be empty because failed to read the setting. %v", err)
+		return tolerations
+	}
+	tolerations, err = k8sutil.YamlToTolerations(tolerationsRaw)
+	if err != nil {
+		logger.Warningf("toleration will be empty because failed to parse the setting %q. %v", tolerationsRaw, err)
+		return tolerations
+	}
+	return tolerations
+}
+
+func getNodeAffinity(clientset kubernetes.Interface) *corev1.NodeAffinity {
+	// Add NodeAffinity if any
+	v1NodeAffinity := &corev1.NodeAffinity{}
+	nodeAffinity, err := k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, admissionControllerNodeAffinityEnv, "")
+	if err != nil {
+		// nodeAffinity will be empty by default in case of error
+		logger.Warningf("node affinity will be empty because failed to read the setting. %v", err)
+		return v1NodeAffinity
+	}
+	if nodeAffinity != "" {
+		v1NodeAffinity, err = k8sutil.GenerateNodeAffinity(nodeAffinity)
+		if err != nil {
+			logger.Warningf("node affinity will be empty because failed to parse the setting %q. %v", nodeAffinity, err)
+			return v1NodeAffinity
+		}
+	}
+	return v1NodeAffinity
 }
