@@ -88,13 +88,13 @@ kubectl create -f toolbox.yaml
 Wait for the toolbox pod to download its container and get to the `running` state:
 
 ```console
-kubectl -n rook-ceph get pod -l "app=rook-ceph-tools"
+kubectl -n rook-ceph rollout status deploy/rook-ceph-tools
 ```
 
 Once the rook-ceph-tools pod is running, you can connect to it with:
 
 ```console
-kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
+kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- bash
 ```
 
 All available tools in the toolbox are ready for your troubleshooting needs.
@@ -109,7 +109,7 @@ All available tools in the toolbox are ready for your troubleshooting needs.
 When you are done with the toolbox, you can remove the deployment:
 
 ```console
-kubectl -n rook-ceph delete deployment rook-ceph-tools
+kubectl -n rook-ceph delete deploy/rook-ceph-tools
 ```
 
 ## Toolbox Job
