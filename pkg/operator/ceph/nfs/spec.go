@@ -190,6 +190,10 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 	_, cephConfigMount := cephConfigVolumeAndMount()
 	_, nfsConfigMount := nfsConfigVolumeAndMount(cfg.ConfigConfigMap)
 	_, dbusMount := dbusVolumeAndMount()
+	logLevel := "NIV_INFO" // Default log level
+	if nfs.Spec.Server.LogLevel != "" {
+		logLevel = nfs.Spec.Server.LogLevel
+	}
 
 	return v1.Container{
 		Name: "nfs-ganesha",
@@ -200,6 +204,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 			"-F",           // foreground
 			"-L", "STDERR", // log to stderr
 			"-p", ganeshaPid, // PID file location
+			"-N", logLevel, // Change Log level
 		},
 		Image: r.cephClusterSpec.CephVersion.Image,
 		VolumeMounts: []v1.VolumeMount{
