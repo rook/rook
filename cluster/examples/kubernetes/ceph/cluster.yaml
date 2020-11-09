@@ -89,26 +89,26 @@ spec:
   # enable the crash collector for ceph daemon crash collection
   crashCollector:
     disable: false
-  cleanupPolicy:
+    #cleanupPolicy:
     # cleanup should only be added to the cluster when the cluster is about to be deleted.
     # After any field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about
     # to be destroyed in order to prevent these settings from being deployed unintentionally.
     # To signify that automatic deletion is desired, use the value "yes-really-destroy-data". Only this and an empty
     # string are valid values for this field.
-    confirmation: ""
+    #confirmation: ""
     # sanitizeDisks represents settings for sanitizing OSD disks on cluster deletion
-    sanitizeDisks:
+    #sanitizeDisks:
       # method indicates if the entire disk should be sanitized or simply ceph's metadata
       # in both case, re-install is possible
       # possible choices are 'complete' or 'quick' (default)
-      method: quick
+      #method: quick
       # dataSource indicate where to get random bytes from to write on the disk
       # possible choices are 'zero' (default) or 'random'
       # using random sources will consume entropy from the system and will take much more time then the zero source
-      dataSource: zero
+      #dataSource: zero
       # iteration overwrite N times instead of the default (1)
       # takes an integer value
-      iteration: 1
+      #iteration: 1
     # allowUninstallWithVolumes defines how the uninstall should be performed
     # If set to true, cephCluster deletion does not wait for the PVs to be deleted.
     allowUninstallWithVolumes: false
