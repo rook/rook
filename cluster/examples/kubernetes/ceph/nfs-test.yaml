@@ -15,3 +15,5 @@ spec:
   server:
     # the number of active NFS servers
     active: 1
+    # The logging levels: NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG |NIV_FULL_DEBUG |NB_LOG_LEVEL
+    logLevel: NIV_INFO
