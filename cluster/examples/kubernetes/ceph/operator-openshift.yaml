@@ -418,6 +418,9 @@ spec:
         # (Optional) Discover Agent NodeAffinity.
         # - name: DISCOVER_AGENT_NODE_AFFINITY
         #   value: "role=storage-node; storage=rook, ceph"
+        # (Optional) Discover Agent Pod Labels.
+        # - name: DISCOVER_AGENT_POD_LABELS
+        #   value: "key1=value1,key2=value2"
         # Allow rook to create multiple file systems. Note: This is considered
         # an experimental feature in Ceph as described at
         # http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster

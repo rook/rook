@@ -19,6 +19,10 @@ v1.5...
 
 ## Features
 
+### Core
+
+* Discover Agent: Custom labels can be added to the DaemonSet Pods.
+
 ### Ceph
 
 * Stretch clusters for mons and OSDs to work reliably across two datacenters (Experimental mode)
@@ -28,3 +32,4 @@ v1.5...
 * Ceph Cluster: add encryption support with Key Management Service
 * The helm chart is updated to v3.4
   * A `crds.enabled` setting allows the CRDs to be managed separately from the helm chart
+* Ceph CSI: DaemonSet and Deployment Pods can have custom labels added to them
