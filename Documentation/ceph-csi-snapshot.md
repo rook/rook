@@ -9,7 +9,7 @@ indent: true
 * Requires Kubernetes v1.17+ which supports snapshot beta.
 
 * Install the new snapshot controller and snapshot beta CRD. More info can be found
-[here](https://github.com/kubernetes-csi/external-snapshotter/tree/v2.1.1#usage)
+[here](https://github.com/kubernetes-csi/external-snapshotter/tree/master#usage)
 
 Note: If the Kubernetes distributor you are using does not supports the snapshot beta,
 still you can use the Alpha snapshots. refer to
