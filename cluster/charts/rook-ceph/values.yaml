@@ -256,6 +256,10 @@ csi:
     #image: k8s.gcr.io/sig-storage/csi-attacher:v3.0.0
   #resizer:
     #image: k8s.gcr.io/sig-storage/csi-resizer:v1.0.0
+  # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
+  #cephfsPodLabels: "key1=value1,key2=value2"
+  # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
+  #rbdPodLabels: "key1=value1,key2=value2"
 
 enableFlexDriver: false
 enableDiscoveryDaemon: false

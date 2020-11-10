@@ -13,6 +13,9 @@ spec:
       labels:
         app: csi-rbdplugin-provisioner
         contains: csi-rbdplugin-metrics
+        {{ range $key, $value := .CSIRBDPodLabels }}
+        $key: "$value"
+        {{ end }}
     spec:
       serviceAccount: rook-csi-rbd-provisioner-sa
       {{ if .ProvisionerPriorityClassName }}

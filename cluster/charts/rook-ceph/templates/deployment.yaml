@@ -160,6 +160,14 @@ spec:
           value: {{ .Values.csi.resizer.image | quote }}
 {{- end }}
 {{- end }}
+{{- if .Values.csi.cephfsPodLabels }}
+        - name: ROOK_CSI_CEPHFS_POD_LABELS
+          value: {{ .Values.csi.cephfsPodLabels | quote }}
+{{- end }}
+{{- if .Values.csi.rbdPodLabels }}
+        - name: ROOK_CSI_RBD_POD_LABELS
+          value: {{ .Values.csi.rbdPodLabels | quote }}
+{{- end }}
 {{- if .Values.csi.provisionerTolerations }}
         - name: CSI_PROVISIONER_TOLERATIONS
           value: {{ toYaml .Values.csi.provisionerTolerations | quote }}

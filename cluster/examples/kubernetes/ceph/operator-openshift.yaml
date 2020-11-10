@@ -141,6 +141,11 @@ data:
   # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
   # ROOK_CSI_KUBELET_DIR_PATH: "/var/lib/kubelet"
 
+  # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
+  # ROOK_CSI_CEPHFS_POD_LABELS: "key1=value1,key2=value2"
+  # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
+  # ROOK_CSI_RBD_POD_LABELS: "key1=value1,key2=value2"
+
   # (Optional) Ceph Provisioner NodeAffinity.
   # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
   # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.

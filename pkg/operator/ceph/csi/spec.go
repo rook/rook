@@ -58,6 +58,8 @@ type Param struct {
 	RBDGRPCMetricsPort           uint16
 	RBDLivenessMetricsPort       uint16
 	ProvisionerReplicas          uint8
+	CSICephFSPodLabels           map[string]string
+	CSIRBDPodLabels              map[string]string
 }
 
 type templateParam struct {
