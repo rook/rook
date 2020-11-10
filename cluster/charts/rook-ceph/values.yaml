@@ -252,7 +252,7 @@ csi:
     #image: k8s.gcr.io/sig-storage/csi-resizer:v1.0.0
 
 enableFlexDriver: false
-enableDiscoveryDaemon: true
+enableDiscoveryDaemon: false
 
 ## if true, run rook operator on the host network
 # useOperatorHostNetwork: true

@@ -3076,6 +3076,8 @@ spec:
           value: "true"
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: "false"` + openshiftEnv + `
+        - name: ROOK_ENABLE_DISCOVERY_DAEMON
+          value: "true"
         volumeMounts:
         - mountPath: /var/lib/rook
           name: rook-config
