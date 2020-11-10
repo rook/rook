@@ -78,12 +78,15 @@ kubectl create -f operator.yaml
 kubectl -n rook-ceph get pod
 ```
 
-**NOTE**
-
-If you are using kubernetes v1.15 or older you need to create CRDs found here `/cluster/examples/kubernetes/ceph` as apiextension v1beta1 version of CustomResourceDefinition
-is deprecated in Kubernetes v1.16 and will no longer be supported from k8s v1.22.
-
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
+
+Before you start the operator in production, there are some settings that you may want to consider:
+1. If you are using kubernetes v1.15 or older you need to create CRDs found here `/cluster/examples/kubernetes/ceph/pre-k8s-1.16/crd.yaml`.
+   The apiextension v1beta1 version of CustomResourceDefinition was deprecated in Kubernetes v1.16.
+2. Consider if you want to enable certain Rook features that are disabled by default. See the [operator.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator.yaml) for these and other advanced settings.
+   1. Device discovery: Rook will watch for new devices to configure if the `ROOK_ENABLE_DISCOVERY_DAEMON` setting is enabled, commonly used in bare metal clusters.
+   2. Flex driver: The flex driver is deprecated in favor of the CSI driver, but can still be enabled with the `ROOK_ENABLE_FLEX_DRIVER` setting.
+   3. Node affinity and tolerations: The CSI driver by default will run on any node in the cluster. To configure the CSI driver affinity, several settings are available.
 
 ## Create a Rook Ceph Cluster
 
@@ -99,7 +102,7 @@ kubectl create -f cluster.yaml
 Use `kubectl` to list pods in the `rook-ceph` namespace. You should be able to see the following pods once they are all running.
 The number of osd pods will depend on the number of nodes in the cluster and the number of devices configured.
 If you did not modify the `cluster.yaml` above, it is expected that one OSD will be created per node.
-The CSI, `rook-ceph-agent`, and `rook-discover` pods are also optional depending on your settings.
+The CSI, `rook-ceph-agent` (flex driver), and `rook-discover` pods are also optional depending on your settings.
 
 > If the `rook-ceph-mon`, `rook-ceph-mgr`, or `rook-ceph-osd` pods are not created, please refer to the
 > [Ceph common issues](ceph-common-issues.md) for more details and potential solutions.
@@ -113,7 +116,6 @@ csi-cephfsplugin-rthrp                               3/3     Running     0      
 csi-rbdplugin-hbsm7                                  3/3     Running     0          140s
 csi-rbdplugin-provisioner-5b5cd64fd-nvk6c            6/6     Running     0          140s
 csi-rbdplugin-provisioner-5b5cd64fd-q7bxl            6/6     Running     0          140s
-rook-ceph-agent-4zkg8                                1/1     Running     0          140s
 rook-ceph-crashcollector-minikube-5b57b7c5d4-hfldl   1/1     Running     0          105s
 rook-ceph-mgr-a-64cd7cdf54-j8b5p                     1/1     Running     0          77s
 rook-ceph-mon-a-694bb7987d-fp9w7                     1/1     Running     0          105s
@@ -126,7 +128,6 @@ rook-ceph-osd-2-6cd4b776ff-v4d68                     1/1     Running     0      
 rook-ceph-osd-prepare-node1-vx2rz                    0/2     Completed   0          60s
 rook-ceph-osd-prepare-node2-ab3fd                    0/2     Completed   0          60s
 rook-ceph-osd-prepare-node3-w4xyz                    0/2     Completed   0          60s
-rook-discover-dhkb8                                  1/1     Running     0          140s
 ```
 
 To verify that the cluster is in a healthy state, connect to the [Rook toolbox](ceph-toolbox.md) and run the
