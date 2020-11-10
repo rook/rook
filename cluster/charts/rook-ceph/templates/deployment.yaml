@@ -92,6 +92,10 @@ spec:
         - name: DISCOVER_AGENT_NODE_AFFINITY
           value: {{ .Values.discover.nodeAffinity }}
 {{- end }}
+{{- if .Values.discover.podLabels }}
+        - name: DISCOVER_AGENT_POD_LABELS
+          value: {{ .Values.discover.podLabels }}
+{{- end }}
 {{- end }}
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "{{ .Values.hostpathRequiresPrivileged }}"

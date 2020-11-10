@@ -46,6 +46,7 @@ const (
 	discoverDaemonsetTolerationKeyEnv     = "DISCOVER_TOLERATION_KEY"
 	discoverDaemonsetTolerationsEnv       = "DISCOVER_TOLERATIONS"
 	discoverDaemonSetNodeAffinityEnv      = "DISCOVER_AGENT_NODE_AFFINITY"
+	discoverDaemonSetPodLabelsEnv         = "DISCOVER_AGENT_POD_LABELS"
 	deviceInUseCMName                     = "local-device-in-use-cluster-%s-node-%s"
 	deviceInUseAppName                    = "rook-claimed-devices"
 	deviceInUseClusterAttr                = "rook.io/cluster"
@@ -88,6 +89,9 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 	ds := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: discoverDaemonsetName,
+			Labels: map[string]string{
+				"app": discoverDaemonsetName,
+			},
 		},
 		Spec: apps.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -209,6 +213,15 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 				NodeAffinity: v1NodeAffinity,
 			}
 		}
+	}
+
+	podLabels := os.Getenv(discoverDaemonSetPodLabelsEnv)
+	if podLabels != "" {
+		podLabels := k8sutil.ParseStringToLabels(podLabels)
+		// Override / Set the app label even if set by the user as
+		// otherwise the DaemonSet pod selector may be broken
+		podLabels["app"] = discoverDaemonsetName
+		ds.Spec.Template.ObjectMeta.Labels = podLabels
 	}
 
 	_, err = d.clientset.AppsV1().DaemonSets(namespace).Create(ds)
