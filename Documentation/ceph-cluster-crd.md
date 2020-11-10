@@ -304,7 +304,9 @@ The selector keys are required to be `public` and `cluster` where each represent
 * `public`: client communications with the cluster (reads/writes)
 * `cluster`: internal Ceph replication network
 
-If you want to learn more, please read [Ceph Networking reference](https://docs.ceph.com/docs/master/rados/configuration/network-config-ref/).
+If you want to learn more, please read
+* [Ceph Networking reference](https://docs.ceph.com/docs/master/rados/configuration/network-config-ref/).
+* [Multus documentation](https://intel.github.io/multus-cni/doc/how-to-use.html)
 
 Based on the configuration, the operator will do the following:
 
@@ -314,13 +316,46 @@ Based on the configuration, the operator will do the following:
 In order to work, each selector value must match a `NetworkAttachmentDefinition` object name in Multus.
 For example, you can do:
 
-* `public`: "my-public-storage-network"
-* `cluster`: "my-replication-storage-network"
+* `public`: "rook-ceph/my-public-storage-network"
+* `cluster`: "rook-ceph/my-replication-storage-network"
 
 For `multus` network provider, an already working cluster with Multus networking is required. Network attachment definition that later will be attached to the cluster needs to be created before the Cluster CRD.
 The Network attachment definitions should be using whereabouts cni.
 If Rook cannot find the provided Network attachment definition it will fail running the Ceph OSD pods.
 You can add the Multus network attachment selection annotation selecting the created network attachment definition on `selectors`.
+
+A valid NetworkAttachmentDefinition will look like following:
+
+```yaml
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: rook-public-nw
+spec:
+  config: '{
+      "cniVersion": "0.3.0",
+      "name": "public-nad",
+      "type": "macvlan",
+      "master": "ens5",
+      "mode": "bridge",
+      "ipam": {
+        "type": "whereabouts",
+        "range": "192.168.1.0/24"
+      }
+    }'
+```
+
+* Ensure that `master` matches the network interface of the host that you want to use.
+* The NAD should be referenced along with the namespace in which it is present like `public: <namespace>/<name of NAD>`.
+  e.g., the network attachment definition are in `rook-multus` namespace:
+
+```yaml
+  public: rook-multus/rook-public-nw
+  cluster: rook-multus/rook-cluster-nw
+```
+
+This is required in order to use the NAD across namespaces.
+* In Openshift, to use the NetworkAttachmentDefinition across namespaces, the NAD must be deployed in the default namespace and it can be referenced as `default/myNAD` where `default` is the namespace and `myNAD` is the network attachment definition.
 
 #### IPFamily
 
