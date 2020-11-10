@@ -542,7 +542,7 @@ func applyCephClusterNetworkConfig(ctx *clusterd.Context, objectMeta *metav1.Obj
 	cephClusters := &v1.CephClusterList{}
 	err := ctx.Client.List(context.TODO(), cephClusters, &client.ListOptions{})
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to find CephClusters")
+		return false, errors.Wrap(err, "failed to find CephClusters")
 	}
 	for _, cephCluster := range cephClusters.Items {
 		if cephCluster.Spec.Network.IsMultus() {

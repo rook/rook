@@ -19,6 +19,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -52,11 +53,15 @@ func generateNetworkSettings(context *clusterd.Context, namespace string, networ
 			continue
 		}
 
+		multusNamespace, nad := GetMultusNamespace(networkSelectors[selectorKey])
+		if multusNamespace == "" {
+			multusNamespace = namespace
+		}
 		// Get network attachment definition
-		netDefinition, err := context.NetworkClient.NetworkAttachmentDefinitions(namespace).Get(networkSelectors[selectorKey], metav1.GetOptions{})
+		netDefinition, err := context.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(nad, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				return []Option{}, errors.Wrapf(err, "specified network attachment definition for selector %q does not exist", selectorKey)
+				return []Option{}, errors.Wrapf(err, "specified network attachment definition %q in namespace %q for selector %q does not exist", nad, namespace, selectorKey)
 			}
 			return []Option{}, errors.Wrapf(err, "failed to fetch network attachment definition for selector %q", selectorKey)
 		}
@@ -76,6 +81,14 @@ func generateNetworkSettings(context *clusterd.Context, namespace string, networ
 	}
 
 	return cephNetworks, nil
+}
+
+func GetMultusNamespace(nad string) (string, string) {
+	tmp := strings.Split(nad, "/")
+	if len(tmp) == 2 {
+		return tmp[0], tmp[1]
+	}
+	return "", nad
 }
 
 func getNetworkRange(netConfig k8sutil.NetworkAttachmentConfig) string {
