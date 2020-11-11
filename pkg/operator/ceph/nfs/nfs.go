@@ -48,8 +48,8 @@ type daemonConfig struct {
 }
 
 // Create the ganesha server
-func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS, oldActive int) error {
-	for i := oldActive; i < n.Spec.Server.Active; i++ {
+func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
+	for i := 0; i < n.Spec.Server.Active; i++ {
 		id := k8sutil.IndexToName(i)
 
 		configName, err := r.createConfigMap(n, id)
