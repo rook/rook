@@ -779,6 +779,9 @@ type GaneshaServerSpec struct {
 
 	// PriorityClassName sets the priority class on the pods
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// LogLevel set logging level
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code

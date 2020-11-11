@@ -753,6 +753,8 @@ spec:
                       x-kubernetes-preserve-unknown-fields: true
                     priorityClassName:
                       type: string
+                    logLevel:
+                      type: string
             status:
               type: object
               x-kubernetes-preserve-unknown-fields: true
