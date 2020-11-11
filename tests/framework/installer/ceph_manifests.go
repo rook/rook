@@ -26,10 +26,8 @@ import (
 )
 
 const (
-	// Version1_2 rook version 1.2
-	Version1_2 = "v1.2.7"
-	// Version1_3 rook version 1.3
-	Version1_3 = "v1.3.8"
+	// Version1_4 rook version 1.4
+	Version1_4 = "v1.4.7"
 )
 
 type CephManifests interface {
@@ -89,8 +87,8 @@ func NewCephManifests(version string) CephManifests {
 	switch version {
 	case VersionMaster:
 		return &CephManifestsMaster{imageTag: VersionMaster}
-	case Version1_2:
-		return &CephManifestsV1_2{imageTag: Version1_2}
+	case Version1_4:
+		return &CephManifestsV1_4{imageTag: Version1_4}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", version))
 }
