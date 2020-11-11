@@ -54,6 +54,7 @@ This includes related resources such as the agent and discover daemonsets with t
 ```console
 kubectl delete -f operator.yaml
 kubectl delete -f common.yaml
+kubectl delete -f crds.yaml
 ```
 
 ## Delete the data on hosts

@@ -19,11 +19,12 @@ See the **[example yaml files](https://github.com/rook/rook/blob/{{ branchName }
 
 ## Common Resources
 
-The first step to deploy Rook is to create the common resources. The configuration for these resources will be the same for most deployments.
-The [common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml) sets these resources up.
+The first step to deploy Rook is to create the CRDs and other common resources. The configuration for these resources will be the same for most deployments.
+The [crds.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/crds.yaml) and
+[common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml) sets these resources up.
 
 ```console
-kubectl create -f common.yaml
+kubectl create -f crds.yaml -f common.yaml
 ```
 
 The examples all assume the operator and all Ceph daemons will be started in the same namespace. If you want to deploy the operator in a separate namespace, see the comments throughout `common.yaml`.
