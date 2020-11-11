@@ -25,7 +25,7 @@ The settings for Rook in OpenShift are described below, and are also included in
 To create an OpenShift cluster, the commands basically include:
 
 ```console
-oc create -f common.yaml
+oc create -f crds.yaml -f common.yaml
 oc create -f operator-openshift.yaml
 oc create -f cluster.yaml
 ```
