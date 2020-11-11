@@ -31,6 +31,9 @@ const (
 	vaultCAFileName   = "vault.ca"
 	vaultCertFileName = "vault.crt"
 	vaultKeyFileName  = "vault.key"
+
+	// File name for token file
+	VaultFileName = "vault.token"
 )
 
 // TLSSecretVolumeAndMount return the volume and matching volume mount for mounting the secrets into /etc/vault
@@ -87,4 +90,16 @@ func tlsSecretPath(tlsOption string) string {
 	}
 
 	return ""
+}
+
+// VaultTokenFileVolume save token from secret as volume mount
+func VaultTokenFileVolume(tokenSecretName string) v1.Volume {
+	return v1.Volume{
+		Name: secrets.TypeVault,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: tokenSecretName,
+				Items: []v1.KeyToPath{
+					{Key: KMSTokenSecretNameKey, Path: VaultFileName},
+				}}}}
 }
