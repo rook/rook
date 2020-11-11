@@ -154,14 +154,22 @@ func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name,
 
 	// add each additional pool
 	for i := 1; i < len(dataPools); i++ {
-		poolName := dataPools[i]
-		args = []string{"fs", "add_data_pool", name, poolName}
-		_, err = NewCephCommand(context, clusterInfo, args).Run()
+		err = AddDataPoolToFilesystem(context, clusterInfo, name, dataPools[i])
 		if err != nil {
-			logger.Errorf("failed to add pool %q to file system %q. %v", poolName, name, err)
+			logger.Errorf("%v", err)
 		}
 	}
 
+	return nil
+}
+
+// AddDataPoolToFilesystem associates the provided data pool with the filesystem.
+func AddDataPoolToFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name, poolName string) error {
+	args := []string{"fs", "add_data_pool", name, poolName}
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to add pool %q to file system %q. (%v)", poolName, name, err)
+	}
 	return nil
 }
 
