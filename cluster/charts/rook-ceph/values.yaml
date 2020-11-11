@@ -8,6 +8,12 @@ image:
   tag: VERSION
   pullPolicy: IfNotPresent
 
+crds:
+  # Whether the helm chart should create and update the CRDs. If false, the CRDs must be
+  # managed independently with cluster/examples/kubernetes/ceph/crds.yaml.
+  # IMPORTANT: Only set during first deployment. If later disabled the cluster could be destroyed.
+  enabled: true
+
 resources:
   limits:
     cpu: 500m

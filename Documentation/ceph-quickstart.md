@@ -16,7 +16,7 @@ from other pods running in your cluster.
 
 Kubernetes **v1.11** or higher is supported by Rook.
 
-**Important** If you are using K8s 1.15 or older, you will need to create a different version of the Rook CRDs. Create the `crd.yaml` found in the [pre-k8s-1.16](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/pre-k8s-1.16) subfolder of the example manifests.
+**Important** If you are using K8s 1.15 or older, you will need to create a different version of the Rook CRDs. Create the `crds.yaml` found in the [pre-k8s-1.16](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/pre-k8s-1.16) subfolder of the example manifests.
 
 ## Prerequisites
 
@@ -48,8 +48,7 @@ If you're feeling lucky, a simple Rook cluster can be created with the following
 ```console
 git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/ceph
-kubectl create -f common.yaml
-kubectl create -f operator.yaml
+kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 kubectl create -f cluster.yaml
 ```
 

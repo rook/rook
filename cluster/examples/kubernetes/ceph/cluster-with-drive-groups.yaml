@@ -4,9 +4,7 @@
 # in this example. See the documentation for more details on storage settings available.
 
 # For example, to create the cluster:
-#   kubectl create -f common.yaml
-#   kubectl create -f operator.yaml
-#   kubectl create -f cluster-with-drive-groups.yaml
+#   kubectl create -f crds.yaml -f common.yaml -f operator.yaml -f cluster-with-drive-groups.yaml
 #################################################################################################################
 
 apiVersion: ceph.rook.io/v1

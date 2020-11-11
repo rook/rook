@@ -42,6 +42,7 @@ jobs:
 
     - name: deploy rook
       run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         sed -i "s|#deviceFilter:|deviceFilter: $(lsblk|awk '/14G/ {print $1}'| head -1)|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
@@ -123,6 +124,7 @@ jobs:
       run: |
         BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
         tests/scripts/localPathPV.sh "$BLOCK"
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
     - name: deploy rook
@@ -200,6 +202,7 @@ jobs:
 
     - name: rook prerequisites
       run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
     - name: deploy rook
@@ -279,6 +282,7 @@ jobs:
 
     - name: rook prerequisites
       run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
     - name: deploy rook
@@ -349,6 +353,7 @@ jobs:
     - name: rook prerequisites
       run: |
         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
     - name: deploy rook
@@ -427,6 +432,7 @@ jobs:
 
     - name: rook prerequisites
       run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
     - name: deploy rook
@@ -506,6 +512,7 @@ jobs:
 
     - name: rook prerequisites
       run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
     - name: deploy rook
@@ -575,6 +582,7 @@ jobs:
     - name: rook prereq
       run: |
         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
     - name: deploy vault
