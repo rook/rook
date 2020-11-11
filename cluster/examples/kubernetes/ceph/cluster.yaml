@@ -89,12 +89,13 @@ spec:
   # enable the crash collector for ceph daemon crash collection
   crashCollector:
     disable: false
+  # automate [data cleanup process](https://github.com/rook/rook/blob/master/Documentation/ceph-teardown.md#delete-the-data-on-hosts) in cluster destruction.
   cleanupPolicy:
-    # cleanup should only be added to the cluster when the cluster is about to be deleted.
-    # After any field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about
-    # to be destroyed in order to prevent these settings from being deployed unintentionally.
-    # To signify that automatic deletion is desired, use the value "yes-really-destroy-data". Only this and an empty
-    # string are valid values for this field.
+    # Since cluster cleanup is destructive to data, confirmation is required.
+    # To destroy all Rook data on hosts during uninstall, confirmation must be set to "yes-really-destroy-data".
+    # This value should only be set when the cluster is about to be deleted. After the confirmation is set,
+    # Rook will immediately stop configuring the cluster and only wait for the delete command.
+    # If the empty string is set, Rook will not destroy any data on hosts during uninstall.
     confirmation: ""
     # sanitizeDisks represents settings for sanitizing OSD disks on cluster deletion
     sanitizeDisks:
