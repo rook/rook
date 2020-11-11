@@ -1300,16 +1300,17 @@ spec:
 
 ### Cleanup policy
 
-Rook has the ability to cleanup resources and data that were deployed when a `delete cephcluster` command is issued.
-The policy represents the confirmation that cluster data should be forcibly deleted.
-The cleanupPolicy should only be added to the cluster when the cluster is about to be deleted.
-After the `confirmation` field of the cleanup policy is set, Rook will stop configuring the cluster as if the cluster is about to be destroyed in order to prevent these settings from being deployed unintentionally.
-The `cleanupPolicy` CR settings has different fields:
+Rook has the ability to cleanup resources and data that were deployed when a CephCluster is removed.
+The policy settings indicate which data should be forcibly deleted and in what way the data should be wiped.
+The `cleanupPolicy` has several fields:
 
-* `confirmation`: Only an empty string and `yes-really-destroy-data` are valid values for this field. If an empty string is set, Rook will only remove Ceph's metadata. A re-installation will not be possible unless the hosts are cleaned first. If `yes-really-destroy-data` the operator will automatically delete data on the hostpath of cluster nodes and clean devices with OSDs. The cluster can then be re-installed if desired with no further steps.
-* `sanitizeDisks`: sanitizeDisks represents advanced settings that can be used to sanitize drives.
-This field only affects if `confirmation` is set to `yes-really-destroy-data`.
-However, the administrator might want to sanitize the drives in more depth with the following flags:
+* `confirmation`: Only an empty string and `yes-really-destroy-data` are valid values for this field.
+  If this setting is empty, the cleanupPolicy settings will be ignored and Rook will not cleanup any resources during cluster removal.
+  To reinstall the cluster, the admin would then be required to follow the [cleanup guide](ceph-teardown.md) to delete the data on hosts.
+  If this setting is `yes-really-destroy-data`, the operator will automatically delete the data on hosts.
+  Because this cleanup policy is destructive, after the confirmation is set to `yes-really-destroy-data`
+  Rook will stop configuring the cluster as if the cluster is about to be destroyed.
+* `sanitizeDisks`: sanitizeDisks represents advanced settings that can be used to delete data on drives.
   * `method`: indicates if the entire disk should be sanitized or simply ceph's metadata. Possible choices are 'quick' (default) or 'complete'
   * `dataSource`: indicate where to get random bytes from to write on the disk. Possible choices are 'zero' (default) or 'random'.
   Using random sources will consume entropy from the system and will take much more time then the zero source
