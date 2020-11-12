@@ -58,8 +58,12 @@ another are as simple as updating the image of the Rook operator. For example, w
 released, the process of updating from v1.5.0 is as simple as running the following:
 
 ```console
+kubectl apply -f common.yaml -f crds.yaml
 kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.5.1
 ```
+
+As exemplified above, it is a good practice to update Rook-Ceph common resources from the example
+manifests before any update.
 
 ## Helm Upgrades
 
@@ -255,20 +259,20 @@ time without compatibility support and without prior notice.
 
 Let's get started!
 
-## 1. Update the RBAC and CRDs
+## 1. Update common resources and CRDs
 
 > Automatically updated if you are upgrading via the helm chart
 
-First apply new resources. This includes slightly modified privileges (RBAC) needed by the Operator
-and updates to the Custom Resource Definitions (CRDs).
+First apply updates to Rook-Ceph common resources. This includes slightly modified privileges (RBAC)
+needed by the Operator. Also update the Custom Resource Definitions (CRDs).
 
 > **IMPORTANT:** If you are using Kubernetes version v1.15 or lower, you will need to manually
-> modify the `upgrade-from-v1.4-apply.yaml` file to use
+> modify the `common.yaml` file to use
 > `rbac.authorization.k8s.io/v1beta1` instead of `rbac.authorization.k8s.io/v1`
 > You will also need to apply `pre-k8s-1.16/crds.yaml` instead of `crds.yaml`.
 
 ```sh
-kubectl apply -f upgrade-from-v1.4-apply.yaml -f crds.yaml
+kubectl apply -f common.yaml -f crds.yaml
 ```
 
 ## 2. Update Ceph CSI versions
@@ -316,8 +320,8 @@ rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.4.7
 rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.4.7
 ```
 
-An easy check to see if the upgrade is totally
-finished is to check that there is only one `rook-version` reported across the cluster.
+An easy check to see if the upgrade is totally finished is to check that there is only one
+`rook-version` reported across the cluster.
 
 ```console
 # kubectl -n $ROOK_NAMESPACE get deployment -l rook_cluster=$ROOK_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
@@ -367,10 +371,10 @@ These images are tagged in a few ways:
 
 #### 1. Update the CRDs
 
-It is a good practice to update Rook-Ceph CRDs from the example manifests before any update.
+It is a good practice to update Rook-Ceph common resources from the example manifests before any update.
 
 ```sh
-kubectl apply -f crds.yaml
+kubectl apply -f common.yaml -f crds.yaml
 ```
 
 #### 2. Update the main Ceph daemons
