@@ -28,6 +28,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -224,6 +225,7 @@ func TestCephNFSController(t *testing.T) {
 			if command == "rados" {
 				logger.Infof("mock execute. %s. %s", command, args)
 				assert.Equal(t, "stat", args[6])
+				assert.Equal(t, "conf-my-nfs.a", args[7])
 				return nil
 			}
 			return errors.New("unknown command")
@@ -251,4 +253,27 @@ func TestCephNFSController(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Ready", cephNFS.Status.Phase, cephNFS)
 	logger.Info("PHASE 3 DONE")
+}
+
+func TestGetGaneshaConfigObject(t *testing.T) {
+	cephNFS := &cephv1.CephNFS{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	nodeid := "a"
+	expectedName := "conf-nfs.ganesha-my-nfs"
+
+	res := getGaneshaConfigObject(cephNFS, cephver.CephVersion{Major: 16}, nodeid)
+	logger.Infof("Config Object for Pacific is %s", res)
+	assert.Equal(t, expectedName, res)
+
+	res = getGaneshaConfigObject(cephNFS, cephver.CephVersion{Major: 15, Minor: 2, Extra: 1}, nodeid)
+	logger.Infof("Config Object for Octopus is %s", res)
+	assert.Equal(t, expectedName, res)
+
+	res = getGaneshaConfigObject(cephNFS, cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}, nodeid)
+	logger.Infof("Config Object for Nautilus is %s", res)
+	assert.Equal(t, "conf-my-nfs.a", res)
 }
