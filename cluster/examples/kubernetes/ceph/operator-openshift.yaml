@@ -2,8 +2,12 @@
 # Create the rook operator and necessary security context constraints for running
 # Rook in an OpenShift cluster.
 # For example, to create the rook-ceph cluster:
+<<<<<<< HEAD
 #   oc create -f common.yaml
 #   oc create -f operator-openshift.yaml
+=======
+#   oc create -f crds.yaml -f common.yaml -f operator-openshift.yaml
+>>>>>>> eb2e02253... ceph: create custom resources separately from crds
 #   oc create -f cluster.yaml
 #################################################################################################################
 # scc for the Rook and Ceph daemons

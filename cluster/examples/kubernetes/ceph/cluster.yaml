@@ -4,8 +4,12 @@
 # in this example. See the documentation for more details on storage settings available.
 
 # For example, to create the cluster:
+<<<<<<< HEAD
 #   kubectl create -f common.yaml
 #   kubectl create -f operator.yaml
+=======
+#   kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+>>>>>>> eb2e02253... ceph: create custom resources separately from crds
 #   kubectl create -f cluster.yaml
 #################################################################################################################
 

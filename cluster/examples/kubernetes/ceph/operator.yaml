@@ -2,8 +2,12 @@
 # The deployment for the rook operator
 # Contains the common settings for most Kubernetes deployments.
 # For example, to create the rook-ceph cluster:
+<<<<<<< HEAD
 #   kubectl create -f common.yaml
 #   kubectl create -f operator.yaml
+=======
+#   kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+>>>>>>> eb2e02253... ceph: create custom resources separately from crds
 #   kubectl create -f cluster.yaml
 #
 # Also see other operator sample files for variations of operator.yaml:

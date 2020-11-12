@@ -2,8 +2,12 @@
 # Define the settings for the rook-ceph-external cluster with common settings for a production cluster.
 
 # For example, if Rook is not managing any existing cluster in the 'rook-ceph' namespace do:
+<<<<<<< HEAD
 #   kubectl create -f common.yaml
 #   kubectl create -f operator.yaml
+=======
+#   kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+>>>>>>> eb2e02253... ceph: create custom resources separately from crds
 #   kubectl create -f cluster-external.yaml
 
 # If there is already a cluster managed by Rook in 'rook-ceph' then do:
