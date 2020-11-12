@@ -104,5 +104,18 @@ func SetParams(clientset kubernetes.Interface) error {
 	if err != nil {
 		return errors.Wrap(err, "unable to configure CSI kubelet directory path")
 	}
+
+	csiCephFSPodLabels, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_CEPHFS_POD_LABELS", "")
+	if err != nil {
+		return errors.Wrap(err, "unable to configure CSI CephFS pod labels")
+	}
+	CSIParam.CSICephFSPodLabels = k8sutil.ParseStringToLabels(csiCephFSPodLabels)
+
+	csiRBDPodLabels, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_RBD_POD_LABELS", "")
+	if err != nil {
+		return errors.Wrap(err, "unable to configure CSI RBD pod labels")
+	}
+	CSIParam.CSIRBDPodLabels = k8sutil.ParseStringToLabels(csiRBDPodLabels)
+
 	return nil
 }
