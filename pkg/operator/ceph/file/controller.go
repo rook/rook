@@ -255,9 +255,13 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
 	}
 
-	// preservePoolsOnDelete being set to true does not make sense because of data-loss concerns (see #6492).
+	// preservePoolsOnDelete being set to true has data-loss concerns and is deprecated (see #6492).
+	// If preservePoolsOnDelete is set to true, assume the user means preserveFilesystemOnDelete instead.
 	if cephFilesystem.Spec.PreservePoolsOnDelete {
-		return reconcile.Result{}, errors.New("preservePoolsOnDelete has been deprecated. Set preserveFilesystemOnDelete instead")
+		if !cephFilesystem.Spec.PreserveFilesystemOnDelete {
+			logger.Warning("preservePoolsOnDelete (currently set 'true') has been deprecated in favor of preserveFilesystemOnDelete (currently set 'false') due to data loss concerns so Rook will assume preserveFilesystemOnDelete 'true'")
+			cephFilesystem.Spec.PreserveFilesystemOnDelete = true
+		}
 	}
 
 	err = createFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
