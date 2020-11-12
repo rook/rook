@@ -90,10 +90,10 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 			switch aerr.Code() {
 			case s3.ErrCodeBucketAlreadyExists:
 				logger.Debugf("bucket %q already exists", name)
-				return nil
+				return errors.Wrapf(err, "bucket %q already exists", name)
 			case s3.ErrCodeBucketAlreadyOwnedByYou:
 				logger.Debugf("bucket %q already owned by you", name)
-				return nil
+				return errors.Wrapf(err, "bucket %q already owned by you", name)
 			}
 		}
 		return errors.Wrapf(err, "failed to create bucket %q", name)
