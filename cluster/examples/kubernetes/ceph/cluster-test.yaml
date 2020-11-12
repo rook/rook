@@ -4,7 +4,8 @@
 # in this example.
 
 # For example, to create the cluster:
-#   kubectl create -f crds.yaml -f common.yaml -f operator.yaml -f cluster-test.yaml
+#   kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+#   kubectl create -f cluster-test.yaml
 #################################################################################################################
 kind: ConfigMap
 apiVersion: v1
