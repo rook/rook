@@ -212,6 +212,13 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
 
+	// Populate CephVersion
+	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, opconfig.MonType)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
+	}
+	r.clusterInfo.CephVersion = currentCephVersion
+
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStore)
 	if err != nil {
