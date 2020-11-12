@@ -252,32 +252,29 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("creating ceph nfs %q", cephNFS.Name)
-			err := r.upCephNFS(cephNFS, 0)
+			err := r.upCephNFS(cephNFS)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph nfs %q", cephNFS.Name)
 			}
-		} else {
-			return reconcile.Result{}, errors.Wrap(err, "failed to list ceph nfs deployments")
+			return reconcile.Result{}, nil
 		}
-	} else {
-		// Scale up case (CR value cephNFS.Spec.Server.Active changed)
-		nfsServerListNum := len(deployments.Items)
-		if nfsServerListNum < cephNFS.Spec.Server.Active {
-			logger.Infof("scaling up ceph nfs %q from %d to %d", cephNFS.Name, nfsServerListNum, cephNFS.Spec.Server.Active)
-			err := r.upCephNFS(cephNFS, nfsServerListNum)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to scale up ceph nfs %q", cephNFS.Name)
-			}
-		}
+		return reconcile.Result{}, errors.Wrap(err, "failed to list ceph nfs deployments")
+	}
 
-		// Scale down case (CR value cephNFS.Spec.Server.Active changed)
-		if nfsServerListNum > cephNFS.Spec.Server.Active {
-			logger.Infof("scaling down ceph nfs %q from %d to %d", cephNFS.Name, nfsServerListNum, cephNFS.Spec.Server.Active)
-			err := r.downCephNFS(cephNFS, nfsServerListNum)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to scale down ceph nfs %q", cephNFS.Name)
-			}
+	nfsServerListNum := len(deployments.Items)
+	// Scale down case (CR value cephNFS.Spec.Server.Active changed)
+	if nfsServerListNum > cephNFS.Spec.Server.Active {
+		logger.Infof("scaling down ceph nfs %q from %d to %d", cephNFS.Name, nfsServerListNum, cephNFS.Spec.Server.Active)
+		err := r.downCephNFS(cephNFS, nfsServerListNum)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to scale down ceph nfs %q", cephNFS.Name)
 		}
+	}
+	// Update existing deployments and create new ones in the scale up case
+	logger.Infof("updating ceph nfs %q", cephNFS.Name)
+	err = r.upCephNFS(cephNFS)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to update ceph nfs %q", cephNFS.Name)
 	}
 
 	return reconcile.Result{}, nil
