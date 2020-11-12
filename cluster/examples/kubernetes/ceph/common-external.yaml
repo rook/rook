@@ -4,9 +4,7 @@
 # The samples all assume that your existing operator running "rook-ceph" namespace will also watch and have permissions
 # to interact with an external cluster configured in "rook-ceph-external" cluster.
 #
-# First common.yaml
-# Then operator.yaml
-# Then common-external.yaml
+# kubectl create -f crds.yaml -f common.yaml -f operator.yaml -f common-external.yaml
 #
 # If there is no cluster managed by the current Rook Operator
 # you can simply replace all occurrence of rook-ceph-external with rook-ceph

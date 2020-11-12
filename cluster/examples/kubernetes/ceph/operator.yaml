@@ -2,9 +2,7 @@
 # The deployment for the rook operator
 # Contains the common settings for most Kubernetes deployments.
 # For example, to create the rook-ceph cluster:
-#   kubectl create -f common.yaml
-#   kubectl create -f operator.yaml
-#   kubectl create -f cluster.yaml
+#   kubectl create -f crds.yaml -f common.yaml -f operator.yaml -f cluster.yaml
 #
 # Also see other operator sample files for variations of operator.yaml:
 # - operator-openshift.yaml: Common settings for running in OpenShift
