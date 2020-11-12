@@ -14,6 +14,9 @@ spec:
       labels:
         app: csi-rbdplugin
         contains: csi-rbdplugin-metrics
+        {{ range $key, $value := .CSIRBDPodLabels }}
+        $key: "$value"
+        {{ end }}
     spec:
       serviceAccount: rook-csi-rbd-plugin-sa
       {{ if .PluginPriorityClassName }}

@@ -239,5 +239,4 @@ func GetPodAntiAffinity(key, value string) corev1.PodAntiAffinity {
 			},
 		},
 	}
-
 }
