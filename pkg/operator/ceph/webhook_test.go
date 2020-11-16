@@ -17,6 +17,7 @@ limitations under the License.
 package operator
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -32,6 +33,7 @@ const (
 )
 
 func TestGetTolerations(t *testing.T) {
+	ctx := context.TODO()
 	clientset := fake.NewSimpleClientset()
 	os.Setenv("POD_NAMESPACE", testNamespace)
 
@@ -43,7 +45,7 @@ func TestGetTolerations(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	_, err := clientset.CoreV1().ConfigMaps(testNamespace).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(testNamespace).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	tolerations := getTolerations(clientset)
 	expected := []v1.Toleration{}
@@ -53,7 +55,7 @@ func TestGetTolerations(t *testing.T) {
 	cm.Data = map[string]string{
 		admissionControllerTolerationsEnv: "",
 	}
-	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(cm)
+	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(ctx, cm, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	tolerations = getTolerations(clientset)
 	assert.Equal(t, expected, tolerations)
@@ -65,7 +67,7 @@ func TestGetTolerations(t *testing.T) {
   key: node-role.kubernetes.io/controlplane
   operator: Exists`,
 	}
-	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(cm)
+	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(ctx, cm, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	tolerations = getTolerations(clientset)
 	expected = []v1.Toleration{
@@ -79,6 +81,7 @@ func TestGetTolerations(t *testing.T) {
 }
 
 func TestGetNodeAffinity(t *testing.T) {
+	ctx := context.TODO()
 	clientset := fake.NewSimpleClientset()
 	os.Setenv("POD_NAMESPACE", testNamespace)
 
@@ -90,7 +93,7 @@ func TestGetNodeAffinity(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	_, err := clientset.CoreV1().ConfigMaps(testNamespace).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(testNamespace).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	nodeAffinity := getNodeAffinity(clientset)
 	expected := &v1.NodeAffinity{}
@@ -100,7 +103,7 @@ func TestGetNodeAffinity(t *testing.T) {
 	cm.Data = map[string]string{
 		admissionControllerNodeAffinityEnv: "",
 	}
-	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(cm)
+	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(ctx, cm, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	nodeAffinity = getNodeAffinity(clientset)
 	assert.Equal(t, expected, nodeAffinity)
@@ -109,7 +112,7 @@ func TestGetNodeAffinity(t *testing.T) {
 	cm.Data = map[string]string{
 		admissionControllerNodeAffinityEnv: "role=storage-node",
 	}
-	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(cm)
+	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(ctx, cm, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	nodeAffinity = getNodeAffinity(clientset)
 	expected = &v1.NodeAffinity{

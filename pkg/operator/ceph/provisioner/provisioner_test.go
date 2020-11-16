@@ -18,6 +18,7 @@ limitations under the License.
 package provisioner
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path"
@@ -35,10 +36,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 )
 
 func TestProvisionImage(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 	namespace := "ns"
 	configDir, _ := ioutil.TempDir("", "")
@@ -74,9 +76,10 @@ func TestProvisionImage(t *testing.T) {
 	provisioner := New(context, "foo.io")
 	volume := newProvisionOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": ""}, v1.PersistentVolumeReclaimRetain), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRetain)
 
-	pv, err := provisioner.Provision(volume)
+	pv, ps, err := provisioner.Provision(ctx, volume)
 	assert.Nil(t, err)
 
+	assert.Equal(t, controller.ProvisioningFinished, ps)
 	assert.Equal(t, "pvc-uid-1-1", pv.Name)
 	assert.NotNil(t, pv.Spec.PersistentVolumeSource.FlexVolume)
 	assert.Equal(t, v1.PersistentVolumeReclaimRetain, pv.Spec.PersistentVolumeReclaimPolicy)
@@ -90,9 +93,10 @@ func TestProvisionImage(t *testing.T) {
 
 	volume = newProvisionOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": "iamdatapool"}, v1.PersistentVolumeReclaimRecycle), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), v1.PersistentVolumeReclaimRecycle)
 
-	pv, err = provisioner.Provision(volume)
+	pv, ps, err = provisioner.Provision(ctx, volume)
 	assert.Nil(t, err)
 
+	assert.Equal(t, controller.ProvisioningFinished, ps)
 	assert.Equal(t, "pvc-uid-1-1", pv.Name)
 	assert.NotNil(t, pv.Spec.PersistentVolumeSource.FlexVolume)
 	assert.Equal(t, v1.PersistentVolumeReclaimRecycle, pv.Spec.PersistentVolumeReclaimPolicy)
@@ -106,6 +110,7 @@ func TestProvisionImage(t *testing.T) {
 }
 
 func TestReclaimPolicyForProvisionedImages(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 	namespace := "ns"
 	configDir, _ := ioutil.TempDir("", "")
@@ -141,9 +146,10 @@ func TestReclaimPolicyForProvisionedImages(t *testing.T) {
 	provisioner := New(context, "foo.io")
 	for _, reclaimPolicy := range []v1.PersistentVolumeReclaimPolicy{v1.PersistentVolumeReclaimDelete, v1.PersistentVolumeReclaimRetain, v1.PersistentVolumeReclaimRecycle} {
 		volume := newProvisionOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataBlockPool": "iamdatapool"}, reclaimPolicy), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), reclaimPolicy)
-		pv, err := provisioner.Provision(volume)
+		pv, ps, err := provisioner.Provision(ctx, volume)
 		assert.Nil(t, err)
 
+		assert.Equal(t, controller.ProvisioningFinished, ps)
 		assert.Equal(t, reclaimPolicy, pv.Spec.PersistentVolumeReclaimPolicy)
 	}
 }
