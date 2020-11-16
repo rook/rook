@@ -17,6 +17,7 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
 	"os"
 	"reflect"
 	"testing"
@@ -30,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	k8sclientfake "k8s.io/client-go/kubernetes/fake"
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 )
 
 func init() {
@@ -92,6 +93,7 @@ func newDummyPV(name, scName, expectedPath string, expectedCapacity apiresource.
 }
 
 func TestProvisioner_Provision(t *testing.T) {
+	ctx := context.TODO()
 	if err := os.MkdirAll(mountPath, 0755); err != nil {
 		t.Error("error creating test provisioner directory")
 	}
@@ -169,7 +171,7 @@ func TestProvisioner_Provision(t *testing.T) {
 				rookClient: tt.fields.rookClient,
 				quotaer:    tt.fields.quoater,
 			}
-			got, err := p.Provision(tt.args.options)
+			got, _, err := p.Provision(ctx, tt.args.options)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Provisioner.Provision() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -182,6 +184,7 @@ func TestProvisioner_Provision(t *testing.T) {
 }
 
 func TestProvisioner_Delete(t *testing.T) {
+	ctx := context.TODO()
 	if err := os.MkdirAll(mountPath, 0755); err != nil {
 		t.Error("error creating test provisioner directory")
 	}
@@ -232,7 +235,7 @@ func TestProvisioner_Delete(t *testing.T) {
 				rookClient: tt.fields.rookClient,
 				quotaer:    tt.fields.quoater,
 			}
-			if err := p.Delete(tt.args.volume); (err != nil) != tt.wantErr {
+			if err := p.Delete(ctx, tt.args.volume); (err != nil) != tt.wantErr {
 				t.Errorf("Provisioner.Delete() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
