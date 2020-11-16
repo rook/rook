@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var ybclustersResource = schema.GroupVersionResource{Group: "yugabytedb.rook.io"
 var ybclustersKind = schema.GroupVersionKind{Group: "yugabytedb.rook.io", Version: "v1alpha1", Kind: "YBCluster"}
 
 // Get takes name of the yBCluster, and returns the corresponding yBCluster object, and an error if there is any.
-func (c *FakeYBClusters) Get(name string, options v1.GetOptions) (result *v1alpha1.YBCluster, err error) {
+func (c *FakeYBClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.YBCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(ybclustersResource, c.ns, name), &v1alpha1.YBCluster{})
 
@@ -50,7 +52,7 @@ func (c *FakeYBClusters) Get(name string, options v1.GetOptions) (result *v1alph
 }
 
 // List takes label and field selectors, and returns the list of YBClusters that match those selectors.
-func (c *FakeYBClusters) List(opts v1.ListOptions) (result *v1alpha1.YBClusterList, err error) {
+func (c *FakeYBClusters) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.YBClusterList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(ybclustersResource, ybclustersKind, c.ns, opts), &v1alpha1.YBClusterList{})
 
@@ -72,14 +74,14 @@ func (c *FakeYBClusters) List(opts v1.ListOptions) (result *v1alpha1.YBClusterLi
 }
 
 // Watch returns a watch.Interface that watches the requested yBClusters.
-func (c *FakeYBClusters) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeYBClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(ybclustersResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a yBCluster and creates it.  Returns the server's representation of the yBCluster, and an error, if there is any.
-func (c *FakeYBClusters) Create(yBCluster *v1alpha1.YBCluster) (result *v1alpha1.YBCluster, err error) {
+func (c *FakeYBClusters) Create(ctx context.Context, yBCluster *v1alpha1.YBCluster, opts v1.CreateOptions) (result *v1alpha1.YBCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(ybclustersResource, c.ns, yBCluster), &v1alpha1.YBCluster{})
 
@@ -90,7 +92,7 @@ func (c *FakeYBClusters) Create(yBCluster *v1alpha1.YBCluster) (result *v1alpha1
 }
 
 // Update takes the representation of a yBCluster and updates it. Returns the server's representation of the yBCluster, and an error, if there is any.
-func (c *FakeYBClusters) Update(yBCluster *v1alpha1.YBCluster) (result *v1alpha1.YBCluster, err error) {
+func (c *FakeYBClusters) Update(ctx context.Context, yBCluster *v1alpha1.YBCluster, opts v1.UpdateOptions) (result *v1alpha1.YBCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(ybclustersResource, c.ns, yBCluster), &v1alpha1.YBCluster{})
 
@@ -101,7 +103,7 @@ func (c *FakeYBClusters) Update(yBCluster *v1alpha1.YBCluster) (result *v1alpha1
 }
 
 // Delete takes name of the yBCluster and deletes it. Returns an error if one occurs.
-func (c *FakeYBClusters) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeYBClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(ybclustersResource, c.ns, name), &v1alpha1.YBCluster{})
 
@@ -109,15 +111,15 @@ func (c *FakeYBClusters) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeYBClusters) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(ybclustersResource, c.ns, listOptions)
+func (c *FakeYBClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(ybclustersResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.YBClusterList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched yBCluster.
-func (c *FakeYBClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.YBCluster, err error) {
+func (c *FakeYBClusters) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.YBCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(ybclustersResource, c.ns, name, pt, data, subresources...), &v1alpha1.YBCluster{})
 

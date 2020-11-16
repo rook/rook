@@ -26,8 +26,10 @@ import (
 )
 
 // NFSServerLister helps list NFSServers.
+// All objects returned here must be treated as read-only.
 type NFSServerLister interface {
 	// List lists all NFSServers in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.NFSServer, err error)
 	// NFSServers returns an object that can list and get NFSServers.
 	NFSServers(namespace string) NFSServerNamespaceLister
@@ -58,10 +60,13 @@ func (s *nFSServerLister) NFSServers(namespace string) NFSServerNamespaceLister 
 }
 
 // NFSServerNamespaceLister helps list and get NFSServers.
+// All objects returned here must be treated as read-only.
 type NFSServerNamespaceLister interface {
 	// List lists all NFSServers in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.NFSServer, err error)
 	// Get retrieves the NFSServer from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.NFSServer, error)
 	NFSServerNamespaceListerExpansion
 }

@@ -26,8 +26,10 @@ import (
 )
 
 // CephClientLister helps list CephClients.
+// All objects returned here must be treated as read-only.
 type CephClientLister interface {
 	// List lists all CephClients in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephClient, err error)
 	// CephClients returns an object that can list and get CephClients.
 	CephClients(namespace string) CephClientNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephClientLister) CephClients(namespace string) CephClientNamespaceList
 }
 
 // CephClientNamespaceLister helps list and get CephClients.
+// All objects returned here must be treated as read-only.
 type CephClientNamespaceLister interface {
 	// List lists all CephClients in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephClient, err error)
 	// Get retrieves the CephClient from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephClient, error)
 	CephClientNamespaceListerExpansion
 }

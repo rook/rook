@@ -26,8 +26,10 @@ import (
 )
 
 // S3XLister helps list S3Xs.
+// All objects returned here must be treated as read-only.
 type S3XLister interface {
 	// List lists all S3Xs in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.S3X, err error)
 	// S3Xs returns an object that can list and get S3Xs.
 	S3Xs(namespace string) S3XNamespaceLister
@@ -58,10 +60,13 @@ func (s *s3XLister) S3Xs(namespace string) S3XNamespaceLister {
 }
 
 // S3XNamespaceLister helps list and get S3Xs.
+// All objects returned here must be treated as read-only.
 type S3XNamespaceLister interface {
 	// List lists all S3Xs in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.S3X, err error)
 	// Get retrieves the S3X from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.S3X, error)
 	S3XNamespaceListerExpansion
 }

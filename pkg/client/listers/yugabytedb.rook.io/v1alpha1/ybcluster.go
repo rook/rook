@@ -26,8 +26,10 @@ import (
 )
 
 // YBClusterLister helps list YBClusters.
+// All objects returned here must be treated as read-only.
 type YBClusterLister interface {
 	// List lists all YBClusters in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.YBCluster, err error)
 	// YBClusters returns an object that can list and get YBClusters.
 	YBClusters(namespace string) YBClusterNamespaceLister
@@ -58,10 +60,13 @@ func (s *yBClusterLister) YBClusters(namespace string) YBClusterNamespaceLister 
 }
 
 // YBClusterNamespaceLister helps list and get YBClusters.
+// All objects returned here must be treated as read-only.
 type YBClusterNamespaceLister interface {
 	// List lists all YBClusters in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.YBCluster, err error)
 	// Get retrieves the YBCluster from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.YBCluster, error)
 	YBClusterNamespaceListerExpansion
 }

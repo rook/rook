@@ -26,8 +26,10 @@ import (
 )
 
 // ISCSILister helps list ISCSIs.
+// All objects returned here must be treated as read-only.
 type ISCSILister interface {
 	// List lists all ISCSIs in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.ISCSI, err error)
 	// ISCSIs returns an object that can list and get ISCSIs.
 	ISCSIs(namespace string) ISCSINamespaceLister
@@ -58,10 +60,13 @@ func (s *iSCSILister) ISCSIs(namespace string) ISCSINamespaceLister {
 }
 
 // ISCSINamespaceLister helps list and get ISCSIs.
+// All objects returned here must be treated as read-only.
 type ISCSINamespaceLister interface {
 	// List lists all ISCSIs in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.ISCSI, err error)
 	// Get retrieves the ISCSI from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.ISCSI, error)
 	ISCSINamespaceListerExpansion
 }

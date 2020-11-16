@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	nfsrookiov1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
@@ -61,13 +62,13 @@ func NewFilteredNFSServerInformer(client versioned.Interface, namespace string, 
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NfsV1alpha1().NFSServers(namespace).List(options)
+				return client.NfsV1alpha1().NFSServers(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NfsV1alpha1().NFSServers(namespace).Watch(options)
+				return client.NfsV1alpha1().NFSServers(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&nfsrookiov1alpha1.NFSServer{},

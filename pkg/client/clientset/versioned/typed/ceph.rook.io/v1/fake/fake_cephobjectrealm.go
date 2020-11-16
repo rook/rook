@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var cephobjectrealmsResource = schema.GroupVersionResource{Group: "ceph.rook.io"
 var cephobjectrealmsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephObjectRealm"}
 
 // Get takes name of the cephObjectRealm, and returns the corresponding cephObjectRealm object, and an error if there is any.
-func (c *FakeCephObjectRealms) Get(name string, options v1.GetOptions) (result *cephrookiov1.CephObjectRealm, err error) {
+func (c *FakeCephObjectRealms) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephObjectRealm, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(cephobjectrealmsResource, c.ns, name), &cephrookiov1.CephObjectRealm{})
 
@@ -50,7 +52,7 @@ func (c *FakeCephObjectRealms) Get(name string, options v1.GetOptions) (result *
 }
 
 // List takes label and field selectors, and returns the list of CephObjectRealms that match those selectors.
-func (c *FakeCephObjectRealms) List(opts v1.ListOptions) (result *cephrookiov1.CephObjectRealmList, err error) {
+func (c *FakeCephObjectRealms) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephObjectRealmList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(cephobjectrealmsResource, cephobjectrealmsKind, c.ns, opts), &cephrookiov1.CephObjectRealmList{})
 
@@ -72,14 +74,14 @@ func (c *FakeCephObjectRealms) List(opts v1.ListOptions) (result *cephrookiov1.C
 }
 
 // Watch returns a watch.Interface that watches the requested cephObjectRealms.
-func (c *FakeCephObjectRealms) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephObjectRealms) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(cephobjectrealmsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephObjectRealm and creates it.  Returns the server's representation of the cephObjectRealm, and an error, if there is any.
-func (c *FakeCephObjectRealms) Create(cephObjectRealm *cephrookiov1.CephObjectRealm) (result *cephrookiov1.CephObjectRealm, err error) {
+func (c *FakeCephObjectRealms) Create(ctx context.Context, cephObjectRealm *cephrookiov1.CephObjectRealm, opts v1.CreateOptions) (result *cephrookiov1.CephObjectRealm, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(cephobjectrealmsResource, c.ns, cephObjectRealm), &cephrookiov1.CephObjectRealm{})
 
@@ -90,7 +92,7 @@ func (c *FakeCephObjectRealms) Create(cephObjectRealm *cephrookiov1.CephObjectRe
 }
 
 // Update takes the representation of a cephObjectRealm and updates it. Returns the server's representation of the cephObjectRealm, and an error, if there is any.
-func (c *FakeCephObjectRealms) Update(cephObjectRealm *cephrookiov1.CephObjectRealm) (result *cephrookiov1.CephObjectRealm, err error) {
+func (c *FakeCephObjectRealms) Update(ctx context.Context, cephObjectRealm *cephrookiov1.CephObjectRealm, opts v1.UpdateOptions) (result *cephrookiov1.CephObjectRealm, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(cephobjectrealmsResource, c.ns, cephObjectRealm), &cephrookiov1.CephObjectRealm{})
 
@@ -101,7 +103,7 @@ func (c *FakeCephObjectRealms) Update(cephObjectRealm *cephrookiov1.CephObjectRe
 }
 
 // Delete takes name of the cephObjectRealm and deletes it. Returns an error if one occurs.
-func (c *FakeCephObjectRealms) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeCephObjectRealms) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(cephobjectrealmsResource, c.ns, name), &cephrookiov1.CephObjectRealm{})
 
@@ -109,15 +111,15 @@ func (c *FakeCephObjectRealms) Delete(name string, options *v1.DeleteOptions) er
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephObjectRealms) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephobjectrealmsResource, c.ns, listOptions)
+func (c *FakeCephObjectRealms) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephobjectrealmsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &cephrookiov1.CephObjectRealmList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephObjectRealm.
-func (c *FakeCephObjectRealms) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephObjectRealm, err error) {
+func (c *FakeCephObjectRealms) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephObjectRealm, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(cephobjectrealmsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephObjectRealm{})
 
