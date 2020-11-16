@@ -25,14 +25,14 @@ import (
 const (
 	// snapshotterVersion from which the snapshotcontroller and CRD will be
 	// installed
-	snapshotterVersion = "v2.1.0"
+	snapshotterVersion = "v3.0.0"
 	repoURL            = "https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter"
 	rbacPath           = "deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml"
 	controllerPath     = "deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml"
 	// snapshot  CRD path
-	snapshotClassCRDPath          = "config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"
-	volumeSnapshotContentsCRDPath = "config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
-	volumeSnapshotCRDPath         = "config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+	snapshotClassCRDPath          = "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"
+	volumeSnapshotContentsCRDPath = "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
+	volumeSnapshotCRDPath         = "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
 )
 
 // CheckSnapshotISReadyToUse checks snapshot is ready to use
