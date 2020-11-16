@@ -26,8 +26,10 @@ import (
 )
 
 // CephObjectStoreLister helps list CephObjectStores.
+// All objects returned here must be treated as read-only.
 type CephObjectStoreLister interface {
 	// List lists all CephObjectStores in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephObjectStore, err error)
 	// CephObjectStores returns an object that can list and get CephObjectStores.
 	CephObjectStores(namespace string) CephObjectStoreNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephObjectStoreLister) CephObjectStores(namespace string) CephObjectSto
 }
 
 // CephObjectStoreNamespaceLister helps list and get CephObjectStores.
+// All objects returned here must be treated as read-only.
 type CephObjectStoreNamespaceLister interface {
 	// List lists all CephObjectStores in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephObjectStore, err error)
 	// Get retrieves the CephObjectStore from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephObjectStore, error)
 	CephObjectStoreNamespaceListerExpansion
 }

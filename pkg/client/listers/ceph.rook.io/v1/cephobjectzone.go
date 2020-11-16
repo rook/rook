@@ -26,8 +26,10 @@ import (
 )
 
 // CephObjectZoneLister helps list CephObjectZones.
+// All objects returned here must be treated as read-only.
 type CephObjectZoneLister interface {
 	// List lists all CephObjectZones in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephObjectZone, err error)
 	// CephObjectZones returns an object that can list and get CephObjectZones.
 	CephObjectZones(namespace string) CephObjectZoneNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephObjectZoneLister) CephObjectZones(namespace string) CephObjectZoneN
 }
 
 // CephObjectZoneNamespaceLister helps list and get CephObjectZones.
+// All objects returned here must be treated as read-only.
 type CephObjectZoneNamespaceLister interface {
 	// List lists all CephObjectZones in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephObjectZone, err error)
 	// Get retrieves the CephObjectZone from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephObjectZone, error)
 	CephObjectZoneNamespaceListerExpansion
 }

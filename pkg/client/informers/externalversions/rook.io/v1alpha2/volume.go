@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha2
 
 import (
+	"context"
 	time "time"
 
 	rookiov1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -61,13 +62,13 @@ func NewFilteredVolumeInformer(client versioned.Interface, namespace string, res
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RookV1alpha2().Volumes(namespace).List(options)
+				return client.RookV1alpha2().Volumes(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RookV1alpha2().Volumes(namespace).Watch(options)
+				return client.RookV1alpha2().Volumes(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&rookiov1alpha2.Volume{},

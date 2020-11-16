@@ -26,8 +26,10 @@ import (
 )
 
 // CephObjectRealmLister helps list CephObjectRealms.
+// All objects returned here must be treated as read-only.
 type CephObjectRealmLister interface {
 	// List lists all CephObjectRealms in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephObjectRealm, err error)
 	// CephObjectRealms returns an object that can list and get CephObjectRealms.
 	CephObjectRealms(namespace string) CephObjectRealmNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephObjectRealmLister) CephObjectRealms(namespace string) CephObjectRea
 }
 
 // CephObjectRealmNamespaceLister helps list and get CephObjectRealms.
+// All objects returned here must be treated as read-only.
 type CephObjectRealmNamespaceLister interface {
 	// List lists all CephObjectRealms in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephObjectRealm, err error)
 	// Get retrieves the CephObjectRealm from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephObjectRealm, error)
 	CephObjectRealmNamespaceListerExpansion
 }

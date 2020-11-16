@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -37,14 +38,14 @@ type CephObjectZonesGetter interface {
 
 // CephObjectZoneInterface has methods to work with CephObjectZone resources.
 type CephObjectZoneInterface interface {
-	Create(*v1.CephObjectZone) (*v1.CephObjectZone, error)
-	Update(*v1.CephObjectZone) (*v1.CephObjectZone, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.CephObjectZone, error)
-	List(opts metav1.ListOptions) (*v1.CephObjectZoneList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.CephObjectZone, err error)
+	Create(ctx context.Context, cephObjectZone *v1.CephObjectZone, opts metav1.CreateOptions) (*v1.CephObjectZone, error)
+	Update(ctx context.Context, cephObjectZone *v1.CephObjectZone, opts metav1.UpdateOptions) (*v1.CephObjectZone, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephObjectZone, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephObjectZoneList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectZone, err error)
 	CephObjectZoneExpansion
 }
 
@@ -63,20 +64,20 @@ func newCephObjectZones(c *CephV1Client, namespace string) *cephObjectZones {
 }
 
 // Get takes name of the cephObjectZone, and returns the corresponding cephObjectZone object, and an error if there is any.
-func (c *cephObjectZones) Get(name string, options metav1.GetOptions) (result *v1.CephObjectZone, err error) {
+func (c *cephObjectZones) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephObjectZone, err error) {
 	result = &v1.CephObjectZone{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("cephobjectzones").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of CephObjectZones that match those selectors.
-func (c *cephObjectZones) List(opts metav1.ListOptions) (result *v1.CephObjectZoneList, err error) {
+func (c *cephObjectZones) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephObjectZoneList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -87,13 +88,13 @@ func (c *cephObjectZones) List(opts metav1.ListOptions) (result *v1.CephObjectZo
 		Resource("cephobjectzones").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested cephObjectZones.
-func (c *cephObjectZones) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *cephObjectZones) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -104,71 +105,74 @@ func (c *cephObjectZones) Watch(opts metav1.ListOptions) (watch.Interface, error
 		Resource("cephobjectzones").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a cephObjectZone and creates it.  Returns the server's representation of the cephObjectZone, and an error, if there is any.
-func (c *cephObjectZones) Create(cephObjectZone *v1.CephObjectZone) (result *v1.CephObjectZone, err error) {
+func (c *cephObjectZones) Create(ctx context.Context, cephObjectZone *v1.CephObjectZone, opts metav1.CreateOptions) (result *v1.CephObjectZone, err error) {
 	result = &v1.CephObjectZone{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("cephobjectzones").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(cephObjectZone).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a cephObjectZone and updates it. Returns the server's representation of the cephObjectZone, and an error, if there is any.
-func (c *cephObjectZones) Update(cephObjectZone *v1.CephObjectZone) (result *v1.CephObjectZone, err error) {
+func (c *cephObjectZones) Update(ctx context.Context, cephObjectZone *v1.CephObjectZone, opts metav1.UpdateOptions) (result *v1.CephObjectZone, err error) {
 	result = &v1.CephObjectZone{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("cephobjectzones").
 		Name(cephObjectZone.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(cephObjectZone).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the cephObjectZone and deletes it. Returns an error if one occurs.
-func (c *cephObjectZones) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *cephObjectZones) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("cephobjectzones").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *cephObjectZones) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *cephObjectZones) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("cephobjectzones").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched cephObjectZone.
-func (c *cephObjectZones) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.CephObjectZone, err error) {
+func (c *cephObjectZones) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectZone, err error) {
 	result = &v1.CephObjectZone{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("cephobjectzones").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

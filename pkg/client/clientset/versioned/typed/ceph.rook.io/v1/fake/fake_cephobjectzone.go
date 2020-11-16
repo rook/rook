@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var cephobjectzonesResource = schema.GroupVersionResource{Group: "ceph.rook.io",
 var cephobjectzonesKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephObjectZone"}
 
 // Get takes name of the cephObjectZone, and returns the corresponding cephObjectZone object, and an error if there is any.
-func (c *FakeCephObjectZones) Get(name string, options v1.GetOptions) (result *cephrookiov1.CephObjectZone, err error) {
+func (c *FakeCephObjectZones) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephObjectZone, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(cephobjectzonesResource, c.ns, name), &cephrookiov1.CephObjectZone{})
 
@@ -50,7 +52,7 @@ func (c *FakeCephObjectZones) Get(name string, options v1.GetOptions) (result *c
 }
 
 // List takes label and field selectors, and returns the list of CephObjectZones that match those selectors.
-func (c *FakeCephObjectZones) List(opts v1.ListOptions) (result *cephrookiov1.CephObjectZoneList, err error) {
+func (c *FakeCephObjectZones) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephObjectZoneList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(cephobjectzonesResource, cephobjectzonesKind, c.ns, opts), &cephrookiov1.CephObjectZoneList{})
 
@@ -72,14 +74,14 @@ func (c *FakeCephObjectZones) List(opts v1.ListOptions) (result *cephrookiov1.Ce
 }
 
 // Watch returns a watch.Interface that watches the requested cephObjectZones.
-func (c *FakeCephObjectZones) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephObjectZones) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(cephobjectzonesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephObjectZone and creates it.  Returns the server's representation of the cephObjectZone, and an error, if there is any.
-func (c *FakeCephObjectZones) Create(cephObjectZone *cephrookiov1.CephObjectZone) (result *cephrookiov1.CephObjectZone, err error) {
+func (c *FakeCephObjectZones) Create(ctx context.Context, cephObjectZone *cephrookiov1.CephObjectZone, opts v1.CreateOptions) (result *cephrookiov1.CephObjectZone, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(cephobjectzonesResource, c.ns, cephObjectZone), &cephrookiov1.CephObjectZone{})
 
@@ -90,7 +92,7 @@ func (c *FakeCephObjectZones) Create(cephObjectZone *cephrookiov1.CephObjectZone
 }
 
 // Update takes the representation of a cephObjectZone and updates it. Returns the server's representation of the cephObjectZone, and an error, if there is any.
-func (c *FakeCephObjectZones) Update(cephObjectZone *cephrookiov1.CephObjectZone) (result *cephrookiov1.CephObjectZone, err error) {
+func (c *FakeCephObjectZones) Update(ctx context.Context, cephObjectZone *cephrookiov1.CephObjectZone, opts v1.UpdateOptions) (result *cephrookiov1.CephObjectZone, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(cephobjectzonesResource, c.ns, cephObjectZone), &cephrookiov1.CephObjectZone{})
 
@@ -101,7 +103,7 @@ func (c *FakeCephObjectZones) Update(cephObjectZone *cephrookiov1.CephObjectZone
 }
 
 // Delete takes name of the cephObjectZone and deletes it. Returns an error if one occurs.
-func (c *FakeCephObjectZones) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeCephObjectZones) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(cephobjectzonesResource, c.ns, name), &cephrookiov1.CephObjectZone{})
 
@@ -109,15 +111,15 @@ func (c *FakeCephObjectZones) Delete(name string, options *v1.DeleteOptions) err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephObjectZones) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephobjectzonesResource, c.ns, listOptions)
+func (c *FakeCephObjectZones) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephobjectzonesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &cephrookiov1.CephObjectZoneList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephObjectZone.
-func (c *FakeCephObjectZones) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephObjectZone, err error) {
+func (c *FakeCephObjectZones) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephObjectZone, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(cephobjectzonesResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephObjectZone{})
 

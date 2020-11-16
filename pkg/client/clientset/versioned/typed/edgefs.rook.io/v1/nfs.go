@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
@@ -37,14 +38,14 @@ type NFSsGetter interface {
 
 // NFSInterface has methods to work with NFS resources.
 type NFSInterface interface {
-	Create(*v1.NFS) (*v1.NFS, error)
-	Update(*v1.NFS) (*v1.NFS, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.NFS, error)
-	List(opts metav1.ListOptions) (*v1.NFSList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.NFS, err error)
+	Create(ctx context.Context, nFS *v1.NFS, opts metav1.CreateOptions) (*v1.NFS, error)
+	Update(ctx context.Context, nFS *v1.NFS, opts metav1.UpdateOptions) (*v1.NFS, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.NFS, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.NFSList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.NFS, err error)
 	NFSExpansion
 }
 
@@ -63,20 +64,20 @@ func newNFSs(c *EdgefsV1Client, namespace string) *nFSs {
 }
 
 // Get takes name of the nFS, and returns the corresponding nFS object, and an error if there is any.
-func (c *nFSs) Get(name string, options metav1.GetOptions) (result *v1.NFS, err error) {
+func (c *nFSs) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.NFS, err error) {
 	result = &v1.NFS{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("nfss").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of NFSs that match those selectors.
-func (c *nFSs) List(opts metav1.ListOptions) (result *v1.NFSList, err error) {
+func (c *nFSs) List(ctx context.Context, opts metav1.ListOptions) (result *v1.NFSList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -87,13 +88,13 @@ func (c *nFSs) List(opts metav1.ListOptions) (result *v1.NFSList, err error) {
 		Resource("nfss").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested nFSs.
-func (c *nFSs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *nFSs) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -104,71 +105,74 @@ func (c *nFSs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		Resource("nfss").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a nFS and creates it.  Returns the server's representation of the nFS, and an error, if there is any.
-func (c *nFSs) Create(nFS *v1.NFS) (result *v1.NFS, err error) {
+func (c *nFSs) Create(ctx context.Context, nFS *v1.NFS, opts metav1.CreateOptions) (result *v1.NFS, err error) {
 	result = &v1.NFS{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("nfss").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(nFS).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a nFS and updates it. Returns the server's representation of the nFS, and an error, if there is any.
-func (c *nFSs) Update(nFS *v1.NFS) (result *v1.NFS, err error) {
+func (c *nFSs) Update(ctx context.Context, nFS *v1.NFS, opts metav1.UpdateOptions) (result *v1.NFS, err error) {
 	result = &v1.NFS{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("nfss").
 		Name(nFS.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(nFS).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the nFS and deletes it. Returns an error if one occurs.
-func (c *nFSs) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *nFSs) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("nfss").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *nFSs) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *nFSs) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("nfss").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched nFS.
-func (c *nFSs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.NFS, err error) {
+func (c *nFSs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.NFS, err error) {
 	result = &v1.NFS{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("nfss").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

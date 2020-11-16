@@ -26,8 +26,10 @@ import (
 )
 
 // SMBLister helps list SMBs.
+// All objects returned here must be treated as read-only.
 type SMBLister interface {
 	// List lists all SMBs in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.SMB, err error)
 	// SMBs returns an object that can list and get SMBs.
 	SMBs(namespace string) SMBNamespaceLister
@@ -58,10 +60,13 @@ func (s *sMBLister) SMBs(namespace string) SMBNamespaceLister {
 }
 
 // SMBNamespaceLister helps list and get SMBs.
+// All objects returned here must be treated as read-only.
 type SMBNamespaceLister interface {
 	// List lists all SMBs in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.SMB, err error)
 	// Get retrieves the SMB from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.SMB, error)
 	SMBNamespaceListerExpansion
 }

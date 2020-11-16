@@ -26,8 +26,10 @@ import (
 )
 
 // CephNFSLister helps list CephNFSes.
+// All objects returned here must be treated as read-only.
 type CephNFSLister interface {
 	// List lists all CephNFSes in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephNFS, err error)
 	// CephNFSes returns an object that can list and get CephNFSes.
 	CephNFSes(namespace string) CephNFSNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephNFSLister) CephNFSes(namespace string) CephNFSNamespaceLister {
 }
 
 // CephNFSNamespaceLister helps list and get CephNFSes.
+// All objects returned here must be treated as read-only.
 type CephNFSNamespaceLister interface {
 	// List lists all CephNFSes in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephNFS, err error)
 	// Get retrieves the CephNFS from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephNFS, error)
 	CephNFSNamespaceListerExpansion
 }

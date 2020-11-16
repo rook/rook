@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var s3xsResource = schema.GroupVersionResource{Group: "edgefs.rook.io", Version:
 var s3xsKind = schema.GroupVersionKind{Group: "edgefs.rook.io", Version: "v1", Kind: "S3X"}
 
 // Get takes name of the s3X, and returns the corresponding s3X object, and an error if there is any.
-func (c *FakeS3Xs) Get(name string, options v1.GetOptions) (result *edgefsrookiov1.S3X, err error) {
+func (c *FakeS3Xs) Get(ctx context.Context, name string, options v1.GetOptions) (result *edgefsrookiov1.S3X, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(s3xsResource, c.ns, name), &edgefsrookiov1.S3X{})
 
@@ -50,7 +52,7 @@ func (c *FakeS3Xs) Get(name string, options v1.GetOptions) (result *edgefsrookio
 }
 
 // List takes label and field selectors, and returns the list of S3Xs that match those selectors.
-func (c *FakeS3Xs) List(opts v1.ListOptions) (result *edgefsrookiov1.S3XList, err error) {
+func (c *FakeS3Xs) List(ctx context.Context, opts v1.ListOptions) (result *edgefsrookiov1.S3XList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(s3xsResource, s3xsKind, c.ns, opts), &edgefsrookiov1.S3XList{})
 
@@ -72,14 +74,14 @@ func (c *FakeS3Xs) List(opts v1.ListOptions) (result *edgefsrookiov1.S3XList, er
 }
 
 // Watch returns a watch.Interface that watches the requested s3Xs.
-func (c *FakeS3Xs) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeS3Xs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(s3xsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a s3X and creates it.  Returns the server's representation of the s3X, and an error, if there is any.
-func (c *FakeS3Xs) Create(s3X *edgefsrookiov1.S3X) (result *edgefsrookiov1.S3X, err error) {
+func (c *FakeS3Xs) Create(ctx context.Context, s3X *edgefsrookiov1.S3X, opts v1.CreateOptions) (result *edgefsrookiov1.S3X, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(s3xsResource, c.ns, s3X), &edgefsrookiov1.S3X{})
 
@@ -90,7 +92,7 @@ func (c *FakeS3Xs) Create(s3X *edgefsrookiov1.S3X) (result *edgefsrookiov1.S3X, 
 }
 
 // Update takes the representation of a s3X and updates it. Returns the server's representation of the s3X, and an error, if there is any.
-func (c *FakeS3Xs) Update(s3X *edgefsrookiov1.S3X) (result *edgefsrookiov1.S3X, err error) {
+func (c *FakeS3Xs) Update(ctx context.Context, s3X *edgefsrookiov1.S3X, opts v1.UpdateOptions) (result *edgefsrookiov1.S3X, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(s3xsResource, c.ns, s3X), &edgefsrookiov1.S3X{})
 
@@ -101,7 +103,7 @@ func (c *FakeS3Xs) Update(s3X *edgefsrookiov1.S3X) (result *edgefsrookiov1.S3X, 
 }
 
 // Delete takes name of the s3X and deletes it. Returns an error if one occurs.
-func (c *FakeS3Xs) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeS3Xs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(s3xsResource, c.ns, name), &edgefsrookiov1.S3X{})
 
@@ -109,15 +111,15 @@ func (c *FakeS3Xs) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeS3Xs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(s3xsResource, c.ns, listOptions)
+func (c *FakeS3Xs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(s3xsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &edgefsrookiov1.S3XList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched s3X.
-func (c *FakeS3Xs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *edgefsrookiov1.S3X, err error) {
+func (c *FakeS3Xs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *edgefsrookiov1.S3X, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(s3xsResource, c.ns, name, pt, data, subresources...), &edgefsrookiov1.S3X{})
 

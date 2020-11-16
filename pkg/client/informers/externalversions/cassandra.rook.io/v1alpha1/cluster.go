@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	cassandrarookiov1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
@@ -61,13 +62,13 @@ func NewFilteredClusterInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CassandraV1alpha1().Clusters(namespace).List(options)
+				return client.CassandraV1alpha1().Clusters(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CassandraV1alpha1().Clusters(namespace).Watch(options)
+				return client.CassandraV1alpha1().Clusters(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&cassandrarookiov1alpha1.Cluster{},

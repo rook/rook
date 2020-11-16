@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var cephblockpoolsResource = schema.GroupVersionResource{Group: "ceph.rook.io", 
 var cephblockpoolsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephBlockPool"}
 
 // Get takes name of the cephBlockPool, and returns the corresponding cephBlockPool object, and an error if there is any.
-func (c *FakeCephBlockPools) Get(name string, options v1.GetOptions) (result *cephrookiov1.CephBlockPool, err error) {
+func (c *FakeCephBlockPools) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephBlockPool, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(cephblockpoolsResource, c.ns, name), &cephrookiov1.CephBlockPool{})
 
@@ -50,7 +52,7 @@ func (c *FakeCephBlockPools) Get(name string, options v1.GetOptions) (result *ce
 }
 
 // List takes label and field selectors, and returns the list of CephBlockPools that match those selectors.
-func (c *FakeCephBlockPools) List(opts v1.ListOptions) (result *cephrookiov1.CephBlockPoolList, err error) {
+func (c *FakeCephBlockPools) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephBlockPoolList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(cephblockpoolsResource, cephblockpoolsKind, c.ns, opts), &cephrookiov1.CephBlockPoolList{})
 
@@ -72,14 +74,14 @@ func (c *FakeCephBlockPools) List(opts v1.ListOptions) (result *cephrookiov1.Cep
 }
 
 // Watch returns a watch.Interface that watches the requested cephBlockPools.
-func (c *FakeCephBlockPools) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephBlockPools) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(cephblockpoolsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephBlockPool and creates it.  Returns the server's representation of the cephBlockPool, and an error, if there is any.
-func (c *FakeCephBlockPools) Create(cephBlockPool *cephrookiov1.CephBlockPool) (result *cephrookiov1.CephBlockPool, err error) {
+func (c *FakeCephBlockPools) Create(ctx context.Context, cephBlockPool *cephrookiov1.CephBlockPool, opts v1.CreateOptions) (result *cephrookiov1.CephBlockPool, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(cephblockpoolsResource, c.ns, cephBlockPool), &cephrookiov1.CephBlockPool{})
 
@@ -90,7 +92,7 @@ func (c *FakeCephBlockPools) Create(cephBlockPool *cephrookiov1.CephBlockPool) (
 }
 
 // Update takes the representation of a cephBlockPool and updates it. Returns the server's representation of the cephBlockPool, and an error, if there is any.
-func (c *FakeCephBlockPools) Update(cephBlockPool *cephrookiov1.CephBlockPool) (result *cephrookiov1.CephBlockPool, err error) {
+func (c *FakeCephBlockPools) Update(ctx context.Context, cephBlockPool *cephrookiov1.CephBlockPool, opts v1.UpdateOptions) (result *cephrookiov1.CephBlockPool, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(cephblockpoolsResource, c.ns, cephBlockPool), &cephrookiov1.CephBlockPool{})
 
@@ -101,7 +103,7 @@ func (c *FakeCephBlockPools) Update(cephBlockPool *cephrookiov1.CephBlockPool) (
 }
 
 // Delete takes name of the cephBlockPool and deletes it. Returns an error if one occurs.
-func (c *FakeCephBlockPools) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeCephBlockPools) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(cephblockpoolsResource, c.ns, name), &cephrookiov1.CephBlockPool{})
 
@@ -109,15 +111,15 @@ func (c *FakeCephBlockPools) Delete(name string, options *v1.DeleteOptions) erro
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephBlockPools) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephblockpoolsResource, c.ns, listOptions)
+func (c *FakeCephBlockPools) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephblockpoolsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &cephrookiov1.CephBlockPoolList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephBlockPool.
-func (c *FakeCephBlockPools) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephBlockPool, err error) {
+func (c *FakeCephBlockPools) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephBlockPool, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(cephblockpoolsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephBlockPool{})
 

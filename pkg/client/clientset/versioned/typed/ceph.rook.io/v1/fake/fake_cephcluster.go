@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var cephclustersResource = schema.GroupVersionResource{Group: "ceph.rook.io", Ve
 var cephclustersKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephCluster"}
 
 // Get takes name of the cephCluster, and returns the corresponding cephCluster object, and an error if there is any.
-func (c *FakeCephClusters) Get(name string, options v1.GetOptions) (result *cephrookiov1.CephCluster, err error) {
+func (c *FakeCephClusters) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(cephclustersResource, c.ns, name), &cephrookiov1.CephCluster{})
 
@@ -50,7 +52,7 @@ func (c *FakeCephClusters) Get(name string, options v1.GetOptions) (result *ceph
 }
 
 // List takes label and field selectors, and returns the list of CephClusters that match those selectors.
-func (c *FakeCephClusters) List(opts v1.ListOptions) (result *cephrookiov1.CephClusterList, err error) {
+func (c *FakeCephClusters) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephClusterList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(cephclustersResource, cephclustersKind, c.ns, opts), &cephrookiov1.CephClusterList{})
 
@@ -72,14 +74,14 @@ func (c *FakeCephClusters) List(opts v1.ListOptions) (result *cephrookiov1.CephC
 }
 
 // Watch returns a watch.Interface that watches the requested cephClusters.
-func (c *FakeCephClusters) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephClusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(cephclustersResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephCluster and creates it.  Returns the server's representation of the cephCluster, and an error, if there is any.
-func (c *FakeCephClusters) Create(cephCluster *cephrookiov1.CephCluster) (result *cephrookiov1.CephCluster, err error) {
+func (c *FakeCephClusters) Create(ctx context.Context, cephCluster *cephrookiov1.CephCluster, opts v1.CreateOptions) (result *cephrookiov1.CephCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(cephclustersResource, c.ns, cephCluster), &cephrookiov1.CephCluster{})
 
@@ -90,7 +92,7 @@ func (c *FakeCephClusters) Create(cephCluster *cephrookiov1.CephCluster) (result
 }
 
 // Update takes the representation of a cephCluster and updates it. Returns the server's representation of the cephCluster, and an error, if there is any.
-func (c *FakeCephClusters) Update(cephCluster *cephrookiov1.CephCluster) (result *cephrookiov1.CephCluster, err error) {
+func (c *FakeCephClusters) Update(ctx context.Context, cephCluster *cephrookiov1.CephCluster, opts v1.UpdateOptions) (result *cephrookiov1.CephCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(cephclustersResource, c.ns, cephCluster), &cephrookiov1.CephCluster{})
 
@@ -101,7 +103,7 @@ func (c *FakeCephClusters) Update(cephCluster *cephrookiov1.CephCluster) (result
 }
 
 // Delete takes name of the cephCluster and deletes it. Returns an error if one occurs.
-func (c *FakeCephClusters) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeCephClusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(cephclustersResource, c.ns, name), &cephrookiov1.CephCluster{})
 
@@ -109,15 +111,15 @@ func (c *FakeCephClusters) Delete(name string, options *v1.DeleteOptions) error 
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephClusters) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephclustersResource, c.ns, listOptions)
+func (c *FakeCephClusters) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephclustersResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &cephrookiov1.CephClusterList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephCluster.
-func (c *FakeCephClusters) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephCluster, err error) {
+func (c *FakeCephClusters) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephCluster, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(cephclustersResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephCluster{})
 
