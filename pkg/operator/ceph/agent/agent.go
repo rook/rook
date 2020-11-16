@@ -18,6 +18,7 @@ limitations under the License.
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"strconv"
@@ -75,6 +76,7 @@ func (a *Agent) Start(namespace, agentImage, serviceAccount string) error {
 }
 
 func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount string) error {
+	ctx := context.TODO()
 	flexvolumeDirPath, source := a.discoverFlexvolumeDir()
 	logger.Infof("discovered flexvolume dir path from source %s. value: %s", source, flexvolumeDirPath)
 
@@ -264,13 +266,13 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 		}
 	}
 
-	_, err = a.clientset.AppsV1().DaemonSets(namespace).Create(ds)
+	_, err = a.clientset.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create rook-ceph-agent daemon set")
 		}
 		logger.Infof("rook-ceph-agent daemonset already exists, updating ...")
-		_, err = a.clientset.AppsV1().DaemonSets(namespace).Update(ds)
+		_, err = a.clientset.AppsV1().DaemonSets(namespace).Update(ctx, ds, metav1.UpdateOptions{})
 		if err != nil {
 			return errors.Wrap(err, "failed to update rook-ceph-agent daemon set")
 		}
@@ -282,6 +284,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount strin
 }
 
 func (a *Agent) discoverFlexvolumeDir() (flexvolumeDirPath, source string) {
+	ctx := context.TODO()
 	//copy flexvolume to flexvolume dir
 	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
 	if nodeName == "" {
@@ -295,7 +298,7 @@ func (a *Agent) discoverFlexvolumeDir() (flexvolumeDirPath, source string) {
 		logger.Warning(err.Error())
 		return getDefaultFlexvolumeDir()
 	}
-	nodeConfig, err := a.clientset.CoreV1().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()
+	nodeConfig, err := a.clientset.CoreV1().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw(ctx)
 	if err != nil {
 		logger.Warningf("unable to query node configuration: %v", err)
 		return getDefaultFlexvolumeDir()

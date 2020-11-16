@@ -50,22 +50,23 @@ var (
 )
 
 func (c *Cluster) configureDashboardService() error {
+	ctx := context.TODO()
 	dashboardService := c.makeDashboardService(AppName)
 	if c.spec.Dashboard.Enabled {
 		// expose the dashboard service
-		if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(dashboardService); err != nil {
+		if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(ctx, dashboardService, metav1.CreateOptions{}); err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrap(err, "failed to create dashboard mgr service")
 			}
 			logger.Infof("dashboard service already exists")
-			original, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(dashboardService.Name, metav1.GetOptions{})
+			original, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(ctx, dashboardService.Name, metav1.GetOptions{})
 			if err != nil {
 				return errors.Wrap(err, "failed to get dashboard service")
 			}
 			if original.Spec.Ports[0].Port != int32(c.dashboardPort()) {
 				logger.Infof("dashboard port changed. updating service")
 				original.Spec.Ports[0].Port = int32(c.dashboardPort())
-				if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Update(original); err != nil {
+				if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Update(ctx, original, metav1.UpdateOptions{}); err != nil {
 					return errors.Wrap(err, "failed to update dashboard mgr service")
 				}
 			}
@@ -74,7 +75,7 @@ func (c *Cluster) configureDashboardService() error {
 		}
 	} else {
 		// delete the dashboard service if it exists
-		err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(dashboardService.Name, &metav1.DeleteOptions{})
+		err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(ctx, dashboardService.Name, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "failed to delete dashboard service")
 		}
@@ -229,7 +230,8 @@ func (c *Cluster) setLoginCredentials(password string) error {
 }
 
 func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
-	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
+	ctx := context.TODO()
+	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(ctx, dashboardPasswordName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the dashboard secret was already generated")
 		return decodeSecret(secret)
@@ -258,7 +260,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	}
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, &c.clusterInfo.OwnerRef)
 
-	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(secret)
+	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to save dashboard secret")
 	}

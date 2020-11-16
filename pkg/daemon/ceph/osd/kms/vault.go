@@ -17,6 +17,7 @@ limitations under the License.
 package kms
 
 import (
+	"context"
 	"io/ioutil"
 	"strings"
 
@@ -89,7 +90,8 @@ func InitVault(context *clusterd.Context, namespace string, config map[string]st
 	return v, nil
 }
 
-func configTLS(context *clusterd.Context, namespace string, config map[string]string) (map[string]string, error) {
+func configTLS(clusterdContext *clusterd.Context, namespace string, config map[string]string) (map[string]string, error) {
+	ctx := context.TODO()
 	for _, tlsOption := range vaultTLSConnectionDetails {
 		tlsSecretName := GetParam(config, tlsOption)
 		if tlsSecretName == "" {
@@ -97,7 +99,7 @@ func configTLS(context *clusterd.Context, namespace string, config map[string]st
 		}
 		// If the string already has the correct path /etc/vault, we are in provisioner code and all the envs have been populated by the op already
 		if !strings.Contains(tlsSecretName, EtcVaultDir) {
-			secret, err := context.Clientset.CoreV1().Secrets(namespace).Get(tlsSecretName, v1.GetOptions{})
+			secret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, tlsSecretName, v1.GetOptions{})
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to fetch tls k8s secret %q", tlsSecretName)
 			}
@@ -176,7 +178,8 @@ func (c *Config) IsVault() bool {
 	return c.Provider == "vault"
 }
 
-func validateVaultConnectionDetails(context *clusterd.Context, ns string, kmsConfig map[string]string) error {
+func validateVaultConnectionDetails(clusterdContext *clusterd.Context, ns string, kmsConfig map[string]string) error {
+	ctx := context.TODO()
 	for _, option := range vaultMandatoryConnectionDetails {
 		if GetParam(kmsConfig, option) == "" {
 			return errors.Errorf("failed to find connection details %q", option)
@@ -194,7 +197,7 @@ func validateVaultConnectionDetails(context *clusterd.Context, ns string, kmsCon
 		tlsSecretName := GetParam(kmsConfig, tlsOption)
 		if tlsSecretName != "" {
 			// Fetch the secret
-			s, err := context.Clientset.CoreV1().Secrets(ns).Get(tlsSecretName, v1.GetOptions{})
+			s, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Get(ctx, tlsSecretName, v1.GetOptions{})
 			if err != nil {
 				return errors.Errorf("failed to find TLS connection details k8s secret %q", tlsOption)
 			}

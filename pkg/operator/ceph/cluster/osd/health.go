@@ -196,8 +196,9 @@ func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) erro
 // If the pod is stuck in terminating state, go ahead and force delete the pod so K8s
 // will free up the volume and allow the OSD to be restarted on another node.
 func (m *OSDHealthMonitor) restartOSDIfStuck(osdID int) error {
+	ctx := context.TODO()
 	labels := fmt.Sprintf("ceph-osd-id=%d,portable=true", osdID)
-	pods, err := m.context.Clientset.CoreV1().Pods(m.clusterInfo.Namespace).List(metav1.ListOptions{LabelSelector: labels})
+	pods, err := m.context.Clientset.CoreV1().Pods(m.clusterInfo.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labels})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get OSD with ID %d", osdID)
 	}

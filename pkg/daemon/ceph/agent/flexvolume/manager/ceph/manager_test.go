@@ -16,6 +16,7 @@ limitations under the License.
 package ceph
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -104,6 +105,7 @@ func TestInitLoadRBDModNoSingleMajor(t *testing.T) {
 }
 
 func TestAttach(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 	clusterNamespace := "testCluster"
 	configDir, _ := ioutil.TempDir("", "")
@@ -114,7 +116,7 @@ func TestAttach(t *testing.T) {
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
-	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	runCount := 1
@@ -191,6 +193,7 @@ func TestAttachAlreadyExists(t *testing.T) {
 }
 
 func TestDetach(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 	clusterNamespace := "testCluster"
 	configDir, _ := ioutil.TempDir("", "")
@@ -201,7 +204,7 @@ func TestDetach(t *testing.T) {
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
-	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	executor := &exectest.MockExecutor{
@@ -245,6 +248,7 @@ func TestDetach(t *testing.T) {
 }
 
 func TestDetachCustomKeyring(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 	clusterNamespace := "testCluster"
 	configDir, _ := ioutil.TempDir("", "")
@@ -255,7 +259,7 @@ func TestDetachCustomKeyring(t *testing.T) {
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
-	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(clusterNamespace).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	executor := &exectest.MockExecutor{

@@ -17,6 +17,7 @@ limitations under the License.
 package installer
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -126,12 +127,13 @@ func (y *YugabyteDBInstaller) CreateYugabyteDBCluster(namespace string, replicaC
 }
 
 func (y *YugabyteDBInstaller) RemoveAllYugabyteDBResources(systemNS, namespace string) error {
+	ctx := context.TODO()
 	logger.Info("Removing YugabyteDB cluster")
 	err := y.k8sHelper.DeleteResourceAndWait(false, "-n", namespace, CRDFullyQualifiedNameSingular, namespace)
 	checkError(y.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 	crdCheckerFunc := func() error {
-		_, err := y.k8sHelper.RookClientset.YugabytedbV1alpha1().YBClusters(namespace).Get(namespace, metav1.GetOptions{})
+		_, err := y.k8sHelper.RookClientset.YugabytedbV1alpha1().YBClusters(namespace).Get(ctx, namespace, metav1.GetOptions{})
 		return err
 	}
 	err = y.k8sHelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
@@ -155,7 +157,7 @@ func (y *YugabyteDBInstaller) RemoveAllYugabyteDBResources(systemNS, namespace s
 		checkError(y.T(), err, "cannot uninstall hostpath provisioner")
 	}
 
-	err = y.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	err = y.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete(ctx, "anon-user-access", metav1.DeleteOptions{})
 	assert.NoError(y.T(), err)
 	logger.Infof("done removing the operator from namespace %s", systemNS)
 

@@ -17,6 +17,7 @@ limitations under the License.
 package cmdreporter
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strconv"
@@ -142,6 +143,7 @@ func (cr *CmdReporter) Job() *batch.Job {
 // An error is reported only if the command was not run to completion successfully. When this
 // returns, the ConfigMap is cleaned up (destroyed).
 func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcode int, retErr error) {
+	ctx := context.TODO()
 	jobName := cr.job.Name
 	namespace := cr.job.Namespace
 	errMsg := fmt.Sprintf("failed to run CmdReporter %s successfully", jobName)
@@ -166,7 +168,7 @@ func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcod
 	}
 	logger.Debugf("job %s has returned results", jobName)
 
-	resultMap, err := cr.clientset.CoreV1().ConfigMaps(namespace).Get(jobName, metav1.GetOptions{})
+	resultMap, err := cr.clientset.CoreV1().ConfigMaps(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
 		return "", "", -1, fmt.Errorf("%s. results ConfigMap %s should be available, but got an error instead. %+v", errMsg, jobName, err)
 	}
@@ -203,6 +205,7 @@ func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcod
 
 // return watcher or nil if configmap exists
 func (cr *CmdReporter) newWatcher() (watch.Interface, error) {
+	ctx := context.TODO()
 	jobName := cr.job.Name
 	namespace := cr.job.Namespace
 
@@ -213,7 +216,7 @@ func (cr *CmdReporter) newWatcher() (watch.Interface, error) {
 		FieldSelector: fmt.Sprintf("metadata.name=%s", jobName),
 	}
 
-	list, err := cr.clientset.CoreV1().ConfigMaps(namespace).List(listOpts)
+	list, err := cr.clientset.CoreV1().ConfigMaps(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list the current ConfigMaps in order to start ConfigMap watcher. %+v", err)
 	}
@@ -225,7 +228,7 @@ func (cr *CmdReporter) newWatcher() (watch.Interface, error) {
 	watchOpts.Watch = true
 	watchOpts.ResourceVersion = list.ResourceVersion
 
-	watcher, err := cr.clientset.CoreV1().ConfigMaps(namespace).Watch(*watchOpts)
+	watcher, err := cr.clientset.CoreV1().ConfigMaps(namespace).Watch(ctx, *watchOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start ConfigMap watcher. %+v", err)
 	}

@@ -17,6 +17,8 @@ limitations under the License.
 package clients
 
 import (
+	"context"
+
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -55,9 +57,10 @@ func (r *RBDMirrorOperation) Create(namespace, name string, daemonCount int) err
 
 // Delete deletes a rbd-mirror in Rook
 func (r *RBDMirrorOperation) Delete(namespace, name string) error {
+	ctx := context.TODO()
 	options := &metav1.DeleteOptions{}
 	logger.Infof("Deleting rbd-mirror %s in namespace %s", name, namespace)
-	err := r.k8sh.RookClientset.CephV1().CephRBDMirrors(namespace).Delete(name, options)
+	err := r.k8sh.RookClientset.CephV1().CephRBDMirrors(namespace).Delete(ctx, name, *options)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}

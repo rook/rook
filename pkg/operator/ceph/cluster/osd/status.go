@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -115,13 +116,14 @@ func (c *Cluster) completeProvision(config *provisionConfig) bool {
 }
 
 func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, configOSDs bool) (int, *util.Set, bool, *v1.ConfigMapList, error) {
+	ctx := context.TODO()
 	opts := metav1.ListOptions{
 		LabelSelector: selector,
 		Watch:         false,
 	}
 	remainingNodes := util.NewSet()
 	// check the status map to see if the node is already completed before we start watching
-	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).List(opts)
+	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).List(ctx, opts)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			config.addError("failed to get config status. %v", err)
@@ -151,6 +153,7 @@ func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, 
 }
 
 func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
+	ctx := context.TODO()
 	selector := fmt.Sprintf("%s=%s,%s=%s",
 		k8sutil.AppAttr, AppName,
 		orchestrationStatusKey, provisioningLabelKey,
@@ -171,7 +174,7 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 		}
 		logger.Infof("%d/%d node(s) completed osd provisioning, resource version %v", (originalNodes - remainingNodes.Count()), originalNodes, opts.ResourceVersion)
 
-		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).Watch(opts)
+		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).Watch(ctx, opts)
 		if err != nil {
 			logger.Warningf("failed to start watch on osd status, trying again. %v", err)
 			time.Sleep(5 * time.Second)

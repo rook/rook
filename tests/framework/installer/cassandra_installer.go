@@ -17,6 +17,7 @@ limitations under the License.
 package installer
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -120,14 +121,14 @@ func (ci *CassandraInstaller) CreateCassandraCluster(namespace string, count int
 }
 
 func (ci *CassandraInstaller) DeleteCassandraCluster(namespace string) {
-
+	ctx := context.TODO()
 	// Delete Cassandra Cluster
 	logger.Infof("Uninstalling Cassandra from namespace %s", namespace)
 	err := ci.k8sHelper.DeleteResourceAndWait(true, "-n", namespace, cassandraCRD, namespace)
 	checkError(ci.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 	crdCheckerFunc := func() error {
-		_, err := ci.k8sHelper.RookClientset.CassandraV1alpha1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
+		_, err := ci.k8sHelper.RookClientset.CassandraV1alpha1().Clusters(namespace).Get(ctx, namespace, metav1.GetOptions{})
 		return err
 	}
 	err = ci.k8sHelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
@@ -140,7 +141,7 @@ func (ci *CassandraInstaller) DeleteCassandraCluster(namespace string) {
 }
 
 func (ci *CassandraInstaller) UninstallCassandra(systemNamespace string, namespace string) {
-
+	ctx := context.TODO()
 	// Delete deployed Cluster
 	// ci.DeleteCassandraCluster(namespace)
 	cassandraCluster := ci.manifests.GetCassandraCluster(namespace, 0, "")
@@ -158,7 +159,7 @@ func (ci *CassandraInstaller) UninstallCassandra(systemNamespace string, namespa
 
 	//Remove "anon-user-access"
 	logger.Info("Removing anon-user-access ClusterRoleBinding")
-	err = ci.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	err = ci.k8sHelper.Clientset.RbacV1().ClusterRoleBindings().Delete(ctx, "anon-user-access", metav1.DeleteOptions{})
 	assert.NoError(ci.T(), err)
 	logger.Info("Successfully deleted all cassandra operator related objects.")
 }

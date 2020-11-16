@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -496,6 +497,7 @@ spec:
 }
 
 func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+	ctx := context.TODO()
 	// Create agent binding for access to Secrets
 	err := k8sh.ResourceOperation("apply", getFilesystemAgentMountSecretsBinding(namespace))
 	require.Nil(s.T(), err)
@@ -526,7 +528,7 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 	logger.Info("Created Ceph credentials")
 	require.Nil(s.T(), err)
 	// Save Ceph credentials to Kubernetes
-	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(&v1.Secret{
+	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(ctx, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fileMountSecret,
 			Namespace: namespace,
@@ -534,7 +536,7 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 		Data: map[string][]byte{
 			"mykey": []byte(result),
 		},
-	})
+	}, metav1.CreateOptions{})
 	require.Nil(s.T(), err)
 	logger.Info("Created Ceph credentials Secret in Kubernetes")
 }

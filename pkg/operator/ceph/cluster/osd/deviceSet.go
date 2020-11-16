@@ -17,6 +17,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -108,6 +109,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv
 }
 
 func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolumeClaim, storageClassDeviceSetName string, pvcTemplate v1.PersistentVolumeClaim, setIndex int) (*v1.PersistentVolumeClaim, error) {
+	ctx := context.TODO()
 	// old labels and PVC ID for backward compatibility
 	pvcStorageClassDeviceSetPVCId := legacyDeviceSetPVCID(storageClassDeviceSetName, setIndex)
 
@@ -130,7 +132,7 @@ func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.Per
 	}
 
 	// No PVC found, creating a new one
-	deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Create(pvc)
+	deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create pvc %q for storageClassDeviceSet %q", pvc.GetGenerateName(), storageClassDeviceSetName)
 	}
@@ -139,6 +141,7 @@ func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.Per
 }
 
 func (c *Cluster) updatePVCIfChanged(desiredPVC *v1.PersistentVolumeClaim, currentPVC *v1.PersistentVolumeClaim) {
+	ctx := context.TODO()
 	desiredSize, desiredOK := desiredPVC.Spec.Resources.Requests[v1.ResourceStorage]
 	currentSize, currentOK := currentPVC.Spec.Resources.Requests[v1.ResourceStorage]
 	if !desiredOK || !currentOK {
@@ -148,7 +151,7 @@ func (c *Cluster) updatePVCIfChanged(desiredPVC *v1.PersistentVolumeClaim, curre
 	if desiredSize.Value() > currentSize.Value() {
 		currentPVC.Spec.Resources.Requests[v1.ResourceStorage] = desiredSize
 		logger.Infof("updating pvc %q size from %s to %s", currentPVC.Name, currentSize.String(), desiredSize.String())
-		if _, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Update(currentPVC); err != nil {
+		if _, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Update(ctx, currentPVC, metav1.UpdateOptions{}); err != nil {
 			// log the error, but don't fail the reconcile
 			logger.Errorf("failed to update pvc size. %v", err)
 			return
@@ -181,9 +184,10 @@ func makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDevi
 }
 
 // GetExistingOSDPVCs fetches the list of OSD PVCs
-func GetExistingOSDPVCs(context *clusterd.Context, namespace string) (map[string]*v1.PersistentVolumeClaim, error) {
+func GetExistingOSDPVCs(clusterdContext *clusterd.Context, namespace string) (map[string]*v1.PersistentVolumeClaim, error) {
+	ctx := context.TODO()
 	selector := metav1.ListOptions{LabelSelector: CephDeviceSetPVCIDLabelKey}
-	pvcs, err := context.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(selector)
+	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, selector)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to detect pvcs")
 	}

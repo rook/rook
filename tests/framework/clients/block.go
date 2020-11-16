@@ -17,6 +17,7 @@ limitations under the License.
 package clients
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -84,8 +85,9 @@ func (b *BlockOperation) CreateStorageClass(csi bool, poolName, storageClassName
 }
 
 func (b *BlockOperation) DeletePVC(namespace, claimName string) error {
+	ctx := context.TODO()
 	logger.Infof("deleting pvc %q from namespace %q", claimName, namespace)
-	return b.k8sClient.Clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(claimName, &metav1.DeleteOptions{})
+	return b.k8sClient.Clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, claimName, metav1.DeleteOptions{})
 }
 
 func (b *BlockOperation) CreatePVCRestore(namespace, claimName, snapshotName, storageClassName, mode, size string) error {
@@ -113,8 +115,9 @@ func (b *BlockOperation) DeleteSnapshot(snapshotName, claimName, snapshotClassNa
 }
 
 func (b *BlockOperation) DeleteStorageClass(storageClassName string) error {
+	ctx := context.TODO()
 	logger.Infof("deleting storage class %q", storageClassName)
-	err := b.k8sClient.Clientset.StorageV1().StorageClasses().Delete(storageClassName, &metav1.DeleteOptions{})
+	err := b.k8sClient.Clientset.StorageV1().StorageClasses().Delete(ctx, storageClassName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete storage class %q. %v", storageClassName, err)
 	}

@@ -16,6 +16,7 @@ limitations under the License.
 package cockroachdb
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -108,6 +109,7 @@ func TestValidateClusterSpec(t *testing.T) {
 }
 
 func TestOnAdd(t *testing.T) {
+	ctx := context.TODO()
 	namespace := "rook-cockroachdb-315"
 	cluster := &cockroachdbv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -167,7 +169,7 @@ func TestOnAdd(t *testing.T) {
 	controller.createInitRetryInterval = 1 * time.Millisecond
 
 	// in a background thread, simulate the pods running (fake statefulsets don't automatically do that)
-	go simulatePodsRunning(t, clientset, namespace, cluster.Spec.Storage.NodeCount)
+	go simulatePodsRunning(ctx, t, clientset, namespace, cluster.Spec.Storage.NodeCount)
 
 	// call onAdd given the specified cluster
 	controller.onAdd(cluster)
@@ -178,14 +180,14 @@ func TestOnAdd(t *testing.T) {
 	}
 
 	// verify client service
-	clientService, err := clientset.CoreV1().Services(namespace).Get("cockroachdb-public", metav1.GetOptions{})
+	clientService, err := clientset.CoreV1().Services(namespace).Get(ctx, "cockroachdb-public", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, clientService)
 	assert.Equal(t, v1.ServiceTypeClusterIP, clientService.Spec.Type)
 	assert.Equal(t, expectedServicePorts, clientService.Spec.Ports)
 
 	// verify replica Service
-	replicaService, err := clientset.CoreV1().Services(namespace).Get(appName, metav1.GetOptions{})
+	replicaService, err := clientset.CoreV1().Services(namespace).Get(ctx, appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, replicaService)
 	assert.Equal(t, "None", replicaService.Spec.ClusterIP)
@@ -194,14 +196,14 @@ func TestOnAdd(t *testing.T) {
 	assert.Equal(t, "123", replicaService.Annotations["prometheus.io/port"])
 
 	// verify pod disruption budget
-	pdb, err := clientset.PolicyV1beta1().PodDisruptionBudgets(namespace).Get("cockroachdb-budget", metav1.GetOptions{})
+	pdb, err := clientset.PolicyV1beta1().PodDisruptionBudgets(namespace).Get(ctx, "cockroachdb-budget", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, pdb)
 	assert.Equal(t, createAppLabels(), pdb.Spec.Selector.MatchLabels)
 	assert.Equal(t, int32(1), pdb.Spec.MaxUnavailable.IntVal)
 
 	// verify stateful set
-	ss, err := clientset.AppsV1().StatefulSets(namespace).Get(appName, metav1.GetOptions{})
+	ss, err := clientset.AppsV1().StatefulSets(namespace).Get(ctx, appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(5), *ss.Spec.Replicas)
@@ -230,7 +232,7 @@ func TestOnAdd(t *testing.T) {
 	assert.True(t, initCalled)
 }
 
-func simulatePodsRunning(t *testing.T, clientset *fake.Clientset, namespace string, podCount int) {
+func simulatePodsRunning(ctx context.Context, t *testing.T, clientset *fake.Clientset, namespace string, podCount int) {
 	for i := 0; i < podCount; i++ {
 		pod := &v1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
@@ -240,7 +242,7 @@ func simulatePodsRunning(t *testing.T, clientset *fake.Clientset, namespace stri
 			},
 			Status: v1.PodStatus{Phase: v1.PodRunning},
 		}
-		_, err := clientset.CoreV1().Pods(namespace).Create(pod)
+		_, err := clientset.CoreV1().Pods(namespace).Create(ctx, pod, metav1.CreateOptions{})
 		assert.NoError(t, err)
 	}
 }

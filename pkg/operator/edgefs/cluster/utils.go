@@ -16,6 +16,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -106,12 +107,12 @@ func (c *cluster) getClusterNodes() ([]rookv1.Node, error) {
 
 // retrieveDeploymentConfig restore ClusterDeploymentConfig from cluster's Kubernetes ConfigMap
 func (c *cluster) retrieveDeploymentConfig() (edgefsv1.ClusterDeploymentConfig, error) {
-
+	ctx := context.TODO()
 	deploymentConfig := edgefsv1.ClusterDeploymentConfig{
 		DevConfig: make(map[string]edgefsv1.DevicesConfig),
 	}
 
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(configName, metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, configName, metav1.GetOptions{})
 	if err != nil {
 		if apierrs.IsNotFound(err) {
 			// When cluster config map doesn't exist, return config with empty DevicesConfig and current DeploymentType
@@ -284,6 +285,7 @@ func (c *cluster) LabelTargetNode(nodeName string) {
 }
 
 func (c *cluster) AddLabelsToNode(nodeName string, labels map[string]string) error {
+	ctx := context.TODO()
 	tokens := make([]string, 0, len(labels))
 	for k, v := range labels {
 		tokens = append(tokens, fmt.Sprintf(`"%s":"%s"`, k, v))
@@ -293,7 +295,7 @@ func (c *cluster) AddLabelsToNode(nodeName string, labels map[string]string) err
 	patch := fmt.Sprintf(`{"metadata":{"labels":%v}}`, labelString)
 	var err error
 	for attempt := 0; attempt < labelingRetries; attempt++ {
-		_, err = c.context.Clientset.CoreV1().Nodes().Patch(nodeName, types.MergePatchType, []byte(patch))
+		_, err = c.context.Clientset.CoreV1().Nodes().Patch(ctx, nodeName, types.MergePatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
 			if !apierrs.IsConflict(err) {
 				return err
@@ -315,10 +317,11 @@ func (c *cluster) UnlabelTargetNode(nodeName string) {
 // RemoveLabelOffNode is for cleaning up labels temporarily added to node,
 // won't fail if target label doesn't exist or has been removed.
 func (c *cluster) RemoveLabelOffNode(nodeName string, labelKeys []string) error {
+	ctx := context.TODO()
 	var node *v1.Node
 	var err error
 	for attempt := 0; attempt < labelingRetries; attempt++ {
-		node, err = c.context.Clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+		node, err = c.context.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -331,7 +334,7 @@ func (c *cluster) RemoveLabelOffNode(nodeName string, labelKeys []string) error 
 			}
 			delete(node.Labels, labelKey)
 		}
-		_, err = c.context.Clientset.CoreV1().Nodes().Update(node)
+		_, err = c.context.Clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 		if err != nil {
 			if !apierrs.IsConflict(err) {
 				return err
@@ -362,7 +365,8 @@ func (c *cluster) isGatewayLabeledNode(cs clientset.Interface, nodeName string) 
 }
 
 func (c *cluster) getNodeLabels(cs clientset.Interface, nodeName string) (map[string]string, error) {
-	node, err := cs.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	ctx := context.TODO()
+	node, err := cs.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

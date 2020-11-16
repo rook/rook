@@ -17,11 +17,14 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"encoding/json"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +33,7 @@ import (
 // PatchService patches the old Service so that it matches the
 // new Service.
 func PatchService(old, new *corev1.Service, kubeClient kubernetes.Interface) error {
-
+	ctx := context.TODO()
 	oldJSON, err := json.Marshal(old)
 	if err != nil {
 		return err
@@ -46,14 +49,14 @@ func PatchService(old, new *corev1.Service, kubeClient kubernetes.Interface) err
 		return err
 	}
 
-	_, err = kubeClient.CoreV1().Services(old.Namespace).Patch(old.Name, types.StrategicMergePatchType, patchBytes)
+	_, err = kubeClient.CoreV1().Services(old.Namespace).Patch(ctx, old.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	return err
 }
 
 // PatchStatefulSet patches the old StatefulSet so that it matches the
 // new StatefulSet.
 func PatchStatefulSet(old, new *appsv1.StatefulSet, kubeClient kubernetes.Interface) error {
-
+	ctx := context.TODO()
 	oldJSON, err := json.Marshal(old)
 	if err != nil {
 		return err
@@ -69,13 +72,13 @@ func PatchStatefulSet(old, new *appsv1.StatefulSet, kubeClient kubernetes.Interf
 		return err
 	}
 
-	_, err = kubeClient.AppsV1().StatefulSets(old.Namespace).Patch(old.Name, types.StrategicMergePatchType, patchBytes)
+	_, err = kubeClient.AppsV1().StatefulSets(old.Namespace).Patch(ctx, old.Name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	return err
 }
 
 // PatchCluster patches the old Cluster so that it matches the new Cluster.
 func PatchClusterStatus(c *cassandrav1alpha1.Cluster, rookClient versioned.Interface) error {
-
+	ctx := context.TODO()
 	// JSON Patch RFC 6902
 	patch := []struct {
 		Op    string                          `json:"op"`
@@ -93,7 +96,7 @@ func PatchClusterStatus(c *cassandrav1alpha1.Cluster, rookClient versioned.Inter
 	if err != nil {
 		return err
 	}
-	_, err = rookClient.CassandraV1alpha1().Clusters(c.Namespace).Patch(c.Name, types.JSONPatchType, patchBytes)
+	_, err = rookClient.CassandraV1alpha1().Clusters(c.Namespace).Patch(ctx, c.Name, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
 	return err
 
 }

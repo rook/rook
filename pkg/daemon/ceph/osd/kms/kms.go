@@ -17,6 +17,7 @@ limitations under the License.
 package kms
 
 import (
+	"context"
 	"os"
 	"strings"
 
@@ -143,7 +144,8 @@ func GetParam(kmsConfig map[string]string, param string) string {
 }
 
 // ValidateConnectionDetails validates mandatory KMS connection details
-func ValidateConnectionDetails(context *clusterd.Context, clusterSpec *cephv1.ClusterSpec, ns string) error {
+func ValidateConnectionDetails(clusterdContext *clusterd.Context, clusterSpec *cephv1.ClusterSpec, ns string) error {
+	ctx := context.TODO()
 	// A token must be specified
 	if !clusterSpec.Security.KeyManagementService.IsTokenAuthEnabled() {
 		return errors.New("failed to validate kms configuration (missing token in spec)")
@@ -159,7 +161,7 @@ func ValidateConnectionDetails(context *clusterd.Context, clusterSpec *cephv1.Cl
 	// Validate KMS provider connection details
 	switch GetParam(clusterSpec.Security.KeyManagementService.ConnectionDetails, Provider) {
 	case "vault":
-		err := validateVaultConnectionDetails(context, ns, clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		err := validateVaultConnectionDetails(clusterdContext, ns, clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate vault connection details")
 		}
@@ -167,7 +169,7 @@ func ValidateConnectionDetails(context *clusterd.Context, clusterSpec *cephv1.Cl
 
 	// Validate potential token Secret presence
 	if clusterSpec.Security.KeyManagementService.IsTokenAuthEnabled() {
-		kmsToken, err := context.Clientset.CoreV1().Secrets(ns).Get(clusterSpec.Security.KeyManagementService.TokenSecretName, metav1.GetOptions{})
+		kmsToken, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Get(ctx, clusterSpec.Security.KeyManagementService.TokenSecretName, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to fetch kms token secret %q", clusterSpec.Security.KeyManagementService.TokenSecretName)
 		}
@@ -183,9 +185,10 @@ func ValidateConnectionDetails(context *clusterd.Context, clusterSpec *cephv1.Cl
 }
 
 // SetTokenToEnvVar sets a KMS token as an env variable
-func SetTokenToEnvVar(context *clusterd.Context, tokenSecretName, provider, namespace string) error {
+func SetTokenToEnvVar(clusterdContext *clusterd.Context, tokenSecretName, provider, namespace string) error {
+	ctx := context.TODO()
 	// Get the secret containing the kms token
-	kmsToken, err := context.Clientset.CoreV1().Secrets(namespace).Get(tokenSecretName, metav1.GetOptions{})
+	kmsToken, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, tokenSecretName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch kms token secret %q", tokenSecretName)
 	}

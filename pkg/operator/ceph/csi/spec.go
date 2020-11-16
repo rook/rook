@@ -24,6 +24,7 @@ import (
 	"time"
 
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
@@ -204,7 +205,8 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func startDrivers(context *clusterd.Context, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
+func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
+	ctx := context.TODO()
 	var (
 		err                                                   error
 		rbdPlugin, cephfsPlugin                               *apps.DaemonSet
@@ -322,7 +324,7 @@ func startDrivers(context *clusterd.Context, namespace string, ver *version.Info
 	}
 
 	tp.ProvisionerReplicas = 2
-	nodes, err := context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err == nil {
 		if len(nodes.Items) == 1 {
 			tp.ProvisionerReplicas = 1
@@ -377,7 +379,7 @@ func startDrivers(context *clusterd.Context, namespace string, ver *version.Info
 		// apply resource request and limit to rbdplugin containers
 		applyResourcesToContainers(context.Clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, ownerRef)
-		multusApplied, err := applyCephClusterNetworkConfig(context, &rbdPlugin.Spec.Template.ObjectMeta)
+		multusApplied, err := applyCephClusterNetworkConfig(ctx, &rbdPlugin.Spec.Template.ObjectMeta, rookclientset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset: %+v", rbdPlugin)
 		}
@@ -402,7 +404,7 @@ func startDrivers(context *clusterd.Context, namespace string, ver *version.Info
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
-		_, err = applyCephClusterNetworkConfig(context, &rbdProvisionerDeployment.Spec.Template.ObjectMeta)
+		_, err = applyCephClusterNetworkConfig(ctx, &rbdProvisionerDeployment.Spec.Template.ObjectMeta, rookclientset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
@@ -426,7 +428,7 @@ func startDrivers(context *clusterd.Context, namespace string, ver *version.Info
 		// apply resource request and limit to cephfs plugin containers
 		applyResourcesToContainers(context.Clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
 		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, ownerRef)
-		multusApplied, err := applyCephClusterNetworkConfig(context, &cephfsPlugin.Spec.Template.ObjectMeta)
+		multusApplied, err := applyCephClusterNetworkConfig(ctx, &cephfsPlugin.Spec.Template.ObjectMeta, rookclientset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin daemonset: %+v", cephfsPlugin)
 		}
@@ -452,7 +454,7 @@ func startDrivers(context *clusterd.Context, namespace string, ver *version.Info
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
-		_, err = applyCephClusterNetworkConfig(context, &cephfsProvisionerDeployment.Spec.Template.ObjectMeta)
+		_, err = applyCephClusterNetworkConfig(ctx, &cephfsProvisionerDeployment.Spec.Template.ObjectMeta, rookclientset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}
@@ -471,13 +473,13 @@ func startDrivers(context *clusterd.Context, namespace string, ver *version.Info
 	}
 
 	if EnableRBD {
-		err = createCSIDriverInfo(context.Clientset, RBDDriverName)
+		err = createCSIDriverInfo(ctx, clientset, RBDDriverName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
 	}
 	if EnableCephFS {
-		err = createCSIDriverInfo(context.Clientset, CephFSDriverName)
+		err = createCSIDriverInfo(ctx, clientset, CephFSDriverName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
@@ -510,6 +512,7 @@ func stopDrivers(clientset kubernetes.Interface, namespace string, ver *version.
 
 func deleteCSIDriverResources(
 	clientset kubernetes.Interface, ver *version.Info, namespace, daemonset, deployment, service, driverName string) bool {
+	ctx := context.TODO()
 	succeeded := true
 	err := k8sutil.DeleteDaemonset(clientset, namespace, daemonset)
 	if err != nil {
@@ -529,7 +532,7 @@ func deleteCSIDriverResources(
 		succeeded = false
 	}
 
-	err = deleteCSIDriverInfo(clientset, driverName)
+	err = deleteCSIDriverInfo(ctx, clientset, driverName)
 	if err != nil {
 		logger.Errorf("failed to delete %q Driver Info. %v", driverName, err)
 		succeeded = false
@@ -537,10 +540,9 @@ func deleteCSIDriverResources(
 	return succeeded
 }
 
-func applyCephClusterNetworkConfig(ctx *clusterd.Context, objectMeta *metav1.ObjectMeta) (bool, error) {
+func applyCephClusterNetworkConfig(ctx context.Context, objectMeta *metav1.ObjectMeta, rookclientset rookclient.Interface) (bool, error) {
 	var isMultusApplied bool
-	cephClusters := &v1.CephClusterList{}
-	err := ctx.Client.List(context.TODO(), cephClusters, &client.ListOptions{})
+	cephClusters, err := rookclientset.CephV1().CephClusters(objectMeta.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false, errors.Wrap(err, "failed to find CephClusters")
 	}
@@ -558,7 +560,7 @@ func applyCephClusterNetworkConfig(ctx *clusterd.Context, objectMeta *metav1.Obj
 }
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
-func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
+func createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name string) error {
 	attach := true
 	mountInfo := false
 	// Create CSIDriver object
@@ -572,13 +574,13 @@ func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
 		},
 	}
 	csidrivers := clientset.StorageV1beta1().CSIDrivers()
-	driver, err := csidrivers.Get(name, metav1.GetOptions{})
+	driver, err := csidrivers.Get(ctx, name, metav1.GetOptions{})
 	if err == nil {
 		// For csidriver we need to provide the resourceVersion when updating the object.
 		// From the docs (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata)
 		// > "This value MUST be treated as opaque by clients and passed unmodified back to the server"
 		csiDriver.ObjectMeta.ResourceVersion = driver.ObjectMeta.ResourceVersion
-		_, err = csidrivers.Update(csiDriver)
+		_, err = csidrivers.Update(ctx, csiDriver, metav1.UpdateOptions{})
 		if err == nil {
 			logger.Infof("CSIDriver object updated for driver %q", name)
 		}
@@ -586,7 +588,7 @@ func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
 	}
 
 	if apierrors.IsNotFound(err) {
-		_, err = csidrivers.Create(csiDriver)
+		_, err = csidrivers.Create(ctx, csiDriver, metav1.CreateOptions{})
 		if err == nil {
 			logger.Infof("CSIDriver object created for driver %q", name)
 		}
@@ -596,8 +598,8 @@ func createCSIDriverInfo(clientset kubernetes.Interface, name string) error {
 }
 
 // deleteCSIDriverInfo deletes CSIDriverInfo and returns the error if any
-func deleteCSIDriverInfo(clientset kubernetes.Interface, name string) error {
-	err := clientset.StorageV1beta1().CSIDrivers().Delete(name, &metav1.DeleteOptions{})
+func deleteCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name string) error {
+	err := clientset.StorageV1beta1().CSIDrivers().Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil

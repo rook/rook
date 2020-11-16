@@ -123,6 +123,7 @@ const (
 )
 
 func TestCephObjectZoneController(t *testing.T) {
+	ctx := context.TODO()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	name := "zone-a"
 	zonegroup := "zonegroup-a"
@@ -249,7 +250,7 @@ func TestCephObjectZoneController(t *testing.T) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	_, err = r.context.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err = r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Add ready status to the CephCluster
@@ -333,7 +334,7 @@ func TestCephObjectZoneController(t *testing.T) {
 		Clientset:     clientset,
 	}
 
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZoneGroup{}, &cephv1.CephObjectZoneGroupList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &cephv1.CephObjectZone{}, &cephv1.CephObjectZoneList{})

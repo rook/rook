@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"context"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -48,6 +49,7 @@ var (
 // Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
 // Check issues in MGRs, Delete Bucket and Delete user
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+	ctx := context.TODO()
 	storeName := "teststore"
 	defer objectTestDataCleanUp(helper, k8sh, namespace, storeName)
 
@@ -92,7 +94,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	// Check object store status
 	var i int
 	for i = 0; i < 4 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
-		objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(storeName, metav1.GetOptions{})
+		objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
 		assert.Nil(s.T(), err)
 		if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
 			logger.Infof("(%d) bucket status check sleeping for 5 seconds ...", i)

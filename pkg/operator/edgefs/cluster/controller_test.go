@@ -16,6 +16,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -92,6 +93,7 @@ func TestClusterChanged(t *testing.T) {
 }
 
 func TestRemoveFinalizer(t *testing.T) {
+	ctx := context.TODO()
 	clientset := testop.New(t, 3)
 	context := &clusterd.Context{
 		Clientset:     clientset,
@@ -111,7 +113,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 
 	// create the cluster initially so it exists in the k8s api
-	cluster, err := context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Create(cluster)
+	cluster, err := context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Create(ctx, cluster, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, cluster.Finalizers, 1)
 
@@ -119,7 +121,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	controller.removeFinalizer(cluster)
 
 	// verify the finalier was removed
-	cluster, err = context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
+	cluster, err = context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Get(ctx, cluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cluster)
 	assert.Len(t, cluster.Finalizers, 0)
