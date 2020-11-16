@@ -18,6 +18,7 @@ limitations under the License.
 package swift
 
 import (
+	"context"
 	"fmt"
 
 	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
@@ -56,6 +57,7 @@ func (c *SWIFTController) UpdateService(s edgefsv1.SWIFT, ownerRefs []metav1.Own
 
 // Start the swift instance
 func (c *SWIFTController) CreateOrUpdate(s edgefsv1.SWIFT, update bool, ownerRefs []metav1.OwnerReference) error {
+	ctx := context.TODO()
 	logger.Debugf("starting update=%v service=%s", update, s.Name)
 
 	// validate SWIFT service settings
@@ -82,7 +84,7 @@ func (c *SWIFTController) CreateOrUpdate(s edgefsv1.SWIFT, update bool, ownerRef
 	rookImage := edgefsv1.GetModifiedRookImagePath(c.rookImage, swiftImagePostfix)
 
 	// check if SWIFT service already exists
-	exists, err := serviceExists(c.context, s)
+	exists, err := serviceExists(ctx, c.context, s)
 	if err == nil && exists {
 		if !update {
 			logger.Infof("SWIFT service %s exists in namespace %s", s.Name, s.Namespace)
@@ -93,13 +95,13 @@ func (c *SWIFTController) CreateOrUpdate(s edgefsv1.SWIFT, update bool, ownerRef
 
 	// start the deployment
 	deployment := c.makeDeployment(s.Name, s.Namespace, rookImage, imageArgs, s.Spec)
-	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
 		logger.Infof("%s deployment already exists", appName)
 
-		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(deployment); err != nil {
+		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
 			return fmt.Errorf("failed to update %s deployment. %+v", appName, err)
 		}
 		logger.Infof("%s deployment updated", appName)
@@ -109,7 +111,7 @@ func (c *SWIFTController) CreateOrUpdate(s edgefsv1.SWIFT, update bool, ownerRef
 
 	// create the swift service
 	service := c.makeSWIFTService(instanceName(s.Name), s.Name, s.Namespace, s.Spec)
-	if _, err := c.context.Clientset.CoreV1().Services(s.Namespace).Create(service); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(s.Namespace).Create(ctx, service, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create swift service. %+v", err)
 		}
@@ -341,8 +343,9 @@ func (c *SWIFTController) swiftContainer(svcname, name, containerImage, args str
 
 // Delete SWIFT service and possibly some artifacts.
 func (c *SWIFTController) DeleteService(s edgefsv1.SWIFT) error {
+	ctx := context.TODO()
 	// check if service  exists
-	exists, err := serviceExists(c.context, s)
+	exists, err := serviceExists(ctx, c.context, s)
 	if err != nil {
 		return fmt.Errorf("failed to detect if there is a SWIFT service to delete. %+v", err)
 	}
@@ -358,7 +361,7 @@ func (c *SWIFTController) DeleteService(s edgefsv1.SWIFT) error {
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
 	// Delete the swift service
-	err = c.context.Clientset.CoreV1().Services(s.Namespace).Delete(instanceName(s.Name), options)
+	err = c.context.Clientset.CoreV1().Services(s.Namespace).Delete(ctx, instanceName(s.Name), *options)
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to delete SWIFT service. %+v", err)
 	}
@@ -399,8 +402,8 @@ func instanceName(svcname string) string {
 }
 
 // Check if the SWIFT service exists
-func serviceExists(context *clusterd.Context, s edgefsv1.SWIFT) (bool, error) {
-	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
+func serviceExists(ctx context.Context, context *clusterd.Context, s edgefsv1.SWIFT) (bool, error) {
+	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(ctx, instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil

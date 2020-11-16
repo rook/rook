@@ -88,6 +88,7 @@ var (
 )
 
 func TestCephObjectStoreUserController(t *testing.T) {
+	ctx := context.TODO()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 
@@ -203,7 +204,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Add ready status to the CephCluster

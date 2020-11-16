@@ -16,6 +16,7 @@ limitations under the License.
 package mgr
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -33,6 +34,7 @@ import (
 )
 
 func TestStartMGR(t *testing.T) {
+	ctx := context.TODO()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
@@ -53,15 +55,15 @@ func TestStartMGR(t *testing.T) {
 	// start a basic service
 	err := c.Start("edgefs")
 	assert.Nil(t, err)
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 }
 
-func validateStart(t *testing.T, c *Cluster) {
+func validateStart(ctx context.Context, t *testing.T, c *Cluster) {
 
-	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get("rook-edgefs-mgr", metav1.GetOptions{})
+	_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(ctx, "rook-edgefs-mgr", metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	_, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-edgefs-mgr", metav1.GetOptions{})
+	_, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get(ctx, "rook-edgefs-mgr", metav1.GetOptions{})
 	assert.Nil(t, err)
 }
 

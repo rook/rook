@@ -17,6 +17,7 @@ limitations under the License.
 package keyring
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"testing"
@@ -30,6 +31,7 @@ import (
 )
 
 func TestAdminKeyringStore(t *testing.T) {
+	ctxt := context.TODO()
 	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
@@ -41,7 +43,7 @@ func TestAdminKeyringStore(t *testing.T) {
 	k := GetSecretStore(ctx, clusterInfo, &owner)
 
 	assertKeyringData := func(expectedKeyring string) {
-		s, e := clientset.CoreV1().Secrets(ns).Get("rook-ceph-admin-keyring", metav1.GetOptions{})
+		s, e := clientset.CoreV1().Secrets(ns).Get(ctxt, "rook-ceph-admin-keyring", metav1.GetOptions{})
 		assert.NoError(t, e)
 		assert.Equal(t, 1, len(s.StringData))
 		assert.Equal(t, expectedKeyring, s.StringData["keyring"])

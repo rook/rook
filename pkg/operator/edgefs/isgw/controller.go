@@ -18,6 +18,7 @@ limitations under the License.
 package isgw
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -162,6 +163,7 @@ func (c *ISGWController) serviceOwners(service *edgefsv1.ISGW) []metav1.OwnerRef
 }
 
 func (c *ISGWController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
+	ctx := context.TODO()
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the isgw service, the same images present")
 		return
@@ -170,7 +172,7 @@ func (c *ISGWController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	isgws, err := c.context.RookClientset.EdgefsV1().ISGWs(c.namespace).List(metav1.ListOptions{})
+	isgws, err := c.context.RookClientset.EdgefsV1().ISGWs(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve ISGWs to update the Edgefs version. %+v", err)
 		return

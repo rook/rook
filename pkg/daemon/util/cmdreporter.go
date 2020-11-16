@@ -18,6 +18,7 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -188,9 +189,10 @@ func (r *CmdReporter) runCommand() (stdout, stderr string, retcode int, err erro
 
 func (r *CmdReporter) saveToConfigMap(stdout, stderr string, retcode int) error {
 	retcodeStr := fmt.Sprintf("%d", retcode)
+	ctx := context.TODO()
 
 	k8s := r.clientset
-	cm, err := k8s.CoreV1().ConfigMaps(r.namespace).Get(r.configMapName, metav1.GetOptions{})
+	cm, err := k8s.CoreV1().ConfigMaps(r.namespace).Get(ctx, r.configMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to determine if ConfigMap %s is preexisting. %+v", r.configMapName, err)
@@ -212,7 +214,7 @@ func (r *CmdReporter) saveToConfigMap(stdout, stderr string, retcode int) error 
 			},
 		}
 
-		if _, err := k8s.CoreV1().ConfigMaps(r.namespace).Create(cm); err != nil {
+		if _, err := k8s.CoreV1().ConfigMaps(r.namespace).Create(ctx, cm, metav1.CreateOptions{}); err != nil {
 			return fmt.Errorf("failed to create ConfigMap %s. %+v", r.configMapName, err)
 		}
 		return nil
@@ -241,7 +243,7 @@ func (r *CmdReporter) saveToConfigMap(stdout, stderr string, retcode int) error 
 	cm.Data[CmdReporterConfigMapStderrKey] = stderr
 	cm.Data[CmdReporterConfigMapRetcodeKey] = retcodeStr
 
-	if _, err := k8s.CoreV1().ConfigMaps(r.namespace).Update(cm); err != nil {
+	if _, err := k8s.CoreV1().ConfigMaps(r.namespace).Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("failed to update ConfigMap %s. %+v", r.configMapName, err)
 	}
 

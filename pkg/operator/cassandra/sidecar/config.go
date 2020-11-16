@@ -17,18 +17,20 @@ limitations under the License.
 package sidecar
 
 import (
+	"context"
 	"fmt"
-	"github.com/ghodss/yaml"
-	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
-	"github.com/rook/rook/pkg/operator/cassandra/constants"
-	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ghodss/yaml"
+	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/operator/cassandra/constants"
+	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -242,7 +244,7 @@ func (m *MemberController) generateScyllaConfigFiles() error {
 
 // scyllaEntrypoint returns the entrypoint script for scylla
 func (m *MemberController) scyllaEntrypoint() (string, error) {
-
+	ctx := context.TODO()
 	// Get seeds
 	seeds, err := m.getSeeds()
 	if err != nil {
@@ -257,7 +259,7 @@ func (m *MemberController) scyllaEntrypoint() (string, error) {
 
 	// See if we need to run in developer mode
 	devMode := "0"
-	c, err := m.rookClient.CassandraV1alpha1().Clusters(m.namespace).Get(m.cluster, metav1.GetOptions{})
+	c, err := m.rookClient.CassandraV1alpha1().Clusters(m.namespace).Get(ctx, m.cluster, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("error getting cluster: %s", err.Error())
 	}
@@ -366,7 +368,7 @@ func (m *MemberController) overrideConfigValues(configText []byte) ([]byte, erro
 // in the Cluster. It does that by getting all ClusterIP services
 // of the current Cluster with the cassandra.rook.io/seed label
 func (m *MemberController) getSeeds() (string, error) {
-
+	ctx := context.TODO()
 	var services *corev1.ServiceList
 	var err error
 
@@ -374,7 +376,7 @@ func (m *MemberController) getSeeds() (string, error) {
 	sel := fmt.Sprintf("%s,%s=%s", constants.SeedLabel, constants.ClusterNameLabel, m.cluster)
 
 	for {
-		services, err = m.kubeClient.CoreV1().Services(m.namespace).List(metav1.ListOptions{LabelSelector: sel})
+		services, err = m.kubeClient.CoreV1().Services(m.namespace).List(ctx, metav1.ListOptions{LabelSelector: sel})
 		if err != nil {
 			return "", err
 		}

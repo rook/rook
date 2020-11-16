@@ -17,6 +17,7 @@ limitations under the License.
 package clients
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -71,7 +72,8 @@ func (p *PoolOperation) GetCephPoolDetails(clusterInfo *client.ClusterInfo, name
 }
 
 func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1.CephBlockPool, error) {
-	pools, err := p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).List(metav1.ListOptions{})
+	ctx := context.TODO()
+	pools, err := p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -83,7 +85,8 @@ func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1.CephBlockPool, 
 }
 
 func (p *PoolOperation) PoolCRDExists(namespace, name string) (bool, error) {
-	_, err := p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Get(name, metav1.GetOptions{})
+	ctx := context.TODO()
+	_, err := p.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil
@@ -109,6 +112,7 @@ func (p *PoolOperation) CephPoolExists(namespace, name string) (bool, error) {
 
 // DeletePool deletes a pool after deleting all the block images contained by the pool
 func (p *PoolOperation) DeletePool(blockClient *BlockOperation, clusterInfo *client.ClusterInfo, poolName string) error {
+	ctx := context.TODO()
 	// Delete all the images in a pool
 	logger.Infof("listing images in pool %q", poolName)
 	blockImagesList, _ := blockClient.ListImagesInPool(clusterInfo, poolName)
@@ -130,7 +134,7 @@ func (p *PoolOperation) DeletePool(blockClient *BlockOperation, clusterInfo *cli
 	}
 
 	logger.Infof("deleting pool CR %q", poolName)
-	err := p.k8sh.RookClientset.CephV1().CephBlockPools(clusterInfo.Namespace).Delete(poolName, &metav1.DeleteOptions{})
+	err := p.k8sh.RookClientset.CephV1().CephBlockPools(clusterInfo.Namespace).Delete(ctx, poolName, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -139,7 +143,7 @@ func (p *PoolOperation) DeletePool(blockClient *BlockOperation, clusterInfo *cli
 	}
 
 	crdCheckerFunc := func() error {
-		_, err := p.k8sh.RookClientset.CephV1().CephBlockPools(clusterInfo.Namespace).Get(poolName, metav1.GetOptions{})
+		_, err := p.k8sh.RookClientset.CephV1().CephBlockPools(clusterInfo.Namespace).Get(ctx, poolName, metav1.GetOptions{})
 		return err
 	}
 

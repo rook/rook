@@ -17,6 +17,8 @@ limitations under the License.
 package yugabytedb
 
 import (
+	"context"
+
 	yugabytedbv1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
@@ -83,6 +85,7 @@ func (c *ClusterController) createTServerUIService(cluster *cluster) error {
 }
 
 func (c *ClusterController) createUIService(cluster *cluster, isTServerService bool) error {
+	ctx := context.TODO()
 	ports, err := getPortsFromSpec(cluster.spec.Master.Network)
 	if err != nil {
 		return err
@@ -125,7 +128,7 @@ func (c *ClusterController) createUIService(cluster *cluster, isTServerService b
 	}
 	k8sutil.SetOwnerRef(&uiService.ObjectMeta, &cluster.ownerRef)
 
-	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(uiService); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(ctx, uiService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -148,6 +151,7 @@ func (c *ClusterController) createTServerHeadlessService(cluster *cluster) error
 func (c *ClusterController) createHeadlessService(cluster *cluster, isTServerService bool) error {
 	serviceName := masterNamePlural
 	label := masterName
+	ctx := context.TODO()
 
 	if isTServerService {
 		serviceName = tserverNamePlural
@@ -180,7 +184,7 @@ func (c *ClusterController) createHeadlessService(cluster *cluster, isTServerSer
 
 	k8sutil.SetOwnerRef(&headlessService.ObjectMeta, &cluster.ownerRef)
 
-	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(headlessService); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(ctx, headlessService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -205,6 +209,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster, isTServerStatefu
 	name := masterName
 	label := masterName
 	serviceName := masterNamePlural
+	ctx := context.TODO()
 	volumeClaimTemplates := []v1.PersistentVolumeClaim{
 		cluster.spec.Master.VolumeClaimTemplate,
 	}
@@ -255,7 +260,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster, isTServerStatefu
 	cluster.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 	k8sutil.SetOwnerRef(&statefulSet.ObjectMeta, &cluster.ownerRef)
 
-	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(statefulSet); err != nil {
+	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(ctx, statefulSet, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}

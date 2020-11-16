@@ -18,6 +18,8 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -58,7 +60,8 @@ func (c *cluster) checkSetOrchestrationStatus() bool {
 
 // populateConfigOverrideConfigMap creates the "rook-config-override" config map
 // Its content allows modifying Ceph configuration flags
-func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {
+func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {
+	ctx := context.TODO()
 	placeholderConfig := map[string]string{
 		k8sutil.ConfigOverrideVal: "",
 	}
@@ -71,7 +74,7 @@ func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string
 	}
 
 	k8sutil.SetOwnerRef(&cm.ObjectMeta, &ownerRef)
-	_, err := context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
+	_, err := clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create override configmap %s", namespace)
 	}

@@ -17,6 +17,7 @@ limitations under the License.
 package kms
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -29,6 +30,7 @@ import (
 )
 
 func TestValidateConnectionDetails(t *testing.T) {
+	ctx := context.TODO()
 	// Placeholder
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
 	clusterSpec := &cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}}
@@ -66,7 +68,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 			Namespace: ns,
 		},
 	}
-	_, err = context.Clientset.CoreV1().Secrets(ns).Create(s)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Create(ctx, s, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, clusterSpec, ns)
 	assert.Error(t, err, "")
@@ -74,7 +76,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 
 	// Error: token key does not exist
 	s.Data = map[string][]byte{"foo": []byte("bar")}
-	_, err = context.Clientset.CoreV1().Secrets(ns).Update(s)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Update(ctx, s, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, clusterSpec, ns)
 	assert.Error(t, err, "")
@@ -82,7 +84,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 
 	// Success: token content is ok
 	s.Data["token"] = []byte("myt-otkenbenvqrev")
-	_, err = context.Clientset.CoreV1().Secrets(ns).Update(s)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Update(ctx, s, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, clusterSpec, ns)
 	assert.NoError(t, err, "")
@@ -100,7 +102,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 			Namespace: ns,
 		},
 	}
-	_, err = context.Clientset.CoreV1().Secrets(ns).Create(tlsSecret)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Create(ctx, tlsSecret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, clusterSpec, ns)
 	assert.Error(t, err, "")
@@ -108,13 +110,14 @@ func TestValidateConnectionDetails(t *testing.T) {
 
 	// Success: TLS config is correct
 	tlsSecret.Data = map[string][]byte{"cert": []byte("envnrevbnbvsbjkrtn")}
-	_, err = context.Clientset.CoreV1().Secrets(ns).Update(tlsSecret)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Update(ctx, tlsSecret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, clusterSpec, ns)
 	assert.NoError(t, err, "")
 }
 
 func TestSetTokenToEnvVar(t *testing.T) {
+	ctx := context.TODO()
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
 	secretName := "vault-secret"
 	ns := "rook-ceph"
@@ -125,7 +128,7 @@ func TestSetTokenToEnvVar(t *testing.T) {
 		},
 		Data: map[string][]byte{"token": []byte("toto")},
 	}
-	_, err := context.Clientset.CoreV1().Secrets(ns).Create(s)
+	_, err := context.Clientset.CoreV1().Secrets(ns).Create(ctx, s, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	err = SetTokenToEnvVar(context, secretName, "vault", ns)

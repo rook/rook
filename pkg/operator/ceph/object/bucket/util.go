@@ -17,6 +17,7 @@ limitations under the License.
 package bucket
 
 import (
+	"context"
 	"crypto/rand"
 
 	"github.com/coreos/pkg/capnslog"
@@ -80,8 +81,9 @@ func getCephUser(ob *bktv1alpha1.ObjectBucket) string {
 }
 
 func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
+	ctx := context.TODO()
 	// Verify the object store API object actually exists
-	store, err := p.context.RookClientset.CephV1().CephObjectStores(p.clusterInfo.Namespace).Get(p.objectStoreName, metav1.GetOptions{})
+	store, err := p.context.RookClientset.CephV1().CephObjectStores(p.clusterInfo.Namespace).Get(ctx, p.objectStoreName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "cephObjectStore not found")
@@ -92,8 +94,9 @@ func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
 }
 
 func getService(c kubernetes.Interface, namespace, name string) (*v1.Service, error) {
+	ctx := context.TODO()
 	// Verify the object store's service actually exists
-	svc, err := c.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+	svc, err := c.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "cephObjectStore service not found")

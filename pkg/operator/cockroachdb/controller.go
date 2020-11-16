@@ -20,6 +20,7 @@ Portions of this file came from https://github.com/cockroachdb/cockroach, which 
 package cockroachdb
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -201,6 +202,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 }
 
 func (c *ClusterController) createClientService(cluster *cluster) error {
+	ctx := context.TODO()
 	httpPort, grpcPort, err := getPortsFromSpec(cluster.spec.Network)
 	if err != nil {
 		return err
@@ -222,7 +224,7 @@ func (c *ClusterController) createClientService(cluster *cluster) error {
 	}
 	k8sutil.SetOwnerRef(&clientService.ObjectMeta, &cluster.ownerRef)
 
-	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(clientService); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(ctx, clientService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -235,6 +237,7 @@ func (c *ClusterController) createClientService(cluster *cluster) error {
 }
 
 func (c *ClusterController) createReplicaService(cluster *cluster) error {
+	ctx := context.TODO()
 	httpPort, grpcPort, err := getPortsFromSpec(cluster.spec.Network)
 	if err != nil {
 		return err
@@ -272,7 +275,7 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 	}
 	k8sutil.SetOwnerRef(&replicaService.ObjectMeta, &cluster.ownerRef)
 
-	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(replicaService); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(ctx, replicaService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -285,6 +288,7 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 }
 
 func (c *ClusterController) createPodDisruptionBudget(cluster *cluster) error {
+	ctx := context.TODO()
 	maxUnavailable := intstr.FromInt(int(1))
 
 	pdb := &policyv1beta1.PodDisruptionBudget{
@@ -302,7 +306,7 @@ func (c *ClusterController) createPodDisruptionBudget(cluster *cluster) error {
 	}
 	k8sutil.SetOwnerRef(&pdb.ObjectMeta, &cluster.ownerRef)
 
-	if _, err := c.context.Clientset.PolicyV1beta1().PodDisruptionBudgets(cluster.namespace).Create(pdb); err != nil {
+	if _, err := c.context.Clientset.PolicyV1beta1().PodDisruptionBudgets(cluster.namespace).Create(ctx, pdb, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -315,6 +319,7 @@ func (c *ClusterController) createPodDisruptionBudget(cluster *cluster) error {
 }
 
 func (c *ClusterController) createStatefulSet(cluster *cluster) error {
+	ctx := context.TODO()
 	replicas := int32(cluster.spec.Storage.NodeCount)
 
 	httpPort, grpcPort, err := getPortsFromSpec(cluster.spec.Network)
@@ -351,7 +356,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 	cluster.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 	k8sutil.SetOwnerRef(&statefulSet.ObjectMeta, &cluster.ownerRef)
 
-	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(statefulSet); err != nil {
+	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(ctx, statefulSet, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -474,8 +479,9 @@ func createContainer(cluster *cluster, containerImage string, httpPort, grpcPort
 }
 
 func (c *ClusterController) isPodsRunning(cluster *cluster) error {
+	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, appName)}
-	pods, err := c.context.Clientset.CoreV1().Pods(cluster.namespace).List(listOpts)
+	pods, err := c.context.Clientset.CoreV1().Pods(cluster.namespace).List(ctx, listOpts)
 	if err != nil {
 		return fmt.Errorf("failed to list pods for %s: %+v", listOpts.LabelSelector, err)
 	}

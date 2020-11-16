@@ -50,6 +50,7 @@ const (
 )
 
 func TestCephRBDMirrorController(t *testing.T) {
+	ctx := context.TODO()
 	var (
 		name      = "my-mirror"
 		namespace = "rook-ceph"
@@ -188,7 +189,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Add ready status to the CephCluster
@@ -226,7 +227,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 		Data: map[string][]byte{"token": []byte(bootstrapPeerToken), "pool": []byte("goo")},
 		Type: k8sutil.RookType,
 	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(peerSecret)
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, peerSecret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	res, err = r.Reconcile(req)
 	assert.NoError(t, err)

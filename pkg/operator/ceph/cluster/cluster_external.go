@@ -18,6 +18,8 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -146,13 +148,14 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 }
 
 func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
+	ctx := context.TODO()
 	// Purge the config maps
 	cmsToDelete := []string{
 		mon.EndpointConfigMapName,
 		k8sutil.ConfigOverrideName,
 	}
 	for _, cm := range cmsToDelete {
-		err := clientset.CoreV1().ConfigMaps(namespace).Delete(cm, &metav1.DeleteOptions{})
+		err := clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, cm, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			logger.Errorf("failed to delete config map %q. %v", cm, err)
 		}
@@ -169,7 +172,7 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
 		config.StoreName,
 	}
 	for _, secret := range secretsToDelete {
-		err := clientset.CoreV1().Secrets(namespace).Delete(secret, &metav1.DeleteOptions{})
+		err := clientset.CoreV1().Secrets(namespace).Delete(ctx, secret, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			logger.Errorf("failed to delete secret %q. %v", secret, err)
 		}
@@ -187,6 +190,7 @@ func validateExternalClusterSpec(cluster *cluster) error {
 }
 
 func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster) error {
+	ctx := context.TODO()
 	// Initialize manager object
 	manager := mgr.New(
 		c.context,
@@ -198,7 +202,7 @@ func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster)
 	// Create external monitoring Service
 	service := manager.MakeMetricsService(mgr.ExternalMgrAppName, mgr.ServiceExternalMetricName)
 	logger.Info("creating mgr external monitoring service")
-	_, err := c.context.Clientset.CoreV1().Services(c.namespacedName.Namespace).Create(service)
+	_, err := c.context.Clientset.CoreV1().Services(c.namespacedName.Namespace).Create(ctx, service, metav1.CreateOptions{})
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create mgr service")

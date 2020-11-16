@@ -17,6 +17,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
 	"fmt"
 
 	apps "k8s.io/api/apps/v1"
@@ -27,10 +28,11 @@ import (
 
 // create a apps.statefulset
 func CreateStatefulSet(clientset kubernetes.Interface, name, namespace string, ss *apps.StatefulSet) error {
-	_, err := clientset.AppsV1().StatefulSets(namespace).Create(ss)
+	ctx := context.TODO()
+	_, err := clientset.AppsV1().StatefulSets(namespace).Create(ctx, ss, metav1.CreateOptions{})
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			_, err = clientset.AppsV1().StatefulSets(namespace).Update(ss)
+			_, err = clientset.AppsV1().StatefulSets(namespace).Update(ctx, ss, metav1.UpdateOptions{})
 		}
 		if err != nil {
 			return fmt.Errorf("failed to start %s statefulset: %+v\n%+v", name, err, ss)
@@ -41,12 +43,13 @@ func CreateStatefulSet(clientset kubernetes.Interface, name, namespace string, s
 
 // DeleteStatefulset makes a best effort at deleting a statefulset and its pods, then waits for them to be deleted
 func DeleteStatefulset(clientset kubernetes.Interface, namespace, name string) error {
+	ctx := context.TODO()
 	logger.Debugf("removing %s statefulset if it exists", name)
 	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.AppsV1().StatefulSets(namespace).Delete(name, options)
+		return clientset.AppsV1().StatefulSets(namespace).Delete(ctx, name, *options)
 	}
 	getAction := func() error {
-		_, err := clientset.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "statefulset", deleteAction, getAction)

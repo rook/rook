@@ -17,6 +17,7 @@ limitations under the License.
 package sidecar
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -68,14 +69,13 @@ func New(
 	rookClient rookClientset.Interface,
 	serviceInformer coreinformers.ServiceInformer,
 ) (*MemberController, error) {
-
+	ctx := context.TODO()
 	logger := capnslog.NewPackageLogger("github.com/rook/rook", "sidecar")
-
 	// Get the member's service
 	var memberService *corev1.Service
 	var err error
 	for {
-		memberService, err = kubeClient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+		memberService, err = kubeClient.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			logger.Infof("Something went wrong trying to get Member Service %s", name)
 
@@ -87,7 +87,7 @@ func New(
 	}
 
 	// Get the Member's metadata from the Pod's labels
-	pod, err := kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+	pod, err := kubeClient.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func New(
 	nodetool := nodetool.NewFromURL(url)
 
 	// Get the member's cluster
-	cluster, err := rookClient.CassandraV1alpha1().Clusters(namespace).Get(pod.Labels[constants.ClusterNameLabel], metav1.GetOptions{})
+	cluster, err := rookClient.CassandraV1alpha1().Clusters(namespace).Get(ctx, pod.Labels[constants.ClusterNameLabel], metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

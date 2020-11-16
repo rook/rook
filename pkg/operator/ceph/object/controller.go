@@ -495,7 +495,8 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 }
 
 func (r *ReconcileCephObjectStore) verifyObjectUserCleanup(objectstore *cephv1.CephObjectStore) (reconcile.Result, bool) {
-	cephObjectUsers, err := r.context.RookClientset.CephV1().CephObjectStoreUsers(objectstore.Namespace).List(metav1.ListOptions{})
+	ctx := context.TODO()
+	cephObjectUsers, err := r.context.RookClientset.CephV1().CephObjectStoreUsers(objectstore.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to delete object store. failed to list user for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
 		return opcontroller.WaitForRequeueIfFinalizerBlocked, false
