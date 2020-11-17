@@ -147,7 +147,7 @@ func (c *S3XController) makeS3XService(name, svcname, namespace string, s3xSpec 
 		},
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(svc, &c.ownerRef)
 	return svc
 }
 
@@ -246,7 +246,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 			Replicas: &s3xSpec.Instances,
 		},
 	}
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(d, &c.ownerRef)
 	s3xSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }

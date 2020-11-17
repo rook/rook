@@ -80,7 +80,7 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	user := generateCephXUser(rgwConfig.ResourceName)
 	/* TODO: this says `osd allow rwx` while template says `osd allow *`; which is correct? */
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
-	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.ownerRef)
+	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.ownerInfo)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {

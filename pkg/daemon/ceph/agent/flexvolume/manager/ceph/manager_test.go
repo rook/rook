@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/test"
@@ -160,7 +161,7 @@ func TestAttach(t *testing.T) {
 			called:   0,
 		},
 	}
-	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &client.OwnerInfo{})
 	assert.NoError(t, err)
 	devicePath, err := vm.Attach("image1", "testpool", "admin", "never-gonna-give-you-up", clusterNamespace)
 	assert.Equal(t, "/dev/rbd3", devicePath)
@@ -241,7 +242,7 @@ func TestDetach(t *testing.T) {
 			called:   0,
 		},
 	}
-	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &client.OwnerInfo{})
 	assert.NoError(t, err)
 	err = vm.Detach("image1", "testpool", "admin", "", clusterNamespace, false)
 	assert.Nil(t, err)
@@ -296,7 +297,7 @@ func TestDetachCustomKeyring(t *testing.T) {
 			called:   0,
 		},
 	}
-	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, &client.OwnerInfo{})
 	assert.NoError(t, err)
 	err = vm.Detach("image1", "testpool", "user1", "", clusterNamespace, false)
 	assert.Nil(t, err)

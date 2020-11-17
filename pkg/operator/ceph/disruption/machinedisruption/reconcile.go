@@ -30,12 +30,12 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
 
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -106,7 +106,6 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 					MDBCephClusterNamespaceLabelKey: request.Namespace,
 					MDBCephClusterNameLabelKey:      request.Name,
 				},
-				OwnerReferences: []metav1.OwnerReference{opcontroller.ClusterOwnerRef(cephClusterInstance.GetName(), string(cephClusterInstance.GetUID()))},
 			},
 			Spec: healthchecking.MachineDisruptionBudgetSpec{
 				MaxUnavailable: &maxUnavailable,
@@ -117,6 +116,10 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 					},
 				},
 			},
+		}
+		err = controllerutil.SetControllerReference(cephClusterInstance, newMDB, r.scheme)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of mdb %q", newMDB.Name)
 		}
 		err = r.client.Create(context.TODO(), newMDB)
 		if err != nil {

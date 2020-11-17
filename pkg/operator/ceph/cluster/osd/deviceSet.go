@@ -26,7 +26,6 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -121,7 +120,10 @@ func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.Per
 		existingPVC = existingPVCs[pvcStorageClassDeviceSetPVCId]
 	}
 	pvc := makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId, setIndex, pvcTemplate)
-	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err := c.clusterInfo.OwnerInfo.SetOwnerReference(pvc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of pvc %q", pvc.Name)
+	}
 
 	if existingPVC != nil {
 		logger.Infof("OSD PVC %q already exists", existingPVC.Name)

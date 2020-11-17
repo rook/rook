@@ -21,16 +21,16 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 )
 
-func ValidateAndConfigureDrivers(context *clusterd.Context, namespace, rookImage, securityAccount string, serverVersion *version.Info, ownerRef *metav1.OwnerReference) {
+func ValidateAndConfigureDrivers(context *clusterd.Context, namespace, rookImage, securityAccount string, serverVersion *version.Info, ownerInfo *client.OwnerInfo) {
 	if !AllowUnsupported {
-		if err := validateCSIVersion(context.Clientset, namespace, rookImage, securityAccount, ownerRef); err != nil {
+		if err := validateCSIVersion(context.Clientset, namespace, rookImage, securityAccount, ownerInfo); err != nil {
 			logger.Errorf("invalid csi version. %+v", err)
 			return
 		}
@@ -38,7 +38,7 @@ func ValidateAndConfigureDrivers(context *clusterd.Context, namespace, rookImage
 		logger.Info("Skipping csi version check, since unsupported versions are allowed")
 	}
 
-	if err := startDrivers(context.Clientset, context.RookClientset, namespace, serverVersion, ownerRef); err != nil {
+	if err := startDrivers(context.Clientset, context.RookClientset, namespace, serverVersion, ownerInfo); err != nil {
 		logger.Errorf("failed to start Ceph csi drivers. %v", err)
 		return
 	}

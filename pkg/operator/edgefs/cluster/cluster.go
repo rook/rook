@@ -91,7 +91,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) (bool, 
 		},
 		Data: placeholderConfig,
 	}
-	k8sutil.SetOwnerRef(&cm.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(cm, &c.ownerRef)
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(ctx, cm, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {

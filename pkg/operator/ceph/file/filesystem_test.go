@@ -27,7 +27,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -167,14 +166,14 @@ func TestCreateFilesystem(t *testing.T) {
 	clusterInfo := &client.ClusterInfo{FSID: "myfsid"}
 
 	// start a basic cluster
-	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, "/var/lib/rook/", &client.OwnerInfo{})
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// starting again should be a no-op
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, "/var/lib/rook/", &client.OwnerInfo{})
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{"rook-ceph-mds-myfs-a", "rook-ceph-mds-myfs-b"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -214,7 +213,7 @@ func TestCreateFilesystem(t *testing.T) {
 		Clientset: clientset}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}})
 
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, "/var/lib/rook/", &client.OwnerInfo{})
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{"rook-ceph-mds-myfs-a", "rook-ceph-mds-myfs-b"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -237,7 +236,7 @@ func TestCreateFilesystem(t *testing.T) {
 		Clientset: clientset}
 
 	//Create another filesystem which should fail
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, "/var/lib/rook/", &client.OwnerInfo{})
 	assert.Equal(t, "failed to create filesystem \"myfs\": cannot create multiple filesystems. enable ROOK_ALLOW_MULTIPLE_FILESYSTEMS env variable to create more than one", err.Error())
 }
 
@@ -274,12 +273,12 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	clusterInfo := &client.ClusterInfo{FSID: "myfsid"}
 
 	// start a basic cluster
-	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, "/var/lib/rook/", &client.OwnerInfo{})
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 
 	// starting again should be a no-op
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, "/var/lib/rook/", &client.OwnerInfo{})
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 }

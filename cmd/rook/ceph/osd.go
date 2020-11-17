@@ -25,6 +25,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -227,9 +228,10 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	logger.Infof("crush location of osd: %s", crushLocation)
 
 	forceFormat := false
+
 	ownerRef := opcontroller.ClusterOwnerRef(clusterInfo.Namespace, ownerRefID)
-	clusterInfo.OwnerRef = ownerRef
-	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerRef)
+	clusterInfo.OwnerInfo = *client.NewOwnerInfoWithRef(ownerRef)
+	kv := client.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, &clusterInfo.OwnerInfo)
 	agent := osddaemon.NewAgent(context, dgs, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 

@@ -82,7 +82,7 @@ type Cluster struct {
 	rookVersion  string
 	spec         cephv1.ClusterSpec
 	ValidStorage rookv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
-	kv           *k8sutil.ConfigMapKVStore
+	kv           *cephclient.ConfigMapKVStore
 }
 
 // New creates an instance of the OSD manager
@@ -92,7 +92,7 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 		clusterInfo: clusterInfo,
 		spec:        spec,
 		rookVersion: rookVersion,
-		kv:          k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, clusterInfo.OwnerRef),
+		kv:          cephclient.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, &clusterInfo.OwnerInfo),
 	}
 }
 

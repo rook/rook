@@ -24,6 +24,7 @@ import (
 	"time"
 
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
@@ -202,7 +203,7 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
+func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerInfo *client.OwnerInfo) error {
 	ctx := context.TODO()
 	var (
 		err                                                   error
@@ -375,7 +376,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		// apply resource request and limit to rbdplugin containers
 		applyResourcesToContainers(clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, ownerRef)
+		err = ownerInfo.SetOwnerReference(rbdPlugin)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference of daemonset %q", rbdPlugin.Name)
+		}
 		multusApplied, err := applyCephClusterNetworkConfig(ctx, &rbdPlugin.Spec.Template.ObjectMeta, rookclientset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset: %+v", rbdPlugin)
@@ -394,7 +398,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, ownerRef)
+		err = ownerInfo.SetOwnerReference(rbdProvisionerDeployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference of rbd provisioner deployment %q", rbdProvisionerDeployment.Name)
+		}
 		antiAffinity := GetPodAntiAffinity("app", csiRBDProvisioner)
 		rbdProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		rbdProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
@@ -413,7 +420,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 
 	if rbdService != nil {
-		k8sutil.SetOwnerRef(&rbdService.ObjectMeta, ownerRef)
+		err = ownerInfo.SetOwnerReference(rbdService)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference of service %q", rbdService.Name)
+		}
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, rbdService)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create rbd service: %+v", rbdService)
@@ -424,7 +434,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		// apply resource request and limit to cephfs plugin containers
 		applyResourcesToContainers(clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, ownerRef)
+		err = ownerInfo.SetOwnerReference(cephfsPlugin)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference of daemonset %q", cephfsPlugin.Name)
+		}
 		multusApplied, err := applyCephClusterNetworkConfig(ctx, &cephfsPlugin.Spec.Template.ObjectMeta, rookclientset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin daemonset: %+v", cephfsPlugin)
@@ -444,7 +457,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		// get resource details for cephfs provisioner
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, ownerRef)
+		err = ownerInfo.SetOwnerReference(cephfsProvisionerDeployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference of deployment %q", cephfsProvisionerDeployment.Name)
+		}
 		antiAffinity := GetPodAntiAffinity("app", csiCephFSProvisioner)
 		cephfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		cephfsProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
@@ -462,7 +478,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		k8sutil.AddRookVersionLabelToDeployment(cephfsProvisionerDeployment)
 	}
 	if cephfsService != nil {
-		k8sutil.SetOwnerRef(&cephfsService.ObjectMeta, ownerRef)
+		err = ownerInfo.SetOwnerReference(cephfsService)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference of service %q", cephfsService.Name)
+		}
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, cephfsService)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create rbd service: %+v", cephfsService)
@@ -606,14 +625,14 @@ func deleteCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, na
 }
 
 // ValidateCSIVersion checks if the configured ceph-csi image is supported
-func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string, ownerRef *metav1.OwnerReference) error {
+func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string, ownerInfo *client.OwnerInfo) error {
 	timeout := 15 * time.Minute
 
 	logger.Infof("detecting the ceph csi image version for image %q", CSIParam.CSIPluginImage)
 
 	versionReporter, err := cmdreporter.New(
 		clientset,
-		ownerRef,
+		ownerInfo,
 		detectCSIVersionName, detectCSIVersionName, namespace,
 		[]string{"cephcsi"}, []string{"--version"},
 		rookImage, CSIParam.CSIPluginImage)

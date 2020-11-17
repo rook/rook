@@ -21,9 +21,22 @@ import (
 	"net"
 
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+// OwnerInfo is used by both controller and non-controller. If used from controller,
+// you should only set owner, controller, and scheme. Otherwise, you should only set
+// ownerRef. controlelr will be ignored.
+type OwnerInfo struct {
+	owner      metav1.Object
+	ownerRef   metav1.OwnerReference
+	controller bool
+	scheme     *runtime.Scheme
+}
 
 // ClusterInfo is a collection of information about a particular Ceph cluster. Rook uses information
 // about the cluster to configure daemons to connect to the desired cluster.
@@ -34,7 +47,7 @@ type ClusterInfo struct {
 	Monitors      map[string]*MonInfo
 	CephVersion   cephver.CephVersion
 	Namespace     string
-	OwnerRef      metav1.OwnerReference
+	OwnerInfo     OwnerInfo
 	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
 	// If the CR name is needed, access it through the NamespacedName() method.
 	name string
@@ -54,14 +67,27 @@ type CephCred struct {
 	Secret   string `json:"secret"`
 }
 
+// NewOwnerInfo creates a new owner info used by controller
+func NewOwnerInfo(owner metav1.Object, controller bool, scheme *runtime.Scheme) *OwnerInfo {
+	return &OwnerInfo{owner: owner, scheme: scheme}
+}
+
+// NewOwnerInfoWithRef creates a new owner info used by non-controller
+func NewOwnerInfoWithRef(ownerRef metav1.OwnerReference) *OwnerInfo {
+	return &OwnerInfo{ownerRef: ownerRef}
+}
+
+// NewClusterInfo creates a new cluster info
 func NewClusterInfo(namespace, name string) *ClusterInfo {
 	return &ClusterInfo{Namespace: namespace, name: name}
 }
 
+// SetName sets the cluster name of a cluster
 func (c *ClusterInfo) SetName(name string) {
 	c.name = name
 }
 
+// NamespacedName gets a namespaced name of a cluster
 func (c *ClusterInfo) NamespacedName() types.NamespacedName {
 	if c.name == "" {
 		panic("name is not set on the clusterInfo")
@@ -69,7 +95,7 @@ func (c *ClusterInfo) NamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: c.Namespace, Name: c.name}
 }
 
-// AdminClusterInfo() creates a ClusterInfo with the basic info to access the cluster
+// AdminClusterInfo creates a ClusterInfo with the basic info to access the cluster
 // as an admin. Only the namespace and the ceph username fields are set in the struct,
 // so this clusterInfo cannot be used to generate the mon config or request the
 // namespacedName. A full cluster info must be populated for those operations.
@@ -119,4 +145,27 @@ func (c *ClusterInfo) IsInitialized(logError bool) bool {
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.
 func NewMonInfo(name, ip string, port int32) *MonInfo {
 	return &MonInfo{Name: name, Endpoint: net.JoinHostPort(ip, fmt.Sprintf("%d", port))}
+}
+
+// SetOwnerReference add the owner reference to the owner
+func (o *OwnerInfo) SetOwnerReference(object metav1.Object) error {
+	if o.scheme != nil {
+		if o.controller {
+			return controllerutil.SetControllerReference(o.owner, object, o.scheme)
+		} else {
+			return controllerutil.SetOwnerReference(o.owner, object, o.scheme)
+		}
+	} else {
+		k8sutil.SetOwnerRef(object, &o.ownerRef)
+		return nil
+	}
+}
+
+// GetUID get the UID of the owner
+func (o *OwnerInfo) GetUID() types.UID {
+	if o.scheme != nil {
+		return o.owner.GetUID()
+	} else {
+		return o.ownerRef.UID
+	}
 }

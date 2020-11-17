@@ -248,15 +248,7 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 		}
 	}
 
-	// Create the controller owner ref
-	// It will be associated to all resources of the CephObjectStore
-	ref, err := opcontroller.GetControllerObjectOwnerReference(cephFilesystem, r.scheme)
-	if err != nil || ref == nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
-	}
-
-	// preservePoolsOnDelete being set to true has data-loss concerns and is deprecated (see #6492).
-	// If preservePoolsOnDelete is set to true, assume the user means preserveFilesystemOnDelete instead.
+	// preservePoolsOnDelete being set to true does not make sense because of data-loss concerns (see #6492).
 	if cephFilesystem.Spec.PreservePoolsOnDelete {
 		if !cephFilesystem.Spec.PreserveFilesystemOnDelete {
 			logger.Warning("preservePoolsOnDelete (currently set 'true') has been deprecated in favor of preserveFilesystemOnDelete (currently set 'false') due to data loss concerns so Rook will assume preserveFilesystemOnDelete 'true'")
@@ -264,7 +256,8 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 		}
 	}
 
-	err = createFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
+	err := createFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, r.cephClusterSpec.DataDirHostPath,
+		cephclient.NewOwnerInfo(cephFilesystem, true, r.scheme))
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create filesystem %q", cephFilesystem.Name)
 	}
@@ -273,13 +266,8 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 }
 
 func (r *ReconcileCephFilesystem) reconcileDeleteFilesystem(cephFilesystem *cephv1.CephFilesystem) error {
-	// Create the controller owner ref
-	ref, err := opcontroller.GetControllerObjectOwnerReference(cephFilesystem, r.scheme)
-	if err != nil || ref == nil {
-		return errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
-	}
-
-	err = deleteFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
+	err := deleteFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, r.cephClusterSpec.DataDirHostPath,
+		cephclient.NewOwnerInfo(cephFilesystem, true, r.scheme))
 	if err != nil {
 		return err
 	}

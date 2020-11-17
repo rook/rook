@@ -370,7 +370,7 @@ func updateDeviceCM(clusterdContext *clusterd.Context) error {
 		if err != nil {
 			logger.Warningf("failed to get discover pod to set ownerref. %+v", err)
 		} else {
-			k8sutil.SetOwnerRefsWithoutBlockOwner(&cm.ObjectMeta, discoverPod.OwnerReferences)
+			k8sutil.SetOwnerRefsWithoutBlockOwner(cm, discoverPod.OwnerReferences)
 		}
 
 		cm, err = clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})

@@ -126,7 +126,7 @@ func (c *ClusterController) createUIService(cluster *cluster, isTServerService b
 			Ports:    createUIServicePorts(ports, isTServerService),
 		},
 	}
-	k8sutil.SetOwnerRef(&uiService.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(uiService, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(ctx, uiService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -182,7 +182,7 @@ func (c *ClusterController) createHeadlessService(cluster *cluster, isTServerSer
 		},
 	}
 
-	k8sutil.SetOwnerRef(&headlessService.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(headlessService, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(ctx, headlessService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -258,7 +258,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster, isTServerStatefu
 	}
 	cluster.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
 	cluster.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
-	k8sutil.SetOwnerRef(&statefulSet.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(statefulSet, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(ctx, statefulSet, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {

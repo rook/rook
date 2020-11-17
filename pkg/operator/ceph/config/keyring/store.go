@@ -42,15 +42,15 @@ const (
 type SecretStore struct {
 	context     *clusterd.Context
 	clusterInfo *client.ClusterInfo
-	ownerRef    *metav1.OwnerReference
+	ownerInfo   *client.OwnerInfo
 }
 
 // GetSecretStore returns a new SecretStore struct.
-func GetSecretStore(context *clusterd.Context, clusterInfo *client.ClusterInfo, ownerRef *metav1.OwnerReference) *SecretStore {
+func GetSecretStore(context *clusterd.Context, clusterInfo *client.ClusterInfo, ownerInfo *client.OwnerInfo) *SecretStore {
 	return &SecretStore{
 		context:     context,
 		clusterInfo: clusterInfo,
-		ownerRef:    ownerRef,
+		ownerInfo:   ownerInfo,
 	}
 }
 
@@ -92,7 +92,10 @@ func (k *SecretStore) CreateOrUpdate(resourceName string, keyring string) error 
 		},
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(&secret.ObjectMeta, k.ownerRef)
+	err := k.ownerInfo.SetOwnerReference(secret)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference of secret %q", secret.Name)
+	}
 
 	return k.CreateSecret(secret)
 }

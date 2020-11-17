@@ -637,7 +637,7 @@ func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1
 		}
 	}
 
-	k8sutil.SetOwnerRef(&statefulSet.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(statefulSet, &c.ownerRef)
 
 	if c.NetworkSpec.IsMultus() {
 		if err := k8sutil.ApplyMultus(c.NetworkSpec, &statefulSet.ObjectMeta); err != nil {
@@ -675,7 +675,7 @@ func (c *Cluster) makeHeadlessService() (*v1.Service, error) {
 			ClusterIP:                "None",
 		},
 	}
-	k8sutil.SetOwnerRef(&headlessService.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(headlessService, &c.ownerRef)
 
 	return headlessService, nil
 }

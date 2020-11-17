@@ -201,7 +201,7 @@ func (c *Cluster) makeMgrService(name string) *v1.Service {
 		},
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(svc, &c.ownerRef)
 	return svc
 }
 
@@ -236,7 +236,7 @@ func (c *Cluster) makeRestapiService(name string) *v1.Service {
 		},
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(svc, &c.ownerRef)
 	return svc
 }
 
@@ -266,7 +266,7 @@ func (c *Cluster) makeUIService(name string) *v1.Service {
 		},
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(svc, &c.ownerRef)
 
 	if c.dashboardSpec.LocalAddr != "" {
 		ip := net.ParseIP(c.dashboardSpec.LocalAddr)
@@ -367,7 +367,7 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 			Replicas: &replicas,
 		},
 	}
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(d, &c.ownerRef)
 	c.annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }

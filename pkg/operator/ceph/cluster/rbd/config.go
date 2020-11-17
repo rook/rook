@@ -64,7 +64,7 @@ type daemonConfig struct {
 	ResourceName string              // the name rook gives to mirror resources in k8s metadata
 	DaemonID     string              // the ID of the Ceph daemon ("a", "b", ...)
 	DataPathMap  *config.DataPathMap // location to store data in container
-	ownerRef     metav1.OwnerReference
+	ownerInfo    *client.OwnerInfo
 }
 
 // PeerToken is the content of the peer token
@@ -79,7 +79,7 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 	ctx := context.TODO()
 	user := fullDaemonName(daemonConfig.DaemonID)
 	access := []string{"mon", "profile rbd-mirror", "osd", "profile rbd"}
-	s := keyring.GetSecretStore(r.context, clusterInfo, &daemonConfig.ownerRef)
+	s := keyring.GetSecretStore(r.context, clusterInfo, daemonConfig.ownerInfo)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {
@@ -125,14 +125,8 @@ func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.
 		// Add Peer detail to the Struct
 		r.peers[peerSecret] = peerSpec
 
-		// Get controller owner ref
-		ownerRef, err := opcontroller.GetControllerObjectOwnerReference(cephRBDMirror, r.scheme)
-		if err != nil || ownerRef == nil {
-			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to get controller %q owner reference", cephRBDMirror.Name)
-		}
-
 		// Add rbd-mirror peer
-		err = r.addPeer(peerSecret, s.Data, ownerRef)
+		err = r.addPeer(peerSecret, s.Data, client.NewOwnerInfo(cephRBDMirror, true, r.scheme))
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add rbd-mirror bootstrap peer")
 		}
@@ -141,7 +135,7 @@ func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.
 		// Peers are always identical, at least this is the supported way today (Ceph Octopus), only the pool name differs
 		if k == 0 {
 			// Create the token ceph config file and key
-			err = r.createBootstrapPeerConfigAndKey(peerSecret, string(s.Data["token"]), ownerRef)
+			err = r.createBootstrapPeerConfigAndKey(peerSecret, string(s.Data["token"]), client.NewOwnerInfo(cephRBDMirror, true, r.scheme))
 			if err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create bootstrap peer config and key")
 			}
@@ -168,7 +162,7 @@ func validatePeerToken(data map[string][]byte) (*peerSpec, error) {
 	return &peerSpec{poolName: string(data["pool"]), direction: string(data["direction"])}, nil
 }
 
-func (r *ReconcileCephRBDMirror) addPeer(peerSecret string, data map[string][]byte, ownerRef *metav1.OwnerReference) error {
+func (r *ReconcileCephRBDMirror) addPeer(peerSecret string, data map[string][]byte, ownerInfo *client.OwnerInfo) error {
 	// Import bootstrap peer
 	err := client.ImportRBDMirrorBootstrapPeer(r.context, r.clusterInfo, r.peers[peerSecret].poolName, r.peers[peerSecret].direction, data["token"])
 	if err != nil {
@@ -193,7 +187,7 @@ func validateSpec(r *cephv1.RBDMirroringSpec) error {
 	return nil
 }
 
-func (r *ReconcileCephRBDMirror) createBootstrapPeerConfigAndKey(peerSecret string, tokenBase64 string, ownerRef *metav1.OwnerReference) error {
+func (r *ReconcileCephRBDMirror) createBootstrapPeerConfigAndKey(peerSecret string, tokenBase64 string, ownerInfo *client.OwnerInfo) error {
 	ctx := context.TODO()
 	// Decode the base64 token
 	decodeToken, err := base64.StdEncoding.DecodeString(tokenBase64)
@@ -211,7 +205,10 @@ func (r *ReconcileCephRBDMirror) createBootstrapPeerConfigAndKey(peerSecret stri
 	cephPeerConfig := fmt.Sprintf(cephConfPeerTemplate, token.ClusterFSID, token.MonHost)
 
 	// Put it in a ConfigMap
-	cm := generatePeerCephConfigFileConfigMap(r.peers[peerSecret].info.Peers[0].UUID, cephPeerConfig, ownerRef)
+	cm, err := generatePeerCephConfigFileConfigMap(r.peers[peerSecret].info.Peers[0].UUID, cephPeerConfig, ownerInfo)
+	if err != nil {
+		return errors.Wrapf(err, "failed to generate kubernetes configmap %q bootstrap peer config", cm.Name)
+	}
 
 	_, err = r.context.Clientset.CoreV1().ConfigMaps(r.clusterInfo.Namespace).Create(ctx, cm, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsNotFound(err) && !kerrors.IsAlreadyExists(err) {
@@ -222,7 +219,10 @@ func (r *ReconcileCephRBDMirror) createBootstrapPeerConfigAndKey(peerSecret stri
 	cephPeerKey := fmt.Sprintf(keyringPeerTemplate, token.ClientID, token.Key)
 
 	// Put it in a Secret
-	s := generatePeerKeyringSecret(r.peers[peerSecret].info.Peers[0].UUID, cephPeerKey, ownerRef)
+	s, err := generatePeerKeyringSecret(r.peers[peerSecret].info.Peers[0].UUID, cephPeerKey, ownerInfo)
+	if err != nil {
+		return errors.Wrapf(err, "failed to generate Kubernetes secret %q bootstrap peer key", s.Name)
+	}
 	_, err = r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Create(ctx, s, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsNotFound(err) && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create kubernetes secret %q bootstrap peer key", s.Name)
@@ -239,7 +239,7 @@ func generatePeerKeyringSecretName(siteName string) string {
 	return fmt.Sprintf("%s-%s", peerCephKeyringSecretName, siteName)
 }
 
-func generatePeerCephConfigFileConfigMap(peerSiteUUID, peerCephConfig string, ownerRef *metav1.OwnerReference) *v1.ConfigMap {
+func generatePeerCephConfigFileConfigMap(peerSiteUUID, peerCephConfig string, ownerInfo *client.OwnerInfo) (*v1.ConfigMap, error) {
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: generatePeerCephConfigFileConfigMapName(peerSiteUUID),
@@ -248,12 +248,15 @@ func generatePeerCephConfigFileConfigMap(peerSiteUUID, peerCephConfig string, ow
 			peerCephConfigKey: peerCephConfig,
 		},
 	}
-	k8sutil.SetOwnerRef(&cm.ObjectMeta, ownerRef)
+	err := ownerInfo.SetOwnerReference(cm)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of configmap %q", cm.Name)
+	}
 
-	return cm
+	return cm, nil
 }
 
-func generatePeerKeyringSecret(peerSiteUUID, peerCephKey string, ownerRef *metav1.OwnerReference) *v1.Secret {
+func generatePeerKeyringSecret(peerSiteUUID, peerCephKey string, ownerInfo *client.OwnerInfo) (*v1.Secret, error) {
 	s := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: generatePeerKeyringSecretName(peerSiteUUID),
@@ -263,7 +266,10 @@ func generatePeerKeyringSecret(peerSiteUUID, peerCephKey string, ownerRef *metav
 		},
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(&s.ObjectMeta, ownerRef)
+	err := ownerInfo.SetOwnerReference(s)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of secret %q", s.Name)
+	}
 
-	return s
+	return s, nil
 }

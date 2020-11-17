@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -53,6 +54,7 @@ func TestStartRGW(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	info := clienttest.CreateTestClusterInfo(1)
+	info.Namespace = "mycluster"
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
 	store := simpleStore()
 	store.Spec.Gateway.Instances = 1
@@ -65,7 +67,7 @@ func TestStartRGW(t *testing.T) {
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 
 	// start a basic cluster
-	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, r.client, s}
+	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, client.NewOwnerInfo(object[0].(metav1.Object), true, s), data, r.client, s}
 	err := c.startRGWPods(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 
@@ -76,6 +78,9 @@ func validateStart(ctx context.Context, t *testing.T, c *clusterConfig, clientse
 	rgwName := instanceName(c.store.Name) + "-a"
 	r, err := clientset.AppsV1().Deployments(c.store.Namespace).Get(ctx, rgwName, metav1.GetOptions{})
 	assert.Nil(t, err)
+	if r == nil {
+		panic(err)
+	}
 	assert.Equal(t, rgwName, r.Name)
 }
 
@@ -104,6 +109,7 @@ func TestCreateObjectStore(t *testing.T) {
 	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 	info := clienttest.CreateTestClusterInfo(1)
+	info.Namespace = "mycluster"
 	data := config.NewStatelessDaemonDataPathMap(config.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
 	// create the pools
@@ -111,7 +117,7 @@ func TestCreateObjectStore(t *testing.T) {
 	object := []runtime.Object{&cephv1.CephObjectStore{}}
 	cl := fake.NewFakeClientWithScheme(s, object...)
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
-	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, r.client, s}
+	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, client.NewOwnerInfoWithRef(metav1.OwnerReference{}), data, r.client, s}
 	err := c.createOrUpdateStore(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 }
@@ -136,7 +142,7 @@ func TestGenerateSecretName(t *testing.T) {
 		&cephv1.CephObjectStore{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"}},
 		"v1.1.0",
 		&cephv1.ClusterSpec{},
-		&metav1.OwnerReference{},
+		&client.OwnerInfo{},
 		&config.DataPathMap{},
 		cl,
 		scheme.Scheme}

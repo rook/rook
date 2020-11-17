@@ -125,7 +125,7 @@ func newCluster(context *clusterd.Context, namespace string, allowMultiplePerNod
 		mapping: &Mapping{
 			Schedule: map[string]*MonScheduleInfo{},
 		},
-		ownerRef: metav1.OwnerReference{},
+		ownerInfo: &client.OwnerInfo{},
 	}
 }
 
@@ -236,7 +236,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(t, 1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", cephv1.ClusterSpec{}, &client.OwnerInfo{}, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// create the initial config map

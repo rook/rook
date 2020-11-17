@@ -24,6 +24,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -121,7 +122,8 @@ func UpdateCsiClusterConfig(
 // CreateCsiConfigMap creates an empty config map that will be later used
 // to provide cluster configuration to ceph-csi. If a config map already
 // exists, it will return it.
-func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerRef *metav1.OwnerReference) error {
+func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerInfo *client.OwnerInfo, setControllerFlag bool) error {
+	var err error
 	ctx := context.TODO()
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,8 +135,15 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerR
 		ConfigKey: "[]",
 	}
 
-	k8sutil.SetOwnerRef(&configMap.ObjectMeta, ownerRef)
-	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(ctx, configMap, metav1.CreateOptions{})
+	if setControllerFlag {
+		err = ownerInfo.SetOwnerReference(configMap)
+	} else {
+		err = ownerInfo.SetOwnerReference(configMap)
+	}
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference of configmap %q", configMap.Name)
+	}
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Create(ctx, configMap, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create initial csi config map %q (in %q)", configMap.Name, namespace)

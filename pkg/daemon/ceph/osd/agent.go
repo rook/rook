@@ -20,7 +20,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 const (
@@ -36,13 +35,13 @@ type OsdAgent struct {
 	devices        []DesiredDevice
 	metadataDevice string
 	storeConfig    config.StoreConfig
-	kv             *k8sutil.ConfigMapKVStore
+	kv             *cephclient.ConfigMapKVStore
 	pvcBacked      bool
 }
 
 // NewAgent is the instantiation of the OSD agent
 func NewAgent(context *clusterd.Context, driveGroups config.DriveGroupBlobs, devices []DesiredDevice, metadataDevice string, forceFormat bool,
-	storeConfig config.StoreConfig, clusterInfo *cephclient.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
+	storeConfig config.StoreConfig, clusterInfo *cephclient.ClusterInfo, nodeName string, kv *cephclient.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
 
 	return &OsdAgent{
 		driveGroups:    driveGroups,

@@ -24,9 +24,9 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +45,7 @@ func TestOrchestrationStatus(t *testing.T) {
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{}
 	c := New(context, clusterInfo, spec, "myversion")
-	kv := k8sutil.NewConfigMapKVStore(c.clusterInfo.Namespace, clientset, metav1.OwnerReference{})
+	kv := client.NewConfigMapKVStore(c.clusterInfo.Namespace, clientset, &client.OwnerInfo{})
 	nodeName := "mynode"
 	cmName := fmt.Sprintf(orchestrationStatusMapName, nodeName)
 

@@ -63,14 +63,14 @@ func MergeResourceRequirements(first, second v1.ResourceRequirements) v1.Resourc
 	return first
 }
 
-func SetOwnerRef(object *metav1.ObjectMeta, ownerRef *metav1.OwnerReference) {
+func SetOwnerRef(object metav1.Object, ownerRef *metav1.OwnerReference) {
 	if ownerRef == nil {
 		return
 	}
 	SetOwnerRefs(object, []metav1.OwnerReference{*ownerRef})
 }
 
-func SetOwnerRefsWithoutBlockOwner(object *metav1.ObjectMeta, ownerRefs []metav1.OwnerReference) {
+func SetOwnerRefsWithoutBlockOwner(object metav1.Object, ownerRefs []metav1.OwnerReference) {
 	if ownerRefs == nil {
 		return
 	}
@@ -89,7 +89,7 @@ func SetOwnerRefsWithoutBlockOwner(object *metav1.ObjectMeta, ownerRefs []metav1
 	SetOwnerRefs(object, newOwners)
 }
 
-func SetOwnerRefs(object *metav1.ObjectMeta, ownerRefs []metav1.OwnerReference) {
+func SetOwnerRefs(object metav1.Object, ownerRefs []metav1.OwnerReference) {
 	object.SetOwnerReferences(ownerRefs)
 }
 

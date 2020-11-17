@@ -119,7 +119,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	cephv1.GetMgrLabels(c.spec.Labels).ApplyToObjectMeta(&d.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err := c.clusterInfo.OwnerInfo.SetOwnerReference(d)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of deployment %q", d.Name)
+	}
 	return d, nil
 }
 
@@ -277,7 +280,7 @@ func getDefaultMgrLivenessProbe() *v1.Probe {
 }
 
 // MakeMetricsService generates the Kubernetes service object for the monitoring service
-func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) *v1.Service {
+func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) (*v1.Service, error) {
 	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -302,11 +305,15 @@ func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) *v1.Ser
 		svc.Spec.Selector = labels
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.clusterInfo.OwnerRef)
-	return svc
+	err := c.clusterInfo.OwnerInfo.SetOwnerReference(svc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of service %q", svc.Name)
+	}
+
+	return svc, nil
 }
 
-func (c *Cluster) makeDashboardService(name string) *v1.Service {
+func (c *Cluster) makeDashboardService(name string) (*v1.Service, error) {
 	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 	portName := "https-dashboard"
 	if !c.spec.Dashboard.SSL {
@@ -330,8 +337,11 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 			},
 		},
 	}
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.clusterInfo.OwnerRef)
-	return svc
+	err := c.clusterInfo.OwnerInfo.SetOwnerReference(svc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of service %q", svc.Name)
+	}
+	return svc, nil
 }
 
 func (c *Cluster) getPodLabels(daemonName string, includeNewLabels bool) map[string]string {
@@ -364,7 +374,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 }
 
 // CreateExternalMetricsEndpoints creates external metric endpoint
-func CreateExternalMetricsEndpoints(namespace string, externalMgrEndpoints []v1.EndpointAddress, ownerRef metav1.OwnerReference) *v1.Endpoints {
+func CreateExternalMetricsEndpoints(namespace string, externalMgrEndpoints []v1.EndpointAddress, ownerInfo client.OwnerInfo) (*v1.Endpoints, error) {
 	labels := controller.AppLabels(AppName, namespace)
 
 	endpoints := &v1.Endpoints{
@@ -387,6 +397,9 @@ func CreateExternalMetricsEndpoints(namespace string, externalMgrEndpoints []v1.
 		},
 	}
 
-	k8sutil.SetOwnerRef(&endpoints.ObjectMeta, &ownerRef)
-	return endpoints
+	err := ownerInfo.SetOwnerReference(endpoints)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of endpoint %q", endpoints.Name)
+	}
+	return endpoints, nil
 }

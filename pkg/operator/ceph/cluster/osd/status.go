@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -65,7 +66,7 @@ func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) {
 	UpdateNodeStatus(c.kv, node, status)
 }
 
-func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) {
+func UpdateNodeStatus(kv *client.ConfigMapKVStore, node string, status OrchestrationStatus) {
 	labels := map[string]string{
 		k8sutil.AppAttr:        AppName,
 		orchestrationStatusKey: provisioningLabelKey,

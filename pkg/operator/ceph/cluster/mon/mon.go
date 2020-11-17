@@ -119,7 +119,7 @@ type Cluster struct {
 	monPodTimeout       time.Duration
 	monTimeoutList      map[string]time.Time
 	mapping             *Mapping
-	ownerRef            metav1.OwnerReference
+	ownerInfo           *cephclient.OwnerInfo
 	csiConfigMutex      *sync.Mutex
 	isUpgrade           bool
 	arbiterMon          string
@@ -164,7 +164,7 @@ type SchedulingResult struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
+func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, ownerInfo *cephclient.OwnerInfo, csiConfigMutex *sync.Mutex) *Cluster {
 	return &Cluster{
 		context:             context,
 		spec:                spec,
@@ -177,7 +177,7 @@ func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, o
 		mapping: &Mapping{
 			Schedule: map[string]*MonScheduleInfo{},
 		},
-		ownerRef:       ownerRef,
+		ownerInfo:      ownerInfo,
 		csiConfigMutex: csiConfigMutex,
 	}
 }
@@ -189,7 +189,7 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string,
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
-	clusterInfo.OwnerRef = c.ownerRef
+	clusterInfo.OwnerInfo = *c.ownerInfo
 	c.ClusterInfo = clusterInfo
 	c.rookVersion = rookVersion
 	c.spec = spec
@@ -410,20 +410,20 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	var err error
 
 	// get the cluster info from secret
-	c.ClusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
+	c.ClusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, c.ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get cluster info")
 	}
 
 	c.ClusterInfo.CephVersion = cephVersion
-	c.ClusterInfo.OwnerRef = c.ownerRef
+	c.ClusterInfo.OwnerInfo = *c.ownerInfo
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {
 		return errors.Wrap(err, "failed to save mons")
 	}
 
-	k := keyring.GetSecretStore(c.context, c.ClusterInfo, &c.ownerRef)
+	k := keyring.GetSecretStore(c.context, c.ClusterInfo, &c.ClusterInfo.OwnerInfo)
 	// store the keyring which all mons share
 	if err := k.CreateOrUpdate(keyringStoreName, c.genMonSharedKeyring()); err != nil {
 		return errors.Wrap(err, "failed to save mon keyring secret")
@@ -930,8 +930,10 @@ func (c *Cluster) saveMonConfig() error {
 			Namespace: c.Namespace,
 		},
 	}
-	k8sutil.SetOwnerRef(&configMap.ObjectMeta, &c.ownerRef)
-
+	err := c.ownerInfo.SetOwnerReference(configMap)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference of configmap %q", configMap.Name)
+	}
 	monMapping, err := json.Marshal(c.mapping)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal mon mapping")
@@ -965,7 +967,7 @@ func (c *Cluster) saveMonConfig() error {
 
 	// Every time the mon config is updated, must also update the global config so that all daemons
 	// have the most updated version if they restart.
-	if err := config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.ClusterInfo); err != nil {
+	if err := config.GetStore(c.context, c.Namespace, c.ownerInfo).CreateOrUpdate(c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to update the global config")
 	}
 

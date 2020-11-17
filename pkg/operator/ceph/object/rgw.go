@@ -29,7 +29,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +44,7 @@ type clusterConfig struct {
 	store       *cephv1.CephObjectStore
 	rookVersion string
 	clusterSpec *cephv1.ClusterSpec
-	ownerRef    *metav1.OwnerReference
+	ownerInfo   *cephclient.OwnerInfo
 	DataPathMap *config.DataPathMap
 	client      client.Client
 	scheme      *runtime.Scheme
@@ -91,13 +90,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		c.store.Spec.Gateway.Instances = 1
 	}
 
-	// Create the controller owner ref
-	// It will be associated to all resources of the CephObjectStore
-	ref, err := opcontroller.GetControllerObjectOwnerReference(c.store, c.scheme)
-	if err != nil || ref == nil {
-		return errors.Wrapf(err, "failed to get controller %q owner reference", c.store.Name)
-	}
-	c.ownerRef = ref
+	c.ownerInfo = cephclient.NewOwnerInfo(c.store, true, c.scheme)
 
 	// start a new deployment and scale up
 	desiredRgwInstances := int(c.store.Spec.Gateway.Instances)
@@ -109,7 +102,6 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		daemonName := fmt.Sprintf("%s-%s", c.store.Name, daemonLetterID)
 		// resource name is rook-ceph-rgw-<store_name>-<daemon_name>
 		resourceName := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
-
 		rgwConfig := &rgwConfig{
 			ResourceName: resourceName,
 			DaemonID:     daemonName,
@@ -142,7 +134,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		// Create deployment
 		deployment, err := c.createDeployment(rgwConfig)
 		if err != nil {
-			return nil
+			return err
 		}
 		logger.Infof("object store %q deployment %q started", c.store.Name, deployment.Name)
 

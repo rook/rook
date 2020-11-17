@@ -222,7 +222,7 @@ func (c *ClusterController) createClientService(cluster *cluster) error {
 			Ports:    createServicePorts(httpPort, grpcPort),
 		},
 	}
-	k8sutil.SetOwnerRef(&clientService.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(clientService, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(ctx, clientService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -273,7 +273,7 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 			Ports:                    createServicePorts(httpPort, grpcPort),
 		},
 	}
-	k8sutil.SetOwnerRef(&replicaService.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(replicaService, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(ctx, replicaService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -304,7 +304,7 @@ func (c *ClusterController) createPodDisruptionBudget(cluster *cluster) error {
 			MaxUnavailable: &maxUnavailable,
 		},
 	}
-	k8sutil.SetOwnerRef(&pdb.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(pdb, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.PolicyV1beta1().PodDisruptionBudgets(cluster.namespace).Create(ctx, pdb, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -354,7 +354,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 	}
 	cluster.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
 	cluster.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
-	k8sutil.SetOwnerRef(&statefulSet.ObjectMeta, &cluster.ownerRef)
+	k8sutil.SetOwnerRef(statefulSet, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.AppsV1().StatefulSets(cluster.namespace).Create(ctx, statefulSet, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {

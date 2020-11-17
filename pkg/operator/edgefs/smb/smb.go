@@ -124,7 +124,7 @@ func (c *SMBController) makeSMBService(name, svcname, namespace string) *v1.Serv
 		},
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(svc, &c.ownerRef)
 	return svc
 }
 
@@ -208,7 +208,7 @@ func (c *SMBController) makeDeployment(svcname, namespace, rookImage string, smb
 			Replicas: &smbSpec.Instances,
 		},
 	}
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(d, &c.ownerRef)
 	smbSpec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }

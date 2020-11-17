@@ -601,7 +601,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	cephv1.GetOSDLabels(c.spec.Labels).ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err := c.clusterInfo.OwnerInfo.SetOwnerReference(deployment)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of deployment %q", deployment.Name)
+	}
+
 	if !osdProps.onPVC() {
 		cephv1.GetOSDPlacement(c.spec.Placement).ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	} else {

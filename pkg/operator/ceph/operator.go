@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -243,10 +244,10 @@ func (o *Operator) updateDrivers() error {
 		blockOwnerDeletion := false
 		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
 	}
-
+	ownerInfo := client.NewOwnerInfoWithRef(*ownerRef)
 	// create an empty config map. config map will be filled with data
 	// later when clusters have mons
-	err = csi.CreateCsiConfigMap(o.operatorNamespace, o.context.Clientset, ownerRef)
+	err = csi.CreateCsiConfigMap(o.operatorNamespace, o.context.Clientset, ownerInfo, false)
 	if err != nil {
 		return errors.Wrap(err, "failed creating csi config map")
 	}
@@ -255,7 +256,7 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "invalid csi params")
 	}
 
-	go csi.ValidateAndConfigureDrivers(o.context, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerRef)
+	go csi.ValidateAndConfigureDrivers(o.context, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerInfo)
 	return nil
 }
 

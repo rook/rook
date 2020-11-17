@@ -139,7 +139,9 @@ func TestAddRemoveNode(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Nautilus,
+		OwnerInfo:   *client.NewOwnerInfoWithRef(metav1.OwnerReference{}),
 	}
+
 	generateKey := "expected key"
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {

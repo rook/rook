@@ -49,7 +49,7 @@ func (c *Cluster) generateKeyring(osdID int) (string, error) {
 	user := fmt.Sprintf("osd.%s", osdIDStr)
 	access := []string{"osd", "allow *", "mon", "allow profile osd"}
 
-	s := keyring.GetSecretStore(c.context, c.clusterInfo, &c.clusterInfo.OwnerRef)
+	s := keyring.GetSecretStore(c.context, c.clusterInfo, &c.clusterInfo.OwnerInfo)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {

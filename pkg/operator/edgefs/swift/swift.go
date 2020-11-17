@@ -152,7 +152,7 @@ func (c *SWIFTController) makeSWIFTService(name, svcname, namespace string, swif
 		},
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(svc, &c.ownerRef)
 	return svc
 }
 
@@ -244,7 +244,7 @@ func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArg
 			Replicas: &swiftSpec.Instances,
 		},
 	}
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(d, &c.ownerRef)
 	return d
 }
 

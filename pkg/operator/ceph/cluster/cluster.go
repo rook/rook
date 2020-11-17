@@ -59,7 +59,7 @@ type cluster struct {
 	mons               *mon.Cluster
 	stopCh             chan struct{}
 	closedStopCh       bool
-	ownerRef           metav1.OwnerReference
+	ownerInfo          *client.OwnerInfo
 	isUpgrade          bool
 	watchersActivated  bool
 	monitoringChannels map[string]*clusterHealth
@@ -70,7 +70,7 @@ type clusterHealth struct {
 	monitoringRunning bool
 }
 
-func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex, ownerRef *metav1.OwnerReference) *cluster {
+func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex, ownerInfo *client.OwnerInfo) *cluster {
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
@@ -82,15 +82,15 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		crdName:            c.Name,
 		monitoringChannels: make(map[string]*clusterHealth),
 		stopCh:             make(chan struct{}),
-		ownerRef:           *ownerRef,
-		mons:               mon.New(context, c.Namespace, c.Spec, *ownerRef, csiMutex),
+		ownerInfo:          ownerInfo,
+		mons:               mon.New(context, c.Namespace, c.Spec, ownerInfo, csiMutex),
 	}
 }
 
 func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
-	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerRef)
+	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to populate config override config map")
 	}
@@ -100,7 +100,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph monitors")
 	}
-	clusterInfo.OwnerRef = c.ownerRef
+	clusterInfo.OwnerInfo = *c.ownerInfo
 	clusterInfo.SetName(c.crdName)
 	c.ClusterInfo = clusterInfo
 
@@ -181,7 +181,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	if err != nil {
 		logger.Infof("clusterInfo not yet found, must be a new cluster")
 	} else {
-		clusterInfo.OwnerRef = cluster.ownerRef
+		clusterInfo.OwnerInfo = *cluster.ownerInfo
 		clusterInfo.SetName(cluster.crdName)
 		cluster.ClusterInfo = clusterInfo
 	}

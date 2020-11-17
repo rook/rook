@@ -166,8 +166,11 @@ func (c *Cluster) Start() error {
 	c.configureModules(daemonIDs)
 
 	// create the metrics service
-	service := c.MakeMetricsService(AppName, serviceMetricName)
-	if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(ctx, service, metav1.CreateOptions{}); err != nil {
+	service, err := c.MakeMetricsService(AppName, serviceMetricName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to make metrics servicer %q", AppName)
+	}
+	if _, err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(ctx, service, metav1.CreateOptions{}); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create mgr service")
 		}
@@ -353,7 +356,10 @@ func (c *Cluster) EnableServiceMonitor(service *v1.Service) error {
 	if c.spec.External.Enable {
 		serviceMonitor.Spec.Endpoints[0].Port = ServiceExternalMetricName
 	}
-	k8sutil.SetOwnerRef(&serviceMonitor.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err = c.clusterInfo.OwnerInfo.SetOwnerReference(serviceMonitor)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference of service monitor %q", serviceMonitor.Name)
+	}
 	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{namespace}
 	serviceMonitor.Spec.Selector.MatchLabels = service.GetLabels()
 	if _, err := k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
@@ -374,8 +380,10 @@ func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
 	}
 	prometheusRule.SetName(name)
 	prometheusRule.SetNamespace(namespace)
-	owners := append(prometheusRule.GetOwnerReferences(), c.clusterInfo.OwnerRef)
-	k8sutil.SetOwnerRefs(&prometheusRule.ObjectMeta, owners)
+	err = c.clusterInfo.OwnerInfo.SetOwnerReference(prometheusRule)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference of prometheus rule %q", prometheusRule.Name)
+	}
 	if _, err := k8sutil.CreateOrUpdatePrometheusRule(prometheusRule); err != nil {
 		return errors.Wrap(err, "prometheus rule could not be deployed")
 	}

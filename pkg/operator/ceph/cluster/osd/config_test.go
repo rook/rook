@@ -22,9 +22,9 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -65,17 +65,17 @@ func TestClusterIsCephVolumeRAwModeSupported(t *testing.T) {
 		rookVersion  string
 		spec         cephv1.ClusterSpec
 		ValidStorage rookv1.StorageScopeSpec
-		kv           *k8sutil.ConfigMapKVStore
+		kv           *client.ConfigMapKVStore
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		want   bool
 	}{
-		{"nok-14.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, rookv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, false},
-		{"ok-14.2.11", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 11}}, "", cephv1.ClusterSpec{}, rookv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, true},
-		{"nok-15.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, rookv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, false},
-		{"ok-15.2.5", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}}, "", cephv1.ClusterSpec{}, rookv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, true},
+		{"nok-14.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, rookv1.StorageScopeSpec{}, &client.ConfigMapKVStore{}}, false},
+		{"ok-14.2.11", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 11}}, "", cephv1.ClusterSpec{}, rookv1.StorageScopeSpec{}, &client.ConfigMapKVStore{}}, true},
+		{"nok-15.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, rookv1.StorageScopeSpec{}, &client.ConfigMapKVStore{}}, false},
+		{"ok-15.2.5", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}}, "", cephv1.ClusterSpec{}, rookv1.StorageScopeSpec{}, &client.ConfigMapKVStore{}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

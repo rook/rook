@@ -163,7 +163,7 @@ func (c *S3Controller) makeS3Service(name, svcname, namespace string, s3Spec edg
 		},
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(svc, &c.ownerRef)
 	return svc
 }
 
@@ -261,7 +261,7 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 			Replicas: &s3Spec.Instances,
 		},
 	}
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(d, &c.ownerRef)
 	s3Spec.Annotations.ApplyToObjectMeta(&d.ObjectMeta)
 	return d
 }

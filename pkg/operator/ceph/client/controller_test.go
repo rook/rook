@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -140,7 +141,7 @@ func TestCreateClient(t *testing.T) {
 	err := os.MkdirAll(configDir, 0755)
 	assert.NoError(t, err)
 	defer os.RemoveAll(configDir)
-	clusterInfo, _, _, err := mon.CreateOrLoadClusterInfo(context, namespace, &metav1.OwnerReference{})
+	clusterInfo, _, _, err := mon.CreateOrLoadClusterInfo(context, namespace, &client.OwnerInfo{})
 	assert.NoError(t, err)
 
 	exists, _ := clientExists(context, clusterInfo, p)

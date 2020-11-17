@@ -49,8 +49,8 @@ func TestGenerateKey(t *testing.T) {
 		Executor:  executor,
 	}
 	ns := "rook-ceph"
-	owner := metav1.OwnerReference{}
-	s := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, &owner)
+	ownerInfo := client.OwnerInfo{}
+	s := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, &ownerInfo)
 
 	generateKey = "generatedsecretkey"
 	failGenerateKey = false
@@ -77,9 +77,9 @@ func TestKeyringStore(t *testing.T) {
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
-	owner := metav1.OwnerReference{}
+	ownerInfo := client.OwnerInfo{}
 	ns := "rook-ceph"
-	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, &owner)
+	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, &ownerInfo)
 
 	assertKeyringData := func(keyringName, expectedKeyring string) {
 		s, e := clientset.CoreV1().Secrets(ns).Get(ctxt, keyringName, metav1.GetOptions{})
@@ -123,8 +123,8 @@ func TestResourceVolumeAndMount(t *testing.T) {
 	ctx := &clusterd.Context{
 		Clientset: clientset,
 	}
-	owner := metav1.OwnerReference{}
-	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: "ns"}, &owner)
+	ownerInfo := client.OwnerInfo{}
+	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: "ns"}, &ownerInfo)
 	err := k.CreateOrUpdate("test-resource", "qwertyuiop")
 	assert.NoError(t, err)
 	err = k.CreateOrUpdate("second-resource", "asdfgyhujkl")

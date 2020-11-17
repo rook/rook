@@ -91,7 +91,10 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) (*apps.Deplo
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&d.ObjectMeta)
 	cephv1.GetMonLabels(c.spec.Labels).ApplyToObjectMeta(&d.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.ClusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.ownerRef)
+	err := c.ownerInfo.SetOwnerReference(d)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of deployment %q", d.Name)
+	}
 
 	pod, err := c.makeMonPod(monConfig, canary)
 	if err != nil {
@@ -136,7 +139,10 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*v1.PersistentVo
 	k8sutil.AddRookVersionLabelToObjectMeta(&pvc.ObjectMeta)
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pvc.ObjectMeta)
 	controller.AddCephVersionLabelToObjectMeta(c.ClusterInfo.CephVersion, &pvc.ObjectMeta)
-	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.ownerRef)
+	err := c.ownerInfo.SetOwnerReference(pvc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference of pvc %q", pvc.Name)
+	}
 
 	// k8s uses limit as the resource request fallback
 	if _, ok := pvc.Spec.Resources.Limits[v1.ResourceStorage]; ok {

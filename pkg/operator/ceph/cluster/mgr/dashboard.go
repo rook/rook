@@ -51,10 +51,13 @@ var (
 
 func (c *Cluster) configureDashboardService() error {
 	ctx := context.TODO()
-	dashboardService := c.makeDashboardService(AppName)
+	dashboardService, err := c.makeDashboardService(AppName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference of service %q", AppName)
+	}
 	if c.spec.Dashboard.Enabled {
 		// expose the dashboard service
-		if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(ctx, dashboardService, metav1.CreateOptions{}); err != nil {
+		if _, err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(ctx, dashboardService, metav1.CreateOptions{}); err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrap(err, "failed to create dashboard mgr service")
 			}
@@ -75,7 +78,7 @@ func (c *Cluster) configureDashboardService() error {
 		}
 	} else {
 		// delete the dashboard service if it exists
-		err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(ctx, dashboardService.Name, metav1.DeleteOptions{})
+		err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(ctx, dashboardService.Name, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "failed to delete dashboard service")
 		}
@@ -258,7 +261,10 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(&secret.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err = c.clusterInfo.OwnerInfo.SetOwnerReference(secret)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to set owner reference of secret %q", secret.Name)
+	}
 
 	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil {

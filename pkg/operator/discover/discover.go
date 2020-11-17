@@ -182,7 +182,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 	if err != nil {
 		logger.Errorf("failed to get operator pod. %+v", err)
 	} else {
-		k8sutil.SetOwnerRefsWithoutBlockOwner(&ds.ObjectMeta, operatorPod.OwnerReferences)
+		k8sutil.SetOwnerRefsWithoutBlockOwner(ds, operatorPod.OwnerReferences)
 	}
 
 	// Add toleration if any

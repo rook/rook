@@ -37,8 +37,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
@@ -59,9 +57,8 @@ type Cluster struct {
 	clusterSpec     *cephv1.ClusterSpec
 	fs              cephv1.CephFilesystem
 	fsID            string
-	ownerRef        metav1.OwnerReference
 	dataDirHostPath string
-	scheme          *runtime.Scheme
+	ownerInfo       *client.OwnerInfo
 }
 
 type mdsConfig struct {
@@ -77,9 +74,8 @@ func NewCluster(
 	clusterSpec *cephv1.ClusterSpec,
 	fs cephv1.CephFilesystem,
 	fsdetails *client.CephFilesystemDetails,
-	ownerRef metav1.OwnerReference,
 	dataDirHostPath string,
-	scheme *runtime.Scheme,
+	ownerInfo *client.OwnerInfo,
 ) *Cluster {
 	return &Cluster{
 		clusterInfo:     clusterInfo,
@@ -87,9 +83,8 @@ func NewCluster(
 		clusterSpec:     clusterSpec,
 		fs:              fs,
 		fsID:            strconv.Itoa(fsdetails.ID),
-		ownerRef:        ownerRef,
+		ownerInfo:       ownerInfo,
 		dataDirHostPath: dataDirHostPath,
-		scheme:          scheme,
 	}
 }
 
@@ -162,7 +157,7 @@ func (c *Cluster) Start() error {
 			return errors.Wrapf(err, "failed to create deployment")
 		}
 		// Set owner ref to cephFilesystem object
-		err = controllerutil.SetControllerReference(&c.fs, d, c.scheme)
+		err = c.ownerInfo.SetOwnerReference(d)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference for ceph filesystem %q secret", d.Name)
 		}

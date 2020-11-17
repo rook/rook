@@ -230,7 +230,7 @@ func (c *cluster) createClusterConfigMap(deploymentConfig edgefsv1.ClusterDeploy
 		Data: dataMap,
 	}
 
-	k8sutil.SetOwnerRef(&configMap.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(configMap, &c.ownerRef)
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {
 		if errors.IsAlreadyExists(err) {
 			if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(ctx, configMap, metav1.UpdateOptions{}); err != nil {

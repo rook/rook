@@ -19,7 +19,6 @@ package mds
 import (
 	"testing"
 
-	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -73,9 +72,8 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		},
 		fs,
 		&client.CephFilesystemDetails{ID: 15},
-		metav1.OwnerReference{},
 		"/var/lib/rook/",
-		scheme.Scheme,
+		&client.OwnerInfo{},
 	)
 	mdsTestConfig := &mdsConfig{
 		DaemonID:     "myfs-a",
