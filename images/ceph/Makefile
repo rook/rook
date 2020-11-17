@@ -48,6 +48,8 @@ do.build: generate-csv-ceph-templates
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
 	@cp -r ../../cluster/examples/kubernetes/ceph/monitoring $(TEMP)/ceph-monitoring
+	@mkdir -p $(TEMP)/rook-external
+	@cp ../../cluster/examples/kubernetes/ceph/create-external-cluster-resources.* $(TEMP)/rook-external/
 	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
 		cp -r ../../cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates;\
 	else\
