@@ -371,8 +371,13 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 				continue
 			}
 
+			multusNamespace, nad := config.GetMultusNamespace(cluster.Spec.Network.Selectors[selector])
+			if multusNamespace == "" {
+				multusNamespace = cluster.Namespace
+			}
+
 			// Get network attachment definition
-			_, err := c.context.NetworkClient.NetworkAttachmentDefinitions(cluster.Namespace).Get(cluster.Spec.Network.Selectors[selector], metav1.GetOptions{})
+			_, err := c.context.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(nad, metav1.GetOptions{})
 			if err != nil {
 				if kerrors.IsNotFound(err) {
 					return errors.Wrapf(err, "specified network attachment definition for selector %q does not exist", selector)
