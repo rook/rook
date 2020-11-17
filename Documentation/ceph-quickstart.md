@@ -70,8 +70,7 @@ The first step is to deploy the Rook operator. Check that you are using the [exa
 
 ```console
 cd cluster/examples/kubernetes/ceph
-kubectl create -f common.yaml
-kubectl create -f operator.yaml
+kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 
 ## verify the rook-ceph-operator is in the `Running` state before proceeding
 kubectl -n rook-ceph get pod
