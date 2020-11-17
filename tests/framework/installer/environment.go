@@ -69,6 +69,11 @@ func TestScratchDevice() string {
 	return getEnvVarWithDefault("TEST_SCRATCH_DEVICE", "/dev/nvme0n1")
 }
 
+// getDeviceFilter get the device name used for OSD
+func getDeviceFilter() string {
+	return getEnvVarWithDefault("DEVICE_FILTER", "")
+}
+
 func getEnvVarWithDefault(env, defaultValue string) string {
 	val := os.Getenv(env)
 	if val == "" {

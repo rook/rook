@@ -42,6 +42,7 @@ jobs:
 
     - name: TestCephSmokeSuite
       run: |
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
        go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 
     - name: Artifact
@@ -91,6 +92,7 @@ jobs:
 
     - name: TestCephFlexSuite
       run: |
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
        go test -v -timeout 1800s -run CephFlexSuite github.com/rook/rook/tests/integration
 
     - name: Artifact
@@ -140,6 +142,7 @@ jobs:
 
     - name: TestCephUpgradeSuite
       run: |
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
        go test -v -timeout 1800s -run CephUpgradeSuite github.com/rook/rook/tests/integration
 
     - name: Artifact
@@ -189,6 +192,7 @@ jobs:
 
     - name: TestCephMgrSuite
       run: |
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
        go test -v -timeout 1800s -run CephMgrSuite github.com/rook/rook/tests/integration
 
     - name: Artifact
@@ -240,6 +244,7 @@ jobs:
       run: |
        tests/scripts/minikube.sh helm
        tests/scripts/helm.sh up
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
        go test -v -timeout 1800s -run CephHelmSuite github.com/rook/rook/tests/integration
 
     - name: Artifact
@@ -289,6 +294,8 @@ jobs:
 
     - name: TestCephMultiClusterDeploySuite
       run: |
+       export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
        go test -v -timeout 1800s -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
 
     - name: Artifact

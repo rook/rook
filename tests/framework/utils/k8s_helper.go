@@ -363,7 +363,7 @@ func (k8sh *K8sHelper) DeleteResource(args ...string) error {
 func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFunc func() error) error {
 
 	// wait for the operator to finalize and delete the CRD
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 60; i++ {
 		err := checkerFunc()
 		if err == nil {
 			logger.Infof("custom resource %s still exists", namespace)
@@ -615,7 +615,7 @@ func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
 // IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 	getOpts := metav1.GetOptions{}
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 60; i++ {
 		pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, getOpts)
 		if err == nil {
 			if pod.Status.Phase == "Running" {

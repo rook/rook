@@ -3442,7 +3442,7 @@ spec:
   storage:
     useAllNodes: ` + strconv.FormatBool(!settings.skipOSDCreation) + `
     useAllDevices: ` + strconv.FormatBool(!settings.skipOSDCreation) + `
-    deviceFilter:  ''
+    deviceFilter:  ` + getDeviceFilter() + `
     config:
       ` + store + `
       databaseSizeMB: "1024"
