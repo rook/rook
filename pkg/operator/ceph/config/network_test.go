@@ -196,3 +196,15 @@ func TestGetNetworkRange(t *testing.T) {
 	networkRange = getNetworkRange(netConfig)
 	assert.Equal(t, "192.168.0.0/24", networkRange)
 }
+
+func TestGetMultusNamespace(t *testing.T) {
+	// TEST 1: When namespace is specified with the NAD
+	namespace, nad := GetMultusNamespace("multus-ns/public-nad")
+	assert.Equal(t, "multus-ns", namespace)
+	assert.Equal(t, "public-nad", nad)
+
+	// TEST 2: When only NAD is specified
+	namespace, nad = GetMultusNamespace("public-nad")
+	assert.Empty(t, namespace)
+	assert.Equal(t, "public-nad", nad)
+}
