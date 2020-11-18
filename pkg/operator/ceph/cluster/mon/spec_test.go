@@ -23,6 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
@@ -70,6 +71,8 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	d, err := c.makeDeployment(monConfig, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, d)
+
+	assert.Equal(t, cephutil.DefaultServiceAccount, d.Spec.Template.Spec.ServiceAccountName)
 
 	if pvc {
 		d.Spec.Template.Spec.Volumes = append(

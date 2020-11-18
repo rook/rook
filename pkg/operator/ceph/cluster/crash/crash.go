@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
@@ -117,6 +118,8 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 				RestartPolicy: corev1.RestartPolicyAlways,
 				HostNetwork:   cephCluster.Spec.Network.IsHost(),
 				Volumes:       volumes,
+				// use service account
+				ServiceAccountName: cephutil.DefaultServiceAccount,
 			},
 		}
 

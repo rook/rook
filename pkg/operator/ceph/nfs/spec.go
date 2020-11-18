@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -132,6 +133,8 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		},
 		HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 		PriorityClassName: nfs.Spec.Server.PriorityClassName,
+		// use service account
+		ServiceAccountName: cephutil.DefaultServiceAccount,
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)

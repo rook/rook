@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -46,6 +47,8 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName: rbdMirror.Spec.PriorityClassName,
+			// use service account
+			ServiceAccountName: cephutil.DefaultServiceAccount,
 		},
 	}
 	// Replace default unreachable node toleration

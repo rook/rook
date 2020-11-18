@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -150,6 +151,8 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 			Volumes:           volumes,
 			RestartPolicy:     v1.RestartPolicyOnFailure,
 			PriorityClassName: cephv1.GetCleanupPriorityClassName(cluster.Spec.PriorityClassNames),
+			// use service account
+			ServiceAccountName: cephutil.DefaultServiceAccount,
 		},
 	}
 

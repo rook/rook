@@ -1125,3 +1125,10 @@ roleRef:
   name: rbd-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 # OLM: END CSI RBD CLUSTER ROLEBINDING
+---
+# Service account for other components
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-default
+  namespace: rook-ceph

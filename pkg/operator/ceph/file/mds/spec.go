@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -55,6 +56,8 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error)
 			Volumes:           controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 			HostNetwork:       c.clusterSpec.Network.IsHost(),
 			PriorityClassName: c.fs.Spec.MetadataServer.PriorityClassName,
+			// use service account
+			ServiceAccountName: cephutil.DefaultServiceAccount,
 		},
 	}
 	// Replace default unreachable node toleration

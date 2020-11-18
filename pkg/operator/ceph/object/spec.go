@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -83,6 +84,8 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		),
 		HostNetwork:       c.clusterSpec.Network.IsHost(),
 		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
+		// use service account
+		ServiceAccountName: cephutil.DefaultServiceAccount,
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)

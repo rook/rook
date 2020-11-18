@@ -26,6 +26,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -177,6 +178,8 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*v1.Pod, error)
 		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:       c.spec.Network.IsHost(),
 		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
+		// use service account
+		ServiceAccountName: cephutil.DefaultServiceAccount,
 	}
 
 	// Replace default unreachable node toleration

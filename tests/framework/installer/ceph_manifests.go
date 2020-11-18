@@ -3895,6 +3895,12 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: ` + namespace + `
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-default
+  namespace: ` + namespace + `
+---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:

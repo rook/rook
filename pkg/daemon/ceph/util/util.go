@@ -32,6 +32,8 @@ const (
 	RBDSysBusPathDefault = "/sys/bus/rbd"
 	RBDDevicesDir        = "devices"
 	RBDDevicePathPrefix  = "/dev/rbd"
+	// DefaultServiceAccount default service account used for components that do not specifiy a dedicated one
+	DefaultServiceAccount = "rook-ceph-default"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-ceph-util")
