@@ -54,7 +54,10 @@ case "$BLUESTORE_TYPE" in
 create_block_partition
 
 # Inform the kernel of partition table changes
-sudo partprobe
+sudo partprobe "$DISK"
+
+# Wait the udev event queue, and exits if all current events are handled.
+sudo udevadm settle
 
 # Print drives
 sudo lsblk
