@@ -80,6 +80,10 @@ spec:
   mirroring:
     enabled: true
     mode: image
+    # schedule(s) of snapshot
+    snapshotSchedules:
+      - interval: 24h # daily snapshots
+        startTime: 14:00:00-05:00
 ```
 
 Once mirroring is enabled, Rook will by default create its own [bootstrap peer token](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#bootstrap-peers) so that it can be used by another cluster.
@@ -179,6 +183,9 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
 * `mirroring`: Sets up mirroring of the pool
   * `enabled`: whether mirroring is enabled on that pool (default: false)
   * `mode`: mirroring mode to run, possible values are "pool" or "image" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#enable-mirroring) for more details.
+  * `snapshotSchedules`: schedule(s) snapshot at the **pool** level. **Only** supported as of Ceph Octopus release. One or more schedules are supported.
+    * `interval`: frequency of the snapshots. The interval can be specified in days, hours, or minutes using d, h, m suffix respectively.
+    * `startTime`: optional, determines at what time the snapshot process starts, specified using the ISO 8601 time format.
 
 * `statusCheck`: Sets up pool mirroring status
   * `mirror`: displays the mirroring status

@@ -139,6 +139,39 @@ func TestValidatePool(t *testing.T) {
 	p.Spec.CompressionMode = "passive"
 	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
 	assert.Nil(t, err)
+
+	// Add mirror test mode
+	{
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Mirroring.Enabled = true
+		p.Spec.Mirroring.Mode = "foo"
+		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "unrecognized mirroring mode \"foo\". only 'image and 'pool' are supported")
+
+		// Success mode is known
+		p.Spec.Mirroring.Mode = "pool"
+		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.NoError(t, err)
+
+		// Error no interval specified
+		p.Spec.Mirroring.SnapshotSchedules = []cephv1.SnapshotScheduleSpec{{StartTime: "14:00:00-05:00"}}
+		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "schedule interval cannot be empty if start time is specified")
+
+		// Success we have an interval
+		p.Spec.Mirroring.SnapshotSchedules = []cephv1.SnapshotScheduleSpec{{Interval: "24h"}}
+		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.NoError(t, err)
+
+		// Error mirror is disabled but snap schedule is enabled
+		p.Spec.Mirroring.Enabled = false
+		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "mirroring must be enabled to configure snapshot scheduling")
+	}
+
 }
 
 func TestValidateCrushProperties(t *testing.T) {

@@ -142,6 +142,18 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo
 		default:
 			return errors.Errorf("unrecognized mirroring mode %q. only 'image and 'pool' are supported", p.Mirroring.Mode)
 		}
+
+		if p.Mirroring.SnapshotSchedulesEnabled() {
+			for _, snapSchedule := range p.Mirroring.SnapshotSchedules {
+				if snapSchedule.Interval == "" && snapSchedule.StartTime != "" {
+					return errors.New("schedule interval cannot be empty if start time is specified")
+				}
+			}
+		}
+	}
+
+	if !p.Mirroring.Enabled && p.Mirroring.SnapshotSchedulesEnabled() {
+		return errors.New("mirroring must be enabled to configure snapshot scheduling")
 	}
 
 	return nil

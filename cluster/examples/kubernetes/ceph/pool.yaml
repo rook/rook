@@ -45,6 +45,10 @@ spec:
     # mirroring mode: pool level or per image
     # for more details see: https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#enable-mirroring
     mode: image
+    # specify the schedule(s) on which snapshots should be taken
+    # snapshotSchedules:
+    #   - interval: 24h # daily snapshots
+    #     startTime: 14:00:00-05:00
   # reports pool mirroring status if enabled
   statusCheck:
     mirror:

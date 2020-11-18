@@ -1222,6 +1222,16 @@ spec:
                       enum:
                         - image
                         - pool
+                    snapshotSchedules:
+                      type: array
+                      items:
+                        type: object
+                        nullable: true
+                        properties:
+                          interval:
+                            type: string
+                          startTime:
+                            type: string
                 statusCheck:
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
