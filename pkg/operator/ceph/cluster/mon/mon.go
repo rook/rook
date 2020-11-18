@@ -465,6 +465,7 @@ func (c *Cluster) clusterInfoToMonConfig(excludedMon string) []*monConfig {
 			ResourceName: resourceName(monitor.Name),
 			DaemonName:   monitor.Name,
 			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
+			PublicIP:     cephutil.GetIPFromEndpoint(monitor.Endpoint),
 			Zone:         zone,
 			DataPathMap: config.NewStatefulDaemonDataPathMap(
 				c.spec.DataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
