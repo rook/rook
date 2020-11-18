@@ -9,12 +9,10 @@ fi
 db_device=$2
 wal_device=$3
 
-lsblk
+sudo lsblk
 
-if [ ! -b "${test_scratch_device}" ] ; then
-  echo "invalid scratch device, not a block device: ${test_scratch_device}" >&2
-  exit 1
-fi
+sudo test ! -b "${test_scratch_device}" && echo "invalid scratch device, not a block device: ${test_scratch_device}" >&2 && exit 1
+
 
 sudo rm -rf /var/lib/rook/rook-integration-test
 sudo mkdir -p /var/lib/rook/rook-integration-test/mon1 /var/lib/rook/rook-integration-test/mon2 /var/lib/rook/rook-integration-test/mon3
