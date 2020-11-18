@@ -166,6 +166,12 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrap(err, "failed to get cephObjectStore")
 	}
 
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStore)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+
 	// The CR was just created, initializing status fields
 	if cephObjectStore.Status == nil {
 		// The store is not available so let's not build the status Info yet
@@ -218,12 +224,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion
-
-	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStore)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
-	}
 
 	// DELETE: the CR was deleted
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {

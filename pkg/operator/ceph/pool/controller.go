@@ -139,6 +139,12 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get CephBlockPool")
 	}
 
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephBlockPool)
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add finalizer")
+	}
+
 	// The CR was just created, initializing status fields
 	if cephBlockPool.Status == nil {
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing, nil)
@@ -181,12 +187,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			stopChan:          make(chan struct{}),
 			monitoringRunning: false,
 		}
-	}
-
-	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephBlockPool)
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add finalizer")
 	}
 
 	// DELETE: the CR was deleted
