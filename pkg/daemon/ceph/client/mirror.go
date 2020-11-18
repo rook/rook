@@ -29,12 +29,15 @@ import (
 
 // PoolMirroringStatus is the mirroring status of a given pool
 type PoolMirroringStatus struct {
-	Summary struct {
-		Health       string      `json:"health"`
-		DaemonHealth string      `json:"daemon_health"`
-		ImageHealth  string      `json:"image_health"`
-		States       interface{} `json:"states"`
-	} `json:"summary"`
+	Summary SummarySpec `json:"summary"`
+}
+
+// SummarySpec is the summary output of the command
+type SummarySpec struct {
+	Health       string      `json:"health"`
+	DaemonHealth string      `json:"daemon_health"`
+	ImageHealth  string      `json:"image_health"`
+	States       interface{} `json:"states"`
 }
 
 // PoolMirroringInfo is the mirroring info of a given pool
@@ -51,6 +54,18 @@ type PeersSpec struct {
 	SiteName   string `json:"site_name"`
 	MirrorUUID string `json:"mirror_uuid"`
 	ClientName string `json:"client_name"`
+}
+
+// SnapshotScheduleStatus is the mirroring status of a given pool
+type SnapshotScheduleStatus struct {
+	ScheduleTime string `json:"schedule_time"`
+	Image        string `json:"image"`
+}
+
+// SnapshotSchedule is a schedule
+type SnapshotSchedule struct {
+	Interval  string `json:"interval"`
+	StartTime string `json:"start_time"`
 }
 
 // ImportRBDMirrorBootstrapPeer add a mirror peer in the rbd-mirror configuration
@@ -105,8 +120,8 @@ func CreateRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	return output, nil
 }
 
-// EnablePoolMirroring turns on mirroring on that pool by specifying the mirroring type
-func EnablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.PoolSpec, poolName string) error {
+// enablePoolMirroring turns on mirroring on that pool by specifying the mirroring type
+func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.PoolSpec, poolName string) error {
 	logger.Infof("enabling mirroring type %q for pool %q", pool.Mirroring.Mode, poolName)
 
 	// Build command
@@ -167,4 +182,134 @@ func GetPoolMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, p
 	}
 
 	return &poolMirroringInfo, nil
+}
+
+// enableSnapshotSchedule configures the snapshots schedule on a mirrored pool
+func enableSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo, snapSpec cephv1.SnapshotScheduleSpec, poolName string) error {
+	logger.Infof("enabling snapshot schedule for pool %q", poolName)
+
+	// Build command
+	args := []string{"mirror", "snapshot", "schedule", "add", "--pool", poolName, snapSpec.Interval}
+
+	// If a start time is defined let's add it
+	if snapSpec.StartTime != "" {
+		args = append(args, snapSpec.StartTime)
+	}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+
+	// Run command
+	buf, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to enable snapshot schedule on pool %q. %s", poolName, string(buf))
+	}
+
+	logger.Infof("successfully enabled snapshot schedule for pool %q every %q", poolName, snapSpec.Interval)
+	return nil
+}
+
+// removeSnapshotSchedule removes the snapshots schedule on a mirrored pool
+func removeSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo, snapScheduleResponse SnapshotSchedule, poolName string) error {
+	logger.Debugf("removing snapshot schedule for pool %q (before adding new ones)", poolName)
+
+	// Build command
+	args := []string{"mirror", "snapshot", "schedule", "remove", "--pool", poolName, snapScheduleResponse.Interval}
+
+	// If a start time is defined let's add it
+	if snapScheduleResponse.StartTime != "" {
+		args = append(args, snapScheduleResponse.StartTime)
+	}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+
+	// Run command
+	buf, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove snapshot schedule on pool %q. %s", poolName, string(buf))
+	}
+
+	logger.Infof("successfully removed snapshot schedule %q for pool %q", poolName, snapScheduleResponse.Interval)
+	return nil
+}
+
+func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolSpec cephv1.PoolSpec, poolName string) error {
+	logger.Info("resetting current snapshot schedules")
+	// Reset any existing schedules
+	err := removeSnapshotSchedules(context, clusterInfo, poolSpec, poolName)
+	if err != nil {
+		logger.Errorf("failed to remove snapshot schedules. %v", err)
+	}
+
+	// Enable all the snap schedules
+	for _, snapSchedule := range poolSpec.Mirroring.SnapshotSchedules {
+		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, poolName)
+		if err != nil {
+			return errors.Wrap(err, "failed to enable snapshot schedule")
+		}
+	}
+
+	return nil
+}
+
+// removeSnapshotSchedules removes all the existing snapshot schedules
+func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolSpec cephv1.PoolSpec, poolName string) error {
+	// Get the list of existing snapshot schedule
+	existingSnapshotSchedules, err := listSnapshotSchedules(context, clusterInfo, poolName)
+	if err != nil {
+		return errors.Wrap(err, "failed to list snapshot schedule(s)")
+	}
+
+	// Remove each schedule
+	for _, existingSnapshotSchedule := range existingSnapshotSchedules {
+		err := removeSnapshotSchedule(context, clusterInfo, existingSnapshotSchedule, poolName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to remove snapshot schedule %v", existingSnapshotSchedule)
+		}
+	}
+
+	return nil
+}
+
+// GetSnapshotScheduleStatus configures the snapshots schedule on a mirrored pool
+func GetSnapshotScheduleStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) ([]SnapshotScheduleStatus, error) {
+	// Build command
+	args := []string{"mirror", "snapshot", "schedule", "status", "--pool", poolName}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = true
+
+	// Run command
+	buf, err := cmd.Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve snapshot schedule status on pool %q. %s", poolName, string(buf))
+	}
+
+	// Unmarshal JSON into Go struct
+	var snapshotScheduleStatus []SnapshotScheduleStatus
+	if err := json.Unmarshal([]byte(buf), &snapshotScheduleStatus); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal mirror snapshot schedule status response")
+	}
+
+	logger.Infof("successfully retrieved snapshot schedule status for pool %q", poolName)
+	return snapshotScheduleStatus, nil
+}
+
+// listSnapshotSchedules configures the snapshots schedule on a mirrored pool
+func listSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) ([]SnapshotSchedule, error) {
+	// Build command
+	args := []string{"mirror", "snapshot", "schedule", "ls", "--pool", poolName}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = true
+
+	// Run command
+	buf, err := cmd.Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve snapshot schedules on pool %q. %s", poolName, string(buf))
+	}
+
+	// Unmarshal JSON into Go struct
+	var snapshotSchedules []SnapshotSchedule
+	if err := json.Unmarshal([]byte(buf), &snapshotSchedules); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal mirror snapshot schedule list response")
+	}
+
+	logger.Debugf("successfully listed snapshot schedules for pool %q", poolName)
+	return snapshotSchedules, nil
 }

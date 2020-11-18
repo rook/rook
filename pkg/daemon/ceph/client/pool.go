@@ -269,9 +269,17 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 	// If the pool is mirrored, let's enable mirroring
 	// we don't need to check if the pool is erasure coded or not, mirroring will still work, it will simply be slow
 	if pool.Mirroring.Enabled {
-		err := EnablePoolMirroring(context, clusterInfo, pool, poolName)
+		err := enablePoolMirroring(context, clusterInfo, pool, poolName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to enable mirroring for pool %q", poolName)
+		}
+
+		// Schedule snapshots
+		if pool.Mirroring.SnapshotSchedulesEnabled() && clusterInfo.CephVersion.IsAtLeastOctopus() {
+			err = enableSnapshotSchedules(context, clusterInfo, pool, poolName)
+			if err != nil {
+				return errors.Wrapf(err, "failed to enable snapshot scheduling for pool %q", poolName)
+			}
 		}
 	}
 

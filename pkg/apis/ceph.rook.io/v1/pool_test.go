@@ -58,3 +58,31 @@ func TestCephBlockPoolValidateUpdate(t *testing.T) {
 	err := up.ValidateUpdate(p)
 	assert.Error(t, err)
 }
+
+func TestMirroringSpec_SnapshotSchedulesEnabled(t *testing.T) {
+	type fields struct {
+		Enabled           bool
+		Mode              string
+		SnapshotSchedules []SnapshotScheduleSpec
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"disabled", fields{Enabled: true, Mode: "pool", SnapshotSchedules: []SnapshotScheduleSpec{}}, false},
+		{"enabled", fields{Enabled: true, Mode: "pool", SnapshotSchedules: []SnapshotScheduleSpec{{Interval: "2d"}}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &MirroringSpec{
+				Enabled:           tt.fields.Enabled,
+				Mode:              tt.fields.Mode,
+				SnapshotSchedules: tt.fields.SnapshotSchedules,
+			}
+			if got := p.SnapshotSchedulesEnabled(); got != tt.want {
+				t.Errorf("MirroringSpec.SnapshotSchedulesEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
