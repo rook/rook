@@ -100,7 +100,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, err
 	}
 
-	return p.composeObjectBucket(), nil
+	return p.composeObjectBucket(options.ObjectBucketClaim.Spec.StorageClassName), nil
 }
 
 // Grant attaches to an existing rgw bucket and returns a connection info
@@ -189,7 +189,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	}
 
 	// returned ob with connection info
-	return p.composeObjectBucket(), nil
+	return p.composeObjectBucket(options.ObjectBucketClaim.Spec.StorageClassName), nil
 }
 
 // Delete is called when the ObjectBucketClaim (OBC) is deleted and the associated
@@ -362,7 +362,7 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 }
 
 // Return the OB struct with minimal fields filled in.
-func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
+func (p *Provisioner) composeObjectBucket(storageClassName string) *bktv1alpha1.ObjectBucket {
 
 	conn := &bktv1alpha1.Connection{
 		Endpoint: &bktv1alpha1.Endpoint{
@@ -385,7 +385,8 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 
 	return &bktv1alpha1.ObjectBucket{
 		Spec: bktv1alpha1.ObjectBucketSpec{
-			Connection: conn,
+			StorageClassName: storageClassName,
+			Connection:       conn,
 		},
 	}
 }
