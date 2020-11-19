@@ -3,7 +3,7 @@ module github.com/rook/rook
 go 1.13
 
 require (
-	github.com/aws/aws-sdk-go v1.25.41
+	github.com/aws/aws-sdk-go v1.30.27
 	github.com/banzaicloud/k8s-objectmatcher v1.1.0
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/coreos/prometheus-operator v0.34.0
@@ -11,7 +11,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-ini/ini v1.51.1
-	github.com/go-sql-driver/mysql v1.4.1
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.0
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/uuid v1.1.1
@@ -27,12 +27,11 @@ require (
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/tools v0.0.0-20200319210407-521f4a0cd458 // indirect
-	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/ini.v1 v1.51.1
 	k8s.io/api v0.17.2
 	k8s.io/apiextensions-apiserver v0.17.2
@@ -52,6 +51,7 @@ require (
 // This looks "horrible", but is due to the Rook including k8s.io/kubernetes directly which is not recommended,
 // ee https://github.com/kubernetes/kubernetes/issues/79384#issuecomment-505725449
 replace (
+	github.com/hashicorp/vault/sdk => github.com/hashicorp/vault/sdk v0.1.14-0.20201110190005-0340b40575ad
 	go.etcd.io/etcd => go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738
 	golang.org/x/text => golang.org/x/text v0.3.3
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
