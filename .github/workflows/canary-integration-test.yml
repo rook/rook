@@ -1,5 +1,13 @@
 name: Canary integration tests
-on: [pull_request]
+on:
+  pull_request:
+    paths:
+    - '**.go'
+    - '**.sh'
+    - '**.py'
+    - 'build/**'
+    - 'tests/**'
+    - 'images/**'
 
 jobs:
   canary:
