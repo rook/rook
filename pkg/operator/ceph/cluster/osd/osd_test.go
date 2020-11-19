@@ -318,6 +318,7 @@ func TestGetPVCHostName(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &client.ClusterInfo{Namespace: "ns"}
 	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, clusterInfo: clusterInfo}
+	osdInfo := OSDInfo{ID: 23}
 	pvcName := "test-pvc"
 
 	// fail to get the host name when there is no pod or deployment
@@ -330,7 +331,7 @@ func TestGetPVCHostName(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "osd-23",
 			Namespace: c.clusterInfo.Namespace,
-			Labels:    c.getOSDLabels(23, "", true),
+			Labels:    c.getOSDLabels(osdInfo, "", true),
 		},
 	}
 	k8sutil.AddLabelToDeployment(OSDOverPVCLabelKey, pvcName, osdDeployment)
@@ -351,7 +352,7 @@ func TestGetPVCHostName(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "osd-23",
 			Namespace: c.clusterInfo.Namespace,
-			Labels:    c.getOSDLabels(23, "", true),
+			Labels:    c.getOSDLabels(osdInfo, "", true),
 		},
 	}
 	osdPod.Labels = map[string]string{OSDOverPVCLabelKey: pvcName}

@@ -14,26 +14,37 @@
 
 OSDs do not fit under the single PodDisruptionBudget pattern. Ceph's ability to tolerate pod disruptions in one failure domain is dependent on the overall health of the cluster.
 Even if an upgrade agent were only to drain one node at a time, Ceph would have to wait until there were no undersized PGs before moving on the the next.
-Therefore, we will create a PodDisruptionBudget per failure domain that does not allow any evictions by default.
-When attempts to drain are detected, we will delete PodDisruption budget on one node at a time, progressing to the next only after ceph is healthy enough to avoid data loss/unavailability.
+
 The failure domain will be determined by the smallest failure domain of all the Ceph Pools in that cluster.
+We begin with creating a single PodDisruptionBudget for all the OSD with maxUnavailable=1. This will allow one OSD to go down anytime. Once the user drains a node and an OSD goes down, we determine the failure domain for the draining OSD (using the OSD deployment labels). Then we create blocking PodDisruptionBudgets (maxUnavailable=0) for all other failure domains and delete the main PodDisruptionBudget. This blocks OSDs from going down in multiple failure domains simultaneously.
 
-Detecting drains is not easy as they are a client side operation. The client cordons the node and continuously attempts to evict all pods from the node until it succeeds.
-We will use a heuristic to detect drains. We will create a canary deployment for each node with a nodeSelector for that node. Since it is likely that pod will only be
-removed from the node in the event of a drain, we will rely on the assumption that if that pod is not running, that node is being drained. This will not be a dangerous assumption
-as false positives for drains are not dangerous in this use case.
+Once the drained OSDs are back and all the pgs are active+clean, that is, the cluster is healed, the main PodDisruptionBudget is added back and the blocking ones are deleted. User can also add a timeout for the pgs to become healthy. If the timeout exceeds, the operator will ignore the pg health, add the main PodDisruptionBudget and delete the blocking ones.
 
-Example flow:
-- A Ceph pool CRD is created.
-- The Rook operator creates a PDB with maxUnvailable of 0 for each failure domain.
-- A cluster upgrade agent wants to perform a kernel upgrade on the nodes.
-- It attempts to drain 1 or more nodes.
-- The drain attempt successfully evicts the canary pod.
-- The Rook operator interprets this as a drain request that it can grant by deleting the PDB.
-- The Rook operator deletes one PDB, and the blocked drain on that failure domain completes.
-- The OSDs on that node comeback up and all the necessary backfilling occurs, and all the osds are active+clean.
-- The Rook operator recreates the PDB on that failure domain.
-- The process is repeated with the subsequent nodes/failure domains.
+Detecting drains is not easy as they are a client side operation. The client cordons the node and continuously attempts to evict all pods from the node until it succeeds. Whenever an OSD goes into pending state, that is, `ReadyReplicas` count is 0, we assume that some drain operation is happening.
+
+Example scenario:
+
+- Zone x
+  - Node a
+    - osd.0
+    - osd.1
+- Zone y
+  - Node b
+    - osd.2
+    - osd.3
+- Zone z
+  - Node c
+    - osd.4
+    - osd.5
+
+1. Rook Operator creates a single PDB that covers all OSDs with maxUnavailable=1.
+2. When Rook Operator sees an OSD go down (for example, osd.0 goes down):
+   - Create a PDB for each failure domain (zones y and z) with maxUnavailable=0 where the OSD did *not* go down.
+   - Delete the original PDB that covers all OSDs
+   - Now all remaining OSDs in zone x would be allowed to be drained
+3. When Rook sees the OSDs are back up and all PGs are clean
+   - Restore the PDB that covers all OSDs with maxUnavailable=1
+   - Delete the PDBs (in zone y and z) where maxUnavailable=0
 
 An example of an operator that will attempt to do rolling upgrades of nodes is the Machine Config Operator in openshift. Based on what I have seen in
 [SIG cluster lifecycle](https://github.com/kubernetes/community/tree/master/sig-cluster-lifecycle), kubernetes deployments based on cluster-api approach will be
