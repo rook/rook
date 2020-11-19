@@ -132,6 +132,15 @@ type ClusterSpec struct {
 
 	// Security represents security settings
 	Security SecuritySpec `json:"security,omitempty"`
+
+	// Logging represents loggings settings
+	LogCollector LogCollectorSpec `json:"logCollector,omitempty"`
+}
+
+// LogCollectorSpec is the logging spec
+type LogCollectorSpec struct {
+	Enabled     bool   `json:"enabled,omitempty"`
+	Periodicity string `json:"periodicity,omitempty"`
 }
 
 // SecuritySpec is security spec to include various security items such as kms

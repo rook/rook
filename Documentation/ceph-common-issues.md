@@ -724,7 +724,7 @@ Let's say you want to enable logging for `mon.a`, but only for this daemon.
 Using the toolbox or from inside the operator run:
 
 ```console
-ceph config daemon mon.a log_to_file true
+ceph config set mon.a log_to_file true
 ```
 
 This will activate logging on the filesystem, you will be able to find logs in `dataDirHostPath/$NAMESPACE/log`, so typically this would mean `/var/lib/rook/rook-ceph/log`.

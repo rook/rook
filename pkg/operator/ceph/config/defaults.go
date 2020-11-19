@@ -60,7 +60,6 @@ func LoggingFlags() []string {
 func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
 	overrides := []Option{
 		configOverride("global", "mon allow pool delete", "true"),
-		configOverride("global", "log file", ""),
 		configOverride("global", "mon cluster log file", ""),
 	}
 

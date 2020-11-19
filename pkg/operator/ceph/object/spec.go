@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -73,9 +72,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		InitContainers: []v1.Container{
 			c.makeChownInitContainer(rgwConfig),
 		},
-		Containers: []v1.Container{
-			c.makeDaemonContainer(rgwConfig),
-		},
+		Containers:    []v1.Container{c.makeDaemonContainer(rgwConfig)},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes: append(
 			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
@@ -84,6 +81,14 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		HostNetwork:       c.clusterSpec.Network.IsHost(),
 		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
 	}
+
+	// If the log collector is enabled we add the side-car container
+	if c.clusterSpec.LogCollector.Enabled {
+		shareProcessNamespace := true
+		podSpec.ShareProcessNamespace = &shareProcessNamespace
+		podSpec.Containers = append(podSpec.Containers, *controller.LogCollectorContainer(strings.TrimPrefix(generateCephXUser(fmt.Sprintf("ceph-client.%s", rgwConfig.ResourceName)), "client."), c.clusterInfo.Namespace, *c.clusterSpec))
+	}
+
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
 
@@ -136,7 +141,7 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 		c.clusterSpec.CephVersion.Image,
 		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 		c.store.Spec.Gateway.Resources,
-		mon.PodSecurityContext(),
+		controller.PodSecurityContext(),
 	)
 }
 
@@ -166,7 +171,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources:       c.store.Spec.Gateway.Resources,
 		LivenessProbe:   c.generateLiveProbe(),
-		SecurityContext: mon.PodSecurityContext(),
+		SecurityContext: controller.PodSecurityContext(),
 	}
 
 	// If the liveness probe is enabled
