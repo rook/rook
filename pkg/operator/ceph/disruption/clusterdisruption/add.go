@@ -18,8 +18,6 @@ package clusterdisruption
 
 import (
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
-	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -29,8 +27,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	appsv1 "k8s.io/api/apps/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -49,11 +45,10 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	sharedClusterMap := &ClusterMap{}
 
 	reconcileClusterDisruption := &ReconcileClusterDisruption{
-		client:              mgr.GetClient(),
-		scheme:              mgrScheme,
-		context:             context,
-		clusterMap:          sharedClusterMap,
-		osdCrushLocationMap: &OSDCrushLocationMap{Context: context.ClusterdContext},
+		client:     mgr.GetClient(),
+		scheme:     mgrScheme,
+		context:    context,
+		clusterMap: sharedClusterMap,
 	}
 	reconciler := reconcile.Reconciler(reconcileClusterDisruption)
 	// Create a new controller
@@ -79,74 +74,6 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 
 	// Watch for CephClusters
 	err = c.Watch(&source.Kind{Type: &cephv1.CephCluster{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// Watch for PodDisruptionBudgets and enqueue the CephCluster in the namespace
-	err = c.Watch(
-		&source.Kind{Type: &policyv1beta1.PodDisruptionBudget{}},
-		&handler.EnqueueRequestsFromMapFunc{
-			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
-				_, ok := obj.Object.(*policyv1beta1.PodDisruptionBudget)
-				if !ok {
-					// not a pdb, returning empty
-					logger.Errorf("PDB handler received non-PDB")
-					return []reconcile.Request{}
-				}
-				labels := obj.Meta.GetLabels()
-
-				// only enqueue osdDisruptionAppLabels
-				_, ok = labels[osdDisruptionAppName]
-				if !ok {
-					return []reconcile.Request{}
-				}
-				// // The name will be populated in the reconcile
-				namespace := obj.Meta.GetNamespace()
-				req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
-
-				return []reconcile.Request{req}
-			}),
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	// Watch for canary Deployments created by the nodedrain controller and enqueue all Cephclusters
-	err = c.Watch(
-		&source.Kind{Type: &appsv1.Deployment{}},
-		&handler.EnqueueRequestsFromMapFunc{
-			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
-				_, ok := obj.Object.(*appsv1.Deployment)
-				if !ok {
-					// not a Deployment, returning empty
-					logger.Errorf("deployment handler received non-Deployment")
-					return []reconcile.Request{}
-				}
-
-				// don't enqueue if it isn't a canary Deployment
-				labels := obj.Meta.GetLabels()
-				appLabel, ok := labels[k8sutil.AppAttr]
-				if !ok || appLabel != nodedrain.CanaryAppName {
-					return []reconcile.Request{}
-				}
-
-				// Enqueue all CephClusters
-				clusterNamespaces := sharedClusterMap.GetClusterNamespaces()
-				if len(clusterNamespaces) == 0 {
-					return []reconcile.Request{}
-				}
-				reqs := make([]reconcile.Request, 0)
-				for _, namespace := range clusterNamespaces {
-					// The name will be populated in the reconcile
-					reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}})
-				}
-
-				return reqs
-			}),
-		},
-	)
 	if err != nil {
 		return err
 	}

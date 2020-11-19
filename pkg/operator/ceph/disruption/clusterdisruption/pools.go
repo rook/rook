@@ -25,12 +25,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
-	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -107,43 +103,6 @@ func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 		return cephv1.DefaultFailureDomain
 	}
 	return osd.CRUSHMapLevelsOrdered[minfailureDomainIndex]
-}
-
-func (r *ReconcileClusterDisruption) getOngoingDrains(request reconcile.Request) ([]*corev1.Node, error) {
-	// Get the canary deployments
-	canaryDeploymentList := &appsv1.DeploymentList{}
-	operatorNameSpaceListOpts := client.InNamespace(request.Namespace)
-	err := r.client.List(context.TODO(), canaryDeploymentList, client.MatchingLabels{k8sutil.AppAttr: nodedrain.CanaryAppName}, operatorNameSpaceListOpts)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not list canary deployments")
-	}
-
-	ongoingDrains := make([]*corev1.Node, 0)
-	for _, deployment := range canaryDeploymentList.Items {
-		if deployment.Status.ReadyReplicas < 1 {
-			nodeHostname, ok := deployment.Spec.Template.Spec.NodeSelector[corev1.LabelHostname]
-			if !ok {
-				logger.Errorf("could not find a the nodeSelector key %q for canary deployment %q", corev1.LabelHostname, deployment.ObjectMeta.Name)
-				continue
-			}
-
-			nodeList := &corev1.NodeList{}
-			err = r.client.List(context.TODO(), nodeList, client.MatchingLabels{corev1.LabelHostname: nodeHostname})
-			if err != nil {
-				return nil, errors.Errorf("could not get node: %s ", nodeHostname)
-			} else if len(nodeList.Items) < 1 {
-				logger.Infof("node %q does not exist, deleting corresponding drain-canary", nodeHostname)
-				err = r.client.DeleteAllOf(context.TODO(), &appsv1.Deployment{}, client.MatchingLabels{corev1.LabelHostname: nodeHostname, k8sutil.AppAttr: nodedrain.CanaryAppName})
-				if err != nil {
-					return nil, errors.Wrapf(err, "could not delete drain-canary for host %q", nodeHostname)
-				}
-			} else if len(nodeList.Items) > 1 {
-				logger.Warningf("found more than one node with %s=%s", corev1.LabelHostname, nodeHostname)
-			}
-			ongoingDrains = append(ongoingDrains, &nodeList.Items[0])
-		}
-	}
-	return ongoingDrains, nil
 }
 
 // Setting naive minAvailable for RGW at: n - 1

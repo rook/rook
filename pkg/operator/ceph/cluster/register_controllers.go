@@ -25,7 +25,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/machinedisruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
-	"github.com/rook/rook/pkg/operator/ceph/disruption/nodedrain"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
@@ -45,7 +44,6 @@ var (
 
 // AddToManagerFuncsMaintenance is a list of functions to add all Controllers to the Manager (entrypoint for controller)
 var AddToManagerFuncsMaintenance = []func(manager.Manager, *controllerconfig.Context) error{
-	nodedrain.Add,
 	clusterdisruption.Add,
 }
 
