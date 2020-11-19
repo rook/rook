@@ -17,6 +17,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -70,7 +71,7 @@ type childController interface {
 
 // createInstance returns done [true - no need to polling status, false continue polling]
 func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) (bool, error) {
-
+	ctx := context.TODO()
 	logger.Debugf("Cluster [%s] spec: %+v", c.Namespace, c.Spec)
 
 	// Validate Cluster CRD
@@ -91,7 +92,7 @@ func (c *cluster) createInstance(rookImage string, isClusterUpdate bool) (bool, 
 		Data: placeholderConfig,
 	}
 	k8sutil.SetOwnerRef(&cm.ObjectMeta, &c.ownerRef)
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
+	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(ctx, cm, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			// Cluster already exists, do not do anything

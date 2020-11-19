@@ -18,6 +18,7 @@ limitations under the License.
 package swift
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -162,6 +163,7 @@ func (c *SWIFTController) serviceOwners(service *edgefsv1.SWIFT) []metav1.OwnerR
 }
 
 func (c *SWIFTController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
+	ctx := context.TODO()
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the swift service, the same images present")
 		return
@@ -170,7 +172,7 @@ func (c *SWIFTController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	svcs, err := c.context.RookClientset.EdgefsV1().SWIFTs(c.namespace).List(metav1.ListOptions{})
+	svcs, err := c.context.RookClientset.EdgefsV1().SWIFTs(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve SWIFTs to update the Edgefs version. %+v", err)
 		return

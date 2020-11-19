@@ -17,6 +17,7 @@ limitations under the License.
 package clients
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -86,13 +87,15 @@ func (f *FilesystemOperation) DeleteSnapshot(snapshotName, claimName, snapshotCl
 }
 
 func (f *FilesystemOperation) DeletePVC(namespace, claimName string) error {
+	ctx := context.TODO()
 	logger.Infof("deleting pvc %q from namespace %q", claimName, namespace)
-	return f.k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(claimName, &metav1.DeleteOptions{})
+	return f.k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, claimName, metav1.DeleteOptions{})
 }
 
 func (f *FilesystemOperation) DeleteStorageClass(storageClassName string) error {
+	ctx := context.TODO()
 	logger.Infof("deleting storage class %q", storageClassName)
-	err := f.k8sh.Clientset.StorageV1().StorageClasses().Delete(storageClassName, &metav1.DeleteOptions{})
+	err := f.k8sh.Clientset.StorageV1().StorageClasses().Delete(ctx, storageClassName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete storage class %q. %v", storageClassName, err)
 	}
@@ -127,15 +130,16 @@ func (f *FilesystemOperation) ScaleDown(name, namespace string) error {
 
 // Delete deletes a filesystem in Rook
 func (f *FilesystemOperation) Delete(name, namespace string) error {
+	ctx := context.TODO()
 	options := &metav1.DeleteOptions{}
 	logger.Infof("Deleting filesystem %s in namespace %s", name, namespace)
-	err := f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Delete(name, options)
+	err := f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Delete(ctx, name, *options)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
 	crdCheckerFunc := func() error {
-		_, err := f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Get(name, metav1.GetOptions{})
+		_, err := f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Get(ctx, name, metav1.GetOptions{})
 		return err
 	}
 

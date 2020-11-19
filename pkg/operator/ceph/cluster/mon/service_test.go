@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -28,6 +29,7 @@ import (
 )
 
 func TestCreateService(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 1)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	m := &monConfig{ResourceName: "rook-ceph-mon-b", DaemonName: "b"}
@@ -43,7 +45,7 @@ func TestCreateService(t *testing.T) {
 	assert.Equal(t, "", clusterIP)
 
 	// delete the service to mock a disaster recovery scenario
-	err = clientset.CoreV1().Services(c.Namespace).Delete(m.ResourceName, &metav1.DeleteOptions{})
+	err = clientset.CoreV1().Services(c.Namespace).Delete(ctx, m.ResourceName, metav1.DeleteOptions{})
 	assert.NoError(t, err)
 
 	clusterIP, err = c.createService(m)

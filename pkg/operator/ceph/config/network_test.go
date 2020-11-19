@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -30,6 +31,7 @@ import (
 )
 
 func TestGenerateNetworkSettings(t *testing.T) {
+	ctxt := context.TODO()
 	ns := "rook-ceph"
 	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
@@ -85,7 +87,7 @@ func TestGenerateNetworkSettings(t *testing.T) {
 	}
 
 	// Create public network definition
-	_, err = ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(network)
+	_, err = ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctxt, network, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	cephNetwork, err := generateNetworkSettings(ctx, ns, netSelector)
@@ -133,7 +135,7 @@ func TestGenerateNetworkSettings(t *testing.T) {
 	}
 
 	// Create cluster network definition
-	_, err = ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(network2)
+	_, err = ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctxt, network2, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	cephNetwork, err = generateNetworkSettings(ctx, ns, netSelector)

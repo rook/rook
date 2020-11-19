@@ -18,6 +18,7 @@ limitations under the License.
 package mgr
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strconv"
@@ -38,6 +39,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
@@ -102,6 +104,7 @@ func (c *Cluster) getDaemonIDs() []string {
 
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
+	ctx := context.TODO()
 	// Validate pod's memory if specified
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyMgr, cephv1.GetMgrResources(c.spec.Resources), cephMgrPodMinimumMemory)
 	if err != nil {
@@ -137,7 +140,7 @@ func (c *Cluster) Start() error {
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 		}
 
-		_, err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(d)
+		_, err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, d, metav1.CreateOptions{})
 		if err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrapf(err, "failed to create mgr deployment %s", resourceName)
@@ -159,7 +162,7 @@ func (c *Cluster) Start() error {
 
 	// create the metrics service
 	service := c.MakeMetricsService(AppName, serviceMetricName)
-	if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(service); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(ctx, service, metav1.CreateOptions{}); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create mgr service")
 		}

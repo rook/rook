@@ -26,8 +26,10 @@ import (
 )
 
 // VolumeLister helps list Volumes.
+// All objects returned here must be treated as read-only.
 type VolumeLister interface {
 	// List lists all Volumes in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha2.Volume, err error)
 	// Volumes returns an object that can list and get Volumes.
 	Volumes(namespace string) VolumeNamespaceLister
@@ -58,10 +60,13 @@ func (s *volumeLister) Volumes(namespace string) VolumeNamespaceLister {
 }
 
 // VolumeNamespaceLister helps list and get Volumes.
+// All objects returned here must be treated as read-only.
 type VolumeNamespaceLister interface {
 	// List lists all Volumes in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha2.Volume, err error)
 	// Get retrieves the Volume from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha2.Volume, error)
 	VolumeNamespaceListerExpansion
 }

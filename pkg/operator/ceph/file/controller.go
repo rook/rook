@@ -150,6 +150,12 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, errors.Wrap(err, "failed to get cephFilesystem")
 	}
 
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephFilesystem)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+
 	// The CR was just created, initializing status fields
 	if cephFilesystem.Status == nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
@@ -192,12 +198,6 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion
-
-	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephFilesystem)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
-	}
 
 	// DELETE: the CR was deleted
 	if !cephFilesystem.GetDeletionTimestamp().IsZero() {

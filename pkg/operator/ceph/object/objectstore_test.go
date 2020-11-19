@@ -17,6 +17,7 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -197,6 +198,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 }
 
 func TestGetObjectBucketProvisioner(t *testing.T) {
+	ctx := context.TODO()
 	k8s := fake.NewSimpleClientset()
 	operatorSettingConfigMapName := "rook-ceph-operator-config"
 	testNamespace := "test-namespace"
@@ -213,14 +215,14 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 		Data: watchOperatorNamespace,
 	}
 
-	_, err := k8s.CoreV1().ConfigMaps(testNamespace).Create(cm)
+	_, err := k8s.CoreV1().ConfigMaps(testNamespace).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	bktprovisioner := GetObjectBucketProvisioner(context, testNamespace)
 	assert.Equal(t, fmt.Sprintf("%s.%s", testNamespace, bucketProvisionerName), bktprovisioner)
 
 	cm.Data = ignoreOperatorNamespace
-	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Update(cm)
+	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Update(ctx, cm, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
 	bktprovisioner = GetObjectBucketProvisioner(context, testNamespace)

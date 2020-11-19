@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -122,6 +123,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestRunner_Run(t *testing.T) {
+	ctx := context.TODO()
 	origExecCommand := execCommand
 	execCommand = mockExecCommand
 	defer func() { execCommand = origExecCommand }()
@@ -129,7 +131,7 @@ func TestRunner_Run(t *testing.T) {
 	newClient := fake.NewSimpleClientset
 
 	verifyConfigMap := func(client kubernetes.Interface, stdout, stderr, retval, cmName, namespace string) {
-		cm, err := client.CoreV1().ConfigMaps(namespace).Get(cmName, metav1.GetOptions{})
+		cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, cmName, metav1.GetOptions{})
 		fmt.Println("configmap:", cm)
 		assert.NoError(t, err)
 		assert.Equal(t, stdout, cm.Data[CmdReporterConfigMapStdoutKey])
@@ -191,12 +193,12 @@ func TestRunner_Run(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	_, err := k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(cm)
+	_, err := k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	r, err := NewCmdReporter(k8s, []string{"some-command"}, []string{"some", "args"}, "preexisting-configmap", "preexisting-namespace")
 	assert.NoError(t, err)
 	assert.Error(t, r.Run())
-	cm, err = k8s.CoreV1().ConfigMaps("preexisting-namespace").Get("preexisting-configmap", metav1.GetOptions{})
+	cm, err = k8s.CoreV1().ConfigMaps("preexisting-namespace").Get(ctx, "preexisting-configmap", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotContains(t, cm.Data, CmdReporterConfigMapStdoutKey)
 	assert.NotContains(t, cm.Data, CmdReporterConfigMapStderrKey)
@@ -214,7 +216,7 @@ func TestRunner_Run(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	_, err = k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(cm)
+	_, err = k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	r, err = NewCmdReporter(k8s, []string{"some-command"}, []string{"some", "args"}, "preexisting-configmap", "preexisting-namespace")
 	assert.NoError(t, err)

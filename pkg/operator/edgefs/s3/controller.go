@@ -18,6 +18,7 @@ limitations under the License.
 package s3
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -162,6 +163,7 @@ func (c *S3Controller) serviceOwners(service *edgefsv1.S3) []metav1.OwnerReferen
 }
 
 func (c *S3Controller) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
+	ctx := context.TODO()
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the s3 service, the same images present")
 		return
@@ -170,7 +172,7 @@ func (c *S3Controller) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	s3s, err := c.context.RookClientset.EdgefsV1().S3s(c.namespace).List(metav1.ListOptions{})
+	s3s, err := c.context.RookClientset.EdgefsV1().S3s(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve S3s to update the Edgefs version. %+v", err)
 		return

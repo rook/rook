@@ -18,6 +18,7 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -406,8 +407,9 @@ func (k8sh *K8sHelper) GetResource(args ...string) (string, error) {
 }
 
 func (k8sh *K8sHelper) CreateNamespace(namespace string) error {
+	ctx := context.TODO()
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-	_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ns)
+	_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create namespace %s. %+v", namespace, err)
 	}
@@ -416,8 +418,9 @@ func (k8sh *K8sHelper) CreateNamespace(namespace string) error {
 }
 
 func (k8sh *K8sHelper) CountPodsWithLabel(label string, namespace string) (int, error) {
+	ctx := context.TODO()
 	options := metav1.ListOptions{LabelSelector: label}
-	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, options)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return 0, nil
@@ -430,9 +433,9 @@ func (k8sh *K8sHelper) CountPodsWithLabel(label string, namespace string) (int, 
 // WaitForPodCount waits until the desired number of pods with the label are started
 func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error {
 	options := metav1.ListOptions{LabelSelector: label}
-
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
+		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, options)
 		if err != nil {
 			return fmt.Errorf("failed to find pod with label %s. %+v", label, err)
 		}
@@ -465,9 +468,10 @@ func (k8sh *K8sHelper) WaitForLabeledPodsToRun(label, namespace string) error {
 // WaitForLabeledPodsToRunWithRetries returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) WaitForLabeledPodsToRunWithRetries(label string, namespace string, retries int) error {
 	options := metav1.ListOptions{LabelSelector: label}
+	ctx := context.TODO()
 	var lastPod v1.Pod
 	for i := 0; i < retries; i++ {
-		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
+		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, options)
 		lastStatus := ""
 		running := 0
 		if err == nil && len(pods.Items) > 0 {
@@ -499,8 +503,9 @@ func (k8sh *K8sHelper) WaitForLabeledPodsToRunWithRetries(label string, namespac
 // WaitUntilPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
 func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace string) bool {
 	options := metav1.ListOptions{LabelSelector: label}
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
+		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, options)
 		if errors.IsNotFound(err) {
 			logger.Infof("error Found err %v", err)
 			return true
@@ -520,7 +525,8 @@ func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace stri
 
 // PrintPodStatus log out the status phase of a pod
 func (k8sh *K8sHelper) PrintPodStatus(namespace string) {
-	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	ctx := context.TODO()
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to get pod status in namespace %s. %+v", namespace, err)
 		return
@@ -531,9 +537,9 @@ func (k8sh *K8sHelper) PrintPodStatus(namespace string) {
 }
 
 func (k8sh *K8sHelper) GetPodDescribeFromNamespace(namespace, testName, platformName string) {
+	ctx := context.TODO()
 	logger.Infof("Gathering pod describe for all pods in namespace %s", namespace)
-
-	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to list pods in namespace %s. %+v", namespace, err)
 		return
@@ -600,7 +606,8 @@ func (k8sh *K8sHelper) getPodDescribe(namespace string, args ...string) string {
 }
 
 func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
-	events, err := k8sh.Clientset.CoreV1().Events(namespace).List(metav1.ListOptions{})
+	ctx := context.TODO()
+	events, err := k8sh.Clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Warningf("failed to get events in namespace %s. %+v", namespace, err)
 		return
@@ -614,9 +621,10 @@ func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
 
 // IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
+	ctx := context.TODO()
 	getOpts := metav1.GetOptions{}
 	for i := 0; i < 60; i++ {
-		pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, getOpts)
+		pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(ctx, name, getOpts)
 		if err == nil {
 			if pod.Status.Phase == "Running" {
 				return true
@@ -625,7 +633,7 @@ func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 		time.Sleep(RetryInterval * time.Second)
 		logger.Infof("waiting for pod %s in namespace %s to be running", name, namespace)
 	}
-	pod, _ := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, getOpts)
+	pod, _ := k8sh.Clientset.CoreV1().Pods(namespace).Get(ctx, name, getOpts)
 	k8sh.PrintPodDescribe(namespace, pod.Name)
 	logger.Infof("Giving up waiting for pod %s in namespace %s to be running", name, namespace)
 	return false
@@ -639,9 +647,9 @@ func (k8sh *K8sHelper) IsPodTerminated(name string, namespace string) bool {
 // IsPodTerminatedWithOpts returns true if a Pod is terminated status or goes to Terminated status
 // within 90s else returns false\
 func (k8sh *K8sHelper) IsPodTerminatedWithOpts(name string, namespace string, getOpts metav1.GetOptions) bool {
-
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, getOpts)
+		pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(ctx, name, getOpts)
 		if err != nil {
 			k8slogger.Infof("Pod  %s in namespace %s terminated ", name, namespace)
 			return true
@@ -657,9 +665,10 @@ func (k8sh *K8sHelper) IsPodTerminatedWithOpts(name string, namespace string, ge
 // IsServiceUp returns true if a service is up or comes up within 150s, else returns false
 func (k8sh *K8sHelper) IsServiceUp(name string, namespace string) bool {
 	getOpts := metav1.GetOptions{}
+	ctx := context.TODO()
 
 	for i := 0; i < RetryLoop; i++ {
-		_, err := k8sh.Clientset.CoreV1().Services(namespace).Get(name, getOpts)
+		_, err := k8sh.Clientset.CoreV1().Services(namespace).Get(ctx, name, getOpts)
 		if err == nil {
 			k8slogger.Infof("Service: %s in namespace: %s is up", name, namespace)
 			return true
@@ -675,7 +684,8 @@ func (k8sh *K8sHelper) IsServiceUp(name string, namespace string) bool {
 // GetService returns output from "kubectl get svc $NAME" command
 func (k8sh *K8sHelper) GetService(servicename string, namespace string) (*v1.Service, error) {
 	getOpts := metav1.GetOptions{}
-	result, err := k8sh.Clientset.CoreV1().Services(namespace).Get(servicename, getOpts)
+	ctx := context.TODO()
+	result, err := k8sh.Clientset.CoreV1().Services(namespace).Get(ctx, servicename, getOpts)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot find service %s in namespace %s, err-- %v", servicename, namespace, err)
 	}
@@ -802,9 +812,9 @@ func (k8sh *K8sHelper) readFromPod(namespace, name, filename string) (string, er
 
 // GetVolumeResourceName gets the Volume object name from the PVC
 func (k8sh *K8sHelper) GetVolumeResourceName(namespace, pvcName string) (string, error) {
-
+	ctx := context.TODO()
 	getOpts := metav1.GetOptions{}
-	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(pvcName, getOpts)
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, getOpts)
 	if err != nil {
 		return "", err
 	}
@@ -859,7 +869,8 @@ func (k8sh *K8sHelper) waitForVolume(namespace, volumeName string, exist bool) e
 }
 
 func (k8sh *K8sHelper) PrintPVs(detailed bool) {
-	pvs, err := k8sh.Clientset.CoreV1().PersistentVolumes().List(metav1.ListOptions{})
+	ctx := context.TODO()
+	pvs, err := k8sh.Clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to list pvs. %+v", err)
 		return
@@ -880,7 +891,8 @@ func (k8sh *K8sHelper) PrintPVs(detailed bool) {
 }
 
 func (k8sh *K8sHelper) PrintPVCs(namespace string, detailed bool) {
-	pvcs, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(metav1.ListOptions{})
+	ctx := context.TODO()
+	pvcs, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to list pvcs. %+v", err)
 		return
@@ -901,7 +913,8 @@ func (k8sh *K8sHelper) PrintPVCs(namespace string, detailed bool) {
 }
 
 func (k8sh *K8sHelper) PrintStorageClasses(detailed bool) {
-	scs, err := k8sh.Clientset.StorageV1().StorageClasses().List(metav1.ListOptions{})
+	ctx := context.TODO()
+	scs, err := k8sh.Clientset.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to list StorageClasses: %+v", err)
 		return
@@ -922,7 +935,8 @@ func (k8sh *K8sHelper) PrintStorageClasses(detailed bool) {
 }
 
 func (k8sh *K8sHelper) printVolumes(namespace, desiredVolume string) {
-	volumes, err := k8sh.RookClientset.RookV1alpha2().Volumes(namespace).List(metav1.ListOptions{})
+	ctx := context.TODO()
+	volumes, err := k8sh.RookClientset.RookV1alpha2().Volumes(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Infof("failed to list volumes in ns %s. %+v", namespace, err)
 	}
@@ -935,7 +949,8 @@ func (k8sh *K8sHelper) printVolumes(namespace, desiredVolume string) {
 }
 
 func (k8sh *K8sHelper) isVolumeExist(namespace, name string) (bool, error) {
-	_, err := k8sh.RookClientset.RookV1alpha2().Volumes(namespace).Get(name, metav1.GetOptions{})
+	ctx := context.TODO()
+	_, err := k8sh.RookClientset.RookV1alpha2().Volumes(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil
@@ -973,8 +988,9 @@ func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (s
 
 // GetPodEvents returns events about a pod
 func (k8sh *K8sHelper) GetPodEvents(podNamePattern string, namespace string) (*v1.EventList, error) {
+	ctx := context.TODO()
 	uri := fmt.Sprintf("api/v1/namespaces/%s/events?fieldSelector=involvedObject.name=%s,involvedObject.namespace=%s", namespace, podNamePattern, namespace)
-	result, err := k8sh.Clientset.CoreV1().RESTClient().Get().RequestURI(uri).DoRaw()
+	result, err := k8sh.Clientset.CoreV1().RESTClient().Get().RequestURI(uri).DoRaw(ctx)
 	if err != nil {
 		logger.Errorf("Cannot get events for pod %v in namespace %v, err: %v", podNamePattern, namespace, err)
 		return nil, fmt.Errorf("Cannot get events for pod %s in namespace %s, err: %v", podNamePattern, namespace, err)
@@ -1014,8 +1030,9 @@ func (k8sh *K8sHelper) IsPodInError(podNamePattern, namespace, reason, containin
 
 // GetPodHostID returns HostIP address of a pod
 func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (string, error) {
+	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podNamePattern}
-	podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
+	podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
 	if err != nil {
 		logger.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
 		return "", fmt.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
@@ -1030,8 +1047,9 @@ func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (st
 
 // GetServiceNodePort returns nodeProt of service
 func (k8sh *K8sHelper) GetServiceNodePort(serviceName string, namespace string) (string, error) {
+	ctx := context.TODO()
 	getOpts := metav1.GetOptions{}
-	svc, err := k8sh.Clientset.CoreV1().Services(namespace).Get(serviceName, getOpts)
+	svc, err := k8sh.Clientset.CoreV1().Services(namespace).Get(ctx, serviceName, getOpts)
 	if err != nil {
 		logger.Errorf("Cannot get service : %v in namespace %v, err: %v", serviceName, namespace, err)
 		return "", fmt.Errorf("Cannot get service : %v in namespace %v, err: %v", serviceName, namespace, err)
@@ -1051,7 +1069,8 @@ func (k8sh *K8sHelper) IsStorageClassPresent(name string) (bool, error) {
 }
 
 func (k8sh *K8sHelper) IsDefaultStorageClassPresent() (bool, error) {
-	scs, err := k8sh.Clientset.StorageV1().StorageClasses().List(metav1.ListOptions{})
+	ctx := context.TODO()
+	scs, err := k8sh.Clientset.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to list StorageClasses: %+v", err)
 	}
@@ -1070,11 +1089,12 @@ func (k8sh *K8sHelper) CheckPvcCountAndStatus(podName string, namespace string, 
 	logger.Infof("wait until %d pvc for app=%s are present", expectedPvcCount, podName)
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
 	pvcCountCheck := false
+	ctx := context.TODO()
 
 	actualPvcCount := 0
 
 	for i := 0; i < RetryLoop; i++ {
-		pvcList, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(listOpts)
+		pvcList, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, listOpts)
 		if err != nil {
 			logger.Errorf("Cannot get pvc for app : %v in namespace %v, err: %v", podName, namespace, err)
 			return false
@@ -1095,7 +1115,7 @@ func (k8sh *K8sHelper) CheckPvcCountAndStatus(podName string, namespace string, 
 
 	for i := 0; i < RetryLoop; i++ {
 		checkAllPVCsStatus := true
-		pl, _ := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(listOpts)
+		pl, _ := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, listOpts)
 		for _, pvc := range pl.Items {
 			if !(pvc.Status.Phase == v1.PersistentVolumeClaimPhase(expectedStatus)) {
 				checkAllPVCsStatus = false
@@ -1116,8 +1136,8 @@ func (k8sh *K8sHelper) CheckPvcCountAndStatus(podName string, namespace string, 
 // GetPVCStatus returns status of PVC
 func (k8sh *K8sHelper) GetPVCStatus(namespace string, name string) (v1.PersistentVolumeClaimPhase, error) {
 	getOpts := metav1.GetOptions{}
-
-	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(name, getOpts)
+	ctx := context.TODO()
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, getOpts)
 	if err != nil {
 		return v1.ClaimLost, fmt.Errorf("PVC %s not found,err->%v", name, err)
 	}
@@ -1129,8 +1149,8 @@ func (k8sh *K8sHelper) GetPVCStatus(namespace string, name string) (v1.Persisten
 // GetPVCVolumeName returns volume name of PVC
 func (k8sh *K8sHelper) GetPVCVolumeName(namespace string, name string) (string, error) {
 	getOpts := metav1.GetOptions{}
-
-	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(name, getOpts)
+	ctx := context.TODO()
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, getOpts)
 	if err != nil {
 		return "", fmt.Errorf("PVC %s not found,err->%v", name, err)
 	}
@@ -1141,8 +1161,8 @@ func (k8sh *K8sHelper) GetPVCVolumeName(namespace string, name string) (string, 
 // GetPVCAccessModes returns AccessModes on PVC
 func (k8sh *K8sHelper) GetPVCAccessModes(namespace string, name string) ([]v1.PersistentVolumeAccessMode, error) {
 	getOpts := metav1.GetOptions{}
-
-	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(name, getOpts)
+	ctx := context.TODO()
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, getOpts)
 	if err != nil {
 		return []v1.PersistentVolumeAccessMode{}, fmt.Errorf("PVC %s not found,err->%v", name, err)
 	}
@@ -1154,8 +1174,8 @@ func (k8sh *K8sHelper) GetPVCAccessModes(namespace string, name string) ([]v1.Pe
 // GetPV returns PV by name
 func (k8sh *K8sHelper) GetPV(name string) (*v1.PersistentVolume, error) {
 	getOpts := metav1.GetOptions{}
-
-	pv, err := k8sh.Clientset.CoreV1().PersistentVolumes().Get(name, getOpts)
+	ctx := context.TODO()
+	pv, err := k8sh.Clientset.CoreV1().PersistentVolumes().Get(ctx, name, getOpts)
 	if err != nil {
 		return nil, fmt.Errorf("PV %s not found,err->%v", name, err)
 	}
@@ -1166,9 +1186,9 @@ func (k8sh *K8sHelper) GetPV(name string) (*v1.PersistentVolume, error) {
 // If the pod is in expected state within 90s true is returned,  if not false
 func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace string, state string) bool {
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podNamePattern}
-
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
+		podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
 		if err == nil {
 			if len(podList.Items) >= 1 {
 				for _, pod := range podList.Items {
@@ -1190,9 +1210,9 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
 	podCountCheck := false
 	actualPodCount := 0
-
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
+		podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
 		if err != nil {
 			logger.Errorf("Cannot list pods for app=%s in namespace %s, err: %+v", podName, namespace, err)
 			return false
@@ -1214,7 +1234,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 
 	for i := 0; i < RetryLoop; i++ {
 		checkAllPodsStatus := true
-		pl, _ := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
+		pl, _ := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
 		for _, pod := range pl.Items {
 			if !(pod.Status.Phase == v1.PodPhase(expectedPhase)) {
 				checkAllPodsStatus = false
@@ -1252,9 +1272,9 @@ func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, n
 // WaitUntilPodIsDeleted waits for 90s for a pod to be terminated
 // If the pod disappears within 90s true is returned,  if not false
 func (k8sh *K8sHelper) WaitUntilPodIsDeleted(name, namespace string) bool {
-
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		_, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+		_, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil && errors.IsNotFound(err) {
 			return true
 		}
@@ -1287,10 +1307,10 @@ func (k8sh *K8sHelper) WaitUntilPVCIsBound(namespace string, pvcname string) boo
 // WaitUntilPVCIsExpanded waits for a PVC to be resized for specified value
 func (k8sh *K8sHelper) WaitUntilPVCIsExpanded(namespace, pvcname, size string) bool {
 	getOpts := metav1.GetOptions{}
-
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
 		// PVC specs changes immediately, but status will change only if resize process is successfully completed.
-		pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(pvcname, getOpts)
+		pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcname, getOpts)
 		if err == nil {
 			currentSize := pvc.Status.Capacity[v1.ResourceStorage]
 			if currentSize.String() == size {
@@ -1309,9 +1329,9 @@ func (k8sh *K8sHelper) WaitUntilPVCIsExpanded(namespace, pvcname, size string) b
 
 func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) bool {
 	getOpts := metav1.GetOptions{}
-
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		_, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(pvcname, getOpts)
+		_, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcname, getOpts)
 		if err != nil {
 			return true
 		}
@@ -1325,15 +1345,15 @@ func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) b
 func (k8sh *K8sHelper) DeletePvcWithLabel(namespace string, podName string) bool {
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
-
-	err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(&delOpts, listOpts)
+	ctx := context.TODO()
+	err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(ctx, delOpts, listOpts)
 	if err != nil {
 		logger.Errorf("cannot deleted PVCs for pods with label app=%s", podName)
 		return false
 	}
 
 	for i := 0; i < RetryLoop; i++ {
-		pvcs, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(listOpts)
+		pvcs, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, listOpts)
 		if err == nil {
 			if len(pvcs.Items) == 0 {
 				return true
@@ -1350,9 +1370,9 @@ func (k8sh *K8sHelper) DeletePvcWithLabel(namespace string, podName string) bool
 // If namespace is deleted True is returned, if not false.
 func (k8sh *K8sHelper) WaitUntilNameSpaceIsDeleted(namespace string) bool {
 	getOpts := metav1.GetOptions{}
-
+	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
-		ns, err := k8sh.Clientset.CoreV1().Namespaces().Get(namespace, getOpts)
+		ns, err := k8sh.Clientset.CoreV1().Namespaces().Get(ctx, namespace, getOpts)
 		if err != nil {
 			return true
 		}
@@ -1433,7 +1453,8 @@ func (k8sh *K8sHelper) GetExternalRGWServiceURL(storeName string, namespace stri
 
 // ChangeHostnames modifies the node hostname label to run tests in an environment where the node name is different from the hostname label
 func (k8sh *K8sHelper) ChangeHostnames() error {
-	nodes, err := k8sh.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	ctx := context.TODO()
+	nodes, err := k8sh.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -1442,7 +1463,7 @@ func (k8sh *K8sHelper) ChangeHostnames() error {
 		if !strings.HasPrefix(hostname, hostnameTestPrefix) {
 			node.Labels[v1.LabelHostname] = hostnameTestPrefix + hostname
 			logger.Infof("changed hostname of node %s to %s", node.Name, node.Labels[v1.LabelHostname])
-			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node) //nolint:gosec // We safely suppress gosec in tests file
+			_, err := k8sh.Clientset.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{}) //nolint:gosec // We safely suppress gosec in tests file
 			if err != nil {
 				return err
 			}
@@ -1454,7 +1475,8 @@ func (k8sh *K8sHelper) ChangeHostnames() error {
 
 // RestoreHostnames removes the test suffix from the node hostname labels
 func (k8sh *K8sHelper) RestoreHostnames() ([]string, error) {
-	nodes, err := k8sh.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	ctx := context.TODO()
+	nodes, err := k8sh.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -1463,7 +1485,7 @@ func (k8sh *K8sHelper) RestoreHostnames() ([]string, error) {
 		if strings.HasPrefix(hostname, hostnameTestPrefix) {
 			node.Labels[v1.LabelHostname] = hostname[len(hostnameTestPrefix):]
 			logger.Infof("restoring hostname of node %s to %s", node.Name, node.Labels[v1.LabelHostname])
-			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node) //nolint:gosec // We safely suppress gosec in tests file
+			_, err := k8sh.Clientset.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{}) //nolint:gosec // We safely suppress gosec in tests file
 			if err != nil {
 				return nil, err
 			}
@@ -1474,14 +1496,16 @@ func (k8sh *K8sHelper) RestoreHostnames() ([]string, error) {
 
 // IsRookInstalled returns true is rook-ceph-mgr service is running(indicating rook is installed)
 func (k8sh *K8sHelper) IsRookInstalled(namespace string) bool {
+	ctx := context.TODO()
 	opts := metav1.GetOptions{}
-	_, err := k8sh.Clientset.CoreV1().Services(namespace).Get("rook-ceph-mgr", opts)
+	_, err := k8sh.Clientset.CoreV1().Services(namespace).Get(ctx, "rook-ceph-mgr", opts)
 	return err == nil
 }
 
 // CollectPodLogsFromLabel collects logs for pods with the given label
 func (k8sh *K8sHelper) CollectPodLogsFromLabel(podLabel, namespace, testName, platformName string) {
-	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: podLabel})
+	ctx := context.TODO()
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: podLabel})
 	if err != nil {
 		logger.Errorf("failed to list pods in namespace %s. %+v", namespace, err)
 		return
@@ -1491,9 +1515,9 @@ func (k8sh *K8sHelper) CollectPodLogsFromLabel(podLabel, namespace, testName, pl
 
 // GetLogsFromNamespace collects logs for all containers in all pods in the namespace
 func (k8sh *K8sHelper) GetLogsFromNamespace(namespace, testName, platformName string) {
+	ctx := context.TODO()
 	logger.Infof("Gathering logs for all pods in namespace %s", namespace)
-
-	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to list pods in namespace %s. %+v", namespace, err)
 		return
@@ -1566,12 +1590,12 @@ func (k8sh *K8sHelper) appendContainerLogs(file *os.File, pod v1.Pod, containerN
 		message = "INIT " + message
 	}
 	writeHeader(file, message) //nolint, ok to ignore this test logging
-
+	ctx := context.TODO()
 	logOpts := &v1.PodLogOptions{Previous: previousLog}
 	if containerName != "" {
 		logOpts.Container = containerName
 	}
-	res := k8sh.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOpts).Do()
+	res := k8sh.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOpts).Do(ctx)
 	rawData, err := res.Raw()
 	if err != nil {
 		// Sometimes we fail to get logs for pods using this method, notably the operator pod. It is
@@ -1590,7 +1614,8 @@ func (k8sh *K8sHelper) appendContainerLogs(file *os.File, pod v1.Pod, containerN
 
 // CreateAnonSystemClusterBinding Creates anon-user-access clusterrolebinding for cluster-admin role - used by kubeadm env.
 func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
-	_, err := k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Get("anon-user-access", metav1.GetOptions{})
+	ctx := context.TODO()
+	_, err := k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Get(ctx, "anon-user-access", metav1.GetOptions{})
 	if err != nil {
 		logger.Warningf("anon-user-access clusterrolebinding not found. %v", err)
 		args := []string{"create", "clusterrolebinding", "anon-user-access", "--clusterrole", "cluster-admin", "--user", "system:anonymous"}
@@ -1604,7 +1629,7 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 
 	for i := 0; i < RetryLoop; i++ {
 		var err error
-		if _, err = k8sh.Clientset.RbacV1().ClusterRoleBindings().Get("anon-user-access", metav1.GetOptions{}); err == nil {
+		if _, err = k8sh.Clientset.RbacV1().ClusterRoleBindings().Get(ctx, "anon-user-access", metav1.GetOptions{}); err == nil {
 			break
 		}
 		logger.Warningf("failed to get anon-user-access clusterrolebinding, will try again: %+v", err)
@@ -1652,9 +1677,10 @@ func (k8sh *K8sHelper) WaitForDeploymentCount(label, namespace string, count int
 // exist, retrying the specified number of times. The deployments are not guaranteed to be running,
 // only existing.
 func (k8sh *K8sHelper) WaitForDeploymentCountWithRetries(label, namespace string, count, retries int) error {
+	ctx := context.TODO()
 	options := metav1.ListOptions{LabelSelector: label}
 	for i := 0; i < retries; i++ {
-		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(options)
+		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(ctx, options)
 		numDeps := 0
 		if err == nil {
 			numDeps = len(deps.Items)
@@ -1681,9 +1707,10 @@ func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReady(label, namespace strin
 // selector to be fully ready. Retry the number of times given.
 func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReadyWithRetries(label, namespace string, retries int) error {
 	listOpts := metav1.ListOptions{LabelSelector: label}
+	ctx := context.TODO()
 	var lastDep apps.Deployment
 	for i := 0; i < retries; i++ {
-		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(listOpts)
+		deps, err := k8sh.Clientset.AppsV1().Deployments(namespace).List(ctx, listOpts)
 		ready := 0
 		if err == nil && len(deps.Items) > 0 {
 			for _, dep := range deps.Items {

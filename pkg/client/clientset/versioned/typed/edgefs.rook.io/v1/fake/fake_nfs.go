@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var nfssResource = schema.GroupVersionResource{Group: "edgefs.rook.io", Version:
 var nfssKind = schema.GroupVersionKind{Group: "edgefs.rook.io", Version: "v1", Kind: "NFS"}
 
 // Get takes name of the nFS, and returns the corresponding nFS object, and an error if there is any.
-func (c *FakeNFSs) Get(name string, options v1.GetOptions) (result *edgefsrookiov1.NFS, err error) {
+func (c *FakeNFSs) Get(ctx context.Context, name string, options v1.GetOptions) (result *edgefsrookiov1.NFS, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(nfssResource, c.ns, name), &edgefsrookiov1.NFS{})
 
@@ -50,7 +52,7 @@ func (c *FakeNFSs) Get(name string, options v1.GetOptions) (result *edgefsrookio
 }
 
 // List takes label and field selectors, and returns the list of NFSs that match those selectors.
-func (c *FakeNFSs) List(opts v1.ListOptions) (result *edgefsrookiov1.NFSList, err error) {
+func (c *FakeNFSs) List(ctx context.Context, opts v1.ListOptions) (result *edgefsrookiov1.NFSList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(nfssResource, nfssKind, c.ns, opts), &edgefsrookiov1.NFSList{})
 
@@ -72,14 +74,14 @@ func (c *FakeNFSs) List(opts v1.ListOptions) (result *edgefsrookiov1.NFSList, er
 }
 
 // Watch returns a watch.Interface that watches the requested nFSs.
-func (c *FakeNFSs) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeNFSs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(nfssResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a nFS and creates it.  Returns the server's representation of the nFS, and an error, if there is any.
-func (c *FakeNFSs) Create(nFS *edgefsrookiov1.NFS) (result *edgefsrookiov1.NFS, err error) {
+func (c *FakeNFSs) Create(ctx context.Context, nFS *edgefsrookiov1.NFS, opts v1.CreateOptions) (result *edgefsrookiov1.NFS, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(nfssResource, c.ns, nFS), &edgefsrookiov1.NFS{})
 
@@ -90,7 +92,7 @@ func (c *FakeNFSs) Create(nFS *edgefsrookiov1.NFS) (result *edgefsrookiov1.NFS, 
 }
 
 // Update takes the representation of a nFS and updates it. Returns the server's representation of the nFS, and an error, if there is any.
-func (c *FakeNFSs) Update(nFS *edgefsrookiov1.NFS) (result *edgefsrookiov1.NFS, err error) {
+func (c *FakeNFSs) Update(ctx context.Context, nFS *edgefsrookiov1.NFS, opts v1.UpdateOptions) (result *edgefsrookiov1.NFS, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(nfssResource, c.ns, nFS), &edgefsrookiov1.NFS{})
 
@@ -101,7 +103,7 @@ func (c *FakeNFSs) Update(nFS *edgefsrookiov1.NFS) (result *edgefsrookiov1.NFS, 
 }
 
 // Delete takes name of the nFS and deletes it. Returns an error if one occurs.
-func (c *FakeNFSs) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeNFSs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(nfssResource, c.ns, name), &edgefsrookiov1.NFS{})
 
@@ -109,15 +111,15 @@ func (c *FakeNFSs) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeNFSs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(nfssResource, c.ns, listOptions)
+func (c *FakeNFSs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(nfssResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &edgefsrookiov1.NFSList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched nFS.
-func (c *FakeNFSs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *edgefsrookiov1.NFS, err error) {
+func (c *FakeNFSs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *edgefsrookiov1.NFS, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(nfssResource, c.ns, name, pt, data, subresources...), &edgefsrookiov1.NFS{})
 

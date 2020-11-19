@@ -17,6 +17,7 @@ limitations under the License.
 package clients
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -49,9 +50,10 @@ func (c *ClientOperation) Create(name, namespace string, caps map[string]string)
 
 // Delete deletes a client in Rook
 func (c *ClientOperation) Delete(name, namespace string) error {
+	ctx := context.TODO()
 	options := &metav1.DeleteOptions{}
 	logger.Infof("Deleting filesystem %s in namespace %s", name, namespace)
-	err := c.k8sh.RookClientset.CephV1().CephClients(namespace).Delete(name, options)
+	err := c.k8sh.RookClientset.CephV1().CephClients(namespace).Delete(ctx, name, *options)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}

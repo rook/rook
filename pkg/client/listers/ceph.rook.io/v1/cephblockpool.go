@@ -26,8 +26,10 @@ import (
 )
 
 // CephBlockPoolLister helps list CephBlockPools.
+// All objects returned here must be treated as read-only.
 type CephBlockPoolLister interface {
 	// List lists all CephBlockPools in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephBlockPool, err error)
 	// CephBlockPools returns an object that can list and get CephBlockPools.
 	CephBlockPools(namespace string) CephBlockPoolNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephBlockPoolLister) CephBlockPools(namespace string) CephBlockPoolName
 }
 
 // CephBlockPoolNamespaceLister helps list and get CephBlockPools.
+// All objects returned here must be treated as read-only.
 type CephBlockPoolNamespaceLister interface {
 	// List lists all CephBlockPools in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephBlockPool, err error)
 	// Get retrieves the CephBlockPool from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephBlockPool, error)
 	CephBlockPoolNamespaceListerExpansion
 }

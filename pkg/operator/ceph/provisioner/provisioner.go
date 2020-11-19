@@ -18,6 +18,7 @@ limitations under the License.
 package provisioner
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -31,7 +32,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 )
 
 const (
@@ -72,16 +73,16 @@ func New(context *clusterd.Context, flexDriverVendor string) controller.Provisio
 }
 
 // Provision creates a storage asset and returns a PV object representing it.
-func (p *RookVolumeProvisioner) Provision(options controller.ProvisionOptions) (*v1.PersistentVolume, error) {
+func (p *RookVolumeProvisioner) Provision(_ context.Context, options controller.ProvisionOptions) (*v1.PersistentVolume, controller.ProvisioningState, error) {
 
 	var err error
 	if options.PVC.Spec.Selector != nil {
-		return nil, errors.New("claim Selector is not supported")
+		return nil, controller.ProvisioningFinished, errors.New("claim Selector is not supported")
 	}
 
 	cfg, err := parseClassParameters(options.StorageClass.Parameters)
 	if err != nil {
-		return nil, err
+		return nil, controller.ProvisioningFinished, err
 	}
 
 	logger.Infof("creating volume with configuration %+v", *cfg)
@@ -93,13 +94,13 @@ func (p *RookVolumeProvisioner) Provision(options controller.ProvisionOptions) (
 
 	storageClass, err := parseStorageClass(options)
 	if err != nil {
-		return nil, err
+		return nil, controller.ProvisioningFinished, err
 	}
 
 	clusterInfo := client.AdminClusterInfo(cfg.clusterNamespace)
 	blockImage, err := p.createVolume(clusterInfo, imageName, cfg.blockPool, cfg.dataBlockPool, requestBytes)
 	if err != nil {
-		return nil, err
+		return nil, controller.ProvisioningFinished, err
 	}
 
 	// the size of the PV needs to be at least as large as the size in the PVC
@@ -119,12 +120,12 @@ func (p *RookVolumeProvisioner) Provision(options controller.ProvisionOptions) (
 	s := fmt.Sprintf("%dMi", blockImage.Size/sizeMB)
 	quantity, err := resource.ParseQuantity(s)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot parse %q", s)
+		return nil, controller.ProvisioningFinished, errors.Wrapf(err, "cannot parse %q", s)
 	}
 
 	driverName, err := flexvolume.RookDriverName(p.context)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get driver name")
+		return nil, controller.ProvisioningFinished, errors.Wrap(err, "failed to get driver name")
 	}
 
 	flexdriver := fmt.Sprintf("%s/%s", p.flexDriverVendor, driverName)
@@ -154,7 +155,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.ProvisionOptions) (
 		},
 	}
 	logger.Infof("successfully created Rook Block volume %+v", pv.Spec.PersistentVolumeSource.FlexVolume)
-	return pv, nil
+	return pv, controller.ProvisioningFinished, nil
 }
 
 // createVolume creates a rook block volume.
@@ -174,7 +175,8 @@ func (p *RookVolumeProvisioner) createVolume(clusterInfo *client.ClusterInfo, im
 
 // Delete removes the storage asset that was created by Provision represented
 // by the given PV.
-func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
+// Right now, we are not using the 'context.Context' argument, so ignoring it.
+func (p *RookVolumeProvisioner) Delete(_ context.Context, volume *v1.PersistentVolume) error {
 	logger.Infof("Deleting volume %s", volume.Name)
 	if volume.Spec.PersistentVolumeSource.FlexVolume == nil {
 		return errors.Errorf("Failed to delete rook block image %s: %s", volume.Name, "PersistentVolume is not a FlexVolume")

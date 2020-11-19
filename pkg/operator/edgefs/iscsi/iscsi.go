@@ -18,6 +18,7 @@ limitations under the License.
 package iscsi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -53,6 +54,7 @@ func (c *ISCSIController) UpdateService(s edgefsv1.ISCSI, ownerRefs []metav1.Own
 
 // Start the iscsi instance
 func (c *ISCSIController) CreateOrUpdate(s edgefsv1.ISCSI, update bool, ownerRefs []metav1.OwnerReference) error {
+	ctx := context.TODO()
 	logger.Infof("starting update=%v service=%s", update, s.Name)
 
 	logger.Infof("ISCSI Base image is %s", c.rookImage)
@@ -66,7 +68,7 @@ func (c *ISCSIController) CreateOrUpdate(s edgefsv1.ISCSI, update bool, ownerRef
 	}
 
 	// check if ISCSI service already exists
-	exists, err := serviceExists(c.context, s)
+	exists, err := serviceExists(ctx, c.context, s)
 	if err == nil && exists {
 		if !update {
 			logger.Infof("ISCSI service %s exists in namespace %s", s.Name, s.Namespace)
@@ -77,12 +79,12 @@ func (c *ISCSIController) CreateOrUpdate(s edgefsv1.ISCSI, update bool, ownerRef
 
 	// start the deployment
 	deployment := c.makeDeployment(s.Name, s.Namespace, c.rookImage, s.Spec)
-	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
 		logger.Infof("%s deployment already exists", appName)
-		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(deployment); err != nil {
+		if _, err := c.context.Clientset.AppsV1().Deployments(s.Namespace).Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
 			return fmt.Errorf("failed to update %s deployment. %+v", appName, err)
 		}
 		logger.Infof("%s deployment updated", appName)
@@ -92,7 +94,7 @@ func (c *ISCSIController) CreateOrUpdate(s edgefsv1.ISCSI, update bool, ownerRef
 
 	// create the iscsi service
 	service := c.makeISCSIService(instanceName(s.Name), s.Name, s.Namespace, s.Spec)
-	if _, err := c.context.Clientset.CoreV1().Services(s.Namespace).Create(service); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(s.Namespace).Create(ctx, service, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create ISCSI service. %+v", err)
 		}
@@ -291,8 +293,9 @@ func (c *ISCSIController) iscsiContainer(svcname, name, containerImage string, i
 
 // Delete ISCSI service and possibly some artifacts.
 func (c *ISCSIController) DeleteService(s edgefsv1.ISCSI) error {
+	ctx := context.TODO()
 	// check if service  exists
-	exists, err := serviceExists(c.context, s)
+	exists, err := serviceExists(ctx, c.context, s)
 	if err != nil {
 		return fmt.Errorf("failed to detect if there is a ISCSI service to delete. %+v", err)
 	}
@@ -308,7 +311,7 @@ func (c *ISCSIController) DeleteService(s edgefsv1.ISCSI) error {
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
 	// Delete the iscsi service
-	err = c.context.Clientset.CoreV1().Services(s.Namespace).Delete(instanceName(s.Name), options)
+	err = c.context.Clientset.CoreV1().Services(s.Namespace).Delete(ctx, instanceName(s.Name), *options)
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to delete ISCSI service. %+v", err)
 	}
@@ -349,8 +352,8 @@ func instanceName(svcname string) string {
 }
 
 // Check if the ISCSI service exists
-func serviceExists(context *clusterd.Context, s edgefsv1.ISCSI) (bool, error) {
-	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(instanceName(s.Name), metav1.GetOptions{})
+func serviceExists(ctx context.Context, context *clusterd.Context, s edgefsv1.ISCSI) (bool, error) {
+	_, err := context.Clientset.AppsV1().Deployments(s.Namespace).Get(ctx, instanceName(s.Name), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil

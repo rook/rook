@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
@@ -24,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // UpdateStatus updates the status of the given Cassandra Cluster.
@@ -143,6 +145,7 @@ func (cc *ClusterController) syncCluster(c *cassandrav1alpha1.Cluster) error {
 
 // createRack creates a new Cassandra Rack with 0 Members.
 func (cc *ClusterController) createRack(r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) error {
+	ctx := context.TODO()
 	sts := util.StatefulSetForRack(r, c, cc.rookImage)
 	c.Spec.Annotations.Merge(r.Annotations).ApplyToObjectMeta(&sts.Spec.Template.ObjectMeta)
 	c.Spec.Annotations.Merge(r.Annotations).ApplyToObjectMeta(&sts.ObjectMeta)
@@ -154,7 +157,7 @@ func (cc *ClusterController) createRack(r cassandrav1alpha1.RackSpec, c *cassand
 		return fmt.Errorf("Error trying to create StatefulSet %s in namespace %s : %s", sts.Name, sts.Namespace, err.Error())
 	}
 
-	_, err = cc.kubeClient.AppsV1().StatefulSets(sts.Namespace).Create(sts)
+	_, err = cc.kubeClient.AppsV1().StatefulSets(sts.Namespace).Create(ctx, sts, metav1.CreateOptions{})
 
 	if err == nil {
 		cc.recorder.Event(

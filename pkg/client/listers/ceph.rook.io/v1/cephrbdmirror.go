@@ -26,8 +26,10 @@ import (
 )
 
 // CephRBDMirrorLister helps list CephRBDMirrors.
+// All objects returned here must be treated as read-only.
 type CephRBDMirrorLister interface {
 	// List lists all CephRBDMirrors in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephRBDMirror, err error)
 	// CephRBDMirrors returns an object that can list and get CephRBDMirrors.
 	CephRBDMirrors(namespace string) CephRBDMirrorNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephRBDMirrorLister) CephRBDMirrors(namespace string) CephRBDMirrorName
 }
 
 // CephRBDMirrorNamespaceLister helps list and get CephRBDMirrors.
+// All objects returned here must be treated as read-only.
 type CephRBDMirrorNamespaceLister interface {
 	// List lists all CephRBDMirrors in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephRBDMirror, err error)
 	// Get retrieves the CephRBDMirror from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephRBDMirror, error)
 	CephRBDMirrorNamespaceListerExpansion
 }

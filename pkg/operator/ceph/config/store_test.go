@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -30,6 +31,7 @@ import (
 )
 
 func TestStore(t *testing.T) {
+	ctxt := context.TODO()
 	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
@@ -40,7 +42,7 @@ func TestStore(t *testing.T) {
 	s := GetStore(ctx, ns, &owner)
 
 	assertConfigStore := func(ci *cephclient.ClusterInfo) {
-		sec, e := clientset.CoreV1().Secrets(ns).Get(StoreName, metav1.GetOptions{})
+		sec, e := clientset.CoreV1().Secrets(ns).Get(ctxt, StoreName, metav1.GetOptions{})
 		assert.NoError(t, e)
 		mh := strings.Split(sec.StringData["mon_host"], ",")                    // list of mon ip:port pairs in cluster
 		assert.Equal(t, len(ci.Monitors)*2, len(mh), ci.Monitors["a"].Endpoint) // we need to pass x2 since we split on "," above and that returns msgr1 and msgr2 addresses

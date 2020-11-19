@@ -17,6 +17,7 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -177,19 +178,20 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 }
 
 // This is used for quickly getting the name of the realm, zone group, and zone for an object-store to pass into a Context
-func getMultisiteForObjectStore(context *clusterd.Context, store *cephv1.CephObjectStore) (string, string, string, error) {
+func getMultisiteForObjectStore(clusterdContext *clusterd.Context, store *cephv1.CephObjectStore) (string, string, string, error) {
+	ctx := context.TODO()
 	if store.Spec.IsMultisite() {
-		zone, err := context.RookClientset.CephV1().CephObjectZones(store.Namespace).Get(store.Spec.Zone.Name, metav1.GetOptions{})
+		zone, err := clusterdContext.RookClientset.CephV1().CephObjectZones(store.Namespace).Get(ctx, store.Spec.Zone.Name, metav1.GetOptions{})
 		if err != nil {
 			return "", "", "", errors.Wrapf(err, "failed to find zone for object-store %q", store.Name)
 		}
 
-		zonegroup, err := context.RookClientset.CephV1().CephObjectZoneGroups(store.Namespace).Get(zone.Spec.ZoneGroup, metav1.GetOptions{})
+		zonegroup, err := clusterdContext.RookClientset.CephV1().CephObjectZoneGroups(store.Namespace).Get(ctx, zone.Spec.ZoneGroup, metav1.GetOptions{})
 		if err != nil {
 			return "", "", "", errors.Wrapf(err, "failed to find zone group for object-store %q", store.Name)
 		}
 
-		realm, err := context.RookClientset.CephV1().CephObjectRealms(store.Namespace).Get(zonegroup.Spec.Realm, metav1.GetOptions{})
+		realm, err := clusterdContext.RookClientset.CephV1().CephObjectRealms(store.Namespace).Get(ctx, zonegroup.Spec.Realm, metav1.GetOptions{})
 		if err != nil {
 			return "", "", "", errors.Wrapf(err, "failed to find realm for object-store %q", store.Name)
 		}
@@ -268,11 +270,12 @@ func DecodeSecret(secret *v1.Secret, keyName string) (string, error) {
 	return string(realmKey), nil
 }
 
-func GetRealmKeyArgs(context *clusterd.Context, realmName, namespace string) (string, string, error) {
+func GetRealmKeyArgs(clusterdContext *clusterd.Context, realmName, namespace string) (string, string, error) {
+	ctx := context.TODO()
 	logger.Debugf("getting keys for realm %v", realmName)
 	// get realm's access and secret keys
 	realmSecretName := realmName + "-keys"
-	realmSecret, err := context.Clientset.CoreV1().Secrets(namespace).Get(realmSecretName, metav1.GetOptions{})
+	realmSecret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, realmSecretName, metav1.GetOptions{})
 	if err != nil {
 		return "", "", errors.Wrapf(err, "failed to get realm %q keys secret", realmName)
 	}

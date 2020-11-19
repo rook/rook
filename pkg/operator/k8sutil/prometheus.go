@@ -19,12 +19,13 @@ package k8sutil
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	monitoringclient "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,6 +61,7 @@ func GetServiceMonitor(filePath string) (*monitoringv1.ServiceMonitor, error) {
 
 // CreateOrUpdateServiceMonitor creates serviceMonitor object or an error
 func CreateOrUpdateServiceMonitor(serviceMonitorDefinition *monitoringv1.ServiceMonitor) (*monitoringv1.ServiceMonitor, error) {
+	ctx := context.TODO()
 	name := serviceMonitorDefinition.GetName()
 	namespace := serviceMonitorDefinition.GetNamespace()
 	logger.Debugf("creating servicemonitor %s", name)
@@ -67,10 +69,10 @@ func CreateOrUpdateServiceMonitor(serviceMonitorDefinition *monitoringv1.Service
 	if err != nil {
 		return nil, fmt.Errorf("failed to get monitoring client. %v", err)
 	}
-	oldSm, err := client.MonitoringV1().ServiceMonitors(namespace).Get(name, metav1.GetOptions{})
+	oldSm, err := client.MonitoringV1().ServiceMonitors(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			sm, err := client.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitorDefinition)
+			sm, err := client.MonitoringV1().ServiceMonitors(namespace).Create(ctx, serviceMonitorDefinition, metav1.CreateOptions{})
 			if err != nil {
 				return nil, fmt.Errorf("failed to create servicemonitor. %v", err)
 			}
@@ -79,7 +81,7 @@ func CreateOrUpdateServiceMonitor(serviceMonitorDefinition *monitoringv1.Service
 		return nil, fmt.Errorf("failed to retrieve servicemonitor. %v", err)
 	}
 	serviceMonitorDefinition.ResourceVersion = oldSm.ResourceVersion
-	sm, err := client.MonitoringV1().ServiceMonitors(namespace).Update(serviceMonitorDefinition)
+	sm, err := client.MonitoringV1().ServiceMonitors(namespace).Update(ctx, serviceMonitorDefinition, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update servicemonitor. %v", err)
 	}
@@ -102,6 +104,7 @@ func GetPrometheusRule(ruleFilePath string) (*monitoringv1.PrometheusRule, error
 
 // CreateOrUpdatePrometheusRule creates a prometheusRule object or an error
 func CreateOrUpdatePrometheusRule(prometheusRule *monitoringv1.PrometheusRule) (*monitoringv1.PrometheusRule, error) {
+	ctx := context.TODO()
 	name := prometheusRule.GetName()
 	namespace := prometheusRule.GetNamespace()
 	logger.Debugf("creating prometheusRule %s", name)
@@ -109,14 +112,14 @@ func CreateOrUpdatePrometheusRule(prometheusRule *monitoringv1.PrometheusRule) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to get monitoring client. %v", err)
 	}
-	promRule, err := client.MonitoringV1().PrometheusRules(namespace).Create(prometheusRule)
+	promRule, err := client.MonitoringV1().PrometheusRules(namespace).Create(ctx, prometheusRule, metav1.CreateOptions{})
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return nil, fmt.Errorf("failed to create prometheusRules. %v", err)
 		}
 		// Get current PrometheusRule so the ResourceVersion can be set as needed
 		// for the object update operation
-		promRule, err := client.MonitoringV1().PrometheusRules(namespace).Get(name, metav1.GetOptions{})
+		promRule, err := client.MonitoringV1().PrometheusRules(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get prometheusRule object. %v", err)
 		}

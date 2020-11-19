@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	yugabytedbrookiov1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
@@ -61,13 +62,13 @@ func NewFilteredYBClusterInformer(client versioned.Interface, namespace string, 
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.YugabytedbV1alpha1().YBClusters(namespace).List(options)
+				return client.YugabytedbV1alpha1().YBClusters(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.YugabytedbV1alpha1().YBClusters(namespace).Watch(options)
+				return client.YugabytedbV1alpha1().YBClusters(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&yugabytedbrookiov1alpha1.YBCluster{},

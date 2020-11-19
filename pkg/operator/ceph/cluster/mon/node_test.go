@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"testing"
@@ -34,6 +35,7 @@ import (
 )
 
 func TestNodeAffinity(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 4)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
@@ -57,19 +59,19 @@ func TestNodeAffinity(t *testing.T) {
 	}
 
 	// label nodes so they appear as not scheduable / invalid
-	node, _ := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
+	node, _ := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "foo"}
-	_, err := clientset.CoreV1().Nodes().Update(node)
+	_, err := clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
-	node, _ = clientset.CoreV1().Nodes().Get("node1", metav1.GetOptions{})
+	node, _ = clientset.CoreV1().Nodes().Get(ctx, "node1", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "bar"}
-	_, err = clientset.CoreV1().Nodes().Update(node)
+	_, err = clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
-	node, _ = clientset.CoreV1().Nodes().Get("node2", metav1.GetOptions{})
+	node, _ = clientset.CoreV1().Nodes().Get(ctx, "node2", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "baz"}
-	_, err = clientset.CoreV1().Nodes().Update(node)
+	_, err = clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 }
 
@@ -204,8 +206,9 @@ func extractArgValue(args []string, name string) (string, string) {
 }
 
 func TestGetNodeInfoFromNode(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 1)
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
+	node, err := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, node)
 

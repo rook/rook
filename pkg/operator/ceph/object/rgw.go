@@ -18,6 +18,7 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -82,6 +83,7 @@ func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName s
 }
 
 func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) error {
+	ctx := context.TODO()
 	// backward compatibility, triggered during updates
 	if c.store.Spec.Gateway.Instances < 1 {
 		// Set the minimum of at least one instance
@@ -124,7 +126,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		}
 
 		// Check for existing deployment and set the daemon config flags
-		_, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(rgwConfig.ResourceName, metav1.GetOptions{})
+		_, err = c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Get(ctx, rgwConfig.ResourceName, metav1.GetOptions{})
 		// We don't need to handle any error here
 		if err != nil {
 			// Apply the flag only when the deployment is not found
@@ -156,7 +158,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", deployment.Name)
 		}
 
-		_, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(deployment)
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
 				return errors.Wrap(createErr, "failed to create rgw deployment")
@@ -194,7 +196,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 
 			// Delete the Secret key
 			secretToRemove := c.generateSecretName(k8sutil.IndexToName(depIDToRemove))
-			err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(secretToRemove, &metav1.DeleteOptions{})
+			err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(ctx, secretToRemove, metav1.DeleteOptions{})
 			if err != nil && !kerrors.IsNotFound(err) {
 				logger.Warningf("failed to delete rgw secret %q. %v", secretToRemove, err)
 			}

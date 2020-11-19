@@ -16,6 +16,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -36,6 +37,7 @@ func TestPrepareDeviceSets(t *testing.T) {
 }
 
 func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
+	ctx := context.TODO()
 	clientset := testexec.New(t, 1)
 	context := &clusterd.Context{
 		Clientset: clientset,
@@ -74,7 +76,7 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 	assert.Equal(t, "custom-scheduler", volumeSources[0].SchedulerName)
 
 	// Verify that the PVC has the expected generated name with the default of "data" in the name
-	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(metav1.ListOptions{})
+	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pvcs.Items))
 	expectedName := claim.Name

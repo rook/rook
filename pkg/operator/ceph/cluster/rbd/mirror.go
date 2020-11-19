@@ -18,6 +18,7 @@ limitations under the License.
 package rbd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -44,6 +45,7 @@ var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start begins the process of running rbd mirroring daemons.
 func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) error {
+	ctx := context.TODO()
 	// Validate pod's memory if specified
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyRBDMirror, cephRBDMirror.Spec.Resources, cephRbdMirrorPodMinimumMemory)
 	if err != nil {
@@ -92,7 +94,7 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 		}
 
-		if _, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Create(d); err != nil {
+		if _, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Create(ctx, d, metav1.CreateOptions{}); err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrapf(err, "failed to create %q deployment", resourceName)
 			}
@@ -101,11 +103,11 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 			if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.RbdMirrorType, daemonConf.DaemonID, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 				// fail could be an issue updating label selector (immutable), so try del and recreate
 				logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
-				err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(cephRBDMirror.Name, &metav1.DeleteOptions{})
+				err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(ctx, cephRBDMirror.Name, metav1.DeleteOptions{})
 				if err != nil {
 					return errors.Wrapf(err, "failed to delete rbd-mirror %q during del-and-recreate update attempt", resourceName)
 				}
-				if _, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Create(d); err != nil {
+				if _, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Create(ctx, d, metav1.CreateOptions{}); err != nil {
 					return errors.Wrapf(err, "failed to recreate rbd-mirror deployment %q during del-and-recreate update attempt", resourceName)
 				}
 			}
@@ -124,8 +126,9 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 }
 
 func (r *ReconcileCephRBDMirror) removeExtraMirrors(cephRBDMirror *cephv1.CephRBDMirror) error {
+	ctx := context.TODO()
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)}
-	d, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).List(opts)
+	d, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).List(ctx, opts)
 	if err != nil {
 		return errors.Wrap(err, "failed to get mirrors")
 	}
@@ -151,7 +154,7 @@ func (r *ReconcileCephRBDMirror) removeExtraMirrors(cephRBDMirror *cephv1.CephRB
 			var gracePeriod int64
 			propagation := metav1.DeletePropagationForeground
 			deleteOpts := metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-			if err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(deploy.Name, &deleteOpts); err != nil {
+			if err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(ctx, deploy.Name, deleteOpts); err != nil {
 				logger.Warningf("failed to delete rbd-mirror %q. %v", daemonName, err)
 			}
 

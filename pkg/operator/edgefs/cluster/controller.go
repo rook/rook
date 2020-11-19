@@ -20,6 +20,7 @@ Portions of this file came from https://github.com/cockroachdb/cockroach, which 
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"time"
@@ -390,8 +391,9 @@ func (c *ClusterController) handleDelete(clust *edgefsv1.Cluster, retryInterval 
 }
 
 func (c *ClusterController) updateClusterStatus(namespace, name string, state edgefsv1.ClusterState, message string) {
+	ctx := context.TODO()
 	// get the most recent cluster CRD object
-	cluster, err := c.context.RookClientset.EdgefsV1().Clusters(namespace).Get(name, metav1.GetOptions{})
+	cluster, err := c.context.RookClientset.EdgefsV1().Clusters(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", namespace, err)
 		return
@@ -399,15 +401,16 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ed
 
 	// update the status on the retrieved cluster object
 	cluster.Status = edgefsv1.ClusterStatus{State: state, Message: message}
-	if _, err := c.context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Update(cluster); err != nil {
+	if _, err := c.context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Update(ctx, cluster, metav1.UpdateOptions{}); err != nil {
 		logger.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
 	}
 }
 
 func (c *ClusterController) addFinalizer(clust *edgefsv1.Cluster) error {
+	ctx := context.TODO()
 
 	// get the latest cluster object since we probably updated it before we got to this point (e.g. by updating its status)
-	clust, err := c.context.RookClientset.EdgefsV1().Clusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
+	clust, err := c.context.RookClientset.EdgefsV1().Clusters(clust.Namespace).Get(ctx, clust.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -424,7 +427,7 @@ func (c *ClusterController) addFinalizer(clust *edgefsv1.Cluster) error {
 	clust.Finalizers = append(clust.Finalizers, finalizerName)
 
 	// update the crd
-	_, err = c.context.RookClientset.EdgefsV1().Clusters(clust.Namespace).Update(clust)
+	_, err = c.context.RookClientset.EdgefsV1().Clusters(clust.Namespace).Update(ctx, clust, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to add finalizer to cluster. %+v", err)
 	}
@@ -434,6 +437,7 @@ func (c *ClusterController) addFinalizer(clust *edgefsv1.Cluster) error {
 }
 
 func (c *ClusterController) removeFinalizer(obj interface{}) {
+	ctx := context.TODO()
 	var fname string
 	var objectMeta *metav1.ObjectMeta
 
@@ -469,7 +473,7 @@ func (c *ClusterController) removeFinalizer(obj interface{}) {
 			err     error
 		)
 		if cluster, ok := obj.(*edgefsv1.Cluster); ok {
-			_, err = c.context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Update(cluster)
+			_, err = c.context.RookClientset.EdgefsV1().Clusters(cluster.Namespace).Update(ctx, cluster, metav1.UpdateOptions{})
 			okCheck = true
 		}
 

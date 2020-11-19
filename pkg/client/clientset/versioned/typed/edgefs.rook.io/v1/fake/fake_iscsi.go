@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var iscsisResource = schema.GroupVersionResource{Group: "edgefs.rook.io", Versio
 var iscsisKind = schema.GroupVersionKind{Group: "edgefs.rook.io", Version: "v1", Kind: "ISCSI"}
 
 // Get takes name of the iSCSI, and returns the corresponding iSCSI object, and an error if there is any.
-func (c *FakeISCSIs) Get(name string, options v1.GetOptions) (result *edgefsrookiov1.ISCSI, err error) {
+func (c *FakeISCSIs) Get(ctx context.Context, name string, options v1.GetOptions) (result *edgefsrookiov1.ISCSI, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(iscsisResource, c.ns, name), &edgefsrookiov1.ISCSI{})
 
@@ -50,7 +52,7 @@ func (c *FakeISCSIs) Get(name string, options v1.GetOptions) (result *edgefsrook
 }
 
 // List takes label and field selectors, and returns the list of ISCSIs that match those selectors.
-func (c *FakeISCSIs) List(opts v1.ListOptions) (result *edgefsrookiov1.ISCSIList, err error) {
+func (c *FakeISCSIs) List(ctx context.Context, opts v1.ListOptions) (result *edgefsrookiov1.ISCSIList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(iscsisResource, iscsisKind, c.ns, opts), &edgefsrookiov1.ISCSIList{})
 
@@ -72,14 +74,14 @@ func (c *FakeISCSIs) List(opts v1.ListOptions) (result *edgefsrookiov1.ISCSIList
 }
 
 // Watch returns a watch.Interface that watches the requested iSCSIs.
-func (c *FakeISCSIs) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeISCSIs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(iscsisResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a iSCSI and creates it.  Returns the server's representation of the iSCSI, and an error, if there is any.
-func (c *FakeISCSIs) Create(iSCSI *edgefsrookiov1.ISCSI) (result *edgefsrookiov1.ISCSI, err error) {
+func (c *FakeISCSIs) Create(ctx context.Context, iSCSI *edgefsrookiov1.ISCSI, opts v1.CreateOptions) (result *edgefsrookiov1.ISCSI, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(iscsisResource, c.ns, iSCSI), &edgefsrookiov1.ISCSI{})
 
@@ -90,7 +92,7 @@ func (c *FakeISCSIs) Create(iSCSI *edgefsrookiov1.ISCSI) (result *edgefsrookiov1
 }
 
 // Update takes the representation of a iSCSI and updates it. Returns the server's representation of the iSCSI, and an error, if there is any.
-func (c *FakeISCSIs) Update(iSCSI *edgefsrookiov1.ISCSI) (result *edgefsrookiov1.ISCSI, err error) {
+func (c *FakeISCSIs) Update(ctx context.Context, iSCSI *edgefsrookiov1.ISCSI, opts v1.UpdateOptions) (result *edgefsrookiov1.ISCSI, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(iscsisResource, c.ns, iSCSI), &edgefsrookiov1.ISCSI{})
 
@@ -101,7 +103,7 @@ func (c *FakeISCSIs) Update(iSCSI *edgefsrookiov1.ISCSI) (result *edgefsrookiov1
 }
 
 // Delete takes name of the iSCSI and deletes it. Returns an error if one occurs.
-func (c *FakeISCSIs) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeISCSIs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(iscsisResource, c.ns, name), &edgefsrookiov1.ISCSI{})
 
@@ -109,15 +111,15 @@ func (c *FakeISCSIs) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeISCSIs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(iscsisResource, c.ns, listOptions)
+func (c *FakeISCSIs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(iscsisResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &edgefsrookiov1.ISCSIList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched iSCSI.
-func (c *FakeISCSIs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *edgefsrookiov1.ISCSI, err error) {
+func (c *FakeISCSIs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *edgefsrookiov1.ISCSI, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(iscsisResource, c.ns, name, pt, data, subresources...), &edgefsrookiov1.ISCSI{})
 

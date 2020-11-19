@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var smbsResource = schema.GroupVersionResource{Group: "edgefs.rook.io", Version:
 var smbsKind = schema.GroupVersionKind{Group: "edgefs.rook.io", Version: "v1", Kind: "SMB"}
 
 // Get takes name of the sMB, and returns the corresponding sMB object, and an error if there is any.
-func (c *FakeSMBs) Get(name string, options v1.GetOptions) (result *edgefsrookiov1.SMB, err error) {
+func (c *FakeSMBs) Get(ctx context.Context, name string, options v1.GetOptions) (result *edgefsrookiov1.SMB, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(smbsResource, c.ns, name), &edgefsrookiov1.SMB{})
 
@@ -50,7 +52,7 @@ func (c *FakeSMBs) Get(name string, options v1.GetOptions) (result *edgefsrookio
 }
 
 // List takes label and field selectors, and returns the list of SMBs that match those selectors.
-func (c *FakeSMBs) List(opts v1.ListOptions) (result *edgefsrookiov1.SMBList, err error) {
+func (c *FakeSMBs) List(ctx context.Context, opts v1.ListOptions) (result *edgefsrookiov1.SMBList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(smbsResource, smbsKind, c.ns, opts), &edgefsrookiov1.SMBList{})
 
@@ -72,14 +74,14 @@ func (c *FakeSMBs) List(opts v1.ListOptions) (result *edgefsrookiov1.SMBList, er
 }
 
 // Watch returns a watch.Interface that watches the requested sMBs.
-func (c *FakeSMBs) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeSMBs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(smbsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a sMB and creates it.  Returns the server's representation of the sMB, and an error, if there is any.
-func (c *FakeSMBs) Create(sMB *edgefsrookiov1.SMB) (result *edgefsrookiov1.SMB, err error) {
+func (c *FakeSMBs) Create(ctx context.Context, sMB *edgefsrookiov1.SMB, opts v1.CreateOptions) (result *edgefsrookiov1.SMB, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(smbsResource, c.ns, sMB), &edgefsrookiov1.SMB{})
 
@@ -90,7 +92,7 @@ func (c *FakeSMBs) Create(sMB *edgefsrookiov1.SMB) (result *edgefsrookiov1.SMB, 
 }
 
 // Update takes the representation of a sMB and updates it. Returns the server's representation of the sMB, and an error, if there is any.
-func (c *FakeSMBs) Update(sMB *edgefsrookiov1.SMB) (result *edgefsrookiov1.SMB, err error) {
+func (c *FakeSMBs) Update(ctx context.Context, sMB *edgefsrookiov1.SMB, opts v1.UpdateOptions) (result *edgefsrookiov1.SMB, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(smbsResource, c.ns, sMB), &edgefsrookiov1.SMB{})
 
@@ -101,7 +103,7 @@ func (c *FakeSMBs) Update(sMB *edgefsrookiov1.SMB) (result *edgefsrookiov1.SMB, 
 }
 
 // Delete takes name of the sMB and deletes it. Returns an error if one occurs.
-func (c *FakeSMBs) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeSMBs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(smbsResource, c.ns, name), &edgefsrookiov1.SMB{})
 
@@ -109,15 +111,15 @@ func (c *FakeSMBs) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeSMBs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(smbsResource, c.ns, listOptions)
+func (c *FakeSMBs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(smbsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &edgefsrookiov1.SMBList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched sMB.
-func (c *FakeSMBs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *edgefsrookiov1.SMB, err error) {
+func (c *FakeSMBs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *edgefsrookiov1.SMB, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(smbsResource, c.ns, name, pt, data, subresources...), &edgefsrookiov1.SMB{})
 

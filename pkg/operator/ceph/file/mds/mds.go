@@ -18,6 +18,7 @@ limitations under the License.
 package mds
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -97,6 +98,7 @@ var UpdateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start starts or updates a Ceph mds cluster in Kubernetes.
 func (c *Cluster) Start() error {
+	ctx := context.TODO()
 	// Validate pod's memory if specified
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyMDS, c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
 	if err != nil {
@@ -141,7 +143,7 @@ func (c *Cluster) Start() error {
 		}
 
 		// Check for existing deployment and set the daemon config flags
-		_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(mdsConfig.ResourceName, metav1.GetOptions{})
+		_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(ctx, mdsConfig.ResourceName, metav1.GetOptions{})
 		// We don't need to handle any error here
 		if err != nil {
 			// Apply the flag only when the deployment is not found
@@ -171,13 +173,13 @@ func (c *Cluster) Start() error {
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 		}
 
-		_, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(d)
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(ctx, d, metav1.CreateOptions{})
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
 				return errors.Wrapf(createErr, "failed to create mds deployment %s", mdsConfig.ResourceName)
 			}
 			logger.Infof("deployment for mds %s already exists. updating if needed", mdsConfig.ResourceName)
-			_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(d.Name, metav1.GetOptions{})
+			_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(ctx, d.Name, metav1.GetOptions{})
 			if err != nil {
 				return errors.Wrapf(err, "failed to get existing mds deployment %s for update", d.Name)
 			}

@@ -18,6 +18,7 @@ limitations under the License.
 package iscsi
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -162,6 +163,7 @@ func (c *ISCSIController) serviceOwners(service *edgefsv1.ISCSI) []metav1.OwnerR
 }
 
 func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
+	ctx := context.TODO()
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the iscsi service, the same images present")
 		return
@@ -170,7 +172,7 @@ func (c *ISCSIController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	iscsis, err := c.context.RookClientset.EdgefsV1().ISCSIs(c.namespace).List(metav1.ListOptions{})
+	iscsis, err := c.context.RookClientset.EdgefsV1().ISCSIs(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve ISCSIes to update the Edgefs version. %+v", err)
 		return

@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	cockroachdbrookiov1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
@@ -61,13 +62,13 @@ func NewFilteredClusterInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CockroachdbV1alpha1().Clusters(namespace).List(options)
+				return client.CockroachdbV1alpha1().Clusters(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CockroachdbV1alpha1().Clusters(namespace).Watch(options)
+				return client.CockroachdbV1alpha1().Clusters(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&cockroachdbrookiov1alpha1.Cluster{},

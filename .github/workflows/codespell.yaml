@@ -17,7 +17,7 @@ jobs:
       - name: codespell
         uses: codespell-project/actions-codespell@master
         with:
-          skip: .git,*.png,*.jpg,*.svg
+          skip: .git,*.png,*.jpg,*.svg,*.sum
           ignore_words_list: aks,keyserver,atleast,dne,ser,ist,files',ba,dum,iam,te
           check_filenames: true
           check_hidden: true

@@ -17,6 +17,7 @@ limitations under the License.
 package clients
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/rook/rook/tests/framework/installer"
@@ -57,9 +58,10 @@ func (n *NFSOperation) Create(namespace, name, pool string, daemonCount int) err
 
 // Delete deletes a filesystem in Rook
 func (n *NFSOperation) Delete(namespace, name string) error {
+	ctx := context.TODO()
 	options := &metav1.DeleteOptions{}
 	logger.Infof("Deleting nfs %s in namespace %s", name, namespace)
-	err := n.k8sh.RookClientset.CephV1().CephNFSes(namespace).Delete(name, options)
+	err := n.k8sh.RookClientset.CephV1().CephNFSes(namespace).Delete(ctx, name, *options)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
