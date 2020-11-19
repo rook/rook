@@ -15,7 +15,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-      image: ceph/ceph:v15.2.5
+      image: ceph/ceph:v15.2.6
       allowUnsupported: false
   skipUpgradeChecks: false
   dataDirHostPath: /var/lib/rook
@@ -36,7 +36,7 @@ spec:
   # will no longer use `storage` configs for creating OSDs on a node's devices. To avoid
   # confusion, we recommend using the `storage` config OR `driveGroups` and never both.
 
-  # Ceph supports adding devices as OSDs by Ceph Drive Group definitions in Ceph Octopus (v15.2.5+).
+  # Ceph supports adding devices as OSDs by Ceph Drive Group definitions in Ceph Octopus (v15.2.6+).
   # See Drive Group docs for more info: https://docs.ceph.com/docs/master/cephadm/drivegroups/
   # Drive Groups cannot be used to configure provisioning of OSDs on PVCs.
   # A Drive Group is defined by a name, a Ceph Drive Group spec, and a Rook placement
