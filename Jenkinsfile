@@ -58,7 +58,12 @@ pipeline {
                     if (body.contains("[test cassandra]") || title.contains("cassandra:")) {
                         env.testProvider = "cassandra"
                     } else if (body.contains("[test ceph]") || title.contains("ceph:")) {
-                        env.testProvider = "ceph"
+                        // For Ceph storage provider we are using GitHub actions to run test
+                        if (body.contains("[test full]")) {
+                          env.testProvider = "ceph"
+                        } else {
+                          env.shouldBuild = "false"
+                        }
                     } else if (body.contains("[test cockroachdb]") || title.contains("cockroachdb:")) {
                         env.testProvider = "cockroachdb"
                     } else if (body.contains("[test edgefs]") || title.contains("edgefs:")) {
