@@ -404,6 +404,13 @@ spec:
                         iteration:
                           type: integer
                           format: int32
+                logCollector:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    periodicity:
+                      type: string
                 annotations:
                   type: object
                   nullable: true

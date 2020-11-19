@@ -206,6 +206,7 @@ spec:
                       type: integer
                       format: int32
             security: {}
+            logCollector: {}
             placement: {}
             resources: {}
             healthCheck: {}

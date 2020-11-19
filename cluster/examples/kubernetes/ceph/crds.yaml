@@ -323,6 +323,13 @@ spec:
                           x-kubernetes-preserve-unknown-fields: true
                         tokenSecretName:
                           type: string
+                logCollector:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    periodicity:
+                      type: string
                 annotations:
                   type: object
                   nullable: true
