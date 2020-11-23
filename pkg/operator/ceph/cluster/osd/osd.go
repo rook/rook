@@ -233,6 +233,12 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 	}
 
 	for _, volume := range c.ValidStorage.VolumeSources {
+		// Check whether we need to cancel the orchestration
+		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+			config.addError("%s", err.Error())
+			return
+		}
+
 		dataSource, dataOK := volume.PVCSources[bluestorePVCData]
 
 		// The data PVC template is required.
@@ -425,6 +431,12 @@ func (c *Cluster) startNodeStorageProvisioners(config *provisionConfig) {
 
 	// start with nodes currently in the storage spec
 	for _, node := range c.ValidStorage.Nodes {
+		// Check whether we need to cancel the orchestration
+		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+			config.addError("%s", err.Error())
+			return
+		}
+
 		// fully resolve the storage config and resources for this node
 		n := c.resolveNode(node.Name)
 		if n == nil {

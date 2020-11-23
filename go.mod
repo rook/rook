@@ -28,6 +28,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	github.com/tevino/abool v1.2.0
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	gopkg.in/ini.v1 v1.57.0
 	k8s.io/api v0.19.3

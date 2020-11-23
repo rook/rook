@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -47,6 +48,18 @@ var (
 	// OperatorCephBaseImageVersion is the ceph version in the operator image
 	OperatorCephBaseImageVersion string
 )
+
+// CheckForCancelledOrchestration checks whether a cancellation has been requested
+func CheckForCancelledOrchestration(context *clusterd.Context) error {
+	defer context.RequestCancelOrchestration.UnSet()
+
+	// Check whether we need to cancel the orchestration
+	if context.RequestCancelOrchestration.IsSet() {
+		return errors.New("CANCELLING CURRENT ORCHESTATION")
+	}
+
+	return nil
+}
 
 // canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.
 func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, controllerName string) bool {
