@@ -18,10 +18,14 @@ limitations under the License.
 package cluster
 
 import (
+	"github.com/google/go-cmp/cmp"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -99,4 +103,49 @@ func isHotPlugCM(obj runtime.Object) bool {
 	}
 
 	return false
+}
+
+func watchControllerPredicate(rookContext *clusterd.Context) predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			logger.Debug("create event from a CR")
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			logger.Debug("delete event from a CR")
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			logger.Debug("update event from a CR")
+			// resource.Quantity has non-exportable fields, so we use its comparator method
+			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
+
+			switch objOld := e.ObjectOld.(type) {
+			case *cephv1.CephCluster:
+				objNew := e.ObjectNew.(*cephv1.CephCluster)
+				logger.Debug("update event on CephCluster CR")
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				isDoNotReconcile := controller.IsDoNotReconcile(objNew.GetLabels())
+				if isDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", controller.DoNotReconcileLabelName, objNew.Name)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					return true
+				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+				}
+			}
+
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
 }
