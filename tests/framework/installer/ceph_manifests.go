@@ -1409,6 +1409,8 @@ spec:
                   type: object
                   nullable: true
                   x-kubernetes-preserve-unknown-fields: true
+                objectBucketName:
+                  type: string
             status:
               type: object
               x-kubernetes-preserve-unknown-fields: true
