@@ -149,7 +149,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 			},
 		},
 		&handler.EnqueueRequestForObject{},
-		opcontroller.WatchControllerPredicate())
+		watchControllerPredicate(context))
 	if err != nil {
 		return err
 	}

@@ -246,6 +246,11 @@ func (c *Cluster) startMons(targetCount int) error {
 	if existingCount < len(mons) {
 		// Start the new mons one at a time
 		for i := existingCount; i < targetCount; i++ {
+			// Check whether we need to cancel the orchestration
+			if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+				return err
+			}
+
 			if err := c.ensureMonsRunning(mons, i, targetCount, true); err != nil {
 				return err
 			}
@@ -599,6 +604,10 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 	// enforced using a node selector, or (2) configuration permits k8s to handle
 	// scheduling for the monitor.
 	for _, mon := range mons {
+		// Check whether we need to cancel the orchestration
+		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+			return err
+		}
 
 		// scheduling for this monitor has already been completed
 		if _, ok := c.mapping.Node[mon.DaemonName]; ok {

@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/tevino/abool"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
@@ -158,6 +159,8 @@ func NewContext() *clusterd.Context {
 
 	context.NetworkClient, err = netclient.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create network clientset")
+
+	context.RequestCancelOrchestration = abool.New()
 
 	return context
 }

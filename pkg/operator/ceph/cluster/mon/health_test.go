@@ -36,6 +36,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,9 +58,10 @@ func TestCheckHealth(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Clientset: clientset,
-		ConfigDir: configDir,
-		Executor:  executor,
+		Clientset:                  clientset,
+		ConfigDir:                  configDir,
+		Executor:                   executor,
+		RequestCancelOrchestration: abool.New(),
 	}
 	c := New(context, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	// clusterInfo is nil so we return err
@@ -192,9 +194,10 @@ func TestCheckHealthNotFound(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Clientset: clientset,
-		ConfigDir: configDir,
-		Executor:  executor,
+		Clientset:                  clientset,
+		ConfigDir:                  configDir,
+		Executor:                   executor,
+		RequestCancelOrchestration: abool.New(),
 	}
 	c := New(context, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
@@ -248,9 +251,10 @@ func TestAddRemoveMons(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Clientset: clientset,
-		ConfigDir: configDir,
-		Executor:  executor,
+		Clientset:                  clientset,
+		ConfigDir:                  configDir,
+		Executor:                   executor,
+		RequestCancelOrchestration: abool.New(),
 	}
 	c := New(context, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")

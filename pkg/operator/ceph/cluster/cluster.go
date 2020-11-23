@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -102,6 +103,11 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	// The cluster Identity must be established at this point
 	if !c.ClusterInfo.IsInitialized(true) {
 		return errors.New("the cluster identity was not established")
+	}
+
+	// Check whether we need to cancel the orchestration
+	if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+		return err
 	}
 
 	// Execute actions after the monitors are up and running
