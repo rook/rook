@@ -46,23 +46,18 @@ const (
 )
 
 type cluster struct {
-	ClusterInfo          *client.ClusterInfo
-	context              *clusterd.Context
-	Namespace            string
-	Spec                 *cephv1.ClusterSpec
-	crdName              string
-	condition            *cephv1.ClusterStatus
-	mons                 *mon.Cluster
-	initCompleted        bool
-	stopCh               chan struct{}
-	closedStopCh         bool
-	ownerRef             metav1.OwnerReference
-	orchestrationRunning bool
-	orchestrationNeeded  bool
-	orchMux              sync.Mutex
-	isUpgrade            bool
-	watchersActivated    bool
-	monitoringChannels   map[string]*clusterHealth
+	ClusterInfo        *client.ClusterInfo
+	context            *clusterd.Context
+	Namespace          string
+	Spec               *cephv1.ClusterSpec
+	crdName            string
+	mons               *mon.Cluster
+	stopCh             chan struct{}
+	closedStopCh       bool
+	ownerRef           metav1.OwnerReference
+	isUpgrade          bool
+	watchersActivated  bool
+	monitoringChannels map[string]*clusterHealth
 }
 
 type clusterHealth struct {
@@ -85,32 +80,6 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		ownerRef:           *ownerRef,
 		mons:               mon.New(context, c.Namespace, c.Spec, *ownerRef, csiMutex),
 	}
-}
-
-func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersion) error {
-	var err error
-
-	// Set orchestration lock, implying the orchestation is in progress
-	c.setOrchestrationNeeded()
-
-	// execute an orchestration until
-	// there are no more unapplied changes to the cluster definition and
-	// while no other goroutine is already running a cluster update
-	for c.checkSetOrchestrationStatus() == true {
-		if err != nil {
-			logger.Errorf("there was an orchestration error, but there is another orchestration pending; proceeding with next orchestration run (which may succeed). %v", err)
-		}
-		// Use a DeepCopy of the spec to avoid using an inconsistent data-set
-		spec := c.Spec.DeepCopy()
-
-		// Run ceph orchestration
-		err = c.doOrchestration(rookImage, cephVersion, spec)
-
-		// Orchestration is done, remove the lock
-		c.unsetOrchestrationStatus()
-	}
-
-	return err
 }
 
 func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
@@ -174,9 +143,6 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		// reset the isUpgrade flag
 		c.isUpgrade = false
 	}
-
-	// Orchestration is done
-	c.initCompleted = true
 
 	return nil
 }
@@ -258,7 +224,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster, clusterO
 	config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", message)
 
 	// Run the orchestration
-	err = cluster.createInstance(c.rookImage, *cephVersion)
+	err = cluster.doOrchestration(c.rookImage, *cephVersion, cluster.Spec)
 	if err != nil {
 		config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Failed to create cluster")
 		return errors.Wrap(err, "failed to create cluster")
