@@ -37,7 +37,7 @@ import (
 
 const (
 	cephVersionLabelKey     = "ceph_version"
-	doNotReconcileLabelName = "do_not_reconcile"
+	DoNotReconcileLabelName = "do_not_reconcile"
 )
 
 // WatchControllerPredicate is a special update filter for update events
@@ -65,9 +65,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephObjectStore)
 				logger.Debug("update event on CephObjectStore CR")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -90,9 +90,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephObjectStoreUser)
 				logger.Debug("update event on CephObjectStoreUser CR")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -110,9 +110,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephObjectRealm)
 				logger.Debug("update event on CephObjectRealm")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -130,9 +130,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephObjectZoneGroup)
 				logger.Debug("update event on CephObjectZoneGroup")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -150,9 +150,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephObjectZone)
 				logger.Debug("update event on CephObjectZone")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -170,9 +170,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephBlockPool)
 				logger.Debug("update event on CephBlockPool CR")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -190,9 +190,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephFilesystem)
 				logger.Debug("update event on CephFilesystem CR")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -215,9 +215,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephNFS)
 				logger.Debug("update event on CephNFS CR")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -240,9 +240,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephRBDMirror)
 				logger.Debug("update event on CephRBDMirror CR")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -265,9 +265,9 @@ func WatchControllerPredicate() predicate.Funcs {
 				objNew := e.ObjectNew.(*cephv1.CephCluster)
 				logger.Debug("update event on CephCluster CR")
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objNew.Name)
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -375,9 +375,9 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 			objectName := object.GetName()
 			if match {
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := isDoNotReconcile(object.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", doNotReconcileLabelName, objectName)
+				IsDoNotReconcile := IsDoNotReconcile(object.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objectName)
 					return false
 				}
 
@@ -556,8 +556,8 @@ func isSecretToIgnoreOnUpdate(obj runtime.Object) bool {
 	return false
 }
 
-func isDoNotReconcile(labels map[string]string) bool {
-	value, ok := labels[doNotReconcileLabelName]
+func IsDoNotReconcile(labels map[string]string) bool {
+	value, ok := labels[DoNotReconcileLabelName]
 
 	// Nothing exists
 	if ok && value == "true" {
