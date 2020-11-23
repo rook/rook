@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -146,7 +147,7 @@ func TestAddRemoveNode(t *testing.T) {
 		},
 	}
 
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor}
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor, RequestCancelOrchestration: abool.New()}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
 		Storage: rookv1.StorageScopeSpec{
@@ -286,7 +287,7 @@ func TestAddNodeFailure(t *testing.T) {
 		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Nautilus,
 	}
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}, RequestCancelOrchestration: abool.New()}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
 		Storage: rookv1.StorageScopeSpec{
