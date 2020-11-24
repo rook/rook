@@ -43,7 +43,7 @@ The NFS CRD spec will specify the following:
     - client (The host or network to which the export is being shared)
     - client options (The options to be used for the client) e.g., read and write permission, root squash etc.
 
-The parameters to configure NFS CRD are demonstrated in the example bellow which is followed by a table that explains the parameters:
+The parameters to configure NFS CRD are demonstrated in the example below which is followed by a table that explains the parameters:
 
 A simple example for sharing a volume(could be hostPath, cephFS, cephRBD, googlePD, EBS etc.) using NFS, without client specification and per export based configuration, whose NFS-Ganesha export entry looks like:
 ```
