@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -81,6 +82,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 }
 
 func TestGenerateConfigFile(t *testing.T) {
+	ctx := context.TODO()
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestGenerateConfigFile")
 	if err != nil {
@@ -106,7 +108,7 @@ func TestGenerateConfigFile(t *testing.T) {
 		},
 		Data: data,
 	}
-	_, err = clientset.CoreV1().ConfigMaps(ns).Create(cm)
+	_, err = clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	clusterInfo := &ClusterInfo{

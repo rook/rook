@@ -255,6 +255,7 @@ func (r *ReconcileObjectRealm) createCephRealm(realm *cephv1.CephObjectRealm) (r
 }
 
 func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
+	ctx := context.TODO()
 	logger.Debugf("generating access and secret keys for new realm %q", realm.Name)
 
 	// the realm's secret key and access key are randomly generated and then encoded to base64
@@ -293,7 +294,7 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 	}
 
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
-	if _, err = r.context.Clientset.CoreV1().Secrets(realm.Namespace).Create(secret); err != nil {
+	if _, err = r.context.Clientset.CoreV1().Secrets(realm.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save rgw secrets")
 	}
 	logger.Infof("secrets for keys have been created for realm %q", realm.Name)

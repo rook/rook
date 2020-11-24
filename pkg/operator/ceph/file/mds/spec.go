@@ -17,6 +17,7 @@ limitations under the License.
 package mds
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -146,13 +147,14 @@ func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*ap
 	return deps, nil
 }
 
-func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *apps.Deployment) error {
+func deleteMdsDeployment(clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment) error {
+	ctx := context.TODO()
 	// Delete the mds deployment
 	logger.Infof("deleting mds deployment %s", deployment.Name)
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := context.Clientset.AppsV1().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
+	if err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Delete(ctx, deployment.GetName(), *options); err != nil {
 		return errors.Wrapf(err, "failed to delete mds deployment %s", deployment.GetName())
 	}
 	return nil

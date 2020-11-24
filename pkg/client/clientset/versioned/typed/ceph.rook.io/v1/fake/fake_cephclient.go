@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var cephclientsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Ver
 var cephclientsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephClient"}
 
 // Get takes name of the cephClient, and returns the corresponding cephClient object, and an error if there is any.
-func (c *FakeCephClients) Get(name string, options v1.GetOptions) (result *cephrookiov1.CephClient, err error) {
+func (c *FakeCephClients) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephClient, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(cephclientsResource, c.ns, name), &cephrookiov1.CephClient{})
 
@@ -50,7 +52,7 @@ func (c *FakeCephClients) Get(name string, options v1.GetOptions) (result *cephr
 }
 
 // List takes label and field selectors, and returns the list of CephClients that match those selectors.
-func (c *FakeCephClients) List(opts v1.ListOptions) (result *cephrookiov1.CephClientList, err error) {
+func (c *FakeCephClients) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephClientList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(cephclientsResource, cephclientsKind, c.ns, opts), &cephrookiov1.CephClientList{})
 
@@ -72,14 +74,14 @@ func (c *FakeCephClients) List(opts v1.ListOptions) (result *cephrookiov1.CephCl
 }
 
 // Watch returns a watch.Interface that watches the requested cephClients.
-func (c *FakeCephClients) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephClients) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(cephclientsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephClient and creates it.  Returns the server's representation of the cephClient, and an error, if there is any.
-func (c *FakeCephClients) Create(cephClient *cephrookiov1.CephClient) (result *cephrookiov1.CephClient, err error) {
+func (c *FakeCephClients) Create(ctx context.Context, cephClient *cephrookiov1.CephClient, opts v1.CreateOptions) (result *cephrookiov1.CephClient, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(cephclientsResource, c.ns, cephClient), &cephrookiov1.CephClient{})
 
@@ -90,7 +92,7 @@ func (c *FakeCephClients) Create(cephClient *cephrookiov1.CephClient) (result *c
 }
 
 // Update takes the representation of a cephClient and updates it. Returns the server's representation of the cephClient, and an error, if there is any.
-func (c *FakeCephClients) Update(cephClient *cephrookiov1.CephClient) (result *cephrookiov1.CephClient, err error) {
+func (c *FakeCephClients) Update(ctx context.Context, cephClient *cephrookiov1.CephClient, opts v1.UpdateOptions) (result *cephrookiov1.CephClient, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(cephclientsResource, c.ns, cephClient), &cephrookiov1.CephClient{})
 
@@ -101,7 +103,7 @@ func (c *FakeCephClients) Update(cephClient *cephrookiov1.CephClient) (result *c
 }
 
 // Delete takes name of the cephClient and deletes it. Returns an error if one occurs.
-func (c *FakeCephClients) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeCephClients) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(cephclientsResource, c.ns, name), &cephrookiov1.CephClient{})
 
@@ -109,15 +111,15 @@ func (c *FakeCephClients) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephClients) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephclientsResource, c.ns, listOptions)
+func (c *FakeCephClients) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephclientsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &cephrookiov1.CephClientList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephClient.
-func (c *FakeCephClients) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cephrookiov1.CephClient, err error) {
+func (c *FakeCephClients) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephClient, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(cephclientsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephClient{})
 

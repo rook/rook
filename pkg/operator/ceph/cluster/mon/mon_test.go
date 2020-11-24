@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -141,7 +142,7 @@ func TestResourceName(t *testing.T) {
 }
 
 func TestStartMonPods(t *testing.T) {
-
+	ctx := context.TODO()
 	namespace := "ns"
 	context, err := newTestStartCluster(t, namespace)
 	assert.Nil(t, err)
@@ -152,17 +153,17 @@ func TestStartMonPods(t *testing.T) {
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
 
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 
 	// starting again should be a no-op, but still results in an error
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
 	assert.Nil(t, err)
 
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 }
 
 func TestOperatorRestart(t *testing.T) {
-
+	ctx := context.TODO()
 	namespace := "ns"
 	context, err := newTestStartCluster(t, namespace)
 	assert.Nil(t, err)
@@ -174,7 +175,7 @@ func TestOperatorRestart(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(true))
 
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 
 	c = newCluster(context, namespace, true, v1.ResourceRequirements{})
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
@@ -184,12 +185,12 @@ func TestOperatorRestart(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(true))
 
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 }
 
 // safety check that if hostNetwork is used no changes occur on an operator restart
 func TestOperatorRestartHostNetwork(t *testing.T) {
-
+	ctx := context.TODO()
 	namespace := "ns"
 	context, err := newTestStartCluster(t, namespace)
 	assert.Nil(t, err)
@@ -203,7 +204,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(true))
 
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 
 	// cluster with host networking
 	c = newCluster(context, namespace, false, v1.ResourceRequirements{})
@@ -215,20 +216,21 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, info.IsInitialized(true), info)
 
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 }
 
-func validateStart(t *testing.T, c *Cluster) {
-	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(AppName, metav1.GetOptions{})
+func validateStart(ctx context.Context, t *testing.T, c *Cluster) {
+	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(ctx, AppName, metav1.GetOptions{})
 	assert.NoError(t, err) // there shouldn't be an error due the secret existing
 	assert.Equal(t, 4, len(s.Data))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
+	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(ctx, "rook-ceph-mon-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 }
 
 func TestSaveMonEndpoints(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
@@ -239,7 +241,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	err := c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "a=1.2.3.1:6789", cm.Data[EndpointDataKey])
 	assert.Equal(t, `{"node":{}}`, cm.Data[MappingKey])
@@ -256,7 +258,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "a=2.3.4.5:6789", cm.Data[EndpointDataKey])
 	assert.Equal(t, `{"node":{"a":{"Name":"node0","Hostname":"myhost","Address":"1.1.1.1"}}}`, cm.Data[MappingKey])

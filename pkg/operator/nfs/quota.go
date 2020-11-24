@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/mount"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/mount"
 )
 
 type Quotaer interface {

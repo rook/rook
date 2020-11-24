@@ -17,6 +17,7 @@ limitations under the License.
 package keyring
 
 import (
+	"context"
 	"path"
 	"testing"
 
@@ -71,6 +72,7 @@ func TestGenerateKey(t *testing.T) {
 }
 
 func TestKeyringStore(t *testing.T) {
+	ctxt := context.TODO()
 	clientset := testop.New(t, 1)
 	ctx := &clusterd.Context{
 		Clientset: clientset,
@@ -80,7 +82,7 @@ func TestKeyringStore(t *testing.T) {
 	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, &owner)
 
 	assertKeyringData := func(keyringName, expectedKeyring string) {
-		s, e := clientset.CoreV1().Secrets(ns).Get(keyringName, metav1.GetOptions{})
+		s, e := clientset.CoreV1().Secrets(ns).Get(ctxt, keyringName, metav1.GetOptions{})
 		assert.NoError(t, e)
 		assert.Equal(t, 1, len(s.StringData))
 		assert.Equal(t, expectedKeyring, s.StringData["keyring"])
@@ -88,7 +90,7 @@ func TestKeyringStore(t *testing.T) {
 	}
 
 	assertDoesNotExist := func(keyringName string) {
-		_, e := clientset.CoreV1().Secrets(ns).Get(keyringName, metav1.GetOptions{})
+		_, e := clientset.CoreV1().Secrets(ns).Get(ctxt, keyringName, metav1.GetOptions{})
 		assert.True(t, kerrors.IsNotFound(e))
 	}
 

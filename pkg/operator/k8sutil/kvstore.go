@@ -18,7 +18,9 @@ limitations under the License.
 package k8sutil
 
 import (
-	"k8s.io/api/core/v1"
+	"context"
+
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,7 +42,8 @@ func NewConfigMapKVStore(namespace string, clientset kubernetes.Interface, owner
 }
 
 func (kv *ConfigMapKVStore) GetValue(storeName, key string) (string, error) {
-	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(storeName, metav1.GetOptions{})
+	ctx := context.TODO()
+	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(ctx, storeName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -58,7 +61,8 @@ func (kv *ConfigMapKVStore) SetValue(storeName, key, value string) error {
 }
 
 func (kv *ConfigMapKVStore) SetValueWithLabels(storeName, key, value string, labels map[string]string) error {
-	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(storeName, metav1.GetOptions{})
+	ctx := context.TODO()
+	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(ctx, storeName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -77,14 +81,14 @@ func (kv *ConfigMapKVStore) SetValueWithLabels(storeName, key, value string, lab
 		}
 		SetOwnerRef(&cm.ObjectMeta, &kv.ownerRef)
 
-		_, err = kv.clientset.CoreV1().ConfigMaps(kv.namespace).Create(cm)
+		_, err = kv.clientset.CoreV1().ConfigMaps(kv.namespace).Create(ctx, cm, metav1.CreateOptions{})
 		return err
 	}
 
 	// config map already exists, so update it with the given key/val
 	cm.Data[key] = value
 
-	_, err = kv.clientset.CoreV1().ConfigMaps(kv.namespace).Update(cm)
+	_, err = kv.clientset.CoreV1().ConfigMaps(kv.namespace).Update(ctx, cm, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -93,7 +97,8 @@ func (kv *ConfigMapKVStore) SetValueWithLabels(storeName, key, value string, lab
 }
 
 func (kv *ConfigMapKVStore) GetStore(storeName string) (map[string]string, error) {
-	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(storeName, metav1.GetOptions{})
+	ctx := context.TODO()
+	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(ctx, storeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +107,8 @@ func (kv *ConfigMapKVStore) GetStore(storeName string) (map[string]string, error
 }
 
 func (kv *ConfigMapKVStore) ClearStore(storeName string) error {
-	err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Delete(storeName, &metav1.DeleteOptions{})
+	ctx := context.TODO()
+	err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Delete(ctx, storeName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		// a real error, return it (we're OK with clearing a store that doesn't exist)
 		return err

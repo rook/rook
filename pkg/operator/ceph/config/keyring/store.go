@@ -20,6 +20,8 @@ limitations under the License.
 package keyring
 
 import (
+	"context"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -97,8 +99,9 @@ func (k *SecretStore) CreateOrUpdate(resourceName string, keyring string) error 
 
 // Delete deletes the keyring secret for the resource.
 func (k *SecretStore) Delete(resourceName string) error {
+	ctx := context.TODO()
 	secretName := keyringSecretName(resourceName)
-	err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Delete(secretName, &metav1.DeleteOptions{})
+	err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Delete(ctx, secretName, metav1.DeleteOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
 		logger.Warningf("failed to delete keyring secret for %q. user may need to delete the resource manually. %v", secretName, err)
 	}
@@ -108,12 +111,13 @@ func (k *SecretStore) Delete(resourceName string) error {
 
 // CreateSecret creates or update a kubernetes secret
 func (k *SecretStore) CreateSecret(secret *v1.Secret) error {
+	ctx := context.TODO()
 	secretName := secret.ObjectMeta.Name
-	_, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Get(secretName, metav1.GetOptions{})
+	_, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("creating secret for %s", secretName)
-			if _, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Create(secret); err != nil {
+			if _, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to create secret for %s", secretName)
 			}
 			return nil
@@ -122,7 +126,7 @@ func (k *SecretStore) CreateSecret(secret *v1.Secret) error {
 	}
 
 	logger.Debugf("updating secret for %s", secretName)
-	if _, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Update(secret); err != nil {
+	if _, err := k.context.Clientset.CoreV1().Secrets(k.clusterInfo.Namespace).Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to update secret for %s", secretName)
 	}
 	return nil

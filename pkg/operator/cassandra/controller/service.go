@@ -17,6 +17,9 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+	"strings"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/cassandra/constants"
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
@@ -24,7 +27,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/controller/endpoint"
-	"strings"
 )
 
 // SyncClusterHeadlessService checks if a Headless Service exists
@@ -87,7 +89,7 @@ func (cc *ClusterController) syncMemberServices(c *cassandrav1alpha1.Cluster) er
 // syncService checks if the given Service exists and creates it if it doesn't
 // it creates it
 func (cc *ClusterController) syncService(s *corev1.Service, c *cassandrav1alpha1.Cluster) error {
-
+	ctx := context.TODO()
 	existingService, err := cc.serviceLister.Services(s.Namespace).Get(s.Name)
 	// If we get an error but without the IsNotFound error raised
 	// then something is wrong with the network, so requeue.
@@ -101,7 +103,7 @@ func (cc *ClusterController) syncService(s *corev1.Service, c *cassandrav1alpha1
 	}
 
 	// At this point, the Service doesn't exist, so we are free to create it
-	_, err = cc.kubeClient.CoreV1().Services(s.Namespace).Create(s)
+	_, err = cc.kubeClient.CoreV1().Services(s.Namespace).Create(ctx, s, metav1.CreateOptions{})
 	return err
 
 }

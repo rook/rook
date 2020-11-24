@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -37,14 +38,14 @@ type CephFilesystemsGetter interface {
 
 // CephFilesystemInterface has methods to work with CephFilesystem resources.
 type CephFilesystemInterface interface {
-	Create(*v1.CephFilesystem) (*v1.CephFilesystem, error)
-	Update(*v1.CephFilesystem) (*v1.CephFilesystem, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.CephFilesystem, error)
-	List(opts metav1.ListOptions) (*v1.CephFilesystemList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.CephFilesystem, err error)
+	Create(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.CreateOptions) (*v1.CephFilesystem, error)
+	Update(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.UpdateOptions) (*v1.CephFilesystem, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.CephFilesystem, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.CephFilesystemList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephFilesystem, err error)
 	CephFilesystemExpansion
 }
 
@@ -63,20 +64,20 @@ func newCephFilesystems(c *CephV1Client, namespace string) *cephFilesystems {
 }
 
 // Get takes name of the cephFilesystem, and returns the corresponding cephFilesystem object, and an error if there is any.
-func (c *cephFilesystems) Get(name string, options metav1.GetOptions) (result *v1.CephFilesystem, err error) {
+func (c *cephFilesystems) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephFilesystem, err error) {
 	result = &v1.CephFilesystem{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("cephfilesystems").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of CephFilesystems that match those selectors.
-func (c *cephFilesystems) List(opts metav1.ListOptions) (result *v1.CephFilesystemList, err error) {
+func (c *cephFilesystems) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephFilesystemList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -87,13 +88,13 @@ func (c *cephFilesystems) List(opts metav1.ListOptions) (result *v1.CephFilesyst
 		Resource("cephfilesystems").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested cephFilesystems.
-func (c *cephFilesystems) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *cephFilesystems) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -104,71 +105,74 @@ func (c *cephFilesystems) Watch(opts metav1.ListOptions) (watch.Interface, error
 		Resource("cephfilesystems").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a cephFilesystem and creates it.  Returns the server's representation of the cephFilesystem, and an error, if there is any.
-func (c *cephFilesystems) Create(cephFilesystem *v1.CephFilesystem) (result *v1.CephFilesystem, err error) {
+func (c *cephFilesystems) Create(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.CreateOptions) (result *v1.CephFilesystem, err error) {
 	result = &v1.CephFilesystem{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("cephfilesystems").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(cephFilesystem).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a cephFilesystem and updates it. Returns the server's representation of the cephFilesystem, and an error, if there is any.
-func (c *cephFilesystems) Update(cephFilesystem *v1.CephFilesystem) (result *v1.CephFilesystem, err error) {
+func (c *cephFilesystems) Update(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.UpdateOptions) (result *v1.CephFilesystem, err error) {
 	result = &v1.CephFilesystem{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("cephfilesystems").
 		Name(cephFilesystem.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(cephFilesystem).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the cephFilesystem and deletes it. Returns an error if one occurs.
-func (c *cephFilesystems) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *cephFilesystems) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("cephfilesystems").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *cephFilesystems) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *cephFilesystems) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("cephfilesystems").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched cephFilesystem.
-func (c *cephFilesystems) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.CephFilesystem, err error) {
+func (c *cephFilesystems) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephFilesystem, err error) {
 	result = &v1.CephFilesystem{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("cephfilesystems").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

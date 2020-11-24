@@ -125,6 +125,7 @@ func TestDeletePool(t *testing.T) {
 // TestCephBlockPoolController runs ReconcileCephBlockPool.Reconcile() against a
 // fake client that tracks a CephBlockPool object.
 func TestCephBlockPoolController(t *testing.T) {
+	ctx := context.TODO()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -202,7 +203,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 
 	// Create pool for updateCephBlockPoolStatus()
-	_, err := c.RookClientset.CephV1().CephBlockPools(namespace).Create(pool)
+	_, err := c.RookClientset.CephV1().CephBlockPools(namespace).Create(ctx, pool, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	res, err := r.Reconcile(req)
 	assert.NoError(t, err)
@@ -233,7 +234,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 
 	// Create CephCluster for updateCephBlockPoolStatus()
-	_, err = c.RookClientset.CephV1().CephClusters(namespace).Create(cephCluster)
+	_, err = c.RookClientset.CephV1().CephClusters(namespace).Create(ctx, cephCluster, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	object = append(object, cephCluster)
@@ -293,7 +294,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
@@ -354,7 +355,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	assert.NotEmpty(t, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], pool.Status.Info)
 
 	// fetch the secret
-	myPeerSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(pool.Status.Info[RBDMirrorBootstrapPeerSecretName], metav1.GetOptions{})
+	myPeerSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(ctx, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, myPeerSecret.Data["token"], myPeerSecret.Data)
 	assert.NotEmpty(t, myPeerSecret.Data["pool"])

@@ -18,6 +18,7 @@ limitations under the License.
 package config
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -42,7 +43,8 @@ var (
 	NetworkSelectors = []string{PublicNetworkSelectorKeyName, ClusterNetworkSelectorKeyName}
 )
 
-func generateNetworkSettings(context *clusterd.Context, namespace string, networkSelectors map[string]string) ([]Option, error) {
+func generateNetworkSettings(clusterdContext *clusterd.Context, namespace string, networkSelectors map[string]string) ([]Option, error) {
+	ctx := context.TODO()
 	cephNetworks := []Option{}
 
 	for _, selectorKey := range NetworkSelectors {
@@ -58,7 +60,7 @@ func generateNetworkSettings(context *clusterd.Context, namespace string, networ
 			multusNamespace = namespace
 		}
 		// Get network attachment definition
-		netDefinition, err := context.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(nad, metav1.GetOptions{})
+		netDefinition, err := clusterdContext.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(ctx, nad, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				return []Option{}, errors.Wrapf(err, "specified network attachment definition %q in namespace %q for selector %q does not exist", nad, namespace, selectorKey)

@@ -18,6 +18,7 @@ limitations under the License.
 package prepare
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
@@ -81,11 +82,12 @@ func New(
 
 // Start the prepare instance
 func (c *Cluster) Start(rookImage string, nodeName string) error {
+	ctx := context.TODO()
 	logger.Infof("start running prepare pods")
 
 	// start the deployment
 	job := c.makeJob(appName, c.Namespace, rookImage, nodeName)
-	if _, err := c.context.Clientset.BatchV1().Jobs(c.Namespace).Create(job); err != nil {
+	if _, err := c.context.Clientset.BatchV1().Jobs(c.Namespace).Create(ctx, job, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s job. %+v", appName, err)
 		}
@@ -94,12 +96,12 @@ func (c *Cluster) Start(rookImage string, nodeName string) error {
 		logger.Infof("%s job started", appName)
 	}
 
-	err := c.waitJob(job)
+	err := c.waitJob(ctx, job)
 	if err != nil {
 		logger.Warningf("Job %s waiting failed. %+v", job.ObjectMeta.Name, err)
 	}
 
-	err = c.deleteJob(job)
+	err = c.deleteJob(ctx, job)
 	if err != nil {
 		logger.Warningf("Failed to delete job %s due. %+v", job.ObjectMeta.Name, err)
 	}
@@ -152,15 +154,15 @@ func (c *Cluster) makeJob(name, clusterName, rookImage string, nodeName string) 
 	return ds
 }
 
-func (c *Cluster) waitJob(job *batch.Job) error {
+func (c *Cluster) waitJob(ctx context.Context, job *batch.Job) error {
 	batchClient := c.context.Clientset.BatchV1()
 	jobsClient := batchClient.Jobs(job.ObjectMeta.Namespace)
-	watch, err := jobsClient.Watch(metav1.ListOptions{LabelSelector: "job-name=" + job.ObjectMeta.Name})
+	watch, err := jobsClient.Watch(ctx, metav1.ListOptions{LabelSelector: "job-name=" + job.ObjectMeta.Name})
 	if err != nil {
 		return fmt.Errorf("Failed to watch job %s", job.ObjectMeta.Name)
 	}
 
-	k8sjob, err := jobsClient.Get(job.ObjectMeta.Name, metav1.GetOptions{})
+	k8sjob, err := jobsClient.Get(ctx, job.ObjectMeta.Name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to get job %s", job.ObjectMeta.Name)
 	}
@@ -192,11 +194,11 @@ func (c *Cluster) waitJob(job *batch.Job) error {
 	}
 }
 
-func (c *Cluster) deleteJob(job *batch.Job) error {
+func (c *Cluster) deleteJob(ctx context.Context, job *batch.Job) error {
 	batchClient := c.context.Clientset.BatchV1()
 	jobsClient := batchClient.Jobs(job.ObjectMeta.Namespace)
 	deletePropagation := metav1.DeletePropagationForeground
-	err := jobsClient.Delete(job.ObjectMeta.Name, &metav1.DeleteOptions{PropagationPolicy: &deletePropagation})
+	err := jobsClient.Delete(ctx, job.ObjectMeta.Name, metav1.DeleteOptions{PropagationPolicy: &deletePropagation})
 	if err != nil {
 		return fmt.Errorf("Failed to delete job %s", job.ObjectMeta.Name)
 	}

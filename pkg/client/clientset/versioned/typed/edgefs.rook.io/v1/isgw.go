@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
@@ -37,14 +38,14 @@ type ISGWsGetter interface {
 
 // ISGWInterface has methods to work with ISGW resources.
 type ISGWInterface interface {
-	Create(*v1.ISGW) (*v1.ISGW, error)
-	Update(*v1.ISGW) (*v1.ISGW, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.ISGW, error)
-	List(opts metav1.ListOptions) (*v1.ISGWList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.ISGW, err error)
+	Create(ctx context.Context, iSGW *v1.ISGW, opts metav1.CreateOptions) (*v1.ISGW, error)
+	Update(ctx context.Context, iSGW *v1.ISGW, opts metav1.UpdateOptions) (*v1.ISGW, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.ISGW, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.ISGWList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.ISGW, err error)
 	ISGWExpansion
 }
 
@@ -63,20 +64,20 @@ func newISGWs(c *EdgefsV1Client, namespace string) *iSGWs {
 }
 
 // Get takes name of the iSGW, and returns the corresponding iSGW object, and an error if there is any.
-func (c *iSGWs) Get(name string, options metav1.GetOptions) (result *v1.ISGW, err error) {
+func (c *iSGWs) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ISGW, err error) {
 	result = &v1.ISGW{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("isgws").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of ISGWs that match those selectors.
-func (c *iSGWs) List(opts metav1.ListOptions) (result *v1.ISGWList, err error) {
+func (c *iSGWs) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ISGWList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -87,13 +88,13 @@ func (c *iSGWs) List(opts metav1.ListOptions) (result *v1.ISGWList, err error) {
 		Resource("isgws").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested iSGWs.
-func (c *iSGWs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *iSGWs) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -104,71 +105,74 @@ func (c *iSGWs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		Resource("isgws").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a iSGW and creates it.  Returns the server's representation of the iSGW, and an error, if there is any.
-func (c *iSGWs) Create(iSGW *v1.ISGW) (result *v1.ISGW, err error) {
+func (c *iSGWs) Create(ctx context.Context, iSGW *v1.ISGW, opts metav1.CreateOptions) (result *v1.ISGW, err error) {
 	result = &v1.ISGW{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("isgws").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(iSGW).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a iSGW and updates it. Returns the server's representation of the iSGW, and an error, if there is any.
-func (c *iSGWs) Update(iSGW *v1.ISGW) (result *v1.ISGW, err error) {
+func (c *iSGWs) Update(ctx context.Context, iSGW *v1.ISGW, opts metav1.UpdateOptions) (result *v1.ISGW, err error) {
 	result = &v1.ISGW{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("isgws").
 		Name(iSGW.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(iSGW).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the iSGW and deletes it. Returns an error if one occurs.
-func (c *iSGWs) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *iSGWs) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("isgws").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *iSGWs) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *iSGWs) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("isgws").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched iSGW.
-func (c *iSGWs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.ISGW, err error) {
+func (c *iSGWs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.ISGW, err error) {
 	result = &v1.ISGW{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("isgws").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

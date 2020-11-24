@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var swiftsResource = schema.GroupVersionResource{Group: "edgefs.rook.io", Versio
 var swiftsKind = schema.GroupVersionKind{Group: "edgefs.rook.io", Version: "v1", Kind: "SWIFT"}
 
 // Get takes name of the sWIFT, and returns the corresponding sWIFT object, and an error if there is any.
-func (c *FakeSWIFTs) Get(name string, options v1.GetOptions) (result *edgefsrookiov1.SWIFT, err error) {
+func (c *FakeSWIFTs) Get(ctx context.Context, name string, options v1.GetOptions) (result *edgefsrookiov1.SWIFT, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(swiftsResource, c.ns, name), &edgefsrookiov1.SWIFT{})
 
@@ -50,7 +52,7 @@ func (c *FakeSWIFTs) Get(name string, options v1.GetOptions) (result *edgefsrook
 }
 
 // List takes label and field selectors, and returns the list of SWIFTs that match those selectors.
-func (c *FakeSWIFTs) List(opts v1.ListOptions) (result *edgefsrookiov1.SWIFTList, err error) {
+func (c *FakeSWIFTs) List(ctx context.Context, opts v1.ListOptions) (result *edgefsrookiov1.SWIFTList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(swiftsResource, swiftsKind, c.ns, opts), &edgefsrookiov1.SWIFTList{})
 
@@ -72,14 +74,14 @@ func (c *FakeSWIFTs) List(opts v1.ListOptions) (result *edgefsrookiov1.SWIFTList
 }
 
 // Watch returns a watch.Interface that watches the requested sWIFTs.
-func (c *FakeSWIFTs) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeSWIFTs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(swiftsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a sWIFT and creates it.  Returns the server's representation of the sWIFT, and an error, if there is any.
-func (c *FakeSWIFTs) Create(sWIFT *edgefsrookiov1.SWIFT) (result *edgefsrookiov1.SWIFT, err error) {
+func (c *FakeSWIFTs) Create(ctx context.Context, sWIFT *edgefsrookiov1.SWIFT, opts v1.CreateOptions) (result *edgefsrookiov1.SWIFT, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(swiftsResource, c.ns, sWIFT), &edgefsrookiov1.SWIFT{})
 
@@ -90,7 +92,7 @@ func (c *FakeSWIFTs) Create(sWIFT *edgefsrookiov1.SWIFT) (result *edgefsrookiov1
 }
 
 // Update takes the representation of a sWIFT and updates it. Returns the server's representation of the sWIFT, and an error, if there is any.
-func (c *FakeSWIFTs) Update(sWIFT *edgefsrookiov1.SWIFT) (result *edgefsrookiov1.SWIFT, err error) {
+func (c *FakeSWIFTs) Update(ctx context.Context, sWIFT *edgefsrookiov1.SWIFT, opts v1.UpdateOptions) (result *edgefsrookiov1.SWIFT, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(swiftsResource, c.ns, sWIFT), &edgefsrookiov1.SWIFT{})
 
@@ -101,7 +103,7 @@ func (c *FakeSWIFTs) Update(sWIFT *edgefsrookiov1.SWIFT) (result *edgefsrookiov1
 }
 
 // Delete takes name of the sWIFT and deletes it. Returns an error if one occurs.
-func (c *FakeSWIFTs) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeSWIFTs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(swiftsResource, c.ns, name), &edgefsrookiov1.SWIFT{})
 
@@ -109,15 +111,15 @@ func (c *FakeSWIFTs) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeSWIFTs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(swiftsResource, c.ns, listOptions)
+func (c *FakeSWIFTs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(swiftsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &edgefsrookiov1.SWIFTList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched sWIFT.
-func (c *FakeSWIFTs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *edgefsrookiov1.SWIFT, err error) {
+func (c *FakeSWIFTs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *edgefsrookiov1.SWIFT, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(swiftsResource, c.ns, name, pt, data, subresources...), &edgefsrookiov1.SWIFT{})
 

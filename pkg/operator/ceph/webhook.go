@@ -17,6 +17,7 @@ limitations under the License.
 package operator
 
 import (
+	"context"
 	"os"
 
 	"github.com/pkg/errors"
@@ -48,9 +49,9 @@ var (
 	namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 )
 
-func isSecretPresent(context *clusterd.Context) (bool, error) {
+func isSecretPresent(ctx context.Context, context *clusterd.Context) (bool, error) {
 	logger.Infof("looking for secret %q", appName)
-	_, err := context.Clientset.CoreV1().Secrets(namespace).Get(appName, metav1.GetOptions{})
+	_, err := context.Clientset.CoreV1().Secrets(namespace).Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
 		// If secret is not found. All good ! Proceed with rook without admission controllers
 		if apierrors.IsNotFound(err) {
@@ -92,13 +93,13 @@ func createWebhookService(context *clusterd.Context) error {
 }
 
 // StartControllerIfSecretPresent will initialize the webhook if secret is detected
-func StartControllerIfSecretPresent(context *clusterd.Context, admissionImage string) error {
-	isPresent, err := isSecretPresent(context)
+func StartControllerIfSecretPresent(ctx context.Context, context *clusterd.Context, admissionImage string) error {
+	isPresent, err := isSecretPresent(ctx, context)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve secret")
 	}
 	if isPresent {
-		err = initWebhook(context, admissionImage)
+		err = initWebhook(ctx, context, admissionImage)
 		if err != nil {
 			return errors.Wrap(err, "failed to initialize webhook")
 		}
@@ -106,20 +107,20 @@ func StartControllerIfSecretPresent(context *clusterd.Context, admissionImage st
 	return nil
 }
 
-func initWebhook(context *clusterd.Context, admissionImage string) error {
+func initWebhook(ctx context.Context, context *clusterd.Context, admissionImage string) error {
 	// At this point volume should be mounted, so proceed with creating the service and validatingwebhookconfig
 	err := createWebhookService(context)
 	if err != nil {
 		return errors.Wrap(err, "failed to create service")
 	}
-	err = createWebhookDeployment(context, admissionImage)
+	err = createWebhookDeployment(ctx, context, admissionImage)
 	if err != nil {
 		return errors.Wrap(err, "failed to create deployment")
 	}
 	return nil
 }
 
-func createWebhookDeployment(context *clusterd.Context, admissionImage string) error {
+func createWebhookDeployment(ctx context.Context, context *clusterd.Context, admissionImage string) error {
 	logger.Info("creating admission controller pods")
 	admission_parameters := []string{"ceph",
 		"admission-controller"}
@@ -127,7 +128,7 @@ func createWebhookDeployment(context *clusterd.Context, admissionImage string) e
 	secretVolumeMount := getSecretVolumeMount()
 
 	antiAffinity := csi.GetPodAntiAffinity(k8sutil.AppAttr, appName)
-	admissionControllerDeployment := getDeployment(context, secretVolume, antiAffinity, admissionImage, admission_parameters, secretVolumeMount)
+	admissionControllerDeployment := getDeployment(ctx, context, secretVolume, antiAffinity, admissionImage, admission_parameters, secretVolumeMount)
 
 	err := k8sutil.CreateDeployment(context.Clientset, appName, namespace, &admissionControllerDeployment)
 	if err != nil {
@@ -137,10 +138,10 @@ func createWebhookDeployment(context *clusterd.Context, admissionImage string) e
 	return nil
 }
 
-func getDeployment(context *clusterd.Context, secretVolume corev1.Volume, antiAffinity corev1.PodAntiAffinity,
+func getDeployment(ctx context.Context, context *clusterd.Context, secretVolume corev1.Volume, antiAffinity corev1.PodAntiAffinity,
 	admissionImage string, admission_parameters []string, secretVolumeMount corev1.VolumeMount) v1.Deployment {
 	var replicas int32 = 2
-	nodes, err := context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	nodes, err := context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err == nil {
 		if len(nodes.Items) == 1 {
 			replicas = 1

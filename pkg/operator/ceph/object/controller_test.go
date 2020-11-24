@@ -274,6 +274,7 @@ var (
 )
 
 func TestCephObjectStoreController(t *testing.T) {
+	ctx := context.TODO()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -399,7 +400,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Add ready status to the CephCluster
@@ -482,7 +483,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			Kind: "CephObjectStoreUser",
 		},
 	}
-	_, err = r.context.RookClientset.CephV1().CephObjectStoreUsers(objectStore.Namespace).Create(objectUser)
+	_, err = r.context.RookClientset.CephV1().CephObjectStoreUsers(objectStore.Namespace).Create(ctx, objectUser, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	_, okToDelete = r.verifyObjectUserCleanup(objectStore)
 	assert.False(t, okToDelete)
@@ -490,6 +491,7 @@ func TestCephObjectStoreController(t *testing.T) {
 }
 
 func TestCephObjectStoreControllerMultisite(t *testing.T) {
+	ctx := context.TODO()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
@@ -639,7 +641,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		objectStoreChannels: make(map[string]*objectStoreHealth),
 	}
 
-	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	req := reconcile.Request{

@@ -16,6 +16,7 @@ limitations under the License.
 package mgr
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -50,10 +51,11 @@ func TestGeneratePassword(t *testing.T) {
 }
 
 func TestGetOrGeneratePassword(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
 	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, clusterInfo: clusterInfo}
-	_, err := c.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
+	_, err := c.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(ctx, dashboardPasswordName, metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err))
 
 	// Generate a password
@@ -61,7 +63,7 @@ func TestGetOrGeneratePassword(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, passwordLength, len(password))
 
-	secret, err := c.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(dashboardPasswordName, metav1.GetOptions{})
+	secret, err := c.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(ctx, dashboardPasswordName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(secret.Data))
 	passwordFromSecret, err := decodeSecret(secret)
@@ -75,6 +77,7 @@ func TestGetOrGeneratePassword(t *testing.T) {
 }
 
 func TestStartSecureDashboard(t *testing.T) {
+	ctx := context.TODO()
 	enables := 0
 	disables := 0
 	moduleRetries := 0
@@ -134,7 +137,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.Equal(t, 1, disables)
 	assert.Equal(t, 2, moduleRetries)
 
-	svc, err := c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	svc, err := c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, svc)
 
@@ -147,7 +150,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.Equal(t, 2, enables)
 	assert.Equal(t, 2, disables)
 
-	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, kerrors.IsNotFound(err))
 	assert.Nil(t, svc)

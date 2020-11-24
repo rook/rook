@@ -18,6 +18,7 @@ limitations under the License.
 package operator
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,7 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 )
 
 // volume provisioner constant
@@ -120,8 +121,11 @@ func (o *Operator) Run() error {
 		}
 	}
 
+	// creating a context
+	stopContext, stopFunc := context.WithCancel(context.Background())
+	defer stopFunc()
 	logger.Debug("checking for admission controller secrets")
-	err := StartControllerIfSecretPresent(o.context, o.rookImage)
+	err := StartControllerIfSecretPresent(stopContext, o.context, o.rookImage)
 	if err != nil {
 		return errors.Wrap(err, "failed to start webhook")
 	}
@@ -145,7 +149,7 @@ func (o *Operator) Run() error {
 				volumeProvisioner,
 				serverVersion.GitVersion,
 			)
-			go pc.Run(stopChan)
+			go pc.Run(stopContext)
 			logger.Infof("rook-provisioner %q started using %q flex vendor dir", name, vendor)
 		}
 	}
@@ -257,15 +261,16 @@ func (o *Operator) updateDrivers() error {
 
 // getDeploymentOwnerReference returns an OwnerReference to the rook-ceph-operator deployment
 func getDeploymentOwnerReference(clientset kubernetes.Interface, namespace string) (*metav1.OwnerReference, error) {
+	ctx := context.TODO()
 	var deploymentRef *metav1.OwnerReference
 	podName := os.Getenv(k8sutil.PodNameEnvVar)
-	pod, err := clientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+	pod, err := clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not find pod %q to find deployment owner reference", podName)
 	}
 	for _, podOwner := range pod.OwnerReferences {
 		if podOwner.Kind == "ReplicaSet" {
-			replicaset, err := clientset.AppsV1().ReplicaSets(namespace).Get(podOwner.Name, metav1.GetOptions{})
+			replicaset, err := clientset.AppsV1().ReplicaSets(namespace).Get(ctx, podOwner.Name, metav1.GetOptions{})
 			if err != nil {
 				return nil, errors.Wrapf(err, "could not find replicaset %q to find deployment owner reference", podOwner.Name)
 			}

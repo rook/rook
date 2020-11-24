@@ -26,8 +26,10 @@ import (
 )
 
 // ISGWLister helps list ISGWs.
+// All objects returned here must be treated as read-only.
 type ISGWLister interface {
 	// List lists all ISGWs in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.ISGW, err error)
 	// ISGWs returns an object that can list and get ISGWs.
 	ISGWs(namespace string) ISGWNamespaceLister
@@ -58,10 +60,13 @@ func (s *iSGWLister) ISGWs(namespace string) ISGWNamespaceLister {
 }
 
 // ISGWNamespaceLister helps list and get ISGWs.
+// All objects returned here must be treated as read-only.
 type ISGWNamespaceLister interface {
 	// List lists all ISGWs in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.ISGW, err error)
 	// Get retrieves the ISGW from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.ISGW, error)
 	ISGWNamespaceListerExpansion
 }

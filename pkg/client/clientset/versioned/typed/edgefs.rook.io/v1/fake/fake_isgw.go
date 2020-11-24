@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	edgefsrookiov1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var isgwsResource = schema.GroupVersionResource{Group: "edgefs.rook.io", Version
 var isgwsKind = schema.GroupVersionKind{Group: "edgefs.rook.io", Version: "v1", Kind: "ISGW"}
 
 // Get takes name of the iSGW, and returns the corresponding iSGW object, and an error if there is any.
-func (c *FakeISGWs) Get(name string, options v1.GetOptions) (result *edgefsrookiov1.ISGW, err error) {
+func (c *FakeISGWs) Get(ctx context.Context, name string, options v1.GetOptions) (result *edgefsrookiov1.ISGW, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(isgwsResource, c.ns, name), &edgefsrookiov1.ISGW{})
 
@@ -50,7 +52,7 @@ func (c *FakeISGWs) Get(name string, options v1.GetOptions) (result *edgefsrooki
 }
 
 // List takes label and field selectors, and returns the list of ISGWs that match those selectors.
-func (c *FakeISGWs) List(opts v1.ListOptions) (result *edgefsrookiov1.ISGWList, err error) {
+func (c *FakeISGWs) List(ctx context.Context, opts v1.ListOptions) (result *edgefsrookiov1.ISGWList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(isgwsResource, isgwsKind, c.ns, opts), &edgefsrookiov1.ISGWList{})
 
@@ -72,14 +74,14 @@ func (c *FakeISGWs) List(opts v1.ListOptions) (result *edgefsrookiov1.ISGWList, 
 }
 
 // Watch returns a watch.Interface that watches the requested iSGWs.
-func (c *FakeISGWs) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeISGWs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(isgwsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a iSGW and creates it.  Returns the server's representation of the iSGW, and an error, if there is any.
-func (c *FakeISGWs) Create(iSGW *edgefsrookiov1.ISGW) (result *edgefsrookiov1.ISGW, err error) {
+func (c *FakeISGWs) Create(ctx context.Context, iSGW *edgefsrookiov1.ISGW, opts v1.CreateOptions) (result *edgefsrookiov1.ISGW, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(isgwsResource, c.ns, iSGW), &edgefsrookiov1.ISGW{})
 
@@ -90,7 +92,7 @@ func (c *FakeISGWs) Create(iSGW *edgefsrookiov1.ISGW) (result *edgefsrookiov1.IS
 }
 
 // Update takes the representation of a iSGW and updates it. Returns the server's representation of the iSGW, and an error, if there is any.
-func (c *FakeISGWs) Update(iSGW *edgefsrookiov1.ISGW) (result *edgefsrookiov1.ISGW, err error) {
+func (c *FakeISGWs) Update(ctx context.Context, iSGW *edgefsrookiov1.ISGW, opts v1.UpdateOptions) (result *edgefsrookiov1.ISGW, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(isgwsResource, c.ns, iSGW), &edgefsrookiov1.ISGW{})
 
@@ -101,7 +103,7 @@ func (c *FakeISGWs) Update(iSGW *edgefsrookiov1.ISGW) (result *edgefsrookiov1.IS
 }
 
 // Delete takes name of the iSGW and deletes it. Returns an error if one occurs.
-func (c *FakeISGWs) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeISGWs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(isgwsResource, c.ns, name), &edgefsrookiov1.ISGW{})
 
@@ -109,15 +111,15 @@ func (c *FakeISGWs) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeISGWs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(isgwsResource, c.ns, listOptions)
+func (c *FakeISGWs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(isgwsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &edgefsrookiov1.ISGWList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched iSGW.
-func (c *FakeISGWs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *edgefsrookiov1.ISGW, err error) {
+func (c *FakeISGWs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *edgefsrookiov1.ISGW, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(isgwsResource, c.ns, name, pt, data, subresources...), &edgefsrookiov1.ISGW{})
 

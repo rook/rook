@@ -26,8 +26,10 @@ import (
 )
 
 // S3Lister helps list S3s.
+// All objects returned here must be treated as read-only.
 type S3Lister interface {
 	// List lists all S3s in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.S3, err error)
 	// S3s returns an object that can list and get S3s.
 	S3s(namespace string) S3NamespaceLister
@@ -58,10 +60,13 @@ func (s *s3Lister) S3s(namespace string) S3NamespaceLister {
 }
 
 // S3NamespaceLister helps list and get S3s.
+// All objects returned here must be treated as read-only.
 type S3NamespaceLister interface {
 	// List lists all S3s in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.S3, err error)
 	// Get retrieves the S3 from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.S3, error)
 	S3NamespaceListerExpansion
 }

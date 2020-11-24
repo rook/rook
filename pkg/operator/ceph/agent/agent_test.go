@@ -18,6 +18,7 @@ limitations under the License.
 package agent
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -30,6 +31,7 @@ import (
 )
 
 func TestStartAgentDaemonset(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
@@ -55,7 +57,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 			},
 		},
 	}
-	_, err := clientset.CoreV1().Pods("rook-system").Create(&pod)
+	_, err := clientset.CoreV1().Pods("rook-system").Create(ctx, &pod, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	namespace := "ns"
@@ -66,7 +68,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check daemonset parameters
-	agentDS, err := clientset.AppsV1().DaemonSets(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
+	agentDS, err := clientset.AppsV1().DaemonSets(namespace).Get(ctx, "rook-ceph-agent", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-ceph-agent", agentDS.Name)
@@ -85,6 +87,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 }
 
 func TestGetContainerImage(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "Default")
@@ -107,7 +110,7 @@ func TestGetContainerImage(t *testing.T) {
 			},
 		},
 	}
-	_, err := clientset.CoreV1().Pods("Default").Create(&pod)
+	_, err := clientset.CoreV1().Pods("Default").Create(ctx, &pod, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// start a basic cluster
@@ -145,6 +148,7 @@ func TestGetContainerImageMultipleContainers(t *testing.T) {
 }
 
 func TestStartAgentDaemonsetWithToleration(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
@@ -173,7 +177,7 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 			},
 		},
 	}
-	_, err := clientset.CoreV1().Pods("rook-system").Create(&pod)
+	_, err := clientset.CoreV1().Pods("rook-system").Create(ctx, &pod, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	namespace := "ns"
@@ -184,7 +188,7 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// check daemonset toleration
-	agentDS, err := clientset.AppsV1().DaemonSets(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
+	agentDS, err := clientset.AppsV1().DaemonSets(namespace).Get(ctx, "rook-ceph-agent", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(agentDS.Spec.Template.Spec.Tolerations))
 	assert.Equal(t, "mysa", agentDS.Spec.Template.Spec.ServiceAccountName)

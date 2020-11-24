@@ -17,6 +17,7 @@ limitations under the License.
 package csi
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sync"
@@ -121,6 +122,7 @@ func UpdateCsiClusterConfig(
 // to provide cluster configuration to ceph-csi. If a config map already
 // exists, it will return it.
 func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerRef *metav1.OwnerReference) error {
+	ctx := context.TODO()
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ConfigName,
@@ -132,7 +134,7 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerR
 	}
 
 	k8sutil.SetOwnerRef(&configMap.ObjectMeta, ownerRef)
-	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(configMap)
+	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(ctx, configMap, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create initial csi config map %q (in %q)", configMap.Name, namespace)
@@ -153,6 +155,7 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerR
 func SaveClusterConfig(
 	clientset kubernetes.Interface, clusterNamespace string,
 	clusterInfo *cephclient.ClusterInfo, l sync.Locker) error {
+	ctx := context.TODO()
 
 	if !CSIEnabled() {
 		return nil
@@ -167,7 +170,7 @@ func SaveClusterConfig(
 	logger.Debugf("Using %+v for CSI ConfigMap Namespace", csiNamespace)
 
 	// fetch current ConfigMap contents
-	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(
+	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(ctx,
 		ConfigName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current csi config map")
@@ -186,7 +189,7 @@ func SaveClusterConfig(
 	configMap.Data[ConfigKey] = newData
 
 	// update ConfigMap with new contents
-	if _, err := clientset.CoreV1().ConfigMaps(csiNamespace).Update(configMap); err != nil {
+	if _, err := clientset.CoreV1().ConfigMaps(csiNamespace).Update(ctx, configMap, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to update csi config map")
 	}
 

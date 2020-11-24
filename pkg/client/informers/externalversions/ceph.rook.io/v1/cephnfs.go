@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	time "time"
 
 	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -61,13 +62,13 @@ func NewFilteredCephNFSInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephNFSes(namespace).List(options)
+				return client.CephV1().CephNFSes(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CephV1().CephNFSes(namespace).Watch(options)
+				return client.CephV1().CephNFSes(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&cephrookiov1.CephNFS{},

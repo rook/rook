@@ -18,6 +18,7 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -139,8 +140,9 @@ func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pat
 	return filePath, nil
 }
 
-func mergeDefaultConfigWithRookConfigOverride(context *clusterd.Context, clusterInfo *ClusterInfo, configFile *ini.File) error {
-	cm, err := context.Clientset.CoreV1().ConfigMaps(clusterInfo.Namespace).Get(k8sutil.ConfigOverrideName, metav1.GetOptions{})
+func mergeDefaultConfigWithRookConfigOverride(clusterdContext *clusterd.Context, clusterInfo *ClusterInfo, configFile *ini.File) error {
+	ctx := context.TODO()
+	cm, err := clusterdContext.Clientset.CoreV1().ConfigMaps(clusterInfo.Namespace).Get(ctx, k8sutil.ConfigOverrideName, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrapf(err, "failed to read configmap %q", k8sutil.ConfigOverrideName)

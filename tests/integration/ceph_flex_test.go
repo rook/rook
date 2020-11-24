@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"context"
 	"strconv"
 	"testing"
 
@@ -115,6 +116,7 @@ func (s *CephFlexDriverSuite) TestFileSystem() {
 }
 
 func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
+	ctx := context.TODO()
 	poolName := "stspool"
 	storageClassName := "stssc"
 	reclaimPolicy := "Delete"
@@ -131,9 +133,9 @@ func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	assert.Nil(s.T(), err)
 	logger.Info("Step 2 : Deploy statefulSet with 1X replication")
 	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
-	_, err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Create(service)
+	_, err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Create(ctx, service, metav1.CreateOptions{})
 	assert.Nil(s.T(), err)
-	_, err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Create(statefulset)
+	_, err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Create(ctx, statefulset, metav1.CreateOptions{})
 	assert.Nil(s.T(), err)
 	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
 	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 1, "Bound"))
@@ -153,25 +155,26 @@ func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	logger.Info("Step 5 : Delete statefulSet")
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
-	err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
+	err = s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(ctx, statefulSetName, delOpts)
 	assert.Nil(s.T(), err)
-	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(ctx, statefulPodsName, delOpts)
 	assert.Nil(s.T(), err)
-	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
+	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(ctx, delOpts, listOpts)
 	assert.Nil(s.T(), err)
 	require.True(s.T(), s.kh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("app=%s", statefulSetName), defaultNamespace))
 	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 }
 
 func (s *CephFlexDriverSuite) statefulSetDataCleanup(poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName string) {
+	ctx := context.TODO()
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	// Delete stateful set
-	err := s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
+	err := s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(ctx, statefulSetName, delOpts)
 	assertNoErrorUnlessNotFound(s.Suite, err)
-	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	err = s.kh.Clientset.AppsV1().StatefulSets(defaultNamespace).Delete(ctx, statefulPodsName, delOpts)
 	assertNoErrorUnlessNotFound(s.Suite, err)
-	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
+	err = s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(ctx, delOpts, listOpts)
 	assert.NoError(s.T(), err)
 
 	// Delete all PVCs

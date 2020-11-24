@@ -17,14 +17,14 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
 	"errors"
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/operator/nfs"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 )
 
 var provisonerCmd = &cobra.Command{
@@ -52,9 +52,9 @@ func startProvisioner(cmd *cobra.Command, args []string) error {
 		return errors.New("--provisioner is a required parameter")
 	}
 
-	context := rook.NewContext()
-	clientset := context.Clientset
-	rookClientset := context.RookClientset
+	rookContext := rook.NewContext()
+	clientset := rookContext.Clientset
+	rookClientset := rookContext.RookClientset
 
 	serverVersion, err := clientset.Discovery().ServerVersion()
 	if err != nil {
@@ -67,6 +67,7 @@ func startProvisioner(cmd *cobra.Command, args []string) error {
 	}
 
 	pc := controller.NewProvisionController(clientset, *provisioner, clientNFSProvisioner, serverVersion.GitVersion)
-	pc.Run(wait.NeverStop)
+	neverStopCtx := context.Background()
+	pc.Run(neverStopCtx)
 	return nil
 }

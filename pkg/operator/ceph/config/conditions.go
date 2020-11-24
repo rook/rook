@@ -47,7 +47,8 @@ func ConditionExport(context *clusterd.Context, namespaceName types.NamespacedNa
 
 // setCondition updates the conditions of the cluster custom resource
 func setCondition(c *clusterd.Context, namespaceName types.NamespacedName, newCondition cephv1.Condition) {
-	cluster, err := c.RookClientset.CephV1().CephClusters(namespaceName.Namespace).Get(namespaceName.Name, metav1.GetOptions{})
+	ctx := context.TODO()
+	cluster, err := c.RookClientset.CephV1().CephClusters(namespaceName.Namespace).Get(ctx, namespaceName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Errorf("no CephCluster could not be found. %+v", err)

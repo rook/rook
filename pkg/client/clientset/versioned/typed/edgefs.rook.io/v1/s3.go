@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
@@ -37,14 +38,14 @@ type S3sGetter interface {
 
 // S3Interface has methods to work with S3 resources.
 type S3Interface interface {
-	Create(*v1.S3) (*v1.S3, error)
-	Update(*v1.S3) (*v1.S3, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.S3, error)
-	List(opts metav1.ListOptions) (*v1.S3List, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.S3, err error)
+	Create(ctx context.Context, s3 *v1.S3, opts metav1.CreateOptions) (*v1.S3, error)
+	Update(ctx context.Context, s3 *v1.S3, opts metav1.UpdateOptions) (*v1.S3, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.S3, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.S3List, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.S3, err error)
 	S3Expansion
 }
 
@@ -63,20 +64,20 @@ func newS3s(c *EdgefsV1Client, namespace string) *s3s {
 }
 
 // Get takes name of the s3, and returns the corresponding s3 object, and an error if there is any.
-func (c *s3s) Get(name string, options metav1.GetOptions) (result *v1.S3, err error) {
+func (c *s3s) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.S3, err error) {
 	result = &v1.S3{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("s3s").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of S3s that match those selectors.
-func (c *s3s) List(opts metav1.ListOptions) (result *v1.S3List, err error) {
+func (c *s3s) List(ctx context.Context, opts metav1.ListOptions) (result *v1.S3List, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -87,13 +88,13 @@ func (c *s3s) List(opts metav1.ListOptions) (result *v1.S3List, err error) {
 		Resource("s3s").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested s3s.
-func (c *s3s) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *s3s) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -104,71 +105,74 @@ func (c *s3s) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		Resource("s3s").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a s3 and creates it.  Returns the server's representation of the s3, and an error, if there is any.
-func (c *s3s) Create(s3 *v1.S3) (result *v1.S3, err error) {
+func (c *s3s) Create(ctx context.Context, s3 *v1.S3, opts metav1.CreateOptions) (result *v1.S3, err error) {
 	result = &v1.S3{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("s3s").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(s3).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a s3 and updates it. Returns the server's representation of the s3, and an error, if there is any.
-func (c *s3s) Update(s3 *v1.S3) (result *v1.S3, err error) {
+func (c *s3s) Update(ctx context.Context, s3 *v1.S3, opts metav1.UpdateOptions) (result *v1.S3, err error) {
 	result = &v1.S3{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("s3s").
 		Name(s3.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(s3).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the s3 and deletes it. Returns an error if one occurs.
-func (c *s3s) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *s3s) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("s3s").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *s3s) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *s3s) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("s3s").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched s3.
-func (c *s3s) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.S3, err error) {
+func (c *s3s) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.S3, err error) {
 	result = &v1.S3{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("s3s").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

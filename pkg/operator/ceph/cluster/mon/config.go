@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -82,14 +83,15 @@ func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephclient.C
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephclient.ClusterInfo, int, *Mapping, error) {
+func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephclient.ClusterInfo, int, *Mapping, error) {
+	ctx := context.TODO()
 	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
 		Schedule: map[string]*MonScheduleInfo{},
 	}
 
-	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(AppName, metav1.GetOptions{})
+	secrets, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, AppName, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon secrets")
@@ -98,12 +100,12 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 			return nil, maxMonID, monMapping, errors.New("not expected to create new cluster info and did not find existing secret")
 		}
 
-		clusterInfo, err = createNamedClusterInfo(context, namespace)
+		clusterInfo, err = createNamedClusterInfo(clusterdContext, namespace)
 		if err != nil {
 			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create mon secrets")
 		}
 
-		err = createClusterAccessSecret(context.Clientset, namespace, clusterInfo, ownerRef)
+		err = createClusterAccessSecret(clusterdContext.Clientset, namespace, clusterInfo, ownerRef)
 		if err != nil {
 			return nil, maxMonID, monMapping, err
 		}
@@ -122,7 +124,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 
 			secrets.Data[cephUsernameKey] = []byte(client.AdminUsername)
 			secrets.Data[cephUserSecretKey] = adminSecretKey
-			if _, err = context.Clientset.CoreV1().Secrets(namespace).Update(secrets); err != nil {
+			if _, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Update(ctx, secrets, metav1.UpdateOptions{}); err != nil {
 				return nil, maxMonID, monMapping, errors.Wrap(err, "failed to update mon secrets")
 			}
 		} else {
@@ -132,7 +134,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	}
 
 	// get the existing monitor config
-	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(context.Clientset, namespace)
+	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(clusterdContext.Clientset, namespace)
 	if err != nil {
 		return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon config")
 	}
@@ -147,7 +149,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 
 	// If the admin secret is "admin-secret", look for the deprecated secret that has the external creds
 	if clusterInfo.CephCred.Secret == adminSecretNameKey {
-		secret, err := context.Clientset.CoreV1().Secrets(namespace).Get(OperatorCreds, metav1.GetOptions{})
+		secret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, OperatorCreds, metav1.GetOptions{})
 		if err != nil {
 			return clusterInfo, maxMonID, monMapping, err
 		}
@@ -156,7 +158,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 		clusterInfo.CephCred.Secret = string(secret.Data["userKey"])
 	}
 
-	if err := ValidateCephCSIConnectionSecrets(context, namespace); err != nil {
+	if err := ValidateCephCSIConnectionSecrets(clusterdContext, namespace); err != nil {
 		return clusterInfo, maxMonID, monMapping, err
 	}
 
@@ -164,29 +166,30 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 }
 
 // ValidateCephCSIConnectionSecrets returns the secret value of the client health checker key
-func ValidateCephCSIConnectionSecrets(context *clusterd.Context, namespace string) error {
-	_, err := context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiRBDNodeSecret, metav1.GetOptions{})
+func ValidateCephCSIConnectionSecrets(clusterdContext *clusterd.Context, namespace string) error {
+	ctx := context.TODO()
+	_, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiRBDNodeSecret, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDNodeSecret)
 		}
 	}
 
-	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiRBDProvisionerSecret, metav1.GetOptions{})
+	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiRBDProvisionerSecret, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDProvisionerSecret)
 		}
 	}
 
-	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiCephFSNodeSecret, metav1.GetOptions{})
+	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiCephFSNodeSecret, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSNodeSecret)
 		}
 	}
 
-	_, err = context.Clientset.CoreV1().Secrets(namespace).Get(csi.CsiCephFSProvisionerSecret, metav1.GetOptions{})
+	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiCephFSProvisionerSecret, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSProvisionerSecret)
@@ -208,13 +211,14 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephclient.Cl
 
 // loadMonConfig returns the monitor endpoints and maxMonID
 func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephclient.MonInfo, int, *Mapping, error) {
+	ctx := context.TODO()
 	monEndpointMap := map[string]*cephclient.MonInfo{}
 	maxMonID := -1
 	monMapping := &Mapping{
 		Schedule: map[string]*MonScheduleInfo{},
 	}
 
-	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return nil, maxMonID, monMapping, err
@@ -254,6 +258,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 }
 
 func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephclient.ClusterInfo, ownerRef *metav1.OwnerReference) error {
+	ctx := context.TODO()
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
 
@@ -273,7 +278,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 		Type: k8sutil.RookType,
 	}
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
-	if _, err = clientset.CoreV1().Secrets(namespace).Create(secret); err != nil {
+	if _, err = clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return errors.Wrap(err, "failed to save mon secrets")
 	}
 

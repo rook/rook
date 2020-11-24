@@ -17,6 +17,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
@@ -29,9 +30,10 @@ import (
 func CreateOrUpdateService(
 	clientset kubernetes.Interface, namespace string, serviceDefinition *v1.Service,
 ) (*v1.Service, error) {
+	ctx := context.TODO()
 	name := serviceDefinition.Name
 	logger.Debugf("creating service %s", name)
-	s, err := clientset.CoreV1().Services(namespace).Create(serviceDefinition)
+	s, err := clientset.CoreV1().Services(namespace).Create(ctx, serviceDefinition, metav1.CreateOptions{})
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return nil, fmt.Errorf("failed to create service %s. %+v", name, err)
@@ -49,9 +51,10 @@ func CreateOrUpdateService(
 func UpdateService(
 	clientset kubernetes.Interface, namespace string, serviceDefinition *v1.Service,
 ) (*v1.Service, error) {
+	ctx := context.TODO()
 	name := serviceDefinition.Name
 	logger.Debugf("updating service %s", name)
-	existing, err := clientset.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+	existing, err := clientset.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("could not get existing service %s in order to update. %+v", name, err)
 	}
@@ -59,12 +62,13 @@ func UpdateService(
 	serviceDefinition.Spec.ClusterIP = existing.Spec.ClusterIP
 	// ResourceVersion required to update services in k8s v1 API to prevent race conditions
 	serviceDefinition.ResourceVersion = existing.ResourceVersion
-	return clientset.CoreV1().Services(namespace).Update(serviceDefinition)
+	return clientset.CoreV1().Services(namespace).Update(ctx, serviceDefinition, metav1.UpdateOptions{})
 }
 
 // DeleteService deletes a Service and returns the error if any
 func DeleteService(clientset kubernetes.Interface, namespace, name string) error {
-	err := clientset.CoreV1().Services(namespace).Delete(name, &metav1.DeleteOptions{})
+	ctx := context.TODO()
+	err := clientset.CoreV1().Services(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil

@@ -18,6 +18,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"path"
@@ -191,6 +192,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 }
 
 func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) error {
+	ctx := context.TODO()
 	cluster.Spec = &clusterObj.Spec
 
 	// Check if the dataDirHostPath is located in the disallowed paths list
@@ -223,7 +225,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		// Test if the cluster has already been configured if the mgr deployment has been created.
 		// If the mgr does not exist, the mons have never been verified to be in quorum.
 		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
-		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(opts)
+		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(ctx, opts)
 		if err == nil && len(mgrDeployments.Items) > 0 && cluster.ClusterInfo != nil {
 			c.configureCephMonitoring(cluster, clusterInfo)
 		}
@@ -280,10 +282,11 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 }
 
 func (c *cluster) notifyChildControllerOfUpgrade() error {
+	ctx := context.TODO()
 	version := strings.Replace(c.ClusterInfo.CephVersion.String(), " ", "-", -1)
 
 	// List all child controllers
-	cephFilesystems, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).List(metav1.ListOptions{})
+	cephFilesystems, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list ceph filesystem CRs")
 	}
@@ -293,13 +296,13 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 		}
 		cephFilesystem.Labels["ceph_version"] = version
 		localcephFilesystem := cephFilesystem
-		_, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).Update(&localcephFilesystem)
+		_, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).Update(ctx, &localcephFilesystem, metav1.UpdateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph filesystem CR %q with new label", cephFilesystem.Name)
 		}
 	}
 
-	cephObjectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).List(metav1.ListOptions{})
+	cephObjectStores, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list ceph object store CRs")
 	}
@@ -309,13 +312,13 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 		}
 		cephObjectStore.Labels["ceph_version"] = version
 		localcephObjectStore := cephObjectStore
-		_, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).Update(&localcephObjectStore)
+		_, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).Update(ctx, &localcephObjectStore, metav1.UpdateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph object store CR %q with new label", cephObjectStore.Name)
 		}
 	}
 
-	cephNFSes, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).List(metav1.ListOptions{})
+	cephNFSes, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list ceph nfs CRs")
 	}
@@ -325,7 +328,7 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 		}
 		cephNFS.Labels["ceph_version"] = version
 		localcephNFS := cephNFS
-		_, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).Update(&localcephNFS)
+		_, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).Update(ctx, &localcephNFS, metav1.UpdateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph nfs CR %q with new label", cephNFS.Name)
 		}
@@ -336,7 +339,7 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 
 // Validate the cluster Specs
 func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
-
+	ctx := context.TODO()
 	if cluster.Spec.Mon.Count == 0 {
 		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
 		cluster.Spec.Mon.Count = mon.DefaultMonCount
@@ -346,7 +349,7 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 	}
 	if !cluster.Spec.Mon.AllowMultiplePerNode {
 		// Check that there are enough nodes to have a chance of starting the requested number of mons
-		nodes, err := c.context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+		nodes, err := c.context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 		if err == nil && len(nodes.Items) < cluster.Spec.Mon.Count {
 			return errors.Errorf("cannot start %d mons on %d node(s) when allowMultiplePerNode is false", cluster.Spec.Mon.Count, len(nodes.Items))
 		}
@@ -377,7 +380,7 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 			}
 
 			// Get network attachment definition
-			_, err := c.context.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(nad, metav1.GetOptions{})
+			_, err := c.context.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(ctx, nad, metav1.GetOptions{})
 			if err != nil {
 				if kerrors.IsNotFound(err) {
 					return errors.Wrapf(err, "specified network attachment definition for selector %q does not exist", selector)

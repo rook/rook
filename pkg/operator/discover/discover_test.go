@@ -18,6 +18,7 @@ limitations under the License.
 package discover
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -34,6 +35,7 @@ import (
 )
 
 func TestStartDiscoveryDaemonset(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
@@ -63,14 +65,14 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 			},
 		},
 	}
-	_, err := clientset.CoreV1().Pods("rook-system").Create(&pod)
+	_, err := clientset.CoreV1().Pods("rook-system").Create(ctx, &pod, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	// start a basic cluster
 	err = a.Start(namespace, "rook/rook:myversion", "mysa", false)
 	assert.Nil(t, err)
 
 	// check daemonset parameters
-	agentDS, err := clientset.AppsV1().DaemonSets(namespace).Get("rook-discover", metav1.GetOptions{})
+	agentDS, err := clientset.AppsV1().DaemonSets(namespace).Get(ctx, "rook-discover", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-discover", agentDS.Name)
@@ -89,6 +91,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 }
 
 func TestGetAvailableDevices(t *testing.T) {
+	ctx := context.TODO()
 	clientset := test.New(t, 3)
 	pvcBackedOSD := false
 	ns := "rook-system"
@@ -112,7 +115,7 @@ func TestGetAvailableDevices(t *testing.T) {
 		},
 		Data: data,
 	}
-	_, err := clientset.CoreV1().ConfigMaps(ns).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
 	assert.Nil(t, err)
 	context := &clusterd.Context{
 		Clientset: clientset,

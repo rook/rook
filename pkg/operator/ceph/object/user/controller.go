@@ -147,6 +147,12 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrap(err, "failed to get CephObjectStoreUser")
 	}
 
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStoreUser)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+
 	// The CR was just created, initializing status fields
 	if cephObjectStoreUser.Status == nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
@@ -174,12 +180,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcileResponse, nil
 	}
 	r.cephClusterSpec = &cephCluster.Spec
-
-	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStoreUser)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
-	}
 
 	// Populate clusterInfo during each reconcile
 	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)

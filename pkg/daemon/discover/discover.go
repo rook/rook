@@ -19,6 +19,7 @@ package discover
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -321,9 +322,10 @@ func DeviceListsEqual(old, new string) (bool, error) {
 	return checkDeviceListsEqual(oldDevs, newDevs), nil
 }
 
-func updateDeviceCM(context *clusterd.Context) error {
+func updateDeviceCM(clusterdContext *clusterd.Context) error {
+	ctx := context.TODO()
 	logger.Infof("updating device configmap")
-	devices, err := probeDevices(context)
+	devices, err := probeDevices(clusterdContext)
 	if err != nil {
 		logger.Infof("failed to probe devices: %v", err)
 		return err
@@ -336,7 +338,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 
 	deviceStr := string(deviceJSON)
 	if cm == nil {
-		cm, err = context.Clientset.CoreV1().ConfigMaps(namespace).Get(cmName, metav1.GetOptions{})
+		cm, err = clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, cmName, metav1.GetOptions{})
 	}
 	if err == nil {
 		lastDevice = cm.Data[LocalDiskCMData]
@@ -364,14 +366,14 @@ func updateDeviceCM(context *clusterd.Context) error {
 		}
 
 		// Get the discover daemon pod details to attach the owner reference to the config map
-		discoverPod, err := k8sutil.GetRunningPod(context.Clientset)
+		discoverPod, err := k8sutil.GetRunningPod(clusterdContext.Clientset)
 		if err != nil {
 			logger.Warningf("failed to get discover pod to set ownerref. %+v", err)
 		} else {
 			k8sutil.SetOwnerRefsWithoutBlockOwner(&cm.ObjectMeta, discoverPod.OwnerReferences)
 		}
 
-		cm, err = context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
+		cm, err = clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
 		if err != nil {
 			logger.Infof("failed to create configmap: %v", err)
 			return fmt.Errorf("failed to create local device map %s: %+v", cmName, err)
@@ -386,7 +388,7 @@ func updateDeviceCM(context *clusterd.Context) error {
 		data := make(map[string]string, 1)
 		data[LocalDiskCMData] = deviceStr
 		cm.Data = data
-		cm, err = context.Clientset.CoreV1().ConfigMaps(namespace).Update(cm)
+		cm, err = clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{})
 		if err != nil {
 			logger.Infof("failed to update configmap %s: %v", cmName, err)
 			return err

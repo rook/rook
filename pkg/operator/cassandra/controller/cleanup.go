@@ -17,7 +17,9 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
+
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/operator/cassandra/controller/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -70,20 +72,20 @@ func (cc *ClusterController) cleanup(c *cassandrav1alpha1.Cluster) error {
 //  - A PVC
 //  - A ClusterIP Service
 func (cc *ClusterController) cleanupMemberResources(memberName string, r cassandrav1alpha1.RackSpec, c *cassandrav1alpha1.Cluster) error {
-
+	ctx := context.TODO()
 	logger.Infof("%s/%s - Cleaning up resources for member %s", c.Namespace, c.Name, memberName)
 	// Delete PVC
 	if len(r.Storage.VolumeClaimTemplates) > 0 {
 		// PVC naming convention for StatefulSets is <volumeClaimTemplate.Name>-<pod.Name>
 		pvcName := fmt.Sprintf("%s-%s", r.Storage.VolumeClaimTemplates[0].Name, memberName)
-		err := cc.kubeClient.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(pvcName, &metav1.DeleteOptions{})
+		err := cc.kubeClient.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(ctx, pvcName, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("error deleting pvc %s: %s", pvcName, err.Error())
 		}
 	}
 
 	// Delete Member Service
-	err := cc.kubeClient.CoreV1().Services(c.Namespace).Delete(memberName, &metav1.DeleteOptions{})
+	err := cc.kubeClient.CoreV1().Services(c.Namespace).Delete(ctx, memberName, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("error deleting member service %s: %s", memberName, err.Error())
 	}

@@ -19,6 +19,7 @@ limitations under the License.
 package config
 
 import (
+	"context"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -61,8 +62,9 @@ func GetStore(context *clusterd.Context, namespace string, ownerRef *metav1.Owne
 
 // CreateOrUpdate creates or updates the stored Ceph config based on the cluster info.
 func (s *Store) CreateOrUpdate(clusterInfo *cephclient.ClusterInfo) error {
+	ctx := context.TODO()
 	// these are used for all ceph daemons on the commandline and must *always* be stored
-	if err := s.createOrUpdateMonHostSecrets(clusterInfo); err != nil {
+	if err := s.createOrUpdateMonHostSecrets(ctx, clusterInfo); err != nil {
 		return errors.Wrap(err, "failed to store mon host configs")
 	}
 
@@ -70,7 +72,7 @@ func (s *Store) CreateOrUpdate(clusterInfo *cephclient.ClusterInfo) error {
 }
 
 // update "mon_host" and "mon_initial_members" in the stored config
-func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephclient.ClusterInfo) error {
+func (s *Store) createOrUpdateMonHostSecrets(ctx context.Context, clusterInfo *cephclient.ClusterInfo) error {
 
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// and "mon hosts" global config field
@@ -92,11 +94,11 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephclient.ClusterInfo
 	clientset := s.context.Clientset
 	k8sutil.SetOwnerRef(&secret.ObjectMeta, s.ownerRef)
 
-	_, err := clientset.CoreV1().Secrets(s.namespace).Get(StoreName, metav1.GetOptions{})
+	_, err := clientset.CoreV1().Secrets(s.namespace).Get(ctx, StoreName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("creating config secret %+v", secret)
-			if _, err := clientset.CoreV1().Secrets(s.namespace).Create(secret); err != nil {
+			if _, err := clientset.CoreV1().Secrets(s.namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to create config secret %+v", secret)
 			}
 		} else {
@@ -105,7 +107,7 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephclient.ClusterInfo
 	}
 
 	logger.Debugf("updating config secret %+v", secret)
-	if _, err := clientset.CoreV1().Secrets(s.namespace).Update(secret); err != nil {
+	if _, err := clientset.CoreV1().Secrets(s.namespace).Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to update config secret %+v", secret)
 	}
 

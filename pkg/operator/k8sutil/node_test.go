@@ -18,6 +18,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -31,6 +32,7 @@ import (
 )
 
 func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake.Clientset) error {
+	ctx := context.TODO()
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
@@ -43,7 +45,7 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 			},
 		},
 	}
-	_, err := clientset.CoreV1().Nodes().Create(node)
+	_, err := clientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 	return err
 }
 
@@ -202,11 +204,12 @@ func TestNodeIsReady(t *testing.T) {
 }
 
 func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
+	ctx := context.TODO()
 	clientset := optest.New(t, 3) // create nodes 0, 1, and 2
 	rookNodes := []rookv1.Node{}
 
 	getNode := func(name string) v1.Node {
-		n, err := clientset.CoreV1().Nodes().Get(name, metav1.GetOptions{})
+		n, err := clientset.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
 		assert.NoError(t, err)
 		return *n
 	}
@@ -247,10 +250,11 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 }
 
 func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
+	ctx := context.TODO()
 	clientset := optest.New(t, 3) // create nodes 0, 1, and 2
 
 	getNode := func(name string) v1.Node {
-		n, err := clientset.CoreV1().Nodes().Get(name, metav1.GetOptions{})
+		n, err := clientset.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
 		assert.NoError(t, err)
 		return *n
 	}

@@ -17,6 +17,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -29,6 +30,7 @@ import (
 
 func TestDeleteConfigMap(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
+	ctx := context.TODO()
 
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -40,7 +42,7 @@ func TestDeleteConfigMap(t *testing.T) {
 		},
 	}
 
-	_, err := k8s.CoreV1().ConfigMaps("test-namespace").Create(cm)
+	_, err := k8s.CoreV1().ConfigMaps("test-namespace").Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// There is no need to test all permutations, as the `DeleteResource` function is already
@@ -52,13 +54,14 @@ func TestDeleteConfigMap(t *testing.T) {
 	err = DeleteConfigMap(k8s, "test-configmap", "test-namespace", opts)
 	assert.NoError(t, err)
 
-	_, err = k8s.CoreV1().ConfigMaps("test-namespace").Get("test-configmap", metav1.GetOptions{})
+	_, err = k8s.CoreV1().ConfigMaps("test-namespace").Get(ctx, "test-configmap", metav1.GetOptions{})
 	assert.Error(t, err)
 	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestGetOperatorSetting(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
+	ctx := context.TODO()
 
 	operatorSettingConfigMapName := "rook-operator-config"
 	testNamespace := "test-namespace"
@@ -93,7 +96,7 @@ func TestGetOperatorSetting(t *testing.T) {
 
 	// ConfigMap is found
 	os.Setenv("POD_NAMESPACE", testNamespace)
-	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Create(cm)
+	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Setting exists in ConfigMap

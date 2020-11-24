@@ -26,8 +26,10 @@ import (
 )
 
 // CephFilesystemLister helps list CephFilesystems.
+// All objects returned here must be treated as read-only.
 type CephFilesystemLister interface {
 	// List lists all CephFilesystems in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephFilesystem, err error)
 	// CephFilesystems returns an object that can list and get CephFilesystems.
 	CephFilesystems(namespace string) CephFilesystemNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephFilesystemLister) CephFilesystems(namespace string) CephFilesystemN
 }
 
 // CephFilesystemNamespaceLister helps list and get CephFilesystems.
+// All objects returned here must be treated as read-only.
 type CephFilesystemNamespaceLister interface {
 	// List lists all CephFilesystems in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephFilesystem, err error)
 	// Get retrieves the CephFilesystem from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephFilesystem, error)
 	CephFilesystemNamespaceListerExpansion
 }

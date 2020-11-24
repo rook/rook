@@ -26,8 +26,10 @@ import (
 )
 
 // CephClusterLister helps list CephClusters.
+// All objects returned here must be treated as read-only.
 type CephClusterLister interface {
 	// List lists all CephClusters in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephCluster, err error)
 	// CephClusters returns an object that can list and get CephClusters.
 	CephClusters(namespace string) CephClusterNamespaceLister
@@ -58,10 +60,13 @@ func (s *cephClusterLister) CephClusters(namespace string) CephClusterNamespaceL
 }
 
 // CephClusterNamespaceLister helps list and get CephClusters.
+// All objects returned here must be treated as read-only.
 type CephClusterNamespaceLister interface {
 	// List lists all CephClusters in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.CephCluster, err error)
 	// Get retrieves the CephCluster from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.CephCluster, error)
 	CephClusterNamespaceListerExpansion
 }

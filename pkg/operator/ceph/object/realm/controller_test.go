@@ -51,6 +51,7 @@ var (
 )
 
 func TestCephObjectRealmController(t *testing.T) {
+	ctx := context.TODO()
 	//
 	// TEST 1 SETUP
 	//
@@ -121,7 +122,7 @@ func TestCephObjectRealmController(t *testing.T) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	_, err = r.context.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err = r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Add ready status to the CephCluster
@@ -158,6 +159,7 @@ func TestCephObjectRealmController(t *testing.T) {
 }
 
 func TestPullCephRealm(t *testing.T) {
+	ctx := context.TODO()
 	r, objectRealm := getObjectRealmAndReconcileObjectRealm(t)
 
 	secrets := map[string][]byte{
@@ -175,7 +177,7 @@ func TestPullCephRealm(t *testing.T) {
 		Type: k8sutil.RookType,
 	}
 
-	_, err := r.context.Clientset.CoreV1().Secrets(objectRealm.Namespace).Create(secret)
+	_, err := r.context.Clientset.CoreV1().Secrets(objectRealm.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	objectRealm.Spec.Pull.Endpoint = "http://10.2.1.164:80"

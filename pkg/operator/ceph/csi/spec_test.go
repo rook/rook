@@ -48,6 +48,6 @@ func TestStartCSI(t *testing.T) {
 	if err != nil {
 		assert.Nil(t, err)
 	}
-	err = startDrivers(context, "ns", serverVersion, nil)
+	err = startDrivers(context.Clientset, context.RookClientset, "ns", serverVersion, nil)
 	assert.Nil(t, err)
 }
