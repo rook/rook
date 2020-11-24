@@ -287,7 +287,7 @@ func GetSnapshotScheduleStatus(context *clusterd.Context, clusterInfo *ClusterIn
 		return nil, errors.Wrap(err, "failed to unmarshal mirror snapshot schedule status response")
 	}
 
-	logger.Infof("successfully retrieved snapshot schedule status for pool %q", poolName)
+	logger.Debugf("successfully retrieved snapshot schedule status for pool %q", poolName)
 	return snapshotScheduleStatus, nil
 }
 
