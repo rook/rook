@@ -111,6 +111,11 @@ func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 	daemonIDs := c.getDaemonIDs()
 	for _, daemonID := range daemonIDs {
+		// Check whether we need to cancel the orchestration
+		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+			return err
+		}
+
 		resourceName := fmt.Sprintf("%s-%s", AppName, daemonID)
 		mgrConfig := &mgrConfig{
 			DaemonID:     daemonID,

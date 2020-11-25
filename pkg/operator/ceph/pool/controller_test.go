@@ -29,6 +29,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tevino/abool"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -286,9 +287,10 @@ func TestCephBlockPoolController(t *testing.T) {
 		},
 	}
 	c := &clusterd.Context{
-		Executor:      executor,
-		Clientset:     testop.New(t, 1),
-		RookClientset: rookclient.NewSimpleClientset(),
+		Executor:                   executor,
+		Clientset:                  testop.New(t, 1),
+		RookClientset:              rookclient.NewSimpleClientset(),
+		RequestCancelOrchestration: abool.New(),
 	}
 
 	// Register operator types with the runtime scheme.

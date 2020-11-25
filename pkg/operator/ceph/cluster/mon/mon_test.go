@@ -39,6 +39,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tevino/abool"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -95,9 +96,10 @@ func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monRe
 		},
 	}
 	return &clusterd.Context{
-		Clientset: clientset,
-		Executor:  executor,
-		ConfigDir: configDir,
+		Clientset:                  clientset,
+		Executor:                   executor,
+		ConfigDir:                  configDir,
+		RequestCancelOrchestration: abool.New(),
 	}, nil
 }
 

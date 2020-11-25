@@ -221,16 +221,16 @@ func TestIsDoNotReconcile(t *testing.T) {
 	}
 
 	// value not present
-	b := isDoNotReconcile(l)
+	b := IsDoNotReconcile(l)
 	assert.False(t, b)
 
 	// good value wrong content
 	l["do_not_reconcile"] = "false"
-	b = isDoNotReconcile(l)
+	b = IsDoNotReconcile(l)
 	assert.False(t, b)
 
 	// good value and good content
 	l["do_not_reconcile"] = "true"
-	b = isDoNotReconcile(l)
+	b = IsDoNotReconcile(l)
 	assert.True(t, b)
 }

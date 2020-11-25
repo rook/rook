@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -46,23 +47,18 @@ const (
 )
 
 type cluster struct {
-	ClusterInfo          *client.ClusterInfo
-	context              *clusterd.Context
-	Namespace            string
-	Spec                 *cephv1.ClusterSpec
-	crdName              string
-	condition            *cephv1.ClusterStatus
-	mons                 *mon.Cluster
-	initCompleted        bool
-	stopCh               chan struct{}
-	closedStopCh         bool
-	ownerRef             metav1.OwnerReference
-	orchestrationRunning bool
-	orchestrationNeeded  bool
-	orchMux              sync.Mutex
-	isUpgrade            bool
-	watchersActivated    bool
-	monitoringChannels   map[string]*clusterHealth
+	ClusterInfo        *client.ClusterInfo
+	context            *clusterd.Context
+	Namespace          string
+	Spec               *cephv1.ClusterSpec
+	crdName            string
+	mons               *mon.Cluster
+	stopCh             chan struct{}
+	closedStopCh       bool
+	ownerRef           metav1.OwnerReference
+	isUpgrade          bool
+	watchersActivated  bool
+	monitoringChannels map[string]*clusterHealth
 }
 
 type clusterHealth struct {
@@ -87,32 +83,6 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 	}
 }
 
-func (c *cluster) createInstance(rookImage string, cephVersion cephver.CephVersion) error {
-	var err error
-
-	// Set orchestration lock, implying the orchestation is in progress
-	c.setOrchestrationNeeded()
-
-	// execute an orchestration until
-	// there are no more unapplied changes to the cluster definition and
-	// while no other goroutine is already running a cluster update
-	for c.checkSetOrchestrationStatus() == true {
-		if err != nil {
-			logger.Errorf("there was an orchestration error, but there is another orchestration pending; proceeding with next orchestration run (which may succeed). %v", err)
-		}
-		// Use a DeepCopy of the spec to avoid using an inconsistent data-set
-		spec := c.Spec.DeepCopy()
-
-		// Run ceph orchestration
-		err = c.doOrchestration(rookImage, cephVersion, spec)
-
-		// Orchestration is done, remove the lock
-		c.unsetOrchestrationStatus()
-	}
-
-	return err
-}
-
 func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
@@ -133,6 +103,11 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	// The cluster Identity must be established at this point
 	if !c.ClusterInfo.IsInitialized(true) {
 		return errors.New("the cluster identity was not established")
+	}
+
+	// Check whether we need to cancel the orchestration
+	if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+		return err
 	}
 
 	// Execute actions after the monitors are up and running
@@ -174,9 +149,6 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 		// reset the isUpgrade flag
 		c.isUpgrade = false
 	}
-
-	// Orchestration is done
-	c.initCompleted = true
 
 	return nil
 }
@@ -258,7 +230,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster, clusterO
 	config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", message)
 
 	// Run the orchestration
-	err = cluster.createInstance(c.rookImage, *cephVersion)
+	err = cluster.doOrchestration(c.rookImage, *cephVersion, cluster.Spec)
 	if err != nil {
 		config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionFailure, v1.ConditionTrue, "ClusterFailure", "Failed to create cluster")
 		return errors.Wrap(err, "failed to create cluster")
