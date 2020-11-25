@@ -37,6 +37,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -1738,4 +1739,24 @@ func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReadyWithRetries(label, name
 		}
 	}
 	return fmt.Errorf("giving up waiting for deployment(s) with label %s in namespace %s to be ready", label, namespace)
+}
+
+func (k8sh *K8sHelper) WaitForCronJob(name, namespace string) error {
+	for i := 0; i < RetryLoop; i++ {
+		_, err := k8sh.Clientset.BatchV1beta1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Infof("waiting for CronJob named %s in namespace %s", name, namespace)
+				time.Sleep(RetryInterval * time.Second)
+				continue
+			}
+
+			return fmt.Errorf("failed to find CronJob named %s. %+v", name, err)
+		}
+
+		logger.Infof("found CronJob with name %s in namespace %s", name, namespace)
+		return nil
+	}
+	return fmt.Errorf("giving up waiting for CronJob named %s in namespace %s", name, namespace)
 }

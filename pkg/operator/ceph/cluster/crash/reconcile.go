@@ -41,6 +41,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -192,6 +194,10 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 			logger.Debugf("deployment successfully reconciled for node %q. operation: %q", request.Name, op)
 		}
+
+		if err := r.reconcileCrashRetention(namespace, cephCluster, cephVersion); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	return reconcile.Result{}, nil
@@ -229,5 +235,36 @@ func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error
 		return errors.Wrapf(err, "could not delete crash collector deployment %q", deploymentName)
 	}
 
+	return nil
+}
+
+func (r *ReconcileNode) reconcileCrashRetention(namespace string, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) error {
+	if cephCluster.Spec.CrashCollector.DaysToRetain == 0 {
+		logger.Debug("deleting cronjob if it exists...")
+		cronJob := &v1beta1.CronJob{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      prunerName,
+				Namespace: namespace,
+			},
+		}
+
+		err := r.client.Delete(context.TODO(), cronJob)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("cronJob resource not found. Ignoring since object must be deleted.")
+			} else {
+				return err
+			}
+		} else {
+			logger.Debug("successfully deleted crash pruner cronjob.")
+		}
+	} else {
+		logger.Debugf("daysToRetain set to: %d", cephCluster.Spec.CrashCollector.DaysToRetain)
+		op, err := r.createOrUpdateCephCron(cephCluster, cephVersion)
+		if err != nil {
+			return errors.Wrapf(err, "node reconcile failed on op %q", op)
+		}
+		logger.Debugf("cronjob successfully reconciled. operation: %q", op)
+	}
 	return nil
 }

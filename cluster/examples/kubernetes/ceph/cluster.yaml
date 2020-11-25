@@ -88,6 +88,9 @@ spec:
   # enable the crash collector for ceph daemon crash collection
   crashCollector:
     disable: false
+    # Uncomment daysToRetain to prune ceph crash entries older than the
+    # specified number of days.
+    #daysToRetain: 30
   # automate [data cleanup process](https://github.com/rook/rook/blob/master/Documentation/ceph-teardown.md#delete-the-data-on-hosts) in cluster destruction.
   cleanupPolicy:
     # Since cluster cleanup is destructive to data, confirmation is required.

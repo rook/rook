@@ -203,7 +203,7 @@ func (h *CephInstaller) Execute(command string, parameters []string, namespace s
 
 // CreateRookCluster creates rook cluster via kubectl
 func (h *CephInstaller) CreateRookCluster(namespace, systemNamespace, storeType string, usePVC bool, storageClassName string,
-	mon cephv1.MonSpec, startWithAllNodes bool, skipOSDCreation bool, cephVersion cephv1.CephVersionSpec) error {
+	mon cephv1.MonSpec, startWithAllNodes bool, skipOSDCreation bool, useCrashPruner bool, cephVersion cephv1.CephVersionSpec) error {
 
 	ctx := context.TODO()
 	dataDirHostPath, err := h.initTestDir(namespace)
@@ -246,7 +246,7 @@ osd_pool_default_size = 1
 	}
 
 	logger.Infof("Starting Rook Cluster with yaml")
-	settings := &clusterSettings{h.clusterName, namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, skipOSDCreation, cephVersion}
+	settings := &clusterSettings{h.clusterName, namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, skipOSDCreation, cephVersion, useCrashPruner}
 	rookCluster := h.Manifests.GetRookCluster(settings)
 	logger.Info(rookCluster)
 	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
@@ -263,6 +263,12 @@ osd_pool_default_size = 1
 
 	if !skipOSDCreation {
 		if err := h.k8shelper.WaitForPodCount("app=rook-ceph-osd", namespace, 1); err != nil {
+			return err
+		}
+	}
+
+	if useCrashPruner {
+		if err := h.k8shelper.WaitForCronJob("rook-ceph-crashcollector-pruner", namespace); err != nil {
 			return err
 		}
 	}
@@ -462,10 +468,12 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 		return false, err
 	}
 
+	useCrashPruner := rookVersion == VersionMaster
+
 	// Create rook cluster
 	err = h.CreateRookCluster(namespace, onamespace, storeType, usePVC, storageClassName,
 		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
-		skipOSDCreation, h.CephVersion)
+		skipOSDCreation, useCrashPruner, h.CephVersion)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
