@@ -141,9 +141,6 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
-	// Mark initialization has done
-	cluster.initCompleted = true
-
 	return nil
 }
 

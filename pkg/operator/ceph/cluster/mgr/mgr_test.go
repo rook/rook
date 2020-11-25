@@ -33,6 +33,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,9 +54,10 @@ func TestStartMGR(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Executor:  executor,
-		ConfigDir: configDir,
-		Clientset: clientset}
+		Executor:                   executor,
+		ConfigDir:                  configDir,
+		Clientset:                  clientset,
+		RequestCancelOrchestration: abool.New()}
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
 	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
