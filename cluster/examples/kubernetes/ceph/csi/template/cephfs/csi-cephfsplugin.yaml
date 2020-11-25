@@ -15,7 +15,7 @@ spec:
         app: csi-cephfsplugin
         contains: csi-cephfsplugin-metrics
         {{ range $key, $value := .CSICephFSPodLabels }}
-        $key: "$value"
+        {{ $key }}: "{{ $value }}"
         {{ end }}
     spec:
       serviceAccount: rook-csi-cephfs-plugin-sa
