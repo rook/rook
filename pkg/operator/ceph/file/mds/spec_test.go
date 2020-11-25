@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -100,6 +101,10 @@ func TestPodSpecs(t *testing.T) {
 	podTemplate.RunFullSuite(config.MdsType, "myfs-a", "rook-ceph-mds", "ns", "ceph/ceph:testversion",
 		"500", "250", "4337", "2169", /* resources */
 		"my-priority-class")
+
+	// assert --public-addr is appended to args
+	assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args,
+		config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 }
 
 func TestHostNetwork(t *testing.T) {
@@ -108,4 +113,8 @@ func TestHostNetwork(t *testing.T) {
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
+
+	// assert --public-addr is not appended to args
+	assert.NotContains(t, d.Spec.Template.Spec.Containers[0].Args,
+		config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 }
