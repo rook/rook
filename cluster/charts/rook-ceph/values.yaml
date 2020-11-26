@@ -3,7 +3,10 @@
 # Declare variables to be passed into your templates.
 
 image:
-  prefix: rook
+  registry:
+    default: docker.io
+    gcr: k8s.gcr.io
+    quay: quay.io
   repository: rook/ceph
   tag: VERSION
   pullPolicy: IfNotPresent
@@ -244,18 +247,30 @@ csi:
   forceCephFSKernelClient: true
   #rbdLivenessMetricsPort: 9080
   #kubeletDirPath: /var/lib/kubelet
-  #cephcsi:
-    #image: quay.io/cephcsi/cephcsi:v3.1.2
-  #registrar:
-    #image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1
-  #provisioner:
-    #image: k8s.gcr.io/sig-storage/csi-provisioner:v2.0.0
-  #snapshotter:
-    #image: k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.0
-  #attacher:
-    #image: k8s.gcr.io/sig-storage/csi-attacher:v3.0.0
-  #resizer:
-    #image: k8s.gcr.io/sig-storage/csi-resizer:v1.0.0
+  cephcsi:
+    image: # in image.registry.quay
+      repository: quay.io/cephcsi/cephcsi
+      tag: v3.1.2
+  registrar:
+    image: # in image.registry.gcr
+      repository: sig-storage/csi-node-driver-registrar
+      tag: v2.0.1
+  provisioner:
+    image: # in image.registry.gcr
+      repository: sig-storage/csi-provisioner
+      tag: v2.0.0
+  snapshotter:
+    image: # in image.registry.gcr
+      repository: sig-storage/csi-snapshotter
+      tag: v3.0.0
+  attacher:
+    image: # in image.registry.gcr
+      repository: sig-storage/csi-attacher
+      tag: v3.0.0
+  resizer:
+    image: # in image.registry.gcr
+      repository: sig-storage/csi-resizer
+      tag: v1.0.0
   # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
   #cephfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.

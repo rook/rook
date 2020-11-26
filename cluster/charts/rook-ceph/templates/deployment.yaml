@@ -23,7 +23,9 @@ spec:
     spec:
       containers:
       - name: rook-ceph-operator
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        {{- with .Values.image }}
+        image: {{ print .registry.default "/" .repository ":" .tag | quote }}
+        {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args: ["ceph", "operator"]
         env:
@@ -131,37 +133,38 @@ spec:
 {{- if .Values.csi.cephcsi }}
 {{- if .Values.csi.cephcsi.image }}
         - name: ROOK_CSI_CEPH_IMAGE
-          value: {{ .Values.csi.cephcsi.image | quote }}
+          value: {{ print .Values.image.registry.quay "/" .Values.csi.cephcsi.image.repository ":" .Values.csi.cephcsi.image.tag | quote }}
 {{- end }}
 {{- end }}
 {{- if .Values.csi.registrar }}
 {{- if .Values.csi.registrar.image }}
         - name: ROOK_CSI_REGISTRAR_IMAGE
-          value: {{ .Values.csi.registrar.image | quote }}
+          value: {{ print .Values.image.registry.gcr "/" .Values.csi.registrar.image.repository ":" .Values.csi.registrar.image.tag | quote }}
 {{- end }}
 {{- end }}
 {{- if .Values.csi.provisioner }}
 {{- if .Values.csi.provisioner.image }}
         - name: ROOK_CSI_PROVISIONER_IMAGE
           value: {{ .Values.csi.provisioner.image | quote }}
+          value: {{ print .Values.image.registry.gcr "/" .Values.csi.provisioner.image.repository ":" .Values.csi.provisioner.image.tag | quote }}
 {{- end }}
 {{- end }}
 {{- if .Values.csi.snapshotter }}
 {{- if .Values.csi.snapshotter.image }}
         - name: ROOK_CSI_SNAPSHOTTER_IMAGE
-          value: {{ .Values.csi.snapshotter.image | quote }}
+          value: {{ print .Values.image.registry.gcr "/" .Values.csi.snapshotter.image.repository ":" .Values.csi.snapshotter.image.tag | quote }}
 {{- end }}
 {{- end }}
 {{- if .Values.csi.attacher }}
 {{- if .Values.csi.attacher.image }}
         - name: ROOK_CSI_ATTACHER_IMAGE
-          value: {{ .Values.csi.attacher.image | quote }}
+          value: {{ print .Values.image.registry.gcr "/" .Values.csi.attacher.image.repository ":" .Values.csi.attacher.image.tag | quote }}
 {{- end }}
 {{- end }}
 {{- if .Values.csi.resizer }}
 {{- if .Values.csi.resizer.image }}
         - name: ROOK_CSI_RESIZER_IMAGE
-          value: {{ .Values.csi.resizer.image | quote }}
+          value: {{ print .Values.image.registry.gcr "/" .Values.csi.resizer.image.repository ":" .Values.csi.resizer.image.tag | quote }}
 {{- end }}
 {{- end }}
 {{- if .Values.csi.cephfsPodLabels }}
