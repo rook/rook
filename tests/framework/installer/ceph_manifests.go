@@ -2288,6 +2288,12 @@ rules:
   - network-attachment-definitions
   verbs:
   - get
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
