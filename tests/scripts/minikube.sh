@@ -60,7 +60,7 @@ function copy_images() {
 MEMORY=${MEMORY:-"3000"}
 
 # use vda1 instead of sda1 when running with the libvirt driver
-VM_DRIVER=$(minikube config get vm-driver 2>/dev/null || echo "virtualbox")
+VM_DRIVER=$(minikube config get driver 2>/dev/null || echo "virtualbox")
 if [[ "$VM_DRIVER" == "kvm2" ]]; then
   DISK="vda1"
 else
