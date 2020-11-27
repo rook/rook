@@ -374,6 +374,10 @@ spec:
                         properties:
                           ip:
                             type: string
+                    externalMgrPrometheusPort:
+                      type: integer
+                      minimum: 0
+                      maximum: 65535
                 removeOSDsIfOutAndSafeToRemove:
                   type: boolean
                 external:

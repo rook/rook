@@ -30,3 +30,4 @@ spec:
   #   rulesNamespace: rook-ceph
   #   externalMgrEndpoints:
       #- ip: ip
+      # externalMgrPrometheusPort: 9283
