@@ -142,7 +142,7 @@ go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integra
 
 To run specific tests inside a suite:
 ```console
-go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_SmokeTest
+go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestARookClusterInstallation_SmokeTest
 ```
 
 ### To run tests on OpenShift environment
