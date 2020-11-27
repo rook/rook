@@ -191,6 +191,9 @@ type MonitoringSpec struct {
 	// types must exist or the creation will fail.
 	Enabled bool `json:"enabled,omitempty"`
 
+	// Prometheus exporter port
+	Port uint16 `json:"port,omitempty"`
+
 	// The namespace where the prometheus rules and alerts should be created.
 	// If empty, the same namespace as the cluster will be used.
 	RulesNamespace string `json:"rulesNamespace,omitempty"`

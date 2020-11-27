@@ -372,6 +372,11 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 		}
 	}
 
+	// Validate prometheus exporter port
+	if cluster.Spec.Monitoring.Port == 0 {
+		cluster.Spec.Monitoring.Port = mgr.DefaultMetricsPort
+	}
+
 	logger.Debug("cluster spec successfully validated")
 	return nil
 }

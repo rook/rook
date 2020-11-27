@@ -58,9 +58,10 @@ const (
 	PgautoscalerModuleName = "pg_autoscaler"
 	balancerModuleName     = "balancer"
 	balancerModuleMode     = "upmap"
-	metricsPort            = 9283
-	monitoringPath         = "/etc/ceph-monitoring/"
-	serviceMonitorFile     = "service-monitor.yaml"
+	// DefaultMetricsPort prometheus exporter port
+	DefaultMetricsPort uint16 = 9283
+	monitoringPath            = "/etc/ceph-monitoring/"
+	serviceMonitorFile        = "service-monitor.yaml"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512
 )
@@ -231,9 +232,17 @@ func startModuleConfiguration(description string, configureModules func() error)
 
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
 func (c *Cluster) enablePrometheusModule() error {
+	// Set prometheus exporter port
+	_, err := client.MgrSetConfig(c.context, c.clusterInfo, "", "mgr/prometheus/server_port", strconv.Itoa(int(c.spec.Monitoring.Port)), false)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set mgr prometheus module port to %d", c.spec.Monitoring.Port)
+	}
+
+	// Enable prometheus exporter module
 	if err := client.MgrEnableModule(c.context, c.clusterInfo, prometheusModuleName, true); err != nil {
 		return errors.Wrap(err, "failed to enable mgr prometheus module")
 	}
+
 	return nil
 }
 

@@ -65,6 +65,10 @@ func MgrDisableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name 
 func MgrSetConfig(context *clusterd.Context, clusterInfo *ClusterInfo, mgrName string, key, val string, force bool) (bool, error) {
 	var getArgs, setArgs []string
 	mgrID := fmt.Sprintf("mgr.%s", mgrName)
+	// If the name is empty this means we want to apply the same configuration to all the mgr daemons
+	if mgrName == "" {
+		mgrID = "mgr"
+	}
 	getArgs = append(getArgs, "config", "get", mgrID, key)
 	if val == "" {
 		setArgs = append(setArgs, "config", "rm", mgrID, key)

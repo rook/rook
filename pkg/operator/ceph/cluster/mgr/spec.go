@@ -232,7 +232,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			{
 				Name:          "http-metrics",
-				ContainerPort: int32(metricsPort),
+				ContainerPort: int32(c.spec.Monitoring.Port),
 				Protocol:      v1.ProtocolTCP,
 			},
 			{
@@ -247,7 +247,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		),
 		Resources:       cephv1.GetMgrResources(c.spec.Resources),
 		SecurityContext: mon.PodSecurityContext(),
-		LivenessProbe:   getDefaultMgrLivenessProbe(),
+		LivenessProbe:   c.getDefaultMgrLivenessProbe(),
 	}
 
 	// If the liveness probe is enabled
@@ -264,12 +264,12 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	return container
 }
 
-func getDefaultMgrLivenessProbe() *v1.Probe {
+func (c *Cluster) getDefaultMgrLivenessProbe() *v1.Probe {
 	return &v1.Probe{
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
 				Path: "/",
-				Port: intstr.FromInt(metricsPort),
+				Port: intstr.FromInt(int(c.spec.Monitoring.Port)),
 			},
 		},
 		InitialDelaySeconds: 60,
@@ -290,7 +290,7 @@ func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) *v1.Ser
 			Ports: []v1.ServicePort{
 				{
 					Name:     servicePortMetricName,
-					Port:     int32(metricsPort),
+					Port:     int32(c.spec.Monitoring.Port),
 					Protocol: v1.ProtocolTCP,
 				},
 			},
@@ -345,7 +345,7 @@ func (c *Cluster) applyPrometheusAnnotations(objectMeta *metav1.ObjectMeta) {
 	if len(cephv1.GetMgrAnnotations(c.spec.Annotations)) == 0 {
 		t := rookv1.Annotations{
 			"prometheus.io/scrape": "true",
-			"prometheus.io/port":   strconv.Itoa(metricsPort),
+			"prometheus.io/port":   strconv.Itoa(int(c.spec.Monitoring.Port)),
 		}
 
 		t.ApplyToObjectMeta(objectMeta)
@@ -364,7 +364,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 }
 
 // CreateExternalMetricsEndpoints creates external metric endpoint
-func CreateExternalMetricsEndpoints(namespace string, externalMgrEndpoints []v1.EndpointAddress, ownerRef metav1.OwnerReference) *v1.Endpoints {
+func CreateExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerRef metav1.OwnerReference) *v1.Endpoints {
 	labels := controller.AppLabels(AppName, namespace)
 
 	endpoints := &v1.Endpoints{
@@ -375,11 +375,11 @@ func CreateExternalMetricsEndpoints(namespace string, externalMgrEndpoints []v1.
 		},
 		Subsets: []v1.EndpointSubset{
 			{
-				Addresses: externalMgrEndpoints,
+				Addresses: monitoringSpec.ExternalMgrEndpoints,
 				Ports: []v1.EndpointPort{
 					{
 						Name:     ServiceExternalMetricName,
-						Port:     int32(metricsPort),
+						Port:     int32(monitoringSpec.Port),
 						Protocol: v1.ProtocolTCP,
 					},
 				},

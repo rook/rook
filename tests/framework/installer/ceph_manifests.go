@@ -368,6 +368,8 @@ spec:
                   properties:
                     enabled:
                       type: boolean
+                    port:
+                      type: integer
                     rulesNamespace:
                       type: string
                     externalMgrEndpoints:

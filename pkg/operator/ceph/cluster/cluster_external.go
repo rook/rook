@@ -210,7 +210,7 @@ func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster)
 	}
 
 	// Create external monitoring Endpoints
-	endpoint := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring.ExternalMgrEndpoints, cluster.ownerRef)
+	endpoint := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring, cluster.ownerRef)
 	logger.Info("creating mgr external monitoring endpoints")
 	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, c.namespacedName.Namespace, endpoint)
 	if err != nil {
