@@ -29,7 +29,7 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
   * EdgeFS
 * Sebastien Han <shan@redhat.com> ([leseb](https://github.com/leseb))
   * Ceph
-* Blaine Gardner <blaine.gardner@suse.com> ([BlaineEXE](https://github.com/BlaineEXE))
+* Blaine Gardner <blaine.gardner@redhat.com> ([BlaineEXE](https://github.com/BlaineEXE))
   * Ceph
 * Yannis Zarkadas <yanniszarkadas@gmail.com> ([yanniszark](https://github.com/yanniszark))
   * Cassandra
