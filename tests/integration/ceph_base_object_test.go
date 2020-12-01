@@ -176,6 +176,15 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	assert.Nil(s.T(), delobjErr)
 	logger.Infof("Objects deleted on bucket successfully")
 
+	// A bug exists in older versions of lib-bucket-provisioner that will revert a bucket and claim
+	// back to "Pending" phase after being created and initially "Bound" by looping infinitely in
+	// the bucket provision/creation loop. Verify that the OBC is "Bound" and stays that way.
+	logger.Infof("Regression check: Verify bucket does not revert to Pending phase")
+	// The OBC reconcile loop runs again immediately b/c the OBC is modified to refer to its OB.
+	// Wait a short amount of time before checking just to be safe.
+	time.Sleep(15 * time.Second)
+	assert.True(s.T(), helper.BucketClient.CheckOBC(obcName, "bound"))
+
 	logger.Infof("Step 9 : Delete Object Bucket Claim")
 	dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
 	assert.Nil(s.T(), dobcErr)
