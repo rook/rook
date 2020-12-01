@@ -29,7 +29,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v15.2.5
+    image: ceph/ceph:v15.2.7
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
