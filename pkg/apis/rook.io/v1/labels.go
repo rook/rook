@@ -40,9 +40,11 @@ func (a Labels) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 // original Labels with the attributes of the supplied one. The supplied
 // Labels attributes will override the original ones if defined.
 func (a Labels) Merge(with Labels) Labels {
-	ret := a
-	if ret == nil {
-		ret = map[string]string{}
+	ret := Labels{}
+	for k, v := range a {
+		if _, ok := ret[k]; !ok {
+			ret[k] = v
+		}
 	}
 	for k, v := range with {
 		if _, ok := ret[k]; !ok {
