@@ -103,7 +103,7 @@ func NewFlag(key, value string) string {
 func SetDefaultConfigs(
 	context *clusterd.Context,
 	clusterInfo *cephclient.ClusterInfo,
-	networkSpec cephv1.NetworkSpec,
+	clusterSpec cephv1.ClusterSpec,
 ) error {
 	// ceph.conf is never used. All configurations are made in the centralized mon config database,
 	// or they are specified on the commandline when daemons are called.
@@ -113,14 +113,37 @@ func SetDefaultConfigs(
 		return errors.Wrapf(err, "failed to apply default Ceph configurations")
 	}
 
+	// When enabled the collector will logrotate logs from files
+	if clusterSpec.LogCollector.Enabled {
+		// Override "log file" for existing clusters since it is empty
+		logOptions := []Option{
+			configOverride("global", "log file", "/var/log/ceph/$cluster-$name.log"),
+			configOverride("global", "log to file", "true"),
+		}
+
+		if err := monStore.SetAll(logOptions...); err != nil {
+			return errors.Wrapf(err, "failed to apply logging configuration for log collector")
+		}
+		// If the log collector is disabled we do not log to file since we collect nothing
+	} else {
+		logOptions := []Option{
+			configOverride("global", "log file", ""),
+			configOverride("global", "log to file", "false"),
+		}
+
+		if err := monStore.SetAll(logOptions...); err != nil {
+			return errors.Wrapf(err, "failed to apply logging configuration")
+		}
+	}
+
 	if err := monStore.SetAll(DefaultLegacyConfigs()...); err != nil {
 		return errors.Wrapf(err, "failed to apply legacy config overrides")
 	}
 
 	// Apply Multus if needed
-	if networkSpec.IsMultus() {
+	if clusterSpec.Network.IsMultus() {
 		logger.Info("configuring ceph network(s) with multus")
-		cephNetworks, err := generateNetworkSettings(context, clusterInfo.Namespace, networkSpec.Selectors)
+		cephNetworks, err := generateNetworkSettings(context, clusterInfo.Namespace, clusterSpec.Network.Selectors)
 		if err != nil {
 			return errors.Wrap(err, "failed to generate network settings")
 		}

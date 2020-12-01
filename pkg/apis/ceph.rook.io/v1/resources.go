@@ -34,6 +34,8 @@ const (
 	ResourcesKeyMDS = "mds"
 	// ResourcesKeyCrashCollector represents the name of resource in the CR for the crash
 	ResourcesKeyCrashCollector = "crashcollector"
+	// ResourcesKeyLogCollector represents the name of resource in the CR for the log
+	ResourcesKeyLogCollector = "logcollector"
 	// ResourcesKeyRBDMirror represents the name of resource in the CR for the rbd mirror
 	ResourcesKeyRBDMirror = "rbdmirror"
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
@@ -62,6 +64,11 @@ func GetPrepareOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
 
 // GetCrashCollectorResources returns the placement for the crash daemon
 func GetCrashCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyCrashCollector]
+}
+
+// GetLogCollectorResources returns the placement for the crash daemon
+func GetLogCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
 }
 

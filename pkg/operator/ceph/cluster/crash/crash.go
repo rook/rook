@@ -24,7 +24,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -193,7 +192,7 @@ func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 			crashPostedDir,
 		},
 		Image:           cephCluster.Spec.CephVersion.Image,
-		SecurityContext: mon.PodSecurityContext(),
+		SecurityContext: controller.PodSecurityContext(),
 		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
 		VolumeMounts:    controller.DaemonVolumeMounts(dataPathMap, ""),
 	}
@@ -208,7 +207,7 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 		cephCluster.Spec.CephVersion.Image,
 		controller.DaemonVolumeMounts(dataPathMap, ""),
 		cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		mon.PodSecurityContext(),
+		controller.PodSecurityContext(),
 	)
 }
 
@@ -229,7 +228,7 @@ func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion version
 		Env:             envVars,
 		VolumeMounts:    volumeMounts,
 		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		SecurityContext: mon.PodSecurityContext(),
+		SecurityContext: controller.PodSecurityContext(),
 	}
 
 	return container
@@ -258,7 +257,7 @@ func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion version.
 		Env:             envVars,
 		VolumeMounts:    volumeMounts,
 		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		SecurityContext: mon.PodSecurityContext(),
+		SecurityContext: controller.PodSecurityContext(),
 	}
 
 	return container
