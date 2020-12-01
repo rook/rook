@@ -186,6 +186,7 @@ func (c *ClusterController) waitForCephDaemonCleanUp(stopCleanupCh chan struct{}
 	}
 }
 
+// getCephHosts returns a list of host names where ceph daemon pods are running
 func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 	cephPodCount := map[string]int{}
 	cephAppNames := []string{mon.AppName, mgr.AppName, osd.AppName, object.AppName, mds.AppName, rbd.AppName}
@@ -201,7 +202,7 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 		}
 		for _, cephPod := range podList.Items {
 			podNodeName := cephPod.Spec.NodeName
-			if !nodeNameList.Contains(podNodeName) {
+			if podNodeName != "" && !nodeNameList.Contains(podNodeName) {
 				nodeNameList.Add(podNodeName)
 			}
 		}
