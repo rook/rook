@@ -20,6 +20,9 @@ import (
 	"context"
 	"time"
 
+	bktClientset "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
+
+	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
@@ -156,6 +159,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	assert.NotEqual(s.T(), i, 4)
 	require.Equal(s.T(), bucketname, bkt.Name)
 	logger.Infof("OBC, Secret and ConfigMap created")
+	timeBucketCreateVerified := time.Now()
 
 	logger.Infof("Step 4 : Create s3 client")
 	s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
@@ -189,6 +193,27 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	_, delobjErr = s3client.DeleteObjectInBucket(bucketname, ObjectKey2)
 	require.Nil(s.T(), delobjErr)
 	logger.Infof("Objects deleted on bucket successfully")
+
+	// A bug exists in older versions of lib-bucket-provisioner that will revert a bucket and claim
+	// back to "Pending" phase after being created and initially "Bound" by looping infinitely in
+	// the bucket provision/creation loop. Verify that the OBC is "Bound" and stays that way. We
+	// need to verify this before the OBC is deleted, but we can avoid wasting extra time sleeping
+	// in a wait loop by completing all tests before this regression check.
+	logger.Infof("Regression check: Verify bucket does not revert to Pending phase")
+	// The OBC reconcile loop usually runs again in 30-90 seconds after being created due to the OBC
+	// resource being modified to refer to its OB.
+	timeToWaitForReversion := 2 * time.Minute
+	timeToCheckForReversion := timeBucketCreateVerified.Add(timeToWaitForReversion)
+	for time.Now().Before(timeToCheckForReversion) {
+		// simple loop to wait until the current time is after the time we should check for reversion
+		time.Sleep(5 * time.Second)
+	}
+	bktClient := bktClientset.New(k8sh.Clientset.RESTClient())
+	rest := bktClient.RESTClient()
+	obc := bktv1alpha1.ObjectBucketClaim{}
+	err = rest.Get().Resource("objectbucketclaim").Name(obcName).Do(ctx).Into(&obc)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), bktv1alpha1.ObjectBucketClaimStatusPhaseBound, obc.Status.Phase)
 
 	logger.Infof("Step 9 : Delete Object Bucket Claim")
 	dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
