@@ -133,7 +133,7 @@ type ClusterSpec struct {
 
 // VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.5
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.7
 	Image string `json:"image,omitempty"`
 
 	// Whether to allow unsupported versions (do not set to true in production)
