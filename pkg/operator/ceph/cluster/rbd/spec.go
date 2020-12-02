@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -48,6 +47,14 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			PriorityClassName: rbdMirror.Spec.PriorityClassName,
 		},
 	}
+
+	// If the log collector is enabled we add the side-car container
+	if r.cephClusterSpec.LogCollector.Enabled {
+		shareProcessNamespace := true
+		podSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-client.rbd-mirror.%s", daemonConfig.DaemonID), r.clusterInfo.Namespace, *r.cephClusterSpec))
+	}
+
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 	rbdMirror.Spec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
@@ -102,7 +109,7 @@ func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConf
 		r.cephClusterSpec.CephVersion.Image,
 		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		rbdMirror.Spec.Resources,
-		mon.PodSecurityContext(),
+		controller.PodSecurityContext(),
 	)
 }
 
@@ -121,7 +128,7 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
 		Resources:       rbdMirror.Spec.Resources,
-		SecurityContext: mon.PodSecurityContext(),
+		SecurityContext: controller.PodSecurityContext(),
 		// TODO:
 		// Not implemented at this point since the socket name is '/run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok'
 		// Also the command to run will be:
