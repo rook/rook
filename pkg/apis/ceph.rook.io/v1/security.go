@@ -25,3 +25,7 @@ func (kms *KeyManagementServiceSpec) IsEnabled() bool {
 func (kms *KeyManagementServiceSpec) IsTokenAuthEnabled() bool {
 	return kms.TokenSecretName != ""
 }
+
+func (kms *KeyManagementServiceSpec) IsCSIEnabled() bool {
+	return kms.CSIConnectionDetailsCMName != ""
+}

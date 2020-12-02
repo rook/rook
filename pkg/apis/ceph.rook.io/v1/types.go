@@ -150,8 +150,9 @@ type SecuritySpec struct {
 
 // KeyManagementServiceSpec represent various details of the KMS server
 type KeyManagementServiceSpec struct {
-	ConnectionDetails map[string]string `json:"connectionDetails,omitempty"`
-	TokenSecretName   string            `json:"tokenSecretName,omitempty"`
+	ConnectionDetails          map[string]string `json:"connectionDetails,omitempty"`
+	TokenSecretName            string            `json:"tokenSecretName,omitempty"`
+	CSIConnectionDetailsCMName string            `json:"csiConnectionDetailsCMName,omitempty"`
 }
 
 // CephVersionSpec represents the settings for the Ceph version that Rook is orchestrating.

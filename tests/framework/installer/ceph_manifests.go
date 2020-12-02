@@ -1605,6 +1605,8 @@ spec:
                       type: object
                     tokenSecretName:
                       type: string
+                    csiConnectionDetailsCMName:
+                      type: string
             placement: {}
             resources: {}
   additionalPrinterColumns:

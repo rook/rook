@@ -38,6 +38,9 @@ const (
 
 	// KMSTokenSecretNameKey is the key name of the Secret that contains the KMS authentication token
 	KMSTokenSecretNameKey = "token"
+
+	// kmsCSIConfigMapNameKey is the key name of the Secret that contains the KMS authentication token
+	kmsCSIConfigMapNameKey = "csiConfig"
 )
 
 // storeSecretInKubernetes stores the dmcrypt key in a Kubernetes Secret

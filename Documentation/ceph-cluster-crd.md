@@ -1382,6 +1382,7 @@ The `security` section contains settings related to encryption of the cluster.
   * `kms`: Key Management System settings
     * `connectionDetails`: the list of parameters representing kms connection details
     * `tokenSecretName`: the name of the Kubernetes Secret containing the kms authentication token
+    * `csiConnectionDetailsCMName`: the name of the Config Map containing the connection details as well as the token to use encrypted PVs from Ceph-CSI
 
 #### Vault KMS
 
@@ -1489,3 +1490,40 @@ data:
 
 Note: if you are using self-signed certificates (not known/approved by a proper CA) you must pass `VAULT_SKIP_VERIFY: true`.
 Communications will remain encrypted but the validity of the certificate will not be verified.
+
+##### Ceph CSI configuration
+
+Ceph-CSI is capable of encrypting requested PVs.
+Rook can configure Ceph-CSI to turn on encryption with Key Management System support.
+For this, you need to add new parameter in your CephCluster CR spec:
+
+```yaml
+security:
+  kms:
+  ...
+  ...
+  csiConnectionDetailsCMName: "rook-ceph-csi-vault"
+```
+
+The config map will look like:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-ceph-csi-vault
+  namespace: rook-ceph
+data:
+  csiConfig: |-
+  {
+      "vault-with-tokens": {
+          "encryptionKMSType": "vaulttokens",
+          "vaultAddress": "http://vault.default.svc.cluster.local:8200",
+          "vaultCAFromSecret": "vault-ca",
+          "vaultCAVerify": "false",
+          "tokenName": "ceph-csi-kms-token"
+      }
+  }
+```
+
+Pay attention to the Secret **key** to use for the Config Map data: `csiConfig`.

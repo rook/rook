@@ -114,6 +114,32 @@ func TestValidateConnectionDetails(t *testing.T) {
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, clusterSpec, ns)
 	assert.NoError(t, err, "")
+
+	// Test Ceph-CSI config - error no config map
+	clusterSpec.Security.KeyManagementService.CSIConnectionDetailsCMName = "rook-ceph-csi-vault"
+	err = ValidateConnectionDetails(context, clusterSpec, ns)
+	assert.Error(t, err, "")
+	assert.EqualError(t, err, "failed to fetch kms csi config map \"rook-ceph-csi-vault\": configmaps \"rook-ceph-csi-vault\" not found")
+
+	// Error: Ceph-CSI config map exists but empty key
+	cephCSIEncryptionConfigMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-csi-vault",
+			Namespace: ns,
+		},
+	}
+	_, err = context.Clientset.CoreV1().ConfigMaps(ns).Create(ctx, cephCSIEncryptionConfigMap, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	err = ValidateConnectionDetails(context, clusterSpec, ns)
+	assert.Error(t, err, "")
+	assert.EqualError(t, err, "failed to read k8s kms config map \"csiConfig\" key \"rook-ceph-csi-vault\" (not found or empty)")
+
+	// Success Ceph-CSI config map has content
+	cephCSIEncryptionConfigMap.Data = map[string]string{"csiConfig": "foo"}
+	_, err = context.Clientset.CoreV1().ConfigMaps(ns).Update(ctx, cephCSIEncryptionConfigMap, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+	err = ValidateConnectionDetails(context, clusterSpec, ns)
+	assert.NoError(t, err, "")
 }
 
 func TestSetTokenToEnvVar(t *testing.T) {

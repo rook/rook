@@ -181,6 +181,20 @@ func ValidateConnectionDetails(clusterdContext *clusterd.Context, clusterSpec *c
 		}
 	}
 
+	// Validate potential Ceph-CSI config map presence
+	if clusterSpec.Security.KeyManagementService.IsCSIEnabled() {
+		csiEncryptionConfig, err := clusterdContext.Clientset.CoreV1().ConfigMaps(ns).Get(ctx, clusterSpec.Security.KeyManagementService.CSIConnectionDetailsCMName, metav1.GetOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "failed to fetch kms csi config map %q", clusterSpec.Security.KeyManagementService.CSIConnectionDetailsCMName)
+		}
+
+		// Check for empty config
+		config, ok := csiEncryptionConfig.Data[kmsCSIConfigMapNameKey]
+		if !ok || len(config) == 0 {
+			return errors.Errorf("failed to read k8s kms config map %q key %q (not found or empty)", kmsCSIConfigMapNameKey, clusterSpec.Security.KeyManagementService.CSIConnectionDetailsCMName)
+		}
+	}
+
 	return nil
 }
 

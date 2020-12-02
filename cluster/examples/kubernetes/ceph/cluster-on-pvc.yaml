@@ -182,6 +182,8 @@ spec:
          #VAULT_BACKEND_PATH: "rook"
   #     # name of the secret containing the kms authentication token
   #     tokenSecretName: rook-vault-token
+  #     # name of the config map containing the kms connection details and token for ceph-csi
+  #     csiConnectionDetailsCMName: rook-csi-vault
 # UNCOMMENT THIS TO ENABLE A KMS CONNECTION
 # Also, do not forget to replace both:
 #   * ROOK_TOKEN_CHANGE_ME: with a base64 encoded value of the token to use
