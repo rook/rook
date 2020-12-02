@@ -1427,7 +1427,7 @@ capabilities = ["read"]
 You can write the policy like so and then create a token:
 
 ```console
-vault policy write ocs /tmp/rook.hcl
+vault policy write rook /tmp/rook.hcl
 vault token create -policy=rook
 Key                  Value
 ---                  -----
