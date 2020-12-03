@@ -29,7 +29,7 @@ func (p Placement) ApplyToPodSpec(t *v1.PodSpec) {
 		t.Affinity = &v1.Affinity{}
 	}
 	if p.NodeAffinity != nil {
-		t.Affinity.NodeAffinity = p.NodeAffinity.DeepCopy()
+		t.Affinity.NodeAffinity = p.mergeNodeAffinity(t.Affinity.NodeAffinity)
 	}
 	if p.PodAffinity != nil {
 		t.Affinity.PodAffinity = p.PodAffinity.DeepCopy()
@@ -43,6 +43,53 @@ func (p Placement) ApplyToPodSpec(t *v1.PodSpec) {
 	if p.TopologySpreadConstraints != nil {
 		t.TopologySpreadConstraints = p.TopologySpreadConstraints
 	}
+}
+
+func (p Placement) mergeNodeAffinity(nodeAffinity *v1.NodeAffinity) *v1.NodeAffinity {
+	// no node affinity is specified yet, so return the placement's nodeAffinity
+	result := p.NodeAffinity.DeepCopy()
+	if nodeAffinity == nil {
+		return result
+	}
+
+	// merge the preferred node affinity that was already specified, and the placement's nodeAffinity
+	result.PreferredDuringSchedulingIgnoredDuringExecution = append(
+		nodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+		p.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution...)
+
+	// nothing to merge if no affinity was passed in
+	if nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return result
+	}
+	// take the desired affinity if there was none on the placement
+	if p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		result.RequiredDuringSchedulingIgnoredDuringExecution = nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+		return result
+	}
+	// take the desired affinity node selectors without the need to merge
+	if len(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
+		return result
+	}
+	// take the placement affinity node selectors without the need to merge
+	if len(p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
+		// take the placement from the first option since the second isn't specified
+		result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms =
+			nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		return result
+	}
+
+	// merge the match expressions together since they are defined in both placements
+	// this will only work if we want an "and" between all the expressions, more complex conditions won't work with this merge
+	var nodeTerm v1.NodeSelectorTerm
+	nodeTerm.MatchExpressions = append(
+		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions,
+		p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
+	nodeTerm.MatchFields = append(
+		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields,
+		p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields...)
+	result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0] = nodeTerm
+
+	return result
 }
 
 // Merge returns a Placement which results from merging the attributes of the
