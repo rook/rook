@@ -450,10 +450,6 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
 
-        #  Uncomment it to run lib bucket provisioner in multithreaded mode
-        #- name: LIB_BUCKET_PROVISIONER_THREADS
-        #  value: "5"
-
       # Uncomment it to run rook operator on the host network
       #hostNetwork: true
       volumes:
