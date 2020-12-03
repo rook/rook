@@ -55,7 +55,7 @@ func CheckForCancelledOrchestration(context *clusterd.Context) error {
 
 	// Check whether we need to cancel the orchestration
 	if context.RequestCancelOrchestration.IsSet() {
-		return errors.New("CANCELLING CURRENT ORCHESTATION")
+		return errors.New("CANCELLING CURRENT ORCHESTRATION")
 	}
 
 	return nil
