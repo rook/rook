@@ -241,12 +241,11 @@ func (c *clusterConfig) generateLiveProbePort() intstr.IntOrString {
 }
 
 func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore) *v1.Service {
-	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(cephObjectStore.Name),
 			Namespace: cephObjectStore.Namespace,
-			Labels:    labels,
+			Labels:    getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true),
 		},
 	}
 
@@ -262,7 +261,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	} else {
 		// If the cluster is not external we add the Selector
 		svc.Spec = v1.ServiceSpec{
-			Selector: labels,
+			Selector: getLabels(cephObjectStore.Name, cephObjectStore.Namespace, false),
 		}
 	}
 	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port, destPort.IntVal)
