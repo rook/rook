@@ -36,4 +36,11 @@ func TestValidateExternalClusterSpec(t *testing.T) {
 	c.Spec.DataDirHostPath = "path"
 	err = validateExternalClusterSpec(c)
 	assert.NoError(t, err, err)
+	assert.Equal(t, uint16(0), c.Spec.Monitoring.ExternalMgrPrometheusPort)
+
+	c.Spec.Monitoring.Enabled = true
+	err = validateExternalClusterSpec(c)
+	assert.NoError(t, err, err)
+	assert.Equal(t, uint16(9283), c.Spec.Monitoring.ExternalMgrPrometheusPort)
+
 }
