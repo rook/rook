@@ -81,6 +81,7 @@ func createCSIKeyringCephFSProvisioner(s *keyring.SecretStore) (string, error) {
 func cephCSIKeyringRBDNodeCaps() []string {
 	return []string{
 		"mon", "profile rbd",
+		"mgr", "allow rw",
 		"osd", "profile rbd",
 	}
 }

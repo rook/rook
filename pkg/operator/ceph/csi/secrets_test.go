@@ -24,7 +24,7 @@ import (
 
 func TestCephCSIKeyringRBDNodeCaps(t *testing.T) {
 	caps := cephCSIKeyringRBDNodeCaps()
-	assert.Equal(t, caps, []string{"mon", "profile rbd", "osd", "profile rbd"})
+	assert.Equal(t, caps, []string{"mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"})
 }
 
 func TestCephCSIKeyringRBDProvisionerCaps(t *testing.T) {
