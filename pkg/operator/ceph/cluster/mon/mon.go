@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +33,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -324,14 +326,24 @@ func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
 	return nil
 }
 
-func (c *Cluster) assignStretchMonsToZones(mons []*monConfig) error {
-	var arbiterZone string
+func (c *Cluster) getArbiterZone() string {
 	for _, zone := range c.spec.Mon.StretchCluster.Zones {
 		if zone.Arbiter {
-			arbiterZone = zone.Name
-			break
+			return zone.Name
 		}
 	}
+	return ""
+}
+
+func (c *Cluster) isArbiterZone(zone string) bool {
+	if !c.spec.IsStretchCluster() {
+		return false
+	}
+	return c.getArbiterZone() == zone
+}
+
+func (c *Cluster) assignStretchMonsToZones(mons []*monConfig) error {
+	arbiterZone := c.getArbiterZone()
 
 	// Set the location for each mon
 	domainName := c.stretchFailureDomainName()
@@ -553,7 +565,7 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	d.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 
 	// setup affinity settings for pod scheduling
-	p := cephv1.GetMonPlacement(c.spec.Placement)
+	p := c.getMonPlacement(mon.Zone)
 	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec),
 		map[string]string{k8sutil.AppAttr: AppName}, nil)
 
@@ -615,6 +627,22 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 
 	// caller should arrange for the deployment to be removed
 	return d, nil
+}
+
+// GetMonPlacement returns the placement for the MON service
+func (c *Cluster) getMonPlacement(zone string) rookv1.Placement {
+	// If the mon is the arbiter in a stretch cluster and its placement is specified, return it
+	// without merging with the "all" placement so it can be handled separately from all other daemons
+	if c.isArbiterZone(zone) {
+		p := cephv1.GetArbiterPlacement(c.spec.Placement)
+		noPlacement := rookv1.Placement{}
+		if !reflect.DeepEqual(p, noPlacement) {
+			// If the arbiter placement was specified, go ahead and use it.
+			return p
+		}
+	}
+	// If not the arbiter, or the arbiter placement is not specified, fall back to the same placement used for other mons
+	return cephv1.GetMonPlacement(c.spec.Placement)
 }
 
 func realWaitForMonitorScheduling(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
@@ -1073,7 +1101,11 @@ func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 	}
 
 	// placement settings from the CRD
-	p := cephv1.GetMonPlacement(c.spec.Placement)
+	var zone string
+	if schedule != nil {
+		zone = schedule.Zone
+	}
+	p := c.getMonPlacement(zone)
 
 	if deploymentExists {
 		// the existing deployment may have a node selector. if the cluster

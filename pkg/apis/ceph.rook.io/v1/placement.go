@@ -29,6 +29,13 @@ func GetMonPlacement(p rookv1.PlacementSpec) rookv1.Placement {
 	return p.All().Merge(p[KeyMon])
 }
 
+// GetArbiterPlacement returns the placement for the arbiter MON service
+func GetArbiterPlacement(p rookv1.PlacementSpec) rookv1.Placement {
+	// If the mon is the arbiter in a stretch cluster and its placement is specified, return it
+	// without merging with the "all" placement so it can be handled separately from all other daemons
+	return p[KeyMonArbiter]
+}
+
 // GetOSDPlacement returns the placement for the OSD service
 func GetOSDPlacement(p rookv1.PlacementSpec) rookv1.Placement {
 	return p.All().Merge(p[KeyOSD])

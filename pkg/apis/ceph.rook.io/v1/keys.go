@@ -22,6 +22,7 @@ import (
 
 const (
 	KeyMon        rook.KeyType = "mon"
+	KeyMonArbiter rook.KeyType = "arbiter"
 	KeyMgr        rook.KeyType = "mgr"
 	KeyOSDPrepare rook.KeyType = "prepareosd"
 	KeyOSD        rook.KeyType = "osd"

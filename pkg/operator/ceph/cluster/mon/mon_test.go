@@ -31,6 +31,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -467,4 +468,54 @@ func TestStretchMonVolumeClaimTemplate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestArbiterPlacement(t *testing.T) {
+	placement := rookv1.Placement{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key:      "foo",
+								Operator: v1.NodeSelectorOpExists,
+								Values:   []string{"bar"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	c := &Cluster{spec: cephv1.ClusterSpec{
+		Mon: cephv1.MonSpec{
+			StretchCluster: &cephv1.StretchClusterSpec{
+				Zones: []cephv1.StretchClusterZoneSpec{
+					{Name: "a", Arbiter: true},
+					{Name: "b"},
+					{Name: "c"},
+				},
+			},
+		},
+	}}
+
+	c.spec.Placement = rookv1.PlacementSpec{}
+	c.spec.Placement[cephv1.KeyMonArbiter] = placement
+
+	// No placement is found if not requesting the arbiter placement
+	result := c.getMonPlacement("c")
+	assert.Equal(t, rookv1.Placement{}, result)
+
+	// Placement is found if requesting the arbiter
+	result = c.getMonPlacement("a")
+	assert.Equal(t, placement, result)
+
+	// Arbiter and all mons have the same placement if no arbiter placement is specified
+	c.spec.Placement = rookv1.PlacementSpec{}
+	c.spec.Placement[cephv1.KeyMon] = placement
+	result = c.getMonPlacement("a")
+	assert.Equal(t, placement, result)
+	result = c.getMonPlacement("c")
+	assert.Equal(t, placement, result)
 }
