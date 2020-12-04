@@ -75,7 +75,6 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 
 	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), true)
 	if err != nil {
-		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
