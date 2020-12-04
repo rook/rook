@@ -71,7 +71,7 @@ func TestScratchDevice() string {
 
 // getDeviceFilter get the device name used for OSD
 func getDeviceFilter() string {
-	return getEnvVarWithDefault("DEVICE_FILTER", "")
+	return getEnvVarWithDefault("DEVICE_FILTER", `""`)
 }
 
 func getEnvVarWithDefault(env, defaultValue string) string {
