@@ -78,15 +78,7 @@ func (p *Provisioner) genUserName() (genName string, err error) {
 // Empty string is passed for bucketName only if user needs to be removed, ex Revoke()
 func (p *Provisioner) deleteOBCResource(bucketName string) error {
 
-	logger.Infof("deleting Ceph user %s and bucket %q", p.cephUserName, bucketName)
-	if len(p.cephUserName) > 0 {
-		output, err := cephObject.DeleteUser(p.objectContext, p.cephUserName)
-		if err != nil {
-			logger.Warningf("failed to delete user %q. %s. %v", p.cephUserName, output, err)
-		} else {
-			logger.Infof("user %q successfully deleted", p.cephUserName)
-		}
-	}
+	logger.Infof("deleting Ceph user %q and bucket %q", p.cephUserName, bucketName)
 	if len(bucketName) > 0 {
 		// delete bucket with purge option to remove all objects
 		errCode, err := cephObject.DeleteObjectBucket(p.objectContext, bucketName, true)
@@ -98,6 +90,14 @@ func (p *Provisioner) deleteOBCResource(bucketName string) error {
 			logger.Infof("bucket %q does not exist", p.bucketName)
 		} else {
 			return errors.Wrapf(err, "failed to delete bucket %q: errCode: %d", bucketName, errCode)
+		}
+	}
+	if len(p.cephUserName) > 0 {
+		output, err := cephObject.DeleteUser(p.objectContext, p.cephUserName)
+		if err != nil {
+			logger.Warningf("failed to delete user %q. %s. %v", p.cephUserName, output, err)
+		} else {
+			logger.Infof("user %q successfully deleted", p.cephUserName)
 		}
 	}
 	return nil

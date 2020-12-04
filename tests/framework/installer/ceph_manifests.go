@@ -1368,9 +1368,6 @@ spec:
                   type: object
                   nullable: true
                   x-kubernetes-preserve-unknown-fields: true
-                  items:
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
             status:
               type: object
               x-kubernetes-preserve-unknown-fields: true
