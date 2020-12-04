@@ -26,6 +26,9 @@ var (
 	testMinVersion         = CephCSIVersion{2, 0, 0}
 	testReleaseV210        = CephCSIVersion{2, 1, 0}
 	testReleaseV300        = CephCSIVersion{3, 0, 0}
+	testReleaseV320        = CephCSIVersion{3, 2, 0}
+	testReleaseV321        = CephCSIVersion{3, 2, 1}
+	testReleaseV330        = CephCSIVersion{3, 3, 0}
 	testVersionUnsupported = CephCSIVersion{4, 0, 0}
 )
 
@@ -86,6 +89,7 @@ func TestIsAtLeast(t *testing.T) {
 }
 
 func TestSupported(t *testing.T) {
+	AllowUnsupported = false
 	ret := testMinVersion.Supported()
 	assert.Equal(t, true, ret)
 
@@ -96,6 +100,27 @@ func TestSupported(t *testing.T) {
 	assert.Equal(t, false, ret)
 }
 
+func TestSupportOMAPController(t *testing.T) {
+	AllowUnsupported = true
+	ret := testMinVersion.SupportsOMAPController()
+	assert.True(t, ret)
+
+	AllowUnsupported = false
+	ret = testMinVersion.SupportsOMAPController()
+	assert.False(t, ret)
+
+	ret = testReleaseV300.SupportsOMAPController()
+	assert.False(t, ret)
+
+	ret = testReleaseV320.SupportsOMAPController()
+	assert.True(t, ret)
+
+	ret = testReleaseV321.SupportsOMAPController()
+	assert.True(t, ret)
+
+	ret = testReleaseV330.SupportsOMAPController()
+	assert.True(t, ret)
+}
 func Test_extractCephCSIVersion(t *testing.T) {
 	expectedVersion := CephCSIVersion{3, 0, 0}
 	csiString := []byte(`Cephcsi Version: v3.0.0
