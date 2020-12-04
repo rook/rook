@@ -348,19 +348,27 @@ func TestCephBlockPoolController(t *testing.T) {
 	pool.Spec.Mirroring.Mode = "image"
 	err = r.client.Update(context.TODO(), pool)
 	assert.NoError(t, err)
-	res, err = r.Reconcile(req)
-	assert.NoError(t, err)
-	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, pool)
-	assert.NoError(t, err)
-	assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
+	for i := 0; i < 5; i++ {
+		res, err = r.Reconcile(req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
+		if _, ok := pool.Status.Info[RBDMirrorBootstrapPeerSecretName]; ok {
+			break
+		}
+		logger.Infof("FIX: trying again to update the mirroring status")
+	}
 	assert.NotEmpty(t, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], pool.Status.Info)
 
 	// fetch the secret
 	myPeerSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(ctx, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.NotEmpty(t, myPeerSecret.Data["token"], myPeerSecret.Data)
-	assert.NotEmpty(t, myPeerSecret.Data["pool"])
+	if myPeerSecret != nil {
+		assert.NotEmpty(t, myPeerSecret.Data["token"], myPeerSecret.Data)
+		assert.NotEmpty(t, myPeerSecret.Data["pool"])
+	}
 }
 
 func TestConfigureRBDStats(t *testing.T) {
