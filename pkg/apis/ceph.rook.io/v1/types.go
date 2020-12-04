@@ -206,6 +206,9 @@ type MonitoringSpec struct {
 
 	// ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
 	ExternalMgrEndpoints []v1.EndpointAddress `json:"externalMgrEndpoints,omitempty"`
+
+	// ExternalMgrPrometheusPort Prometheus exporter port
+	ExternalMgrPrometheusPort uint16 `json:"externalMgrPrometheusPort,omitempty"`
 }
 
 type ClusterStatus struct {

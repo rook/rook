@@ -183,11 +183,17 @@ func validateExternalClusterSpec(cluster *cluster) error {
 		}
 	}
 
+	// Validate external services port
+	if cluster.Spec.Monitoring.Enabled {
+		if cluster.Spec.Monitoring.ExternalMgrPrometheusPort == 0 {
+			cluster.Spec.Monitoring.ExternalMgrPrometheusPort = mgr.DefaultMetricsPort
+		}
+	}
+
 	return nil
 }
 
 func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster) error {
-	ctx := context.TODO()
 	// Initialize manager object
 	manager := mgr.New(
 		c.context,
@@ -199,18 +205,14 @@ func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster)
 	// Create external monitoring Service
 	service := manager.MakeMetricsService(mgr.ExternalMgrAppName, mgr.ServiceExternalMetricName)
 	logger.Info("creating mgr external monitoring service")
-	_, err := c.context.Clientset.CoreV1().Services(c.namespacedName.Namespace).Create(ctx, service, metav1.CreateOptions{})
-	if err != nil {
-		if !kerrors.IsAlreadyExists(err) {
-			return errors.Wrap(err, "failed to create mgr service")
-		}
-		logger.Debug("mgr external metrics service already exists")
-	} else {
-		logger.Info("mgr external metrics service created")
+	_, err := k8sutil.CreateOrUpdateService(c.context.Clientset, cluster.Namespace, service)
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create or update mgr service")
 	}
+	logger.Info("mgr external metrics service created")
 
 	// Create external monitoring Endpoints
-	endpoint := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring.ExternalMgrEndpoints, cluster.ownerRef)
+	endpoint := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring, cluster.ownerRef)
 	logger.Info("creating mgr external monitoring endpoints")
 	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, c.namespacedName.Namespace, endpoint)
 	if err != nil {

@@ -53,16 +53,17 @@ const (
 	// AppName is the ceph mgr application name
 	AppName                = "rook-ceph-mgr"
 	serviceAccountName     = "rook-ceph-mgr"
-	prometheusModuleName   = "prometheus"
+	PrometheusModuleName   = "prometheus"
 	crashModuleName        = "crash"
 	PgautoscalerModuleName = "pg_autoscaler"
 	balancerModuleName     = "balancer"
 	balancerModuleMode     = "upmap"
-	metricsPort            = 9283
 	monitoringPath         = "/etc/ceph-monitoring/"
 	serviceMonitorFile     = "service-monitor.yaml"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512
+	// DefaultMetricsPort prometheus exporter port
+	DefaultMetricsPort uint16 = 9283
 )
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
@@ -231,7 +232,7 @@ func startModuleConfiguration(description string, configureModules func() error)
 
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
 func (c *Cluster) enablePrometheusModule() error {
-	if err := client.MgrEnableModule(c.context, c.clusterInfo, prometheusModuleName, true); err != nil {
+	if err := client.MgrEnableModule(c.context, c.clusterInfo, PrometheusModuleName, true); err != nil {
 		return errors.Wrap(err, "failed to enable mgr prometheus module")
 	}
 	return nil
@@ -331,7 +332,7 @@ func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool
 }
 
 func wellKnownModule(name string) bool {
-	knownModules := []string{dashboardModuleName, prometheusModuleName, crashModuleName}
+	knownModules := []string{dashboardModuleName, PrometheusModuleName, crashModuleName}
 	for _, known := range knownModules {
 		if name == known {
 			return true
