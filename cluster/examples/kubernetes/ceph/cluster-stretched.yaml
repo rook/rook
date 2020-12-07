@@ -50,6 +50,14 @@ spec:
     deviceFilter: ""
   # OSD placement is expected to include the non-arbiter zones
   placement:
+    # The arbiter mon can have its own placement settings that will be different from the mons.
+    # If the arbiter section is not included in the placement, the arbiter will use the same placement
+    # settings as other mons. In this example, the arbiter has a toleration to run on a master node.
+    arbiter:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
     osd:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
