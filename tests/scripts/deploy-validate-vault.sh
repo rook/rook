@@ -11,7 +11,8 @@ NAMESPACE=default
 ROOK_NAMESPACE=rook-ceph
 SECRET_NAME=vault-server-tls
 TMPDIR=$(mktemp -d)
-
+VAULT_SERVER=https://vault.default:8200
+RGW_BUCKET_KEY=mybucketkey
 #############
 # FUNCTIONS #
 #############
@@ -164,8 +165,26 @@ function deploy_vault {
   sed -i "s|ROOK_TOKEN|$ROOK_TOKEN|" tests/manifests/test-kms-vault.yaml
 }
 
+function validate_rgw_token {
+  # Create secret for RGW server in kv engine
+  ENCRYPTION_KEY=$(openssl rand -base64 32)
+  kubectl exec vault-0 -- vault kv put -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook/"$RGW_BUCKET_KEY" key="$ENCRYPTION_KEY"
+  RGW_POD=$(kubectl -n rook-ceph get pods -l app=rook-ceph-rgw | awk 'FNR == 2 {print $1}')
+  RGW_TOKEN_FILE=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep  "rgw-crypt-vault-token-file" | cut -f2- -d=)
+  VAULT_PATH_PREFIX=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep  "rgw-crypt-vault-prefix" | cut -f2- -d=)
+  VAULT_TOKEN=$(kubectl -n rook-ceph exec $RGW_POD -- cat $RGW_TOKEN_FILE)
+
+  #fetch key from vault server using token from RGW pod, P.S using -k for curl since custom ssl certs not yet to support in RGW
+  FETCHED_KEY=$(kubectl -n rook-ceph exec $RGW_POD -- curl -k -X GET -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_SERVER""$VAULT_PATH_PREFIX"/"$RGW_BUCKET_KEY"|jq -r .data.key)
+  if [[ "$ENCRYPTION_KEY" != "$FETCHED_KEY" ]]; then
+    echo "The set key $ENCRYPTION_KEY is different from fetched key $FETCHED_KEY"
+    exit 1
+  fi
+}
+
 function validate_deployment {
   validate_pvc_secret
+  validate_rgw_token
 }
 
 function validate_pvc_secret {
