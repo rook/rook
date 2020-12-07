@@ -21,17 +21,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-// NodeUsage is a mapping between a Node and computed metadata about the node
-// that is used in monitor pod scheduling.
-type NodeUsage struct {
-	Node *v1.Node
-	// The number of monitor pods assigned to the node
-	MonCount int
-	// The node is available for scheduling monitor pods. This is equivalent to
-	// evaluating k8sutil.ValidNode(node, cephv1.GetMonPlacement(c.spec.Placement))
-	MonValid bool
-}
-
 func getNodeInfoFromNode(n v1.Node) (*MonScheduleInfo, error) {
 	nr := &MonScheduleInfo{
 		Name:     n.Name,
