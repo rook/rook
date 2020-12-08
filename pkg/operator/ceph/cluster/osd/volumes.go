@@ -19,6 +19,7 @@ package osd
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 
 	"github.com/libopenstorage/secrets"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
@@ -86,7 +87,31 @@ func getDeviceMapperVolume() (v1.Volume, v1.VolumeMount) {
 	return volume, volumeMounts
 }
 
-func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
+func getDataBridgeVolumeSource(claimName, configDir, namespace string, inProvisioning bool) v1.VolumeSource {
+	var source v1.VolumeSource
+	if inProvisioning {
+		source.EmptyDir = &v1.EmptyDirVolumeSource{
+			Medium: "Memory",
+		}
+	} else {
+		// We need to use hostPath to prevent multiple OSD pods from launching the same OSD and causing corruption.
+		// Ceph avoids this problem by locking fsid file and block device file under the data bridge volume directory.
+		// These locks are released by kernel once the process is gone, so until the ceph-osd daemon alives, the other
+		// pods (same OSD) will not be able to acquire them and will continue to be restarted.
+		// If we use emptyDir, this exclusive control doesn't work because the lock files aren't shared between OSD pods.
+		hostPathType := v1.HostPathDirectoryOrCreate
+		source.HostPath = &v1.HostPathVolumeSource{
+			Path: filepath.Join(
+				configDir,
+				namespace,
+				claimName),
+			Type: &hostPathType,
+		}
+	}
+	return source
+}
+
+func getPVCOSDVolumes(osdProps *osdProperties, configDir string, namespace string, prepare bool) []v1.Volume {
 	volumes := []v1.Volume{
 		{
 			Name: osdProps.pvc.ClaimName,
@@ -98,12 +123,8 @@ func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
 			// We need a bridge mount which is basically a common volume mount between the non privileged init container
 			// and the privileged provision container or osd daemon container
 			// The reason for this is mentioned in the comment for getPVCInitContainer() method
-			Name: fmt.Sprintf("%s-bridge", osdProps.pvc.ClaimName),
-			VolumeSource: v1.VolumeSource{
-				EmptyDir: &v1.EmptyDirVolumeSource{
-					Medium: "Memory",
-				},
-			},
+			Name:         fmt.Sprintf("%s-bridge", osdProps.pvc.ClaimName),
+			VolumeSource: getDataBridgeVolumeSource(osdProps.pvc.ClaimName, configDir, namespace, prepare),
 		},
 	}
 
@@ -120,12 +141,8 @@ func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
 				// We need a bridge mount which is basically a common volume mount between the non privileged init container
 				// and the privileged provision container or osd daemon container
 				// The reason for this is mentioned in the comment for getPVCInitContainer() method
-				Name: fmt.Sprintf("%s-bridge", osdProps.metadataPVC.ClaimName),
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{
-						Medium: "Memory",
-					},
-				},
+				Name:         fmt.Sprintf("%s-bridge", osdProps.metadataPVC.ClaimName),
+				VolumeSource: getDataBridgeVolumeSource(osdProps.metadataPVC.ClaimName, configDir, namespace, prepare),
 			},
 		}
 
@@ -145,12 +162,8 @@ func getPVCOSDVolumes(osdProps *osdProperties) []v1.Volume {
 				// We need a bridge mount which is basically a common volume mount between the non privileged init container
 				// and the privileged provision container or osd daemon container
 				// The reason for this is mentioned in the comment for getPVCInitContainer() method
-				Name: fmt.Sprintf("%s-bridge", osdProps.walPVC.ClaimName),
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{
-						Medium: "Memory",
-					},
-				},
+				Name:         fmt.Sprintf("%s-bridge", osdProps.walPVC.ClaimName),
+				VolumeSource: getDataBridgeVolumeSource(osdProps.walPVC.ClaimName, configDir, namespace, prepare),
 			},
 		}
 
