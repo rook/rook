@@ -20,7 +20,9 @@ package osd
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
@@ -227,6 +229,7 @@ var defaultTuneSlowSettings = map[string]string{
 var cpArgs = []string{
 	"--archive",     // Archive mode preserves the specified attributes
 	"--dereference", // always follow symbolic links in SOURCE to avoid broken links when copying dm devs
+	"--no-clobber",  // do not overwrite an existing file
 	"--verbose",
 }
 
@@ -268,7 +271,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// If the OSD runs on PVC
 	if osdProps.onPVC() {
 		// Create volume config for PVCs
-		volumes = append(volumes, getPVCOSDVolumes(&osdProps)...)
+		volumes = append(volumes, getPVCOSDVolumes(&osdProps, c.context.ConfigDir, c.clusterInfo.Namespace, false)...)
 		// If encrypted let's add the secret key mount path
 		if osdProps.encrypted && osd.CVMode == "raw" {
 			encryptedVol, _ := c.getEncryptionVolume(osdProps)
@@ -395,7 +398,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// so that it can pick the already mounted/activated osd metadata path
 	// This container will activate the OSD and place the activated filesinto an empty dir
 	// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
-	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(osdID, osd, osdProps)
+	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.context.ConfigDir, c.clusterInfo.Namespace, osdID, osd, osdProps)
 	if doActivateOSDInit {
 		volumes = append(volumes, activateOSDVolume)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
@@ -645,8 +648,23 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 }
 
 // This container runs all the actions needed to activate an OSD before we can run the OSD process
-func (c *Cluster) getActivateOSDInitContainer(osdID string, osdInfo OSDInfo, osdProps osdProperties) (v1.Volume, *v1.Container) {
-	volume := v1.Volume{Name: activateOSDVolumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
+func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string, osdInfo OSDInfo, osdProps osdProperties) (v1.Volume, *v1.Container) {
+	// We need to use hostPath because the same reason as written in the comment of getDataBridgeVolumeSource()
+	hostPathType := v1.HostPathDirectoryOrCreate
+	source := v1.VolumeSource{
+		HostPath: &v1.HostPathVolumeSource{
+			Path: filepath.Join(
+				configDir,
+				namespace,
+				strings.ReplaceAll(osdInfo.BlockPath, "/", "_"),
+			),
+			Type: &hostPathType,
+		},
+	}
+	volume := v1.Volume{
+		Name:         activateOSDVolumeName,
+		VolumeSource: source,
+	}
 	envVars := osdActivateEnvVar()
 	osdStore := "--bluestore"
 
