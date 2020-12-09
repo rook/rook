@@ -69,7 +69,6 @@ spec:
     - name: set1
       count: 3
       portable: false
-      tuneDeviceClass: false
       encrypted: false
       volumeClaimTemplates:
       - metadata:
@@ -318,7 +317,8 @@ The following are the settings for Storage Class Device Sets which can be config
 * `preparePlacement`: The placement criteria for the preparation of the OSD devices. Creating OSDs is a two-step process and the prepare job may require different placement than the OSD daemons. If the `preparePlacement` is not specified, the `placement` will instead be applied for consistent placement for the OSD prepare jobs and OSD deployments. The `preparePlacement` is only useful for `portable` OSDs in the device sets. OSDs that are not portable will be tied to the host where the OSD prepare job initially runs.
    * For example, provisioning may require topology spread constraints across zones, but the OSD daemons may require constraints across hosts within the zones.
 * `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
-* `tuneDeviceClass`: If `true`, because the OSD can be on a slow device class, Rook will adapt to that by tuning the OSD process. This will make Ceph perform better under that slow device.
+* `tuneDeviceClass`: For example, Ceph cannot detect AWS volumes as HDDs from the storage class "gp2", so you can improve Ceph performance by setting this to true.
+* `tuneFastDeviceClass`: For example, Ceph cannot detect Azure disks as SSDs from the storage class "managed-premium", so you can improve Ceph performance by setting this to true..
 * `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
   * `resources.requests.storage`: The desired capacity for the underlying storage devices.
   * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device, multipath device, or logical volume. Other types are not supported. If you want to use logical volume, please see [known issue of OSD on LV-backed PVC](ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
@@ -814,7 +814,6 @@ spec:
     - name: set1
       count: 3
       portable: false
-      tuneDeviceClass: false
       resources:
         limits:
           cpu: "500m"
@@ -868,7 +867,6 @@ So just taking the `storage` section this will give something like:
     - name: set1
       count: 3
       portable: false
-      tuneDeviceClass: false
       volumeClaimTemplates:
       - metadata:
           name: data
@@ -913,7 +911,6 @@ The bluestore partition has the following reference combinations supported by th
       - name: set1
         count: 3
         portable: false
-        tuneDeviceClass: false
         volumeClaimTemplates:
         - metadata:
             name: data
@@ -936,7 +933,6 @@ The bluestore partition has the following reference combinations supported by th
       - name: set1
         count: 3
         portable: false
-        tuneDeviceClass: false
         volumeClaimTemplates:
         - metadata:
             name: data
@@ -973,7 +969,6 @@ There is no separate "metadata" device in this case, the data of main OSD block 
       - name: set1
         count: 3
         portable: false
-        tuneDeviceClass: false
         volumeClaimTemplates:
         - metadata:
             name: data
@@ -1008,7 +1003,6 @@ There is no separate "metadata" device in this case, the data of main OSD block 
       - name: set1
         count: 3
         portable: false
-        tuneDeviceClass: false
         volumeClaimTemplates:
         - metadata:
             name: data
