@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-direct-mount
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
   labels:
     app: rook-direct-mount
 spec:

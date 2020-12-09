@@ -7,7 +7,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
   name: my-store
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   metadataPool:
     replicated:

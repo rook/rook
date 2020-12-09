@@ -6,13 +6,13 @@ apiVersion: ceph.rook.io/v1
 kind: CephObjectRealm
 metadata:
   name: realm-a
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectZoneGroup
 metadata:
   name: zonegroup-a
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   realm: realm-a
 ---
@@ -20,7 +20,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephObjectZone
 metadata:
   name: zone-a
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   zoneGroup: zonegroup-a
   metadataPool:
@@ -40,7 +40,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
   name: multisite-store
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   gateway:
     type: s3

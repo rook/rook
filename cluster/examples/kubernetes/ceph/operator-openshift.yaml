@@ -45,10 +45,10 @@ users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph:rook-ceph-system
-  - system:serviceaccount:rook-ceph:default
-  - system:serviceaccount:rook-ceph:rook-ceph-mgr
-  - system:serviceaccount:rook-ceph:rook-ceph-osd
+  - system:serviceaccount:rook-ceph:rook-ceph-system # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:default # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-mgr # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-osd # serviceaccount:namespace:cluster
 ---
 # scc for the CSI driver
 kind: SecurityContextConstraints
@@ -82,10 +82,10 @@ users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa
-  - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa
-  - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator
 ---
 # Rook Ceph Operator Config
 # Use this ConfigMap to override operator configurations
@@ -96,7 +96,7 @@ apiVersion: v1
 metadata:
   name: rook-ceph-operator-config
   # should be in the namespace of the operator
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 data:
   # Enable the CSI driver.
   # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
@@ -347,7 +347,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-ceph-operator
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
   labels:
     operator: rook
     storage-backend: ceph
