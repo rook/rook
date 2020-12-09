@@ -161,9 +161,9 @@ pipeline {
                     def data = [
                         "aws_1.15.x": "v1.15.12",
                         "aws_1.16.x": "v1.16.15",
-                        "aws_1.17.x": "v1.17.9",
-                        "aws_1.18.x": "v1.18.6",
-                        "aws_1.19.x": "v1.19.0"
+                        "aws_1.18.x": "v1.18.12",
+                        "aws_1.19.x": "v1.19.4",
+                        "aws_1.20.x": "v1.20.0"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
