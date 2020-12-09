@@ -33,17 +33,17 @@ const (
 type CephManifests interface {
 	GetRookCRDs(v1ExtensionsSupported bool) string
 	GetRookOperator(namespace string) string
-	GetClusterRoles(namespace, systemNamespace string) string
-	GetClusterExternalRoles(namespace, systemNamespace string) string
+	GetClusterRoles(namespace, operatorNamespace string) string
+	GetClusterExternalRoles(namespace, operatorNamespace string) string
 	GetRookCluster(settings *clusterSettings) string
 	GetRookExternalCluster(settings *clusterExternalSettings) string
 	GetRookToolBox(namespace string) string
 	GetBlockPoolDef(poolName, namespace, replicaSize string) string
-	GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string
-	GetFileStorageClassDef(fsName, storageClassName, systemNamespace, namespace string) string
+	GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, operatorNamespace string) string
+	GetFileStorageClassDef(fsName, storageClassName, operatorNamespace, namespace string) string
 	GetPVC(claimName, namespace, storageClassName, accessModes, size string) string
-	GetBlockSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string
-	GetFileStorageSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string
+	GetBlockSnapshotClass(snapshotClassName, namespace, operatorNamespace, reclaimPolicy string) string
+	GetFileStorageSnapshotClass(snapshotClassName, namespace, operatorNamespace, reclaimPolicy string) string
 	GetPVCRestore(claimName, snapshotName, namespace, storageClassName, accessModes, size string) string
 	GetPVCClone(cloneClaimName, parentClaimName, namespace, storageClassName, accessModes, size string) string
 	GetSnapshot(snapshotName, claimName, snapshotClassName, namespace string) string
@@ -2256,7 +2256,7 @@ users:
 }
 
 // GetRookOperator returns rook Operator manifest
-func (m *CephManifestsMaster) GetRookOperator(namespace string) string {
+func (m *CephManifestsMaster) GetRookOperator(operatorNamespace string) string {
 	var operatorManifest string
 	openshiftEnv := ""
 
@@ -2266,7 +2266,7 @@ func (m *CephManifestsMaster) GetRookOperator(namespace string) string {
           value: "true"
         - name: FLEXVOLUME_DIR_PATH
           value: "/etc/kubernetes/kubelet-plugins/volume/exec"`
-		operatorManifest = getOpenshiftSCC(namespace)
+		operatorManifest = getOpenshiftSCC(operatorNamespace)
 	}
 
 	operatorManifest = operatorManifest + `---
@@ -2274,7 +2274,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
   name: rook-ceph-system
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
   labels:
     operator: rook
     storage-backend: ceph
@@ -2573,13 +2573,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-system
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
   labels:
     operator: rook
     storage-backend: ceph
@@ -2588,7 +2588,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
   labels:
     operator: rook
     storage-backend: ceph
@@ -2599,7 +2599,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -2615,13 +2615,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-plugin-sa
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -2654,7 +2654,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-plugin-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 roleRef:
   kind: ClusterRole
   name: rbd-csi-nodeplugin
@@ -2664,7 +2664,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-provisioner-sa
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -2724,7 +2724,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 roleRef:
   kind: ClusterRole
   name: rbd-external-provisioner-runner
@@ -2733,7 +2733,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
   name: rbd-external-provisioner-cfg
 rules:
   - apiGroups: [""]
@@ -2750,11 +2750,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-provisioner-role-cfg
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 roleRef:
   kind: Role
   name: rbd-external-provisioner-cfg
@@ -2764,7 +2764,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-plugin-sa
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -2795,7 +2795,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-plugin-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 roleRef:
   kind: ClusterRole
   name: cephfs-csi-nodeplugin
@@ -2805,7 +2805,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-provisioner-sa
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -2865,7 +2865,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 roleRef:
   kind: ClusterRole
   name: cephfs-external-provisioner-runner
@@ -2874,7 +2874,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
   name: cephfs-external-provisioner-cfg
 rules:
   - apiGroups: [""]
@@ -2891,11 +2891,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-provisioner-role-cfg
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
@@ -2992,7 +2992,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -3005,7 +3005,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -3018,7 +3018,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-plugin-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -3031,7 +3031,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -3044,13 +3044,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-plugin-sa
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-admission-controller
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -3069,7 +3069,7 @@ subjects:
   - kind: ServiceAccount
     name: rook-ceph-admission-controller
     apiGroup: ""
-    namespace: ` + namespace + `
+    namespace: ` + operatorNamespace + `
 roleRef:
   kind: ClusterRole
   name: rook-ceph-admission-controller-role
@@ -3079,7 +3079,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-ceph-operator
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
   labels:
     operator: rook
     storage-backend: ceph
@@ -3134,7 +3134,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: rook-ceph-operator-config
-  namespace: ` + namespace + `
+  namespace: ` + operatorNamespace + `
 data:
   ROOK_CSI_ENABLE_CEPHFS: "true"
   ROOK_CSI_ENABLE_RBD: "true"
@@ -3146,7 +3146,7 @@ data:
 }
 
 // GetClusterRoles returns rook-cluster manifest
-func (m *CephManifestsMaster) GetClusterRoles(namespace, systemNamespace string) string {
+func (m *CephManifestsMaster) GetClusterRoles(namespace, operatorNamespace string) string {
 	return `apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -3274,7 +3274,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: ` + systemNamespace + `
+  namespace: ` + operatorNamespace + `
 ---
 # Allow the osd pods in this namespace to work with configmaps
 kind: RoleBinding
@@ -3311,7 +3311,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system ` + namespace + `
-  namespace: ` + systemNamespace + `
+  namespace: ` + operatorNamespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -3571,14 +3571,14 @@ spec:
           path: mon-endpoints`
 }
 
-func (m *CephManifestsMaster) GetBlockSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string {
+func (m *CephManifestsMaster) GetBlockSnapshotClass(snapshotClassName, namespace, operatorNamespace, reclaimPolicy string) string {
 	// Create a CSI driver snapshotclass
 	return `
 apiVersion: snapshot.storage.k8s.io/v1beta1
 kind: VolumeSnapshotClass
 metadata:
   name: ` + snapshotClassName + `
-driver: ` + systemNamespace + `.rbd.csi.ceph.com
+driver: ` + operatorNamespace + `.rbd.csi.ceph.com
 deletionPolicy: ` + reclaimPolicy + `
 parameters:
   clusterID: ` + namespace + `
@@ -3587,14 +3587,14 @@ parameters:
 `
 }
 
-func (m *CephManifestsMaster) GetFileStorageSnapshotClass(snapshotClassName, namespace, systemNamespace, reclaimPolicy string) string {
+func (m *CephManifestsMaster) GetFileStorageSnapshotClass(snapshotClassName, namespace, operatorNamespace, reclaimPolicy string) string {
 	// Create a CSI driver snapshotclass
 	return `
 apiVersion: snapshot.storage.k8s.io/v1beta1
 kind: VolumeSnapshotClass
 metadata:
   name: ` + snapshotClassName + `
-driver: ` + systemNamespace + `.cephfs.csi.ceph.com
+driver: ` + operatorNamespace + `.cephfs.csi.ceph.com
 deletionPolicy: ` + reclaimPolicy + `
 parameters:
   clusterID: ` + namespace + `
@@ -3698,7 +3698,7 @@ spec:
       interval: 10s`
 }
 
-func (m *CephManifestsMaster) GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, systemNamespace string) string {
+func (m *CephManifestsMaster) GetBlockStorageClassDef(csi bool, poolName, storageClassName, reclaimPolicy, namespace, operatorNamespace string) string {
 	// Create a CSI driver storage class
 	if csi {
 		return `
@@ -3706,7 +3706,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ` + storageClassName + `
-provisioner: ` + systemNamespace + `.rbd.csi.ceph.com
+provisioner: ` + operatorNamespace + `.rbd.csi.ceph.com
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
   pool: ` + poolName + `
@@ -3732,7 +3732,7 @@ parameters:
     clusterNamespace: ` + namespace
 }
 
-func (m *CephManifestsMaster) GetFileStorageClassDef(fsName, storageClassName, systemNamespace, namespace string) string {
+func (m *CephManifestsMaster) GetFileStorageClassDef(fsName, storageClassName, operatorNamespace, namespace string) string {
 	// Create a CSI driver storage class
 	csiCephFSNodeSecret := "rook-csi-cephfs-node"               //nolint:gosec // We safely suppress gosec in tests file
 	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner" //nolint:gosec // We safely suppress gosec in tests file
@@ -3741,7 +3741,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ` + storageClassName + `
-provisioner: ` + systemNamespace + `.cephfs.csi.ceph.com
+provisioner: ` + operatorNamespace + `.cephfs.csi.ceph.com
 parameters:
   clusterID: ` + namespace + `
   fsName: ` + fsName + `

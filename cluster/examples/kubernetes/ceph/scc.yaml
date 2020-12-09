@@ -38,10 +38,10 @@ users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph:rook-ceph-system
-  - system:serviceaccount:rook-ceph:default
-  - system:serviceaccount:rook-ceph:rook-ceph-mgr
-  - system:serviceaccount:rook-ceph:rook-ceph-osd
+  - system:serviceaccount:rook-ceph:rook-ceph-system # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:default # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-mgr # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-ceph-osd # serviceaccount:namespace:cluster
 ---
 # scc for the CSI driver
 kind: SecurityContextConstraints
@@ -75,7 +75,7 @@ users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa
-  - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa
-  - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa
-  - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-plugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator

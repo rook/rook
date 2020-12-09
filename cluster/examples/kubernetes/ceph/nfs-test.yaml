@@ -2,7 +2,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephNFS
 metadata:
   name: my-nfs
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   rados:
     # RADOS pool where NFS client recovery data is stored.
