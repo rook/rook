@@ -17,7 +17,6 @@ package osd
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -394,7 +393,7 @@ func TestGetOSDInfo(t *testing.T) {
 	}
 	d1, _ := c.makeDeployment(osdProp, osd1, dataPathMap)
 	osds1, _ := c.getOSDInfo(d1)
-	findDuplicateEnvVars(t, d1.Spec.Template.Spec)
+
 	assert.Equal(t, 1, len(osds1))
 	assert.Equal(t, osd1.ID, osds1[0].ID)
 	assert.Equal(t, osd1.BlockPath, osds1[0].BlockPath)
@@ -413,17 +412,6 @@ func TestGetOSDInfo(t *testing.T) {
 	osds3, err := c.getOSDInfo(d3)
 	assert.Equal(t, 0, len(osds3))
 	assert.NotNil(t, err)
-}
-
-func findDuplicateEnvVars(t *testing.T, pod v1.PodSpec) {
-	for _, container := range pod.Containers {
-		envVars := map[string]string{}
-		for _, v := range container.Env {
-			_, ok := envVars[v.Name]
-			assert.False(t, ok, fmt.Sprintf("env var duplicated: %s", v.Name))
-			envVars[v.Name] = v.Value
-		}
-	}
 }
 
 func TestOSDPlacement(t *testing.T) {

@@ -386,3 +386,27 @@ func ForceDeletePodIfStuck(clusterdContext *clusterd.Context, pod v1.Pod) error 
 	logger.Infof("pod %q deletion succeeded", pod.Name)
 	return nil
 }
+
+func RemoveDuplicateEnvVars(pod *v1.PodSpec) {
+	for i := range pod.Containers {
+		removeDuplicateEnvVarsFromContainer(&pod.Containers[i])
+	}
+	for i := range pod.InitContainers {
+		removeDuplicateEnvVarsFromContainer(&pod.InitContainers[i])
+	}
+}
+
+func removeDuplicateEnvVarsFromContainer(container *v1.Container) {
+	foundVars := map[string]string{}
+	vars := []v1.EnvVar{}
+	for _, v := range container.Env {
+		if _, ok := foundVars[v.Name]; ok {
+			logger.Debugf("duplicate env var %q skipped on container %q", v.Name, container.Name)
+			continue
+		}
+
+		vars = append(vars, v)
+		foundVars[v.Name] = v.Value
+	}
+	container.Env = vars
+}
