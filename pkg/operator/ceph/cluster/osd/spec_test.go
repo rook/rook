@@ -27,6 +27,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	operatortest "github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -63,7 +64,11 @@ func TestPodContainer(t *testing.T) {
 	assert.Equal(t, "ceph", container.Args[2])
 	assert.Equal(t, "osd", container.Args[3])
 	assert.Equal(t, "provision", container.Args[4])
-	findDuplicateEnvVars(t, c.Spec)
+
+	for _, c := range c.Spec.Containers {
+		vars := operatortest.FindDuplicateEnvVars(c)
+		assert.Equal(t, 0, len(vars))
+	}
 }
 
 func TestDaemonset(t *testing.T) {

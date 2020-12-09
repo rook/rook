@@ -132,6 +132,8 @@ func (ct *ContainersTester) AssertEnvVarsContainCephRequirements() {
 					"POD_CPU_REQUEST env var does not have the appropriate source:", e)
 			}
 		}
+		vars := FindDuplicateEnvVars(c)
+		assert.Equal(ct.t, 0, len(vars), fmt.Sprintf("found duplicate env vars: %v", vars))
 	}
 }
 
@@ -246,4 +248,18 @@ func (ct *ContainersTester) allNonrequiredVarNames() []string {
 		}
 	}
 	return all
+}
+
+// FindDuplicateEnvVars finds duplicated environment variables and return the variable name list.
+func FindDuplicateEnvVars(container v1.Container) []string {
+	var duplicateEnvVars []string
+	envVars := map[string]string{}
+	for _, v := range container.Env {
+		_, ok := envVars[v.Name]
+		if ok {
+			duplicateEnvVars = append(duplicateEnvVars, v.Name)
+		}
+		envVars[v.Name] = v.Value
+	}
+	return duplicateEnvVars
 }
