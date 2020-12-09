@@ -32,6 +32,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tevino/abool"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -125,6 +126,7 @@ func TestDeletePool(t *testing.T) {
 // TestCephBlockPoolController runs ReconcileCephBlockPool.Reconcile() against a
 // fake client that tracks a CephBlockPool object.
 func TestCephBlockPoolController(t *testing.T) {
+	ctx := context.TODO()
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
@@ -173,9 +175,10 @@ func TestCephBlockPoolController(t *testing.T) {
 		},
 	}
 	c := &clusterd.Context{
-		Executor:      executor,
-		Clientset:     testop.New(t, 1),
-		RookClientset: rookclient.NewSimpleClientset(),
+		Executor:                   executor,
+		Clientset:                  testop.New(t, 1),
+		RookClientset:              rookclient.NewSimpleClientset(),
+		RequestCancelOrchestration: abool.New(),
 	}
 
 	// Register operator types with the runtime scheme.
@@ -202,7 +205,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 
 	// Create pool for updateCephBlockPoolStatus()
-	_, err := c.RookClientset.CephV1().CephBlockPools(namespace).Create(pool)
+	_, err := c.RookClientset.CephV1().CephBlockPools(namespace).Create(ctx, pool, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	res, err := r.Reconcile(req)
 	assert.NoError(t, err)
@@ -233,7 +236,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 
 	// Create CephCluster for updateCephBlockPoolStatus()
-	_, err = c.RookClientset.CephV1().CephClusters(namespace).Create(cephCluster)
+	_, err = c.RookClientset.CephV1().CephClusters(namespace).Create(ctx, cephCluster, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	object = append(object, cephCluster)
@@ -293,7 +296,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(secret)
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
@@ -345,19 +348,27 @@ func TestCephBlockPoolController(t *testing.T) {
 	pool.Spec.Mirroring.Mode = "image"
 	err = r.client.Update(context.TODO(), pool)
 	assert.NoError(t, err)
-	res, err = r.Reconcile(req)
-	assert.NoError(t, err)
-	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, pool)
-	assert.NoError(t, err)
-	assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
+	for i := 0; i < 5; i++ {
+		res, err = r.Reconcile(req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
+		if _, ok := pool.Status.Info[RBDMirrorBootstrapPeerSecretName]; ok {
+			break
+		}
+		logger.Infof("FIX: trying again to update the mirroring status")
+	}
 	assert.NotEmpty(t, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], pool.Status.Info)
 
 	// fetch the secret
-	myPeerSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(pool.Status.Info[RBDMirrorBootstrapPeerSecretName], metav1.GetOptions{})
+	myPeerSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(ctx, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.NotEmpty(t, myPeerSecret.Data["token"], myPeerSecret.Data)
-	assert.NotEmpty(t, myPeerSecret.Data["pool"])
+	if myPeerSecret != nil {
+		assert.NotEmpty(t, myPeerSecret.Data["token"], myPeerSecret.Data)
+		assert.NotEmpty(t, myPeerSecret.Data["pool"])
+	}
 }
 
 func TestConfigureRBDStats(t *testing.T) {

@@ -18,6 +18,7 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -49,6 +50,7 @@ type daemonConfig struct {
 
 // Create the ganesha server
 func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
+	ctx := context.TODO()
 	for i := 0; i < n.Spec.Server.Active; i++ {
 		id := k8sutil.IndexToName(i)
 
@@ -95,7 +97,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
 		}
 
 		// start the deployment
-		_, err = r.context.Clientset.AppsV1().Deployments(n.Namespace).Create(deployment)
+		_, err = r.context.Clientset.AppsV1().Deployments(n.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
 		if err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrap(err, "failed to create ceph nfs deployment")
@@ -188,6 +190,7 @@ func (r *ReconcileCephNFS) generateConfigMap(n *cephv1.CephNFS, name string) *v1
 }
 
 func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (string, error) {
+	ctx := context.TODO()
 	// Generate configMap
 	configMap := r.generateConfigMap(n, name)
 
@@ -197,13 +200,13 @@ func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (stri
 		return "", errors.Wrapf(err, "failed to set owner reference for ceph nfs %q config map", configMap.Name)
 	}
 
-	if _, err := r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Create(configMap); err != nil {
+	if _, err := r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return "", errors.Wrap(err, "failed to create ganesha config map")
 		}
 
 		logger.Debugf("updating config map %q that already exists", configMap.Name)
-		if _, err = r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Update(configMap); err != nil {
+		if _, err = r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Update(ctx, configMap, metav1.UpdateOptions{}); err != nil {
 			return "", errors.Wrap(err, "failed to update ganesha config map")
 		}
 	}
@@ -213,6 +216,7 @@ func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (stri
 
 // Down scale the ganesha server
 func (r *ReconcileCephNFS) downCephNFS(n *cephv1.CephNFS, nfsServerListNum int) error {
+	ctx := context.TODO()
 	diffCount := nfsServerListNum - n.Spec.Server.Active
 	for i := 0; i < diffCount; {
 		depIDToRemove := nfsServerListNum - 1
@@ -222,7 +226,7 @@ func (r *ReconcileCephNFS) downCephNFS(n *cephv1.CephNFS, nfsServerListNum int) 
 
 		// Remove deployment
 		logger.Infof("removing deployment %q", depNameToRemove)
-		err := r.context.Clientset.AppsV1().Deployments(n.Namespace).Delete(depNameToRemove, &metav1.DeleteOptions{})
+		err := r.context.Clientset.AppsV1().Deployments(n.Namespace).Delete(ctx, depNameToRemove, metav1.DeleteOptions{})
 		if err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrap(err, "failed to delete ceph nfs deployment")

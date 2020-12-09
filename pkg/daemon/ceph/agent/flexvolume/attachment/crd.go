@@ -17,6 +17,8 @@ limitations under the License.
 package attachment
 
 import (
+	"context"
+
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -46,23 +48,23 @@ func New(context *clusterd.Context) (Attachment, error) {
 
 // Get queries the Volume CRD from Kubernetes
 func (c *crd) Get(namespace, name string) (*rookalpha.Volume, error) {
-	return c.context.RookClientset.RookV1alpha2().Volumes(namespace).Get(name, metav1.GetOptions{})
+	return c.context.RookClientset.RookV1alpha2().Volumes(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
 // List lists all the volume attachment CRD resources in the given namespace
 func (c *crd) List(namespace string) (*rookalpha.VolumeList, error) {
-	return c.context.RookClientset.RookV1alpha2().Volumes(namespace).List(metav1.ListOptions{})
+	return c.context.RookClientset.RookV1alpha2().Volumes(namespace).List(context.TODO(), metav1.ListOptions{})
 }
 
 // Create creates the volume attach CRD resource in Kubernetes
 func (c *crd) Create(volumeAttachment *rookalpha.Volume) error {
-	_, err := c.context.RookClientset.RookV1alpha2().Volumes(volumeAttachment.Namespace).Create(volumeAttachment)
+	_, err := c.context.RookClientset.RookV1alpha2().Volumes(volumeAttachment.Namespace).Create(context.TODO(), volumeAttachment, metav1.CreateOptions{})
 	return err
 }
 
 // Update updates Volume resource
 func (c *crd) Update(volumeAttachment *rookalpha.Volume) error {
-	_, err := c.context.RookClientset.RookV1alpha2().Volumes(volumeAttachment.Namespace).Update(volumeAttachment)
+	_, err := c.context.RookClientset.RookV1alpha2().Volumes(volumeAttachment.Namespace).Update(context.TODO(), volumeAttachment, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Errorf("failed to update Volume CRD. %v", err)
 		return err
@@ -73,5 +75,5 @@ func (c *crd) Update(volumeAttachment *rookalpha.Volume) error {
 
 // Delete deletes the volume attach CRD resource in Kubernetes
 func (c *crd) Delete(namespace, name string) error {
-	return c.context.RookClientset.RookV1alpha2().Volumes(namespace).Delete(name, &metav1.DeleteOptions{})
+	return c.context.RookClientset.RookV1alpha2().Volumes(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }

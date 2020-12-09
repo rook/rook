@@ -22,6 +22,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
+	"github.com/tevino/abool"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -66,4 +67,7 @@ type Context struct {
 
 	// The local devices detected on the node
 	Devices []*sys.LocalDisk
+
+	// RequestCancelOrchestration manages the orchestration and its possible cancellation
+	RequestCancelOrchestration *abool.AtomicBool
 }

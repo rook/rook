@@ -17,6 +17,7 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -31,7 +32,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/controller"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -69,42 +70,43 @@ func NewNFSProvisioner(clientset kubernetes.Interface, rookClientset rookclient.
 	}, nil
 }
 
-func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.PersistentVolume, error) {
+// Provision(context.Context, ProvisionOptions) (*v1.PersistentVolume, ProvisioningState, error)
+func (p *Provisioner) Provision(ctx context.Context, options controller.ProvisionOptions) (*v1.PersistentVolume, controller.ProvisioningState, error) {
 	logger.Infof("nfs provisioner: ProvisionOptions %v", options)
 	annotations := make(map[string]string)
 
 	if options.PVC.Spec.Selector != nil {
-		return nil, fmt.Errorf("claim Selector is not supported")
+		return nil, controller.ProvisioningFinished, fmt.Errorf("claim Selector is not supported")
 	}
 
-	sc, err := p.storageClassForPVC(options.PVC)
+	sc, err := p.storageClassForPVC(ctx, options.PVC)
 	if err != nil {
-		return nil, err
+		return nil, controller.ProvisioningFinished, err
 	}
 
 	serverName, present := sc.Parameters[nfsServerNameSCParam]
 	if !present {
-		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
+		return nil, controller.ProvisioningFinished, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
 
 	serverNamespace, present := sc.Parameters[nfsServerNamespaceSCParam]
 	if !present {
-		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
+		return nil, controller.ProvisioningFinished, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
 
 	exportName, present := sc.Parameters[exportNameSCParam]
 	if !present {
-		return nil, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
+		return nil, controller.ProvisioningFinished, errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
 
-	nfsserver, err := p.rookClient.NfsV1alpha1().NFSServers(serverNamespace).Get(serverName, metav1.GetOptions{})
+	nfsserver, err := p.rookClient.NfsV1alpha1().NFSServers(serverNamespace).Get(ctx, serverName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, controller.ProvisioningFinished, err
 	}
 
-	nfsserversvc, err := p.client.CoreV1().Services(serverNamespace).Get(serverName, metav1.GetOptions{})
+	nfsserversvc, err := p.client.CoreV1().Services(serverNamespace).Get(ctx, serverName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, controller.ProvisioningFinished, err
 	}
 
 	var (
@@ -120,19 +122,19 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 	}
 
 	if !found {
-		return nil, fmt.Errorf("No export name from storageclass is match with NFSServer %s in namespace %s", nfsserver.Name, nfsserver.Namespace)
+		return nil, controller.ProvisioningFinished, fmt.Errorf("No export name from storageclass is match with NFSServer %s in namespace %s", nfsserver.Name, nfsserver.Namespace)
 	}
 
 	pvName := strings.Join([]string{options.PVC.Namespace, options.PVC.Name, options.PVName}, "-")
 	fullPath := path.Join(exportPath, pvName)
 	if err := os.MkdirAll(fullPath, 0700); err != nil {
-		return nil, errors.New("unable to create directory to provision new pv: " + err.Error())
+		return nil, controller.ProvisioningFinished, errors.New("unable to create directory to provision new pv: " + err.Error())
 	}
 
 	capacity := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	block, err := p.createQuota(exportPath, fullPath, strconv.FormatInt(capacity.Value(), 10))
 	if err != nil {
-		return nil, err
+		return nil, controller.ProvisioningFinished, err
 	}
 
 	annotations[projectBlockAnnotationKey] = block
@@ -159,14 +161,14 @@ func (p *Provisioner) Provision(options controller.ProvisionOptions) (*v1.Persis
 		},
 	}
 
-	return pv, nil
+	return pv, controller.ProvisioningFinished, nil
 }
 
-func (p *Provisioner) Delete(volume *v1.PersistentVolume) error {
+func (p *Provisioner) Delete(ctx context.Context, volume *v1.PersistentVolume) error {
 	nfsPath := volume.Spec.PersistentVolumeSource.NFS.Path
 	pvName := path.Base(nfsPath)
 
-	sc, err := p.storageClassForPV(volume)
+	sc, err := p.storageClassForPV(ctx, volume)
 	if err != nil {
 		return err
 	}
@@ -186,7 +188,7 @@ func (p *Provisioner) Delete(volume *v1.PersistentVolume) error {
 		return errors.Errorf("NFS share Path not found in the storageclass: %v", sc.GetName())
 	}
 
-	nfsserver, err := p.rookClient.NfsV1alpha1().NFSServers(serverNamespace).Get(serverName, metav1.GetOptions{})
+	nfsserver, err := p.rookClient.NfsV1alpha1().NFSServers(serverNamespace).Get(ctx, serverName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -256,7 +258,7 @@ func (p *Provisioner) removeQuota(exportPath, block string) error {
 	return p.quotaer.RemoveProjectQuota(projectID, projectsFile, block)
 }
 
-func (p *Provisioner) storageClassForPV(pv *v1.PersistentVolume) (*storagev1.StorageClass, error) {
+func (p *Provisioner) storageClassForPV(ctx context.Context, pv *v1.PersistentVolume) (*storagev1.StorageClass, error) {
 	if p.client == nil {
 		return nil, fmt.Errorf("Cannot get kube client")
 	}
@@ -265,10 +267,10 @@ func (p *Provisioner) storageClassForPV(pv *v1.PersistentVolume) (*storagev1.Sto
 		return nil, fmt.Errorf("Volume has no storage class")
 	}
 
-	return p.client.StorageV1().StorageClasses().Get(className, metav1.GetOptions{})
+	return p.client.StorageV1().StorageClasses().Get(ctx, className, metav1.GetOptions{})
 }
 
-func (p *Provisioner) storageClassForPVC(pvc *v1.PersistentVolumeClaim) (*storagev1.StorageClass, error) {
+func (p *Provisioner) storageClassForPVC(ctx context.Context, pvc *v1.PersistentVolumeClaim) (*storagev1.StorageClass, error) {
 	if p.client == nil {
 		return nil, fmt.Errorf("Cannot get kube client")
 	}
@@ -277,5 +279,5 @@ func (p *Provisioner) storageClassForPVC(pvc *v1.PersistentVolumeClaim) (*storag
 		return nil, fmt.Errorf("Volume has no storage class")
 	}
 
-	return p.client.StorageV1().StorageClasses().Get(className, metav1.GetOptions{})
+	return p.client.StorageV1().StorageClasses().Get(ctx, className, metav1.GetOptions{})
 }

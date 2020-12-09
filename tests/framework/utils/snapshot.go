@@ -14,6 +14,7 @@ limitations under the License.
 package utils
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -75,9 +76,10 @@ func (k8sh *K8sHelper) snapshotController(action string) error {
 // retries count.
 func (k8sh *K8sHelper) WaitForSnapshotController(retries int) error {
 	namespace := "default"
+	ctx := context.TODO()
 	snapshotterName := "snapshot-controller"
 	for i := 0; i < retries; i++ {
-		ss, err := k8sh.Clientset.AppsV1().StatefulSets(namespace).Get(snapshotterName, metav1.GetOptions{})
+		ss, err := k8sh.Clientset.AppsV1().StatefulSets(namespace).Get(ctx, snapshotterName, metav1.GetOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}

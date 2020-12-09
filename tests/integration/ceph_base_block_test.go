@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -392,16 +393,17 @@ func createPodWithBlock(helper *clients.TestClient, k8sh *utils.K8sHelper, s sui
 }
 
 func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+	ctx := context.TODO()
 	osdLabel := "app=rook-ceph-osd"
 
 	// Delete the osd pod(s)
 	logger.Infof("Deleting osd pod(s)")
-	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: osdLabel})
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: osdLabel})
 	assert.NoError(s.T(), err)
 
 	for _, pod := range pods.Items {
 		options := metav1.DeleteOptions{}
-		err := k8sh.Clientset.CoreV1().Pods(namespace).Delete(pod.Name, &options)
+		err := k8sh.Clientset.CoreV1().Pods(namespace).Delete(ctx, pod.Name, options)
 		assert.NoError(s.T(), err)
 
 		logger.Infof("Waiting for osd pod %s to be deleted", pod.Name)

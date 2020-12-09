@@ -17,6 +17,7 @@ limitations under the License.
 package file
 
 import (
+	"context"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -73,6 +74,7 @@ func TestValidateSpec(t *testing.T) {
 }
 
 func TestCreateFilesystem(t *testing.T) {
+	ctx := context.TODO()
 	var deploymentsUpdated *[]*apps.Deployment
 	mds.UpdateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
@@ -167,14 +169,14 @@ func TestCreateFilesystem(t *testing.T) {
 	// start a basic cluster
 	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
 	assert.Nil(t, err)
-	validateStart(t, context, fs)
+	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// starting again should be a no-op
 	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
 	assert.Nil(t, err)
-	validateStart(t, context, fs)
+	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{"rook-ceph-mds-myfs-a", "rook-ceph-mds-myfs-b"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -214,7 +216,7 @@ func TestCreateFilesystem(t *testing.T) {
 
 	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
 	assert.Nil(t, err)
-	validateStart(t, context, fs)
+	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{"rook-ceph-mds-myfs-a", "rook-ceph-mds-myfs-b"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	assert.Equal(t, 1, createDataOnePoolCount)
 	assert.Equal(t, 1, addDataOnePoolCount)
@@ -240,6 +242,7 @@ func TestCreateFilesystem(t *testing.T) {
 }
 
 func TestCreateNopoolFilesystem(t *testing.T) {
+	ctx := context.TODO()
 	clientset := testop.New(t, 3)
 	configDir, _ := ioutil.TempDir("", "")
 	executor := &exectest.MockExecutor{
@@ -273,12 +276,12 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	// start a basic cluster
 	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
 	assert.Nil(t, err)
-	validateStart(t, context, fs)
+	validateStart(ctx, t, context, fs)
 
 	// starting again should be a no-op
 	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
 	assert.Nil(t, err)
-	validateStart(t, context, fs)
+	validateStart(ctx, t, context, fs)
 }
 
 func contains(arr []string, str string) bool {
@@ -290,12 +293,12 @@ func contains(arr []string, str string) bool {
 	return false
 }
 
-func validateStart(t *testing.T, context *clusterd.Context, fs cephv1.CephFilesystem) {
-	r, err := context.Clientset.AppsV1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-a", metav1.GetOptions{})
+func validateStart(ctx context.Context, t *testing.T, context *clusterd.Context, fs cephv1.CephFilesystem) {
+	r, err := context.Clientset.AppsV1().Deployments(fs.Namespace).Get(ctx, "rook-ceph-mds-myfs-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mds-myfs-a", r.Name)
 
-	r, err = context.Clientset.AppsV1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs-b", metav1.GetOptions{})
+	r, err = context.Clientset.AppsV1().Deployments(fs.Namespace).Get(ctx, "rook-ceph-mds-myfs-b", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mds-myfs-b", r.Name)
 }

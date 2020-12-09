@@ -17,23 +17,26 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // CreateOrUpdateEndpoint creates a service or updates the service declaratively if it already exists.
 func CreateOrUpdateEndpoint(clientset kubernetes.Interface, namespace string, endpointDefinition *v1.Endpoints) (*v1.Endpoints, error) {
+	ctx := context.TODO()
 	name := endpointDefinition.Name
 	logger.Debugf("creating endpoint %q. %v", name, endpointDefinition.Subsets)
-	ep, err := clientset.CoreV1().Endpoints(namespace).Create(endpointDefinition)
+	ep, err := clientset.CoreV1().Endpoints(namespace).Create(ctx, endpointDefinition, metav1.CreateOptions{})
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return nil, fmt.Errorf("failed to create endpoint %q. %v", name, err)
 		}
-		ep, err = clientset.CoreV1().Endpoints(namespace).Update(endpointDefinition)
+		ep, err = clientset.CoreV1().Endpoints(namespace).Update(ctx, endpointDefinition, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to update endpoint %q. %v", name, err)
 		}

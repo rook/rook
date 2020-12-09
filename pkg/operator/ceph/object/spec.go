@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -73,9 +72,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		InitContainers: []v1.Container{
 			c.makeChownInitContainer(rgwConfig),
 		},
-		Containers: []v1.Container{
-			c.makeDaemonContainer(rgwConfig),
-		},
+		Containers:    []v1.Container{c.makeDaemonContainer(rgwConfig)},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes: append(
 			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
@@ -84,6 +81,14 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		HostNetwork:       c.clusterSpec.Network.IsHost(),
 		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
 	}
+
+	// If the log collector is enabled we add the side-car container
+	if c.clusterSpec.LogCollector.Enabled {
+		shareProcessNamespace := true
+		podSpec.ShareProcessNamespace = &shareProcessNamespace
+		podSpec.Containers = append(podSpec.Containers, *controller.LogCollectorContainer(strings.TrimPrefix(generateCephXUser(fmt.Sprintf("ceph-client.%s", rgwConfig.ResourceName)), "client."), c.clusterInfo.Namespace, *c.clusterSpec))
+	}
+
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
 
@@ -136,7 +141,7 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 		c.clusterSpec.CephVersion.Image,
 		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 		c.store.Spec.Gateway.Resources,
-		mon.PodSecurityContext(),
+		controller.PodSecurityContext(),
 	)
 }
 
@@ -166,7 +171,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources:       c.store.Spec.Gateway.Resources,
 		LivenessProbe:   c.generateLiveProbe(),
-		SecurityContext: mon.PodSecurityContext(),
+		SecurityContext: controller.PodSecurityContext(),
 	}
 
 	// If the liveness probe is enabled
@@ -239,12 +244,11 @@ func (c *clusterConfig) generateLiveProbePort() intstr.IntOrString {
 }
 
 func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore) *v1.Service {
-	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(cephObjectStore.Name),
 			Namespace: cephObjectStore.Namespace,
-			Labels:    labels,
+			Labels:    getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true),
 		},
 	}
 
@@ -260,7 +264,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	} else {
 		// If the cluster is not external we add the Selector
 		svc.Spec = v1.ServiceSpec{
-			Selector: labels,
+			Selector: getLabels(cephObjectStore.Name, cephObjectStore.Namespace, false),
 		}
 	}
 	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port, destPort.IntVal)

@@ -15,6 +15,11 @@ SUPPORTED_PLATFORMS='k8s|ocp|okd'
 operator_sdk="${OPERATOR_SDK:-operator-sdk}"
 yq="${YQ_TOOL:-yq}"
 
+# Default CSI to true
+: "${OLM_INCLUDE_CEPHFS_CSI:=true}"
+: "${OLM_INCLUDE_RBD_CSI:=true}"
+: "${OLM_INCLUDE_REPORTER:=true}"
+
 ##########
 # CHECKS #
 ##########
@@ -165,15 +170,15 @@ function generate_role_yaml() {
     sed -n '/^# OLM: BEGIN OPERATOR ROLE$/,/# OLM: END OPERATOR ROLE$/p' "$COMMON_YAML_FILE" > "$OLM_ROLE_YAML_FILE"
     sed -n '/^# OLM: BEGIN CLUSTER ROLE$/,/# OLM: END CLUSTER ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
 
-    if [ -n "$OLM_INCLUDE_CEPHFS_CSI" ]; then
+    if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
         sed -n '/^# OLM: BEGIN CSI CEPHFS ROLE$/,/# OLM: END CSI CEPHFS ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
         sed -n '/^# OLM: BEGIN CSI CEPHFS CLUSTER ROLE$/,/# OLM: END CSI CEPHFS CLUSTER ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
     fi
-    if [ -n "$OLM_INCLUDE_RBD_CSI" ]; then
+    if [ "$OLM_INCLUDE_RBD_CSI" = true ]; then
         sed -n '/^# OLM: BEGIN CSI RBD ROLE$/,/# OLM: END CSI RBD ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
         sed -n '/^# OLM: BEGIN CSI RBD CLUSTER ROLE$/,/# OLM: END CSI RBD CLUSTER ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
     fi
-    if [ -n "$OLM_INCLUDE_REPORTER" ]; then
+    if [ "$OLM_INCLUDE_REPORTER" = true ] ; then
         sed -n '/^# OLM: BEGIN CMD REPORTER ROLE$/,/# OLM: END CMD REPORTER ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
     fi
 }
@@ -181,15 +186,15 @@ function generate_role_yaml() {
 function generate_role_binding_yaml() {
     sed -n '/^# OLM: BEGIN OPERATOR ROLEBINDING$/,/# OLM: END OPERATOR ROLEBINDING$/p' "$COMMON_YAML_FILE" > "$OLM_ROLE_BINDING_YAML_FILE"
     sed -n '/^# OLM: BEGIN CLUSTER ROLEBINDING$/,/# OLM: END CLUSTER ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
-    if [ -n "$OLM_INCLUDE_CEPHFS_CSI" ]; then
+    if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
         sed -n '/^# OLM: BEGIN CSI CEPHFS ROLEBINDING$/,/# OLM: END CSI CEPHFS ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
         sed -n '/^# OLM: BEGIN CSI CEPHFS CLUSTER ROLEBINDING$/,/# OLM: END CSI CEPHFS CLUSTER ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
     fi
-    if [ -n "$OLM_INCLUDE_RBD_CSI" ]; then
+    if [ "$OLM_INCLUDE_RBD_CSI" = true ]; then
         sed -n '/^# OLM: BEGIN CSI RBD ROLEBINDING$/,/# OLM: END CSI RBD ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
         sed -n '/^# OLM: BEGIN CSI RBD CLUSTER ROLEBINDING$/,/# OLM: END CSI RBD CLUSTER ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
     fi
-    if [ -n "$OLM_INCLUDE_REPORTER" ]; then
+    if [ "$OLM_INCLUDE_REPORTER" = true ] ; then
         sed -n '/^# OLM: BEGIN CMD REPORTER ROLEBINDING$/,/# OLM: END CMD REPORTER ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
     fi
 }
@@ -198,13 +203,13 @@ function generate_service_account_yaml() {
     sed -n '/^# OLM: BEGIN SERVICE ACCOUNT SYSTEM$/,/# OLM: END SERVICE ACCOUNT SYSTEM$/p' "$COMMON_YAML_FILE" > "$OLM_SERVICE_ACCOUNT_YAML_FILE"
     sed -n '/^# OLM: BEGIN SERVICE ACCOUNT OSD$/,/# OLM: END SERVICE ACCOUNT OSD$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
     sed -n '/^# OLM: BEGIN SERVICE ACCOUNT MGR$/,/# OLM: END SERVICE ACCOUNT MGR$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
-    if [ -n "$OLM_INCLUDE_CEPHFS_CSI" ]; then
+    if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
         sed -n '/^# OLM: BEGIN CSI CEPHFS SERVICE ACCOUNT$/,/# OLM: END CSI CEPHFS SERVICE ACCOUNT$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
     fi
-    if [ -n "$OLM_INCLUDE_RBD_CSI" ]; then
+    if [ "$OLM_INCLUDE_RBD_CSI" = true ]; then
         sed -n '/^# OLM: BEGIN CSI RBD SERVICE ACCOUNT$/,/# OLM: END CSI RBD SERVICE ACCOUNT$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
     fi
-    if [ -n "$OLM_INCLUDE_REPORTER" ]; then
+    if [ "$OLM_INCLUDE_REPORTER" = true ] ; then
         sed -n '/^# OLM: BEGIN CMD REPORTER SERVICE ACCOUNT$/,/# OLM: END CMD REPORTER SERVICE ACCOUNT$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
     fi
 }
@@ -221,7 +226,7 @@ function generate_crds_yaml() {
     sed -n '/^# OLM: BEGIN CEPH CLIENT CRD$/,/# OLM: END CEPH CLIENT CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_CLIENT_CRD_YAML_FILE"
     sed -n '/^# OLM: BEGIN CEPH RBD MIRROR CRD$/,/# OLM: END CEPH RBD MIRROR CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_RBD_MIRROR_CRD_YAML_FILE"
 
-    if [ -n "$OLM_INCLUDE_CEPHFS_CSI" ]; then
+    if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
         sed -n '/^# OLM: BEGIN CEPH FS CRD$/,/# OLM: END CEPH FS CRD/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_FILESYSTEMS_CRD_YAML_FILE"
     fi
 }

@@ -132,6 +132,15 @@ type ClusterSpec struct {
 
 	// Security represents security settings
 	Security SecuritySpec `json:"security,omitempty"`
+
+	// Logging represents loggings settings
+	LogCollector LogCollectorSpec `json:"logCollector,omitempty"`
+}
+
+// LogCollectorSpec is the logging spec
+type LogCollectorSpec struct {
+	Enabled     bool   `json:"enabled,omitempty"`
+	Periodicity string `json:"periodicity,omitempty"`
 }
 
 // SecuritySpec is security spec to include various security items such as kms
@@ -147,7 +156,7 @@ type KeyManagementServiceSpec struct {
 
 // CephVersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.5
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.7
 	Image string `json:"image,omitempty"`
 
 	// Whether to allow unsupported versions (do not set to true in production)
@@ -197,6 +206,9 @@ type MonitoringSpec struct {
 
 	// ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
 	ExternalMgrEndpoints []v1.EndpointAddress `json:"externalMgrEndpoints,omitempty"`
+
+	// ExternalMgrPrometheusPort Prometheus exporter port
+	ExternalMgrPrometheusPort uint16 `json:"externalMgrPrometheusPort,omitempty"`
 }
 
 type ClusterStatus struct {

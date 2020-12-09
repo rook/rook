@@ -17,10 +17,11 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -70,6 +71,7 @@ func (r *ReconcileCephNFS) generateCephNFSService(nfs *cephv1.CephNFS, cfg daemo
 }
 
 func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonConfig) error {
+	ctx := context.TODO()
 	s := r.generateCephNFSService(nfs, cfg)
 
 	// Set owner ref to the parent object
@@ -78,7 +80,7 @@ func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonC
 		return errors.Wrap(err, "failed to set owner reference to ceph object store")
 	}
 
-	svc, err := r.context.Clientset.CoreV1().Services(nfs.Namespace).Create(s)
+	svc, err := r.context.Clientset.CoreV1().Services(nfs.Namespace).Create(ctx, s, metav1.CreateOptions{})
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create ganesha service")
@@ -182,7 +184,7 @@ func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS, na
 			keyring.VolumeMount().Resource(instanceName(nfs, name)),
 		},
 		nfs.Spec.Server.Resources,
-		mon.PodSecurityContext(),
+		controller.PodSecurityContext(),
 	)
 }
 
@@ -215,7 +217,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 		},
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
 		Resources:       nfs.Spec.Server.Resources,
-		SecurityContext: mon.PodSecurityContext(),
+		SecurityContext: controller.PodSecurityContext(),
 	}
 }
 

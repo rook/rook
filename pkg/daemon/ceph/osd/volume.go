@@ -582,9 +582,15 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		}
 		mdArgs = append(mdArgs, strings.Split(conf["devices"], " ")...)
 
+		// Do not change device names if udev persistent names are passed
+		mdPath := md
+		if !strings.HasPrefix(mdPath, "/dev") {
+			mdPath = path.Join("/dev", md)
+		}
+
 		mdArgs = append(mdArgs, []string{
 			dbDeviceFlag,
-			path.Join("/dev", md),
+			mdPath,
 		}...)
 
 		// Reporting
@@ -613,8 +619,8 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
 		}
 
-		if path.Join("/dev", md) != cvReport.Vg.Devices {
-			return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", md)
+		if mdPath != cvReport.Vg.Devices {
+			return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", mdPath)
 		}
 
 		// execute ceph-volume batching up multiple devices

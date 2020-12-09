@@ -1,6 +1,7 @@
 package bucket
 
 import (
+	"context"
 	"time"
 
 	"github.com/pkg/errors"
@@ -27,11 +28,12 @@ var backoff = wait.Backoff{
 }
 
 func (p *Provisioner) getStorageClassWithBackoff(name string) (class *storagev1.StorageClass, err error) {
+	ctx := context.TODO()
 	logger.Infof("getting storage class %q", name)
 	classClient := p.context.Clientset.StorageV1().StorageClasses()
 	// Retry Get() with backoff.  Errors other than IsNotFound are ignored.
 	err = wait.ExponentialBackoff(backoff, func() (done bool, err error) {
-		class, err = classClient.Get(name, metav1.GetOptions{})
+		class, err = classClient.Get(ctx, name, metav1.GetOptions{})
 		if err == nil {
 			return true, nil
 		}

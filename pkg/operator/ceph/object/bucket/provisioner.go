@@ -59,6 +59,7 @@ const maxBuckets = 1
 // Provision creates an s3 bucket and returns a connection info
 // representing the bucket's endpoint and user access credentials.
 func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBucket, error) {
+	logger.Debugf("Provision event for OB options: %+v", options)
 
 	err := p.initializeCreateOrGrant(options)
 	if err != nil {
@@ -74,6 +75,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 
 	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), true)
 	if err != nil {
+		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
@@ -106,6 +108,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 // Grant attaches to an existing rgw bucket and returns a connection info
 // representing the bucket's endpoint and user access credentials.
 func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBucket, error) {
+	logger.Debugf("Grant event for OB options: %+v", options)
 
 	// initialize and set the AWS services and commonly used variables
 	err := p.initializeCreateOrGrant(options)
@@ -196,6 +199,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 // storage class' reclaimPolicy is "Delete". Or, if a Provision() error occurs and
 // the bucket controller needs to clean up before retrying.
 func (p Provisioner) Delete(ob *bktv1alpha1.ObjectBucket) error {
+	logger.Debugf("Delete event for OB: %+v", ob)
 
 	err := p.initializeDeleteOrRevoke(ob)
 	if err != nil {
@@ -212,6 +216,7 @@ func (p Provisioner) Delete(ob *bktv1alpha1.ObjectBucket) error {
 // Revoke removes a user and creds from an existing bucket.
 // Note: cleanup order below matters.
 func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
+	logger.Debugf("Revoke event for OB: %+v", ob)
 
 	err := p.initializeDeleteOrRevoke(ob)
 	if err != nil {

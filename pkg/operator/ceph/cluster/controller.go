@@ -142,7 +142,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 			},
 		},
 		&handler.EnqueueRequestForObject{},
-		opcontroller.WatchControllerPredicate())
+		watchControllerPredicate(context))
 	if err != nil {
 		return err
 	}
@@ -475,7 +475,8 @@ func (c *ClusterController) csiVolumesAllowForDeletion(cluster *cephv1.CephClust
 }
 
 func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID string) (bool, error) {
-	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().List(metav1.ListOptions{})
+	ctx := context.TODO()
+	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to list PV")
 	}

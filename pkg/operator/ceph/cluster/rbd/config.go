@@ -17,6 +17,7 @@ limitations under the License.
 package rbd
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -75,6 +76,7 @@ type PeerToken struct {
 }
 
 func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo, daemonConfig *daemonConfig) (string, error) {
+	ctx := context.TODO()
 	user := fullDaemonName(daemonConfig.DaemonID)
 	access := []string{"mon", "profile rbd-mirror", "osd", "profile rbd"}
 	s := keyring.GetSecretStore(r.context, clusterInfo, &daemonConfig.ownerRef)
@@ -85,7 +87,7 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 	}
 
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
-	err = r.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Delete(daemonConfig.ResourceName, &metav1.DeleteOptions{})
+	err = r.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Delete(ctx, daemonConfig.ResourceName, metav1.DeleteOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("legacy rbd-mirror key %q is already removed", daemonConfig.ResourceName)
@@ -103,11 +105,12 @@ func fullDaemonName(daemonID string) string {
 }
 
 func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.CephRBDMirror, namespacedName types.NamespacedName) (reconcile.Result, error) {
+	ctx := context.TODO()
 	// List all the peers secret, we can have more than one peer we might want to configure
 	// For each, get the Kubernetes Secret and import the "peer token" so that we can configure the mirroring
 	for k, peerSecret := range cephRBDMirror.Spec.Peers.SecretNames {
 		logger.Debugf("fetching bootstrap peer kubernetes secret %q", peerSecret)
-		s, err := r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Get(peerSecret, metav1.GetOptions{})
+		s, err := r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Get(ctx, peerSecret, metav1.GetOptions{})
 		// We don't care about IsNotFound here, we still need to fail
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to fetch kubernetes secret %q bootstrap peer", peerSecret)
@@ -191,6 +194,7 @@ func validateSpec(r *cephv1.RBDMirroringSpec) error {
 }
 
 func (r *ReconcileCephRBDMirror) createBootstrapPeerConfigAndKey(peerSecret string, tokenBase64 string, ownerRef *metav1.OwnerReference) error {
+	ctx := context.TODO()
 	// Decode the base64 token
 	decodeToken, err := base64.StdEncoding.DecodeString(tokenBase64)
 	if err != nil {
@@ -209,7 +213,7 @@ func (r *ReconcileCephRBDMirror) createBootstrapPeerConfigAndKey(peerSecret stri
 	// Put it in a ConfigMap
 	cm := generatePeerCephConfigFileConfigMap(r.peers[peerSecret].info.Peers[0].UUID, cephPeerConfig, ownerRef)
 
-	_, err = r.context.Clientset.CoreV1().ConfigMaps(r.clusterInfo.Namespace).Create(cm)
+	_, err = r.context.Clientset.CoreV1().ConfigMaps(r.clusterInfo.Namespace).Create(ctx, cm, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsNotFound(err) && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create kubernetes config map %q bootstrap peer config", cm.Name)
 	}
@@ -219,7 +223,7 @@ func (r *ReconcileCephRBDMirror) createBootstrapPeerConfigAndKey(peerSecret stri
 
 	// Put it in a Secret
 	s := generatePeerKeyringSecret(r.peers[peerSecret].info.Peers[0].UUID, cephPeerKey, ownerRef)
-	_, err = r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Create(s)
+	_, err = r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Create(ctx, s, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsNotFound(err) && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create kubernetes secret %q bootstrap peer key", s.Name)
 	}

@@ -16,6 +16,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -33,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -80,6 +82,7 @@ func TestStart(t *testing.T) {
 }
 
 func createDiscoverConfigmap(nodeName, ns string, clientset *fake.Clientset) error {
+	ctx := context.TODO()
 	data := make(map[string]string, 1)
 	data[discoverDaemon.LocalDiskCMData] = `[{"name":"sdx","parent":"","hasChildren":false,"devLinks":"/dev/disk/by-id/scsi-36001405f826bd553d8c4dbf9f41c18be    /dev/disk/by-id/wwn-0x6001405f826bd553d8c4dbf9f41c18be /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-1","size":10737418240,"uuid":"","serial":"36001405f826bd553d8c4dbf9f41c18be","type":"disk","rotational":true,"readOnly":false,"ownPartition":true,"filesystem":"","vendor":"LIO-ORG","model":"disk02","wwn":"0x6001405f826bd553","wwnVendorExtension":"0x6001405f826bd553d8c4dbf9f41c18be","empty":true}]`
 	cm := &v1.ConfigMap{
@@ -93,11 +96,12 @@ func createDiscoverConfigmap(nodeName, ns string, clientset *fake.Clientset) err
 		},
 		Data: data,
 	}
-	_, err := clientset.CoreV1().ConfigMaps(ns).Create(cm)
+	_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
 	return err
 }
 
 func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake.Clientset) error {
+	ctx := context.TODO()
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
@@ -110,11 +114,12 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 			},
 		},
 	}
-	_, err := clientset.CoreV1().Nodes().Create(node)
+	_, err := clientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 	return err
 }
 
 func TestAddRemoveNode(t *testing.T) {
+	ctx := context.TODO()
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node23"
 
@@ -142,7 +147,7 @@ func TestAddRemoveNode(t *testing.T) {
 		},
 	}
 
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor}
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor, RequestCancelOrchestration: abool.New()}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
 		Storage: rookv1.StorageScopeSpec{
@@ -180,7 +185,7 @@ func TestAddRemoveNode(t *testing.T) {
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:   "osdPod",
 		Labels: map[string]string{k8sutil.AppAttr: AppName}}}
-	_, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(osdPod)
+	_, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(ctx, osdPod, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// mock the ceph calls that will be called during remove node
@@ -282,7 +287,7 @@ func TestAddNodeFailure(t *testing.T) {
 		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Nautilus,
 	}
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}, RequestCancelOrchestration: abool.New()}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
 		Storage: rookv1.StorageScopeSpec{
@@ -315,6 +320,7 @@ func TestAddNodeFailure(t *testing.T) {
 }
 
 func TestGetPVCHostName(t *testing.T) {
+	ctx := context.TODO()
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &client.ClusterInfo{Namespace: "ns"}
 	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, clusterInfo: clusterInfo}
@@ -337,7 +343,7 @@ func TestGetPVCHostName(t *testing.T) {
 	k8sutil.AddLabelToDeployment(OSDOverPVCLabelKey, pvcName, osdDeployment)
 	osdDeployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: "testnode"}
 
-	_, err = clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(osdDeployment)
+	_, err = clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, osdDeployment, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// get the host name based on the deployment
@@ -346,7 +352,7 @@ func TestGetPVCHostName(t *testing.T) {
 	assert.Equal(t, "testnode", name)
 
 	// delete the deployment and get the host name based on the pod
-	err = clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(osdDeployment.Name, &metav1.DeleteOptions{})
+	err = clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(ctx, osdDeployment.Name, metav1.DeleteOptions{})
 	assert.NoError(t, err)
 	osdPod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -357,7 +363,7 @@ func TestGetPVCHostName(t *testing.T) {
 	}
 	osdPod.Labels = map[string]string{OSDOverPVCLabelKey: pvcName}
 	osdPod.Spec.NodeName = "testnode"
-	_, err = clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(osdPod)
+	_, err = clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(ctx, osdPod, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	name, err = c.getPVCHostName(pvcName)

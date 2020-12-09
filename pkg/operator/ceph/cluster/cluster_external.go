@@ -18,6 +18,8 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -139,20 +141,18 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
-	// Mark initialization has done
-	cluster.initCompleted = true
-
 	return nil
 }
 
 func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
+	ctx := context.TODO()
 	// Purge the config maps
 	cmsToDelete := []string{
 		mon.EndpointConfigMapName,
 		k8sutil.ConfigOverrideName,
 	}
 	for _, cm := range cmsToDelete {
-		err := clientset.CoreV1().ConfigMaps(namespace).Delete(cm, &metav1.DeleteOptions{})
+		err := clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, cm, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			logger.Errorf("failed to delete config map %q. %v", cm, err)
 		}
@@ -169,7 +169,7 @@ func purgeExternalCluster(clientset kubernetes.Interface, namespace string) {
 		config.StoreName,
 	}
 	for _, secret := range secretsToDelete {
-		err := clientset.CoreV1().Secrets(namespace).Delete(secret, &metav1.DeleteOptions{})
+		err := clientset.CoreV1().Secrets(namespace).Delete(ctx, secret, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			logger.Errorf("failed to delete secret %q. %v", secret, err)
 		}
@@ -180,6 +180,13 @@ func validateExternalClusterSpec(cluster *cluster) error {
 	if cluster.Spec.CephVersion.Image != "" {
 		if cluster.Spec.DataDirHostPath == "" {
 			return errors.New("dataDirHostPath must be specified")
+		}
+	}
+
+	// Validate external services port
+	if cluster.Spec.Monitoring.Enabled {
+		if cluster.Spec.Monitoring.ExternalMgrPrometheusPort == 0 {
+			cluster.Spec.Monitoring.ExternalMgrPrometheusPort = mgr.DefaultMetricsPort
 		}
 	}
 
@@ -198,18 +205,14 @@ func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster)
 	// Create external monitoring Service
 	service := manager.MakeMetricsService(mgr.ExternalMgrAppName, mgr.ServiceExternalMetricName)
 	logger.Info("creating mgr external monitoring service")
-	_, err := c.context.Clientset.CoreV1().Services(c.namespacedName.Namespace).Create(service)
-	if err != nil {
-		if !kerrors.IsAlreadyExists(err) {
-			return errors.Wrap(err, "failed to create mgr service")
-		}
-		logger.Debug("mgr external metrics service already exists")
-	} else {
-		logger.Info("mgr external metrics service created")
+	_, err := k8sutil.CreateOrUpdateService(c.context.Clientset, cluster.Namespace, service)
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create or update mgr service")
 	}
+	logger.Info("mgr external metrics service created")
 
 	// Create external monitoring Endpoints
-	endpoint := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring.ExternalMgrEndpoints, cluster.ownerRef)
+	endpoint := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring, cluster.ownerRef)
 	logger.Info("creating mgr external monitoring endpoints")
 	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, c.namespacedName.Namespace, endpoint)
 	if err != nil {

@@ -26,8 +26,10 @@ import (
 )
 
 // SWIFTLister helps list SWIFTs.
+// All objects returned here must be treated as read-only.
 type SWIFTLister interface {
 	// List lists all SWIFTs in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.SWIFT, err error)
 	// SWIFTs returns an object that can list and get SWIFTs.
 	SWIFTs(namespace string) SWIFTNamespaceLister
@@ -58,10 +60,13 @@ func (s *sWIFTLister) SWIFTs(namespace string) SWIFTNamespaceLister {
 }
 
 // SWIFTNamespaceLister helps list and get SWIFTs.
+// All objects returned here must be treated as read-only.
 type SWIFTNamespaceLister interface {
 	// List lists all SWIFTs in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.SWIFT, err error)
 	// Get retrieves the SWIFT from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.SWIFT, error)
 	SWIFTNamespaceListerExpansion
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package installer
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -144,6 +145,7 @@ func (h *NFSInstaller) CreateNFSServerVolume(namespace string) error {
 
 // UninstallNFSServer uninstalls the NFS Server from the given namespace
 func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
+	ctx := context.TODO()
 	logger.Infof("uninstalling nfsserver from namespace %s", namespace)
 
 	err := h.k8shelper.DeleteResource("pvc", "nfs-pv-claim")
@@ -162,7 +164,7 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	checkError(h.T(), err, fmt.Sprintf("cannot remove nfsserver %s", namespace))
 
 	crdCheckerFunc := func() error {
-		_, err := h.k8shelper.RookClientset.NfsV1alpha1().NFSServers(namespace).Get(namespace, metav1.GetOptions{})
+		_, err := h.k8shelper.RookClientset.NfsV1alpha1().NFSServers(namespace).Get(ctx, namespace, metav1.GetOptions{})
 		return err
 	}
 	err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
@@ -182,9 +184,9 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	err = UninstallHostPathProvisioner(h.k8shelper)
 	checkError(h.T(), err, "cannot uninstall hostpath provisioner")
 
-	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("anon-user-access", nil)           //nolint, asserting this failing in CI
-	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete("run-nfs-client-provisioner", nil) //nolint, asserting this failing in CI
-	h.k8shelper.Clientset.RbacV1().ClusterRoles().Delete("nfs-client-provisioner-runner", nil)     //nolint, asserting this failing in CI
+	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete(ctx, "anon-user-access", metav1.DeleteOptions{})           //nolint, asserting this failing in CI
+	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete(ctx, "run-nfs-client-provisioner", metav1.DeleteOptions{}) //nolint, asserting this failing in CI
+	h.k8shelper.Clientset.RbacV1().ClusterRoles().Delete(ctx, "nfs-client-provisioner-runner", metav1.DeleteOptions{})     //nolint, asserting this failing in CI
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 }
 

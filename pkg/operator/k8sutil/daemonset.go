@@ -17,6 +17,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
 	"fmt"
 
 	apps "k8s.io/api/apps/v1"
@@ -28,10 +29,11 @@ import (
 
 // CreateDaemonSet creates
 func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *apps.DaemonSet) error {
-	_, err := clientset.AppsV1().DaemonSets(namespace).Create(ds)
+	ctx := context.TODO()
+	_, err := clientset.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			_, err = clientset.AppsV1().DaemonSets(namespace).Update(ds)
+			_, err = clientset.AppsV1().DaemonSets(namespace).Update(ctx, ds, metav1.UpdateOptions{})
 		}
 		if err != nil {
 			return fmt.Errorf("failed to start %s daemonset: %+v\n%+v", name, err, ds)
@@ -42,11 +44,12 @@ func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds 
 
 // DeleteDaemonset makes a best effort at deleting a daemonset and its pods, then waits for them to be deleted
 func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) error {
+	ctx := context.TODO()
 	deleteAction := func(options *metav1.DeleteOptions) error {
-		return clientset.AppsV1().DaemonSets(namespace).Delete(name, options)
+		return clientset.AppsV1().DaemonSets(namespace).Delete(ctx, name, *options)
 	}
 	getAction := func() error {
-		_, err := clientset.AppsV1().DaemonSets(namespace).Get(name, metav1.GetOptions{})
+		_, err := clientset.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		return err
 	}
 	return deleteResourceAndWait(namespace, name, "daemonset", deleteAction, getAction)
@@ -69,7 +72,8 @@ func AddRookVersionLabelToDaemonSet(d *v1.DaemonSet) {
 // more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 func GetDaemonsets(clientset kubernetes.Interface, namespace, labelSelector string) (*apps.DaemonSetList, error) {
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
-	daemonsets, err := clientset.AppsV1().DaemonSets(namespace).List(listOptions)
+	ctx := context.TODO()
+	daemonsets, err := clientset.AppsV1().DaemonSets(namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
 	}

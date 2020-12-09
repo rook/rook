@@ -17,6 +17,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -28,10 +29,11 @@ import (
 
 // DeleteConfigMap deletes a ConfigMap.
 func DeleteConfigMap(clientset kubernetes.Interface, cmName, namespace string, opts *DeleteOptions) error {
+	ctx := context.TODO()
 	k8sOpts := BaseKubernetesDeleteOptions()
-	delete := func() error { return clientset.CoreV1().ConfigMaps(namespace).Delete(cmName, k8sOpts) }
+	delete := func() error { return clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, cmName, *k8sOpts) }
 	verify := func() error {
-		_, err := clientset.CoreV1().ConfigMaps(namespace).Get(cmName, metav1.GetOptions{})
+		_, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, cmName, metav1.GetOptions{})
 		return err
 	}
 	resource := fmt.Sprintf("ConfigMap %s", cmName)
@@ -44,7 +46,8 @@ func DeleteConfigMap(clientset kubernetes.Interface, cmName, namespace string, o
 func GetOperatorSetting(clientset kubernetes.Interface, configMapName, settingName, defaultValue string) (string, error) {
 	// config must be in operator pod namespace
 	namespace := os.Getenv(PodNamespaceEnvVar)
-	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(configMapName, metav1.GetOptions{})
+	ctx := context.TODO()
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, configMapName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if settingValue, ok := os.LookupEnv(settingName); ok {

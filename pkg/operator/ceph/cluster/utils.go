@@ -18,6 +18,8 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -26,39 +28,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (c *cluster) setOrchestrationNeeded() {
-	c.orchMux.Lock()
-	c.orchestrationNeeded = true
-	c.orchMux.Unlock()
-}
-
-// unsetOrchestrationStatus resets the orchestrationRunning-flag
-func (c *cluster) unsetOrchestrationStatus() {
-	c.orchMux.Lock()
-	defer c.orchMux.Unlock()
-	c.orchestrationRunning = false
-}
-
-// checkSetOrchestrationStatus is responsible to do orchestration as long as there is a request needed
-func (c *cluster) checkSetOrchestrationStatus() bool {
-	c.orchMux.Lock()
-	defer c.orchMux.Unlock()
-
-	// check if there is an orchestration needed currently
-	if c.orchestrationNeeded && !c.orchestrationRunning {
-		// there is an orchestration needed
-		// allow to enter the orchestration-loop
-		c.orchestrationNeeded = false
-		c.orchestrationRunning = true
-		return true
-	}
-
-	return false
-}
-
 // populateConfigOverrideConfigMap creates the "rook-config-override" config map
 // Its content allows modifying Ceph configuration flags
-func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {
+func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {
+	ctx := context.TODO()
 	placeholderConfig := map[string]string{
 		k8sutil.ConfigOverrideVal: "",
 	}
@@ -71,7 +44,7 @@ func populateConfigOverrideConfigMap(context *clusterd.Context, namespace string
 	}
 
 	k8sutil.SetOwnerRef(&cm.ObjectMeta, &ownerRef)
-	_, err := context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
+	_, err := clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create override configmap %s", namespace)
 	}

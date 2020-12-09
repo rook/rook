@@ -19,7 +19,9 @@ package controller
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -42,6 +44,7 @@ const (
 	daemonSocketDir                       = "/run/ceph"
 	initialDelaySecondsNonOSDDaemon int32 = 10
 	initialDelaySecondsOSDDaemon    int32 = 45
+	logCollector                          = "log-collector"
 )
 
 type daemonConfig struct {
@@ -50,6 +53,32 @@ type daemonConfig struct {
 }
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
+
+var (
+	cronLogRotate = `
+set -xe
+
+CEPH_CLIENT_ID=%s
+PERIODICITY=%s
+LOG_ROTATE_CEPH_FILE=/etc/logrotate.d/ceph
+
+if [ -z "$PERIODICITY" ]; then
+	PERIODICITY=24h
+fi
+
+# edit the logrotate file to only rotate a specific daemon log
+# otherwise we will logrotate log files without reloading certain daemons
+# this might happen when multiple daemons run on the same machine
+sed -i "s|*.log|$CEPH_CLIENT_ID.log|" "$LOG_ROTATE_CEPH_FILE"
+
+while true; do
+	sleep "$PERIODICITY"
+	echo "starting log rotation"
+	logrotate --verbose --force "$LOG_ROTATE_CEPH_FILE"
+	echo "I am going to sleep now, see you in $PERIODICITY"
+done
+`
+)
 
 // return the volume and matching volume mount for mounting the config override ConfigMap into
 // containers as "/etc/ceph/ceph.conf".
@@ -537,4 +566,36 @@ func (c *daemonConfig) buildAdminSocketCommand() string {
 	}
 
 	return command
+}
+
+// PodSecurityContext detects if the pod needs privileges to run
+func PodSecurityContext() *v1.SecurityContext {
+	privileged := false
+	if os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
+		privileged = true
+	}
+
+	return &v1.SecurityContext{
+		Privileged: &privileged,
+	}
+}
+
+// LogCollectorContainer runs a cron job to rotate logs
+func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Container {
+	return &v1.Container{
+		Name: logCollectorContainerName(daemonID),
+		Command: []string{
+			"/bin/bash",
+			"-c",
+			fmt.Sprintf(cronLogRotate, daemonID, c.LogCollector.Periodicity),
+		},
+		Image:           c.CephVersion.Image,
+		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), ""),
+		SecurityContext: PodSecurityContext(),
+		Resources:       cephv1.GetLogCollectorResources(c.Resources),
+	}
+}
+
+func logCollectorContainerName(daemon string) string {
+	return fmt.Sprintf("%s-%s", strings.Replace(daemon, ".", "-", -1), logCollector)
 }

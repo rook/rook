@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -137,6 +138,7 @@ func (suite *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
 // Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
 // Delete mon pod, Wait for new mon pod
 func (suite *SmokeSuite) TestMonFailover() {
+	ctx := context.TODO()
 	logger.Infof("Mon Failover Smoke Test")
 
 	deployments, err := suite.getNonCanaryMonDeployments()
@@ -147,7 +149,7 @@ func (suite *SmokeSuite) TestMonFailover() {
 	logger.Infof("Killing mon %s", monToKill)
 	propagation := metav1.DeletePropagationForeground
 	delOptions := &metav1.DeleteOptions{PropagationPolicy: &propagation}
-	err = suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).Delete(monToKill, delOptions)
+	err = suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).Delete(ctx, monToKill, *delOptions)
 	require.Nil(suite.T(), err)
 
 	// Wait for the health check to start a new monitor
@@ -197,6 +199,7 @@ func (suite *SmokeSuite) TestMonFailover() {
 
 // Smoke Test for pool Resizing
 func (suite *SmokeSuite) TestPoolResize() {
+	ctx := context.TODO()
 	logger.Infof("Pool Resize Smoke Test")
 
 	poolName := "testpool"
@@ -255,13 +258,13 @@ func (suite *SmokeSuite) TestPoolResize() {
 	require.Equal(suite.T(), true, poolResized, fmt.Sprintf("pool %s not found", poolName))
 
 	// Verify the Kubernetes Secret has been created (bootstrap peer token)
-	pool, err := suite.k8sh.RookClientset.CephV1().CephBlockPools(suite.namespace).Get(poolName, metav1.GetOptions{})
+	pool, err := suite.k8sh.RookClientset.CephV1().CephBlockPools(suite.namespace).Get(ctx, poolName, metav1.GetOptions{})
 	assert.NoError(suite.T(), err)
 	if pool.Spec.Mirroring.Enabled {
 		secretName := pool.Status.Info[oppool.RBDMirrorBootstrapPeerSecretName]
 		assert.NotEmpty(suite.T(), secretName)
 		// now fetch the secret which contains the bootstrap peer token
-		s, err := suite.k8sh.Clientset.CoreV1().Secrets(suite.namespace).Get(secretName, metav1.GetOptions{})
+		s, err := suite.k8sh.Clientset.CoreV1().Secrets(suite.namespace).Get(ctx, secretName, metav1.GetOptions{})
 		require.Nil(suite.T(), err)
 		assert.NotEmpty(suite.T(), s.Data["token"])
 
@@ -348,8 +351,9 @@ func (suite *SmokeSuite) TestCreateRBDMirrorClient() {
 }
 
 func (suite *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
+	ctx := context.TODO()
 	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
-	deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(opts)
+	deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(ctx, opts)
 	if err != nil {
 		return nil, err
 	}

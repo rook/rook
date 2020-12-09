@@ -18,6 +18,7 @@ limitations under the License.
 package flexvolume
 
 import (
+	"context"
 	"os"
 	"path"
 	"path/filepath"
@@ -88,6 +89,7 @@ func NewController(context *clusterd.Context, volumeAttachment attachment.Attach
 
 // Attach attaches rook volume to the node
 func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error {
+	ctx := context.TODO()
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	node := os.Getenv(k8sutil.NodeNameEnvVar)
 
@@ -144,7 +146,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 				logger.Infof("volume attachment record %s/%s exists for pod: %s/%s", volumeattachObj.Namespace, volumeattachObj.Name, attachment.PodNamespace, attachment.PodName)
 				// Note this could return the reference of the pod who is requesting the attach if this pod have the same name as the pod in the attachment record.
 				allowAttach := false
-				pod, err := c.context.Clientset.CoreV1().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
+				pod, err := c.context.Clientset.CoreV1().Pods(attachment.PodNamespace).Get(ctx, attachment.PodName, metav1.GetOptions{})
 				if err != nil {
 					if !kerrors.IsNotFound(err) {
 						return errors.Wrapf(err, "failed to get pod CRD %s/%s", attachment.PodNamespace, attachment.PodName)
@@ -295,7 +297,8 @@ func (c *Controller) Log(message LogMessage, _ *struct{} /* void reply */) error
 }
 
 func (c *Controller) parseClusterNamespace(storageClassName string) (string, error) {
-	sc, err := c.context.Clientset.StorageV1().StorageClasses().Get(storageClassName, metav1.GetOptions{})
+	ctx := context.TODO()
+	sc, err := c.context.Clientset.StorageV1().StorageClasses().Get(ctx, storageClassName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -318,6 +321,7 @@ func (c *Controller) parseClusterNamespace(storageClassName string) (string, err
 // all necessary information to detach a volume (https://github.com/kubernetes/kubernetes/issues/52590).
 // So we are hacking a bit and by parsing it from mountDir
 func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *AttachOptions) error {
+	ctx := context.TODO()
 	if attachOptions.PodID == "" {
 		podID, pvName, err := getPodAndPVNameFromMountDir(mountDir)
 		if err != nil {
@@ -327,7 +331,7 @@ func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *A
 		attachOptions.VolumeName = pvName
 	}
 
-	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().Get(attachOptions.VolumeName, metav1.GetOptions{})
+	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().Get(ctx, attachOptions.VolumeName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get persistent volume %s", attachOptions.VolumeName)
 	}
@@ -343,7 +347,7 @@ func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *A
 		opts := metav1.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector("spec.nodeName", node).String(),
 		}
-		pods, err := c.context.Clientset.CoreV1().Pods(attachOptions.PodNamespace).List(opts)
+		pods, err := c.context.Clientset.CoreV1().Pods(attachOptions.PodNamespace).List(ctx, opts)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get pods in namespace %s", attachOptions.PodNamespace)
 		}
@@ -391,6 +395,7 @@ func (c *Controller) GetGlobalMountPath(input GlobalMountPathInput, globalMountP
 
 // GetClientAccessInfo obtains the cluster monitor endpoints, username and secret
 func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *ClientAccessInfo) error {
+	ctx := context.TODO()
 	// args: 0 ClusterNamespace, 1 PodNamespace, 2 MountUser, 3 MountSecret
 	clusterNamespace := args[0]
 	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, clusterNamespace)
@@ -418,7 +423,7 @@ func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *Client
 	}
 
 	if clientAccessInfo.SecretKey != "" {
-		secret, err := c.context.Clientset.CoreV1().Secrets(podNamespace).Get(clientAccessInfo.SecretKey, metav1.GetOptions{})
+		secret, err := c.context.Clientset.CoreV1().Secrets(podNamespace).Get(ctx, clientAccessInfo.SecretKey, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "unable to get mount secret %s from pod namespace %s", clientAccessInfo.SecretKey, podNamespace)
 		}
@@ -440,8 +445,9 @@ func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *Client
 
 // GetKernelVersion returns the kernel version of the current node.
 func (c *Controller) GetKernelVersion(_ *struct{} /* no inputs */, kernelVersion *string) error {
+	ctx := context.TODO()
 	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
-	node, err := c.context.Clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := c.context.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get kernel version from node information for node %s", nodeName)
 	}

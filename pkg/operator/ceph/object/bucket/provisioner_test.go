@@ -17,6 +17,7 @@ limitations under the License.
 package bucket
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -33,6 +34,7 @@ import (
 )
 
 func TestPopulateDomainAndPort(t *testing.T) {
+	ctx := context.TODO()
 	store := "test-store"
 	namespace := "ns"
 	clusterInfo := client.AdminClusterInfo(namespace)
@@ -93,9 +95,9 @@ func TestPopulateDomainAndPort(t *testing.T) {
 		},
 	}
 
-	_, err = p.context.RookClientset.CephV1().CephObjectStores(namespace).Create(cephObjectStore)
+	_, err = p.context.RookClientset.CephV1().CephObjectStores(namespace).Create(ctx, cephObjectStore, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	_, err = p.context.Clientset.CoreV1().Services(namespace).Create(svc)
+	_, err = p.context.Clientset.CoreV1().Services(namespace).Create(ctx, svc, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	p.objectStoreName = store
 	err = p.populateDomainAndPort(sc)

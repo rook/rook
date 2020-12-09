@@ -17,6 +17,7 @@ limitations under the License.
 package mgr
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,12 +33,14 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestStartMGR(t *testing.T) {
+	ctx := context.TODO()
 	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
@@ -51,9 +54,10 @@ func TestStartMGR(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Executor:  executor,
-		ConfigDir: configDir,
-		Clientset: clientset}
+		Executor:                   executor,
+		ConfigDir:                  configDir,
+		Clientset:                  clientset,
+		RequestCancelOrchestration: abool.New()}
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
 	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
@@ -70,7 +74,7 @@ func TestStartMGR(t *testing.T) {
 	// start a basic service
 	err := c.Start()
 	assert.Nil(t, err)
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -78,7 +82,7 @@ func TestStartMGR(t *testing.T) {
 	c.spec.Dashboard.Port = 12345
 	err = c.Start()
 	assert.Nil(t, err)
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 	assert.ElementsMatch(t, []string{"rook-ceph-mgr-a"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -87,12 +91,12 @@ func TestStartMGR(t *testing.T) {
 	c.spec.Dashboard.Enabled = false
 	err = c.Start()
 	assert.Nil(t, err)
-	validateStart(t, c)
+	validateStart(ctx, t, c)
 	assert.ElementsMatch(t, []string{"rook-ceph-mgr-a"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 }
 
-func validateStart(t *testing.T, c *Cluster) {
+func validateStart(ctx context.Context, t *testing.T, c *Cluster) {
 	mgrNames := []string{"a", "b"}
 	for i := 0; i < c.Replicas; i++ {
 		if i == 2 {
@@ -100,17 +104,17 @@ func validateStart(t *testing.T, c *Cluster) {
 		}
 		logger.Infof("Looking for cephmgr replica %d", i)
 		daemonName := mgrNames[i]
-		d, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
+		d, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(ctx, fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]string{"my": "annotation"}, d.Spec.Template.Annotations)
 		assert.Contains(t, d.Spec.Template.Labels, "my-label-key")
 		assert.Equal(t, "my-priority-class", d.Spec.Template.Spec.PriorityClassName)
 	}
 
-	_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get("rook-ceph-mgr", metav1.GetOptions{})
+	_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr", metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	ds, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	ds, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	if c.spec.Dashboard.Enabled {
 		assert.NoError(t, err)
 		if c.spec.Dashboard.Port == 0 {

@@ -374,6 +374,10 @@ spec:
                         properties:
                           ip:
                             type: string
+                    externalMgrPrometheusPort:
+                      type: integer
+                      minimum: 0
+                      maximum: 65535
                 removeOSDsIfOutAndSafeToRemove:
                   type: boolean
                 external:
@@ -401,6 +405,13 @@ spec:
                         iteration:
                           type: integer
                           format: int32
+                logCollector:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    periodicity:
+                      type: string
                 annotations:
                   type: object
                   nullable: true
@@ -1402,6 +1413,8 @@ spec:
                   type: object
                   nullable: true
                   x-kubernetes-preserve-unknown-fields: true
+                objectBucketName:
+                  type: string
             status:
               type: object
               x-kubernetes-preserve-unknown-fields: true

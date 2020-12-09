@@ -17,11 +17,11 @@ limitations under the License.
 package mds
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -58,6 +58,13 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error)
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
+
+	// If the log collector is enabled we add the side-car container
+	if c.clusterSpec.LogCollector.Enabled {
+		shareProcessNamespace := true
+		podSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-mds.%s", mdsConfig.DaemonID), c.clusterInfo.Namespace, *c.clusterSpec))
+	}
 
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.fs.Spec.MetadataServer.Labels.ApplyToObjectMeta(&podSpec.ObjectMeta)
@@ -104,7 +111,7 @@ func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
 		c.clusterSpec.CephVersion.Image,
 		controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		c.fs.Spec.MetadataServer.Resources,
-		mon.PodSecurityContext(),
+		controller.PodSecurityContext(),
 	)
 }
 
@@ -124,7 +131,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		VolumeMounts:    controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
-		SecurityContext: mon.PodSecurityContext(),
+		SecurityContext: controller.PodSecurityContext(),
 		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
 	}
 
@@ -146,13 +153,14 @@ func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*ap
 	return deps, nil
 }
 
-func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *apps.Deployment) error {
+func deleteMdsDeployment(clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment) error {
+	ctx := context.TODO()
 	// Delete the mds deployment
 	logger.Infof("deleting mds deployment %s", deployment.Name)
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := context.Clientset.AppsV1().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
+	if err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Delete(ctx, deployment.GetName(), *options); err != nil {
 		return errors.Wrapf(err, "failed to delete mds deployment %s", deployment.GetName())
 	}
 	return nil

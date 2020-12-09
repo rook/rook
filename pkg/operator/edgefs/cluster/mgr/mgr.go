@@ -18,6 +18,7 @@ limitations under the License.
 package mgr
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -118,11 +119,11 @@ func New(
 // Start the mgr instance
 func (c *Cluster) Start(rookImage string) error {
 	logger.Infof("start running mgr")
-
 	logger.Infof("Mgr Image is %s", rookImage)
+	ctx := context.TODO()
 	// start the deployment
 	deployment := c.makeDeployment(appName, c.Namespace, rookImage, 1)
-	if _, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(deployment); err != nil {
+	if _, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s deployment. %+v", appName, err)
 		}
@@ -145,7 +146,7 @@ func (c *Cluster) Start(rookImage string) error {
 
 	// create the mgr service
 	mgrService := c.makeMgrService(appName)
-	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(mgrService); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(ctx, mgrService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mgr service. %+v", err)
 		}
@@ -156,7 +157,7 @@ func (c *Cluster) Start(rookImage string) error {
 
 	// create the restapi service
 	restapiService := c.makeRestapiService(restapiSvcName)
-	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(restapiService); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(ctx, restapiService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create restapi service. %+v", err)
 		}
@@ -167,7 +168,7 @@ func (c *Cluster) Start(rookImage string) error {
 
 	// create the ui/dashboard service
 	uiService := c.makeUIService(uiSvcName)
-	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(uiService); err != nil {
+	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(ctx, uiService, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create ui service. %+v", err)
 		}

@@ -17,6 +17,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -185,7 +186,9 @@ func (c *ClusterController) waitForCephDaemonCleanUp(stopCleanupCh chan struct{}
 	}
 }
 
+// getCephHosts returns a list of host names where ceph daemon pods are running
 func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
+	ctx := context.TODO()
 	cephPodCount := map[string]int{}
 	cephAppNames := []string{mon.AppName, mgr.AppName, osd.AppName, object.AppName, mds.AppName, rbd.AppName}
 	nodeNameList := util.NewSet()
@@ -194,13 +197,13 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 	// get all the node names where ceph daemons are running
 	for _, app := range cephAppNames {
 		appLabelSelector := fmt.Sprintf("app=%s", app)
-		podList, err := c.context.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: appLabelSelector})
+		podList, err := c.context.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: appLabelSelector})
 		if err != nil {
 			return hostNameList, errors.Wrapf(err, "could not list the %q pods", app)
 		}
 		for _, cephPod := range podList.Items {
 			podNodeName := cephPod.Spec.NodeName
-			if !nodeNameList.Contains(podNodeName) {
+			if podNodeName != "" && !nodeNameList.Contains(podNodeName) {
 				nodeNameList.Add(podNodeName)
 			}
 		}

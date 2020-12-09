@@ -19,11 +19,11 @@ This design document aims to describe how this can be accomplished through commo
 ## Resources
 
 * [Custom Resources in Kubernetes](https://kubernetes.io/docs/concepts/api-extension/custom-resources/)
-* [Kubernetes API Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md)
+* [Kubernetes API Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md)
 * [Use CRDs Whenever Possible](https://docs.google.com/presentation/d/1IiKOIBbw7oaD4uZ-kNE-mA3cliFjx9FuFLd7pj-dj1Y/edit#slide=id.p)
-* [Writing controllers dev guide](https://github.com/kubernetes/community/blob/master/contributors/devel/controllers.md)
+* [Writing controllers dev guide](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/controllers.md)
 * [A Deep Drive Into Kubernetes Controllers](https://engineering.bitnami.com/articles/a-deep-dive-into-kubernetes-controllers.html)
-* [Metacontroller](https://github.com/GoogleCloudPlatform/metacontroller): Kubernetes extension that enables lightweight lambda (functional) controllers
+* [Metacontroller](https://github.com/metacontroller/metacontroller): Kubernetes extension that enables lightweight lambda (functional) controllers
 
 ## Design
 

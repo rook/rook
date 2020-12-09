@@ -17,6 +17,7 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -38,6 +39,7 @@ import (
 )
 
 func TestStartRGW(t *testing.T) {
+	ctx := context.TODO()
 	clientset := testop.New(t, 3)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
@@ -67,12 +69,12 @@ func TestStartRGW(t *testing.T) {
 	err := c.startRGWPods(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 
-	validateStart(t, c, clientset)
+	validateStart(ctx, t, c, clientset)
 }
 
-func validateStart(t *testing.T, c *clusterConfig, clientset *fclient.Clientset) {
+func validateStart(ctx context.Context, t *testing.T, c *clusterConfig, clientset *fclient.Clientset) {
 	rgwName := instanceName(c.store.Name) + "-a"
-	r, err := clientset.AppsV1().Deployments(c.store.Namespace).Get(rgwName, metav1.GetOptions{})
+	r, err := clientset.AppsV1().Deployments(c.store.Namespace).Get(ctx, rgwName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, rgwName, r.Name)
 }

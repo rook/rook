@@ -18,6 +18,7 @@ limitations under the License.
 package s3x
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -162,6 +163,7 @@ func (c *S3XController) serviceOwners(service *edgefsv1.S3X) []metav1.OwnerRefer
 }
 
 func (c *S3XController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
+	ctx := context.TODO()
 	if c.rookImage == cluster.EdgefsImageName {
 		logger.Infof("No need to update the s3x service, the same images present")
 		return
@@ -170,7 +172,7 @@ func (c *S3XController) ParentClusterChanged(cluster edgefsv1.ClusterSpec) {
 	// update controller options by updated cluster spec
 	c.rookImage = cluster.EdgefsImageName
 
-	s3xs, err := c.context.RookClientset.EdgefsV1().S3Xs(c.namespace).List(metav1.ListOptions{})
+	s3xs, err := c.context.RookClientset.EdgefsV1().S3Xs(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Errorf("failed to retrieve S3Xs to update the Edgefs version. %+v", err)
 		return

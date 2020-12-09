@@ -17,6 +17,7 @@ limitations under the License.
 package kms
 
 import (
+	"context"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -49,6 +50,7 @@ func Test_tlsSecretKeyToCheck(t *testing.T) {
 }
 
 func Test_configTLS(t *testing.T) {
+	ctx := context.TODO()
 	config := map[string]string{
 		"foo":                "bar",
 		"KMS_PROVIDER":       "vault",
@@ -104,12 +106,12 @@ func Test_configTLS(t *testing.T) {
 		},
 		Data: map[string][]byte{"cert": []byte("bar")},
 	}
-	_, err = context.Clientset.CoreV1().Secrets(ns).Create(s)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Create(ctx, s, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	config, err = configTLS(context, ns, config)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "vault-ca-cert", config["VAULT_CACERT"])
-	err = context.Clientset.CoreV1().Secrets(ns).Delete(s.Name, &metav1.DeleteOptions{})
+	err = context.Clientset.CoreV1().Secrets(ns).Delete(ctx, s.Name, metav1.DeleteOptions{})
 	assert.NoError(t, err)
 
 	// All TLS success!
@@ -143,11 +145,11 @@ func Test_configTLS(t *testing.T) {
 		},
 		Data: map[string][]byte{"key": []byte("bar")},
 	}
-	_, err = context.Clientset.CoreV1().Secrets(ns).Create(sCa)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Create(ctx, sCa, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	_, err = context.Clientset.CoreV1().Secrets(ns).Create(sClCert)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Create(ctx, sClCert, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	_, err = context.Clientset.CoreV1().Secrets(ns).Create(sClKey)
+	_, err = context.Clientset.CoreV1().Secrets(ns).Create(ctx, sClKey, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	config, err = configTLS(context, ns, config)
 	assert.NoError(t, err)

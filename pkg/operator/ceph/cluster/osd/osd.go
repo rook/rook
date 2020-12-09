@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -232,6 +233,12 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 	}
 
 	for _, volume := range c.ValidStorage.VolumeSources {
+		// Check whether we need to cancel the orchestration
+		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+			config.addError("%s", err.Error())
+			return
+		}
+
 		dataSource, dataOK := volume.PVCSources[bluestorePVCData]
 
 		// The data PVC template is required.
@@ -348,9 +355,10 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 }
 
 func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (map[string]*apps.Deployment, error) {
+	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
 
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(listOpts)
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query existing OSD deployments")
 	}
@@ -423,6 +431,12 @@ func (c *Cluster) startNodeStorageProvisioners(config *provisionConfig) {
 
 	// start with nodes currently in the storage spec
 	for _, node := range c.ValidStorage.Nodes {
+		// Check whether we need to cancel the orchestration
+		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+			config.addError("%s", err.Error())
+			return
+		}
+
 		// fully resolve the storage config and resources for this node
 		n := c.resolveNode(node.Name)
 		if n == nil {
@@ -451,6 +465,7 @@ func (c *Cluster) startNodeStorageProvisioners(config *provisionConfig) {
 }
 
 func (c *Cluster) startNodeDriveGroupProvisioners(config *provisionConfig) {
+	ctx := context.TODO()
 	logger.Debug("starting provisioning on nodes using Drive Groups config")
 
 	if c.spec.Storage.UseAllNodes {
@@ -460,7 +475,7 @@ func (c *Cluster) startNodeDriveGroupProvisioners(config *provisionConfig) {
 		logger.Warningf("The user has specified nodes in the storage config. This will be ignored because driveGroups are configured.")
 	}
 
-	nodes, err := c.context.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	nodes, err := c.context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		config.addError("failed to get all nodes: %v", err)
 		return
@@ -543,6 +558,7 @@ func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfi
 }
 
 func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
+	ctx := context.TODO()
 	osds := status.OSDs
 	logger.Infof("starting %d osd daemons on pvc %s", len(osds), pvcName)
 	osdProps, err := c.getOSDPropsForPVC(pvcName)
@@ -579,7 +595,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			continue
 		}
 
-		_, createErr := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(dp)
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, dp, metav1.CreateOptions{})
 		if createErr != nil {
 			if kerrors.IsAlreadyExists(createErr) {
 				logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
@@ -603,7 +619,7 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 }
 
 func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
-
+	ctx := context.TODO()
 	osds := status.OSDs
 	logger.Infof("starting %d osd daemons on node %s", len(osds), nodeName)
 
@@ -653,7 +669,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			continue
 		}
 
-		_, createErr := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(dp)
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, dp, metav1.CreateOptions{})
 		if createErr != nil {
 			if kerrors.IsAlreadyExists(createErr) {
 				logger.Debugf("deployment for osd %d already exists. updating if needed", osd.ID)
@@ -739,11 +755,12 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 // First look for the node selector that was previously used for the OSD, or if a new OSD
 // check for the assignment of the OSD prepare job.
 func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
+	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OSDOverPVCLabelKey, pvcName)}
 
 	// Check for the existence of the OSD deployment where the node selector was applied
 	// in a previous reconcile.
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(listOpts)
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(ctx, listOpts)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get deployment for osd with pvc %q", pvcName)
 	}
@@ -758,7 +775,7 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 
 	// Since the deployment wasn't found it must be a new deployment so look at the node
 	// assignment of the OSD prepare pod
-	pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(listOpts)
+	pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(ctx, listOpts)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get pod for osd with pvc %q", pvcName)
 	}
@@ -846,7 +863,8 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 }
 
 func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment, crushRoot string) (string, error) {
-	pods, err := clientset.CoreV1().Pods(d.Namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OsdIdLabelKey, d.Labels[OsdIdLabelKey])})
+	ctx := context.TODO()
+	pods, err := clientset.CoreV1().Pods(d.Namespace).List(ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OsdIdLabelKey, d.Labels[OsdIdLabelKey])})
 	if err != nil || len(pods.Items) == 0 {
 		return "", err
 	}
@@ -897,13 +915,14 @@ func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushR
 // getNode will try to get the node object for the provided nodeName
 // it will try using the node's name it's hostname label
 func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, error) {
+	ctx := context.TODO()
 	var node *corev1.Node
 	var err error
 	// try to find by the node by matching the provided nodeName
-	node, err = clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err = clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if kerrors.IsNotFound(err) {
 		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%q=%q", corev1.LabelHostname, nodeName)}
-		nodeList, err := clientset.CoreV1().Nodes().List(listOpts)
+		nodeList, err := clientset.CoreV1().Nodes().List(ctx, listOpts)
 		if err != nil || len(nodeList.Items) < 1 {
 			return nil, errors.Wrapf(err, "could not find node %q hostname label", nodeName)
 		}
