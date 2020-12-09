@@ -107,24 +107,22 @@ var (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
-	ClusterInfo         *cephclient.ClusterInfo
-	context             *clusterd.Context
-	spec                cephv1.ClusterSpec
-	Namespace           string
-	Keyring             string
-	rookVersion         string
-	orchestrationMutex  sync.Mutex
-	Port                int32
-	maxMonID            int
-	waitForStart        bool
-	monPodRetryInterval time.Duration
-	monPodTimeout       time.Duration
-	monTimeoutList      map[string]time.Time
-	mapping             *Mapping
-	ownerRef            metav1.OwnerReference
-	csiConfigMutex      *sync.Mutex
-	isUpgrade           bool
-	arbiterMon          string
+	ClusterInfo        *cephclient.ClusterInfo
+	context            *clusterd.Context
+	spec               cephv1.ClusterSpec
+	Namespace          string
+	Keyring            string
+	rookVersion        string
+	orchestrationMutex sync.Mutex
+	Port               int32
+	maxMonID           int
+	waitForStart       bool
+	monTimeoutList     map[string]time.Time
+	mapping            *Mapping
+	ownerRef           metav1.OwnerReference
+	csiConfigMutex     *sync.Mutex
+	isUpgrade          bool
+	arbiterMon         string
 }
 
 // monConfig for a single monitor
@@ -168,14 +166,12 @@ type SchedulingResult struct {
 // New creates an instance of a mon cluster
 func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, ownerRef metav1.OwnerReference, csiConfigMutex *sync.Mutex) *Cluster {
 	return &Cluster{
-		context:             context,
-		spec:                spec,
-		Namespace:           namespace,
-		maxMonID:            -1,
-		waitForStart:        true,
-		monPodRetryInterval: 6 * time.Second,
-		monPodTimeout:       5 * time.Minute,
-		monTimeoutList:      map[string]time.Time{},
+		context:        context,
+		spec:           spec,
+		Namespace:      namespace,
+		maxMonID:       -1,
+		waitForStart:   true,
+		monTimeoutList: map[string]time.Time{},
 		mapping: &Mapping{
 			Schedule: map[string]*MonScheduleInfo{},
 		},
