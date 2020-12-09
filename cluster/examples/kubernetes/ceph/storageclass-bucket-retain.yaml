@@ -2,7 +2,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: rook-ceph-retain-bucket
-provisioner: rook-ceph.ceph.rook.io/bucket # provisioner:namespace:cluster
+provisioner: rook-ceph.ceph.rook.io/bucket # driver:namespace:cluster
 # set the reclaim policy to retain the bucket when its OBC is deleted
 reclaimPolicy: Retain
 parameters:
