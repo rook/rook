@@ -49,6 +49,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -341,12 +342,33 @@ func (c *Cluster) isArbiterZone(zone string) bool {
 func (c *Cluster) assignStretchMonsToZones(mons []*monConfig) error {
 	arbiterZone := c.getArbiterZone()
 
+	// Get the mon dump to see if the zones are already applied to the mons
+	monDump, err := client.GetMonDump(c.context, c.ClusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to detect if stretch mons are already assigned to zones")
+	}
+
 	// Set the location for each mon
 	domainName := c.stretchFailureDomainName()
 	for _, mon := range mons {
 		if mon.Zone == arbiterZone {
 			// remember the arbiter mon to be set later in the reconcile after the OSDs are configured
 			c.arbiterMon = mon.DaemonName
+		}
+		// Check if the zone is already set on the mon
+		alreadySet := false
+		for _, monInfo := range monDump.Mons {
+			if monInfo.Name == mon.DaemonName {
+				desiredLocation := fmt.Sprintf("{%s=%s}", domainName, mon.Zone)
+				if monInfo.CrushLocation == desiredLocation {
+					alreadySet = true
+				}
+				break
+			}
+		}
+		if alreadySet {
+			logger.Infof("mon %q stretch domain %q is already set to %q", mon.DaemonName, domainName, mon.Zone)
+			continue
 		}
 		logger.Infof("setting mon %q to stretch %s=%s", mon.DaemonName, domainName, mon.Zone)
 		if err := client.SetMonStretchZone(c.context, c.ClusterInfo, mon.DaemonName, domainName, mon.Zone); err != nil {
@@ -361,12 +383,89 @@ func (c *Cluster) ConfigureArbiter() error {
 		return errors.New("arbiter not specified for the stretch cluster")
 	}
 
+	monDump, err := client.GetMonDump(c.context, c.ClusterInfo)
+	if err != nil {
+		logger.Warningf("attempting to enable arbiter after failed to detect if already enabled. %v", err)
+	} else if monDump.StretchMode {
+		logger.Infof("stretch mode is already enabled")
+		return nil
+	}
+
+	// Wait for the CRUSH map to have at least two zones
+	// The timeout is relatively short since the operator will requeue the reconcile
+	// and try again at a higher level if not yet found
+	failureDomain := c.stretchFailureDomainName()
+	logger.Infof("enabling stretch mode... waiting for two failure domains of type %q to be found in the CRUSH map after OSD initialization", failureDomain)
+	pollInterval := 5 * time.Second
+	totalWaitTime := 2 * time.Minute
+	err = wait.Poll(pollInterval, totalWaitTime, func() (bool, error) {
+		return c.readyToConfigureArbiter(true)
+	})
+	if err != nil {
+		return errors.Wrapf(err, "failed to find two failure domains %q in the CRUSH map", failureDomain)
+	}
+
 	// Set the mon tiebreaker
-	if err := client.SetMonStretchTiebreaker(c.context, c.ClusterInfo, c.arbiterMon, c.stretchFailureDomainName()); err != nil {
+	if err := client.SetMonStretchTiebreaker(c.context, c.ClusterInfo, c.arbiterMon, failureDomain); err != nil {
 		return errors.Wrap(err, "failed to set mon tiebreaker")
 	}
 
 	return nil
+}
+
+func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
+	failureDomain := c.stretchFailureDomainName()
+
+	if checkOSDPods {
+		// Wait for the OSD pods to be running
+		// can't use osd.AppName due to a circular dependency
+		allRunning, err := k8sutil.PodsWithLabelAreAllRunning(c.context.Clientset, c.Namespace, fmt.Sprintf("%s=rook-ceph-osd", k8sutil.AppAttr))
+		if err != nil {
+			return false, errors.Wrap(err, "failed to check whether all osds are running before enabling the arbiter")
+		}
+		if !allRunning {
+			logger.Infof("waiting for all OSD pods to be in running state")
+			return false, nil
+		}
+	}
+
+	crushMap, err := client.GetCrushMap(c.context, c.ClusterInfo)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get crush map")
+	}
+
+	// Check if the crush rule already exists
+	zoneCount := 0
+	zoneWeight := -1
+	for _, bucket := range crushMap.Buckets {
+		if bucket.TypeName == failureDomain {
+			// skip zones specific to device classes
+			if strings.Index(bucket.Name, "~") > 0 {
+				logger.Debugf("skipping device class bucket %q", bucket.Name)
+				continue
+			}
+			logger.Infof("found %s %q in CRUSH map with weight %d", failureDomain, bucket.Name, bucket.Weight)
+			zoneCount++
+
+			// check that the weights of the failure domains are all the same
+			if zoneWeight == -1 {
+				// found the first matching bucket
+				zoneWeight = bucket.Weight
+			} else if zoneWeight != bucket.Weight {
+				logger.Infof("found failure domains that have different weights")
+				return false, nil
+			}
+		}
+	}
+	if zoneCount < 2 {
+		// keep waiting to see if more zones will be created
+		return false, nil
+	}
+	if zoneCount > 2 {
+		return false, fmt.Errorf("cannot configure stretch cluster with more than 2 failure domains, and found %d of type %q", zoneCount, failureDomain)
+	}
+	logger.Infof("found two expected failure domains %q for the stretch cluster", failureDomain)
+	return true, nil
 }
 
 // ensureMonsRunning is called in two scenarios:
@@ -1135,7 +1234,7 @@ func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 		}
 	}
 
-	if schedule == nil {
+	if schedule == nil || schedule.Zone != "" {
 		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, p, requiredDuringScheduling(&c.spec),
 			map[string]string{k8sutil.AppAttr: AppName}, nil)
 	} else {
