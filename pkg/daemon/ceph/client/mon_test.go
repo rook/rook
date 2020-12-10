@@ -125,3 +125,34 @@ func TestStretchClusterMonTiebreaker(t *testing.T) {
 	err := SetMonStretchTiebreaker(context, clusterInfo, monName, failureDomain)
 	assert.NoError(t, err)
 }
+
+func TestMonDump(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		switch {
+		case args[0] == "mon" && args[1] == "dump":
+			return `{"epoch":3,"fsid":"6a31a264-9090-4048-8d95-4b8c3cde909d","modified":"2020-12-09T18:13:36.346150Z","created":"2020-12-09T18:13:13.014270Z","min_mon_release":15,"min_mon_release_name":"octopus",
+		"features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},
+		"election_strategy":1,"mons":[
+		{"rank":0,"name":"a","crush_location":"{zone=a}","public_addrs":{"addrvec":[{"type":"v2","addr":"10.109.80.104:3300","nonce":0},{"type":"v1","addr":"10.109.80.104:6789","nonce":0}]},"addr":"10.109.80.104:6789/0","public_addr":"10.109.80.104:6789/0","priority":0,"weight":0},
+		{"rank":1,"name":"b","crush_location":"{zone=b}","public_addrs":{"addrvec":[{"type":"v2","addr":"10.107.12.199:3300","nonce":0},{"type":"v1","addr":"10.107.12.199:6789","nonce":0}]},"addr":"10.107.12.199:6789/0","public_addr":"10.107.12.199:6789/0","priority":0,"weight":0},
+		{"rank":2,"name":"c","crush_location":"{zone=c}","public_addrs":{"addrvec":[{"type":"v2","addr":"10.107.5.207:3300","nonce":0},{"type":"v1","addr":"10.107.5.207:6789","nonce":0}]},"addr":"10.107.5.207:6789/0","public_addr":"10.107.5.207:6789/0","priority":0,"weight":0}],
+		"quorum":[0,1,2]}`, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	context := &clusterd.Context{Executor: executor}
+	clusterInfo := AdminClusterInfo("mycluster")
+
+	dump, err := GetMonDump(context, clusterInfo)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, dump.ElectionStrategy)
+	assert.Equal(t, "{zone=a}", dump.Mons[0].CrushLocation)
+	assert.Equal(t, "a", dump.Mons[0].Name)
+	assert.Equal(t, 0, dump.Mons[0].Rank)
+	assert.Equal(t, "b", dump.Mons[1].Name)
+	assert.Equal(t, 1, dump.Mons[1].Rank)
+	assert.Equal(t, 3, len(dump.Mons))
+	assert.Equal(t, 3, len(dump.Quorum))
+}

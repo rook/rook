@@ -18,6 +18,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -57,6 +58,21 @@ type AddrvecEntry struct {
 	Nonce int    `json:"nonce"`
 }
 
+// MonDump represents the response from a mon dump
+type MonDump struct {
+	StretchMode      bool           `json:"stretch_mode"`
+	ElectionStrategy int            `json:"election_strategy"`
+	FSID             string         `json:"fsid"`
+	Mons             []MonDumpEntry `json:"mons"`
+	Quorum           []int          `json:"quorum"`
+}
+
+type MonDumpEntry struct {
+	Name          string `json:"name"`
+	Rank          int    `json:"rank"`
+	CrushLocation string `json:"crush_location"`
+}
+
 // GetMonQuorumStatus calls quorum_status mon_command
 func GetMonQuorumStatus(context *clusterd.Context, clusterInfo *ClusterInfo) (MonStatusResponse, error) {
 	args := []string{"quorum_status"}
@@ -73,6 +89,24 @@ func GetMonQuorumStatus(context *clusterd.Context, clusterInfo *ClusterInfo) (Mo
 	}
 
 	return resp, nil
+}
+
+// GetMonDump calls mon dump command
+func GetMonDump(context *clusterd.Context, clusterInfo *ClusterInfo) (MonDump, error) {
+	args := []string{"mon", "dump"}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	buf, err := cmd.Run()
+	if err != nil {
+		return MonDump{}, errors.Wrap(err, "mon dump failed")
+	}
+
+	var response MonDump
+	err = json.Unmarshal(buf, &response)
+	if err != nil {
+		return MonDump{}, errors.Wrapf(err, "unmarshal failed. raw buffer response: %s", buf)
+	}
+
+	return response, nil
 }
 
 // EnableStretchElectionStrategy enables the mon connectivity algorithm for stretch clusters
@@ -119,8 +153,12 @@ func SetMonStretchTiebreaker(context *clusterd.Context, clusterInfo *ClusterInfo
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
-			logger.Infof("stretch mode is already enabled. %s", string(buf))
-			return nil
+			// TODO: Get a more distinctive error from ceph so we don't have to compare the error message
+			if strings.Contains(string(buf), "stretch mode is already engaged") {
+				logger.Infof("stretch mode is already enabled")
+				return nil
+			}
+			return errors.Wrapf(err, "stretch mode failed to be enabled. %s", string(buf))
 		}
 		return errors.Wrap(err, "failed to set mon stretch zone")
 	}

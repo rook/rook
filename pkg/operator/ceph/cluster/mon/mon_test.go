@@ -118,11 +118,9 @@ func newCluster(context *clusterd.Context, namespace string, allowMultiplePerNod
 			},
 			Resources: map[string]v1.ResourceRequirements{"mon": resources},
 		},
-		maxMonID:            -1,
-		waitForStart:        false,
-		monPodRetryInterval: 10 * time.Millisecond,
-		monPodTimeout:       1 * time.Second,
-		monTimeoutList:      map[string]time.Time{},
+		maxMonID:       -1,
+		waitForStart:   false,
+		monTimeoutList: map[string]time.Time{},
 		mapping: &Mapping{
 			Schedule: map[string]*MonScheduleInfo{},
 		},
@@ -518,4 +516,83 @@ func TestArbiterPlacement(t *testing.T) {
 	assert.Equal(t, placement, result)
 	result = c.getMonPlacement("c")
 	assert.Equal(t, placement, result)
+}
+
+func TestCheckIfArbiterReady(t *testing.T) {
+
+	c := &Cluster{
+		Namespace: "ns",
+		spec: cephv1.ClusterSpec{
+			Mon: cephv1.MonSpec{
+				StretchCluster: &cephv1.StretchClusterSpec{
+					Zones: []cephv1.StretchClusterZoneSpec{
+						{Name: "a", Arbiter: true},
+						{Name: "b"},
+						{Name: "c"},
+					},
+				},
+			},
+		}}
+	crushZoneCount := 0
+	balanced := true
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			return "", fmt.Errorf("unrecognized output command: %s %v", command, args)
+		},
+		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+			switch {
+			case args[0] == "osd" && args[1] == "crush" && args[2] == "dump":
+				crushBuckets := `
+					{"id": -1,"name": "default","type_id": 10,"type_name": "root","weight": 1028},
+					{"id": -2,"name": "default~hdd","type_id": 10,"type_name": "root","weight": 1028},
+					{"id": -3,"name": "mynode","type_id": 1,"type_name": "host","weight": 1028},
+					{"id": -4,"name": "mynode~hdd","type_id": 1,"type_name": "host","weight": 1028}`
+				for i := 0; i < crushZoneCount; i++ {
+					weight := 2056
+					if !balanced && i%2 == 1 {
+						// simulate unbalanced with every other zone having half the weight
+						weight = 1028
+					}
+					crushBuckets = crushBuckets +
+						fmt.Sprintf(`,{"id": -%d,"name": "zone%d","type_id": 1,"type_name": "zone","weight": %d}
+						 ,{"id": -%d,"name": "zone%d~ssd","type_id": 1,"type_name": "zone","weight": 2056}`, i+5, i, weight, i+6, i)
+				}
+				return fmt.Sprintf(`{"buckets": [%s]}`, crushBuckets), nil
+
+			}
+			return "", fmt.Errorf("unrecognized output file command: %s %v", command, args)
+		},
+	}
+	c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor}
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(5)
+
+	// Not ready if no pods running
+	ready, err := c.readyToConfigureArbiter(true)
+	assert.False(t, ready)
+	assert.NoError(t, err)
+
+	// For the remainder of tests, skip checking OSD pods
+	// Now there are not enough zones
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.False(t, ready)
+	assert.NoError(t, err)
+
+	// Valid
+	crushZoneCount = 2
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.True(t, ready)
+	assert.NoError(t, err)
+
+	// Valid, except the CRUSH map is not balanced
+	balanced = false
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.False(t, ready)
+	assert.NoError(t, err)
+
+	// Too many zones in the CRUSH map
+	crushZoneCount = 3
+	balanced = true
+	ready, err = c.readyToConfigureArbiter(false)
+	assert.False(t, ready)
+	assert.Error(t, err)
 }

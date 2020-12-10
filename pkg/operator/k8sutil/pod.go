@@ -214,19 +214,37 @@ func MakeRookImage(version string) string {
 
 // PodsRunningWithLabel returns the number of running pods with the given label
 func PodsRunningWithLabel(clientset kubernetes.Interface, namespace, label string) (int, error) {
+	running, _, err := podStatusWithLabel(clientset, namespace, label)
+	return running, err
+}
+
+// PodsWithLabelAreAllRunning returns whether all pods with the label are in running state
+func PodsWithLabelAreAllRunning(clientset kubernetes.Interface, namespace, label string) (bool, error) {
+	running, notRunning, err := podStatusWithLabel(clientset, namespace, label)
+	if err != nil {
+		return false, err
+	}
+	// At least one pod must be running and none should be in another state
+	return running > 0 && notRunning == 0, err
+}
+
+func podStatusWithLabel(clientset kubernetes.Interface, namespace, label string) (int, int, error) {
 	ctx := context.TODO()
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: label})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	running := 0
+	notRunning := 0
 	for _, pod := range pods.Items {
 		if pod.Status.Phase == v1.PodRunning {
 			running++
+		} else {
+			notRunning++
 		}
 	}
-	return running, nil
+	return running, notRunning, nil
 }
 
 // GetPodPhaseMap takes a list of pods and returns a map of pod phases to the names of pods that are in that phase
