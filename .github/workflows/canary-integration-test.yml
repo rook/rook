@@ -8,6 +8,7 @@ on:
     - 'build/**'
     - 'tests/**'
     - 'images/**'
+    - '.github/workflows/**'
 
 jobs:
   canary:
@@ -48,10 +49,16 @@ jobs:
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
 
+    
+    - name: validate-yaml
+      run: |
+        cd cluster/examples/kubernetes/ceph/
+        kubectl create -f crds.yaml -f common.yaml 
+        # skipping folders and some yamls that are only for openshift.
+        kubectl create  $(ls -I scc.yaml -I operator-openshift.yaml -I "*.sh" -I "*.py" -p | grep -v / | awk ' { print " -f " $1 } ') --dry-run
+
     - name: deploy rook
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         sed -i "s|#deviceFilter:|deviceFilter: $(lsblk|awk '/14G/ {print $1}'| head -1)|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/cluster-test.yaml
