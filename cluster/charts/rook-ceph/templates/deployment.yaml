@@ -114,6 +114,8 @@ spec:
           value: {{ .Values.csi.pluginPriorityClassName | quote }}
         - name: CSI_PROVISIONER_PRIORITY_CLASSNAME
           value: {{ .Values.csi.provisionerPriorityClassName | quote }}
+        - name: CSI_ENABLE_OMAP_GENERATOR
+          value: {{ .Values.csi.enableOMAPGenerator | quote }}
 {{- if .Values.csi.cephFSPluginUpdateStrategy }}
         - name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
           value: {{ .Values.csi.cephFSPluginUpdateStrategy | quote }}

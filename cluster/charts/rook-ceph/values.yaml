@@ -62,6 +62,13 @@ csi:
   # (Optional) set user created priorityclassName for csi provisioner pods.
   # provisionerPriorityClassName: system-cluster-critical
 
+  # OMAP generator generates the omap mapping between the PV name and the RBD image
+  # which helps CSI to identify the rbd images for CSI operations.
+  # CSI_ENABLE_OMAP_GENERATOR need to be enabled when we are using rbd mirroring feature.
+  # By default OMAP generator is disabled and when enabled it will be deployed as a
+  # sidecar with CSI provisioner pod, to enable set it to true.
+  enableOMAPGenerator: false
+
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   #logLevel: 0
@@ -245,7 +252,7 @@ csi:
   #rbdLivenessMetricsPort: 9080
   #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
-    #image: quay.io/cephcsi/cephcsi:v3.1.2
+    #image: quay.io/cephcsi/cephcsi:v3.2.0
   #registrar:
     #image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1
   #provisioner:
