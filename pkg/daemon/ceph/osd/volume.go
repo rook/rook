@@ -524,10 +524,17 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 					deviceArg,
 				}...)
 
-				if a.storeConfig.DeviceClass != "" {
+				deviceClass := ""
+				if device.Config.DeviceClass != "" {
+					deviceClass = device.Config.DeviceClass
+				} else if a.storeConfig.DeviceClass != "" {
+					deviceClass = a.storeConfig.DeviceClass
+				}
+
+				if deviceClass != "" {
 					immediateExecuteArgs = append(immediateExecuteArgs, []string{
 						crushDeviceClassFlag,
-						a.storeConfig.DeviceClass,
+						deviceClass,
 					}...)
 				}
 
