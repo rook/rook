@@ -31,8 +31,10 @@ var (
 	releaseV210          = CephCSIVersion{2, 1, 0}
 	releasev300          = CephCSIVersion{3, 0, 0}
 	releasev310          = CephCSIVersion{3, 1, 0}
-	supportedCSIVersions = []CephCSIVersion{minimum, releaseV210, releasev300, releasev310}
-
+	releasev320          = CephCSIVersion{3, 2, 0}
+	supportedCSIVersions = []CephCSIVersion{minimum, releaseV210, releasev300, releasev310, releasev320}
+	// omap generator is supported in v3.2.0+
+	omapSupportedVersions = releasev320
 	// for parsing the output of `cephcsi`
 	versionCSIPattern = regexp.MustCompile(`v(\d+)\.(\d+)\.(\d+)`)
 )
@@ -47,6 +49,33 @@ type CephCSIVersion struct {
 func (v *CephCSIVersion) String() string {
 	return fmt.Sprintf("v%d.%d.%d",
 		v.Major, v.Minor, v.Bugfix)
+}
+
+// SupportsOMAPController checks if the detected version supports OMAP generator
+func (v *CephCSIVersion) SupportsOMAPController() bool {
+
+	// if AllowUnsupported is set also a csi-image greater than the supported ones are allowed
+	if AllowUnsupported {
+		return true
+	}
+
+	if !v.isAtLeast(&minimum) {
+		return false
+	}
+
+	if v.Major > omapSupportedVersions.Major {
+		return true
+	}
+	if v.Major == omapSupportedVersions.Major {
+		if v.Minor > omapSupportedVersions.Minor {
+			return true
+		}
+		if v.Minor == omapSupportedVersions.Minor {
+			return v.Bugfix >= omapSupportedVersions.Bugfix
+		}
+	}
+
+	return false
 }
 
 // Supported checks if the detected version is part of the known supported CSI versions

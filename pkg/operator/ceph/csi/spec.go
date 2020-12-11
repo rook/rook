@@ -53,6 +53,7 @@ type Param struct {
 	RBDPluginUpdateStrategy      string
 	PluginPriorityClassName      string
 	ProvisionerPriorityClassName string
+	EnableOMAPGenerator          bool
 	LogLevel                     uint8
 	CephFSGRPCMetricsPort        uint16
 	CephFSLivenessMetricsPort    uint16
@@ -101,7 +102,7 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.1.2"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.2.0"
 	DefaultRegistrarImage   = "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
 	DefaultProvisionerImage = "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.0"
 	DefaultAttacherImage    = "k8s.gcr.io/sig-storage/csi-attacher:v3.0.0"
@@ -202,7 +203,7 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference) error {
+func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference, v *CephCSIVersion) error {
 	ctx := context.TODO()
 	var (
 		err                                                   error
@@ -266,6 +267,21 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	tp.ProvisionerPriorityClassName, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PROVISIONER_PRIORITY_CLASSNAME", "")
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_PROVISIONER_PRIORITY_CLASSNAME setting")
+	}
+
+	// OMAP generator will be enabled by default
+	// If AllowUnsupported is set to false and if CSI version is less than
+	// <3.2.0 disable OMAP generator sidecar
+	if !v.SupportsOMAPController() {
+		tp.EnableOMAPGenerator = false
+	}
+
+	enableOMAPGenerator, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_OMAP_GENERATOR", "false")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_ENABLE_OMAP_GENERATOR setting")
+	}
+	if strings.EqualFold(enableOMAPGenerator, "true") {
+		tp.EnableOMAPGenerator = true
 	}
 
 	updateStrategy, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate)
@@ -606,7 +622,7 @@ func deleteCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, na
 }
 
 // ValidateCSIVersion checks if the configured ceph-csi image is supported
-func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string, ownerRef *metav1.OwnerReference) error {
+func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string, ownerRef *metav1.OwnerReference) (*CephCSIVersion, error) {
 	timeout := 15 * time.Minute
 
 	logger.Infof("detecting the ceph csi image version for image %q", CSIParam.CSIPluginImage)
@@ -619,7 +635,7 @@ func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, se
 		rookImage, CSIParam.CSIPluginImage)
 
 	if err != nil {
-		return errors.Wrap(err, "failed to set up ceph CSI version job")
+		return nil, errors.Wrap(err, "failed to set up ceph CSI version job")
 	}
 
 	job := versionReporter.Job()
@@ -629,21 +645,21 @@ func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, se
 	job.Spec.Template.Spec.Tolerations = getToleration(clientset, true)
 	stdout, _, retcode, err := versionReporter.Run(timeout)
 	if err != nil {
-		return errors.Wrap(err, "failed to complete ceph CSI version job")
+		return nil, errors.Wrap(err, "failed to complete ceph CSI version job")
 	}
 
 	if retcode != 0 {
-		return errors.Errorf("ceph CSI version job returned %d", retcode)
+		return nil, errors.Errorf("ceph CSI version job returned %d", retcode)
 	}
 
 	version, err := extractCephCSIVersion(stdout)
 	if err != nil {
-		return errors.Wrap(err, "failed to extract ceph CSI version")
+		return nil, errors.Wrap(err, "failed to extract ceph CSI version")
 	}
 	logger.Infof("Detected ceph CSI image version: %q", version)
 
 	if !version.Supported() {
-		return errors.Errorf("ceph CSI image needs to be at least version %q", minimum.String())
+		return nil, errors.Errorf("ceph CSI image needs to be at least version %q", minimum.String())
 	}
-	return nil
+	return version, nil
 }
