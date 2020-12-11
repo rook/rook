@@ -139,7 +139,6 @@ type osdProperties struct {
 	tuneSlowDeviceClass bool
 	tuneFastDeviceClass bool
 	schedulerName       string
-	crushDeviceClass    string
 	encrypted           bool
 	deviceSetName       string
 	// Drive Groups which apply to the node
@@ -268,11 +267,11 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			placement:        volume.Placement,
 			preparePlacement: volume.PreparePlacement,
 			portable:         volume.Portable,
-			crushDeviceClass: volume.CrushDeviceClass,
 			schedulerName:    volume.SchedulerName,
 			encrypted:        volume.Encrypted,
 			deviceSetName:    volume.Name,
 		}
+		osdProps.storeConfig.DeviceClass = volume.CrushDeviceClass
 
 		logger.Debugf("osdProps are %+v", osdProps)
 
