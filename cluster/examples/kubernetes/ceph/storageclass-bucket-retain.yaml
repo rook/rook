@@ -2,12 +2,12 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: rook-ceph-retain-bucket
-provisioner: rook-ceph.ceph.rook.io/bucket
+provisioner: rook-ceph.ceph.rook.io/bucket # driver:namespace:cluster
 # set the reclaim policy to retain the bucket when its OBC is deleted
 reclaimPolicy: Retain
 parameters:
   objectStoreName: my-store # port 80 assumed
-  objectStoreNamespace: rook-ceph
+  objectStoreNamespace: rook-ceph # namespace:cluster
   region: us-east-1
   # To accommodate brownfield cases reference the existing bucket name here instead
   # of in the ObjectBucketClaim (OBC). In this case the provisioner will grant

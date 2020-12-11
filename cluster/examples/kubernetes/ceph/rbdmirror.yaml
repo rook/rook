@@ -7,7 +7,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephRBDMirror
 metadata:
   name: my-rbd-mirror
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   # the number of rbd-mirror daemons to deploy
   count: 1

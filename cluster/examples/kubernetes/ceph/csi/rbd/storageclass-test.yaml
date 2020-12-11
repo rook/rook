@@ -2,7 +2,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
   name: replicapool
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   failureDomain: host
   replicated:
@@ -19,11 +19,11 @@ kind: StorageClass
 metadata:
    name: rook-ceph-block
 # Change "rook-ceph" provisioner prefix to match the operator namespace if needed
-provisioner: rook-ceph.rbd.csi.ceph.com
+provisioner: rook-ceph.rbd.csi.ceph.com  # driver:namespace:operator
 parameters:
     # clusterID is the namespace where the rook cluster is running
     # If you change this namespace, also change the namespace below where the secret namespaces are defined
-    clusterID: rook-ceph
+    clusterID: rook-ceph # namespace:cluster
 
     # If you want to use erasure coded pool with RBD, you need to create
     # two pools. one erasure coded and one replicated.
@@ -42,11 +42,11 @@ parameters:
     # The secrets contain Ceph admin credentials. These are generated automatically by the operator
     # in the same namespace as the cluster.
     csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
-    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph # namespace:cluster
     csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
-    csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+    csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph # namespace:cluster
     csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
-    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph # namespace:cluster
     # Specify the filesystem type of the volume. If not specified, csi-provisioner
     # will set default as `ext4`.
     csi.storage.k8s.io/fstype: ext4

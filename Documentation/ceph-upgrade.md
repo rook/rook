@@ -50,12 +50,24 @@ With this upgrade guide, there are a few notes to consider:
 ## Patch Release Upgrades
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
-another are as simple as updating the common resources and the image of the Rook operator. For example, when Rook v1.5.1 is
-released, the process of updating from v1.5.0 is as simple as running the following:
+another are as simple as updating the common resources and the image of the Rook operator. For
+example, when Rook v1.5.3 is released, the process of updating from v1.5.0 is as simple as running
+the following:
 
+First get the latest common resources manifests that contain the latest changes for Rook v1.5.
+```sh
+git clone --single-branch --branch v1.5.3 https://github.com/rook/rook.git
+cd rook/cluster/examples/kubernetes/ceph
+```
+
+If you have deployed the Rook Operator or the Ceph cluster into a different namespace than
+`rook-ceph`, see the [Update common resources and CRDs](#1-update-common-resources-and-crds)
+section for instructions on how to change the default namespaces in `common.yaml`.
+
+Then apply the latest changes from v1.5 and update the Rook Operator image.
 ```console
 kubectl apply -f common.yaml -f crds.yaml
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.5.1
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.5.3
 ```
 
 As exemplified above, it is a good practice to update Rook-Ceph common resources from the example
@@ -102,8 +114,8 @@ environment variables throughout this document.
 
 ```sh
 # Parameterize the environment
-export ROOK_SYSTEM_NAMESPACE="rook-ceph"
-export ROOK_NAMESPACE="rook-ceph"
+export ROOK_OPERATOR_NAMESPACE="rook-ceph"
+export ROOK_CLUSTER_NAMESPACE="rook-ceph"
 ```
 
 In order to successfully upgrade a Rook cluster, the following prerequisites must be met:
@@ -133,7 +145,7 @@ In a healthy Rook cluster, the operator, the agents and all Rook namespace pods 
 `Running` state and have few, if any, pod restarts. To verify this, run the following commands:
 
 ```sh
-kubectl -n $ROOK_NAMESPACE get pods
+kubectl -n $ROOK_CLUSTER_NAMESPACE get pods
 ```
 
 ### Status Output
@@ -142,8 +154,8 @@ The Rook toolbox contains the Ceph tools that can give you status details of the
 `ceph status` command. Let's look at an output sample and review some of the details:
 
 ```sh
-TOOLS_POD=$(kubectl -n $ROOK_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')
-kubectl -n $ROOK_NAMESPACE exec -it $TOOLS_POD -- ceph status
+TOOLS_POD=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')
+kubectl -n $ROOK_CLUSTER_NAMESPACE exec -it $TOOLS_POD -- ceph status
 ```
 
 ```console
@@ -197,16 +209,16 @@ output. For example for the monitor pod `mon-b`, we can verify the container ver
 with the below commands:
 
 ```sh
-POD_NAME=$(kubectl -n $ROOK_NAMESPACE get pod -o custom-columns=name:.metadata.name --no-headers | grep rook-ceph-mon-b)
-kubectl -n $ROOK_NAMESPACE get pod ${POD_NAME} -o jsonpath='{.spec.containers[0].image}'
+POD_NAME=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -o custom-columns=name:.metadata.name --no-headers | grep rook-ceph-mon-b)
+kubectl -n $ROOK_CLUSTER_NAMESPACE get pod ${POD_NAME} -o jsonpath='{.spec.containers[0].image}'
 ```
 
 The status and container versions for all Rook pods can be collected all at once with the following
 commands:
 
 ```sh
-kubectl -n $ROOK_SYSTEM_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t\t"}{.spec.containers[0].image}{"\t"}{.spec.initContainers[0]}{"\n"}{end}' && \
-kubectl -n $ROOK_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t\t"}{.spec.containers[0].image}{"\t"}{.spec.initContainers[0].image}{"\n"}{end}'
+kubectl -n $ROOK_OPERATOR_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t\t"}{.spec.containers[0].image}{"\t"}{.spec.initContainers[0]}{"\n"}{end}' && \
+kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t\t"}{.spec.containers[0].image}{"\t"}{.spec.initContainers[0].image}{"\n"}{end}'
 ```
 
 The `rook-version` label exists on Ceph controller resources. For various resource controllers, a
@@ -216,9 +228,9 @@ the version of Rook for resources managed by the updated Rook-Ceph operator. Not
 and toolbox deployments do not have a `rook-version` label set.
 
 ```sh
-kubectl -n $ROOK_NAMESPACE get deployments -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
+kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
 
-kubectl -n $ROOK_NAMESPACE get jobs -o jsonpath='{range .items[*]}{.metadata.name}{"  \tsucceeded: "}{.status.succeeded}{"      \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
+kubectl -n $ROOK_CLUSTER_NAMESPACE get jobs -o jsonpath='{range .items[*]}{.metadata.name}{"  \tsucceeded: "}{.status.succeeded}{"      \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
 ```
 
 ### Rook Volume Health
@@ -232,7 +244,7 @@ Any pod that is using a Rook volume should also remain healthy:
 ## Rook Operator Upgrade Process
 
 In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.4.7` to
-the version `v1.5.0`. This upgrade should work from any official patch release of Rook v1.4 to any
+the version `v1.5.3`. This upgrade should work from any official patch release of Rook v1.4 to any
 official patch release of v1.5.
 
 **Rook release from `master` are expressly unsupported.** It is strongly recommended that you use
@@ -240,6 +252,11 @@ official patch release of v1.5.
 master branch are subject to changes and incompatibilities that will not be supported in the
 official releases. Builds from the master branch can have functionality changed or removed at any
 time without compatibility support and without prior notice.
+
+These methods should work for any number of Rook-Ceph clusters and Rook Operators as long as you
+parameterize the environment correctly. Merely repeat these steps for each Rook-Ceph cluster
+(`ROOK_CLUSTER_NAMESPACE`), and be sure to update the `ROOK_OPERATOR_NAMESPACE` parameter each time
+if applicable.
 
 Let's get started!
 
@@ -255,9 +272,24 @@ needed by the Operator. Also update the Custom Resource Definitions (CRDs).
 > `rbac.authorization.k8s.io/v1beta1` instead of `rbac.authorization.k8s.io/v1`
 > You will also need to apply `pre-k8s-1.16/crds.yaml` instead of `crds.yaml`.
 
+First get the latest common resources manifests that contain the latest changes for Rook v1.5.
 ```sh
-git clone --single-branch --branch v1.5.0 https://github.com/rook/rook.git
+git clone --single-branch --branch v1.5.3 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/ceph
+```
+
+If you have deployed the Rook Operator or the Ceph cluster into a different namespace than
+`rook-ceph`, update the common resource manifests to use your `ROOK_OPERATOR_NAMESPACE` and
+`ROOK_CLUSTER_NAMESPACE` using `sed`.
+```sh
+sed -i.bak \
+    -e "s/\(.*\):.*# namespace:operator/\1: $ROOK_OPERATOR_NAMESPACE # namespace:operator/g" \
+    -e "s/\(.*\):.*# namespace:cluster/\1: $ROOK_CLUSTER_NAMESPACE # namespace:cluster/g" \
+  common.yaml
+```
+
+Then apply the latest changes from v1.5.
+```sh
 kubectl apply -f common.yaml -f crds.yaml
 ```
 
@@ -277,7 +309,7 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```sh
-kubectl -n $ROOK_SYSTEM_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.5.0
+kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.5.3
 ```
 
 ## 4. Wait for the upgrade to complete
@@ -289,21 +321,21 @@ and the Ceph Filesystem may fall offline a few times while the MDSes are upgradi
 The versions of the components can be viewed as they are updated:
 
 ```sh
-watch --exec kubectl -n $ROOK_NAMESPACE get deployments -l rook_cluster=$ROOK_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
+watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
 ```
 
 As an example, this cluster is midway through updating the OSDs from v1.4 to v1.5. When all
-deployments report `1/1/1` availability and `rook-version=v1.5.0`, the Ceph cluster's core
+deployments report `1/1/1` availability and `rook-version=v1.5.3`, the Ceph cluster's core
 components are fully updated.
 
 ```console
 Every 2.0s: kubectl -n rook-ceph get deployment -o j...
 
-rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.5.0
-rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.5.0
-rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.5.0
-rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.5.0
-rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.5.0
+rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.5.3
+rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.5.3
+rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.5.3
+rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.5.3
+rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.5.3
 rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.4.7
 rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.4.7
 ```
@@ -312,17 +344,17 @@ An easy check to see if the upgrade is totally finished is to check that there i
 `rook-version` reported across the cluster.
 
 ```console
-# kubectl -n $ROOK_NAMESPACE get deployment -l rook_cluster=$ROOK_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
+# kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
   rook-version=v1.4.7
-  rook-version=v1.5.0
+  rook-version=v1.5.3
 This cluster is finished:
-  rook-version=v1.5.0
+  rook-version=v1.5.3
 ```
 
 ## 5. Verify the updated cluster
 
-At this point, your Rook operator should be running version `rook/ceph:v1.5.0`.
+At this point, your Rook operator should be running version `rook/ceph:v1.5.3`.
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
@@ -364,8 +396,8 @@ Ceph image field in the cluster CRD (`spec.cephVersion.image`).
 
 ```sh
 NEW_CEPH_IMAGE='ceph/ceph:v15.2.7-20201201'
-CLUSTER_NAME="$ROOK_NAMESPACE"  # change if your cluster name is not the Rook namespace
-kubectl -n $ROOK_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
+CLUSTER_NAME="$ROOK_CLUSTER_NAMESPACE"  # change if your cluster name is not the Rook namespace
+kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
 #### 2. Wait for the daemon pod updates to complete
@@ -374,13 +406,13 @@ As with upgrading Rook, you must now wait for the upgrade to complete. Status ca
 similar way to the Rook upgrade as well.
 
 ```sh
-watch --exec kubectl -n $ROOK_NAMESPACE get deployments -l rook_cluster=$ROOK_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \tceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}'
+watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \tceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}'
 ```
 
 Determining when the Ceph has fully updated is rather simple.
 
 ```console
-# kubectl -n $ROOK_NAMESPACE get deployment -l rook_cluster=$ROOK_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
+# kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
     ceph-version=14.2.7-0
     ceph-version=15.2.4-0
@@ -403,7 +435,7 @@ The operator configuration variables have recently moved from the operator deplo
 but if the ConfigMap settings are applied, they will override the operator deployment settings.
 
 ```console
-kubectl -n $ROOK_NAMESPACE edit configmap rook-ceph-operator-config
+kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-ceph-operator-config
 ```
 
 The default upstream images are included below, which you can change to your desired images.

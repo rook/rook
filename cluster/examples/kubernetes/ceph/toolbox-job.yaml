@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: rook-ceph-toolbox-job
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
   labels:
     app: ceph-toolbox-job
 spec:

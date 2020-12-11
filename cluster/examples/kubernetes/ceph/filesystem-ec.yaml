@@ -8,7 +8,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephFilesystem
 metadata:
   name: myfs-ec
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   # The metadata pool spec
   metadataPool:
