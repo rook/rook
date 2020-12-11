@@ -9,7 +9,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: rook-ceph-mgr-dashboard
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
   annotations:
     kubernetes.io/ingress.class: "nginx"
     kubernetes.io/tls-acme: "true"

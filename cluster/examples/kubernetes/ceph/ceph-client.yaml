@@ -3,7 +3,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephClient
 metadata:
   name: glance
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   caps:
     mon: 'profile rbd'
@@ -13,7 +13,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephClient
 metadata:
   name: cinder
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   caps:
     mon: 'profile rbd'
