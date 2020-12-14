@@ -238,10 +238,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	volumeMounts := controller.CephVolumeMounts(provisionConfig.DataPathMap, false)
 	configVolumeMounts := controller.RookVolumeMounts(provisionConfig.DataPathMap, false)
 	// When running on PVC, the OSDs don't need a bindmount on dataDirHostPath, only the monitors do
+	dataDirHostPath := c.spec.DataDirHostPath
 	if osdProps.onPVC() {
-		c.spec.DataDirHostPath = ""
+		dataDirHostPath = ""
 	}
-	volumes := controller.PodVolumes(provisionConfig.DataPathMap, c.spec.DataDirHostPath, false)
+	volumes := controller.PodVolumes(provisionConfig.DataPathMap, dataDirHostPath, false)
 	failureDomainValue := osdProps.crushHostname
 	doConfigInit := true       // initialize ceph.conf in init container?
 	doBinaryCopyInit := true   // copy tini and rook binaries in an init container?
