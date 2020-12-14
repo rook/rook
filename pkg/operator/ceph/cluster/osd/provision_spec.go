@@ -233,6 +233,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, deviceFilterEnvVar("all"))
 	}
 	envVars = append(envVars, v1.EnvVar{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()})
+	envVars = append(envVars, crushDeviceClassEnvVar(osdProps.storeConfig.DeviceClass))
 
 	if osdProps.metadataDevice != "" {
 		envVars = append(envVars, metadataDeviceEnvVar(osdProps.metadataDevice))
@@ -281,7 +282,6 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		}
 		envVars = append(envVars, dataDevicesEnvVar(string(marshalledDevices)))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
-		envVars = append(envVars, crushDeviceClassEnvVar(osdProps.crushDeviceClass))
 		envVars = append(envVars, encryptedDeviceEnvVar(osdProps.encrypted))
 		envVars = append(envVars, pvcNameEnvVar(osdProps.pvc.ClaimName))
 
