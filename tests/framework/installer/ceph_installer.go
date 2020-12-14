@@ -42,7 +42,7 @@ import (
 
 const (
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/ceph:v14.2.12"
+	nautilusTestImage = "ceph/ceph:v14"
 	// test with the latest octopus build
 	octopusTestImage = "ceph/ceph:v15"
 	// test with the latest master image
