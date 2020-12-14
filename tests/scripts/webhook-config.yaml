@@ -4,7 +4,7 @@ metadata:
   name: ${WEBHOOK_CONFIG_NAME}
   namespace: ${NAMESPACE}
 webhooks:
-  - name: ${SERVICE_NAME}.${NAMESPACE}.svc
+  - name: cephcluster-wh-${SERVICE_NAME}-${NAMESPACE}.rook.io
     rules:
       - apiGroups:   ["ceph.rook.io"]
         apiVersions: ["v1"]
@@ -19,7 +19,7 @@ webhooks:
     admissionReviewVersions: ["v1beta1"]
     sideEffects: None
     timeoutSeconds: 5
-  - name: ${SERVICE_NAME}.${NAMESPACE}.svc
+  - name: cephblockpool-wh-${SERVICE_NAME}-${NAMESPACE}.rook.io
     rules:
       - apiGroups:   ["ceph.rook.io"]
         apiVersions: ["v1"]
@@ -34,4 +34,3 @@ webhooks:
     admissionReviewVersions: ["v1beta1"]
     sideEffects: None
     timeoutSeconds: 5
-
