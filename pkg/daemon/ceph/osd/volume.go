@@ -600,20 +600,30 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			"json",
 		}...)
 
-		cvOut, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, reportArgs...)
-		if err != nil {
-			return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
-		}
+		cephVersion := a.clusterInfo.CephVersion
 
-		logger.Debugf("ceph-volume report: %+v", cvOut)
+		if !cephVersion.IsNautilus() || cephver.IsInferior(cephVersion, cephver.CephVersion{Major: 14, Minor: 2, Extra: 13}) {
 
-		var cvReport cephVolReport
-		if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
-			return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
-		}
+			cvOut, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, reportArgs...)
+			if err != nil {
+				return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
+			}
 
+<<<<<<< HEAD
 		if path.Join("/dev", md) != cvReport.Vg.Devices {
 			return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", md)
+=======
+			logger.Debugf("ceph-volume report: %+v", cvOut)
+
+			var cvReport cephVolReport
+			if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
+				return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
+			}
+
+			if mdPath != cvReport.Vg.Devices {
+				return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", mdPath)
+			}
+>>>>>>> 373b95298... ceph: allow ceph 14.2.15 for lvm batch
 		}
 
 		// execute ceph-volume batching up multiple devices
