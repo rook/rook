@@ -685,6 +685,17 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			logger.Infof("created deployment for osd %d", osd.ID)
 		}
 	}
+
+	// label nodes without usable disks
+	if len(osds) == 0 {
+		logger.Debugf("Do not reconcile %q as it has no valid storage.", nodeName)
+		node, _ := c.context.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		node.Labels[controller.DoNotReconcileLabelName] = "true"
+		_, err := c.context.Clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+		if err != nil {
+			logger.Errorf("failed to update node %q. %v", nodeName, err)
+		}
+	}
 }
 
 func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {

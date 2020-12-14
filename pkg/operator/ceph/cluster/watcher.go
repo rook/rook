@@ -19,12 +19,15 @@ package cluster
 
 import (
 	"context"
+	"syscall"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -93,9 +96,14 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		clusterInfo := cephclient.AdminClusterInfo(cluster.Namespace)
 		osds, err := cephclient.GetOSDOnHost(c.context, clusterInfo, nodeName)
 		if err != nil {
-			// If it fails, this might be due to the the operator just starting and catching an add event for that node
-			logger.Debugf("failed to get osds on node %q", nodeName)
-			return false
+			if code, ok := exec.ExitStatus(errors.Cause(err)); ok && code == int(syscall.ENOENT) {
+				logger.Debugf("node watcher: no OSD running on %q", nodeName)
+				return true
+			} else {
+				// If it fails, this might be due to the the operator just starting and catching an add event for that node
+				logger.Debugf("failed to get osds on node %q", nodeName)
+				return false
+			}
 		}
 
 		// If they are OSDs in the CRUSH map and if the host exists in the CRUSH map, don't reconcile
