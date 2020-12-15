@@ -24,7 +24,6 @@ import (
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -84,10 +83,7 @@ func UpdateDeploymentAndWait(clusterdContext *clusterd.Context, modifiedDeployme
 		logger.Infof("updating deployment %q after verifying it is safe to stop", modifiedDeployment.Name)
 
 		// Let's verify the deployment can be stopped
-		// retry for 5 times, every minute
-		err = util.Retry(5, 60*time.Second, func() error {
-			return verifyCallback("stop")
-		})
+		err = verifyCallback("stop")
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if deployment %q can be updated. %v", modifiedDeployment.Name, err)
 		}

@@ -19,6 +19,7 @@ package client
 import (
 	"fmt"
 	"net"
+	"time"
 
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +38,8 @@ type ClusterInfo struct {
 	OwnerRef      metav1.OwnerReference
 	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
 	// If the CR name is needed, access it through the NamespacedName() method.
-	name string
+	name              string
+	OsdUpgradeTimeout time.Duration
 }
 
 // MonInfo is a collection of information about a Ceph mon.
