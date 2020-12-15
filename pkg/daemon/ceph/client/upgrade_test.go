@@ -19,6 +19,7 @@ package client
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -249,4 +250,50 @@ func TestBuildHostListFromTree(t *testing.T) {
 
 	_, err = buildHostListFromTree(dummyEmptyNodeTree)
 	assert.NoError(t, err)
+}
+
+func TestGetRetryConfig(t *testing.T) {
+	testcases := []struct {
+		label           string
+		clusterInfo     *ClusterInfo
+		daemonType      string
+		expectedRetries int
+		expectedDelay   time.Duration
+	}{
+		{
+			label:           "case 1: mon daemon",
+			clusterInfo:     &ClusterInfo{},
+			daemonType:      "mon",
+			expectedRetries: 10,
+			expectedDelay:   60 * time.Second,
+		},
+		{
+			label:           "case 2: osd daemon with 5 minutes delay",
+			clusterInfo:     &ClusterInfo{OsdUpgradeTimeout: 5 * time.Minute},
+			daemonType:      "osd",
+			expectedRetries: 30,
+			expectedDelay:   10 * time.Second,
+		},
+		{
+			label:           "case 3: osd daemon with 10 minutes delay",
+			clusterInfo:     &ClusterInfo{OsdUpgradeTimeout: 10 * time.Minute},
+			daemonType:      "osd",
+			expectedRetries: 60,
+			expectedDelay:   10 * time.Second,
+		},
+		{
+			label:           "case 4: mds daemon",
+			clusterInfo:     &ClusterInfo{},
+			daemonType:      "mds",
+			expectedRetries: 10,
+			expectedDelay:   15 * time.Second,
+		},
+	}
+
+	for _, tc := range testcases {
+		actualRetries, actualDelay := getRetryConfig(tc.clusterInfo, tc.daemonType)
+
+		assert.Equal(t, tc.expectedRetries, actualRetries, "[%s] failed to get correct retry count", tc.label)
+		assert.Equalf(t, tc.expectedDelay, actualDelay, "[%s] failed to get correct delays between retries", tc.label)
+	}
 }

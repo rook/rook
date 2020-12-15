@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 
@@ -61,10 +62,11 @@ const (
 	// AppName is the "app" label on osd pods
 	AppName = "rook-ceph-osd"
 	// FailureDomainKey is the label key whose value is the failure domain of the OSD
-	FailureDomainKey  = "failure-domain"
-	prepareAppName    = "rook-ceph-osd-prepare"
-	prepareAppNameFmt = "rook-ceph-osd-prepare-%s"
-	osdAppNameFmt     = "rook-ceph-osd-%d"
+	FailureDomainKey                = "failure-domain"
+	prepareAppName                  = "rook-ceph-osd-prepare"
+	prepareAppNameFmt               = "rook-ceph-osd-prepare-%s"
+	osdAppNameFmt                   = "rook-ceph-osd-%d"
+	defaultWaitTimeoutForHealthyOSD = 10 * time.Minute
 	// OsdIdLabelKey is the OSD label key
 	OsdIdLabelKey                  = "ceph-osd-id"
 	serviceAccountName             = "rook-ceph-osd"
@@ -180,6 +182,13 @@ func (c *Cluster) Start() error {
 	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 && len(c.spec.Storage.VolumeSources) == 0 && len(c.spec.Storage.StorageClassDeviceSets) == 0 && len(c.spec.DriveGroups) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes, driveGroups, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
 	}
+
+	if c.spec.WaitTimeoutForHealthyOSDInMinutes != 0 {
+		c.clusterInfo.OsdUpgradeTimeout = c.spec.WaitTimeoutForHealthyOSDInMinutes * time.Minute
+	} else {
+		c.clusterInfo.OsdUpgradeTimeout = defaultWaitTimeoutForHealthyOSD
+	}
+	logger.Infof("wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
 	// start the jobs to provision the OSD devices
 	logger.Infof("start provisioning the osds on pvcs, if needed")

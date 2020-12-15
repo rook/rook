@@ -27,6 +27,12 @@ import (
 	"github.com/rook/rook/pkg/util"
 )
 
+const (
+	defaultMaxRetries    = 10
+	defaultRetryDelay    = 60 * time.Second
+	defaultOSDRetryDelay = 10 * time.Second
+)
+
 // CephDaemonsVersions is a structure that can be used to parsed the output of the 'ceph versions' command
 type CephDaemonsVersions struct {
 	Mon       map[string]int `json:"mon,omitempty"`
@@ -131,6 +137,7 @@ func EnableReleaseOSDFunctionality(context *clusterd.Context, clusterInfo *Clust
 
 // OkToStop determines if it's ok to stop an upgrade
 func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, daemonType, daemonName string) error {
+	okToStopRetries, okToStopDelay := getRetryConfig(clusterInfo, daemonType)
 	versions, err := GetAllCephDaemonVersions(context, clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get ceph daemons versions")
@@ -161,11 +168,14 @@ func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, d
 			return nil
 		}
 	}
+
 	// we don't implement any checks for mon, rgw and rbdmirror since:
 	//  - mon: the is done in the monitor code since it ensures all the mons are always in quorum before continuing
 	//  - rgw: the pod spec has a liveness probe so if the pod successfully start
 	//  - rbdmirror: you can chain as many as you want like mdss but there is no ok-to-stop logic yet
-	err = okToStopDaemon(context, clusterInfo, deployment, daemonType, daemonName)
+	err = util.Retry(okToStopRetries, okToStopDelay, func() error {
+		return okToStopDaemon(context, clusterInfo, deployment, daemonType, daemonName)
+	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if %s was ok to stop", deployment)
 	}
@@ -177,14 +187,6 @@ func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, d
 func OkToContinue(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, daemonType, daemonName string) error {
 	// the mon case is handled directly in the deployment where the mon checks for quorum
 	switch daemonType {
-	case "osd":
-		if osdDoNothing(context, clusterInfo) {
-			return nil
-		}
-		err := okToContinueOSDDaemon(context, clusterInfo)
-		if err != nil {
-			return errors.Wrapf(err, "failed to check if %s was ok to continue", deployment)
-		}
 	case "mds":
 		err := okToContinueMDSDaemon(context, clusterInfo, deployment, daemonType, daemonName)
 		if err != nil {
@@ -214,25 +216,12 @@ func okToStopDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deploym
 	return nil
 }
 
-// okToContinueOSDDaemon determines whether it's fine to go to the next osd during an upgrade
-// This basically makes sure all the PGs have settled
-func okToContinueOSDDaemon(context *clusterd.Context, clusterInfo *ClusterInfo) error {
-	// Reconciliating PGs should not take too long so let's wait up to 10 minutes
-	err := util.Retry(10, 60*time.Second, func() error {
-		return IsClusterCleanError(context, clusterInfo)
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // okToContinueMDSDaemon determines whether it's fine to go to the next mds during an upgrade
 // mostly a placeholder function for the future but since we have standby mds this shouldn't be needed
 func okToContinueMDSDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, daemonType, daemonName string) error {
 	// wait for the MDS to be active again or in standby-replay
-	err := util.Retry(10, 15*time.Second, func() error {
+	retries, delay := getRetryConfig(clusterInfo, "mds")
+	err := util.Retry(retries, delay, func() error {
 		return MdsActiveOrStandbyReplay(context, clusterInfo, findFSName(deployment))
 	})
 	if err != nil {
@@ -399,4 +388,15 @@ func osdDoNothing(context *clusterd.Context, clusterInfo *ClusterInfo) bool {
 	}
 
 	return false
+}
+
+func getRetryConfig(clusterInfo *ClusterInfo, daemonType string) (int, time.Duration) {
+	switch daemonType {
+	case "osd":
+		return int(clusterInfo.OsdUpgradeTimeout / defaultOSDRetryDelay), defaultOSDRetryDelay
+	case "mds":
+		return defaultMaxRetries, 15 * time.Second
+	}
+
+	return defaultMaxRetries, defaultRetryDelay
 }
