@@ -51,7 +51,7 @@ func (ci *CassandraInstaller) InstallCassandra(systemNamespace, namespace string
 		return err
 	}
 	if !defaultExists {
-		if err := InstallHostPathProvisioner(ci.k8sHelper); err != nil {
+		if err := CreateHostPathPVs(ci.k8sHelper, 3, true, "5Gi"); err != nil {
 			return err
 		}
 	} else {

@@ -49,10 +49,9 @@ func (h *NFSInstaller) InstallNFSServer(systemNamespace, namespace string, count
 	if err != nil {
 		return err
 	} else if !defaultExists {
-		if err := InstallHostPathProvisioner(h.k8shelper); err != nil {
+		if err := CreateHostPathPVs(h.k8shelper, 2, false, "2Mi"); err != nil {
 			return err
 		}
-		storageClassName = "hostpath"
 	} else {
 		logger.Info("skipping install of host path provisioner because a default storage class already exists")
 	}
@@ -181,7 +180,7 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 	_, err = h.k8shelper.KubectlWithStdin(nfsOperator, deleteFromStdinArgs...)
 	checkError(h.T(), err, "cannot uninstall rook-nfs-operator")
 
-	err = UninstallHostPathProvisioner(h.k8shelper)
+	err = DeleteHostPathPVs(h.k8shelper)
 	checkError(h.T(), err, "cannot uninstall hostpath provisioner")
 
 	h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete(ctx, "anon-user-access", metav1.DeleteOptions{})           //nolint, asserting this failing in CI
