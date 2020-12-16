@@ -32,7 +32,7 @@ rule %s {
         type replicated
         min_size %d
         max_size %d
-        step take %s
+        step take %s %s
         step choose firstn 0 type %s
         step chooseleaf firstn 2 type %s
         step emit
@@ -45,6 +45,10 @@ var (
 )
 
 func buildTwoStepPlainCrushRule(crushMap CrushMap, ruleName string, pool cephv1.PoolSpec) string {
+	var crushRuleInsert string
+	if pool.DeviceClass != "" {
+		crushRuleInsert = fmt.Sprintf("class %s", pool.DeviceClass)
+	}
 	return fmt.Sprintf(
 		twoStepCRUSHRuleTemplate,
 		ruleName,
@@ -52,6 +56,7 @@ func buildTwoStepPlainCrushRule(crushMap CrushMap, ruleName string, pool cephv1.
 		ruleMinSizeDefault,
 		ruleMaxSizeDefault,
 		pool.CrushRoot,
+		crushRuleInsert,
 		pool.FailureDomain,
 		pool.Replicated.SubFailureDomain,
 	)
