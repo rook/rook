@@ -202,10 +202,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 			keyring.VolumeMount().Admin(),
 		),
 		Env: append(
-			append(
-				controller.DaemonEnvVars(c.spec.CephVersion.Image),
-				k8sutil.PodIPEnvVar(podIPEnvVar),
-			),
+			controller.DaemonEnvVars(c.spec.CephVersion.Image),
 			c.cephMgrOrchestratorModuleEnvs()...,
 		),
 		Resources: cephv1.GetMgrResources(c.spec.Resources),
