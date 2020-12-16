@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -58,8 +59,15 @@ func (k8sh *K8sHelper) CheckSnapshotISReadyToUse(name, namespace string, retries
 
 // snapshotController creates or deletes the snapshotcontroller and required RBAC
 func (k8sh *K8sHelper) snapshotController(action string) error {
-	controller := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, controllerPath)
-	_, err := k8sh.Kubectl(action, "-f", controller)
+	controllerURL := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, controllerPath)
+	controllerManifest, err := getManifestFromURL(controllerURL)
+	if err != nil {
+		return err
+	}
+	controllerManifest = strings.Replace(controllerManifest, "canary", snapshotterVersion, -1)
+	logger.Infof("snapshot controller: %s", controllerManifest)
+
+	_, err = k8sh.KubectlWithStdin(controllerManifest, action, "-f", "-")
 	if err != nil {
 		return err
 	}
