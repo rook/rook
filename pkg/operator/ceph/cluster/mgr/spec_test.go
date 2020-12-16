@@ -76,7 +76,6 @@ func TestPodSpec(t *testing.T) {
 		"200", "100", "500", "250", /* resources */
 		"my-priority-class")
 	assert.Equal(t, 2, len(d.Spec.Template.Annotations))
-
 }
 
 func TestServiceSpec(t *testing.T) {
