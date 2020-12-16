@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"strconv"
@@ -30,13 +32,14 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -163,7 +166,7 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 	if cmdOut.ExitCode != 0 {
 		k8slogger.Errorf("Failed to execute stdin: %s %v : %v", cmd, args, cmdOut.Err.Error())
 		if strings.Contains(cmdOut.Err.Error(), "(NotFound)") || strings.Contains(cmdOut.StdErr, "(NotFound)") {
-			return cmdOut.StdErr, errors.NewNotFound(schema.GroupResource{}, "")
+			return cmdOut.StdErr, kerrors.NewNotFound(schema.GroupResource{}, "")
 		}
 		return cmdOut.StdErr, fmt.Errorf("Failed to run stdin: %s %v : %v", cmd, args, cmdOut.StdErr)
 	}
@@ -173,6 +176,23 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 
 	return cmdOut.StdOut, nil
 
+}
+
+func getManifestFromURL(url string) (string, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get manifest from url %s", url)
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to read manifest from url %s", url)
+	}
+	return string(body), nil
 }
 
 func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
@@ -371,7 +391,7 @@ func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFu
 			time.Sleep(2 * time.Second)
 			continue
 		}
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Infof("custom resource %s deleted", namespace)
 			return nil
 		}
@@ -410,7 +430,7 @@ func (k8sh *K8sHelper) CreateNamespace(namespace string) error {
 	ctx := context.TODO()
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-	if err != nil && !errors.IsAlreadyExists(err) {
+	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create namespace %s. %+v", namespace, err)
 	}
 
@@ -422,7 +442,7 @@ func (k8sh *K8sHelper) CountPodsWithLabel(label string, namespace string) (int, 
 	options := metav1.ListOptions{LabelSelector: label}
 	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, options)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return 0, nil
 		}
 		return 0, err
@@ -506,7 +526,7 @@ func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace stri
 	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, options)
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			logger.Infof("error Found err %v", err)
 			return true
 		}
@@ -952,7 +972,7 @@ func (k8sh *K8sHelper) isVolumeExist(namespace, name string) (bool, error) {
 	ctx := context.TODO()
 	_, err := k8sh.RookClientset.RookV1alpha2().Volumes(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err
@@ -1275,7 +1295,7 @@ func (k8sh *K8sHelper) WaitUntilPodIsDeleted(name, namespace string) bool {
 	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
 		_, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && kerrors.IsNotFound(err) {
 			return true
 		}
 
@@ -1407,7 +1427,7 @@ spec:
   type: NodePort
 `
 	_, err := k8sh.KubectlWithStdin(externalSvc, []string{"apply", "-f", "-"}...)
-	if err != nil && !errors.IsAlreadyExists(err) {
+	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create external service. %+v", err)
 	}
 
