@@ -22,12 +22,10 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -204,10 +202,6 @@ func GetOSDOnHost(context *clusterd.Context, clusterInfo *ClusterInfo, node stri
 	args := []string{"osd", "crush", "ls", node}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		// ENOENT as error means that node is not (yet) part of the ceph cluster
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			return "", nil
-		}
 		return "", errors.Wrapf(err, "failed to get osd list on host. %s", string(buf))
 	}
 
