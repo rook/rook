@@ -17,58 +17,76 @@ limitations under the License.
 package installer
 
 import (
-	"bytes"
 	"fmt"
-	"net/http"
-	"strings"
+	"io/ioutil"
 
 	"github.com/rook/rook/tests/framework/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
-	hostPathStorageClassName           = "hostpath"
-	hostPathProvisionerResourceBaseURL = `https://raw.githubusercontent.com/MaZderMind/hostpath-provisioner/master/manifests/%s`
-	hostPathProvisionerRBAC            = `rbac.yaml`
-	hostPathProvisionerDeployment      = `deployment.yaml`
-	hostPathProvisionerStorageClass    = `storageclass.yaml`
+	hostPathStorageClassName = "hostpath"
 )
 
 // ************************************************************************************************
 // HostPath provisioner functions
 // ************************************************************************************************
-func InstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
-	logger.Info("installing host path provisioner")
+func CreateHostPathPVs(k8shelper *utils.K8sHelper, count int, readOnly bool, pvcSize string) error {
+	logger.Info("creating test PVs")
 
-	rbacResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerRBAC)
-	args := append(createArgs, rbacResourceURL)
-	out, err := k8shelper.Kubectl(args...)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create hostpath provisioner RBAC: %+v. %s", err, out)
+	pv := `
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: test-hostpath-%d
+  labels:
+    hostpath: test
+spec:
+  storageClassName: %s
+  capacity:
+    storage: %s
+  accessModes:
+    - %s
+  persistentVolumeReclaimPolicy: Delete
+  volumeMode: Filesystem
+  local:
+    path: "%s"
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: Exists
+`
+	storageClass := `
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: %s
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+`
+	accessMode := "ReadWriteMany"
+	if readOnly {
+		accessMode = "ReadWriteOnce"
 	}
-
-	deployment, err := getHostPathProvisionerDeployment()
-	if err != nil {
-		return err
+	yamlToCreate := fmt.Sprintf(storageClass, hostPathStorageClassName)
+	for i := 0; i < count; i++ {
+		tempDir, err := ioutil.TempDir("", "example")
+		if err != nil {
+			return fmt.Errorf("failed to create temp dir. %v", err)
+		}
+		logger.Infof("created temp dir: %s", tempDir)
+		yamlToCreate += fmt.Sprintf(pv, i, hostPathStorageClassName, pvcSize, accessMode, tempDir)
 	}
-	out, err = k8shelper.KubectlWithStdin(deployment, createFromStdinArgs...)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create hostpath provisioner deployment: %+v. %s", err, out)
-	}
-
-	storageClassResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerStorageClass)
-	args = append(createArgs, storageClassResourceURL)
-	out, err = k8shelper.Kubectl(args...)
+	out, err := k8shelper.KubectlWithStdin(yamlToCreate, createFromStdinArgs...)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create hostpath provisioner StorageClass: %+v. %s", err, out)
-	}
-
-	err = k8shelper.WaitForLabeledPodsToRun("k8s-app=hostpath-provisioner", "kube-system")
-	if err != nil {
-		logger.Errorf("hostpath provisioner pod is not running: %+v", err)
-		k8shelper.GetPodDescribeFromNamespace("kube-system", "hostPathProvisioner", utils.TestEnvName())
-		k8shelper.PrintStorageClasses(true /*detailed*/)
-		return err
 	}
 
 	present, err := k8shelper.IsStorageClassPresent(hostPathStorageClassName)
@@ -81,49 +99,20 @@ func InstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
 	return nil
 }
 
-func UninstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
-	logger.Info("uninstalling host path provisioner")
+func DeleteHostPathPVs(k8shelper *utils.K8sHelper) error {
+	logger.Info("deleting hostpath PVs")
 
-	storageClassResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerStorageClass)
-	args := append(deleteArgs, storageClassResourceURL)
+	args := []string{"delete", "pv", "-l", "hostpath=test"}
+	_, err := k8shelper.Kubectl(args...)
+	if err != nil {
+		return fmt.Errorf("failed to delete test PVs. %v", err)
+	}
+
+	args = []string{"delete", "sc", hostPathStorageClassName}
 	out, err := k8shelper.Kubectl(args...)
 	if err != nil && !utils.IsKubectlErrorNotFound(out, err) {
-		return fmt.Errorf("failed to delete hostpath provisioner StorageClass: %+v. %s", err, out)
-	}
-
-	deployment, err := getHostPathProvisionerDeployment()
-	if err != nil {
-		return err
-	}
-	out, err = k8shelper.KubectlWithStdin(deployment, deleteFromStdinArgs...)
-	if err != nil && !utils.IsKubectlErrorNotFound(out, err) {
-		return fmt.Errorf("failed to delete hostpath provisioner deployment: %+v. %s", err, out)
-	}
-
-	rbacResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerRBAC)
-	args = append(deleteArgs, rbacResourceURL)
-	out, err = k8shelper.Kubectl(args...)
-	if err != nil && !utils.IsKubectlErrorNotFound(out, err) {
-		return fmt.Errorf("failed to delete hostpath provisioner RBAC: %+v. %s", err, out)
+		return fmt.Errorf("failed to delete hostpath StorageClass: %v. %s", err, out)
 	}
 
 	return nil
-}
-
-func getHostPathProvisionerDeployment() (string, error) {
-	// The hostpath provisioner project is readonly so we can't submit a PR.
-	// Until we replace this completely, we'll just replace the necessary string.
-	deploymentResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerDeployment)
-	response, err := http.Get(deploymentResourceURL) //nolint:gosec // We safely suppress gosec in tests file
-	if err != nil {
-		return "", fmt.Errorf("failed to get hostpath provisioner deployment. %+v", err)
-	}
-	defer response.Body.Close()
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(response.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read hostpath provisioner deployment. %+v", err)
-	}
-	// K8s 1.16 requires apps/v1
-	return strings.Replace(buf.String(), "apiVersion: extensions/v1beta1", "apiVersion: apps/v1", 1), nil
 }

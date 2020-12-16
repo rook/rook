@@ -54,7 +54,7 @@ func (y *YugabyteDBInstaller) InstallYugabyteDB(systemNS, ns string, count int) 
 		// Mark the installation attempt of a host path provisioner, for removal later.
 		y.hostPathProvisionerInstalled = true
 
-		if err := InstallHostPathProvisioner(y.k8sHelper); err != nil {
+		if err := CreateHostPathPVs(y.k8sHelper, 3, true, "5Gi"); err != nil {
 			return err
 		}
 	} else {
@@ -153,7 +153,7 @@ func (y *YugabyteDBInstaller) RemoveAllYugabyteDBResources(systemNS, namespace s
 
 	// Remove host path provisioner resources, if installed.
 	if y.hostPathProvisionerInstalled {
-		err = UninstallHostPathProvisioner(y.k8sHelper)
+		err = DeleteHostPathPVs(y.k8sHelper)
 		checkError(y.T(), err, "cannot uninstall hostpath provisioner")
 	}
 

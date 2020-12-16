@@ -43,18 +43,6 @@ func NewCockroachDBInstaller(k8shelper *utils.K8sHelper, t func() *testing.T) *C
 func (h *CockroachDBInstaller) InstallCockroachDB(systemNamespace, namespace string, count int) error {
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
-	// install hostpath provisioner if there isn't already a default storage class
-	defaultExists, err := h.k8shelper.IsDefaultStorageClassPresent()
-	if err != nil {
-		return err
-	} else if !defaultExists {
-		if err := InstallHostPathProvisioner(h.k8shelper); err != nil {
-			return err
-		}
-	} else {
-		logger.Info("skipping install of host path provisioner because a default storage class already exists")
-	}
-
 	// install cockroachdb operator
 	if err := h.CreateCockroachDBOperator(systemNamespace); err != nil {
 		return err
@@ -145,7 +133,7 @@ func (h *CockroachDBInstaller) UninstallCockroachDB(systemNamespace, namespace s
 	_, err = h.k8shelper.KubectlWithStdin(cockroachDBOperator, deleteFromStdinArgs...)
 	checkError(h.T(), err, "cannot uninstall rook-cockroachdb-operator")
 
-	err = UninstallHostPathProvisioner(h.k8shelper)
+	err = DeleteHostPathPVs(h.k8shelper)
 	checkError(h.T(), err, "cannot uninstall hostpath provisioner")
 
 	err = h.k8shelper.Clientset.RbacV1().ClusterRoleBindings().Delete(ctx, "anon-user-access", metav1.DeleteOptions{})
