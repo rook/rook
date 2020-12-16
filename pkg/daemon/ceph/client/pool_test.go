@@ -16,7 +16,9 @@ limitations under the License.
 package client
 
 import (
+	"os/exec"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -316,4 +318,86 @@ func testCreateStretchCrushRule(t *testing.T, alreadyExists bool) {
 
 	err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, ruleName, poolSpec)
 	assert.NoError(t, err)
+}
+
+func TestCreatePoolWithReplicasPerFailureDomain(t *testing.T) {
+	// This test goes via the path of explicit compile/decompile CRUSH map; ignored if 'crushtool' is not installed
+	// on local build machine
+	if hasCrushtool() {
+		testCreatePoolWithReplicasPerFailureDomain(t, "host", "mycrushroot", "hdd")
+		testCreatePoolWithReplicasPerFailureDomain(t, "rack", "mycrushroot", "ssd")
+	}
+}
+
+func testCreatePoolWithReplicasPerFailureDomain(t *testing.T, failureDomain, crushRoot, deviceClass string) {
+	poolName := "mypool-with-two-step-clush-rule"
+	poolRuleCreated := false
+	poolRuleSet := false
+	poolAppEnable := false
+	poolSpec := cephv1.PoolSpec{
+		FailureDomain: failureDomain,
+		CrushRoot:     crushRoot,
+		DeviceClass:   deviceClass,
+		Replicated: cephv1.ReplicatedSpec{
+			Size:                     12345678,
+			ReplicasPerFailureDomain: 2,
+		},
+	}
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		assert.Equal(t, command, "ceph")
+		assert.Equal(t, args[0], "osd")
+		if len(args) >= 3 && args[1] == "crush" && args[2] == "dump" {
+			return testCrushMap, nil
+		}
+		if len(args) >= 3 && args[1] == "pool" && args[2] == "create" {
+			// Currently, CRUSH-rule name equals pool's name
+			assert.GreaterOrEqual(t, len(args), 7)
+			assert.Equal(t, args[3], poolName)
+			assert.Equal(t, args[5], "replicated")
+			crushRuleName := args[6]
+			assert.Equal(t, crushRuleName, poolName)
+			poolRuleCreated = true
+			return "", nil
+		}
+		if len(args) >= 3 && args[1] == "pool" && args[2] == "set" {
+			crushRuleName := args[3]
+			assert.Equal(t, crushRuleName, poolName)
+			assert.Equal(t, args[4], "size")
+			poolSize, err := strconv.Atoi(args[5])
+			assert.NoError(t, err)
+			assert.Equal(t, uint(poolSize), poolSpec.Replicated.Size)
+			poolRuleSet = true
+			return "", nil
+		}
+		if len(args) >= 4 && args[1] == "pool" && args[2] == "application" && args[3] == "enable" {
+			crushRuleName := args[4]
+			assert.Equal(t, crushRuleName, poolName)
+			poolAppEnable = true
+			return "", nil
+		}
+		if len(args) >= 4 && args[1] == "crush" && args[2] == "rule" && args[3] == "create-replicated" {
+			crushRuleName := args[4]
+			assert.Equal(t, crushRuleName, poolName)
+			deviceClassName := args[7]
+			assert.Equal(t, deviceClassName, deviceClass)
+			poolRuleCreated = true
+			return "", nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	context := &clusterd.Context{Executor: executor}
+	clusterSpec := &cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}}
+	err := CreateReplicatedPoolForApp(context, AdminClusterInfo("mycluster"), clusterSpec, poolName, poolSpec, DefaultPGCount, "myapp")
+	assert.Nil(t, err)
+	assert.True(t, poolRuleCreated)
+	assert.True(t, poolRuleSet)
+	assert.True(t, poolAppEnable)
+}
+
+func hasCrushtool() bool {
+	_, err := exec.LookPath("crushtool")
+	return err == nil
 }
