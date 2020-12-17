@@ -286,9 +286,13 @@ spec:
         app: rook-ceph-operator
     spec:
       serviceAccountName: rook-ceph-system
+      initContainers:
+      - name: config-init
+        image: subham03/rook-test:test4
+        command: ["/etc/rook/adm-con/config-admission-controller.sh"]
       containers:
       - name: rook-ceph-operator
-        image: rook/ceph:master
+        image: subham03/rook-ceph:master
         args: ["ceph", "operator"]
         volumeMounts:
         - mountPath: /var/lib/rook
