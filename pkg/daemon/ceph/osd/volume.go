@@ -89,6 +89,26 @@ type cephVolVg struct {
 	Devices string `json:"devices"`
 }
 
+type cephVolReportV2 struct {
+	BlockDB      string `json:"block_db"`
+	Encryption   string `json:"encryption"`
+	Data         string `json:"data"`
+	DatabaseSize string `json:"data_size"`
+	BlockDbSize  string `json:"block_db_size"`
+}
+
+func isNewStyledLvmBatch(version cephver.CephVersion) bool {
+	if version.IsNautilus() && version.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 13}) {
+		return true
+	}
+
+	if version.IsOctopus() && version.IsAtLeast(cephver.CephVersion{Major: 15, Minor: 2, Extra: 8}) {
+		return true
+	}
+
+	return false
+}
+
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
 	var osds []oposd.OSDInfo
 	var lvmOsds []oposd.OSDInfo
@@ -615,7 +635,9 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 		cephVersion := a.clusterInfo.CephVersion
 
-		if !cephVersion.IsNautilus() || cephver.IsInferior(cephVersion, cephver.CephVersion{Major: 14, Minor: 2, Extra: 13}) {
+		// ceph version v14.2.13 ~ v14.2.16 changes output of `lvm batch --prepare --report`
+		// use previous logic if ceph version does not fall into this range
+		if !isNewStyledLvmBatch(cephVersion) {
 
 			cvOut, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, reportArgs...)
 			if err != nil {
@@ -631,6 +653,28 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 			if mdPath != cvReport.Vg.Devices {
 				return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", mdPath)
+			}
+		} else {
+			cvOut, err := context.Executor.ExecuteCommandWithOutput(baseCommand, reportArgs...)
+			if err != nil {
+				return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
+			}
+
+			logger.Debugf("ceph-volume reports: %+v", cvOut)
+
+			var cvReports []cephVolReportV2
+			if err = json.Unmarshal([]byte(cvOut), &cvReports); err != nil {
+				return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
+			}
+
+			if len(strings.Split(conf["devices"], " ")) != len(cvReports) {
+				return fmt.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
+			} else {
+				for _, report := range cvReports {
+					if report.BlockDB != mdPath {
+						return fmt.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
+					}
+				}
 			}
 		}
 
