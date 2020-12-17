@@ -97,7 +97,7 @@ func (suite *SmokeSuite) SetupSuite() {
 		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: smokeSuiteMinimalTestVersion,
 		rookVersion:             installer.VersionMaster,
-		cephVersion:             installer.OctopusVersion,
+		cephVersion:             installer.OctopusVersion(),
 	}
 
 	suite.op, suite.k8sh = StartTestCluster(suite.T, &smokeTestCluster)
