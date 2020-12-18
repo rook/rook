@@ -27,7 +27,7 @@ import (
 )
 
 // StartOperatorSettingsWatch starts the operator settings watcher
-func (c *ClusterController) StartOperatorSettingsWatch(namespace string, stopCh chan struct{}) {
+func (c *ClusterController) StartOperatorSettingsWatch(stopCh chan struct{}) {
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	// watch for "rook-ceph-operator-config" ConfigMap
 	k8sutil.StartOperatorSettingsWatch(c.context, operatorNamespace, opcontroller.OperatorSettingConfigMapName,

@@ -168,7 +168,7 @@ func (o *Operator) Run() error {
 	go o.startManager(namespaceToWatch, stopChan, mgrErrorChan)
 
 	// Start the operator setting watcher
-	go o.clusterController.StartOperatorSettingsWatch(namespaceToWatch, stopChan)
+	go o.clusterController.StartOperatorSettingsWatch(stopChan)
 
 	// Signal handler to stop the operator
 	for {
