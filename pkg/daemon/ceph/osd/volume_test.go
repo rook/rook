@@ -710,7 +710,7 @@ func TestInitializeBlock(t *testing.T) {
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
 
-		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("%s %v", command, args)
 
 			// Validate base common args
@@ -765,7 +765,7 @@ func TestInitializeBlock(t *testing.T) {
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
 
-		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("%s %v", command, args)
 
 			// Validate base common args
