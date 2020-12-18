@@ -620,23 +620,24 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 			"json",
 		}...)
 
-		cephVersion := a.clusterInfo.CephVersion
+		cvOut, err := context.Executor.ExecuteCommandWithOutput(baseCommand, reportArgs...)
+		if err != nil {
+			return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
+		}
 
-		// ceph version v14.2.13 ~ v14.2.16 changes output of `lvm batch --prepare --report`
-		// use previous logic if ceph version does not fall into this range
-		if !isNewStyledLvmBatch(cephVersion) {
-
-			cvOut, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, reportArgs...)
-			if err != nil {
-				return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
-			}
-
+<<<<<<< HEAD
 <<<<<<< HEAD
 		if path.Join("/dev", md) != cvReport.Vg.Devices {
 			return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", md)
 =======
 			logger.Debugf("ceph-volume report: %+v", cvOut)
+=======
+		logger.Debugf("ceph-volume reports: %+v", cvOut)
+>>>>>>> 8d3d460e7... ceph: refactor and remove duplicate codes
 
+		// ceph version v14.2.13 and v15.2.8 changed the changed output format of `lvm batch --prepare --report`
+		// use previous logic if ceph version does not fall into this range
+		if !isNewStyledLvmBatch(a.clusterInfo.CephVersion) {
 			var cvReport cephVolReport
 			if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
 				return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
@@ -649,13 +650,6 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 >>>>>>> 373b95298... ceph: allow ceph 14.2.15 for lvm batch
 =======
 		} else {
-			cvOut, err := context.Executor.ExecuteCommandWithOutput(baseCommand, reportArgs...)
-			if err != nil {
-				return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
-			}
-
-			logger.Debugf("ceph-volume reports: %+v", cvOut)
-
 			var cvReports []cephVolReportV2
 			if err = json.Unmarshal([]byte(cvOut), &cvReports); err != nil {
 				return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
@@ -663,11 +657,11 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 
 			if len(strings.Split(conf["devices"], " ")) != len(cvReports) {
 				return fmt.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
-			} else {
-				for _, report := range cvReports {
-					if report.BlockDB != mdPath {
-						return fmt.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
-					}
+			}
+
+			for _, report := range cvReports {
+				if report.BlockDB != mdPath {
+					return fmt.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
 				}
 			}
 >>>>>>> 04aabb389... ceph: analyze result for new typed return from lvm batch
