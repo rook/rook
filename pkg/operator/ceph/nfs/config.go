@@ -49,8 +49,12 @@ func getNFSNodeID(n *cephv1.CephNFS, name string) string {
 }
 
 func getGaneshaConfigObject(n *cephv1.CephNFS, version cephver.CephVersion, name string) string {
+	/* Exports created with Dashboard will not be affected by change in config object name.
+	 * As it looks for ganesha config object just by 'conf-'. Exports cannot be created by using
+	 * volume/nfs plugin in Octopus version. Because the ceph rook module is broken.
+	 */
 	if version.IsAtLeastOctopus() {
-		return fmt.Sprintf("conf-nfs.ganesha-%s", n.Name)
+		return fmt.Sprintf("conf-nfs.%s", n.Name)
 	}
 	return fmt.Sprintf("conf-%s", getNFSNodeID(n, name))
 }

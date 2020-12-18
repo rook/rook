@@ -264,7 +264,7 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 		},
 	}
 	nodeid := "a"
-	expectedName := "conf-nfs.ganesha-my-nfs"
+	expectedName := "conf-nfs.my-nfs"
 
 	res := getGaneshaConfigObject(cephNFS, cephver.CephVersion{Major: 16}, nodeid)
 	logger.Infof("Config Object for Pacific is %s", res)
