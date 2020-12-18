@@ -51,7 +51,7 @@ var (
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	ctx := context.TODO()
 	storeName := "teststore"
-	defer objectTestDataCleanUp(helper, k8sh, namespace, storeName)
+	defer objectStoreCleanUp(s, helper, k8sh, namespace, storeName)
 
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store, User,Bucket and read/write to bucket")
 	logger.Infof("Running on Rook Cluster %s", namespace)
@@ -217,12 +217,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	assert.Nil(s.T(), dobErr)
 	logger.Infof("Delete Object Bucket Claim successfully")
 
-	// TODO : Add case for brownfield/cleanup s3 client
-
-	logger.Infof("Delete Object Store")
-	dobsErr := helper.ObjectClient.Delete(namespace, storeName)
-	assert.Nil(s.T(), dobsErr)
-	logger.Infof("Done deleting object store")
+	// TODO : Add case for brownfield/cleanup s3 client}
 }
 
 // Test Object StoreCreation on Rook that was installed via helm
@@ -249,19 +244,11 @@ func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 		require.Nil(s.T(), err)
 		logger.Infof("Done deleting object store")
 	}
-
 }
 
-func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
-	logger.Infof("FIX: Cleaning up object store")
-	/*oc := helper.ObjectClient
-	userinfo, err := helper.ObjectClient.ObjectGetUser(storeName, userid)
-	if err != nil {
-		return //when user is not found
-	}
-	s3endpoint, _ := k8sh.GetRGWServiceURL(storeName, namespace)
-	s3client := utils.CreateNewS3Helper(s3endpoint, *userinfo.AccessKey, *userinfo.SecretKey)
-	s3client.DeleteObjectInBucket(bucketname, objectKey)
-	s3client.DeleteBucket(bucketname)
-	helper.ObjectClient.DeleteUser(storeName, userid)*/
+func objectStoreCleanUp(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
+	logger.Infof("Delete Object Store (will fail if users and buckets still exist)")
+	err := helper.ObjectClient.Delete(namespace, storeName)
+	assert.Nil(s.T(), err)
+	logger.Infof("Done deleting object store")
 }
