@@ -59,10 +59,6 @@ type rgwConfig struct {
 	Zone         string
 }
 
-const (
-	oldRgwKeyName = "client.radosgw.gateway"
-)
-
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName string) error {
@@ -217,51 +213,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		}
 	}
 
-	c.deleteLegacyDaemons()
 	return nil
-}
-
-// deleteLegacyDaemons removes legacy rgw components that might have existed in Rook v1.0
-func (c *clusterConfig) deleteLegacyDaemons() {
-	// Make a best effort to delete the rgw pods daemonsets
-	daemons, err := k8sutil.GetDaemonsets(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
-	if err != nil {
-		logger.Warningf("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
-	}
-	daemonsetNum := len(daemons.Items)
-	if daemonsetNum > 0 {
-		for _, d := range daemons.Items {
-			// Delete any existing daemonset
-			if err := k8sutil.DeleteDaemonset(c.context.Clientset, c.store.Namespace, d.Name); err != nil {
-				logger.Errorf("error during deletion of daemonset %q resource. %v", d.Name, err)
-			}
-		}
-		// Delete legacy rgw key
-		err = cephclient.AuthDelete(c.context, c.clusterInfo, oldRgwKeyName)
-		if err != nil {
-			logger.Infof("failed to delete legacy rgw key %q. %v", oldRgwKeyName, err)
-		}
-	}
-
-	// legacy deployment detection
-	logger.Debugf("looking for legacy deployment in object store %q", c.store.Name)
-	deps, err := k8sutil.GetDeployments(c.context.Clientset, c.store.Namespace, c.storeLabelSelector())
-	if err != nil {
-		logger.Warningf("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
-	}
-	for _, d := range deps.Items {
-		if d.Name == instanceName(c.store.Name) {
-			logger.Infof("legacy deployment in object store %q found %q", c.store.Name, d.Name)
-			if err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, d.Name); err != nil {
-				logger.Warningf("error during deletion of deployment %q resource. %v", d.Name, err)
-			}
-			// Delete legacy rgw key
-			err = cephclient.AuthDelete(c.context, c.clusterInfo, oldRgwKeyName)
-			if err != nil {
-				logger.Infof("failed to delete legacy rgw key %q. %v", oldRgwKeyName, err)
-			}
-		}
-	}
 }
 
 // Delete the object store.
