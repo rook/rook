@@ -448,7 +448,7 @@ func (r *ReconcileCephObjectStore) verifyObjectBucketCleanup(objectstore *cephv1
 	bktProvisioner := GetObjectBucketProvisioner(r.context, objectstore.Namespace)
 	bktProvisioner = strings.Replace(bktProvisioner, "/", "-", -1)
 	selector := fmt.Sprintf("bucket-provisioner=%s", bktProvisioner)
-	objectBuckets, err := r.bktclient.ObjectbucketV1alpha1().ObjectBuckets().List(metav1.ListOptions{LabelSelector: selector})
+	objectBuckets, err := r.bktclient.ObjectbucketV1alpha1().ObjectBuckets().List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		logger.Errorf("failed to delete object store. failed to list buckets for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
 		return opcontroller.WaitForRequeueIfFinalizerBlocked, false

@@ -1314,9 +1314,7 @@ spec:
                 claimRef:
                   type: object
                   nullable: true
-                  items:
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
+                  x-kubernetes-preserve-unknown-fields: true
             status:
               type: object
               x-kubernetes-preserve-unknown-fields: true
