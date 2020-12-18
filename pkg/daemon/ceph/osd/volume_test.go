@@ -710,7 +710,7 @@ func TestInitializeBlock(t *testing.T) {
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
 
-		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("%s %v", command, args)
 
 			// Validate base common args
@@ -765,7 +765,7 @@ func TestInitializeBlock(t *testing.T) {
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
 
-		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("%s %v", command, args)
 
 			// Validate base common args
@@ -1193,5 +1193,55 @@ Running command: /usr/bin/ceph --cluster ceph --name client.bootstrap-osd --keyr
 				t.Errorf("getEncryptedBlockPath() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestIsNewStyledLvmBatch(t *testing.T) {
+	newStyleLvmBatchVersion := cephver.CephVersion{Major: 14, Minor: 2, Extra: 15}
+	legacyLvmBatchVersion := cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
+	assert.Equal(t, true, isNewStyledLvmBatch(newStyleLvmBatchVersion))
+	assert.Equal(t, false, isNewStyledLvmBatch(legacyLvmBatchVersion))
+}
+
+func TestInitializeBlockWithMD(t *testing.T) {
+	// Common vars for all the tests
+	devices := &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{
+			"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "/dev/sdd"}},
+		},
+	}
+
+	// Test default behavior
+	{
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/sdd" && args[14] == "--report" {
+				return `[{"block_db": "/dev/sdd", "encryption": "None", "data": "/dev/sda", "data_size": "100.00 GB", "block_db_size": "100.00 GB"}]`, nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 15}}, nodeName: "node1"}
+		context := &clusterd.Context{Executor: executor}
+
+		err := a.initializeDevices(context, devices)
+		assert.NoError(t, err, "failed default behavior test")
 	}
 }
