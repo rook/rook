@@ -31,19 +31,22 @@ import (
 func ValidateAndConfigureDrivers(context *clusterd.Context, namespace, rookImage, securityAccount string, serverVersion *version.Info, ownerRef *metav1.OwnerReference) {
 	var v *CephCSIVersion
 	var err error
-	if !AllowUnsupported {
+	if !AllowUnsupported && CSIEnabled() {
 		if v, err = validateCSIVersion(context.Clientset, namespace, rookImage, securityAccount, ownerRef); err != nil {
 			logger.Errorf("invalid csi version. %+v", err)
 			return
 		}
 	} else {
-		logger.Info("Skipping csi version check, since unsupported versions are allowed")
+		logger.Info("Skipping csi version check, since unsupported versions are allowed or csi is disabled")
 	}
 
-	if err := startDrivers(context.Clientset, context.RookClientset, namespace, serverVersion, ownerRef, v); err != nil {
-		logger.Errorf("failed to start Ceph csi drivers. %v", err)
-		return
+	if CSIEnabled() {
+		if err := startDrivers(context.Clientset, context.RookClientset, namespace, serverVersion, ownerRef, v); err != nil {
+			logger.Errorf("failed to start Ceph csi drivers. %v", err)
+			return
+		}
 	}
+
 	stopDrivers(context.Clientset, namespace, serverVersion)
 }
 
