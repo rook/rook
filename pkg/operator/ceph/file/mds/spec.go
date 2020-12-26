@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -38,6 +39,10 @@ const (
 )
 
 func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error) {
+
+	mdsContainer := c.makeMdsDaemonContainer(mdsConfig)
+	config.ConfigureLivenessProbe(cephv1.KeyMds, mdsContainer, c.clusterSpec.HealthCheck)
+
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mdsConfig.ResourceName,
@@ -48,7 +53,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error)
 				c.makeChownInitContainer(mdsConfig),
 			},
 			Containers: []v1.Container{
-				c.makeMdsDaemonContainer(mdsConfig),
+				mdsContainer,
 			},
 			RestartPolicy:     v1.RestartPolicyAlways,
 			Volumes:           controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
@@ -56,6 +61,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error)
 			PriorityClassName: c.fs.Spec.MetadataServer.PriorityClassName,
 		},
 	}
+
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 
