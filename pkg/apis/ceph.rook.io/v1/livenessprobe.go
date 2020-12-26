@@ -34,3 +34,8 @@ func GetMgrLivenessProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
 func GetOSDLivenessProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
 	return l.LivenessProbe[ResourcesKeyOSD].Probe
 }
+
+// GetMdsLivenessProbe returns the liveness probe for the MDS service
+func GetMdsLivenessProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
+	return l.LivenessProbe[ResourcesKeyMDS].Probe
+}
