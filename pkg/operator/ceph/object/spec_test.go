@@ -189,16 +189,6 @@ func TestValidateSpec(t *testing.T) {
 	err = r.validateStore(s)
 	assert.Nil(t, err)
 
-	// external with no endpoints but ok since client.admin is used
-	r.clusterSpec.External.Enable = true
-	err = r.validateStore(s)
-	assert.NoError(t, err)
-
-	// external with no endpoints, failure
-	r.clusterInfo.CephCred.Username = "client.external"
-	err = r.validateStore(s)
-	assert.NotNil(t, err)
-
 	// external with endpoints, success
 	s.Spec.Gateway.ExternalRgwEndpoints = []v1.EndpointAddress{
 		{

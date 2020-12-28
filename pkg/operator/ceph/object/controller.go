@@ -308,7 +308,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	var serviceIP string
 	var err error
 
-	if r.clusterSpec.External.Enable {
+	if cephObjectStore.Spec.IsExternal() {
 		logger.Info("reconciling external object store")
 
 		// RECONCILE SERVICE
