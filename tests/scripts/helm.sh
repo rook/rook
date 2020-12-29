@@ -33,7 +33,7 @@ install() {
         dist="$(uname -s)"
         dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
         mkdir -p "${temp}"
-        wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.13.1-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
+        wget "https://get.helm.sh/helm-v2.17.0-linux-amd64.tar.gz" -O "${temp}/helm.tar.gz"
         tar -C "${temp}" -zxvf "${temp}/helm.tar.gz"
         HELM="${temp}/${dist}-${arch}/helm"
     fi
@@ -104,7 +104,7 @@ case "${1:-}" in
         install
         # shellcheck disable=2002
         cat _output/version | xargs "${scriptdir}/makeTestImages.sh" tag "${arch}" || true
-        "${HELM}" repo add stable https://kubernetes-charts.storage.googleapis.com/
+        "${HELM}" repo add stable https://charts.helm.sh/stable
         ;;
     clean)
         helm_reset
