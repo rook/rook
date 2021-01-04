@@ -14,7 +14,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.0.1
+      uses: manusa/actions-setup-minikube@v2.2.0
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -64,7 +64,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.0.1
+      uses: manusa/actions-setup-minikube@v2.2.0
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -114,7 +114,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.0.1
+      uses: manusa/actions-setup-minikube@v2.2.0
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -164,7 +164,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.0.1
+      uses: manusa/actions-setup-minikube@v2.2.0
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -214,7 +214,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.0.1
+      uses: manusa/actions-setup-minikube@v2.2.0
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -266,7 +266,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.0.1
+      uses: manusa/actions-setup-minikube@v2.2.0
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
