@@ -16,7 +16,7 @@ still you can use the Alpha snapshots. refer to
 [snapshot](https://github.com/rook/rook/blob/release-1.3/Documentation/ceph-csi-drivers.md#rbd-snapshots)
 on how to use snapshots.
 
-* We also need a `SnapshotClass` for volume snapshot to work. The purpose of a `SnapshotClass` is
+* We also need a `VolumeSnapshotClass` for volume snapshot to work. The purpose of a `VolumeSnapshotClass` is
 defined in [the kubernetes
 documentation](https://kubernetes.io/docs/concepts/storage/volume-snapshot-classes/).
 In short, as the documentation describes it:
@@ -29,9 +29,9 @@ In short, as the documentation describes it:
 
 ## RBD Snapshots
 
-### SnapshotClass
+### VolumeSnapshotClass
 
-In [snapshotClass](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml),
+In [VolumeSnapshotClass](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml),
 the `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the
 name of the secret created for the rbdplugin and `pool` to reflect the Ceph pool name.
 
@@ -104,13 +104,13 @@ kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml
 
 ## CephFS Snapshots
 
-### SnapshotClass
+### VolumeSnapshotClass
 
-In [snapshotClass](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/snapshotclass.yaml),
+In [VolumeSnapshotClass](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/snapshotclass.yaml),
 the `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the
 name of the secret created for the cephfsplugin.
 
-In the snapshotclass, update the value of the `clusterID` field to match the namespace that Rook is
+In the volumesnapshotclass, update the value of the `clusterID` field to match the namespace that Rook is
 running in. When Ceph CSI is deployed by Rook, the operator will automatically
 maintain a configmap whose contents will match this key. By default this is
 "rook-ceph".
