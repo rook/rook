@@ -27,9 +27,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
-	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
 
 const (
@@ -177,7 +177,7 @@ func NodeMeetsAffinityTerms(node v1.Node, affinity *v1.NodeAffinity) (bool, erro
 		return true, nil
 	}
 	for _, req := range affinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-		nodeSelector, err := helper.NodeSelectorRequirementsAsSelector(req.MatchExpressions)
+		nodeSelector, err := nodeSelectorRequirementsAsSelector(req.MatchExpressions)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse affinity MatchExpressions: %+v, regarding as not match. %+v", req.MatchExpressions, err)
 		}
@@ -186,6 +186,43 @@ func NodeMeetsAffinityTerms(node v1.Node, affinity *v1.NodeAffinity) (bool, erro
 		}
 	}
 	return false, nil
+}
+
+// nodeSelectorRequirementsAsSelector method is copied from https://github.com/kubernetes/kubernetes. Since Rook uses this method and in
+// Kubernetes v1.20.0 this method is not exported.
+
+// nodeSelectorRequirementsAsSelector converts the []NodeSelectorRequirement api type into a struct that implements
+// labels.Selector.
+func nodeSelectorRequirementsAsSelector(nsm []v1.NodeSelectorRequirement) (labels.Selector, error) {
+	if len(nsm) == 0 {
+		return labels.Nothing(), nil
+	}
+	selector := labels.NewSelector()
+	for _, expr := range nsm {
+		var op selection.Operator
+		switch expr.Operator {
+		case v1.NodeSelectorOpIn:
+			op = selection.In
+		case v1.NodeSelectorOpNotIn:
+			op = selection.NotIn
+		case v1.NodeSelectorOpExists:
+			op = selection.Exists
+		case v1.NodeSelectorOpDoesNotExist:
+			op = selection.DoesNotExist
+		case v1.NodeSelectorOpGt:
+			op = selection.GreaterThan
+		case v1.NodeSelectorOpLt:
+			op = selection.LessThan
+		default:
+			return nil, fmt.Errorf("%q is not a valid node selector operator", expr.Operator)
+		}
+		r, err := labels.NewRequirement(expr.Key, op, expr.Values)
+		if err != nil {
+			return nil, err
+		}
+		selector = selector.Add(*r)
+	}
+	return selector, nil
 }
 
 // NodeIsTolerable returns true if the node's taints are all tolerated by the given tolerations.
