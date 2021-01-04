@@ -89,7 +89,7 @@ func (r *ReconcileClusterDisruption) createOverallPDBforOSD(namespace string) er
 		Spec: policyv1beta1.PodDisruptionBudgetSpec{
 			MaxUnavailable: &intstr.IntOrString{IntVal: 1},
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{k8sutil.AppAttr: osd.AppName},
+				MatchLabels: map[string]string{k8sutil.AppAttr: osdPDBAppName},
 			},
 		},
 	}
