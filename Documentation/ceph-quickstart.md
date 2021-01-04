@@ -86,8 +86,8 @@ Before you start the operator in production, there are some settings that you ma
    2. Flex driver: The flex driver is deprecated in favor of the CSI driver, but can still be enabled with the `ROOK_ENABLE_FLEX_DRIVER` setting.
    3. Node affinity and tolerations: The CSI driver by default will run on any node in the cluster. To configure the CSI driver affinity, several settings are available.
 
-If you wish to deploy into a namespace other than the default `rook-ceph`, see the [Ceph advanced
-configuration section](ceph-advanced-configuration.md#using-alternate-namespaces) on the topic.
+If you wish to deploy into a namespace other than the default `rook-ceph`, see the
+[Ceph advanced configuration section](ceph-advanced-configuration.md#using-alternate-namespaces) on the topic.
 
 ## Create a Rook Ceph Cluster
 
