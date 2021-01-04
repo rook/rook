@@ -90,7 +90,7 @@ spec:
             - ReadWriteOnce
 ```
 
-For a more advanced scenario, such as adding a dedicated device you can refer to the [dedicated metadata device for OSD on PVC section](#dedicated-metadata-device-for-osd-on-pvc).
+For a more advanced scenario, such as adding a dedicated device you can refer to the [dedicated metadata device for OSD on PVC section](#dedicated-metadata-and-wal-device-for-osd-on-pvc).
 
 ## Stretch Cluster
 
