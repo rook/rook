@@ -73,7 +73,6 @@ function test_demo_pool {
 
 function test_csi {
   # shellcheck disable=SC2046
-  #return $(wait_for_daemon "test $(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-) -eq 4")
   timeout 90  sh -c 'until [ $(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-) -eq 4 ]; do sleep 1; done'
   if [ $? -eq 0 ]; then
     return 0
