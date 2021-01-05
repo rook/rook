@@ -149,6 +149,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: cephfs-pvc
+  namespace: kube-system
 spec:
   accessModes:
   - ReadWriteMany
