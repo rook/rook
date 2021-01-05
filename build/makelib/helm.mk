@@ -20,7 +20,7 @@ HELM_CHARTS_DIR ?= $(ROOT_DIR)/cluster/charts
 HELM_OUTPUT_DIR ?= $(OUTPUT_DIR)/charts
 
 HELM_HOME := $(abspath $(CACHE_DIR)/helm)
-HELM_VERSION := v2.16.7
+HELM_VERSION := v3.4.0
 HELM := $(TOOLS_HOST_DIR)/helm-$(HELM_VERSION)
 HELM_INDEX := $(HELM_OUTPUT_DIR)/index.yaml
 export HELM_HOME
@@ -31,19 +31,16 @@ $(HELM_OUTPUT_DIR):
 $(HELM):
 	@echo === installing helm
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@curl -sL https://storage.googleapis.com/kubernetes-helm/helm-$(HELM_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@curl -sL https://get.helm.sh/helm-$(HELM_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
 	@mv $(TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/helm $(HELM)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
-	@$(HELM) init -c
 
-# TODO: after helm 3.0 released just pass --set image.tag=foo
-# to helm lint and helm package steps
 define helm.chart
 $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz: $(HELM) $(HELM_OUTPUT_DIR) $(shell find $(HELM_CHARTS_DIR)/$(1) -type f)
 	@echo === helm package $(1)
 	@cp -r $(HELM_CHARTS_DIR)/$(1) $(OUTPUT_DIR)
 	@$(SED_CMD) 's|VERSION|$(VERSION)|g' $(OUTPUT_DIR)/$(1)/values.yaml
-	@$(HELM) lint $(abspath $(OUTPUT_DIR)/$(1))
+	@$(HELM) lint $(abspath $(OUTPUT_DIR)/$(1)) --set image.tag=$(VERSION)
 	@$(HELM) package --version $(VERSION) -d $(HELM_OUTPUT_DIR) $(abspath $(OUTPUT_DIR)/$(1))
 $(HELM_INDEX): $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz
 endef

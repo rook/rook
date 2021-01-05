@@ -154,7 +154,7 @@ pipeline {
             }
             steps {
                 sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
-                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
+                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/,cluster/charts/'
                 script {
                     def data = [
                         "aws_1.11.x": "v1.11.10",
@@ -237,9 +237,7 @@ def RunIntegrationTest(k, v) {
                         echo "Running full regression"
                         sh '''#!/bin/bash
                               set -o pipefail
-                              export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
-                                  KUBECONFIG=$HOME/admin.conf \
-                                  TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/linux-amd64/helm \
+                              export KUBECONFIG=$HOME/admin.conf \
                                   TEST_ENV_NAME='''+"${k}"+''' \
                                   TEST_BASE_DIR="WORKING_DIR" \
                                   TEST_LOG_COLLECTION_LEVEL='''+"${env.getLogs}"+''' \

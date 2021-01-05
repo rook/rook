@@ -4,6 +4,8 @@ weight: 10100
 indent: true
 ---
 
+{% include_relative branch.liquid %}
+
 # Ceph Operator Helm Chart
 
 Installs [rook](https://github.com/rook/rook) to create, configure, and manage Ceph clusters on Kubernetes.
@@ -14,27 +16,16 @@ This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deplo
 
 ## Prerequisites
 
-* Kubernetes 1.11+
+* Kubernetes 1.13+
+* Helm 3.x
 
-### RBAC
-
-If role-based access control (RBAC) is enabled in your cluster, you may need to give Tiller (the server-side component of Helm) additional permissions. **If RBAC is not enabled, be sure to set `rbacEnable` to `false` when installing the chart.**
-
-```console
-# Create a ServiceAccount for Tiller in the `kube-system` namespace
-kubectl --namespace kube-system create sa tiller
-
-# Create a ClusterRoleBinding for Tiller
-kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
-
-# Patch Tiller's Deployment to use the new ServiceAccount
-kubectl --namespace kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
-```
+See the [Helm support matrix](https://helm.sh/docs/topics/version_skew/) for more details.
 
 ## Installing
 
 The Ceph Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster.
-After the helm chart is installed, you will need to [create a Rook cluster](ceph-quickstart.md#create-a-rook-cluster).
+1. Install the Helm chart
+1. [Create a Rook cluster](ceph-quickstart.md#create-a-rook-cluster).
 
 The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph` namespace (you will install your clusters into separate namespaces).
 
@@ -46,46 +37,9 @@ The release channel is the most recent release of Rook that is considered stable
 
 ```console
 helm repo add rook-release https://charts.rook.io/release
-```
-
-For Helm `v3.x`:
-
-```console
+kubectl create namespace rook-ceph
 helm install --namespace rook-ceph rook-ceph rook-release/rook-ceph
 ```
-
-For Helm `v2.x` the `--name` flag needs to be specified:
-
-```console
-helm install --namespace rook-ceph --name rook-ceph rook-release/rook-ceph
-```
-
-### Master
-
-The master channel includes the latest commits, with all automated tests green. Historically it has been very stable, though it is only recommended for testing.
-The critical point to consider is that upgrades are not supported to or from master builds.
-
-To install the helm chart from master, you will need to pass the specific version returned by the `search` command.
-
-```console
-helm repo add rook-master https://charts.rook.io/master
-
-# For Helm v3.x
-helm search repo rook-ceph --versions
-helm install --namespace rook-ceph rook-ceph rook-master/rook-ceph --version <version>
-
-# For Helm v2.x
-helm search rook-ceph
-helm install --namespace rook-ceph --name rook-ceph rook-master/rook-ceph --version <version>
-```
-
-For example to install version `v1.3.0.860.g80ff2bb`:
-
-```console
-helm install --namespace rook-ceph rook-ceph rook-master/rook-ceph --version v1.3.0.860.g80ff2bb
-```
-
-For Helm `v2.x` the `--name` flag must be specified instead of just `rook-ceph`, e.g., `--name rook-ceph`.
 
 ### Development Build
 
@@ -97,16 +51,23 @@ To deploy from a local build from your development environment:
 
 ```console
 cd cluster/charts/rook-ceph
+kubectl create namespace rook-ceph
 helm install --namespace rook-ceph rook-ceph .
 ```
 For Helm `v2.x` the `--name` flag must be specified instead of just `rook-ceph`, e.g., `--name rook-ceph`.
 
 ## Uninstalling the Chart
 
+To see the currently installed Rook chart:
+
+```console
+helm ls --namespace rook-ceph
+```
+
 To uninstall/delete the `rook-ceph` deployment:
 
 ```console
-helm delete --purge rook-ceph
+helm delete --namespace rook-ceph rook-ceph
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
@@ -184,13 +145,7 @@ The following tables lists the configurable parameters of the rook-operator char
 ### Command Line
 
 You can pass the settings with helm command line parameters. Specify each parameter using the
-`--set key=value[,key=value]` argument to `helm install`. For example, the following command will install rook where RBAC is not enabled.
-
-For Helm `v2.x` the `--name` flag must be specified instead of just `rook-ceph`, e.g., `--name rook-ceph`.
-
-```console
-helm install --namespace rook-ceph rook-ceph rook-release/rook-ceph --set rbacEnable=false
-```
+`--set key=value[,key=value]` argument to `helm install`.
 
 ### Settings File
 
@@ -202,23 +157,4 @@ For Helm `v2.x` the `--name` flag must be specified instead of just `rook-ceph`,
 helm install --namespace rook-ceph rook-ceph rook-release/rook-ceph -f values.yaml
 ```
 
-Here are the sample settings to get you started.
-
-```yaml
-image:
-  prefix: rook
-  repository: rook/ceph
-  tag: master
-  pullPolicy: IfNotPresent
-
-resources:
-  limits:
-    cpu: 100m
-    memory: 256Mi
-  requests:
-    cpu: 100m
-    memory: 256Mi
-
-rbacEnable: true
-pspEnable: true
-```
+For example settings, see [values.yaml](https://github.com/rook/rook/tree/{{ branchName }}/cluster/charts/rook-ceph/values.yaml)
