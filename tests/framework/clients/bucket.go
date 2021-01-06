@@ -71,6 +71,16 @@ func (b *BucketOperation) CheckOBC(obcName, check string) bool {
 	}
 	logger.Infof("%s resources %v all %s", obcName, resources, check)
 
+	if shouldExist {
+		// OBC should be in bound phase as well as existing
+		state, _ := b.k8sh.GetResource("obc", obcName, "--output", "jsonpath={.status.phase}")
+		if state != "Bound" {
+			logger.Infof("resources exist, but OBC is not in \"Bound\" phase: %s", state)
+			return false
+		}
+		logger.Infof("OBC is \"Bound\"")
+	}
+
 	return true
 }
 
