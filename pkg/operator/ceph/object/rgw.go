@@ -241,10 +241,7 @@ func (c *clusterConfig) deleteStore() error {
 
 		objContext.Endpoint = c.store.Status.Info["endpoint"]
 
-		err = disableRGWDashboard(objContext)
-		if err != nil {
-			logger.Warningf("failed to disable dashboard for rgw. %v", err)
-		}
+		go disableRGWDashboard(objContext)
 
 		err = deleteRealmAndPools(objContext, c.store.Spec)
 		if err != nil {

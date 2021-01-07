@@ -261,6 +261,5 @@ func TestDashboard(t *testing.T) {
 	checkdashboard, err = checkDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.True(t, checkdashboard)
-	err = disableRGWDashboard(objContext)
-	assert.Nil(t, err)
+	disableRGWDashboard(objContext)
 }
