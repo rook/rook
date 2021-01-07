@@ -66,7 +66,7 @@ and it is safe to proceed. If an OSD is failing, the PGs will not be perfectly c
 ### From the Toolbox
 
 1. Determine the OSD ID for the OSD to be removed. The osd pod may be in an error state such as `CrashLoopBackoff` or the `ceph` commands
-in the toolbox may show which OSD is `down`.
+in the toolbox may show which OSD is `down`. If you want to remove a healthy OSD, you should run `kubectl -n rook-ceph scale deployment rook-ceph-osd-<ID> --replicas=0` beforehand.
 2. Mark the OSD as `out` if not already marked as such by Ceph. This signals Ceph to start moving (backfilling) the data that was on that OSD to another OSD.
    - `ceph osd out osd.<ID>` (for example if the OSD ID is 23 this would be `ceph osd out osd.23`)
 3. Wait for the data to finish backfilling to other OSDs.
