@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -46,6 +47,9 @@ const (
 	AccessKeyName         = "access-key"
 	SecretKeyName         = "secret-key"
 	svcDNSSuffix          = "svc"
+
+	// Timeout for setting the dashboard access key
+	applyDashboardKeyTimeout = 15 * time.Second
 )
 
 var (
@@ -730,6 +734,7 @@ func checkDashboardUser(context *Context) (bool, error) {
 }
 
 func enableRGWDashboard(context *Context) error {
+	logger.Info("enabling rgw dashboard")
 	checkDashboard, err := checkDashboardUser(context)
 	if err != nil {
 		logger.Debug("Unable to fetch dashboard user key for RGW, hence skipping")
@@ -757,47 +762,46 @@ func enableRGWDashboard(context *Context) error {
 
 	args = []string{"dashboard", "set-rgw-api-secret-key", *u.SecretKey}
 	cephCmd = ceph.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.Run()
-	if err != nil {
-		return errors.Wrapf(err, "failed to set user %q secretkey", DashboardUser)
-	}
-
+	go func() {
+		// Setting the dashboard api secret started hanging in some clusters
+		// starting in ceph v15.2.8. We run it in a goroutine until the fix
+		// is found. We expect the ceph command to timeout so at least the goroutine exits.
+		logger.Info("setting the dashboard api secret key")
+		_, err = cephCmd.RunWithTimeout(applyDashboardKeyTimeout)
+		if err != nil {
+			logger.Errorf("failed to set user %q secretkey. %v", DashboardUser, err)
+		}
+		logger.Info("done setting the dashboard api secret key")
+	}()
 	return nil
 }
 
-func disableRGWDashboard(context *Context) error {
-	checkDashboard, err := checkDashboardUser(context)
+func disableRGWDashboard(context *Context) {
+	logger.Info("disabling the dashboard api user and secret key")
+
+	_, _, err := GetUser(context, DashboardUser)
 	if err != nil {
-		logger.Debugf("unable to fetch dashboard user key for user %q, hence skipping", DashboardUser)
-		return nil
-	}
-	if !checkDashboard {
-		logger.Debug("RGW Dashboard is already disabled")
-		return nil
-	}
-	_, _, err = GetUser(context, DashboardUser)
-	if err != nil {
-		logger.Debugf("unable to fetch the user %q details from this objectstore %q", DashboardUser, context.Name)
-		return nil
-	}
-	_, err = DeleteUser(context, DashboardUser)
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete ceph user %q", DashboardUser)
+		logger.Infof("unable to fetch the user %q details from this objectstore %q", DashboardUser, context.Name)
+	} else {
+		logger.Info("deleting rgw dashboard user")
+		_, err = DeleteUser(context, DashboardUser)
+		if err != nil {
+			logger.Warningf("failed to delete ceph user %q. %v", DashboardUser, err)
+		}
 	}
 
 	args := []string{"dashboard", "reset-rgw-api-access-key"}
 	cephCmd := ceph.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.Run()
+	_, err = cephCmd.RunWithTimeout(applyDashboardKeyTimeout)
 	if err != nil {
-		return errors.Wrapf(err, "failed to reset user accesskey for user %q", DashboardUser)
+		logger.Warningf("failed to reset user accesskey for user %q. %v", DashboardUser, err)
 	}
 
 	args = []string{"dashboard", "reset-rgw-api-secret-key"}
 	cephCmd = ceph.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.Run()
+	_, err = cephCmd.RunWithTimeout(applyDashboardKeyTimeout)
 	if err != nil {
-		return errors.Wrapf(err, "failed to reset user secretkey for user %q", DashboardUser)
+		logger.Warningf("failed to reset user secretkey for user %q. %v", DashboardUser, err)
 	}
-
-	return nil
+	logger.Info("done disabling the dashboard api secret key")
 }
