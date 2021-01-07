@@ -140,7 +140,7 @@ parameters:
   objectStoreNamespace: rook-ceph
   region: us-east-1
 ```
-If you’ve deployed the Rook operator in a namespace other than “rook-ceph”, change the prefix in the provisioner to match the namespace you used. For example, if the Rook operator is running in the namespace “my-namespace” the provisioner value should be “my-namespace.ceph.rook.io/bucket”.
+If you’ve deployed the Rook operator in a namespace other than `rook-ceph`, change the prefix in the provisioner to match the namespace you used. For example, if the Rook operator is running in the namespace `my-namespace` the provisioner value should be `my-namespace.ceph.rook.io/bucket`.
 ```console
 kubectl create -f storageclass-bucket-delete.yaml
 ```
