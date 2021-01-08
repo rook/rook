@@ -80,10 +80,12 @@ func (v *CephVersion) CephVersionFormatted() string {
 // ReleaseName is the name of the Ceph release
 func (v *CephVersion) ReleaseName() string {
 	switch v.Major {
-	case Octopus.Major:
-		return "octopus"
 	case Nautilus.Major:
 		return "nautilus"
+	case Octopus.Major:
+		return "octopus"
+	case Pacific.Major:
+		return "pacific"
 	default:
 		return unknownVersionString
 	}
