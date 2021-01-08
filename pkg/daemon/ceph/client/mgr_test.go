@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -59,7 +60,13 @@ func TestEnableModuleRetries(t *testing.T) {
 	_ = MgrEnableModule(&clusterd.Context{Executor: executor}, clusterInfo, "pg_autoscaler", false)
 	assert.Equal(t, 0, moduleEnableRetries)
 
+	// Balancer not on Ceph Pacific
 	moduleEnableRetries = 0
+	_ = MgrEnableModule(&clusterd.Context{Executor: executor}, clusterInfo, "balancer", false)
+	assert.Equal(t, 0, moduleEnableRetries)
+
+	// Balancer skipped on Pacific
+	clusterInfo.CephVersion = version.Pacific
 	_ = MgrEnableModule(&clusterd.Context{Executor: executor}, clusterInfo, "balancer", false)
 	assert.Equal(t, 0, moduleEnableRetries)
 
