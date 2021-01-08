@@ -125,14 +125,14 @@ Please note that the integration test erases the contents of TEST_SCRATCH_DEVICE
 
 To run all integration tests:
 ```console
-go test -v -timeout 1800s github.com/rook/rook/tests/integration
+go test -v -timeout 7200s github.com/rook/rook/tests/integration
 ```
 
 In addition, you can choose to test only one storage provider. For example, you can run Ceph tests as follows.
 
 ```console
 export STORAGE_PROVIDER_TESTS=ceph
-go test -v -timeout 1800s github.com/rook/rook/tests/integration
+go test -v -timeout 7200s github.com/rook/rook/tests/integration
 ```
 
 To run a specific suite (uses regex):
