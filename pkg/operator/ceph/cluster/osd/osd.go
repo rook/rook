@@ -719,6 +719,10 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				logger.Infof("OSD will have its wal device on %q", walSource.ClaimName)
 			}
 
+			if volumeSource.Resources.Limits == nil && volumeSource.Resources.Requests == nil {
+				volumeSource.Resources = cephv1.GetOSDResources(c.spec.Resources)
+			}
+
 			osdProps := osdProperties{
 				crushHostname:       dataSource.ClaimName,
 				pvc:                 dataSource,
