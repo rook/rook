@@ -1,3 +1,17 @@
+#################################################################################################################
+# We need many operations to remove OSDs as written in Documentation/ceph-osd-mgmt.md.
+# This job can automate some of that operations: mark OSDs as `out`, purge these OSDs,
+# and delete the corresponding resources like OSD deployments, OSD prepare jobs, and PVCs.
+#
+# Please note the following.
+#
+# - This job only works for `down` OSDs.
+# - This job doesn't wait for backfilling to be completed.
+#
+# If you want to remove `up` OSDs and/or want to wait for backfilling to be completed between each OSD removal,
+# please do it by hand.
+#################################################################################################################
+
 apiVersion: batch/v1
 kind: Job
 metadata:
