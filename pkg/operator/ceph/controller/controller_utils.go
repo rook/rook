@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -111,7 +112,13 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 			return cephCluster, true, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 		}
 
-		logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %q", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
+		details := cephCluster.Status.CephStatus.Details
+		message, ok := details["error"]
+		if ok && len(details) == 1 && strings.Contains(message.Message, "Error initializing cluster client") {
+			logger.Infof("%s: skipping reconcile since operator is still initializing", controllerName)
+		} else {
+			logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %q", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
+		}
 	}
 
 	return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
