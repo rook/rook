@@ -216,6 +216,10 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
+func (c *Cluster) shouldProvisionOverPVCs() bool {
+	return len(c.spec.Storage.VolumeSources) > 0 || len(c.spec.Storage.StorageClassDeviceSets) > 0
+}
+
 func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 	// Parsing storageClassDeviceSets and parsing it to volume sources
 	c.spec.Storage.VolumeSources = append(c.spec.Storage.VolumeSources, c.prepareStorageClassDeviceSets(config)...)
@@ -223,7 +227,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 	c.ValidStorage.VolumeSources = c.spec.Storage.VolumeSources
 
 	// no validVolumeSource is ready to run an osd
-	if len(c.spec.Storage.VolumeSources) == 0 && len(c.spec.Storage.StorageClassDeviceSets) == 0 {
+	if !c.shouldProvisionOverPVCs() {
 		logger.Info("no volume sources defined to configure OSDs on PVCs.")
 		return
 	}
@@ -337,7 +341,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 				continue
 			}
 			// Update the orchestration status of this pvc to the completed state
-			status := OrchestrationStatus{OSDs: osds, Status: OrchestrationStatusCompleted, PvcBackedOSD: true}
+			status := OrchestrationStatus{OSDs: osds, Status: OrchestrationStatusAlreadyExists, PvcBackedOSD: true}
 			c.updateOSDStatus(osdProps.crushHostname, status)
 			continue
 		}
@@ -622,11 +626,6 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 			}
 		}
 
-		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			if err = updateDeploymentAndWait(c.context, c.clusterInfo, dp, opconfig.OsdType, strconv.Itoa(osd.ID), c.spec.SkipUpgradeChecks, c.spec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-				logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
-			}
-		}
 		logger.Infof("started deployment for osd %d on pvc", osd.ID)
 	}
 }
