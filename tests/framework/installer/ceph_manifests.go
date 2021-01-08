@@ -2158,9 +2158,7 @@ spec:
     type: s3
     sslCertificateRef:
     port: ` + strconv.Itoa(port) + `
-    securePort:
     instances: ` + strconv.Itoa(replicaCount) + `
-    allNodes: false
   healthCheck:
     bucket:
       disabled: false

@@ -1,6 +1,6 @@
 {{- if .Values.rbacEnable }}
 # The cluster role for managing all the cluster-specific resources in a namespace
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: rook-ceph-cluster-mgmt
@@ -30,7 +30,7 @@ rules:
   - delete
 ---
 # The cluster role for managing the Rook CRDs
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: rook-ceph-global
@@ -142,7 +142,7 @@ rules:
 ---
 # Aspects of ceph-mgr that require cluster-wide access
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-cluster
   labels:
@@ -172,7 +172,7 @@ rules:
 ---
 # Aspects of ceph-mgr that require access to the system namespace
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system
 rules:
@@ -186,7 +186,7 @@ rules:
   - watch
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-object-bucket
   labels:
@@ -216,7 +216,7 @@ rules:
   - "*"
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
 rules:
@@ -230,7 +230,7 @@ rules:
 # Use a default dict to avoid 'can't give argument to non-function' errors from text/template
 {{- if ne ((.Values.agent | default (dict "mountSecurityMode" "")).mountSecurityMode | default "") "Any" }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: rook-ceph-agent-mount
@@ -389,7 +389,7 @@ rules:
 {{- end }}
 {{- if .Values.pspEnable }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: 'psp:rook'
