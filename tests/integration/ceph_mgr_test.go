@@ -50,9 +50,6 @@ func TestCephMgrSuite(t *testing.T) {
 		t.Skip()
 	}
 
-	logger.Info("TEMPORARILY disable the mgr test suite until https://github.com/rook/rook/issues/5877 is resolved")
-	t.Skip()
-
 	s := new(CephMgrSuite)
 	defer func(s *CephMgrSuite) {
 		HandlePanics(recover(), s.cluster, s.T)
@@ -101,6 +98,7 @@ func (suite *CephMgrSuite) SetupSuite() {
 		rbdMirrorWorkers:        0,
 		rookCephCleanup:         true,
 		skipOSDCreation:         true,
+		enableDiscoveryDaemon:   true,
 		minimalMatrixK8sVersion: cephMasterSuiteMinimalTestVersion,
 		rookVersion:             installer.VersionMaster,
 		cephVersion:             installer.MasterVersion,

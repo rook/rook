@@ -72,6 +72,7 @@ func (hs *HelmSuite) SetupSuite() {
 		rbdMirrorWorkers:        1,
 		rookCephCleanup:         true,
 		skipOSDCreation:         false,
+		enableDiscoveryDaemon:   false,
 		minimalMatrixK8sVersion: helmMinimalTestVersion,
 		rookVersion:             installer.VersionMaster,
 		cephVersion:             installer.NautilusVersion(),

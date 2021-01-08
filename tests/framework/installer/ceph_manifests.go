@@ -32,7 +32,7 @@ const (
 
 type CephManifests interface {
 	GetRookCRDs(v1ExtensionsSupported bool) string
-	GetRookOperator(namespace string) string
+	GetRookOperator(namespace string, enableDiscoveryDaemon bool) string
 	GetClusterRoles(namespace, operatorNamespace string) string
 	GetClusterExternalRoles(namespace, operatorNamespace string) string
 	GetRookCluster(settings *clusterSettings) string
@@ -2253,7 +2253,7 @@ users:
 }
 
 // GetRookOperator returns rook Operator manifest
-func (m *CephManifestsMaster) GetRookOperator(operatorNamespace string) string {
+func (m *CephManifestsMaster) GetRookOperator(operatorNamespace string, enableDiscoveryDaemon bool) string {
 	var operatorManifest string
 	openshiftEnv := ""
 
@@ -3115,7 +3115,7 @@ spec:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: "false"` + openshiftEnv + `
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
-          value: "true"
+          value: "` + strconv.FormatBool(enableDiscoveryDaemon) + `"
         volumeMounts:
         - mountPath: /var/lib/rook
           name: rook-config

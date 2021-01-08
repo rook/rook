@@ -97,6 +97,7 @@ func (suite *SmokeSuite) SetupSuite() {
 		rbdMirrorWorkers:        1,
 		rookCephCleanup:         true,
 		skipOSDCreation:         false,
+		enableDiscoveryDaemon:   false,
 		minimalMatrixK8sVersion: smokeSuiteMinimalTestVersion,
 		rookVersion:             installer.VersionMaster,
 		cephVersion:             installer.OctopusVersion(),

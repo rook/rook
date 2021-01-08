@@ -112,6 +112,7 @@ type TestCluster struct {
 	rbdMirrorWorkers        int
 	rookCephCleanup         bool
 	skipOSDCreation         bool
+	enableDiscoveryDaemon   bool
 	minimalMatrixK8sVersion string
 	rookVersion             string
 	cephVersion             cephv1.CephVersionSpec
@@ -146,7 +147,8 @@ func StartTestCluster(t func() *testing.T, cluster *TestCluster) (*TestCluster, 
 	require.NoError(t(), err)
 	checkIfShouldRunForMinimalTestMatrix(t, kh, cluster.minimalMatrixK8sVersion)
 
-	cluster.installer = installer.NewCephInstaller(t, kh.Clientset, cluster.useHelm, cluster.clusterName, cluster.rookVersion, cluster.cephVersion, cluster.rookCephCleanup)
+	cluster.installer = installer.NewCephInstaller(t, kh.Clientset, cluster.useHelm, cluster.clusterName, cluster.rookVersion,
+		cluster.cephVersion, cluster.rookCephCleanup, cluster.enableDiscoveryDaemon)
 	cluster.kh = kh
 	cluster.helper = nil
 	cluster.T = t

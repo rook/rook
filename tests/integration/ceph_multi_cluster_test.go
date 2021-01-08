@@ -142,7 +142,9 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 	checkIfShouldRunForMinimalTestMatrix(t, kh, multiClusterMinimalTestVersion)
 
 	cleanupHost := false
-	i := installer.NewCephInstaller(t, kh.Clientset, false, "", installer.VersionMaster, installer.NautilusVersion(), cleanupHost)
+	enableDiscoveryDaemon := false
+	i := installer.NewCephInstaller(t, kh.Clientset, false, "", installer.VersionMaster, installer.NautilusVersion(),
+		cleanupHost, enableDiscoveryDaemon)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), "", false}
 	if kh.VersionAtLeast("v1.13.0") {

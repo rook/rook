@@ -64,17 +64,18 @@ var (
 
 // CephInstaller wraps installing and uninstalling rook on a platform
 type CephInstaller struct {
-	Manifests        CephManifests
-	k8shelper        *utils.K8sHelper
-	hostPathToDelete string
-	helmHelper       *utils.HelmHelper
-	useHelm          bool
-	clusterName      string
-	k8sVersion       string
-	changeHostnames  bool
-	CephVersion      cephv1.CephVersionSpec
-	T                func() *testing.T
-	cleanupHost      bool
+	Manifests             CephManifests
+	k8shelper             *utils.K8sHelper
+	hostPathToDelete      string
+	helmHelper            *utils.HelmHelper
+	useHelm               bool
+	clusterName           string
+	k8sVersion            string
+	changeHostnames       bool
+	CephVersion           cephv1.CephVersionSpec
+	T                     func() *testing.T
+	cleanupHost           bool
+	enableDiscoveryDaemon bool
 }
 
 func NautilusVersion() cephv1.CephVersionSpec {
@@ -130,7 +131,7 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 		}
 	}
 
-	rookOperator := h.Manifests.GetRookOperator(namespace)
+	rookOperator := h.Manifests.GetRookOperator(namespace, h.enableDiscoveryDaemon)
 	_, err = h.k8shelper.KubectlWithStdin(rookOperator, createFromStdinArgs...)
 	if err != nil {
 		return fmt.Errorf("Failed to create rook-operator pod: %v ", err)
@@ -626,7 +627,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(systemNamespace string, name
 
 	if !h.useHelm {
 		logger.Infof("Deleting all the resources in the operator manifest")
-		rookOperator := h.Manifests.GetRookOperator(systemNamespace)
+		rookOperator := h.Manifests.GetRookOperator(systemNamespace, h.enableDiscoveryDaemon)
 		_, err = h.k8shelper.KubectlWithStdin(rookOperator, deleteFromStdinArgs...)
 		logger.Infof("DONE deleting all the resources in the operator manifest")
 		checkError(h.T(), err, "cannot uninstall rook-operator")
@@ -818,7 +819,7 @@ func (h *CephInstaller) GatherAllRookLogs(testName string, namespaces ...string)
 
 // NewCephInstaller creates new instance of CephInstaller
 func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useHelm bool, clusterName, rookVersion string,
-	cephVersion cephv1.CephVersionSpec, cleanupHost bool) *CephInstaller {
+	cephVersion cephv1.CephVersionSpec, cleanupHost, enableDiscoveryDaemon bool) *CephInstaller {
 
 	// By default set a cluster name that is different from the namespace so we don't rely on the namespace
 	// in expected places
@@ -841,16 +842,17 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, useH
 	logger.Infof("Rook Version: %s", rookVersion)
 	logger.Infof("Ceph Version: %s", cephVersion.Image)
 	h := &CephInstaller{
-		Manifests:       NewCephManifests(rookVersion),
-		k8shelper:       k8shelp,
-		helmHelper:      utils.NewHelmHelper(testHelmPath()),
-		useHelm:         useHelm,
-		clusterName:     clusterName,
-		k8sVersion:      version.String(),
-		CephVersion:     cephVersion,
-		cleanupHost:     cleanupHost,
-		changeHostnames: k8shelp.VersionAtLeast("v1.18.0"),
-		T:               t,
+		Manifests:             NewCephManifests(rookVersion),
+		k8shelper:             k8shelp,
+		helmHelper:            utils.NewHelmHelper(testHelmPath()),
+		useHelm:               useHelm,
+		clusterName:           clusterName,
+		k8sVersion:            version.String(),
+		CephVersion:           cephVersion,
+		cleanupHost:           cleanupHost,
+		enableDiscoveryDaemon: enableDiscoveryDaemon,
+		changeHostnames:       k8shelp.VersionAtLeast("v1.18.0"),
+		T:                     t,
 	}
 	flag.Parse()
 	return h

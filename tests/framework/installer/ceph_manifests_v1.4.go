@@ -723,7 +723,7 @@ spec:
 }
 
 // GetRookOperator returns rook Operator manifest
-func (m *CephManifestsV1_4) GetRookOperator(namespace string) string {
+func (m *CephManifestsV1_4) GetRookOperator(namespace string, enableDiscoveryDaemon bool) string {
 	return `
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
