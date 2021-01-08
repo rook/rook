@@ -609,10 +609,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.clusterInfo.OwnerRef)
+	p := cephv1.GetOSDPlacement(c.spec.Placement)
 	if !osdProps.onPVC() {
-		cephv1.GetOSDPlacement(c.spec.Placement).ApplyToPodSpec(&deployment.Spec.Template.Spec)
+		p.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	} else {
 		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+		p.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	}
 
 	// Change TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES if the OSD has been annotated with a value
