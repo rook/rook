@@ -353,13 +353,6 @@ func (r *ReconcileCephObjectStore) validateStore(s *cephv1.CephObjectStore) erro
 		}
 	}
 
-	// Fail if we detected an external CephCluster CR and the list of endpoints is empty
-	if r.clusterSpec.External.Enable && r.clusterInfo.CephCred.Username != cephclient.AdminUsername {
-		if len(s.Spec.Gateway.ExternalRgwEndpoints) == 0 {
-			return errors.New("ceph cluster is external but externalRgwEndpoints list is empty")
-		}
-	}
-
 	return nil
 }
 

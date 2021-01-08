@@ -259,7 +259,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	destPort := c.generateLiveProbePort()
 
 	// When the cluster is external we must use the same one as the gateways are listening on
-	if c.clusterSpec.External.Enable {
+	if cephObjectStore.Spec.IsExternal() {
 		destPort.IntVal = cephObjectStore.Spec.Gateway.Port
 	} else {
 		// If the cluster is not external we add the Selector
