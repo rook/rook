@@ -33,6 +33,7 @@ func ConfigureLivenessProbe(daemon rookv1.KeyType, container v1.Container, healt
 		cephv1.KeyMon: cephv1.GetMonLivenessProbe,
 		cephv1.KeyMgr: cephv1.GetMgrLivenessProbe,
 		cephv1.KeyOSD: cephv1.GetOSDLivenessProbe,
+		cephv1.KeyMds: cephv1.GetMdsLivenessProbe,
 	}
 
 	if _, ok := healthCheck.LivenessProbe[daemon]; ok {
