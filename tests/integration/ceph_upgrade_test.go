@@ -137,6 +137,24 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	objectStoreName := "upgraded-object"
 	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.namespace, objectStoreName, 1, false)
 
+	logger.Info("Initializing object bucket claim before the upgrade")
+	bucketStorageClassName := "rook-smoke-delete-bucket"
+	bucketPrefix := "generate-me" // use generated bucket name for this test
+	cobErr := s.helper.BucketClient.CreateBucketStorageClass(s.namespace, objectStoreName, bucketStorageClassName, "Delete", region)
+	require.Nil(s.T(), cobErr)
+	cobcErr := s.helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketPrefix, maxObject, false)
+	require.Nil(s.T(), cobcErr)
+	defer func() {
+		_ = s.helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketPrefix, maxObject, false)
+		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, objectStoreName, bucketStorageClassName, "Delete", region)
+	}()
+
+	created := utils.Retry(12, 2*time.Second, "OBC is created", func() bool {
+		// do not check if bound here b/c this fails in Rook v1.4
+		return s.helper.BucketClient.CheckOBC(obcName, "created")
+	})
+	require.True(s.T(), created)
+
 	// verify that we're actually running the right pre-upgrade image
 	s.verifyOperatorImage(installer.Version1_4)
 
@@ -170,6 +188,11 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
+
+	// should be Bound after upgrade to Rook v1.5+
+	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
+	require.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
+
 	logger.Infof("Verified upgrade from v1.4 to master")
 
 	//

@@ -423,7 +423,6 @@ func (k8sh *K8sHelper) GetResource(args ...string) (string, error) {
 		return result, nil
 	}
 	return "", fmt.Errorf("Could Not get resource in k8s -- %v", err)
-
 }
 
 func (k8sh *K8sHelper) CreateNamespace(namespace string) error {
