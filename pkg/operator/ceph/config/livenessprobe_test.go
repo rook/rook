@@ -29,6 +29,19 @@ import (
 )
 
 func TestConfigureLivenessProbe(t *testing.T) {
+	keyTypes := []rookv1.KeyType{
+		cephv1.KeyMds,
+		cephv1.KeyMon,
+		cephv1.KeyMgr,
+		cephv1.KeyOSD,
+	}
+
+	for _, keyType := range keyTypes {
+		configLivenessProbeHelper(t, keyType)
+	}
+}
+
+func configLivenessProbeHelper(t *testing.T, keyType rookv1.KeyType) {
 	p := &v1.Probe{
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
@@ -38,7 +51,7 @@ func TestConfigureLivenessProbe(t *testing.T) {
 		},
 	}
 	container := v1.Container{LivenessProbe: p}
-	l := map[rookv1.KeyType]*rookv1.ProbeSpec{cephv1.KeyMon: {Disabled: true}}
+	l := map[rookv1.KeyType]*rookv1.ProbeSpec{keyType: {Disabled: true}}
 	type args struct {
 		daemon      rookv1.KeyType
 		container   v1.Container
@@ -49,8 +62,8 @@ func TestConfigureLivenessProbe(t *testing.T) {
 		args args
 		want v1.Container
 	}{
-		{"probe-enabled", args{cephv1.KeyMon, container, cephv1.CephClusterHealthCheckSpec{}}, container},
-		{"probe-disabled", args{cephv1.KeyMon, container, cephv1.CephClusterHealthCheckSpec{LivenessProbe: l}}, v1.Container{}},
+		{"probe-enabled", args{keyType, container, cephv1.CephClusterHealthCheckSpec{}}, container},
+		{"probe-disabled", args{keyType, container, cephv1.CephClusterHealthCheckSpec{LivenessProbe: l}}, v1.Container{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
