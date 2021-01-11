@@ -133,11 +133,10 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
 	require.Nil(s.T(), cobcErr)
 
-	for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "created"); i++ {
-		logger.Infof("(%d) obc created check, sleeping for 5 seconds ...", i)
-		time.Sleep(5 * time.Second)
-	}
-	require.NotEqual(s.T(), i, 4)
+	created := utils.Retry(12, 2*time.Second, "OBC is created", func() bool {
+		return helper.BucketClient.CheckOBC(obcName, "bound")
+	})
+	require.True(s.T(), created)
 
 	logger.Infof("Check if bucket was created")
 	context := k8sh.MakeContext()
