@@ -285,6 +285,8 @@ spec:
                               properties:
                                 name:
                                   type: string
+                                fullPath:
+                                  type: string
                                 config:
                                   type: object
                                   nullable: true
@@ -304,6 +306,19 @@ spec:
                       type: object
                       nullable: true
                       x-kubernetes-preserve-unknown-fields: true
+                    devices:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          fullPath:
+                            type: string
+                          config:
+                            type: object
+                            nullable: true
+                            x-kubernetes-preserve-unknown-fields: true
                     storageClassDeviceSets:
                       type: array
                       nullable: true
@@ -1550,7 +1565,7 @@ spec:
                             name:
                               type: string
                             config: {}
-                      resources: {}
+                resources: {}
                   type: array
                 useAllDevices:
                   type: boolean
