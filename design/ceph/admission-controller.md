@@ -104,7 +104,7 @@ Using the above approach, the dev/admins will have the responsibility of rotatin
 Below is an excerpt of what a ValidatingWebhookConfig looks like 
 
 ```
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: demo-webhook
