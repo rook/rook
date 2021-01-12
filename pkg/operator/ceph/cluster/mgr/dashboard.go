@@ -176,7 +176,7 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 		return false, errors.Wrap(err, "failed to set login credentials for the ceph dashboard")
 	}
 
-	return true, nil
+	return false, nil
 }
 
 func (c *Cluster) createSelfSignedCert() (bool, error) {
