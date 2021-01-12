@@ -27,7 +27,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
-  name: rook-ceph-external # namespace:cluster
+  namespace: rook-ceph-external # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -41,7 +41,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
-  name: rook-ceph-external # namespace:cluster
+  namespace: rook-ceph-external # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -49,19 +49,19 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-cmd-reporter
-  name: rook-ceph-external # namespace:cluster
+  namespace: rook-ceph-external # namespace:cluster
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-cmd-reporter
-  name: rook-ceph-external # namespace:cluster
+  namespace: rook-ceph-external # namespace:cluster
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
-  name: rook-ceph-external # namespace:cluster
+  namespace: rook-ceph-external # namespace:cluster
 rules:
 - apiGroups:
   - ""
