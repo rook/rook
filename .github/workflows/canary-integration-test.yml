@@ -77,6 +77,7 @@ jobs:
 
     - name: wait for ceph to be ready
       run: |
+        mkdir test
         tests/scripts/validate_cluster.sh
         kubectl -n rook-ceph get pods
 
@@ -91,6 +92,14 @@ jobs:
         # write a test file
         # copy the test file
         # execute the test file
+
+    - name: Upload canary test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: canary
+        path: test
+
 
   pvc:
     runs-on: ubuntu-latest
@@ -160,8 +169,16 @@ jobs:
 
     - name: wait for ceph to be ready
       run: |
+        mkdir test
         tests/scripts/validate_cluster.sh osd
         kubectl -n rook-ceph get pods
+
+    - name: Upload  pvc test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name:  pvc
+        path: test
 
   pvc-db:
     runs-on: ubuntu-latest
@@ -239,8 +256,16 @@ jobs:
 
     - name: wait for ceph to be ready
       run: |
+        mkdir test
         tests/scripts/validate_cluster.sh osd
         kubectl -n rook-ceph get pods
+
+    - name: Upload pvc-db test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: pvc-db
+        path: test
 
   pvc-db-wal:
     runs-on: ubuntu-latest
@@ -320,8 +345,16 @@ jobs:
 
     - name: wait for ceph to be ready
       run: |
+        mkdir test
         tests/scripts/validate_cluster.sh osd
         kubectl -n rook-ceph get pods
+    
+    - name: Upload pvc-db-wal test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: pvc-db-wal
+        path: test
 
   encryption-pvc:
     runs-on: ubuntu-latest
@@ -387,10 +420,18 @@ jobs:
 
     - name: wait for ceph to be ready
       run: |
+        mkdir test
         tests/scripts/validate_cluster.sh osd
         kubectl -n rook-ceph get pods
-        kubectl -n rook-ceph get secrets
-        sudo lsblk
+        kubectl -n rook-ceph get secrets 
+        sudo lsblk 
+
+    - name: Upload encryption-pvc test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: encryption-pvc
+        path: test
 
   encryption-pvc-db:
     runs-on: ubuntu-latest
@@ -469,9 +510,17 @@ jobs:
 
     - name: wait for ceph to be ready
       run: |
+        mkdir test
         tests/scripts/validate_cluster.sh osd
         kubectl -n rook-ceph get pods
-        kubectl -n rook-ceph get secrets
+        kubectl -n rook-ceph get secrets 
+
+    - name: Upload encryption-pvc-db test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: encryption-pvc-db
+        path: test
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-latest
@@ -548,9 +597,17 @@ jobs:
 
     - name: wait for ceph to be ready
       run: |
+        mkdir test
         tests/scripts/validate_cluster.sh osd
         kubectl -n rook-ceph get pods
-        kubectl -n rook-ceph get secrets
+        kubectl -n rook-ceph get secrets 
+
+    - name: Upload encryption-pvc-db-wal test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: encryption-pvc-db-wal
+        path: test
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-latest
@@ -623,10 +680,19 @@ jobs:
 
     - name: wait for ceph to be ready
       run: |
+        mkdir test
         tests/scripts/validate_cluster.sh osd
         kubectl -n rook-ceph get pods
+        kubectl -n rook-ceph get secrets
 
     - name: validate vault
       run: |
-        tests/scripts/deploy-validate-vault.sh validate
-        sudo lsblk
+        tests/scripts/deploy-validate-vault.sh validate 
+        sudo lsblk 
+
+    - name: Upload encryption-pvc-kms-vault-token-auth test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: encryption-pvc-kms-vault-token-auth
+        path: test
