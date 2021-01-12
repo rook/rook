@@ -93,7 +93,7 @@ func getFakeReconciler(t *testing.T, obj ...runtime.Object) *ReconcileClusterDis
 	if err != nil {
 		assert.Fail(t, "failed to build scheme")
 	}
-	client := fake.NewFakeClientWithScheme(scheme, obj...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 
 	return &ReconcileClusterDisruption{
 		client:     client,

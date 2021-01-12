@@ -36,12 +36,12 @@ import (
 func predicateForNodeWatcher(client client.Client, context *clusterd.Context) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			clientCluster := newClientCluster(client, e.Meta.GetNamespace(), context)
+			clientCluster := newClientCluster(client, e.Object.GetNamespace(), context)
 			return clientCluster.onK8sNode(e.Object)
 		},
 
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			clientCluster := newClientCluster(client, e.MetaNew.GetNamespace(), context)
+			clientCluster := newClientCluster(client, e.ObjectNew.GetNamespace(), context)
 			return clientCluster.onK8sNode(e.ObjectNew)
 		},
 
@@ -61,11 +61,11 @@ func predicateForHotPlugCMWatcher(client client.Client) predicate.Funcs {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			isHotPlugCM := isHotPlugCM(e.ObjectNew)
 			if !isHotPlugCM {
-				logger.Debugf("hot-plug cm watcher: only reconcile on hot plug cm changes, this %q cm is handled by another watcher", e.MetaNew.GetName())
+				logger.Debugf("hot-plug cm watcher: only reconcile on hot plug cm changes, this %q cm is handled by another watcher", e.ObjectNew.GetName())
 				return false
 			}
 
-			clientCluster := newClientCluster(client, e.MetaNew.GetNamespace(), &clusterd.Context{})
+			clientCluster := newClientCluster(client, e.ObjectNew.GetNamespace(), &clusterd.Context{})
 			return clientCluster.onDeviceCMUpdate(e.ObjectOld, e.ObjectNew)
 		},
 

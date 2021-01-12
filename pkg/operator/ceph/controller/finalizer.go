@@ -24,7 +24,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -52,7 +51,7 @@ func remove(list []string, s string) []string {
 
 // AddFinalizerIfNotPresent adds a finalizer an object to avoid instant deletion
 // of the object without finalizing it.
-func AddFinalizerIfNotPresent(client client.Client, obj runtime.Object) error {
+func AddFinalizerIfNotPresent(client client.Client, obj client.Object) error {
 	objectFinalizer := buildFinalizerName(obj.GetObjectKind().GroupVersionKind().Kind)
 
 	accessor, err := meta.Accessor(obj)
@@ -74,7 +73,7 @@ func AddFinalizerIfNotPresent(client client.Client, obj runtime.Object) error {
 }
 
 // RemoveFinalizer removes a finalizer from an object
-func RemoveFinalizer(client client.Client, obj runtime.Object) error {
+func RemoveFinalizer(client client.Client, obj client.Object) error {
 	objectFinalizer := buildFinalizerName(obj.GetObjectKind().GroupVersionKind().Kind)
 	accessor, err := meta.Accessor(obj)
 	if err != nil {

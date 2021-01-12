@@ -42,7 +42,7 @@ func TestAddFinalizerIfNotPresent(t *testing.T) {
 	}
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, fakeObject)
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	assert.Empty(t, fakeObject.Finalizers)
 	err := AddFinalizerIfNotPresent(cl, fakeObject)
@@ -69,7 +69,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, fakeObject)
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	assert.NotEmpty(t, fakeObject.Finalizers)
 	err := RemoveFinalizer(cl, fakeObject)

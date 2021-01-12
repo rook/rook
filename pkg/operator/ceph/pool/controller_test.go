@@ -186,7 +186,8 @@ func TestCephBlockPoolController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, pool, &cephv1.CephClusterList{})
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClient(object...)
+	cl := fake.NewClientBuilder().WithRuntimeObjects(object...).Build()
+
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
 	r := &ReconcileCephBlockPool{
 		client:            cl,
@@ -207,7 +208,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	// Create pool for updateCephBlockPoolStatus()
 	_, err := c.RookClientset.CephV1().CephBlockPools(namespace).Create(ctx, pool, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	res, err := r.Reconcile(req)
+	res, err := r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 
@@ -241,7 +242,7 @@ func TestCephBlockPoolController(t *testing.T) {
 
 	object = append(object, cephCluster)
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClient(object...)
+	cl = fake.NewClientBuilder().WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephBlockPool object with the scheme and fake client.
 	r = &ReconcileCephBlockPool{
 		client:            cl,
@@ -265,7 +266,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		cephCluster,
 	}
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClient(objects...)
+	cl = fake.NewClientBuilder().WithRuntimeObjects(objects...).Build()
 	c.Client = cl
 
 	executor = &exectest.MockExecutor{
@@ -307,7 +308,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		context:           c,
 		blockPoolChannels: make(map[string]*blockPoolHealth),
 	}
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 
@@ -322,7 +323,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	pool.Spec.Mirroring.Enabled = true
 	err = r.client.Update(context.TODO(), pool)
 	assert.NoError(t, err)
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.Error(t, err)
 	assert.True(t, res.Requeue)
 
@@ -349,7 +350,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	err = r.client.Update(context.TODO(), pool)
 	assert.NoError(t, err)
 	for i := 0; i < 5; i++ {
-		res, err = r.Reconcile(req)
+		res, err = r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
@@ -394,7 +395,8 @@ func TestConfigureRBDStats(t *testing.T) {
 	}
 
 	context.Executor = executor
-	context.Client = fake.NewFakeClientWithScheme(s)
+	context.Client = fake.NewClientBuilder().WithScheme(s).Build()
+
 	clusterInfo := &cephclient.ClusterInfo{Namespace: namespace}
 
 	// Case 1: CephBlockPoolList is not registered in scheme.
@@ -426,7 +428,7 @@ func TestConfigureRBDStats(t *testing.T) {
 	objects := []runtime.Object{
 		poolWithRBDStatsDisabled,
 	}
-	context.Client = fake.NewFakeClientWithScheme(s, objects...)
+	context.Client = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 	err = configureRBDStats(context, clusterInfo)
 	assert.Nil(t, err)
 
@@ -435,7 +437,7 @@ func TestConfigureRBDStats(t *testing.T) {
 	poolWithRBDStatsEnabled.Name = "my-pool-with-rbd-stats"
 	poolWithRBDStatsEnabled.Spec.EnableRBDStats = true
 	objects = append(objects, poolWithRBDStatsEnabled)
-	context.Client = fake.NewFakeClientWithScheme(s, objects...)
+	context.Client = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 	err = configureRBDStats(context, clusterInfo)
 	assert.Nil(t, err)
 

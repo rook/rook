@@ -31,7 +31,7 @@ import (
 // Add adds a new Controller to the Manager based on machinedisruption.ReconcileMachineDisruption and registers the relevant watches and handlers.
 // Read more about how Managers, Controllers, and their Watches, Handlers, Predicates, etc work here:
 // https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg
-func Add(mgr manager.Manager, context *controllerconfig.Context) error {
+func Add(mgr manager.Manager, ctx *controllerconfig.Context) error {
 	mgrScheme := mgr.GetScheme()
 	if err := healthchecking.AddToScheme(mgrScheme); err != nil {
 		return errors.Wrap(err, "failed to add to healthchecking scheme")
@@ -43,9 +43,10 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	reconcileMachineDisruption := &MachineDisruptionReconciler{
 		client:  mgr.GetClient(),
 		scheme:  mgrScheme,
-		context: context,
+		context: ctx,
 	}
 
+	// TODO CHANGE ME (the context)
 	reconciler := reconcile.Reconciler(reconcileMachineDisruption)
 	// create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: reconciler})

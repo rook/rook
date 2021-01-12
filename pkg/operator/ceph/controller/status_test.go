@@ -45,7 +45,7 @@ func TestUpdateStatus(t *testing.T) {
 	}
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, fakeObject)
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	fakeObject.Status.Phase = cephv1.ConditionReady
 	err := UpdateStatus(cl, fakeObject)

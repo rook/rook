@@ -123,7 +123,8 @@ func TestCephRBDMirrorController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
 	// Create a ReconcileCephRBDMirror object with the scheme and fake client.
 	r := &ReconcileCephRBDMirror{client: cl, scheme: s, context: c}
 
@@ -136,7 +137,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 		},
 	}
 	logger.Info("STARTING PHASE 1")
-	res, err := r.Reconcile(req)
+	res, err := r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 	logger.Info("PHASE 1 DONE")
@@ -160,11 +161,11 @@ func TestCephRBDMirrorController(t *testing.T) {
 	}
 	object = append(object, cephCluster)
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephRBDMirror object with the scheme and fake client.
 	r = &ReconcileCephRBDMirror{client: cl, scheme: s, context: c}
 	logger.Info("STARTING PHASE 2")
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 	logger.Info("PHASE 2 DONE")
@@ -197,7 +198,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	// Create a ReconcileCephRBDMirror object with the scheme and fake client.
 	r = &ReconcileCephRBDMirror{
@@ -213,7 +214,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 	rbdMirror.Spec.Peers.SecretNames = []string{peerSecretName}
 	err = r.client.Update(context.TODO(), rbdMirror)
 	assert.NoError(t, err)
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.Error(t, err)
 	assert.True(t, res.Requeue)
 
@@ -229,7 +230,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 	}
 	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, peerSecret, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, rbdMirror)

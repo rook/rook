@@ -201,7 +201,7 @@ func TestCephFilesystemController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephFilesystem object with the scheme and fake client.
 	r := &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
 
@@ -214,7 +214,7 @@ func TestCephFilesystemController(t *testing.T) {
 		},
 	}
 	logger.Info("STARTING PHASE 1")
-	res, err := r.Reconcile(req)
+	res, err := r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 	logger.Info("PHASE 1 DONE")
@@ -238,11 +238,11 @@ func TestCephFilesystemController(t *testing.T) {
 	}
 	object = append(object, cephCluster)
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephFilesystem object with the scheme and fake client.
 	r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
 	logger.Info("STARTING PHASE 2")
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 	logger.Info("PHASE 2 DONE")
@@ -275,7 +275,7 @@ func TestCephFilesystemController(t *testing.T) {
 	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
@@ -300,7 +300,7 @@ func TestCephFilesystemController(t *testing.T) {
 	r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
 
 	logger.Info("STARTING PHASE 3")
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, fs)

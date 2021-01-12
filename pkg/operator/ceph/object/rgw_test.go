@@ -61,7 +61,7 @@ func TestStartRGW(t *testing.T) {
 
 	s := scheme.Scheme
 	object := []runtime.Object{&cephv1.CephObjectStore{}}
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 
 	// start a basic cluster
@@ -109,7 +109,7 @@ func TestCreateObjectStore(t *testing.T) {
 	// create the pools
 	s := scheme.Scheme
 	object := []runtime.Object{&cephv1.CephObjectStore{}}
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, r.client, s}
 	err := c.createOrUpdateStore(store.Name, store.Name, store.Name)
@@ -128,7 +128,7 @@ func simpleStore() *cephv1.CephObjectStore {
 }
 
 func TestGenerateSecretName(t *testing.T) {
-	cl := fake.NewFakeClient([]runtime.Object{}...)
+	cl := fake.NewClientBuilder().Build()
 
 	// start a basic cluster
 	c := &clusterConfig{&clusterd.Context{},

@@ -53,7 +53,7 @@ const (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
 // List of object resources to watch by the controller
-var objectsToWatch = []runtime.Object{
+var objectsToWatch = []client.Object{
 	&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
 	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 }
@@ -127,7 +127,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // and what is in the cephFilesystem.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileCephFilesystem) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCephFilesystem) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {

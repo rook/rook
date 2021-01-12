@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -100,19 +101,18 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	// Watch for main PodDisruptionBudget and enqueue the CephCluster in the namespace
 	err = c.Watch(
 		&source.Kind{Type: &policyv1beta1.PodDisruptionBudget{}},
-		&handler.EnqueueRequestsFromMapFunc{
-			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
-				pdb, ok := obj.Object.(*policyv1beta1.PodDisruptionBudget)
-				if !ok {
-					// not a pdb, returning empty
-					logger.Errorf("PDB handler received non-PDB")
-					return []reconcile.Request{}
-				}
-				namespace := pdb.GetNamespace()
-				req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
-				return []reconcile.Request{req}
-			}),
-		},
+		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(obj client.Object) []reconcile.Request {
+			pdb, ok := obj.(*policyv1beta1.PodDisruptionBudget)
+			if !ok {
+				// not a pdb, returning empty
+				logger.Errorf("PDB handler received non-PDB")
+				return []reconcile.Request{}
+			}
+			namespace := pdb.GetNamespace()
+			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+			return []reconcile.Request{req}
+		}),
+		),
 		pdbPredicate,
 	)
 	if err != nil {
@@ -121,18 +121,17 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 
 	// enqueues with an empty name that is populated by the reconciler.
 	// There is a one-per-namespace limit on CephClusters
-	enqueueByNamespace := &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
-			// The name will be populated in the reconcile
-			namespace := obj.Meta.GetNamespace()
-			if len(namespace) == 0 {
-				logger.Errorf("enqueueByNamespace received an obj without a namespace. %+v", obj)
-				return []reconcile.Request{}
-			}
-			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
-			return []reconcile.Request{req}
-		}),
-	}
+	enqueueByNamespace := handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(obj client.Object) []reconcile.Request {
+		// The name will be populated in the reconcile
+		namespace := obj.GetNamespace()
+		if len(namespace) == 0 {
+			logger.Errorf("enqueueByNamespace received an obj without a namespace. %+v", obj)
+			return []reconcile.Request{}
+		}
+		req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+		return []reconcile.Request{req}
+	}),
+	)
 
 	// Watch for CephBlockPools and enqueue the CephCluster in the namespace
 	err = c.Watch(&source.Kind{Type: &cephv1.CephBlockPool{}}, enqueueByNamespace)

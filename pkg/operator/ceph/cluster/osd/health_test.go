@@ -231,7 +231,7 @@ func TestDeviceClasses(t *testing.T) {
 	}
 	s := scheme.Scheme
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	context := &clusterd.Context{
 		Executor: executor,

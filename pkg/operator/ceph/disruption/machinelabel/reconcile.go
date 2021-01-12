@@ -56,7 +56,7 @@ type machine struct {
 // which ensures that the machineLabel for the osd pods are in correct state
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileMachineLabel) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileMachineLabel) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// wrapping reconcile because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	result, err := r.reconcile(request)
 	if err != nil {

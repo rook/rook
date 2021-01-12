@@ -10,7 +10,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-ini/ini v1.51.1
-	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.2
 	github.com/google/uuid v1.1.2
@@ -41,7 +40,7 @@ require (
 	k8s.io/kube-controller-manager v0.20.0
 	k8s.io/kubernetes v1.20.0
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
-	sigs.k8s.io/controller-runtime v0.6.3
+	sigs.k8s.io/controller-runtime v0.7.0
 	sigs.k8s.io/kustomize/kyaml v0.2.0
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v6 v6.1.0
 )

@@ -68,7 +68,7 @@ func TestCephObjectRealmController(t *testing.T) {
 		},
 	}
 
-	res, err := r.Reconcile(req)
+	res, err := r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 
@@ -95,10 +95,10 @@ func TestCephObjectRealmController(t *testing.T) {
 		cephCluster,
 	}
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClientWithScheme(r.scheme, object...)
+	cl := fake.NewClientBuilder().WithScheme(r.scheme).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectRealm object with the scheme and fake client.
 	r = &ReconcileObjectRealm{client: cl, scheme: r.scheme, context: r.context}
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 
@@ -130,7 +130,7 @@ func TestCephObjectRealmController(t *testing.T) {
 	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(r.scheme, object...)
+	cl = fake.NewClientBuilder().WithScheme(r.scheme).WithRuntimeObjects(object...).Build()
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
@@ -151,7 +151,7 @@ func TestCephObjectRealmController(t *testing.T) {
 	// Create a ReconcileObjectRealm object with the scheme and fake client.
 	r = &ReconcileObjectRealm{client: cl, scheme: r.scheme, context: r.context}
 
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectRealm)
@@ -242,7 +242,7 @@ func getObjectRealmAndReconcileObjectRealm(t *testing.T) (*ReconcileObjectRealm,
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectRealm{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectRealm object with the scheme and fake client.
 	clusterInfo := cephclient.AdminClusterInfo("rook")
 	r := &ReconcileObjectRealm{client: cl, scheme: s, context: c, clusterInfo: clusterInfo}

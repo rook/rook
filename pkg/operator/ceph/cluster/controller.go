@@ -69,7 +69,7 @@ var (
 )
 
 // List of object resources to watch by the controller
-var objectsToWatch = []runtime.Object{
+var objectsToWatch = []client.Object{
 	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 	&corev1.Service{TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: corev1.SchemeGroupVersion.String()}},
 	&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
@@ -106,12 +106,12 @@ type ReconcileCephCluster struct {
 
 // Add creates a new CephCluster Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, context *clusterd.Context, clusterController *ClusterController) error {
-	return add(mgr, newReconciler(mgr, context, clusterController), context)
+func Add(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterController) error {
+	return add(mgr, newReconciler(mgr, ctx, clusterController), ctx)
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context, clusterController *ClusterController) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterController) reconcile.Reconciler {
 	// Add the cephv1 scheme to the manager scheme so that the controller knows about it
 	mgrScheme := mgr.GetScheme()
 	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
@@ -121,7 +121,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, clusterContro
 	return &ReconcileCephCluster{
 		client:            mgr.GetClient(),
 		scheme:            mgrScheme,
-		context:           context,
+		context:           ctx,
 		clusterController: clusterController,
 	}
 }
@@ -180,7 +180,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 				},
 			},
 		},
-		&handler.EnqueueRequestsFromMapFunc{ToRequests: handerFunc},
+		handler.EnqueueRequestsFromMapFunc(handerFunc),
 		predicateForNodeWatcher(mgr.GetClient(), context))
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 					},
 				},
 			},
-			&handler.EnqueueRequestsFromMapFunc{ToRequests: handerFunc},
+			handler.EnqueueRequestsFromMapFunc(handerFunc),
 			predicateForHotPlugCMWatcher(mgr.GetClient()))
 		if err != nil {
 			return err
@@ -216,7 +216,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 // and what is in the cephCluster.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileCephCluster) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCephCluster) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {

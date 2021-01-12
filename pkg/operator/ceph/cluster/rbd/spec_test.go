@@ -78,7 +78,7 @@ func TestPodSpec(t *testing.T) {
 	}
 	s := scheme.Scheme
 	object := []runtime.Object{rbdMirror}
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	r := &ReconcileCephRBDMirror{client: cl, scheme: s, peers: make(map[string]*peerSpec)}
 	r.cephClusterSpec = &cephCluster.Spec
 	r.clusterInfo = clusterInfo
