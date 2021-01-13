@@ -20,7 +20,6 @@ package cluster
 import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	clientcontroller "github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
@@ -75,10 +74,6 @@ func (c *ClusterController) configureCephMonitoring(cluster *cluster, clusterInf
 		logger.Debugf("cluster is already being watched by bucket and client provisioner for cluster %q", cluster.Namespace)
 		return
 	}
-
-	// Start client CRD watcher
-	cc := clientcontroller.NewClientController(c.context, cluster.Namespace)
-	cc.StartWatch(cluster.stopCh)
 
 	// Start the object bucket provisioner
 	bucketProvisioner := bucket.NewProvisioner(c.context, clusterInfo)

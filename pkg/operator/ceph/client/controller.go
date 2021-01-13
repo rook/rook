@@ -24,6 +24,13 @@ import (
 	"regexp"
 
 	"github.com/pkg/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -31,273 +38,279 @@ import (
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-const ClientSecretName = "-client-key"
+const (
+	controllerName = "ceph-client-controller"
+)
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-client")
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
-// ClientResource represents the Client custom resource object
-var ClientResource = k8sutil.CustomResource{
-	Name:    "cephclient",
-	Plural:  "cephclients",
-	Group:   cephv1.CustomResourceGroup,
-	Version: cephv1.Version,
-	Kind:    reflect.TypeOf(cephv1.CephClient{}).Name(),
+var cephClientKind = reflect.TypeOf(cephv1.CephClient{}).Name()
+
+// Sets the type meta for the controller main object
+var controllerTypeMeta = metav1.TypeMeta{
+	Kind:       cephClientKind,
+	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// ClientController represents a controller object for client custom resources
-type ClientController struct {
-	context   *clusterd.Context
-	namespace string
+// ReconcileCephClient reconciles a CephClient object
+type ReconcileCephClient struct {
+	client      client.Client
+	scheme      *runtime.Scheme
+	context     *clusterd.Context
+	clusterInfo *cephclient.ClusterInfo
 }
 
-// NewClientController create controller for watching client custom resources created
-func NewClientController(context *clusterd.Context, namespace string) *ClientController {
-	return &ClientController{
-		context:   context,
-		namespace: namespace,
+// Add creates a new CephClient Controller and adds it to the Manager. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func Add(mgr manager.Manager, context *clusterd.Context) error {
+	return add(mgr, newReconciler(mgr, context))
+}
+
+// newReconciler returns a new reconcile.Reconciler
+func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+	// Add the cephv1 scheme to the manager scheme so that the controller knows about it
+	mgrScheme := mgr.GetScheme()
+	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
+		panic(err)
+	}
+
+	return &ReconcileCephClient{
+		client:  mgr.GetClient(),
+		scheme:  mgrScheme,
+		context: context,
 	}
 }
 
-// Watch watches for instances of Client custom resources and acts on them
-func (c *ClientController) StartWatch(stopCh chan struct{}) {
-
-	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
-		AddFunc:    c.onAdd,
-		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
-	}
-
-	logger.Infof("start watching client resources in namespace %q", c.namespace)
-	go k8sutil.WatchCR(ClientResource, c.namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1().RESTClient(), &cephv1.CephClient{}, stopCh)
-
-}
-
-func (c *ClientController) onAdd(obj interface{}) {
-	logger.Infof("new client onAdd() called")
-
-	client, err := getClientObject(obj)
+func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	// Create a new controller
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
-		logger.Errorf("failed to get client object. %v", err)
-		return
+		return err
+	}
+	logger.Info("successfully started")
+
+	// Watch for changes on the CephClient CRD object
+	err = c.Watch(&source.Kind{Type: &cephv1.CephClient{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	if err != nil {
+		return err
 	}
 
-	err = createClient(c.context, client)
+	// Watch secrets
+	err = c.Watch(&source.Kind{Type: &v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &cephv1.CephClient{},
+	}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephClient{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 	if err != nil {
-		logger.Errorf("failed to create client %q. %v", client.ObjectMeta.Name, err)
+		return err
 	}
+
+	return nil
 }
 
-func genClientEntity(p *cephv1.CephClient, context *clusterd.Context) (clientEntity string, caps []string, err error) {
-	clientEntity = fmt.Sprintf("client.%s", p.Name)
-	caps = []string{}
-
-	// validate the client settings
-	if err := ValidateClient(context, p); err != nil {
-		return clientEntity, caps, errors.Wrapf(err, "invalid client %q arguments", p.Name)
+// Reconcile reads that state of the cluster for a CephClient object and makes changes based on the state read
+// and what is in the CephClient.Spec
+// The Controller will requeue the Request to be processed again if the returned error is non-nil or
+// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
+func (r *ReconcileCephClient) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
+	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
+	reconcileResponse, err := r.reconcile(request)
+	if err != nil {
+		logger.Errorf("failed to reconcile %v", err)
 	}
 
-	for name, cap := range p.Spec.Caps {
-		caps = append(caps, name, cap)
-	}
-
-	return clientEntity, caps, nil
+	return reconcileResponse, err
 }
 
-// Create the client
-func createClient(clusterdContext *clusterd.Context, p *cephv1.CephClient) error {
-	ctx := context.TODO()
-	logger.Infof("creating client %s in namespace %s", p.Name, p.Namespace)
-
-	clientEntity, caps, err := genClientEntity(p, clusterdContext)
+func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// Fetch the CephClient instance
+	cephClient := &cephv1.CephClient{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, cephClient)
 	if err != nil {
-		return errors.Wrapf(err, "failed to generate client entity %q", p.Name)
+		if kerrors.IsNotFound(err) {
+			logger.Debug("cephClient resource not found. Ignoring since object must be deleted.")
+			return reconcile.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		return reconcile.Result{}, errors.Wrap(err, "failed to get cephClient")
+	}
+
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephClient)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+	}
+
+	// The CR was just created, initializing status fields
+	if cephClient.Status == nil {
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
+	}
+
+	// Make sure a CephCluster is present otherwise do nothing
+	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	if !isReadyToReconcile {
+		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
+		// We skip the deletePool() function since everything is gone already
+		//
+		// Also, only remove the finalizer if the CephCluster is gone
+		// If not, we should wait for it to be ready
+		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
+		if !cephClient.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// Remove finalizer
+			err = opcontroller.RemoveFinalizer(r.client, cephClient)
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to remove finalizer")
+			}
+
+			// Return and do not requeue. Successful deletion.
+			return reconcile.Result{}, nil
+		}
+		return reconcileResponse, nil
 	}
 
 	// Populate clusterInfo during each reconcile
-	clusterInfo, _, _, err := mon.LoadClusterInfo(clusterdContext, p.Namespace)
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
 	if err != nil {
-		return errors.Wrapf(err, "cluster %s is not yet available for creating the ceph clients", p.Namespace)
+		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
+
+	// DELETE: the CR was deleted
+	if !cephClient.GetDeletionTimestamp().IsZero() {
+		logger.Debugf("deleting pool %q", cephClient.Name)
+		err := r.deleteClient(cephClient)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph client %q", cephClient.Name)
+		}
+
+		// Remove finalizer
+		err = opcontroller.RemoveFinalizer(r.client, cephClient)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+		}
+
+		// Return and do not requeue. Successful deletion.
+		return reconcile.Result{}, nil
+	}
+
+	// validate the client settings
+	err = ValidateClient(r.context, cephClient)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to validate client %q arguments", cephClient.Name)
+	}
+
+	// Create or Update client
+	err = r.createOrUpdateClient(cephClient)
+	if err != nil {
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update client %q", cephClient.Name)
+	}
+
+	// Success! Let's update the status
+	updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady)
+
+	// Return and do not requeue
+	logger.Debug("done reconciling")
+	return reconcile.Result{}, nil
+}
+
+// Create the client
+func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient) error {
+	ctx := context.TODO()
+	logger.Infof("creating client %s in namespace %s", cephClient.Name, cephClient.Namespace)
+
+	// Generate the CephX details
+	clientEntity, caps := genClientEntity(cephClient)
 
 	// Check if client was created manually, create if necessary or update caps and create secret
-	key, err := ceph.AuthGetKey(clusterdContext, clusterInfo, clientEntity)
+	key, err := ceph.AuthGetKey(r.context, r.clusterInfo, clientEntity)
 	if err != nil {
-		// Example in pkg/operator/ceph/config/keyring/store.go:65
-		key, err = ceph.AuthGetOrCreateKey(clusterdContext, clusterInfo, clientEntity, caps)
+		key, err = ceph.AuthGetOrCreateKey(r.context, r.clusterInfo, clientEntity, caps)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create client %q", p.Name)
+			return errors.Wrapf(err, "failed to create client %q", cephClient.Name)
 		}
 	} else {
-		err = ceph.AuthUpdateCaps(clusterdContext, clusterInfo, clientEntity, caps)
+		err = ceph.AuthUpdateCaps(r.context, r.clusterInfo, clientEntity, caps)
 		if err != nil {
-			return errors.Wrapf(err, "client %q exists, failed to update client caps", p.Name)
+			return errors.Wrapf(err, "client %q exists, failed to update client caps", cephClient.Name)
 		}
 	}
 
+	// Generate Kubernetes Secret
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s%s", p.Name, ClientSecretName),
-			Namespace: p.Namespace,
+			Name:      generateCephUserSecretName(cephClient),
+			Namespace: cephClient.Namespace,
 		},
 		StringData: map[string]string{
-			p.Name: key,
+			cephClient.Name: key,
 		},
 		Type: k8sutil.RookType,
 	}
 
-	secretName := secret.ObjectMeta.Name
-	_, err = clusterdContext.Clientset.CoreV1().Secrets(p.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+	// Set CephClient owner ref to the Secret
+	err = controllerutil.SetControllerReference(cephClient, secret, r.scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to set owner reference to ceph client secret")
+	}
+
+	// Create or Update Kubernetes Secret
+	_, err = r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debugf("creating secret for %s", secretName)
-			if _, err := clusterdContext.Clientset.CoreV1().Secrets(p.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
-				return errors.Wrapf(err, "failed to create secret for %q", secretName)
+			logger.Debugf("creating secret for %q", secret.Name)
+			if _, err := r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+				return errors.Wrapf(err, "failed to create secret for %q", secret.Name)
 			}
+			logger.Infof("created client %q", cephClient.Name)
 			return nil
 		}
-		return errors.Wrapf(err, "failed to get secret for %q", secretName)
+		return errors.Wrapf(err, "failed to get secret for %q", secret.Name)
 	}
-	logger.Debugf("updating secret for %s", secretName)
-	if _, err := clusterdContext.Clientset.CoreV1().Secrets(p.Namespace).Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
-		return errors.Wrapf(err, "failed to update secret for %q", secretName)
+	logger.Debugf("updating secret for %s", secret.Name)
+	_, err = r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to update secret for %q", secret.Name)
 	}
 
-	logger.Infof("created client %s", p.Name)
+	logger.Infof("updated client %q", cephClient.Name)
 	return nil
-}
-
-func updateClient(context *clusterd.Context, p *cephv1.CephClient) error {
-	logger.Infof("updating client %s in namespace %s", p.Name, p.Namespace)
-
-	// assume we have been given the admin key for configuring cephx clients
-	clusterInfo := cephclient.AdminClusterInfo(p.Namespace)
-
-	clientEntity, caps, err := genClientEntity(p, context)
-	if err != nil {
-		return errors.Wrapf(err, "failed to generate client entity %q", p.Name)
-	}
-
-	err = ceph.AuthUpdateCaps(context, clusterInfo, clientEntity, caps)
-	if err != nil {
-		return errors.Wrapf(err, "failed to update client %q", p.Name)
-	}
-
-	logger.Infof("updated client %s", p.Name)
-	return nil
-}
-
-func (c *ClientController) onUpdate(oldObj, newObj interface{}) {
-	oldClient, err := getClientObject(oldObj)
-	if err != nil {
-		logger.Errorf("failed to get old client object. %v", err)
-		return
-	}
-	client, err := getClientObject(newObj)
-	if err != nil {
-		logger.Errorf("failed to get new client object. %v", err)
-		return
-	}
-
-	if oldClient.Name != client.Name {
-		logger.Errorf("failed to update client %q. name update not allowed", client.Name)
-		return
-	}
-	if !clientChanged(oldClient.Spec, client.Spec) {
-		logger.Debugf("client %q not changed", client.Name)
-		return
-	}
-
-	logger.Infof("updating client %s", client.Name)
-	if err := updateClient(c.context, client); err != nil {
-		logger.Errorf("failed to update client %q. %v", client.ObjectMeta.Name, err)
-	}
-}
-
-func (c *ClientController) ParentClusterChanged(cluster cephv1.ClusterSpec, clusterInfo *cephclient.ClusterInfo) {
-	logger.Debugf("No need to update the client after the parent cluster changed")
-}
-
-func clientChanged(old, new cephv1.ClientSpec) bool {
-	for name, cap := range new.Caps {
-		if cap != old.Caps[name] {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *ClientController) onDelete(obj interface{}) {
-	client, err := getClientObject(obj)
-	if err != nil {
-		logger.Errorf("failed to get client object. %v", err)
-		return
-	}
-
-	logger.Infof("Going to remove client object %s", client.Name)
-	if err := deleteClient(c.context, client); err != nil {
-		logger.Errorf("failed to delete client %q. %v", client.ObjectMeta.Name, err)
-	}
-	logger.Infof("Removed client %s", client.Name)
 }
 
 // Delete the client
-func deleteClient(clusterdContext *clusterd.Context, p *cephv1.CephClient) error {
-	ctx := context.TODO()
-	// assume we have been given the admin key for configuring cephx clients
-	clusterInfo := cephclient.AdminClusterInfo(p.Namespace)
-
-	clientEntity := fmt.Sprintf("client.%s", p.Name)
-	if err := ceph.AuthDelete(clusterdContext, clusterInfo, clientEntity); err != nil {
-		return errors.Wrapf(err, "failed to delete client %q", p.Name)
-	}
-	secretName := fmt.Sprintf("%s-client-key", p.Name)
-	if err := clusterdContext.Clientset.CoreV1().Secrets(p.Namespace).Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
-		return errors.Errorf("failed to remote client %q secret %q", p.Name, secretName)
+func (r *ReconcileCephClient) deleteClient(cephClient *cephv1.CephClient) error {
+	logger.Infof("deleting client object %q", cephClient.Name)
+	if err := ceph.AuthDelete(r.context, r.clusterInfo, generateClientName(cephClient.Name)); err != nil {
+		return errors.Wrapf(err, "failed to delete client %q", cephClient.Name)
 	}
 
+	logger.Infof("deleted client %q", cephClient.Name)
 	return nil
 }
 
-// Check if the client exists
-func clientExists(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, p *cephv1.CephClient) (bool, error) {
-	_, err := ceph.AuthGetKey(context, clusterInfo, p.Name)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// Validate the client arguments
-func ValidateClient(context *clusterd.Context, p *cephv1.CephClient) error {
-	if p.Name == "" {
+// ValidateClient the client arguments
+func ValidateClient(context *clusterd.Context, cephClient *cephv1.CephClient) error {
+	// Validate name
+	if cephClient.Name == "" {
 		return errors.New("missing name")
 	}
 	reservedNames := regexp.MustCompile("^admin$|^rgw.*$|^rbd-mirror$|^osd.[0-9]*$|^bootstrap-(mds|mgr|mon|osd|rgw|^rbd-mirror)$")
-	if reservedNames.Match([]byte(p.Name)) {
-		return errors.Errorf("ignoring reserved name %q", p.Name)
+	if reservedNames.Match([]byte(cephClient.Name)) {
+		return errors.Errorf("ignoring reserved name %q", cephClient.Name)
 	}
-	if p.Namespace == "" {
-		return errors.New("missing namespace")
-	}
-	if err := ValidateClientSpec(context, p.Namespace, &p.Spec); err != nil {
-		return err
-	}
-	return nil
-}
 
-// ValidateClientSpec checks if caps were passed for new or updated client
-func ValidateClientSpec(context *clusterd.Context, namespace string, p *cephv1.ClientSpec) error {
-	if p.Caps == nil {
+	// Validate Spec
+	if cephClient.Spec.Caps == nil {
 		return errors.New("no caps specified")
 	}
-	for _, cap := range p.Caps {
+	for _, cap := range cephClient.Spec.Caps {
 		if cap == "" {
 			return errors.New("no caps specified")
 		}
@@ -306,13 +319,51 @@ func ValidateClientSpec(context *clusterd.Context, namespace string, p *cephv1.C
 	return nil
 }
 
-func getClientObject(obj interface{}) (client *cephv1.CephClient, err error) {
-	var ok bool
-	client, ok = obj.(*cephv1.CephClient)
-	if ok {
-		// the client object is of the latest type, simply return it
-		return client.DeepCopy(), nil
+func genClientEntity(cephClient *cephv1.CephClient) (string, []string) {
+	caps := []string{}
+	for name, cap := range cephClient.Spec.Caps {
+		caps = append(caps, name, cap)
 	}
 
-	return nil, errors.Errorf("not a known client object: %+v", obj)
+	return generateClientName(cephClient.Name), caps
+}
+
+func generateClientName(name string) string {
+	return fmt.Sprintf("client.%s", name)
+}
+
+// updateStatus updates an object with a given status
+func updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
+	cephClient := &cephv1.CephClient{}
+	if err := client.Get(context.TODO(), name, cephClient); err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephClient resource not found. Ignoring since object must be deleted.")
+			return
+		}
+		logger.Warningf("failed to retrieve ceph client %q to update status to %q. %v", name, status, err)
+		return
+	}
+	if cephClient.Status == nil {
+		cephClient.Status = &cephv1.CephClientStatus{}
+	}
+
+	cephClient.Status.Phase = status
+	if cephClient.Status.Phase == cephv1.ConditionReady {
+		cephClient.Status.Info = generateStatusInfo(cephClient)
+	}
+	if err := opcontroller.UpdateStatus(client, cephClient); err != nil {
+		logger.Errorf("failed to set ceph client %q status to %q. %v", name, status, err)
+		return
+	}
+	logger.Debugf("ceph client %q status updated to %q", name, status)
+}
+
+func generateStatusInfo(client *cephv1.CephClient) map[string]string {
+	m := make(map[string]string)
+	m["secretName"] = generateCephUserSecretName(client)
+	return m
+}
+
+func generateCephUserSecretName(client *cephv1.CephClient) string {
+	return fmt.Sprintf("rook-ceph-client-%s", client.Name)
 }
