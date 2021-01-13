@@ -173,6 +173,18 @@ func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 	return decodeUser(body)
 }
 
+func ListUserBuckets(c *Context, id string, opts ...string) (string, error) {
+
+	args := []string{"bucket", "list", "--uid", id}
+	if opts != nil {
+		args = append(args, opts...)
+	}
+
+	result, err := runAdminCommand(c, args...)
+
+	return result, errors.Wrapf(err, "failed to list buckets for user uid=%q", id)
+}
+
 // DeleteUser deletes the user with the given ID.
 func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 	args := []string{"user", "rm", "--uid", id}
@@ -185,9 +197,14 @@ func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			return result, nil
 		}
+
+		res, innerErr := ListUserBuckets(c, id)
+		if innerErr == nil && res != "" && res != "[]" {
+			return result, errors.Wrapf(err, "s3 user uid=%q have following buckets %q", id, res)
+		}
 	}
 
-	return result, errors.Wrap(err, "failed to delete s3 user")
+	return result, errors.Wrapf(err, "failed to delete s3 user uid=%q", id)
 }
 
 // SetQuotaUserBucketMax will set maximum bucket quota for a user
