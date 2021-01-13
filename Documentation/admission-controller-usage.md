@@ -23,12 +23,12 @@ This script will help us achieve the following tasks
 
 Run the following commands:
 ```console
-kubectl create -f examples/kubernetes/ceph/crds.yaml -f examples/kubernetes/ceph/common.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml -f cluster/examples/kubernetes/ceph/common.yaml
 cluster/examples/kubernetes/ceph/config-admission-controller.sh
 ```
 Now that the Secrets have been deployed, we can deploy the operator:
 ```console
-kubectl create -f operator.yaml
+kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
 ```
 
 At this point the operator will start the admission controller Deployment automatically and the Webhook will start intercepting requests for Rook resources.
