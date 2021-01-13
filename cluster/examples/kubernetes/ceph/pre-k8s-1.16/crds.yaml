@@ -151,7 +151,6 @@ spec:
                               type: string
                             config: {}
                       resources: {}
-                  type: array
                 useAllDevices:
                   type: boolean
                 deviceFilter:

@@ -1565,8 +1565,7 @@ spec:
                             name:
                               type: string
                             config: {}
-                resources: {}
-                  type: array
+                      resources: {}
                 useAllDevices:
                   type: boolean
                 deviceFilter: {}
