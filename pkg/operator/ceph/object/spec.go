@@ -172,6 +172,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		Resources:       c.store.Spec.Gateway.Resources,
 		LivenessProbe:   c.generateLiveProbe(),
 		SecurityContext: controller.PodSecurityContext(),
+		WorkingDir:      cephconfig.VarLogCephDir,
 	}
 
 	// If the liveness probe is enabled

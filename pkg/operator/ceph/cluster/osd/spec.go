@@ -539,6 +539,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					Resources:       osdProps.resources,
 					SecurityContext: securityContext,
 					LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
+					WorkingDir:      opconfig.VarLogCephDir,
 				},
 			},
 			Volumes:       volumes,
