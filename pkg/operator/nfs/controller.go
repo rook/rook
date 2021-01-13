@@ -55,11 +55,10 @@ type NFSServerReconciler struct {
 	Recorder record.EventRecorder
 }
 
-func (r *NFSServerReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reterr error) {
-	ctx := context.Background()
+func (r *NFSServerReconciler) Reconcile(context context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 
 	instance := &nfsv1alpha1.NFSServer{}
-	if err := r.Client.Get(ctx, req.NamespacedName, instance); err != nil {
+	if err := r.Client.Get(context, req.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -75,7 +74,7 @@ func (r *NFSServerReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reterr
 
 	defer func() {
 		// Always patch the cr object if any changes at the end of each reconciliation.
-		if err := patcher.Patch(ctx, instance); err != nil && reterr == nil {
+		if err := patcher.Patch(context, instance); err != nil && reterr == nil {
 			reterr = err
 		}
 	}()
@@ -111,13 +110,13 @@ func (r *NFSServerReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reterr
 		return reconcile.Result{}, err
 	}
 
-	if err := r.reconcileNFSServerConfig(ctx, instance); err != nil {
+	if err := r.reconcileNFSServerConfig(context, instance); err != nil {
 		r.Recorder.Eventf(instance, corev1.EventTypeWarning, nfsv1alpha1.EventFailed, "Failed reconciling nfsserver config: %+v", err)
 		r.Log.Errorf("Error reconciling nfsserver config: %+v", err)
 		return reconcile.Result{}, err
 	}
 
-	if err := r.reconcileNFSServer(ctx, instance); err != nil {
+	if err := r.reconcileNFSServer(context, instance); err != nil {
 		r.Recorder.Eventf(instance, corev1.EventTypeWarning, nfsv1alpha1.EventFailed, "Failed reconciling nfsserver: %+v", err)
 		r.Log.Errorf("Error reconciling nfsserver: %+v", err)
 		return reconcile.Result{}, err
@@ -125,7 +124,7 @@ func (r *NFSServerReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reterr
 
 	// Reconcile status state based on statefulset ready replicas.
 	sts := &appsv1.StatefulSet{}
-	if err := r.Client.Get(ctx, req.NamespacedName, sts); err != nil {
+	if err := r.Client.Get(context, req.NamespacedName, sts); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 

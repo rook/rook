@@ -165,7 +165,7 @@ func (o *Operator) Run() error {
 
 	// Start the controller-runtime Manager.
 	mgrErrorChan := make(chan error)
-	go o.startManager(namespaceToWatch, stopChan, mgrErrorChan)
+	go o.startManager(namespaceToWatch, stopContext, mgrErrorChan)
 
 	// Start the operator setting watcher
 	go o.clusterController.StartOperatorSettingsWatch(stopChan)

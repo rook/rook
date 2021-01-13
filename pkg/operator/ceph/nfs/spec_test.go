@@ -90,7 +90,7 @@ func TestDeploymentSpec(t *testing.T) {
 		TypeMeta: controllerTypeMeta,
 	},
 	}
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	r := &ReconcileCephNFS{
 		client:  cl,

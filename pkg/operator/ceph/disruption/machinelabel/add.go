@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -62,36 +63,36 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	}
 
 	// Watch for the machines and enqueue the machineRequests if the machine is occupied by the osd pods
-	err = c.Watch(&source.Kind{Type: &mapiv1.Machine{}}, &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
-			clusterNamespace, isNamespacePresent := obj.Meta.GetLabels()[MachineFencingNamespaceLabelKey]
+	err = c.Watch(&source.Kind{Type: &mapiv1.Machine{}}, handler.EnqueueRequestsFromMapFunc(
+		handler.MapFunc(func(obj client.Object) []reconcile.Request {
+			clusterNamespace, isNamespacePresent := obj.GetLabels()[MachineFencingNamespaceLabelKey]
 			if !isNamespacePresent || len(clusterNamespace) == 0 {
 				return []reconcile.Request{}
 			}
-			clusterName, isClusterNamePresent := obj.Meta.GetLabels()[MachineFencingLabelKey]
+			clusterName, isClusterNamePresent := obj.GetLabels()[MachineFencingLabelKey]
 			if !isClusterNamePresent || len(clusterName) == 0 {
 				return []reconcile.Request{}
 			}
 			req := reconcile.Request{NamespacedName: types.NamespacedName{Name: clusterName, Namespace: clusterNamespace}}
 			return []reconcile.Request{req}
 		}),
-	})
+	))
 	if err != nil {
 		return errors.Wrap(err, "could not watch machines")
 	}
 
 	// Watch for the osd pods and enqueue the CephCluster in the namespace from the pods
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
-			_, ok := obj.Object.(*corev1.Pod)
+	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(
+		handler.MapFunc(func(obj client.Object) []reconcile.Request {
+			_, ok := obj.(*corev1.Pod)
 			if !ok {
 				return []reconcile.Request{}
 			}
-			labels := obj.Meta.GetLabels()
+			labels := obj.GetLabels()
 			if value, present := labels[osdPodLabelKey]; !present || value != osdPODLabelValue {
 				return []reconcile.Request{}
 			}
-			namespace := obj.Meta.GetNamespace()
+			namespace := obj.GetNamespace()
 			rookClusterName, present := labels[osdClusterNameLabelKey]
 			if !present {
 				return []reconcile.Request{}
@@ -99,5 +100,5 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: rookClusterName}}
 			return []reconcile.Request{req}
 		}),
-	})
+	))
 }

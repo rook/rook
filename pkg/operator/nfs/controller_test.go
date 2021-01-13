@@ -232,7 +232,7 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 			expectedServer.GetObjectKind().SetGroupVersionKind(appsv1.SchemeGroupVersion.WithKind("StatefulSet"))
 			expectedServerService.GetObjectKind().SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 
-			fc := fake.NewFakeClient(objs...)
+			fc := fake.NewClientBuilder().WithRuntimeObjects(objs...).Build()
 			fr := record.NewFakeRecorder(2)
 
 			r := &NFSServerReconciler{
@@ -241,7 +241,7 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 				Log:      logger,
 				Recorder: fr,
 			}
-			got, err := r.Reconcile(tt.args.req)
+			got, err := r.Reconcile(context.TODO(), tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NFSServerReconciler.Reconcile() error = %v, wantErr %v", err, tt.wantErr)
 				return

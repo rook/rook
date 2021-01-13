@@ -58,9 +58,9 @@ func TestOnDeviceCMUpdate(t *testing.T) {
 	}
 
 	// Create a fake client to mock API calls.
-	client := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
-	clientCluster := newClientCluster(client, ns, &clusterd.Context{})
+	clientCluster := newClientCluster(cl, ns, &clusterd.Context{})
 
 	// Dummy object
 	b := clientCluster.onDeviceCMUpdate(dum, dum)
@@ -118,8 +118,8 @@ func TestOnDeviceCMUpdate(t *testing.T) {
 	// finally the cluster is ready and we can reconcile
 	// Add ready status to the CephCluster
 	cephCluster.Status.Phase = k8sutil.ReadyStatus
-	client = fake.NewFakeClientWithScheme(s, object...)
-	clientCluster.client = client
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	clientCluster.client = cl
 	b = clientCluster.onDeviceCMUpdate(oldCM, newCM)
 	assert.True(t, b)
 }

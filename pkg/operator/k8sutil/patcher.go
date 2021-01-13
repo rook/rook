@@ -72,13 +72,9 @@ func NewPatcher(object runtime.Object, crclient client.Client) (*Patcher, error)
 	}, nil
 }
 
-func (p *Patcher) Patch(ctx context.Context, object runtime.Object) error {
+func (p *Patcher) Patch(ctx context.Context, object client.Object) error {
 	if object == nil {
 		return errors.Errorf("expected non-nil resource")
-	}
-
-	if _, ok := object.(runtime.Unstructured); ok {
-		object = object.DeepCopyObject()
 	}
 
 	newObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
@@ -99,13 +95,13 @@ func (p *Patcher) Patch(ctx context.Context, object runtime.Object) error {
 
 	var errs []error
 	if !reflect.DeepEqual(p.old, newObj) {
-		if err := p.client.Patch(ctx, object.DeepCopyObject(), p.objectPatch); err != nil {
+		if err := p.client.Patch(ctx, object, p.objectPatch); err != nil {
 			errs = append(errs, err)
 		}
 	}
 
 	if (p.hasStatus || hasStatus) && !reflect.DeepEqual(p.oldStatus, newStatus) {
-		if err := p.client.Status().Patch(ctx, object.DeepCopyObject(), p.statusPatch); err != nil {
+		if err := p.client.Status().Patch(ctx, object, p.statusPatch); err != nil {
 			errs = append(errs, err)
 		}
 	}

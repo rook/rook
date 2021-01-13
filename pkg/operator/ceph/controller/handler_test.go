@@ -28,7 +28,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 )
 
 func TestObjectToCRMapper(t *testing.T) {
@@ -55,7 +54,7 @@ func TestObjectToCRMapper(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClientWithScheme(s, objects...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 
 	// Fake reconcile request
 	fakeRequest := []ctrl.Request{
@@ -64,5 +63,5 @@ func TestObjectToCRMapper(t *testing.T) {
 
 	handlerFunc, err := ObjectToCRMapper(cl, objects[0], s)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, fakeRequest, handlerFunc.Map(handler.MapObject{Object: fs}))
+	assert.ElementsMatch(t, fakeRequest, handlerFunc(fs))
 }

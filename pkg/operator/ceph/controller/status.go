@@ -23,12 +23,11 @@ import (
 
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // UpdateStatus updates an object with a given status
-func UpdateStatus(client client.Client, obj runtime.Object) error {
+func UpdateStatus(client client.Client, obj client.Object) error {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		return errors.Wrap(err, "failed to get meta information of object")

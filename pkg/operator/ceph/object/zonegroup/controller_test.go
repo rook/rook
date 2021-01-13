@@ -172,7 +172,7 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZoneGroup{}, &cephv1.CephObjectZoneGroupList{})
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	// Create a ReconcileObjectZoneGroup object with the scheme and fake client.
 	clusterInfo := cephclient.AdminClusterInfo("rook")
@@ -188,7 +188,7 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 		},
 	}
 
-	res, err := r.Reconcile(req)
+	res, err := r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 
@@ -216,11 +216,11 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 	}
 
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZoneGroup{}, &cephv1.CephObjectZoneGroupList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	// Create a ReconcileObjectZoneGroup object with the scheme and fake client.
 	r = &ReconcileObjectZoneGroup{client: cl, scheme: r.scheme, context: r.context}
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 
@@ -252,7 +252,7 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(r.scheme, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
@@ -276,7 +276,7 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 	// Create a ReconcileObjectZoneGroup
 	r = &ReconcileObjectZoneGroup{client: cl, scheme: r.scheme, context: r.context}
 
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.Error(t, err)
 	assert.True(t, res.Requeue)
 
@@ -341,7 +341,7 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZoneGroup{}, &cephv1.CephObjectZoneGroupList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &cephv1.CephObjectRealm{}, &cephv1.CephObjectRealmList{})
 
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	r = &ReconcileObjectZoneGroup{client: cl, scheme: s, context: c, clusterInfo: clusterInfo}
 
@@ -355,7 +355,7 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 		},
 	}
 
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectZoneGroup)

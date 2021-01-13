@@ -138,7 +138,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStoreUser{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewFakeClientWithScheme(s, object...)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectStoreUser object with the scheme and fake client.
 	r := &ReconcileObjectStoreUser{client: cl, scheme: s, context: c}
 
@@ -151,7 +151,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		},
 	}
 	logger.Info("STARTING PHASE 1")
-	res, err := r.Reconcile(req)
+	res, err := r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 	logger.Info("PHASE 1 DONE")
@@ -175,11 +175,11 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	}
 	object = append(object, cephCluster)
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectStoreUser object with the scheme and fake client.
 	r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c}
 	logger.Info("STARTING PHASE 2")
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 	logger.Info("PHASE 2 DONE")
@@ -212,7 +212,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
@@ -234,7 +234,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c}
 
 	logger.Info("STARTING PHASE 3")
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 	logger.Info("PHASE 3 DONE")
@@ -262,14 +262,14 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	object = append(object, cephObjectStore)
 
 	// Create a fake client to mock API calls.
-	cl = fake.NewFakeClientWithScheme(s, object...)
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectStoreUser object with the scheme and fake client.
 	r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c}
 
 	logger.Info("STARTING PHASE 4")
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: store, Namespace: namespace}, cephObjectStore)
 	assert.NoError(t, err, cephObjectStore)
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, res.Requeue)
 	logger.Info("PHASE 4 DONE")
@@ -289,7 +289,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	logger.Info("STARTING PHASE 5")
 	err = r.client.Create(context.TODO(), rgwPod)
 	assert.NoError(t, err)
-	res, err = r.Reconcile(req)
+	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectUser)

@@ -17,6 +17,8 @@ limitations under the License.
 package operator
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
@@ -25,8 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{},
-	mgrErrorCh chan error) {
+func (o *Operator) startManager(namespaceToWatch string, context context.Context, mgrErrorCh chan error) {
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
@@ -61,8 +62,8 @@ func (o *Operator) startManager(namespaceToWatch string, stopCh <-chan struct{},
 	}
 
 	logger.Info("starting the controller-runtime manager")
-	if err := mgr.Start(stopCh); err != nil {
-		mgrErrorCh <- errors.Wrap(err, "unable to run the controller-runtime manager")
+	if err := mgr.Start(context); err != nil {
+		mgrErrorCh <- errors.Wrap(err, "failed to run the controller-runtime manager")
 		return
 	}
 }
