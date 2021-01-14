@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	fakeclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -139,6 +140,7 @@ func TestAddRemoveNode(t *testing.T) {
 		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Nautilus,
 	}
+	clusterInfo.SetName("rook-ceph-test")
 	generateKey := "expected key"
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
@@ -146,7 +148,13 @@ func TestAddRemoveNode(t *testing.T) {
 		},
 	}
 
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor, RequestCancelOrchestration: abool.New()}
+	context := &clusterd.Context{
+		Clientset:                  clientset,
+		ConfigDir:                  "/var/lib/rook",
+		Executor:                   executor,
+		RequestCancelOrchestration: abool.New(),
+		RookClientset:              fakeclient.NewSimpleClientset(),
+	}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
 		Storage: rookv1.StorageScopeSpec{
