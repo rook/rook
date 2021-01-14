@@ -750,7 +750,7 @@ func (h *CephInstaller) checkCephHealthStatus(namespace string) {
 	clusterResource, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, h.clusterName, metav1.GetOptions{})
 	assert.Nil(h.T(), err)
 	clusterPhase := string(clusterResource.Status.Phase)
-	if clusterPhase != "Ready" && clusterPhase != "Connected" {
+	if clusterPhase != "Ready" && clusterPhase != "Connected" && clusterPhase != "Progressing" {
 		assert.Equal(h.T(), "Ready", string(clusterResource.Status.Phase))
 	}
 
