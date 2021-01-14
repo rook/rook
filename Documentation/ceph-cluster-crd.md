@@ -808,7 +808,7 @@ spec:
 
 The topology of the cluster is important in production environments where you want your data spread across failure domains. The topology
 can be controlled by adding labels to the nodes. When the labels are found on a node at first OSD deployment, Rook will add them to
-the desired level in the [CRUSH map](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
+the desired level in the [CRUSH map](https://docs.ceph.com/en/latest/rados/operations/crush-map/).
 
 The complete list of labels in hierarchy order from highest to lowest is:
 
@@ -828,7 +828,7 @@ For example, if the following labels were added to a node:
 
 ```console
 kubectl label node mynode topology.kubernetes.io/zone=zone1
-kubectl label node mynode topology.rook.io/rack=rack1
+kubectl label node mynode topology.rook.io/rack=zone1-rack1
 ```
 
 > For versions previous to K8s 1.17, use the topology key: failure-domain.beta.kubernetes.io/zone or region
@@ -840,7 +840,7 @@ These labels would result in the following hierarchy for OSDs on that node (this
 ID CLASS WEIGHT  TYPE NAME                 STATUS REWEIGHT PRI-AFF
 -1       0.01358 root default
 -5       0.01358     zone zone1
--4       0.01358         rack rack1
+-4       0.01358         rack zone1-rack1
 -3       0.01358             host mynode
  0   hdd 0.00679                 osd.0         up  1.00000 1.00000
  1   hdd 0.00679                 osd.1         up  1.00000 1.00000
