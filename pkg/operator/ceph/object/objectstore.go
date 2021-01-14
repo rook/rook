@@ -157,6 +157,10 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 	if err != nil {
 		return errors.Wrap(err, "failed to detect object stores during deletion")
 	}
+	if len(stores) == 0 {
+		logger.Infof("did not find object store %q, nothing to delete", objContext.Name)
+		return nil
+	}
 	logger.Infof("Found stores %v when deleting store %s", stores, objContext.Name)
 
 	err = deleteRealm(objContext)
@@ -560,7 +564,8 @@ func DecodeZoneGroupConfig(data string) (zoneGroupType, error) {
 func getObjectStores(context *Context) ([]string, error) {
 	output, err := RunAdminCommandNoMultisite(context, "realm", "list")
 	if err != nil {
-		if strings.Index(err.Error(), "exit status 2") != 0 {
+		// exit status 2 indicates the object store does not exist, so return nothing
+		if strings.Index(err.Error(), "exit status 2") == 0 {
 			return []string{}, nil
 		}
 		return nil, err
