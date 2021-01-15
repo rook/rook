@@ -643,6 +643,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	// start osds
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
+		opconfig.ConditionExport(c.context, c.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", fmt.Sprintf("Processing node %s osd %d", nodeName, osd.ID))
 
 		// keyring must be generated before deployment creation in order to avoid a race condition resulting
 		// in intermittent failure of first-attempt OSD pods.
