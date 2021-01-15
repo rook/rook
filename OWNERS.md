@@ -9,11 +9,10 @@ This page lists all active contributors and their areas of expertise. This can b
 
 Steering committee members will be added according to the [process for adding a steering committee member](GOVERNANCE.md#becoming-a-steering-committee-member) in the [governance](GOVERNANCE.md).
 
-| Name                                      | Represents  | Github                                  |
-| ----------------------------------------- | ----------- | --------------------------------------- |
-| Travis Nielsen <tnielsen@redhat.com>      | Ceph        | [travisn](https://github.com/travisn)   |
-| Jared Watts <jared@upbound.io>            | Independent | [jbw976](https://github.com/jbw976)     |
-| Dmitry Yusupov <dmitry.yusupov@gmail.com> | EdgeFS      | [dyusupov](https://github.com/dyusupov) |
+| Name                                 | Represents  | Github                                |
+| ------------------------------------ | ----------- | ------------------------------------- |
+| Travis Nielsen <tnielsen@redhat.com> | Ceph        | [travisn](https://github.com/travisn) |
+| Jared Watts <jared@upbound.io>       | Independent | [jbw976](https://github.com/jbw976)   |
 
 ## Maintainers
 
@@ -25,8 +24,6 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
   * Framework, APIs, CockroachDB
 * Alexander Trost <galexrt@googlemail.com> ([galexrt](https://github.com/galexrt))
   * Ceph, Operators/Orchestration, User support
-* Dmitry Yusupov <dmitry.yusupov@gmail.com> ([dyusupov](https://github.com/dyusupov))
-  * EdgeFS
 * Sebastien Han <shan@redhat.com> ([leseb](https://github.com/leseb))
   * Ceph
 * Blaine Gardner <blaine.gardner@redhat.com> ([BlaineEXE](https://github.com/BlaineEXE))
@@ -41,6 +38,7 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
 This list will be updated according to the [process for removing a maintainer](GOVERNANCE.md#removing-a-maintainer) in the [governance](GOVERNANCE.md).
 
 * Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
+* Dmitry Yusupov <dmitry.yusupov@gmail.com> ([dyusupov](https://github.com/dyusupov))
 
 ## Code Owners
 
