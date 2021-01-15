@@ -15,3 +15,5 @@ v1.6...
 ### Core
 
 ### Ceph
+
+* CephClient CRD has been converted to use the controller-runtime library

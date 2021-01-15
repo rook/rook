@@ -860,7 +860,8 @@ type DisruptionManagementSpec struct {
 type CephClient struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              ClientSpec `json:"spec"`
+	Spec              ClientSpec        `json:"spec"`
+	Status            *CephClientStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -876,6 +877,10 @@ type ClientSpec struct {
 	Caps map[string]string `json:"caps"`
 }
 
+type CephClientStatus struct {
+	Phase ConditionType     `json:"phase,omitempty"`
+	Info  map[string]string `json:"info,omitempty"`
+}
 type CleanupPolicySpec struct {
 	Confirmation              CleanupConfirmationProperty `json:"confirmation,omitempty"`
 	SanitizeDisks             SanitizeDisksSpec           `json:"sanitizeDisks"`

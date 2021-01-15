@@ -19,6 +19,7 @@ package cluster
 import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/clusterdisruption"
@@ -65,6 +66,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context) error{
 	file.Add,
 	nfs.Add,
 	rbd.Add,
+	client.Add,
 }
 
 // AddToManager adds all the registered controllers to the passed manager.
