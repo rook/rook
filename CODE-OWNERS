@@ -20,8 +20,6 @@ areas:
     reviewers:
     - Madhu-1
   edgefs:
-    approvers:
-    - dyusupov
     reviewers:
     - sabbot
   cassandra:
