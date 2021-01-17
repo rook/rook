@@ -84,20 +84,25 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 		clusterInfo: clusterInfo,
 		spec:        spec,
 		rookVersion: rookVersion,
-		Replicas:    1,
+		Replicas:    spec.Mgr.Count,
 		exitCode:    exec.ExitStatus,
 	}
 }
 
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
+// for backward compatibility, default to 1 mgr
+func (c *Cluster) getReplicas() int {
+	replicas := c.Replicas
+	if replicas == 0 {
+		replicas = 1
+	}
+	return replicas
+}
+
 func (c *Cluster) getDaemonIDs() []string {
 	var daemonIDs []string
-	for i := 0; i < c.Replicas; i++ {
-		if i >= 2 {
-			logger.Errorf("cannot have more than 2 mgrs")
-			break
-		}
+	for i := 0; i < c.getReplicas(); i++ {
 		daemonIDs = append(daemonIDs, k8sutil.IndexToName(i))
 	}
 	return daemonIDs

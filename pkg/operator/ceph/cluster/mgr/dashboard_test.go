@@ -132,8 +132,8 @@ func TestStartSecureDashboard(t *testing.T) {
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)
 	// the dashboard is enabled once with the new dashboard and modules
-	assert.Equal(t, 1, enables)
-	assert.Equal(t, 0, disables)
+	assert.Equal(t, 2, enables)
+	assert.Equal(t, 1, disables)
 	assert.Equal(t, 2, moduleRetries)
 
 	svc, err := c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
@@ -146,8 +146,8 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.Nil(t, err)
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)
-	assert.Equal(t, 1, enables)
-	assert.Equal(t, 1, disables)
+	assert.Equal(t, 2, enables)
+	assert.Equal(t, 2, disables)
 
 	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)
