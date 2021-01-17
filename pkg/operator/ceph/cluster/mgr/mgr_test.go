@@ -65,6 +65,7 @@ func TestStartMGR(t *testing.T) {
 		Labels:             map[rookv1.KeyType]rookv1.Labels{cephv1.KeyMgr: {"my-label-key": "value"}},
 		Dashboard:          cephv1.DashboardSpec{Enabled: true, SSL: true},
 		Monitoring:         cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
+		Mgr:                cephv1.MgrSpec{Count: 1},
 		PriorityClassNames: map[rookv1.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
 		DataDirHostPath:    "/var/lib/rook/",
 	}
@@ -204,7 +205,7 @@ func TestConfigureModules(t *testing.T) {
 }
 
 func TestMgrDaemons(t *testing.T) {
-	c := &Cluster{Replicas: 3}
+	c := &Cluster{Replicas: 2}
 	daemons := c.getDaemonIDs()
 	require.Equal(t, 2, len(daemons))
 	assert.Equal(t, "a", daemons[0])

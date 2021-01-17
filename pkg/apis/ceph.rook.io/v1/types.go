@@ -310,6 +310,7 @@ type StretchClusterZoneSpec struct {
 
 // MgrSpec represents options to configure a ceph mgr
 type MgrSpec struct {
+	Count   int      `json:"count,omitempty"`
 	Modules []Module `json:"modules,omitempty"`
 }
 

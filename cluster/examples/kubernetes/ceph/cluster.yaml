@@ -44,6 +44,9 @@ spec:
     # Mons should only be allowed on the same node for test environments where data loss is acceptable.
     allowMultiplePerNode: false
   mgr:
+    # Set this number only when multiple ceph managers are needed. Due to mgr's mechanism, plural mgrs might cause issues
+    # when accessing dashboard through service cluster IP.
+    count: 1
     modules:
     # Several modules should not need to be included in this list. The "dashboard" and "monitoring" modules
     # are already enabled by other settings in the cluster CR.
