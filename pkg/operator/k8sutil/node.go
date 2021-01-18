@@ -283,9 +283,7 @@ func GetNormalizedHostname(kubernetesNode v1.Node) string {
 func GetKubernetesNodesMatchingRookNodes(rookNodes []rookv1.Node, clientset kubernetes.Interface) ([]v1.Node, error) {
 	ctx := context.TODO()
 	nodes := []v1.Node{}
-	nodeOptions := metav1.ListOptions{}
-	nodeOptions.TypeMeta.Kind = "Node"
-	k8sNodes, err := clientset.CoreV1().Nodes().List(ctx, nodeOptions)
+	k8sNodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nodes, fmt.Errorf("failed to list kubernetes nodes. %+v", err)
 	}
@@ -294,6 +292,22 @@ func GetKubernetesNodesMatchingRookNodes(rookNodes []rookv1.Node, clientset kube
 			if rookNodeMatchesKubernetesNode(rn, kn) {
 				nodes = append(nodes, kn)
 			}
+		}
+	}
+	return nodes, nil
+}
+
+// GetNotReadyKubernetesNodes lists all the nodes that are in NotReady state
+func GetNotReadyKubernetesNodes(clientset kubernetes.Interface) ([]v1.Node, error) {
+	ctx := context.TODO()
+	nodes := []v1.Node{}
+	k8sNodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nodes, fmt.Errorf("failed to list kubernetes nodes. %v", err)
+	}
+	for _, node := range k8sNodes.Items {
+		if !NodeIsReady(node) {
+			nodes = append(nodes, node)
 		}
 	}
 	return nodes, nil

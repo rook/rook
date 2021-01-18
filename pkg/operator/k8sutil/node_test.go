@@ -446,3 +446,51 @@ func TestTopologyLabels(t *testing.T) {
 	topology = ExtractTopologyFromLabels(nodeLabels, additionalTopologyLabels)
 	assert.Equal(t, 0, len(topology))
 }
+
+func TestGetNotReadyKubernetesNodes(t *testing.T) {
+	ctx := context.TODO()
+	clientset := optest.New(t, 0)
+
+	//when there is no node
+	nodes, err := GetNotReadyKubernetesNodes(clientset)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(nodes))
+
+	//when all the nodes are in ready state
+	clientset = optest.New(t, 2)
+	nodes, err = GetNotReadyKubernetesNodes(clientset)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(nodes))
+
+	//when there is a not ready node
+	node := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "failed",
+		},
+		Status: v1.NodeStatus{
+			Conditions: []v1.NodeCondition{
+				{
+					Type: v1.NodeReady, Status: v1.ConditionFalse,
+				},
+			},
+		},
+	}
+	_, err = clientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	nodes, err = GetNotReadyKubernetesNodes(clientset)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(nodes))
+
+	// when all the nodes are not ready
+	allNodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	for _, n := range allNodes.Items {
+		n.Status.Conditions[0].Status = v1.ConditionFalse
+		updateNode := n
+		_, err := clientset.CoreV1().Nodes().Update(ctx, &updateNode, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+	}
+	nodes, err = GetNotReadyKubernetesNodes(clientset)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(nodes))
+}
