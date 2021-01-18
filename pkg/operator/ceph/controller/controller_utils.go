@@ -119,6 +119,8 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 		} else {
 			logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %q", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
 		}
+	}else {
+		logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is unknown", controllerName, cephCluster.Name)
 	}
 
 	return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
