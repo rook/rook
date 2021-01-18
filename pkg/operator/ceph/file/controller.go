@@ -288,6 +288,17 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create filesystem %q", cephFilesystem.Name)
 	}
 
+	// Enable mirroring if needed
+	if r.clusterInfo.CephVersion.IsAtLeastPacific() {
+		if cephFilesystem.Spec.Mirroring.Enabled {
+			// Enable the mgr module
+			err = cephclient.MgrEnableModule(r.context, r.clusterInfo, "mirroring", false)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrap(err, "failed to enable mirroring mgr module")
+			}
+		}
+	}
+
 	return reconcile.Result{}, nil
 }
 

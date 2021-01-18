@@ -285,6 +285,31 @@ func WatchControllerPredicate() predicate.Funcs {
 				if isUpgrade {
 					return true
 				}
+
+			case *cephv1.CephFilesystemMirror:
+				objNew := e.ObjectNew.(*cephv1.CephFilesystemMirror)
+				logger.Debug("update event on CephFilesystemMirror CR")
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					return true
+				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+				}
+				// Handling upgrades
+				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
+				if isUpgrade {
+					return true
+				}
 			}
 
 			return false

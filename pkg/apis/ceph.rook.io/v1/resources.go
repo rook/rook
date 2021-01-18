@@ -38,6 +38,8 @@ const (
 	ResourcesKeyLogCollector = "logcollector"
 	// ResourcesKeyRBDMirror represents the name of resource in the CR for the rbd mirror
 	ResourcesKeyRBDMirror = "rbdmirror"
+	// ResourcesKeyFilesystemMirror represents the name of resource in the CR for the filesystem mirror
+	ResourcesKeyFilesystemMirror = "fsmirror"
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
 	ResourcesKeyCleanup = "cleanup"
 )

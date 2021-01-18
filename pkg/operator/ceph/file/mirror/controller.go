@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Rook Authors. All rights reserved.
+Copyright 2021 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rbd
+package mirror
 
 import (
 	"context"
@@ -46,44 +46,36 @@ import (
 )
 
 const (
-	controllerName = "ceph-rbd-mirror-controller"
+	controllerName = "ceph-filesystem-mirror-controller"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
 // List of object resources to watch by the controller
 var objectsToWatch = []client.Object{
-	&v1.Service{TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: v1.SchemeGroupVersion.String()}},
 	&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}},
+	&v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}},
 	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
 }
 
-var cephRBDMirrorKind = reflect.TypeOf(cephv1.CephRBDMirror{}).Name()
+var cephFilesystemMirrorKind = reflect.TypeOf(cephv1.CephFilesystemMirror{}).Name()
 
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
-	Kind:       cephRBDMirrorKind,
+	Kind:       cephFilesystemMirrorKind,
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
-// ReconcileCephRBDMirror reconciles a cephRBDMirror object
-type ReconcileCephRBDMirror struct {
+// ReconcileFilesystemMirror reconciles a CephFilesystemMirror object
+type ReconcileFilesystemMirror struct {
 	context         *clusterd.Context
 	clusterInfo     *cephclient.ClusterInfo
 	client          client.Client
 	scheme          *runtime.Scheme
 	cephClusterSpec *cephv1.ClusterSpec
-	peers           map[string]*peerSpec
 }
 
-// peerSpec represents peer details
-type peerSpec struct {
-	info      *cephclient.PoolMirroringInfo
-	poolName  string
-	direction string
-}
-
-// Add creates a new cephRBDMirror Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new CephFilesystemMirror Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, context *clusterd.Context) error {
 	return add(mgr, newReconciler(mgr, context))
@@ -96,11 +88,10 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Rec
 	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
 		panic(err)
 	}
-	return &ReconcileCephRBDMirror{
+	return &ReconcileFilesystemMirror{
 		client:  mgr.GetClient(),
 		scheme:  mgrScheme,
 		context: context,
-		peers:   make(map[string]*peerSpec),
 	}
 }
 
@@ -112,8 +103,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 	logger.Info("successfully started")
 
-	// Watch for changes on the cephRBDMirror CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephRBDMirror{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	// Watch for changes on the CephFilesystemMirror CRD object
+	err = c.Watch(&source.Kind{Type: &cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
@@ -122,16 +113,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	for _, t := range objectsToWatch {
 		err = c.Watch(&source.Kind{Type: t}, &handler.EnqueueRequestForOwner{
 			IsController: true,
-			OwnerType:    &cephv1.CephRBDMirror{},
-		}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephRBDMirror{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+			OwnerType:    &cephv1.CephFilesystemMirror{},
+		}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 		if err != nil {
 			return err
 		}
 	}
 
-	// Build Handler function to return the list of ceph rbd-mirror
+	// Build Handler function to return the list of ceph object
 	// This is used by the watchers below
-	handlerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephRBDMirrorList{}, mgr.GetScheme())
+	handlerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephFilesystemMirrorList{}, mgr.GetScheme())
 	if err != nil {
 		return err
 	}
@@ -151,11 +142,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// Reconcile reads that state of the cluster for a cephRBDMirror object and makes changes based on the state read
-// and what is in the cephRBDMirror.Spec
+// Reconcile reads that state of the cluster for a CephFilesystemMirror object and makes changes based on the state read
+// and what is in the CephFilesystemMirror.Spec
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileCephRBDMirror) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileFilesystemMirror) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
@@ -166,27 +157,22 @@ func (r *ReconcileCephRBDMirror) Reconcile(context context.Context, request reco
 	return reconcileResponse, err
 }
 
-func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile.Result, error) {
-	// Fetch the cephRBDMirror instance
-	cephRBDMirror := &cephv1.CephRBDMirror{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephRBDMirror)
+func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// Fetch the CephFilesystemMirror instance
+	filesystemMirror := &cephv1.CephFilesystemMirror{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, filesystemMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("cephRBDMirror resource not found. Ignoring since object must be deleted.")
+			logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrap(err, "failed to get cephRBDMirror")
+		return reconcile.Result{}, errors.Wrap(err, "failed to get CephFilesystemMirror")
 	}
 
 	// The CR was just created, initializing status fields
-	if cephRBDMirror.Status == nil {
+	if filesystemMirror.Status == nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
-	}
-
-	// validate the pool settings
-	if err := validateSpec(&cephRBDMirror.Spec); err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "invalid rbd-mirror CR %q spec", cephRBDMirror.Name)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -195,10 +181,11 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 		logger.Debugf("CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, reconcileResponse.RequeueAfter.String())
 		return reconcileResponse, nil
 	}
+
+	// Assign the clusterSpec
 	r.cephClusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo
-	// Always populate it during each reconcile
 	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")
@@ -210,32 +197,29 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
 	}
+	// Validate Ceph version
+	if !currentCephVersion.IsAtLeastPacific() {
+		return opcontroller.ImmediateRetryResult, errors.Errorf("ceph pacific version is required to deploy cephfs mirroring, current cluster runs %q", currentCephVersion.String())
+	}
 	r.clusterInfo.CephVersion = currentCephVersion
 
-	// Add bootstrap peer if any
-	logger.Debug("reconciling ceph rbd mirror peers addition")
-	reconcileResponse, err = r.reconcileAddBoostrapPeer(cephRBDMirror, request.NamespacedName)
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add ceph rbd mirror peer")
-	}
-
 	// CREATE/UPDATE
-	logger.Debug("reconciling ceph rbd mirror deployments")
-	reconcileResponse, err = r.reconcileCreateCephRBDMirror(cephRBDMirror)
+	logger.Debug("reconciling ceph filesystem mirror deployments")
+	reconcileResponse, err = r.reconcileFilesystemMirror(filesystemMirror)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create ceph rbd mirror deployments")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create ceph filesystem mirror deployments")
 	}
 
 	// Set Ready status, we are done reconciling
 	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
-	logger.Debug("done reconciling ceph rbd mirror")
+	logger.Debug("done reconciling ceph filesystem mirror")
 	return reconcile.Result{}, nil
 
 }
 
-func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cephv1.CephRBDMirror) (reconcile.Result, error) {
+func (r *ReconcileFilesystemMirror) reconcileFilesystemMirror(filesystemMirror *cephv1.CephFilesystemMirror) (reconcile.Result, error) {
 	if r.cephClusterSpec.External.Enable {
 		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, r.clusterInfo)
 		if err != nil {
@@ -245,9 +229,9 @@ func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cep
 		}
 	}
 
-	err := r.start(cephRBDMirror)
+	err := r.start(filesystemMirror)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to start rbd mirror")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to start filesystem mirror")
 	}
 
 	return reconcile.Result{}, nil
@@ -255,25 +239,25 @@ func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cep
 
 // updateStatus updates an object with a given status
 func updateStatus(client client.Client, name types.NamespacedName, status string) {
-	rbdMirror := &cephv1.CephRBDMirror{}
-	err := client.Get(context.TODO(), name, rbdMirror)
+	fsMirror := &cephv1.CephFilesystemMirror{}
+	err := client.Get(context.TODO(), name, fsMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephRBDMirror resource not found. Ignoring since object must be deleted.")
+			logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Warningf("failed to retrieve rbd mirror %q to update status to %q. %v", name, status, err)
+		logger.Warningf("failed to retrieve filesystem mirror %q to update status to %q. %v", name, status, err)
 		return
 	}
 
-	if rbdMirror.Status == nil {
-		rbdMirror.Status = &cephv1.Status{}
+	if fsMirror.Status == nil {
+		fsMirror.Status = &cephv1.Status{}
 	}
 
-	rbdMirror.Status.Phase = status
-	if err := opcontroller.UpdateStatus(client, rbdMirror); err != nil {
-		logger.Errorf("failed to set rbd mirror %q status to %q. %v", rbdMirror.Name, status, err)
+	fsMirror.Status.Phase = status
+	if err := opcontroller.UpdateStatus(client, fsMirror); err != nil {
+		logger.Errorf("failed to set filesystem mirror %q status to %q. %v", fsMirror.Name, status, err)
 		return
 	}
-	logger.Debugf("rbd mirror %q status updated to %q", name, status)
+	logger.Debugf("filesystem mirror %q status updated to %q", name, status)
 }

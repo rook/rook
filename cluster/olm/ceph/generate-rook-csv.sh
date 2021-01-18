@@ -103,6 +103,7 @@ CEPH_FILESYSTEMS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephfilesystems.cep
 CEPH_NFS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephnfses.ceph.rook.io.crds.yaml"
 CEPH_CLIENT_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephclients.ceph.rook.io.crds.yaml"
 CEPH_RBD_MIRROR_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephrbdmirrors.ceph.rook.io.crds.yaml"
+CEPH_FS_MIRROR_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephfilesystemmirrors.ceph.rook.io.crds.yaml"
 CEPH_EXTERNAL_SCRIPT_FILE="cluster/examples/kubernetes/ceph/create-external-cluster-resources.py"
 
 if [[ -d "$CSV_BUNDLE_PATH" ]]; then
@@ -228,6 +229,7 @@ function generate_crds_yaml() {
 
     if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
         sed -n '/^# OLM: BEGIN CEPH FS CRD$/,/# OLM: END CEPH FS CRD/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_FILESYSTEMS_CRD_YAML_FILE"
+        sed -n '/^# OLM: BEGIN CEPH FS MIRROR CRD$/,/# OLM: END CEPH FS MIRROR CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_FS_MIRROR_CRD_YAML_FILE"
     fi
 }
 

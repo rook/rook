@@ -26,6 +26,8 @@ type CephClusterExpansion interface{}
 
 type CephFilesystemExpansion interface{}
 
+type CephFilesystemMirrorExpansion interface{}
+
 type CephNFSExpansion interface{}
 
 type CephObjectRealmExpansion interface{}

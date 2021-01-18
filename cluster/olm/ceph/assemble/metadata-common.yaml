@@ -128,6 +128,11 @@ spec:
         version: v1
         displayName: Ceph Filesystem
         description: Represents a Ceph Filesystem.
+      - kind: CephFilesystemMirror
+        name: cephfilesystemmirrors.ceph.rook.io
+        version: v1
+        displayName: Ceph Filesystem Mirror
+        description: Represents a Ceph Filesystem Mirror.
       - kind: CephRBDMirror
         name: cephrbdmirrors.ceph.rook.io
         version: v1
