@@ -30,9 +30,9 @@ require (
 	github.com/tevino/abool v1.2.0
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	gopkg.in/ini.v1 v1.57.0
-	k8s.io/api v0.20.0
-	k8s.io/apiextensions-apiserver v0.20.0
-	k8s.io/apimachinery v0.20.0
+	k8s.io/api v0.20.1
+	k8s.io/apiextensions-apiserver v0.20.1
+	k8s.io/apimachinery v0.20.1
 	k8s.io/apiserver v0.20.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/cloud-provider v0.20.0
@@ -40,7 +40,7 @@ require (
 	k8s.io/kube-controller-manager v0.20.0
 	k8s.io/kubernetes v1.20.0
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
-	sigs.k8s.io/controller-runtime v0.7.0
+	sigs.k8s.io/controller-runtime v0.8.0
 	sigs.k8s.io/kustomize/kyaml v0.2.0
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v6 v6.1.0
 )
