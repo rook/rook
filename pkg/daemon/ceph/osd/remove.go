@@ -137,6 +137,32 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	if err != nil {
 		logger.Errorf("failed to remove CRUSH host %q. %v", hostName, err)
 	}
+	// call archiveCrash to silence crash warning in ceph health if any
+	archiveCrash(clusterdContext, clusterInfo, osdID)
 
 	logger.Infof("completed removal of OSD %d", osdID)
+}
+
+func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) {
+	// The ceph health warning should be silenced by archiving the crash
+	crash, err := client.GetCrash(clusterdContext, clusterInfo)
+	if err != nil {
+		logger.Errorf("failed to list ceph crash. %v", err)
+		return
+	}
+	if crash != nil {
+		logger.Info("no ceph crash to silence")
+		return
+	}
+	var crashID string
+	for _, c := range crash {
+		if c.Entity == fmt.Sprintf("osd.%d", osdID) {
+			crashID = c.ID
+			break
+		}
+	}
+	err = client.ArchiveCrash(clusterdContext, clusterInfo, crashID)
+	if err != nil {
+		logger.Errorf("failed to archive the crash %q. %v", crashID, err)
+	}
 }
