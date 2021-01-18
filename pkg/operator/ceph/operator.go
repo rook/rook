@@ -114,16 +114,21 @@ func (o *Operator) Run() error {
 		return errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %q", k8sutil.PodNamespaceEnvVar)
 	}
 
-	if EnableDiscoveryDaemon {
-		rookDiscover := discover.New(o.context.Clientset)
-		if err := rookDiscover.Start(o.operatorNamespace, o.rookImage, o.securityAccount, true); err != nil {
-			return errors.Wrap(err, "failed to start device discovery daemonset")
-		}
-	}
-
 	// creating a context
 	stopContext, stopFunc := context.WithCancel(context.Background())
 	defer stopFunc()
+
+	rookDiscover := discover.New(o.context.Clientset)
+	if EnableDiscoveryDaemon {
+		if err := rookDiscover.Start(o.operatorNamespace, o.rookImage, o.securityAccount, true); err != nil {
+			return errors.Wrap(err, "failed to start device discovery daemonset")
+		}
+	} else {
+		if err := rookDiscover.Stop(stopContext, o.operatorNamespace); err != nil {
+			return errors.Wrap(err, "failed to stop device discovery daemonset")
+		}
+	}
+
 	logger.Debug("checking for admission controller secrets")
 	err := StartControllerIfSecretPresent(stopContext, o.context, o.rookImage)
 	if err != nil {

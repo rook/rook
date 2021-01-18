@@ -472,3 +472,12 @@ func GetAvailableDevices(clusterdContext *clusterd.Context, nodeName, clusterNam
 	}
 	return results, nil
 }
+
+// Stop the discover
+func (d *Discover) Stop(ctx context.Context, namespace string) error {
+	err := d.clientset.AppsV1().DaemonSets(namespace).Delete(ctx, discoverDaemonsetName, metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
