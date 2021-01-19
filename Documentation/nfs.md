@@ -74,7 +74,6 @@ kubectl -n rook-nfs-system get pod
 
 NAME                                    READY   STATUS    RESTARTS   AGE
 rook-nfs-operator-78d86bf969-k7lqp      1/1     Running   0          102s
-rook-nfs-provisioner-7b5ff479f6-688dm   1/1     Running   0          102s
 rook-nfs-webhook-74749cbd46-6jw2w       1/1     Running   0          102s
 ```
 
@@ -485,7 +484,7 @@ parameters:
   exportName: share1
   nfsServerName: rook-nfs
   nfsServerNamespace: rook-nfs
-provisioner: rook.io/nfs-provisioner
+provisioner: nfs.rook.io/rook-nfs-provisioner
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 ```
@@ -579,7 +578,6 @@ kubectl delete -f rbac.yaml
 kubectl delete -f psp.yaml
 kubectl delete -f scc.yaml # if deployed
 kubectl delete -f operator.yaml
-kubectl delete -f provisioner.yaml
 kubectl delete -f webhook.yaml # if deployed
 kubectl delete -f common.yaml
 ```
