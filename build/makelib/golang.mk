@@ -70,6 +70,7 @@ GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 GO_VERSION := $(shell $(GO) version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
+GO_FULL_VERSION := $(shell $(GO) version)
 
 # we use a consistent version of gofmt even while running different go compilers.
 # see https://github.com/golang/go/issues/26397 for more details
@@ -107,7 +108,7 @@ ifeq ($(filter help clean distclean prune go.clean, $(MAKECMDGOALS)),)
 .PHONY: go.check
 go.check:
 ifneq ($(shell $(GO) version | grep -q -E '\bgo($(GO_SUPPORTED_VERSIONS))\b' && echo 0 || echo 1), 0)
-	$(error unsupported go version. Please make install one of the following supported version: '$(GO_SUPPORTED_VERSIONS)')
+	$(error unsupported: $(GO_FULL_VERSION). Please make install one of the following supported version: '$(GO_SUPPORTED_VERSIONS)')
 endif
 
 -include go.check
