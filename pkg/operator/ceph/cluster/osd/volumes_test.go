@@ -17,6 +17,7 @@ limitations under the License.
 package osd
 
 import (
+	"path/filepath"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -43,4 +44,16 @@ func TestGetEncryptionVolume(t *testing.T) {
 	v, vM = c.getEncryptionVolume(osdProps)
 	assert.Equal(t, v1.Volume{Name: "osd-encryption-key", VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{Medium: "Memory"}}}, v)
 	assert.Equal(t, v1.VolumeMount{Name: "osd-encryption-key", ReadOnly: false, MountPath: "/etc/ceph"}, vM)
+}
+
+func TestGetDataBridgeVolumeSource(t *testing.T) {
+	claimName := "test-claim"
+	configDir := "/var/lib/rook"
+	namespace := "rook-ceph"
+
+	source := getDataBridgeVolumeSource(claimName, configDir, namespace, true)
+	assert.Equal(t, v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{Medium: "Memory"}}, source)
+	hostPathType := v1.HostPathDirectoryOrCreate
+	source = getDataBridgeVolumeSource(claimName, configDir, namespace, false)
+	assert.Equal(t, v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: filepath.Join(configDir, namespace, claimName), Type: &hostPathType}}, source)
 }
