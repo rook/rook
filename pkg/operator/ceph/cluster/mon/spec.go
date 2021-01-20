@@ -305,6 +305,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 		),
 		Resources:     cephv1.GetMonResources(c.spec.Resources),
 		LivenessProbe: controller.GenerateLivenessProbeExecDaemon(config.MonType, monConfig.DaemonName),
+		WorkingDir:    config.VarLogCephDir,
 	}
 
 	// If the liveness probe is enabled

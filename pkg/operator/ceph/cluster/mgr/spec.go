@@ -251,6 +251,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		Resources:       cephv1.GetMgrResources(c.spec.Resources),
 		SecurityContext: controller.PodSecurityContext(),
 		LivenessProbe:   getDefaultMgrLivenessProbe(),
+		WorkingDir:      config.VarLogCephDir,
 	}
 
 	// If the liveness probe is enabled

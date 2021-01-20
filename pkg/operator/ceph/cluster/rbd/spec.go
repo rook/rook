@@ -129,6 +129,7 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
 		Resources:       rbdMirror.Spec.Resources,
 		SecurityContext: controller.PodSecurityContext(),
+		WorkingDir:      config.VarLogCephDir,
 		// TODO:
 		// Not implemented at this point since the socket name is '/run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok'
 		// Also the command to run will be:
