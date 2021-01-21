@@ -123,7 +123,10 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 			return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
 		}
 	}
-	if !utils.IsPlatformOpenShift() {
+
+	// disable admission controller for upgrade test as api version v1 require minimum v0.7 controller runtime and upgrade test still using
+	// older version of controller runtime.
+	if !utils.IsPlatformOpenShift() && namespace != "upgrade-ns-system" {
 		err = h.startAdmissionController(namespace)
 		if err != nil {
 			return fmt.Errorf("Failed to start admission controllers: %v", err)
@@ -515,7 +518,7 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	}
 	logger.Infof("installed rook operator and cluster : %s on k8s %s", namespace, h.k8sVersion)
 
-	if !utils.IsPlatformOpenShift() && h.k8shelper.VersionAtLeast("v1.15.0") {
+	if !utils.IsPlatformOpenShift() && h.k8shelper.VersionAtLeast("v1.15.0") && namespace != "upgrade-ns" {
 		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", onamespace, "Running") {
 			assert.Fail(h.T(), "admission controller is not running")
 		}
