@@ -460,7 +460,7 @@ Verify that the NFS server pod is up and running:
 kubectl -n rook-nfs get pod -l app=rook-nfs
 
 NAME         READY     STATUS    RESTARTS   AGE
-rook-nfs-0   1/1       Running   0          2m
+rook-nfs-0   2/2       Running   0          2m
 ```
 
 If the NFS server pod is in the `Running` state, then we have successfully created an exported NFS share that clients can start to access over the network.
