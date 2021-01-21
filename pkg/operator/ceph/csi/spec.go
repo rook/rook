@@ -54,6 +54,8 @@ type Param struct {
 	PluginPriorityClassName      string
 	ProvisionerPriorityClassName string
 	EnableOMAPGenerator          bool
+	EnableRBDSnapshotter         bool
+	EnableCephFSSnapshotter      bool
 	LogLevel                     uint8
 	CephFSGRPCMetricsPort        uint16
 	CephFSLivenessMetricsPort    uint16
@@ -282,6 +284,24 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 	if strings.EqualFold(enableOMAPGenerator, "true") {
 		tp.EnableOMAPGenerator = true
+	}
+	// enable RBD snapshotter by default
+	tp.EnableRBDSnapshotter = true
+	enableRBDSnapshotter, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_RBD_SNAPSHOTTER", "true")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_ENABLE_RBD_SNAPSHOTTER setting")
+	}
+	if strings.EqualFold(enableRBDSnapshotter, "false") {
+		tp.EnableRBDSnapshotter = false
+	}
+	// enable CephFS snapshotter by default
+	tp.EnableCephFSSnapshotter = true
+	enableCephFSSnapshotter, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_CEPHFS_SNAPSHOTTER", "true")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_ENABLE_CEPHFS_SNAPSHOTTER setting")
+	}
+	if strings.EqualFold(enableCephFSSnapshotter, "false") {
+		tp.EnableCephFSSnapshotter = false
 	}
 
 	updateStrategy, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate)

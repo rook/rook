@@ -116,6 +116,12 @@ data:
   # sidecar with CSI provisioner pod, to enable set it to true.
   # CSI_ENABLE_OMAP_GENERATOR: "true"
 
+  # set to false to disable deployment of snapshotter container in CephFS provisioner pod.
+  CSI_ENABLE_CEPHFS_SNAPSHOTTER: "true"
+
+  # set to false to disable deployment of snapshotter container in RBD provisioner pod.
+  CSI_ENABLE_RBD_SNAPSHOTTER: "true"
+
   # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
   # If you disable the kernel client, your application may be disrupted during upgrade.
   # See the upgrade guide: https://rook.io/docs/rook/master/ceph-upgrade.html
