@@ -70,6 +70,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ if .EnableRBDSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
           args:
@@ -85,6 +86,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ end }}
         {{ if .EnableOMAPGenerator }}
         - name: csi-omap-generator
           image: {{ .CSIPluginImage }}
