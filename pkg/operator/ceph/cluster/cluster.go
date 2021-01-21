@@ -307,6 +307,22 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 		}
 	}
 
+	cephRBDMirrors, err := c.context.RookClientset.CephV1().CephRBDMirrors(c.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list ceph rbd-mirror CRs")
+	}
+	for _, cephRBDMirror := range cephRBDMirrors.Items {
+		if cephRBDMirror.Labels == nil {
+			cephRBDMirror.Labels = map[string]string{}
+		}
+		cephRBDMirror.Labels["ceph_version"] = version
+		localCephRBDMirror := cephRBDMirror
+		_, err := c.context.RookClientset.CephV1().CephRBDMirrors(c.Namespace).Update(ctx, &localCephRBDMirror, metav1.UpdateOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph rbd-mirror CR %q with new label", cephRBDMirror.Name)
+		}
+	}
+
 	return nil
 }
 
