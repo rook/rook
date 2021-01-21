@@ -275,6 +275,11 @@ csi:
 enableFlexDriver: false
 enableDiscoveryDaemon: false
 
+# enable the ability to have multiple Ceph filesystems in the same cluster
+# WARNING: Experimental feature in Ceph Releases Octopus (v15) and Nautilus (v14)
+# https://docs.ceph.com/en/octopus/cephfs/experimental-features/#multiple-file-systems-within-a-ceph-cluster
+allowMultipleFilesystems: false
+
 ## if true, run rook operator on the host network
 # useOperatorHostNetwork: true
 

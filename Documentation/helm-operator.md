@@ -141,6 +141,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `agent.nodeAffinity`               | The node labels for affinity of `rook-agent` (***)                                                                             | <none>                                                    |
 | `admissionController.tolerations`  | Array of tolerations in YAML format which will be added to admission controller deployment.                                    | <none>                                                    |
 | `admissionController.nodeAffinity` | The node labels for affinity of the admission controller deployment (***)                                                      | <none>                                                    |
+| `allowMultipleFilesystems`         | **(experimental)** Allows multiple filesystems to be deployed to a Ceph cluster. Octopus (v15) or Nautilus (v14)               | `false`                                                   |
 
 &ast; For information on what to set `agent.flexVolumeDirPath` to, please refer to the [Rook flexvolume documentation](flexvolume.md)
 
