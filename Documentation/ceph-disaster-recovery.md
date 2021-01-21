@@ -94,9 +94,10 @@ ceph-mon \
 
 (be sure to remove the single quotes around the `--log-stderr-prefix` flag and the parenthesis around the variables being passed ROOK_CEPH_MON_HOST, ROOK_CEPH_MON_INITIAL_MEMBERS and ROOK_POD_IP )
 
-Patch the `rook-ceph-mon-b` Deployment to run a sleep instead of the `ceph mon` command:
+Patch the `rook-ceph-mon-b` Deployment to stop this mon working without deleting the mon pod:
 
 ```console
+kubectl -n rook-ceph patch deployment rook-ceph-mon-b -p '[{"op":"remove", "path":"/spec/template/spec/containers/0/livenessProbe"}]'
 kubectl -n rook-ceph patch deployment rook-ceph-mon-b -p '{"spec": {"template": {"spec": {"containers": [{"name": "mon", "command": ["sleep", "infinity"], "args": []}]}}}}'
 ```
 
