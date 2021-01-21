@@ -42,6 +42,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ if .EnableCephFSSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
           args:
@@ -62,6 +63,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ end }}
         - name: csi-resizer
           image: {{ .ResizerImage }}
           args:
