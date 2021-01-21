@@ -268,8 +268,8 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 			cephFilesystem.Labels = map[string]string{}
 		}
 		cephFilesystem.Labels["ceph_version"] = version
-		localcephFilesystem := cephFilesystem
-		_, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).Update(ctx, &localcephFilesystem, metav1.UpdateOptions{})
+		localCephFilesystem := cephFilesystem
+		_, err := c.context.RookClientset.CephV1().CephFilesystems(c.Namespace).Update(ctx, &localCephFilesystem, metav1.UpdateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph filesystem CR %q with new label", cephFilesystem.Name)
 		}
@@ -284,8 +284,8 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 			cephObjectStore.Labels = map[string]string{}
 		}
 		cephObjectStore.Labels["ceph_version"] = version
-		localcephObjectStore := cephObjectStore
-		_, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).Update(ctx, &localcephObjectStore, metav1.UpdateOptions{})
+		localCephObjectStore := cephObjectStore
+		_, err := c.context.RookClientset.CephV1().CephObjectStores(c.Namespace).Update(ctx, &localCephObjectStore, metav1.UpdateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph object store CR %q with new label", cephObjectStore.Name)
 		}
@@ -300,10 +300,26 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 			cephNFS.Labels = map[string]string{}
 		}
 		cephNFS.Labels["ceph_version"] = version
-		localcephNFS := cephNFS
-		_, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).Update(ctx, &localcephNFS, metav1.UpdateOptions{})
+		localCephNFS := cephNFS
+		_, err := c.context.RookClientset.CephV1().CephNFSes(c.Namespace).Update(ctx, &localCephNFS, metav1.UpdateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ceph nfs CR %q with new label", cephNFS.Name)
+		}
+	}
+
+	cephRBDMirrors, err := c.context.RookClientset.CephV1().CephRBDMirrors(c.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list ceph rbd-mirror CRs")
+	}
+	for _, cephRBDMirror := range cephRBDMirrors.Items {
+		if cephRBDMirror.Labels == nil {
+			cephRBDMirror.Labels = map[string]string{}
+		}
+		cephRBDMirror.Labels["ceph_version"] = version
+		localCephRBDMirror := cephRBDMirror
+		_, err := c.context.RookClientset.CephV1().CephRBDMirrors(c.Namespace).Update(ctx, &localCephRBDMirror, metav1.UpdateOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph rbd-mirror CR %q with new label", cephRBDMirror.Name)
 		}
 	}
 
