@@ -102,6 +102,8 @@ func TestSupported(t *testing.T) {
 func TestIsRelease(t *testing.T) {
 	assert.True(t, Nautilus.isRelease(Nautilus))
 	assert.True(t, Octopus.isRelease(Octopus))
+	assert.True(t, Pacific.isRelease(Pacific))
+	assert.True(t, Quincy.isRelease(Quincy))
 
 	assert.False(t, Octopus.isRelease(Nautilus))
 
