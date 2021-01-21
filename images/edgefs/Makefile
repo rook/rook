@@ -26,7 +26,7 @@ TEMP := $(shell mktemp -d)
 # Build Rook EdgeFS
 
 # since this is a leaf image we avoid leaving around a lot of dangling images
-# by removing the last build of the final cockroachdb image
+# by removing the last build of the final edgefs image
 OLD_IMAGE_ID := $(shell $(DOCKERCMD) images -q $(EDGEFS_IMAGE))
 CURRENT_IMAGE_ID := $$($(DOCKERCMD) images -q $(EDGEFS_IMAGE))
 IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/edgefs.tar.gz

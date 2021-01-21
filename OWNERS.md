@@ -21,7 +21,7 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
 * Travis Nielsen <tnielsen@redhat.com> ([travisn](https://github.com/travisn))
   * Ceph, Operators/Orchestration
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-  * Framework, APIs, CockroachDB
+  * Framework, APIs
 * Alexander Trost <galexrt@googlemail.com> ([galexrt](https://github.com/galexrt))
   * Ceph, Operators/Orchestration, User support
 * Sebastien Han <shan@redhat.com> ([leseb](https://github.com/leseb))

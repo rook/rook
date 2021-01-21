@@ -32,12 +32,11 @@ const (
 	VersionMaster = "master"
 
 	// test suite names
-	CassandraTestSuite   = "cassandra"
-	CephTestSuite        = "ceph"
-	CockroachDBTestSuite = "cockroachdb"
-	EdgeFSTestSuite      = "edgefs"
-	NFSTestSuite         = "nfs"
-	YugabyteDBTestSuite  = "yugabytedb"
+	CassandraTestSuite  = "cassandra"
+	CephTestSuite       = "ceph"
+	EdgeFSTestSuite     = "edgefs"
+	NFSTestSuite        = "nfs"
+	YugabyteDBTestSuite = "yugabytedb"
 )
 
 var (

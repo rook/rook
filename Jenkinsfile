@@ -64,8 +64,6 @@ pipeline {
                         } else {
                           env.shouldBuild = "false"
                         }
-                    } else if (body.contains("[test cockroachdb]") || title.contains("cockroachdb:")) {
-                        env.testProvider = "cockroachdb"
                     } else if (body.contains("[test edgefs]") || title.contains("edgefs:")) {
                         env.testProvider = "edgefs"
                     } else if (body.contains("[test nfs]") || title.contains("nfs:")) {
@@ -156,7 +154,7 @@ pipeline {
             }
             steps {
                 sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
-                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/,cluster/charts/'
+                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cassandra-amd64.tar,nfs-amd64.tar,yugabytedb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/,cluster/charts/'
                 script {
                     def data = [
                         "aws_1.15.x": "v1.15.12",

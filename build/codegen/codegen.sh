@@ -18,7 +18,7 @@
 # Disables quote checks, which is needed because of the SED variable here.
 
 KUBE_CODE_GEN_VERSION="kubernetes-1.17.2"
-GROUP_VERSIONS="rook.io:v1 rook.io:v1alpha2 ceph.rook.io:v1 cockroachdb.rook.io:v1alpha1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1 edgefs.rook.io:v1 yugabytedb.rook.io:v1alpha1"
+GROUP_VERSIONS="rook.io:v1 rook.io:v1alpha2 ceph.rook.io:v1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1 edgefs.rook.io:v1 yugabytedb.rook.io:v1alpha1"
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 codegendir="${scriptdir}/../../vendor/k8s.io/code-generator"

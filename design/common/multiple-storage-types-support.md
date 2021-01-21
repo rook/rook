@@ -147,8 +147,6 @@ With the intent for Rook's resources to fulfill the desirable properties mention
 
 * `rook.io`: common abstractions and implementations, in the form of `*Spec` types, that have use across multiple storage backends and types.  For example, storage, network information, placement, and resource usage.
 * `ceph.rook.io`: Ceph specific `Cluster` CRD type that the user can instantiate to have the Ceph controller deploy a Ceph cluster or Ceph resources for them. This Ceph specific API group allows Ceph types to be versioned independently.
-* `minio.rook.io`: Similar, but for Minio.
-* `cockroachdb.rook.io`: Similar, but for CockroachDB.
 * `nexenta.rook.io`: Similar, but for Nexenta.
 
 With this approach, the user experience to create a cluster would look like the following in `yaml`, where they are declaring and configuring a Ceph specific CRD type (from the `ceph.rook.io` API group), but with many common `*Spec` types that provide configuration and logic that is reusable across storage providers.
@@ -348,34 +346,28 @@ A source code layout that includes these new additions is shown below, annotated
 - cmd # binaries with main entry points
   - rook # main command entry points for operators and daemons
     - ceph
-    - minio
-    - cockroachdb
   - rookflex
 - pkg
   - apis
     - rook.io # rook.io API group of common types, additional groups would be sibling dirs
-      - v1alpha1 # existing version of alpha Rook API
-      - v1alpha2 # new version of alpha Rook API that includes new types
+      - v1 # existing version of the v1 Rook API
+      - v1alpha2 # types for the flex driver that have been deprecated
+    - cassandra.rook.io
+      - v1alpha1
     - ceph.rook.io  # ceph specific specs for cluster, file, object
-      - v1alpha1
-    - minio.rook.io # minio specific specs for cluster, object
-      - v1alpha1
-    - cockroachdb.rook.io # cockroachdb specific specs
-      - v1alpha1
+      - v1
   - client
     - clientset # generated strongly typed client code to access Rook APIs
   - daemon # daemons for each storage backend
     - ceph
-    - minio
-    - cockroachdb
+    - discover
   - operator # all orchestration logic and custom controllers for each storage backend
+    - cassandra
     - ceph
       - cluster
       - file
       - object
       - pool
-    - minio
-    - cockroachdb
 ```
 
 ## Summary
