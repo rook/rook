@@ -108,22 +108,21 @@ var (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
-	ClusterInfo        *cephclient.ClusterInfo
-	context            *clusterd.Context
-	spec               cephv1.ClusterSpec
-	Namespace          string
-	Keyring            string
-	rookVersion        string
-	orchestrationMutex sync.Mutex
-	Port               int32
-	maxMonID           int
-	waitForStart       bool
-	monTimeoutList     map[string]time.Time
-	mapping            *Mapping
-	ownerRef           metav1.OwnerReference
-	csiConfigMutex     *sync.Mutex
-	isUpgrade          bool
-	arbiterMon         string
+	ClusterInfo    *cephclient.ClusterInfo
+	context        *clusterd.Context
+	spec           cephv1.ClusterSpec
+	Namespace      string
+	Keyring        string
+	rookVersion    string
+	Port           int32
+	maxMonID       int
+	waitForStart   bool
+	monTimeoutList map[string]time.Time
+	mapping        *Mapping
+	ownerRef       metav1.OwnerReference
+	csiConfigMutex *sync.Mutex
+	isUpgrade      bool
+	arbiterMon     string
 }
 
 // monConfig for a single monitor
@@ -183,11 +182,6 @@ func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, o
 
 // Start begins the process of running a cluster of Ceph mons.
 func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephclient.ClusterInfo, error) {
-
-	// Only one goroutine can orchestrate the mons at a time
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
 	clusterInfo.OwnerRef = c.ownerRef
 	c.ClusterInfo = clusterInfo
 	c.rookVersion = rookVersion
@@ -1364,15 +1358,4 @@ func monFoundInQuorum(name string, monQuorumStatusResp client.MonStatusResponse)
 
 func requiredDuringScheduling(spec *cephv1.ClusterSpec) bool {
 	return spec.Network.IsHost() || !spec.Mon.AllowMultiplePerNode
-}
-
-func (c *Cluster) acquireOrchestrationLock() {
-	logger.Debugf("Acquiring lock for mon orchestration")
-	c.orchestrationMutex.Lock()
-	logger.Debugf("Acquired lock for mon orchestration")
-}
-
-func (c *Cluster) releaseOrchestrationLock() {
-	c.orchestrationMutex.Unlock()
-	logger.Debugf("Released lock for mon orchestration")
 }

@@ -90,9 +90,6 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 }
 
 func (c *Cluster) checkHealth() error {
-	c.acquireOrchestrationLock()
-	defer c.releaseOrchestrationLock()
-
 	// If cluster details are not initialized
 	if !c.ClusterInfo.IsInitialized(true) {
 		return errors.New("skipping mon health check since cluster details are not initialized")
