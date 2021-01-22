@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 )
 
 // Executor is the main interface for all the exec commands
@@ -143,7 +144,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duratio
 
 	outFile, err := ioutil.TempFile("", "")
 	if err != nil {
-		return "", fmt.Errorf("failed to open output file: %+v", err)
+		return "", errors.Wrap(err, "failed to open output file")
 	}
 	defer outFile.Close()
 	defer os.Remove(outFile.Name())
@@ -187,7 +188,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 	// it is cleaned up after this function is done
 	outFile, err := ioutil.TempFile("", "")
 	if err != nil {
-		return "", fmt.Errorf("failed to open output file: %+v", err)
+		return "", errors.Wrap(err, "failed to open output file")
 	}
 	defer outFile.Close()
 	defer os.Remove(outFile.Name())
