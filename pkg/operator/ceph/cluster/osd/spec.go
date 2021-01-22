@@ -158,7 +158,7 @@ set -e
 
 KEK_NAME=%s
 KEY_PATH=%s
-VAULT_DEFAULT_BACKEND=v1
+VAULT_DEFAULT_KV_VERS=v1
 CURL_PAYLOAD=$(mktemp)
 ARGS=(--request GET --header "X-Vault-Token: ${VAULT_TOKEN}")
 
@@ -189,13 +189,13 @@ if [ -n "$VAULT_TLS_SERVER_NAME" ]; then
 	ARGS+=(--connect-to ::"${VAULT_TLS_SERVER_NAME}":)
 fi
 
-# Check KV backend
-if [ -z "$VAULT_BACKEND" ]; then
-	VAULT_BACKEND=$VAULT_DEFAULT_BACKEND
+# Check KV engine version
+if [ -z "$VAULT_KV_VERS" ]; then
+	VAULT_KV_VERS=$VAULT_DEFAULT_KV_VERS
 fi
 
 # Get the Key Encryption Key
-curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_BACKEND"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
+curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_KV_VERS"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
 
 # Put the KEK in a file for cryptsetup to read
 python3 -c "import sys, json; print(json.load(sys.stdin)[\"data\"][\"$KEK_NAME\"], end='')" < "$CURL_PAYLOAD" > "$KEY_PATH"

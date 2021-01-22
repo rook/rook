@@ -18,10 +18,14 @@ package object
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
+	"github.com/hashicorp/vault/api"
+	"github.com/libopenstorage/secrets/vault"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -34,6 +38,19 @@ import (
 
 const (
 	livenessProbePath = "/swift/healthcheck"
+	// #nosec G101 since this is not leaking any hardcoded details
+	setupVaultTokenFile = `
+set -e
+
+VAULT_TOKEN_OLD_PATH=%s
+VAULT_TOKEN_NEW_PATH=%s
+
+cp --verbose $VAULT_TOKEN_OLD_PATH $VAULT_TOKEN_NEW_PATH
+
+chmod --verbose 400 $VAULT_TOKEN_NEW_PATH
+
+chown --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
+`
 )
 
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
@@ -109,6 +126,14 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 					}}}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
+	if c.clusterSpec.Security.KeyManagementService.IsEnabled() {
+		if c.clusterSpec.Security.KeyManagementService.IsTokenAuthEnabled() {
+			podSpec.Volumes = append(podSpec.Volumes,
+				kms.VaultTokenFileVolume(c.clusterSpec.Security.KeyManagementService.TokenSecretName))
+			podSpec.InitContainers = append(podSpec.InitContainers,
+				c.vaultTokenInitContainer(rgwConfig))
+		}
+	}
 
 	// If host networking is not enabled, preferred pod anti-affinity is added to the rgw daemons
 	labels := getLabels(c.store.Name, c.store.Namespace, false)
@@ -133,6 +158,31 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	}
 
 	return podTemplateSpec, nil
+}
+
+// The vault token is passed as Secret for rgw container. So it is mounted as read only.
+// RGW has restrictions over vault token file, it should owned by same user(ceph) which
+// rgw daemon runs and all other permission should be nil or zero. Here ownership can be
+// changed with help of FSGroup but in openshift environments for security reasons it has
+// predefined value, so it won't work there. Hence the token file is copied to containerDataDir
+// from mounted secret then ownership/permissions are changed accordingly with help of a
+// init container.
+func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig) v1.Container {
+	_, volMount := kms.VaultVolumeAndMount(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+	return v1.Container{
+		Name: "vault-initcontainer-token-file-setup",
+		Command: []string{
+			"/bin/bash",
+			"-c",
+			fmt.Sprintf(setupVaultTokenFile,
+				path.Join(kms.EtcVaultDir, kms.VaultFileName), path.Join(c.DataPathMap.ContainerDataDir, kms.VaultFileName)),
+		},
+		Image: c.clusterSpec.CephVersion.Image,
+		VolumeMounts: append(
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), volMount),
+		Resources:       c.store.Spec.Gateway.Resources,
+		SecurityContext: controller.PodSecurityContext(),
+	}
 }
 
 func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Container {
@@ -182,7 +232,24 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
 	}
-
+	if c.clusterSpec.Security.KeyManagementService.IsEnabled() {
+		container.Args = append(container.Args,
+			cephconfig.NewFlag("rgw crypt s3 kms backend",
+				c.clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.Provider]),
+			cephconfig.NewFlag("rgw crypt vault addr",
+				c.clusterSpec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]),
+		)
+		if c.clusterSpec.Security.KeyManagementService.IsTokenAuthEnabled() {
+			container.Args = append(container.Args,
+				cephconfig.NewFlag("rgw crypt vault auth", kms.KMSTokenSecretNameKey),
+				cephconfig.NewFlag("rgw crypt vault token file",
+					path.Join(c.DataPathMap.ContainerDataDir, kms.VaultFileName)),
+				cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
+				cephconfig.NewFlag("rgw crypt vault secret engine",
+					c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey]),
+			)
+		}
+	}
 	return container
 }
 
@@ -330,6 +397,21 @@ func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore
 	logger.Infof("ceph object store gateway service running at %s", svc.Spec.ClusterIP)
 
 	return svc.Spec.ClusterIP, nil
+}
+
+func (c *clusterConfig) vaultPrefixRGW() string {
+	secretEngine := c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey]
+	vaultPrefixPath := "/v1/"
+
+	switch secretEngine {
+	case "kv":
+		vaultPrefixPath = path.Join(vaultPrefixPath,
+			c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey])
+	case "transit":
+		vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine, "/export/encryption-key")
+	}
+
+	return vaultPrefixPath
 }
 
 func addPort(service *v1.Service, name string, port, destPort int32) {

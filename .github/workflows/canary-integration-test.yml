@@ -683,6 +683,7 @@ jobs:
         cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/object-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
@@ -696,6 +697,7 @@ jobs:
       run: |
         mkdir test
         tests/scripts/validate_cluster.sh osd
+        tests/scripts/validate_cluster.sh rgw
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
 
