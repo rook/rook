@@ -220,7 +220,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	if err != nil {
 		// If the error contains that message, this means the cluster is not up and running
 		// No monitors are present and thus no ceph configuration has been created
-		if strings.Contains(err.Error(), "error calling conf_read_file") {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 			logger.Debugf("Ceph %q cluster not ready, cannot check Ceph status yet.", request.Namespace)
 			return nil
 		}

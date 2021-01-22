@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -207,6 +208,10 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	daemon := string(opconfig.MonType)
 	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, daemon)
 	if err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info("skipping reconcile since operator is still initializing")
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		}
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion
