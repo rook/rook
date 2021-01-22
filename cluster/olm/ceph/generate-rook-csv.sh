@@ -77,7 +77,7 @@ ROOK_OP_VERSION=$3
 # VARIABLES #
 #############
 YQ_CMD_DELETE=($yq delete -i)
-YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --append --prettyPrint)
+YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --prettyPrint)
 YQ_CMD_MERGE=($yq merge --inplace --append -P )
 YQ_CMD_WRITE=($yq write --inplace -P )
 OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
