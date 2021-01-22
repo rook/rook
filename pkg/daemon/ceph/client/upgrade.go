@@ -259,22 +259,22 @@ func LeastUptodateDaemonVersion(context *clusterd.Context, clusterInfo *ClusterI
 	// Always invoke ceph version before an upgrade so we are sure to be up-to-date
 	versions, err := GetAllCephDaemonVersions(context, clusterInfo)
 	if err != nil {
-		logger.Warningf("failed to get ceph daemons versions, this likely means there is no cluster yet. %v", err)
-	} else {
-		r, err = daemonMapEntry(versions, daemonType)
+		return vv, errors.Wrap(err, "failed to get ceph daemons versions")
+	}
+
+	r, err = daemonMapEntry(versions, daemonType)
+	if err != nil {
+		return vv, errors.Wrap(err, "failed to find daemon map entry")
+	}
+	for v := range r {
+		version, err := cephver.ExtractCephVersion(v)
 		if err != nil {
-			return vv, errors.Wrap(err, "failed to find daemon map entry")
+			return vv, errors.Wrap(err, "failed to extract ceph version")
 		}
-		for v := range r {
-			version, err := cephver.ExtractCephVersion(v)
-			if err != nil {
-				return vv, errors.Wrap(err, "failed to extract ceph version")
-			}
-			vv = *version
-			// break right after the first iteration
-			// the first one is always the least up-to-date
-			break
-		}
+		vv = *version
+		// break right after the first iteration
+		// the first one is always the least up-to-date
+		break
 	}
 
 	return vv, nil

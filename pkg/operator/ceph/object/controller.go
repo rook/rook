@@ -240,6 +240,10 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// Populate CephVersion
 	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, opconfig.MonType)
 	if err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info("skipping reconcile since operator is still initializing")
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		}
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion

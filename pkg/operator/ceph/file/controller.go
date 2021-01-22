@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -214,6 +215,10 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	// Populate CephVersion
 	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, opconfig.MonType)
 	if err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info("skipping reconcile since operator is still initializing")
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		}
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion
@@ -238,6 +243,10 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// validate the filesystem settings
 	if err := validateFilesystem(r.context, r.clusterInfo, r.cephClusterSpec, cephFilesystem); err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info("skipping reconcile since operator is still initializing")
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		}
 		return reconcile.Result{}, errors.Wrapf(err, "invalid object filesystem %q arguments", cephFilesystem.Name)
 	}
 
