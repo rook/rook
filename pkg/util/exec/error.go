@@ -13,20 +13,37 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package exec embeds Rook's exec logic
 package exec
 
 import (
+	"fmt"
 	"os/exec"
 	"syscall"
 )
 
+// CephCLIError is Ceph CLI Error type
+type CephCLIError struct {
+	err    error
+	output string
+}
+
+func (e *CephCLIError) Error() string {
+	return fmt.Sprintf("%v", e.output)
+}
+
+// ExitStatus looks for the exec error code
 func ExitStatus(err error) (int, bool) {
-	exitErr, ok := err.(*exec.ExitError)
-	if ok {
-		waitStatus, ok := exitErr.ProcessState.Sys().(syscall.WaitStatus)
+	switch e := err.(type) {
+	case *exec.ExitError:
+		waitStatus, ok := e.ProcessState.Sys().(syscall.WaitStatus)
 		if ok {
 			return waitStatus.ExitStatus(), true
 		}
+
+	case *CephCLIError:
+		return ExitStatus(e.err)
 	}
 	return 0, false
 }

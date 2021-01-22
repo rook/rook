@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -104,20 +103,8 @@ func genClientEntity(p *cephv1.CephClient, context *clusterd.Context) (clientEnt
 		return clientEntity, caps, errors.Wrapf(err, "invalid client %q arguments", p.Name)
 	}
 
-<<<<<<< HEAD
 	for name, cap := range p.Spec.Caps {
 		caps = append(caps, name, cap)
-=======
-	// Create or Update client
-	err = r.createOrUpdateClient(cephClient)
-	if err != nil {
-		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info("skipping reconcile since operator is still initializing")
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
-		}
-		updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update client %q", cephClient.Name)
->>>>>>> 8d033efb5... ceph: silence harmless errors
 	}
 
 	return clientEntity, caps, nil
