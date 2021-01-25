@@ -12,7 +12,6 @@
         "cassandra",
         "ceph",
         "ci",
-        "cockroachdb",
         "core",
         "docs",
         "edgefs",

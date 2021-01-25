@@ -174,7 +174,6 @@ storage provider that has integration tests:
 
 * `[test cassandra]`
 * `[test ceph]`
-* `[test cockroachdb]`
 * `[test edgefs]`
 * `[test nfs]`
 

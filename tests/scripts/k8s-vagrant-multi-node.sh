@@ -46,11 +46,6 @@ function copy_images() {
       copy_image_to_cluster ceph/ceph:v15 ceph/ceph:v15
     fi
 
-    if [[ "$1" == "" || "$1" == "cockroachdb" ]]; then
-      echo "copying cockroachdb image"
-      copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
-    fi
-
     if [[ "$1" == "" || "$1" == "cassandra" ]]; then
       echo "copying cassandra image"
       copy_image_to_cluster "${BUILD_REGISTRY}/cassandra-amd64" rook/cassandra:master
@@ -103,7 +98,7 @@ case "${1:-}" in
     *)
         echo "usage:" >&2
         echo "  $0 status" >&2
-        echo "  $0 up [ceph | cockroachdb | cassandra | nfs]" >&2
+        echo "  $0 up [ceph | cassandra | nfs]" >&2
         echo "  $0 update" >&2
         echo "  $0 restart" >&2
         echo "  $0 helm" >&2

@@ -35,11 +35,6 @@ function copy_images() {
       #copy_image_to_cluster ceph/ceph:v15 ceph/ceph:v15
     fi
 
-    if [[ "$1" == "" || "$1" == "cockroachdb" ]]; then
-      echo "copying cockroachdb image"
-      copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
-    fi
-
     if [[ "$1" == "" || "$1" == "cassandra" ]]; then
       echo "copying cassandra image"
       copy_image_to_cluster "${BUILD_REGISTRY}/cassandra-amd64" rook/cassandra:master
@@ -91,10 +86,6 @@ case "${1:-}" in
     copy_image_to_cluster mysql:5.6 mysql:5.6
     copy_image_to_cluster wordpress:4.6.1-apache wordpress:4.6.1-apache
     ;;
-  cockroachdb-loadgen)
-    echo "copying the cockroachdb loadgen images"
-    copy_image_to_cluster cockroachdb/loadgen-kv:0.1 cockroachdb/loadgen-kv:0.1
-    ;;
   helm)
     echo " copying rook image for helm"
     helm_tag="$(cat _output/version)"
@@ -105,12 +96,11 @@ case "${1:-}" in
     ;;
   *)
     echo "usage:" >&2
-    echo "  $0 up [ceph | cockroachdb | cassandra | nfs | yugabytedb]" >&2
+    echo "  $0 up [ceph | cassandra | nfs | yugabytedb]" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
     echo "  $0 ssh" >&2
-    echo "  $0 update [ceph | cockroachdb | cassandra | nfs | yugabytedb]" >&2
+    echo "  $0 update [ceph | cassandra | nfs | yugabytedb]" >&2
     echo "  $0 wordpress" >&2
-    echo "  $0 cockroachdb-loadgen" >&2
     echo "  $0 helm" >&2
 esac
