@@ -41,7 +41,7 @@ const (
 	// CrushTool is the name of the CLI tool for 'crushtool'
 	CrushTool             = "crushtool"
 	CmdExecuteTimeout     = 1 * time.Minute
-	cephConnectionTimeout = "15" // in seconds
+	CephConnectionTimeout = "15" // in seconds
 	// DefaultPGCount will cause Ceph to use the internal default PG count
 	DefaultPGCount = "0"
 )
@@ -62,7 +62,7 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 	// we could use a slice and iterate over it but since we have only 3 elements
 	// I don't think this is worth a loop
 	if command != "rbd" && command != "crushtool" && command != "radosgw-admin" {
-		args = append(args, "--connect-timeout="+cephConnectionTimeout)
+		args = append(args, "--connect-timeout="+CephConnectionTimeout)
 	}
 
 	// If the command should be run inside the toolbox pod, include the kubectl args to call the toolbox

@@ -266,7 +266,7 @@ func (c *clusterConfig) deleteLegacyDaemons() {
 
 // Delete the object store.
 // WARNING: This is a very destructive action that deletes all metadata and data pools.
-func (c *clusterConfig) deleteStore() error {
+func (c *clusterConfig) deleteStore() {
 	logger.Infof("deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
 
 	if !c.clusterSpec.External.Enable {
@@ -277,14 +277,14 @@ func (c *clusterConfig) deleteStore() error {
 
 			err := c.deleteRgwCephObjects(depNameToRemove)
 			if err != nil {
-				return err
+				logger.Errorf("failed to delete rgw CephX keys and configuration. Error: %v", err)
 			}
 		}
 
 		// Delete the realm and pools
 		objContext, err := NewMultisiteContext(c.context, c.clusterInfo, c.store)
 		if err != nil {
-			return errors.Wrapf(err, "failed to set multisite on object store %q", c.store.Name)
+			logger.Errorf("failed to set multisite on object store %q. Error: %v", c.store.Name, err)
 		}
 
 		objContext.Endpoint = c.store.Status.Info["endpoint"]
@@ -293,12 +293,11 @@ func (c *clusterConfig) deleteStore() error {
 
 		err = deleteRealmAndPools(objContext, c.store.Spec)
 		if err != nil {
-			return errors.Wrap(err, "failed to delete the realm and pools")
+			logger.Errorf("failed to delete the realm and pools. Error: %v", err)
 		}
 	}
 
-	logger.Infof("successfully deleted object store %q from namespace %q", c.store.Name, c.store.Namespace)
-	return nil
+	logger.Infof("done deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
 }
 
 func (c *clusterConfig) deleteRgwCephObjects(depNameToRemove string) error {
