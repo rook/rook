@@ -165,7 +165,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 
 	// Build Handler function to return the list of ceph clusters
 	// This is used by the watchers below
-	handerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephClusterList{}, mgr.GetScheme())
+	handlerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephClusterList{}, mgr.GetScheme())
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 				},
 			},
 		},
-		&handler.EnqueueRequestsFromMapFunc{ToRequests: handerFunc},
+		&handler.EnqueueRequestsFromMapFunc{ToRequests: handlerFunc},
 		predicateForNodeWatcher(mgr.GetClient(), context))
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 					},
 				},
 			},
-			&handler.EnqueueRequestsFromMapFunc{ToRequests: handerFunc},
+			&handler.EnqueueRequestsFromMapFunc{ToRequests: handlerFunc},
 			predicateForHotPlugCMWatcher(mgr.GetClient()))
 		if err != nil {
 			return err
