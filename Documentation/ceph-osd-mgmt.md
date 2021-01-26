@@ -67,19 +67,22 @@ If you are using `useAllDevices: true`, no change to the CR is necessary.
 
 ### PVC-based cluster
 
-If you want to reduce the storage in your cluster, a healthy PVC-based OSD can be removed as described in this section.
+To reduce the storage in your cluster or remove a failed OSD on a PVC:
 
-1. Shrink the number of OSDs in the `storageClassDeviceSet` in the CephCluster CR.
+1. Shrink the number of OSDs in the `storageClassDeviceSet` in the CephCluster CR. If you have multiple device sets,
+   you may need to change the index of `0` in this example path.
    - `kubectl -n rook-ceph patch CephCluster rook-ceph --type=json -p '[{"op": "replace", "path": "/spec/storage/storageClassDeviceSets/0/count", "value":<desired number>}]'`
-   - Reduce the `count` of the OSDs to the desired number. Rook will not take any action to automatically remove the extra OSD(s), but will effectively stop managing the orphaned OSD.
-2. Identify the orphaned PVC that belongs to the orphaned OSD.
-   - The orphaned PVC will have the highest index among the PVCs for the device set.
+   - Reduce the `count` of the OSDs to the desired number. Rook will not take any action to automatically remove the extra OSD(s).
+2. Identify the PVC that belongs to the OSD that is failed or otherwise being removed.
    - `kubectl -n rook-ceph get pvc -l ceph.rook.io/DeviceSet=<deviceSet>`
-   - For example if the device set is named `set1` and the `count` was reduced from `3` to `2`, the orphaned PVC would have the index `2` and might be named `set1-2-data-vbwcf`
-3. Identify the orphaned OSD.
+3. Identify the OSD you desire to remove.
    - The OSD assigned to the PVC can be found in the labels on the PVC
    - `kubectl -n rook-ceph get pod -l ceph.rook.io/pvc=<orphaned-pvc> -o yaml | grep ceph-osd-id`
    - For example, this might return: `ceph-osd-id: "0"`
+   - Remember the OSD ID for purging the OSD below
+
+If you later increase the count in the device set, note that the operator will create PVCs with the highest index
+that is not currently in use by existing OSD PVCs.
 
 ### Confirm the OSD is down
 
@@ -96,7 +99,7 @@ In the osd-purge.yaml, change the `<OSD-IDs>` to the ID(s) of the OSDs you want 
 2. When the job is completed, review the logs to ensure success: `kubectl -n rook-ceph logs -l app=rook-ceph-purge-osd`
 3. When finished, you can delete the job: `kubectl delete -f osd-purge.yaml`
 
-If you want to remove OSDs by hand, please read the following sections. However, we recommend you to use the above-mentioned job to avoid operation errors.
+If you want to remove OSDs by hand, continue with the following sections. However, we recommend you to use the above-mentioned job to avoid operation errors.
 
 ### Purge the OSD manually
 
