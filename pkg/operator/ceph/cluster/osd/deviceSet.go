@@ -19,6 +19,7 @@ package osd
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -27,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,93 +36,127 @@ import (
 func (c *Cluster) prepareStorageClassDeviceSets(config *provisionConfig) []rookv1.VolumeSource {
 	volumeSources := []rookv1.VolumeSource{}
 
-	existingPVCs, err := GetExistingOSDPVCs(c.context, c.clusterInfo.Namespace)
+	existingPVCs, uniqueOSDsPerDeviceSet, err := GetExistingPVCs(c.context, c.clusterInfo.Namespace)
 	if err != nil {
 		config.addError("failed to detect existing OSD PVCs. %v", err)
 		return volumeSources
 	}
 
-	// Iterate over storageClassDeviceSet
-	for _, storageClassDeviceSet := range c.spec.Storage.StorageClassDeviceSets {
-		if err := controller.CheckPodMemory(cephv1.ResourcesKeyPrepareOSD, storageClassDeviceSet.Resources, cephOsdPodMinimumMemory); err != nil {
-			config.addError("cannot use storageClassDeviceSet %q for creating osds %v", storageClassDeviceSet.Name, err)
+	// Iterate over deviceSet
+	for _, deviceSet := range c.spec.Storage.StorageClassDeviceSets {
+		if err := controller.CheckPodMemory(cephv1.ResourcesKeyPrepareOSD, deviceSet.Resources, cephOsdPodMinimumMemory); err != nil {
+			config.addError("cannot use device set %q for creating osds %v", deviceSet.Name, err)
 			continue
 		}
-		for i := 0; i < storageClassDeviceSet.Count; i++ {
-			// Check if the volume claim template has PVCs
-			if len(storageClassDeviceSet.VolumeClaimTemplates) == 0 {
-				logger.Warningf("no PVC available for storageClassDeviceSet %q", storageClassDeviceSet.Name)
-				continue
-			}
+		// Check if the volume claim template is specified
+		if len(deviceSet.VolumeClaimTemplates) == 0 {
+			logger.Warningf("no volumeClaimTemplate specified for device set %q", deviceSet.Name)
+			continue
+		}
 
-			// Create the PVC source for each of the data, metadata, and other types of templates if defined.
-			pvcSources := map[string]v1.PersistentVolumeClaimVolumeSource{}
-			var dataSize string
-			var crushDeviceClass string
-			for _, pvcTemplate := range storageClassDeviceSet.VolumeClaimTemplates {
-				if pvcTemplate.Name == "" {
-					// For backward compatibility a blank name must be treated as a data volume
-					pvcTemplate.Name = bluestorePVCData
-				}
-
-				pvc, err := c.createStorageClassDeviceSetPVC(existingPVCs, storageClassDeviceSet.Name, pvcTemplate, i)
+		// Iterate through existing PVCs to ensure they are up-to-date, no metadata pvcs are missing, etc
+		highestExistingID := -1
+		countInDeviceSet := 0
+		if existingIDs, ok := uniqueOSDsPerDeviceSet[deviceSet.Name]; ok {
+			logger.Infof("verifying pvcs exist for %d osds in device set %q", existingIDs.Count(), deviceSet.Name)
+			for existingID := range existingIDs.Iter() {
+				pvcID, err := strconv.Atoi(existingID)
 				if err != nil {
-					config.addError("failed to create osd for storageClassDeviceSet %q for count %d. %v", storageClassDeviceSet.Name, i, err)
+					config.addError("invalid PVC index %q found for device set %q", existingID, deviceSet.Name)
 					continue
 				}
-
-				// The PVC type must be from a predefined set such as "data" and "metadata". These names must be enforced if the wal/db are specified
-				// with a separate device, but if there is a single volume template we can assume it is always the data template.
-				pvcType := pvcTemplate.Name
-				if len(storageClassDeviceSet.VolumeClaimTemplates) == 1 {
-					pvcType = bluestorePVCData
+				// keep track of the max PVC index found so we know what index to start with for new OSDs
+				if pvcID > highestExistingID {
+					highestExistingID = pvcID
 				}
-
-				if pvcType == bluestorePVCData {
-					pvcSize := pvc.Spec.Resources.Requests[v1.ResourceStorage]
-					dataSize = pvcSize.String()
-					crushDeviceClass = pvcTemplate.Annotations["crushDeviceClass"]
-				}
-				pvcSources[pvcType] = v1.PersistentVolumeClaimVolumeSource{
-					ClaimName: pvc.GetName(),
-					ReadOnly:  false,
-				}
+				volumeSource := c.createDeviceSetPVCsForIndex(config, deviceSet, existingPVCs, pvcID)
+				volumeSources = append(volumeSources, volumeSource)
 			}
-
-			volumeSources = append(volumeSources, rookv1.VolumeSource{
-				Name:                storageClassDeviceSet.Name,
-				Resources:           storageClassDeviceSet.Resources,
-				Placement:           storageClassDeviceSet.Placement,
-				PreparePlacement:    storageClassDeviceSet.PreparePlacement,
-				Config:              storageClassDeviceSet.Config,
-				Size:                dataSize,
-				PVCSources:          pvcSources,
-				Portable:            storageClassDeviceSet.Portable,
-				TuneSlowDeviceClass: storageClassDeviceSet.TuneSlowDeviceClass,
-				TuneFastDeviceClass: storageClassDeviceSet.TuneFastDeviceClass,
-				SchedulerName:       storageClassDeviceSet.SchedulerName,
-				CrushDeviceClass:    crushDeviceClass,
-				Encrypted:           storageClassDeviceSet.Encrypted,
-			})
+			countInDeviceSet = existingIDs.Count()
+		}
+		// Create new PVCs if we are not yet at the expected count
+		// No new PVCs will be created if we have too many
+		pvcsToCreate := deviceSet.Count - countInDeviceSet
+		if pvcsToCreate > 0 {
+			logger.Infof("creating %d new PVCs for device set %q", pvcsToCreate, deviceSet.Name)
+		}
+		for i := 0; i < pvcsToCreate; i++ {
+			pvcID := highestExistingID + i + 1
+			volumeSource := c.createDeviceSetPVCsForIndex(config, deviceSet, existingPVCs, pvcID)
+			volumeSources = append(volumeSources, volumeSource)
+			countInDeviceSet++
 		}
 	}
 
 	return volumeSources
 }
 
-func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolumeClaim, storageClassDeviceSetName string, pvcTemplate v1.PersistentVolumeClaim, setIndex int) (*v1.PersistentVolumeClaim, error) {
+func (c *Cluster) createDeviceSetPVCsForIndex(config *provisionConfig, deviceSet rookv1.StorageClassDeviceSet, existingPVCs map[string]*v1.PersistentVolumeClaim, setIndex int) rookv1.VolumeSource {
+	// Create the PVC source for each of the data, metadata, and other types of templates if defined.
+	pvcSources := map[string]v1.PersistentVolumeClaimVolumeSource{}
+
+	var dataSize string
+	var crushDeviceClass string
+	for _, pvcTemplate := range deviceSet.VolumeClaimTemplates {
+		if pvcTemplate.Name == "" {
+			// For backward compatibility a blank name must be treated as a data volume
+			pvcTemplate.Name = bluestorePVCData
+		}
+
+		pvc, err := c.createDeviceSetPVC(existingPVCs, deviceSet.Name, pvcTemplate, setIndex)
+		if err != nil {
+			config.addError("failed to create osd for device set %q for count %d. %v", deviceSet.Name, setIndex, err)
+			continue
+		}
+
+		// The PVC type must be from a predefined set such as "data", "metadata", and "wal". These names must be enforced if the wal/db are specified
+		// with a separate device, but if there is a single volume template we can assume it is always the data template.
+		pvcType := pvcTemplate.Name
+		if len(deviceSet.VolumeClaimTemplates) == 1 {
+			pvcType = bluestorePVCData
+		}
+
+		if pvcType == bluestorePVCData {
+			pvcSize := pvc.Spec.Resources.Requests[v1.ResourceStorage]
+			dataSize = pvcSize.String()
+			crushDeviceClass = pvcTemplate.Annotations["crushDeviceClass"]
+		}
+		pvcSources[pvcType] = v1.PersistentVolumeClaimVolumeSource{
+			ClaimName: pvc.GetName(),
+			ReadOnly:  false,
+		}
+	}
+
+	return rookv1.VolumeSource{
+		Name:                deviceSet.Name,
+		Resources:           deviceSet.Resources,
+		Placement:           deviceSet.Placement,
+		PreparePlacement:    deviceSet.PreparePlacement,
+		Config:              deviceSet.Config,
+		Size:                dataSize,
+		PVCSources:          pvcSources,
+		Portable:            deviceSet.Portable,
+		TuneSlowDeviceClass: deviceSet.TuneSlowDeviceClass,
+		TuneFastDeviceClass: deviceSet.TuneFastDeviceClass,
+		SchedulerName:       deviceSet.SchedulerName,
+		CrushDeviceClass:    crushDeviceClass,
+		Encrypted:           deviceSet.Encrypted,
+	}
+}
+
+func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolumeClaim, deviceSetName string, pvcTemplate v1.PersistentVolumeClaim, setIndex int) (*v1.PersistentVolumeClaim, error) {
 	ctx := context.TODO()
 	// old labels and PVC ID for backward compatibility
-	pvcStorageClassDeviceSetPVCId := legacyDeviceSetPVCID(storageClassDeviceSetName, setIndex)
+	pvcID := legacyDeviceSetPVCID(deviceSetName, setIndex)
 
 	// check for the existence of the pvc
-	existingPVC, ok := existingPVCs[pvcStorageClassDeviceSetPVCId]
+	existingPVC, ok := existingPVCs[pvcID]
 	if !ok {
 		// The old name of the PVC didn't exist, now try the new PVC name and label
-		pvcStorageClassDeviceSetPVCId = deviceSetPVCID(storageClassDeviceSetName, pvcTemplate.GetName(), setIndex)
-		existingPVC = existingPVCs[pvcStorageClassDeviceSetPVCId]
+		pvcID = deviceSetPVCID(deviceSetName, pvcTemplate.GetName(), setIndex)
+		existingPVC = existingPVCs[pvcID]
 	}
-	pvc := makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId, setIndex, pvcTemplate)
+	pvc := makeDeviceSetPVC(deviceSetName, pvcID, setIndex, pvcTemplate)
 	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.clusterInfo.OwnerRef)
 
 	if existingPVC != nil {
@@ -134,9 +170,10 @@ func (c *Cluster) createStorageClassDeviceSetPVC(existingPVCs map[string]*v1.Per
 	// No PVC found, creating a new one
 	deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create pvc %q for storageClassDeviceSet %q", pvc.GetGenerateName(), storageClassDeviceSetName)
+		return nil, errors.Wrapf(err, "failed to create pvc %q for device set %q", pvc.Name, deviceSetName)
 	}
 	logger.Infof("successfully provisioned PVC %q", deployedPVC.Name)
+
 	return deployedPVC, nil
 }
 
@@ -162,20 +199,20 @@ func (c *Cluster) updatePVCIfChanged(desiredPVC *v1.PersistentVolumeClaim, curre
 	}
 }
 
-func makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId string, setIndex int, pvcTemplate v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {
-	pvcLabels := makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId, setIndex)
-
-	// pvc naming format <storageClassDeviceSetName>-<SetNumber>-<PVCIndex>
-	pvcGenerateName := pvcStorageClassDeviceSetPVCId + "-"
+func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {
+	pvcLabels := makeStorageClassDeviceSetPVCLabel(deviceSetName, pvcID, setIndex)
 
 	// Add user provided labels to pvcTemplates
 	for k, v := range pvcTemplate.GetLabels() {
 		pvcLabels[k] = v
 	}
 
+	// pvc naming format rook-ceph-osd-<deviceSetName>-<SetNumber>-<PVCIndex>-<generatedSuffix>
 	return &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: pvcGenerateName,
+			// Use a generated name to avoid the possibility of two OSDs being created with the same ID.
+			// If one is removed and a new one is created later with the same ID, the OSD would fail to start.
+			GenerateName: pvcID,
 			Labels:       pvcLabels,
 			Annotations:  pvcTemplate.Annotations,
 		},
@@ -183,29 +220,40 @@ func makeStorageClassDeviceSetPVC(storageClassDeviceSetName, pvcStorageClassDevi
 	}
 }
 
-// GetExistingOSDPVCs fetches the list of OSD PVCs
-func GetExistingOSDPVCs(clusterdContext *clusterd.Context, namespace string) (map[string]*v1.PersistentVolumeClaim, error) {
+// GetExistingPVCs fetches the list of OSD PVCs
+func GetExistingPVCs(clusterdContext *clusterd.Context, namespace string) (map[string]*v1.PersistentVolumeClaim, map[string]*util.Set, error) {
 	ctx := context.TODO()
 	selector := metav1.ListOptions{LabelSelector: CephDeviceSetPVCIDLabelKey}
 	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, selector)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to detect pvcs")
+		return nil, nil, errors.Wrap(err, "failed to detect pvcs")
 	}
 	result := map[string]*v1.PersistentVolumeClaim{}
+	uniqueOSDsPerDeviceSet := map[string]*util.Set{}
 	for i, pvc := range pvcs.Items {
+		// Populate the PVCs based on their unique name across all the device sets
 		pvcID := pvc.Labels[CephDeviceSetPVCIDLabelKey]
 		result[pvcID] = &pvcs.Items[i]
+
+		// Create a map of the PVC IDs available in each device set based on PVC index
+		deviceSet := pvc.Labels[CephDeviceSetLabelKey]
+		pvcIndex := pvc.Labels[CephSetIndexLabelKey]
+		if _, ok := uniqueOSDsPerDeviceSet[deviceSet]; !ok {
+			uniqueOSDsPerDeviceSet[deviceSet] = util.NewSet()
+		}
+		uniqueOSDsPerDeviceSet[deviceSet].Add(pvcIndex)
 	}
 
-	return result, nil
+	return result, uniqueOSDsPerDeviceSet, nil
 }
 
-func legacyDeviceSetPVCID(storageClassDeviceSetName string, setIndex int) string {
-	return fmt.Sprintf("%s-%d", storageClassDeviceSetName, setIndex)
+func legacyDeviceSetPVCID(deviceSetName string, setIndex int) string {
+	return fmt.Sprintf("%s-%d", deviceSetName, setIndex)
 }
 
 // This is the new function that generates the labels
 // It includes the pvcTemplateName in it
-func deviceSetPVCID(storageClassDeviceSetName, pvcTemplateName string, setIndex int) string {
-	return fmt.Sprintf("%s-%s-%d", storageClassDeviceSetName, strings.Replace(pvcTemplateName, " ", "-", -1), setIndex)
+func deviceSetPVCID(deviceSetName, pvcTemplateName string, setIndex int) string {
+	cleanName := strings.Replace(pvcTemplateName, " ", "-", -1)
+	return fmt.Sprintf("%s-%s-%d", deviceSetName, cleanName, setIndex)
 }

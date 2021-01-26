@@ -63,7 +63,11 @@ spec:
           volumeMounts:
             - mountPath: /etc/ceph
               name: ceph-conf-emptydir
+            - mountPath: /var/lib/rook
+              name: rook-config
       volumes:
         - emptyDir: {}
           name: ceph-conf-emptydir
+        - emptyDir: {}
+          name: rook-config
       restartPolicy: Never
