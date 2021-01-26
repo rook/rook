@@ -85,7 +85,7 @@ More details about API versioning and status in Kubernetes can be found on the K
 | CockroachDB | [CockroachDB](https://www.cockroachlabs.com/product/cockroachdb/) is a cloud-native SQL database for building global, scalable cloud services that survive disasters.                                                                                                                                                  | cockroachdb.rook.io/v1alpha1 | [Deprecated](https://github.com/rook/rook/issues/6990)*                        |
 | EdgeFS      | [EdgeFS](http://edgefs.io) is high-performance and fault-tolerant decentralized data fabric with access to object, file, NoSQL and block.                                                                                                                                                                              | edgefs.rook.io/v1            | [Deprecated](https://github.com/rook/rook/issues/5823#issuecomment-703834989)* |
 
-\* CockroachDB was removed from Rook in v1.6. See [Rook v1.5](https://rook.github.io/docs/rook/v1.5/) docs if still interested.
+\* EdgeFS and CockroachDB were removed from Rook in v1.6. See [Rook v1.5](https://rook.github.io/docs/rook/v1.5/) docs if still interested.
 
 ### Official Releases
 

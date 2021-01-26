@@ -14,20 +14,13 @@ providers network access.
 To achieve non-flat networking model, Rook can choose to enable `hostNetwork`
 and expose host network interfaces to Storage Provider pods.
 
-EdgeFS Rook cluster network definition example:
-```yaml
-network: # cluster level networking configuration aka hostNetwork
-  serverIfName: enp2s0f0
-  brokerIfName: enp2s0f0
-```
-
 Ceph Rook cluster network definition example:
 ```yaml
 network:
   hostNetwork: true
 ```
 
-Both EdgeFS and Ceph operators without specifying this configuration will always
+The Ceph operator without specifying this configuration will always
 default to pod networking.
 
 ## Proposed Design
@@ -63,9 +56,9 @@ kubernetes cluster default networking.
 ### Keys
 
 The key for each interface key-value pairs are left to each storage providers to
-decide. Having network interface selector with key value `server` and `broker`
-makes more sense for EdgeFS storage provider while Ceph will have `public` and
-`cluster`.
+decide. The network interface selectors with key values `public` and
+`cluster` are specified for Ceph, while other storage providers can define their
+own key names if desired.
 
 ### Network Interface Selector
 
@@ -82,61 +75,6 @@ implementation has extra features not covered by the standard such as
 [here][multus-annotation].
 
 ## Example Configurations
-
-### EdgeFS Rook Cluster Network definition example
-
-1. Default networking
-
-```yaml
-# network:
-#   provider: <network-provider>
-#   interfaces:
-#     <key>: <network-interface-selector>
-#     <key>: <network-interface-selector>
-```
-
-2. Host network provider
-
-```yaml
-network:
-  provider: host
-  interfaces:
-    server: eth0
-    broker: eth0
-```
-
-3. Multus network provider
-
-```yaml
-network:
-  provider: multus
-  interfaces:
-    server: flannel # defaults to net1 interface
-    broker: flannel # defaults to net2 interface
-```
-
-The issue with this configuration is that `netx` interface name is given in the
-order they are applied by multus. No sure way to know if it means both keys to
-use the same network and interface, or in different interfaces just by the
-configuration alone.
-
-4. Multus network provider with JSON selector
-
-```yaml
-network:
-  provider: multus
-  interfaces:
-    server: '{
-      "name": "flannel",
-      "namespace": "rook-edgefs",
-      "interface": "flannel1"
-    }'
-    broker: '{
-      "name": "flannel",
-      "namespace": "rook-edgefs",
-      "interface": "flannel2"
-    }'
-```
 
 ### Ceph Rook Cluster Network definition example
 

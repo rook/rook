@@ -34,7 +34,6 @@ const (
 	// test suite names
 	CassandraTestSuite  = "cassandra"
 	CephTestSuite       = "ceph"
-	EdgeFSTestSuite     = "edgefs"
 	NFSTestSuite        = "nfs"
 	YugabyteDBTestSuite = "yugabytedb"
 )

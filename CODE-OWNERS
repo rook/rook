@@ -19,9 +19,6 @@ areas:
     - satoru-takeuchi
     reviewers:
     - Madhu-1
-  edgefs:
-    reviewers:
-    - sabbot
   cassandra:
     approvers:
     - yanniszark
