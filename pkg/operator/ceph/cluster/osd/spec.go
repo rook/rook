@@ -203,27 +203,27 @@ python3 -c "import sys, json; print(json.load(sys.stdin)[\"data\"][\"$KEK_NAME\"
 )
 
 // OSDs on PVC using a certain fast storage class need to do some tuning
-var defaultTuneFastSettings = map[string]string{
-	"osd_op_num_threads_per_shard":        "2",          // Default value of osd_op_num_threads_per_shard for SSDs
-	"osd_op_num_shards":                   "8",          // Default value of osd_op_num_shards for SSDs
-	"osd_recovery_sleep":                  "0",          // Time in seconds to sleep before next recovery or backfill op for SSDs
-	"osd_snap_trim_sleep":                 "0",          // Time in seconds to sleep before next snap trim for SSDs
-	"osd_delete_sleep":                    "0",          // Time in seconds to sleep before next removal transaction for SSDs
-	"bluestore_min_alloc_size":            "4096",       // Default min_alloc_size value for SSDs
-	"bluestore_prefer_deferred_size":      "0",          // Default value of bluestore_prefer_deferred_size for SSDs
-	"bluestore_compression_min_blob_size": "8912",       // Default value of bluestore_compression_min_blob_size for SSDs
-	"bluestore_compression_max_blob_size": "65536",      // Default value of bluestore_compression_max_blob_size for SSDs
-	"bluestore_max_blob_size":             "65536",      // Default value of bluestore_max_blob_size for SSDs
-	"bluestore_cache_size":                "3221225472", // Default value of bluestore_cache_size for SSDs
-	"bluestore_throttle_cost_per_io":      "4000",       // Default value of bluestore_throttle_cost_per_io for SSDs
-	"bluestore_deferred_batch_ops":        "16",         // Default value of bluestore_deferred_batch_ops for SSDs
+var defaultTuneFastSettings = []string{
+	"--osd-op-num-threads-per-shard=2",            // Default value of osd_op_num_threads_per_shard for SSDs
+	"--osd-op-num-shards=8",                       // Default value of osd_op_num_shards for SSDs
+	"--osd-recovery-sleep=0",                      // Time in seconds to sleep before next recovery or backfill op for SSDs
+	"--osd-snap-trim-sleep=0",                     // Time in seconds to sleep before next snap trim for SSDs
+	"--osd-delete-sleep=0",                        // Time in seconds to sleep before next removal transaction for SSDs
+	"--bluestore-min-alloc-size=4096",             // Default min_alloc_size value for SSDs
+	"--bluestore-prefer-deferred-size=0",          // Default value of bluestore_prefer_deferred_size for SSDs
+	"--bluestore-compression-min-blob-size=8912",  // Default value of bluestore_compression_min_blob_size for SSDs
+	"--bluestore-compression-max-blob-size=65536", // Default value of bluestore_compression_max_blob_size for SSDs
+	"--bluestore-max-blob-size=65536",             // Default value of bluestore_max_blob_size for SSDs
+	"--bluestore-cache-size=3221225472",           // Default value of bluestore_cache_size for SSDs
+	"--bluestore-throttle-cost-per-io=4000",       // Default value of bluestore_throttle_cost_per_io for SSDs
+	"--bluestore-deferred-batch-ops=16",           // Default value of bluestore_deferred_batch_ops for SSDs
 }
 
 // OSDs on PVC using a certain slow storage class need to do some tuning
-var defaultTuneSlowSettings = map[string]string{
-	"osd_recovery_sleep":  "0.1", // Time in seconds to sleep before next recovery or backfill op
-	"osd_snap_trim_sleep": "2",   // Time in seconds to sleep before next snap trim
-	"osd_delete_sleep":    "2",   // Time in seconds to sleep before next removal transaction
+var defaultTuneSlowSettings = []string{
+	"--osd-recovery-sleep=0.1", // Time in seconds to sleep before next recovery or backfill op
+	"--osd-snap-trim-sleep=2",  // Time in seconds to sleep before next snap trim
+	"--osd-delete-sleep=2",     // Time in seconds to sleep before next removal transaction
 }
 
 var cpArgs = []string{
@@ -365,13 +365,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 		// Append slow tuning flag if necessary
 		if osdProps.tuneSlowDeviceClass {
-			for flag, val := range defaultTuneSlowSettings {
-				args = append(args, opconfig.NewFlag(flag, val))
-			}
+			args = append(args, defaultTuneSlowSettings...)
 		} else if osdProps.tuneFastDeviceClass { // Append fast tuning flag if necessary
-			for flag, val := range defaultTuneFastSettings {
-				args = append(args, opconfig.NewFlag(flag, val))
-			}
+			args = append(args, defaultTuneFastSettings...)
 		}
 	}
 
