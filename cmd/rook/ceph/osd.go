@@ -284,6 +284,7 @@ func commonOSDInit(cmd *cobra.Command) {
 func getLocation(clientset kubernetes.Interface) (string, error) {
 	// get the value the operator instructed to use as the host name in the CRUSH map
 	hostNameLabel := os.Getenv("ROOK_CRUSHMAP_HOSTNAME")
+
 	rootLabel := os.Getenv(oposd.CrushRootVarName)
 
 	loc, err := oposd.GetLocationWithNode(clientset, os.Getenv(k8sutil.NodeNameEnvVar), rootLabel, hostNameLabel)
