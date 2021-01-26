@@ -146,6 +146,7 @@ func checkConditionFalse(context *clusterd.Context, namespaceName types.Namespac
 		reason = "UpgradeCompleted"
 		message = "Cluster upgrading is completed"
 	} else {
+		tempCondition = cephv1.ConditionProgressing
 		reason = "ProgressingCompleted"
 		message = "Cluster progression is completed"
 	}
