@@ -1,0 +1,34 @@
+name: "Mark or close stale issues and PRs"
+on:
+  schedule:
+  # Run the stalebot every day at 8pm UTC
+  - cron: "00 20 * * *"
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/stale@v3
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        days-before-stale: 90
+        days-before-close: 7
+        days-before-pr-close: 14
+        stale-issue-message: >
+          This issue has been automatically marked as stale because it has not had recent activity.
+          It will be closed in a week if no further activity occurs.
+          Thank you for your contributions.
+        stale-pr-message: >
+          This pull request has been automatically marked as stale because it has not had
+          recent activity. It will be closed in two weeks if no further activity occurs.
+          Thank you for your contributions.
+        close-issue-message: >
+          This issue has been automatically closed due to inactivity.
+          Please re-open if this still requires investigation.
+        close-pr-message: >
+          This pull request has been automatically closed due to inactivity.
+          Please re-open if these changes are still required.
+        stale-pr-label: "stale"
+        stale-issue-label: "wontfix"
+        exempt-issue-labels: "keepalive,security,reliability"
+        exempt-pr-labels: "keepalive,security,reliability"
