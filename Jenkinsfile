@@ -64,8 +64,6 @@ pipeline {
                         } else {
                           env.shouldBuild = "false"
                         }
-                    } else if (body.contains("[test edgefs]") || title.contains("edgefs:")) {
-                        env.testProvider = "edgefs"
                     } else if (body.contains("[test nfs]") || title.contains("nfs:")) {
                         env.testProvider = "nfs"
                     } else if (body.contains("[test yugabytedb]") || title.contains("yugabytedb:")) {

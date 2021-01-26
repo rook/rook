@@ -21,7 +21,6 @@ package scheme
 import (
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	edgefsv1 "github.com/rook/rook/pkg/apis/edgefs.rook.io/v1"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -39,7 +38,6 @@ var ParameterCodec = runtime.NewParameterCodec(Scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
 	cassandrav1alpha1.AddToScheme,
 	cephv1.AddToScheme,
-	edgefsv1.AddToScheme,
 	nfsv1alpha1.AddToScheme,
 	rookv1.AddToScheme,
 	rookv1alpha2.AddToScheme,

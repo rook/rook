@@ -26,7 +26,6 @@ import (
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	cassandrarookio "github.com/rook/rook/pkg/client/informers/externalversions/cassandra.rook.io"
 	cephrookio "github.com/rook/rook/pkg/client/informers/externalversions/ceph.rook.io"
-	edgefsrookio "github.com/rook/rook/pkg/client/informers/externalversions/edgefs.rook.io"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
 	nfsrookio "github.com/rook/rook/pkg/client/informers/externalversions/nfs.rook.io"
 	rookio "github.com/rook/rook/pkg/client/informers/externalversions/rook.io"
@@ -179,7 +178,6 @@ type SharedInformerFactory interface {
 
 	Cassandra() cassandrarookio.Interface
 	Ceph() cephrookio.Interface
-	Edgefs() edgefsrookio.Interface
 	Nfs() nfsrookio.Interface
 	Rook() rookio.Interface
 	Yugabytedb() yugabytedbrookio.Interface
@@ -191,10 +189,6 @@ func (f *sharedInformerFactory) Cassandra() cassandrarookio.Interface {
 
 func (f *sharedInformerFactory) Ceph() cephrookio.Interface {
 	return cephrookio.New(f, f.namespace, f.tweakListOptions)
-}
-
-func (f *sharedInformerFactory) Edgefs() edgefsrookio.Interface {
-	return edgefsrookio.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Nfs() nfsrookio.Interface {

@@ -29,9 +29,6 @@ cross.%:
 ceph.%:
 	@$(MAKE) -C ceph PLATFORM=$*
 
-edgefs.%:
-	@$(MAKE) -C edgefs PLATFORM=$*
-
 nfs.%:
 	@$(MAKE) -C nfs PLATFORM=$*
 

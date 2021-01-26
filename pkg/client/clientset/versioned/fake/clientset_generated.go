@@ -24,8 +24,6 @@ import (
 	fakecassandrav1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cassandra.rook.io/v1alpha1/fake"
 	cephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
 	fakecephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1/fake"
-	edgefsv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/edgefs.rook.io/v1"
-	fakeedgefsv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/edgefs.rook.io/v1/fake"
 	nfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1"
 	fakenfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1/fake"
 	rookv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1"
@@ -96,11 +94,6 @@ func (c *Clientset) CassandraV1alpha1() cassandrav1alpha1.CassandraV1alpha1Inter
 // CephV1 retrieves the CephV1Client
 func (c *Clientset) CephV1() cephv1.CephV1Interface {
 	return &fakecephv1.FakeCephV1{Fake: &c.Fake}
-}
-
-// EdgefsV1 retrieves the EdgefsV1Client
-func (c *Clientset) EdgefsV1() edgefsv1.EdgefsV1Interface {
-	return &fakeedgefsv1.FakeEdgefsV1{Fake: &c.Fake}
 }
 
 // NfsV1alpha1 retrieves the NfsV1alpha1Client

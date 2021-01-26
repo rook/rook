@@ -20,7 +20,6 @@ import (
 
 	"github.com/rook/rook/cmd/rook/cassandra"
 	"github.com/rook/rook/cmd/rook/ceph"
-	"github.com/rook/rook/cmd/rook/edgefs"
 	"github.com/rook/rook/cmd/rook/nfs"
 	rook "github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/cmd/rook/util"
@@ -41,7 +40,6 @@ func addCommands() {
 		discoverCmd,
 		// backend commands
 		ceph.Cmd,
-		edgefs.Cmd,
 		nfs.Cmd,
 		cassandra.Cmd,
 		yugabytedb.Cmd,

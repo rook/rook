@@ -43,7 +43,7 @@ cd rook
 make
 
 # build a single storage provider, where the IMAGES can be a subdirectory of the "images" folder:
-# "cassandra", "ceph", "edgefs", or "nfs"
+# "cassandra", "ceph", or "nfs"
 make IMAGES="cassandra" build
 
 # multiple storage providers can also be built
@@ -278,7 +278,6 @@ The `component` **MUST** be one of the following:
 - ci
 - core
 - docs
-- edgefs
 - nfs
 - test
 - yugabytedb

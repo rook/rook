@@ -25,58 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestNetwork_GetMultusIfName(t *testing.T) {
-	multusSelector := "macvlan@server1"
-	ifName, _ := GetMultusIfName(multusSelector)
-
-	assert.Equal(t, "server1", ifName)
-}
-
-func TestNetwork_GetMultusIfNameDefault(t *testing.T) {
-	multusSelector := "macvlan"
-	_, err := GetMultusIfName(multusSelector)
-
-	assert.Error(t, err)
-}
-
-func TestNetwork_parseMultusSelectorJSON(t *testing.T) {
-	multusSelector := `{
-		"name": "macvlan",
-		"interface": "server1",
-		"namespace": "rook-edgefs"
-	}`
-
-	multusMap, _ := parseMultusSelector(multusSelector)
-
-	expected := map[string]string{
-		"name":      "macvlan",
-		"interface": "server1",
-		"namespace": "rook-edgefs",
-	}
-
-	assert.Equal(t, expected, multusMap)
-}
-
-func TestNetwork_parseMultusSelectorShort(t *testing.T) {
-	multusSelector := "rook-edgefs/macvlan@server1"
-	multusMap, _ := parseMultusSelector(multusSelector)
-
-	expected := map[string]string{
-		"name":      "macvlan",
-		"interface": "server1",
-		"namespace": "rook-edgefs",
-	}
-
-	assert.Equal(t, expected, multusMap)
-}
-
-func TestNetwork_parseMultusSelectorError(t *testing.T) {
-	multusSelector := "rook-edgefs/@server1"
-	_, err := parseMultusSelector(multusSelector)
-
-	assert.Error(t, err)
-}
-
 func TestNetwork_ApplyMultusShort(t *testing.T) {
 	net := rookv1.NetworkSpec{
 		Provider: "multus",
