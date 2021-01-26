@@ -547,7 +547,7 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 	}
 
 	// Fetch PVCs
-	osdPVCs, err := osd.GetExistingOSDPVCs(c.context, currentCluster.Namespace)
+	osdPVCs, _, err := osd.GetExistingPVCs(c.context, currentCluster.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "failed to list osd pvc")
 	}
