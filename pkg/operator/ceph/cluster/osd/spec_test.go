@@ -396,16 +396,16 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	osdProp.tuneFastDeviceClass = true
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NoError(t, err)
-	for flag, val := range defaultTuneFastSettings {
-		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, opconfig.NewFlag(flag, val))
+	for _, flag := range defaultTuneFastSettings {
+		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, flag)
 	}
 
 	// Test tune Slow settings when OSD on PVC
 	osdProp.tuneSlowDeviceClass = true
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NoError(t, err)
-	for flag, val := range defaultTuneSlowSettings {
-		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, opconfig.NewFlag(flag, val))
+	for _, flag := range defaultTuneSlowSettings {
+		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, flag)
 	}
 }
 
