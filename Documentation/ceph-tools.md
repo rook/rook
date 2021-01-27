@@ -13,5 +13,4 @@ Rook provides a number of tools and troubleshooting docs to help you manage your
 * [Direct Tools](direct-tools.md): Run ceph commands to test directly mounting block and file storage
 * [Advanced Configuration](ceph-advanced-configuration.md): Tips and tricks for configuring for cluster
 * [Openshift Common Issues](ceph-openshift-issues.md): Common troubleshooting tips for OpenShift clusters
-* [Container Linux Update Operator](container-linux.md): Configure the container linux update operator to manage updates to the nodes
 * [Disaster Recovery](ceph-disaster-recovery.md): In the worst case scenario if the ceph mons lose quorum, follow these steps to recover
