@@ -44,3 +44,5 @@ spec:
       mon:
         interval: 45s
         timeout: 600s
+  disruptionManagement:
+    managePodBudgets: true

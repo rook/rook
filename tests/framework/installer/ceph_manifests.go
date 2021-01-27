@@ -3472,7 +3472,7 @@ spec:
           accessModes:
             - ReadWriteOnce
   disruptionManagement:
-    managePodBudgets: false
+    managePodBudgets: true
     osdMaintenanceTimeout: 30
     pgHealthCheckTimeout: 0
     manageMachineDisruptionBudgets: false
