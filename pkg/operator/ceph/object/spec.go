@@ -17,12 +17,14 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/libopenstorage/secrets/vault"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
@@ -381,8 +383,36 @@ func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephOb
 	return nil
 }
 
+func (c *clusterConfig) generateRoute(cephObjectStore *cephv1.CephObjectStore) (*routev1.Route, error) {
+	route := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instanceName(cephObjectStore.Name),
+			Namespace: cephObjectStore.Namespace,
+		},
+		Spec: routev1.RouteSpec{
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: "rook-ceph-rgw-my-store",
+			},
+		},
+	}
+	err := c.client.Create(context.TODO(), route)
+	if err != nil {
+		return &routev1.Route{}, err
+	}
+	return route, nil
+}
+
 func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore) (string, error) {
 	service := c.generateService(cephObjectStore)
+
+	if cephObjectStore.Spec.CreateRoute {
+		route, err := c.generateRoute(cephObjectStore)
+		if err != nil {
+			logger.Infof("failed to create route %s", route.Name)
+		}
+	}
+
 	// Set owner ref to the parent object
 	err := controllerutil.SetControllerReference(cephObjectStore, service, c.scheme)
 	if err != nil {

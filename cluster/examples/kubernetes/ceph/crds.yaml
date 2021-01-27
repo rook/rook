@@ -877,6 +877,8 @@ spec:
                       x-kubernetes-preserve-unknown-fields: true
                 preservePoolsOnDelete:
                   type: boolean
+                createRoute:
+                  type: boolean
                 healthCheck:
                   type: object
                   nullable: true

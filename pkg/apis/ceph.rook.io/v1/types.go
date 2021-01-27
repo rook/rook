@@ -581,6 +581,9 @@ type ObjectStoreSpec struct {
 
 	// The rgw Bucket healthchecks and liveness probe
 	HealthCheck BucketHealthCheckSpec `json:"healthCheck"`
+
+	// Create route for rgw service
+	CreateRoute bool `json:"createRoute"`
 }
 
 type BucketHealthCheckSpec struct {

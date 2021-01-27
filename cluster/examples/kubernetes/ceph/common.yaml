@@ -255,6 +255,16 @@ rules:
   - network-attachment-definitions
   verbs:
   - get
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - get
+  - create
+  - update
+  - list
+  - watch
 ---
 # Aspects of ceph-mgr that require cluster-wide access
 kind: ClusterRole

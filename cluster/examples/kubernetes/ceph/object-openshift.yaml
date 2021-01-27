@@ -42,6 +42,8 @@ spec:
       #target_size_ratio: ".5"
   # Whether to preserve metadata and data pools on object store deletion
   preservePoolsOnDelete: true
+  # createRoute creates route for ceph-rgw service
+  createRoute: true
   # The gateway service configuration
   gateway:
     # type of the gateway (s3)

@@ -19,6 +19,7 @@ require (
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20201218194517-2e9d6aa76d58
 	github.com/libopenstorage/secrets v0.0.0-20201006135900-af310b01fe47
 	github.com/miekg/dns v1.1.34 // indirect
+	github.com/openshift/api v3.9.0+incompatible
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
 	github.com/pkg/errors v0.9.1

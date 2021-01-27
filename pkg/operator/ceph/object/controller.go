@@ -27,6 +27,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	bktclient "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -63,6 +64,7 @@ var objectsToWatch = []client.Object{
 	&corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: corev1.SchemeGroupVersion.String()}},
 	&v1.Service{TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: v1.SchemeGroupVersion.String()}},
 	&appsv1.Deployment{TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: appsv1.SchemeGroupVersion.String()}},
+	&routev1.Route{TypeMeta: metav1.TypeMeta{Kind: "Route", APIVersion: routev1.SchemeGroupVersion.String()}},
 }
 
 var cephObjectStoreKind = reflect.TypeOf(cephv1.CephObjectStore{}).Name()
@@ -102,6 +104,10 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Rec
 	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
 		panic(err)
 	}
+	if err := routev1.AddToScheme(mgr.GetScheme()); err != nil {
+		panic(err)
+	}
+
 	return &ReconcileCephObjectStore{
 		client:              mgr.GetClient(),
 		scheme:              mgrScheme,
