@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/typed/storage/v1beta1"
 )
 
 type Param struct {
@@ -506,13 +507,24 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 
 	if EnableRBD {
-		err = createCSIDriverInfo(ctx, clientset, RBDDriverName)
+		fsGroupPolicyForRBD, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_RBD_FSGROUPPOLICY", string(k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy))
+		if err != nil {
+			// logging a warning and intentionally continuing with the default log level
+			logger.Warningf("failed to parse CSI_RBD_FSGROUPPOLICY. Defaulting to %q. %v", k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy, err)
+		}
+		err = createCSIDriverInfo(ctx, clientset, RBDDriverName, fsGroupPolicyForRBD)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
 	}
 	if EnableCephFS {
-		err = createCSIDriverInfo(ctx, clientset, CephFSDriverName)
+		fsGroupPolicyForCephFS, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy))
+		if err != nil {
+			// logging a warning and intentionally continuing with the default
+			// log level
+			logger.Warningf("failed to parse CSI_CEPHFS_FSGROUPPOLICY. Defaulting to %q. %v", k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy, err)
+		}
+		err = createCSIDriverInfo(ctx, clientset, CephFSDriverName, fsGroupPolicyForCephFS)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
@@ -593,7 +605,7 @@ func applyCephClusterNetworkConfig(ctx context.Context, objectMeta *metav1.Objec
 }
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
-func createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name string) error {
+func createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name, fsGroupPolicy string) error {
 	attach := true
 	mountInfo := false
 	// Create CSIDriver object
@@ -606,9 +618,19 @@ func createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, na
 			PodInfoOnMount: &mountInfo,
 		},
 	}
+	if fsGroupPolicy != "" {
+		policy := k8scsi.FSGroupPolicy(fsGroupPolicy)
+		csiDriver.Spec.FSGroupPolicy = &policy
+	}
 	csidrivers := clientset.StorageV1beta1().CSIDrivers()
 	driver, err := csidrivers.Get(ctx, name, metav1.GetOptions{})
 	if err == nil {
+		// As FSGroupPolicy field is immutable, should be set only during create time.
+		// if the request is to change the FSGroupPolicy, we are deleting the CSIDriver object and creating it.
+		if driver.Spec.FSGroupPolicy != nil && csiDriver.Spec.FSGroupPolicy != nil && *driver.Spec.FSGroupPolicy != *csiDriver.Spec.FSGroupPolicy {
+			return reCreateCSIDriverInfo(ctx, csidrivers, csiDriver)
+		}
+
 		// For csidriver we need to provide the resourceVersion when updating the object.
 		// From the docs (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata)
 		// > "This value MUST be treated as opaque by clients and passed unmodified back to the server"
@@ -628,6 +650,20 @@ func createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, na
 	}
 
 	return err
+}
+
+func reCreateCSIDriverInfo(ctx context.Context, csiClient v1beta1.CSIDriverInterface, csiDriver *k8scsi.CSIDriver) error {
+	err := csiClient.Delete(ctx, csiDriver.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete CSIDriver object for driver %q", csiDriver.Name)
+	}
+	logger.Infof("CSIDriver object deleted for driver %q", csiDriver.Name)
+	_, err = csiClient.Create(ctx, csiDriver, metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to recreate CSIDriver object for driver %q", csiDriver.Name)
+	}
+	logger.Infof("CSIDriver object recreated for driver %q", csiDriver.Name)
+	return nil
 }
 
 // deleteCSIDriverInfo deletes CSIDriverInfo and returns the error if any

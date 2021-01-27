@@ -124,6 +124,14 @@ spec:
         - name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
           value: {{ .Values.csi.cephFSPluginUpdateStrategy | quote }}
 {{- end }}
+{{- if .Values.csi.rbdFSGroupPolicy }}
+        - name: CSI_RBD_FSGROUPPOLICY
+          value: {{ .Values.csi.rbdFSGroupPolicy | quote }}
+{{- end }}
+{{- if .Values.csi.cephFSFSGroupPolicy }}
+        - name: CSI_CEPHFS_FSGROUPPOLICY
+          value: {{ .Values.csi.cephFSFSGroupPolicy | quote }}
+{{- end }}
 {{- if .Values.csi.rbdPluginUpdateStrategy }}
         - name: CSI_RBD_PLUGIN_UPDATE_STRATEGY
           value: {{ .Values.csi.rbdPluginUpdateStrategy | quote }}
