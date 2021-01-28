@@ -19,11 +19,14 @@ GROUP_VERSIONS="rook.io:v1 rook.io:v1alpha2 ceph.rook.io:v1 nfs.rook.io:v1alpha1
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 codegendir="${scriptdir}/../../vendor/k8s.io/code-generator"
 
+# ensures the vendor dir has the right deps, e,g. code-generator
+go mod vendor
+
+# run code generation
 bash ${codegendir}/generate-groups.sh \
     all \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
     "${GROUP_VERSIONS}" \
-    --output-base "${scriptdir}/../../vendor" \
+    --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
     --go-header-file "${scriptdir}/boilerplate.go.txt"
-cp -r "${scriptdir}/../../vendor/github.com/rook/rook/pkg" "${scriptdir}/../../"
