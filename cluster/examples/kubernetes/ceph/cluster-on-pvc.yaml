@@ -166,7 +166,7 @@ spec:
   #      cpu: "200m"
   #      memory: "200Mi"
   disruptionManagement:
-    managePodBudgets: false
+    managePodBudgets: true
     osdMaintenanceTimeout: 30
     pgHealthCheckTimeout: 0
     manageMachineDisruptionBudgets: false

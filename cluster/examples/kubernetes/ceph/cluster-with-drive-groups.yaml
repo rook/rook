@@ -99,3 +99,5 @@ spec:
     #     tolerations:
     #       - key: storage-node
     #         operator: Exists
+  disruptionManagement:
+    managePodBudgets: true

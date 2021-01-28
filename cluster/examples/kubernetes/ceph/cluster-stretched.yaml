@@ -68,3 +68,5 @@ spec:
               values:
               - b
               - c
+  disruptionManagement:
+    managePodBudgets: true
