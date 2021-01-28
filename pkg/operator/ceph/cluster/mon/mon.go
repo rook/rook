@@ -790,7 +790,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
 			node, ok := c.mapping.Schedule[m.DaemonName]
 			if !ok || node == nil {
-				return fmt.Errorf("node for mon %q doesn't exist in assignment map", m.DaemonName)
+				return errors.Errorf("node for mon %q doesn't exist in assignment map", m.DaemonName)
 			}
 			m.PublicIP = node.Address
 		} else {
