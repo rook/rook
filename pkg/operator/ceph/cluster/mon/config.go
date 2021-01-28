@@ -238,6 +238,8 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 		storedMaxMonID, err = strconv.Atoi(id)
 		if err != nil {
 			logger.Errorf("invalid max mon id %q. %v", id, err)
+		} else {
+			maxMonID = storedMaxMonID
 		}
 	}
 
