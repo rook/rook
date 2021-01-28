@@ -73,6 +73,8 @@ spec:
               type: boolean
             continueUpgradeAfterChecksEvenIfNotHealthy:
               type: boolean
+            waitTimeoutForHealthyOSDInMinutes:
+              type: integer
             mon:
               properties:
                 allowMultiplePerNode:
