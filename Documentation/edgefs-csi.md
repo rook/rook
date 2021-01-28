@@ -108,7 +108,7 @@ By using `k8sEdgefsNamespaces` and `k8sEdgefsMgmtPrefix` parameters, driver is c
 Check configuration options and create kubernetes secret for Edgefs CSI NFS plugin
 
 ```console
-git clone --single-branch --branch v1.5.5 https://github.com/rook/rook.git
+git clone --single-branch --branch v1.5.6 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/edgefs/csi/nfs
 kubectl create secret generic edgefs-nfs-csi-driver-config --from-file=./edgefs-nfs-csi-driver-config.yaml
 ```
