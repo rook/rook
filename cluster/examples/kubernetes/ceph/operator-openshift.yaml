@@ -127,6 +127,14 @@ data:
   # See the upgrade guide: https://rook.io/docs/rook/master/ceph-upgrade.html
   CSI_FORCE_CEPHFS_KERNEL_CLIENT: "true"
 
+  # (Optional) policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted.
+  # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
+  CSI_RBD_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
+
+  # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
+  # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
+  CSI_CEPHFS_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
+
   # (Optional) Allow starting unsupported ceph-csi image
   ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: "false"
   # The default version of CSI supported by Rook will be started. To change the version
