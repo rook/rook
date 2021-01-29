@@ -95,3 +95,14 @@ spec:
     # Configure the pod liveness probe for the rgw daemon
     livenessProbe:
       disabled: false
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rook-ceph-rgw-my-store # We recommend name to be the same as the service name below, but it is not required
+  namespace: rook-ceph # namespace:cluster
+spec:
+  to:
+    kind: Service
+    name: rook-ceph-rgw-my-store # The name of the RGW service is in the form 'rook-ceph-rgw-<objectstore-name>'
