@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/vault/api v1.0.5-0.20200902155336-f9d5ce5a171a
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20201218194517-2e9d6aa76d58
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210127170128-83a4fdf6edd6
 	github.com/libopenstorage/secrets v0.0.0-20201006135900-af310b01fe47
 	github.com/miekg/dns v1.1.34 // indirect
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
@@ -37,7 +37,7 @@ require (
 	k8s.io/apiserver v0.20.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/cloud-provider v0.20.0
-	k8s.io/code-generator v0.20.0
+	k8s.io/code-generator v0.20.1
 	k8s.io/kube-controller-manager v0.20.0
 	k8s.io/kubernetes v1.20.0
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
