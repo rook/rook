@@ -175,7 +175,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.NotEqual(s.T(), 0, numOSDs)
 
 	//
-	// Upgrade Rook from v1.4 to master
+	// Upgrade Rook from v1.5 to master
 	//
 	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_5)
 	s.gatherLogs(systemNamespace, "_before_master_upgrade")

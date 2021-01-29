@@ -21,42 +21,40 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestToCustomResourceStatus(t *testing.T) {
-	mirroringStatus := &cephclient.PoolMirroringStatus{}
-	mirroringStatus.Summary.Health = "HEALTH_OK"
-	mirroringInfo := &cephclient.PoolMirroringInfo{
+	mirroringStatus := &cephv1.PoolMirroringStatusSummarySpec{}
+	mirroringStatus.Health = "HEALTH_OK"
+	mirroringInfo := &cephv1.PoolMirroringInfo{
 		Mode:     "pool",
 		SiteName: "rook-ceph-emea",
-		Peers: []cephclient.PeersSpec{
+		Peers: []cephv1.PeersSpec{
 			{UUID: "82656994-3314-4996-ac4c-263c2c9fd081"},
 		},
 	}
 
 	// Test 1: Empty so it's disabled
 	{
-		newMirroringStatus, newMirroringInfo, newSnapshotScheduleStatus := toCustomResourceStatus(&cephv1.MirroringStatusSpec{}, mirroringStatus, &cephv1.MirroringInfoSpec{}, mirroringInfo, &cephv1.SnapshotScheduleStatusSpec{}, []cephclient.SnapshotScheduleStatus{}, "")
+		newMirroringStatus, newMirroringInfo, _ := toCustomResourceStatus(&cephv1.MirroringStatusSpec{}, mirroringStatus, &cephv1.MirroringInfoSpec{}, mirroringInfo, &cephv1.SnapshotScheduleStatusSpec{}, []cephv1.SnapshotSchedulesSpec{}, "")
 		assert.NotEmpty(t, newMirroringStatus.Summary)
-		assert.Equal(t, newMirroringStatus.Summary["summary"].(cephclient.SummarySpec).Health, "HEALTH_OK")
-		assert.NotEmpty(t, newMirroringInfo.Summary["summary"].(*cephclient.PoolMirroringInfo).Mode, "pool")
-		assert.Empty(t, newSnapshotScheduleStatus.Summary["summary"])
+		assert.Equal(t, "HEALTH_OK", newMirroringStatus.Summary.Health)
+		assert.Equal(t, "pool", newMirroringInfo.Mode)
 	}
 
 	// Test 2: snap sched
 	{
-		snapSchedStatus := []cephclient.SnapshotScheduleStatus{
+		snapSchedStatus := []cephv1.SnapshotSchedulesSpec{
 			{
-				ScheduleTime: "14:00:00-05:00",
-				Image:        "pool/image",
+				Pool:  "my-pool",
+				Image: "pool/image",
 			},
 		}
 		newMirroringStatus, newMirroringInfo, newSnapshotScheduleStatus := toCustomResourceStatus(&cephv1.MirroringStatusSpec{}, mirroringStatus, &cephv1.MirroringInfoSpec{}, mirroringInfo, &cephv1.SnapshotScheduleStatusSpec{}, snapSchedStatus, "")
 		assert.NotEmpty(t, newMirroringStatus.Summary)
-		assert.Equal(t, newMirroringStatus.Summary["summary"].(cephclient.SummarySpec).Health, "HEALTH_OK")
-		assert.NotEmpty(t, newMirroringInfo.Summary["summary"].(*cephclient.PoolMirroringInfo).Mode, "pool")
-		assert.NotEmpty(t, newSnapshotScheduleStatus.Summary["summary"])
+		assert.Equal(t, "HEALTH_OK", newMirroringStatus.Summary.Health)
+		assert.NotEmpty(t, newMirroringInfo.Mode, "pool")
+		assert.NotEmpty(t, newSnapshotScheduleStatus)
 	}
 }

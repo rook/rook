@@ -1702,7 +1702,6 @@ spec:
       requireSafeReplicaSize: false
   gateway:
     type: s3
-    sslCertificateRef:
     port: ` + strconv.Itoa(port) + `
     instances: ` + strconv.Itoa(replicaCount) + `
   healthCheck:

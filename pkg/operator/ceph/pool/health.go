@@ -104,16 +104,17 @@ func (c *mirrorChecker) checkMirroringHealth() error {
 	}
 
 	// If snapshot scheduling is enabled let's add it to the status
-	snapSchedStatus := []cephclient.SnapshotScheduleStatus{}
+	// snapSchedStatus := cephclient.SnapshotScheduleStatus{}
+	snapSchedStatus := []cephv1.SnapshotSchedulesSpec{}
 	if c.poolSpec.Mirroring.SnapshotSchedulesEnabled() {
-		snapSchedStatus, err = cephclient.GetSnapshotScheduleStatus(c.context, c.clusterInfo, c.poolName)
+		snapSchedStatus, err = cephclient.ListSnapshotSchedulesRecursively(c.context, c.clusterInfo, c.poolName)
 		if err != nil {
 			c.updateStatusMirroring(nil, nil, nil, err.Error())
 		}
 	}
 
 	// On success
-	c.updateStatusMirroring(mirrorStatus, mirrorInfo, snapSchedStatus, "")
+	c.updateStatusMirroring(mirrorStatus.Summary, mirrorInfo, snapSchedStatus, "")
 
 	return nil
 }

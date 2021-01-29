@@ -361,9 +361,6 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 			return errors.Errorf("cannot start %d mons on %d node(s) when allowMultiplePerNode is false", cluster.Spec.Mon.Count, len(nodes.Items))
 		}
 	}
-	if len(cluster.Spec.Storage.Directories) != 0 {
-		logger.Warning("running osds on directory is not supported anymore, use devices instead.")
-	}
 	if err := validateStretchCluster(cluster); err != nil {
 		return err
 	}

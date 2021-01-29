@@ -442,23 +442,3 @@ spec:
               storage: "1Gi"
 ```
 
-`minio-cluster.yaml`:
-
-```yaml
-apiVersion: minio.rook.io/v1alpha1
-kind: ObjectStore
-metadata:
-  name: minio
-  namespace: rook-minio
-spec:
-  mode: distributed
-  accessKey: AKIAIOSFODNN7EXAMPLE
-  secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  network:
-    hostNetwork: false
-  placement:
-  resources:
-  storage:
-    config:
-      nodeCount: 4 # use 4 nodes in the cluster to host storage daemons
-```

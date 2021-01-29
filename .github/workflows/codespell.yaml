@@ -18,6 +18,6 @@ jobs:
         uses: codespell-project/actions-codespell@master
         with:
           skip: .git,*.png,*.jpg,*.svg,*.sum
-          ignore_words_list: aks,keyserver,atleast,dne,ser,ist,files',ba,dum,iam,te,parm
+          ignore_words_list: aks,keyserver,atleast,dne,ser,ist,files',ba,dum,iam,te,parm,assigment
           check_filenames: true
           check_hidden: true
