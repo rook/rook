@@ -124,9 +124,9 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 		}
 	}
 
-	// disable admission controller for upgrade test as api version v1 require minimum v0.7 controller runtime and upgrade test still using
+	// disable admission controller for Kubernetes version older than v1.16.0 and for upgrade test as api version v1 require minimum v0.7 controller runtime and upgrade test still using
 	// older version of controller runtime.
-	if !utils.IsPlatformOpenShift() && h.k8shelper.VersionAtLeast("v1.16.0") && namespace != "upgrade-ns-system" {
+	if !utils.IsPlatformOpenShift() && namespace != "upgrade-ns-system" {
 		err = h.startAdmissionController(namespace)
 		if err != nil {
 			return fmt.Errorf("Failed to start admission controllers: %v", err)
@@ -153,7 +153,7 @@ func (h *CephInstaller) startAdmissionController(namespace string) error {
 			return fmt.Errorf("failed to create namespace %q. %v", namespace, err)
 		}
 	}
-	if !h.k8shelper.VersionAtLeast("v1.15.0") {
+	if !h.k8shelper.VersionAtLeast("v1.16.0") {
 		return nil
 	}
 	rootPath, err := utils.FindRookRoot()
@@ -178,6 +178,7 @@ func (h *CephInstaller) CreateRookOperatorViaHelm(namespace, chartSettings strin
 	// creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
+	// disable admission controller for Kubernetes version older than v1.16.0
 	if !utils.IsPlatformOpenShift() {
 		if err := h.startAdmissionController(namespace); err != nil {
 			return fmt.Errorf("Failed to start admission controllers: %v", err)
@@ -518,6 +519,8 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	}
 	logger.Infof("installed rook operator and cluster : %s on k8s %s", namespace, h.k8sVersion)
 
+	// disable admission controller test for Kubernetes version older than v1.16.0 and for upgrade test as api version v1 require minimum v0.7 controller runtime and upgrade test still using
+	// older version of controller runtime.
 	if !utils.IsPlatformOpenShift() && h.k8shelper.VersionAtLeast("v1.16.0") && namespace != "upgrade-ns" {
 		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", onamespace, "Running") {
 			assert.Fail(h.T(), "admission controller is not running")
