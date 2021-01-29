@@ -83,7 +83,7 @@ func TestStartMgr(t *testing.T) {
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
-	c.spec.Dashboard.UrlPrefix = "/test"
+	c.spec.Dashboard.URLPrefix = "/test"
 	c.spec.Dashboard.Port = 12345
 	err = c.Start()
 	assert.Nil(t, err)

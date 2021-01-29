@@ -171,7 +171,7 @@ type DashboardSpec struct {
 	// Whether to enable the dashboard
 	Enabled bool `json:"enabled,omitempty"`
 	// A prefix for all URLs to use the dashboard with a reverse proxy
-	UrlPrefix string `json:"urlPrefix,omitempty"`
+	URLPrefix string `json:"urlPrefix,omitempty"`
 	// The dashboard webserver port
 	Port int `json:"port,omitempty"`
 	// Whether SSL should be used

@@ -104,7 +104,7 @@ func (c *Cluster) configureDashboardModules() error {
 
 func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error) {
 	// url prefix
-	hasChanged, err := client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.UrlPrefix, false)
+	hasChanged, err := client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix, false)
 	if err != nil {
 		return false, err
 	}
