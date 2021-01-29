@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/disruption/machinedisruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
 	"github.com/rook/rook/pkg/operator/ceph/file"
+	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/realm"
@@ -67,6 +68,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context) error{
 	nfs.Add,
 	rbd.Add,
 	client.Add,
+	mirror.Add,
 }
 
 // AddToManager adds all the registered controllers to the passed manager.

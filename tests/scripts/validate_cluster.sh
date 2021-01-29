@@ -65,6 +65,15 @@ function test_demo_rbd_mirror {
   return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'rbd-mirror:'")
 }
 
+function test_demo_fs_mirror {
+  # shellcheck disable=SC2046
+  timeout 90 sh -c 'until [ $(kubectl -n rook-ceph get pods --field-selector=status.phase=Running -l app=rook-ceph-filesystem-mirror --no-headers=true|wc -l) -eq 1 ]; do sleep 1; done'
+  if [ $? -eq 0 ]; then
+    return 0
+  fi
+  return 1
+}
+
 function test_demo_pool {
   # shellcheck disable=SC2046
   return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq '11 pools'")

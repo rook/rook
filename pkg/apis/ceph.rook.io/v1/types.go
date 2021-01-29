@@ -524,6 +524,9 @@ type FilesystemSpec struct {
 
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
+
+	// The mirroring settings
+	Mirroring FSMirroringSpec `json:"mirroring"`
 }
 
 type MetadataServerSpec struct {
@@ -548,6 +551,12 @@ type MetadataServerSpec struct {
 
 	// PriorityClassName sets priority classes on components
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
+// FSMirroringSpec represents the setting for a mirrored filesystem
+type FSMirroringSpec struct {
+	// Enabled whether this filesystem is mirrored or not
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // +genclient
@@ -951,6 +960,42 @@ type RBDMirroringSpec struct {
 type RBDMirroringPeerSpec struct {
 	// SecretNames represents the Kubernetes Secret names to add rbd-mirror peers
 	SecretNames []string `json:"secretNames,omitempty"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephFilesystemMirror struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              FilesystemMirroringSpec `json:"spec"`
+	Status            *Status                 `json:"status"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type CephFilesystemMirrorList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephFilesystemMirror `json:"items"`
+}
+
+type FilesystemMirroringSpec struct {
+	// The affinity to place the rgw pods (default is to place on any available node)
+	Placement rookv1.Placement `json:"placement"`
+
+	// The annotations-related configuration to add/set on each Pod related object.
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+
+	// The labels-related configuration to add/set on each Pod related object.
+	Labels rookv1.Labels `json:"labels,omitempty"`
+
+	// The resource requirements for the cephfs-mirror pods
+	Resources v1.ResourceRequirements `json:"resources"`
+
+	// PriorityClassName sets priority class on the cephfs-mirror pods
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // IPFamilyType represents the single stack Ipv4 or Ipv6 protocol.

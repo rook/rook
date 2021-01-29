@@ -47,6 +47,8 @@ spec:
     # If false, standbys will be available, but will not have a warm cache.
     activeStandby: true
     # The affinity rules to apply to the mds deployment
+  mirroring:
+    enabled: false
     placement:
     #  nodeAffinity:
     #    requiredDuringSchedulingIgnoredDuringExecution:

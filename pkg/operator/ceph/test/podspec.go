@@ -74,7 +74,7 @@ func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 		keyringSecretName = "rook-ceph-mons-keyring"
 	}
 	requiredVols := []string{"rook-config-override", keyringSecretName}
-	if daemonType != config.RbdMirrorType {
+	if daemonType != config.RbdMirrorType && daemonType != config.FilesystemMirrorType {
 		requiredVols = append(requiredVols, "ceph-daemon-data")
 	}
 	vols := []string{}

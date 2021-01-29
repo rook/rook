@@ -52,6 +52,9 @@ const (
 	// RbdMirrorType defines the rbd-mirror DaemonType
 	RbdMirrorType = "rbd-mirror"
 
+	// FilesystemMirrorType defines the fs-mirror DaemonType
+	FilesystemMirrorType = "fs-mirror"
+
 	// CrashType defines the crash collector DaemonType
 	CrashType = "crashcollector"
 

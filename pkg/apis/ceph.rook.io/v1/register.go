@@ -76,6 +76,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephObjectZoneList{},
 		&CephRBDMirror{},
 		&CephRBDMirrorList{},
+		&CephFilesystemMirror{},
+		&CephFilesystemMirrorList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

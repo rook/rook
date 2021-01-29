@@ -1434,6 +1434,49 @@ spec:
               type: object
               x-kubernetes-preserve-unknown-fields: true
       subresources:
+        status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cephfilesystemmirrors.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephFilesystemMirror
+    listKind: CephFilesystemMirrorList
+    plural: cephfilesystemmirrors
+    singular: cephfilesystemmirror
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                resources:
+                  type: object
+                  nullable: true
+                  x-kubernetes-preserve-unknown-fields: true
+                priorityClassName:
+                  type: string
+                placement:
+                  type: object
+                  nullable: true
+                  x-kubernetes-preserve-unknown-fields: true
+                annotations:
+                  type: object
+                  nullable: true
+                  x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+      subresources:
         status: {}`
 	}
 	return `

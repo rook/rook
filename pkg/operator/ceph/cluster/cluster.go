@@ -323,6 +323,22 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 		}
 	}
 
+	cephFilesystemMirrors, err := c.context.RookClientset.CephV1().CephFilesystemMirrors(c.Namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to list cephfs mirror CRs")
+	}
+	for _, cephFilesystemMirror := range cephFilesystemMirrors.Items {
+		if cephFilesystemMirror.Labels == nil {
+			cephFilesystemMirror.Labels = map[string]string{}
+		}
+		cephFilesystemMirror.Labels["ceph_version"] = version
+		localCephFilesystemMirror := cephFilesystemMirror
+		_, err := c.context.RookClientset.CephV1().CephFilesystemMirrors(c.Namespace).Update(ctx, &localCephFilesystemMirror, metav1.UpdateOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph nfs CR %q with new label", cephFilesystemMirror.Name)
+		}
+	}
+
 	return nil
 }
 

@@ -50,6 +50,14 @@ type CephFilesystemListerExpansion interface{}
 // CephFilesystemNamespaceLister.
 type CephFilesystemNamespaceListerExpansion interface{}
 
+// CephFilesystemMirrorListerExpansion allows custom methods to be added to
+// CephFilesystemMirrorLister.
+type CephFilesystemMirrorListerExpansion interface{}
+
+// CephFilesystemMirrorNamespaceListerExpansion allows custom methods to be added to
+// CephFilesystemMirrorNamespaceLister.
+type CephFilesystemMirrorNamespaceListerExpansion interface{}
+
 // CephNFSListerExpansion allows custom methods to be added to
 // CephNFSLister.
 type CephNFSListerExpansion interface{}
