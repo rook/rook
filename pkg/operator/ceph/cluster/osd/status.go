@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
@@ -166,6 +167,12 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 
 	currentTimeoutMinutes := 0
 	for {
+		// Check whether we need to cancel the orchestration
+		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+			config.addError("%s", err.Error())
+			return false
+		}
+
 		opts := metav1.ListOptions{
 			LabelSelector: selector,
 			Watch:         true,
@@ -228,6 +235,11 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 				}
 
 			case <-time.After(time.Minute):
+				// Check whether we need to cancel the orchestration
+				if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+					config.addError("%s", err.Error())
+					return false
+				}
 				// log every so often while we are waiting
 				currentTimeoutMinutes++
 				if currentTimeoutMinutes == timeoutMinutes {
