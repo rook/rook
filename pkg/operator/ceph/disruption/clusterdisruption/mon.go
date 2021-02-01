@@ -39,12 +39,8 @@ const (
 func (r *ReconcileClusterDisruption) reconcileMonPDB(cephCluster *cephv1.CephCluster) error {
 	monCount := cephCluster.Spec.Mon.Count
 	minAvailable := int32(float64((monCount + 1) / 2))
-	if monCount%2 == 0 {
-		logger.Error("mon count should be an odd number, setting effective maxUnvailable to 1")
-		minAvailable = int32(monCount - 1)
-	}
 	if monCount <= 2 {
-		logger.Error("managePodBudgets is set, but mon-count <= 2. Not creating a disruptionbudget for Mons")
+		logger.Debug("managePodBudgets is set, but mon-count <= 2. Not creating a disruptionbudget for Mons")
 		return nil
 	}
 	namespace := cephCluster.ObjectMeta.Namespace
