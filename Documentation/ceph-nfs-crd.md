@@ -73,6 +73,8 @@ spec:
 * `pool`: The pool where ganesha recovery backend and supplemental configuration objects will be stored
 * `namespace`: The namespace in `pool` where ganesha recovery backend and supplemental configuration objects will be stored
 
+> **NOTE**: Don't use EC pools for NFS because ganesha uses omap in the recovery objects and grace db. EC pools do not support omap.
+
 ## EXPORT Block Configuration
 
 All daemons within a cluster will share configuration with no exports defined, and that includes a RADOS object via:
