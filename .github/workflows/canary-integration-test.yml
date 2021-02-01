@@ -55,7 +55,7 @@ jobs:
         cd cluster/examples/kubernetes/ceph/
         kubectl create -f crds.yaml -f common.yaml
         # skipping folders and some yamls that are only for openshift.
-        kubectl create  $(ls -I scc.yaml -I operator-openshift.yaml -I "*.sh" -I "*.py" -p | grep -v / | awk ' { print " -f " $1 } ') --dry-run
+        kubectl create  $(ls -I scc.yaml -I "*-openshift.yaml"  -I "*.sh" -I "*.py" -p | grep -v / | awk ' { print " -f " $1 } ') --dry-run
 
     - name: deploy rook
       run: |
