@@ -407,6 +407,42 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	for _, flag := range defaultTuneSlowSettings {
 		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, flag)
 	}
+
+	// Test shareProcessNamespace presence
+	assert.True(t, deployment.Spec.Template.Spec.HostPID)
+	if deployment.Spec.Template.Spec.ShareProcessNamespace != nil {
+		panic("ShareProcessNamespace should be nil")
+	}
+
+	// Turn on log collector
+	c.spec.LogCollector.Enabled = true
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.NoError(t, err)
+	assert.True(t, deployment.Spec.Template.Spec.HostPID, deployment.Spec.Template.Spec.HostPID)
+	if deployment.Spec.Template.Spec.ShareProcessNamespace != nil {
+		panic("ShareProcessNamespace should be nil")
+	}
+
+	// Test hostPID and ShareProcessNamespace
+	{
+		// now set ceph version to nautilus
+		clusterInfo := &cephclient.ClusterInfo{
+			Namespace:   "ns",
+			CephVersion: cephver.Octopus,
+		}
+		c := New(context, clusterInfo, spec, "rook/rook:myversion")
+		deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+		assert.NoError(t, err)
+		assert.False(t, deployment.Spec.Template.Spec.HostPID, deployment.Spec.Template.Spec.HostPID)
+
+		// Turn on log collector
+		c.spec.LogCollector.Enabled = true
+		deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+		assert.NoError(t, err)
+		shareProcessNamespace := *deployment.Spec.Template.Spec.ShareProcessNamespace
+		assert.True(t, shareProcessNamespace)
+	}
+
 }
 
 func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue string, expectedFound bool) {
