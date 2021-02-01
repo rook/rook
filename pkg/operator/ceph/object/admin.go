@@ -18,6 +18,7 @@ package object
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -55,12 +56,18 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *client.ClusterI
 	return objContext, nil
 }
 
-// This function is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)
+// RunAdminCommandNoMultisite is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)
+// This function times out after a fixed interval if no response is received.
 func RunAdminCommandNoMultisite(c *Context, args ...string) (string, error) {
 	command, args := client.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
 
+	timeout, err := time.ParseDuration(fmt.Sprintf("%ss", client.CephConnectionTimeout))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse CephConnectionTimeout")
+	}
+
 	// start the rgw admin command
-	output, err := c.Context.Executor.ExecuteCommandWithOutput(command, args...)
+	output, err := c.Context.Executor.ExecuteCommandWithTimeout(timeout, command, args...)
 	if err != nil {
 		return output, err
 	}

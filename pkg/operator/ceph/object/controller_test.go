@@ -21,6 +21,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -424,7 +425,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "realm" && args[1] == "list" {
 				return realmListJSON, nil
 			}
@@ -603,7 +604,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "realm" && args[1] == "list" {
 				return realmListMultisiteJSON, nil
 			}

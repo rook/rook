@@ -269,10 +269,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 				clusterSpec: r.clusterSpec,
 				clusterInfo: r.clusterInfo,
 			}
-			err = cfg.deleteStore()
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to delete store %q", cephObjectStore.Name)
-			}
+			cfg.deleteStore()
 
 			// Close the channel to stop the healthcheck of the endpoint
 			close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
