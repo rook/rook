@@ -20,6 +20,7 @@ package zone
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -267,7 +268,7 @@ func TestCephObjectZoneController(t *testing.T) {
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "zonegroup" && args[1] == "get" {
 				return zoneGroupGetJSON, nil
 			}
@@ -313,7 +314,7 @@ func TestCephObjectZoneController(t *testing.T) {
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "zonegroup" && args[1] == "get" {
 				return zoneGroupGetJSON, nil
 			}

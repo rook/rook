@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -135,8 +136,8 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	executorFunc := func(command string, args ...string) (string, error) {
-		//logger.Infof("Command: %s %v", command, args)
+
+	mockExecutorFuncOutput := func(command string, args ...string) (string, error) {
 		if args[0] == "realm" {
 			if args[1] == "delete" {
 				realmDeleted = true
@@ -165,6 +166,15 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
+
+	executorFuncWithTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		return mockExecutorFuncOutput(command, args...)
+	}
+	executorFunc := func(command string, args ...string) (string, error) {
+		return mockExecutorFuncOutput(command, args...)
+	}
+
+	executor.MockExecuteCommandWithTimeout = executorFuncWithTimeout
 	executor.MockExecuteCommandWithOutput = executorFunc
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc
 	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: &client.ClusterInfo{Namespace: "ns"}}
@@ -235,7 +245,7 @@ func TestDashboard(t *testing.T) {
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			return "", nil
 		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "user" {
 				return dashboardAdminCreateJSON, nil
 			}
