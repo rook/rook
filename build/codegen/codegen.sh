@@ -28,5 +28,5 @@ bash ${codegendir}/generate-groups.sh \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
     "${GROUP_VERSIONS}" \
-    --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
+    --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../../.." \
     --go-header-file "${scriptdir}/boilerplate.go.txt"
