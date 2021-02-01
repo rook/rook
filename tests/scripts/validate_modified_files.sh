@@ -5,7 +5,6 @@ set -ex
 # VARIABLES #
 #############
 MOD_FILE="mod"
-CODEGEN_FILE="zz"
 CODEGEN_ERR="found codegen files! please run 'make codegen' and update your PR"
 MOD_ERR="changes found by mod.check. You may need to run make clean"
 
@@ -13,9 +12,11 @@ MOD_ERR="changes found by mod.check. You may need to run make clean"
 # FUNCTIONS #
 #############
 function validate(){
-    for file in $(git status --porcelain); do
-        if [[ "$file" =~ $1 ]]; then
-            echo "$2"
+    git=$(git status --porcelain)
+    for file in $git; do
+        if [ -n "$file" ]; then
+            echo "$1"
+            echo "$git"
             exit 1
         fi
     done
@@ -26,7 +27,7 @@ function validate(){
 ########
 case "$1" in
     codegen)
-        validate "$CODEGEN_FILE" "$CODEGEN_ERR"
+        validate "$CODEGEN_ERR"
         ;;
     modcheck)
         validate "$MOD_FILE" "$MOD_ERR"
