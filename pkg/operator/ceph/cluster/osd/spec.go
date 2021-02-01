@@ -549,7 +549,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// If the log collector is enabled we add the side-car container
 	if c.spec.LogCollector.Enabled {
 		shareProcessNamespace := true
-		podTemplateSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
+		// If HostIPC is already enabled we don't need to activate shareProcessNamespace since all pods already see each others
+		if !podTemplateSpec.Spec.HostIPC {
+			podTemplateSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
+		}
 		podTemplateSpec.Spec.Containers = append(podTemplateSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-osd.%s", osdID), c.clusterInfo.Namespace, c.spec))
 	}
 
