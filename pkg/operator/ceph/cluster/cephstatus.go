@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -122,6 +123,13 @@ func (c *cephStatusChecker) checkStatus() {
 	condition, reason, message := c.conditionMessageReason(cephv1.ConditionReady)
 	if err := c.updateCephStatus(&status, condition, reason, message); err != nil {
 		logger.Errorf("failed to query cluster status in namespace %q. %v", c.clusterInfo.Namespace, err)
+	}
+
+	if status.Health.Status != "HEALTH_OK" {
+		logger.Debug("checking for stuck pods on not ready nodes")
+		if err := c.forceDeleteStuckRookPodsOnNotReadyNodes(); err != nil {
+			logger.Errorf("failed to delete pod on not ready nodes. %v", err)
+		}
 	}
 }
 
@@ -256,4 +264,55 @@ func (c *cephStatusChecker) conditionMessageReason(condition cephv1.ConditionTyp
 	}
 
 	return condition, reason, message
+}
+
+// forceDeleteStuckPodsOnNotReadyNodes lists all the nodes that are in NotReady state and
+// gets all the pods on the failed node and force delete the pods stuck in terminating state.
+func (c *cephStatusChecker) forceDeleteStuckRookPodsOnNotReadyNodes() error {
+	nodes, err := k8sutil.GetNotReadyKubernetesNodes(c.context.Clientset)
+	if err != nil {
+		return errors.Wrap(err, "failed to get NotReady nodes")
+	}
+	for _, node := range nodes {
+		pods, err := c.getRookPodsOnNode(node.Name)
+		if err != nil {
+			logger.Errorf("failed to get pods on NotReady node %q. %v", node.Name, err)
+		}
+		for _, pod := range pods {
+			if err := k8sutil.ForceDeletePodIfStuck(c.context, pod); err != nil {
+				logger.Warningf("skipping forced delete of stuck pod %q. %v", pod.Name, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
+	clusterName := c.clusterInfo.NamespacedName()
+	appLabels := []string{
+		"csi-rbdplugin-provisioner",
+		"csi-rbdplugin",
+		"csi-cephfsplugin-provisioner",
+		"csi-cephfsplugin",
+		"rook-ceph-operator",
+	}
+	podsOnNode := []v1.Pod{}
+	pods, err := c.context.Clientset.CoreV1().Pods(clusterName.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return podsOnNode, errors.Wrapf(err, "failed to get pods on node %q", node)
+	}
+	for _, pod := range pods.Items {
+		if pod.Labels["rook_cluster"] == clusterName.Name {
+			podsOnNode = append(podsOnNode, pod)
+			continue
+		}
+		for _, label := range appLabels {
+			if pod.Labels["app"] == label {
+				podsOnNode = append(podsOnNode, pod)
+				break
+			}
+		}
+
+	}
+	return podsOnNode, nil
 }

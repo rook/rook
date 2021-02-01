@@ -18,7 +18,10 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
+	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -26,7 +29,11 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	controllerclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -196,4 +203,135 @@ func Test_cephStatusChecker_conditionMessageReason(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
+	ctx := context.TODO()
+	clientset := optest.New(t, 1)
+	clusterInfo := client.NewClusterInfo("test", "test")
+	clusterName := clusterInfo.NamespacedName()
+
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+
+	c := newCephStatusChecker(context, clusterInfo, &cephv1.ClusterSpec{})
+
+	pod := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "stuck-pod",
+			Namespace: clusterName.Namespace,
+			Labels: map[string]string{
+				"rook_cluster": clusterName.Name,
+			},
+		},
+	}
+	pod.Spec.NodeName = "node0"
+	_, err := context.Clientset.CoreV1().Pods(clusterName.Namespace).Create(ctx, &pod, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Create a non matching pod
+	notDeletePod := pod
+	notDeletePod.ObjectMeta.Labels = map[string]string{"app": "not-to-be-deleted"}
+	notDeletePod.ObjectMeta.Name = "not-to-be-deleted"
+	notDeletePod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	_, err = context.Clientset.CoreV1().Pods(clusterName.Namespace).Create(ctx, &notDeletePod, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Set the node to NotReady state
+	nodes, err := context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	for _, node := range nodes.Items {
+		node.Status.Conditions[0].Status = v1.ConditionFalse
+		localnode := node
+		_, err := context.Clientset.CoreV1().Nodes().Update(ctx, &localnode, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+	}
+
+	// There should be no error
+	err = c.forceDeleteStuckRookPodsOnNotReadyNodes()
+	assert.NoError(t, err)
+
+	// The pod should still exist since its not deleted.
+	p, err := context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, p)
+
+	// Add a deletion timestamp to the pod
+	pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	_, err = clientset.CoreV1().Pods(clusterName.Namespace).Update(ctx, &pod, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+
+	// There should be no error as the pod is deleted
+	err = c.forceDeleteStuckRookPodsOnNotReadyNodes()
+	assert.NoError(t, err)
+
+	// The pod should be deleted since the pod is marked as deleted and the node is in NotReady state
+	_, err = clientset.CoreV1().Pods(clusterName.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+	assert.Error(t, err)
+	assert.True(t, kerrors.IsNotFound(err))
+
+	// The pod should not be deleted as it does not have the matching labels
+	_, err = clientset.CoreV1().Pods(clusterName.Namespace).Get(ctx, notDeletePod.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+}
+
+func TestGetRookPodsOnNode(t *testing.T) {
+	ctx := context.TODO()
+	clientset := optest.New(t, 1)
+	clusterInfo := client.NewClusterInfo("test", "test")
+	clusterName := clusterInfo.NamespacedName()
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+
+	c := newCephStatusChecker(context, clusterInfo, &cephv1.ClusterSpec{})
+	labels := []map[string]string{
+		{"rook_cluster": clusterName.Name},
+		{"app": "csi-rbdplugin-provisioner"},
+		{"app": "csi-rbdplugin"},
+		{"app": "csi-cephfsplugin-provisioner"},
+		{"app": "csi-cephfsplugin"},
+		{"app": "rook-ceph-operator"},
+		{"rook_cluster": "test", "app": "csi-cephfsplugin"},
+		{"app": "user-app"},
+	}
+
+	pod := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod-with-no-label",
+			Namespace: clusterName.Namespace,
+		},
+	}
+	pod.Spec.NodeName = "node0"
+	_, err := context.Clientset.CoreV1().Pods(clusterName.Namespace).Create(ctx, &pod, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	expectedPodNames := []string{}
+	for i, label := range labels {
+		pod.ObjectMeta.Name = fmt.Sprintf("pod-%d", i)
+		pod.ObjectMeta.Namespace = clusterName.Namespace
+		pod.ObjectMeta.Labels = label
+		if label["app"] != "user-app" {
+			expectedPodNames = append(expectedPodNames, pod.Name)
+		}
+		_, err := context.Clientset.CoreV1().Pods(clusterName.Namespace).Create(ctx, &pod, metav1.CreateOptions{})
+		assert.NoError(t, err)
+	}
+
+	pods, err := c.getRookPodsOnNode("node0")
+	assert.NoError(t, err)
+	// A pod is having two matching labels and its returned only once
+	assert.Equal(t, 7, len(pods))
+
+	podNames := []string{}
+	for _, pod := range pods {
+		// Check if the pods has labels
+		assert.NotEmpty(t, pod.Labels)
+		podNames = append(podNames, pod.Name)
+	}
+
+	sort.Strings(expectedPodNames)
+	sort.Strings(podNames)
+	assert.Equal(t, expectedPodNames, podNames)
 }
