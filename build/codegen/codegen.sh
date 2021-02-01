@@ -22,11 +22,25 @@ codegendir="${scriptdir}/../../vendor/k8s.io/code-generator"
 # ensures the vendor dir has the right deps, e,g. code-generator
 go mod vendor
 
-# run code generation
+# CODE GENERATION
+# we run deepcopy and client,lister,informer generations separately so we can use the flag "--plural-exceptions"
+# which is only known by client,lister,informer binary and not the deepcopy binary
+
+# run code deepcopy generation
 bash ${codegendir}/generate-groups.sh \
-    all \
+    deepcopy \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
     "${GROUP_VERSIONS}" \
     --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../../.." \
     --go-header-file "${scriptdir}/boilerplate.go.txt"
+
+# run code client,lister,informer generation
+bash ${codegendir}/generate-groups.sh \
+    client,lister,informer \
+    github.com/rook/rook/pkg/client \
+    github.com/rook/rook/pkg/apis \
+    "${GROUP_VERSIONS}" \
+    --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../../.." \
+    --go-header-file "${scriptdir}/boilerplate.go.txt" \
+    --plural-exceptions "CephNFS:CephNFSes" \
