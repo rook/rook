@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -583,7 +582,7 @@ func PodSecurityContext() *v1.SecurityContext {
 // LogCollectorContainer runs a cron job to rotate logs
 func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Container {
 	return &v1.Container{
-		Name: logCollectorContainerName(daemonID),
+		Name: logCollector,
 		Command: []string{
 			"/bin/bash",
 			"-c",
@@ -594,8 +593,4 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 		SecurityContext: PodSecurityContext(),
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 	}
-}
-
-func logCollectorContainerName(daemon string) string {
-	return fmt.Sprintf("%s-%s", strings.Replace(daemon, ".", "-", -1), logCollector)
 }
