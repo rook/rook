@@ -22,12 +22,13 @@ import (
 	"path"
 	"testing"
 
+	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetServiceMonitor(t *testing.T) {
-	gopath := os.Getenv("GOPATH")
-	filePath := path.Join(gopath, "src/github.com/rook/rook/cluster/examples/kubernetes/ceph/monitoring/service-monitor.yaml")
+	projectRoot := util.PathToProjectRoot()
+	filePath := path.Join(projectRoot, "/cluster/examples/kubernetes/ceph/monitoring/service-monitor.yaml")
 	servicemonitor, err := GetServiceMonitor(filePath)
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mgr", servicemonitor.GetName())
