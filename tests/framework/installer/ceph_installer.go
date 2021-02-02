@@ -268,12 +268,21 @@ osd_pool_default_size = 1
 		}
 	}
 
-	logger.Infof("Starting Rook Cluster with yaml")
+	logger.Info("Starting Rook Cluster with yaml")
 	settings := &clusterSettings{h.clusterName, namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, skipOSDCreation, cephVersion, useCrashPruner}
 	rookCluster := h.Manifests.GetRookCluster(settings)
 	logger.Info(rookCluster)
-	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
-		return fmt.Errorf("Failed to create rook cluster : %v ", err)
+	maxTry := 3
+	for i := 0; i < maxTry; i++ {
+		_, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...)
+		if err == nil {
+			break
+		}
+		if i == maxTry-1 {
+			return fmt.Errorf("failed to create rook cluster. %v ", err)
+		}
+		logger.Infof("failed to create rook cluster, trying again... %v", err)
+		time.Sleep(5 * time.Second)
 	}
 
 	if err := h.k8shelper.WaitForPodCount("app=rook-ceph-mon", namespace, mon.Count); err != nil {
@@ -345,7 +354,7 @@ func (h *CephInstaller) CreateRookExternalCluster(namespace, firstClusterNamespa
 		return fmt.Errorf("failed to create rook external cluster. %v ", err)
 	}
 
-	logger.Infof("Rook external cluster started")
+	logger.Info("Rook external cluster started")
 	return err
 }
 
