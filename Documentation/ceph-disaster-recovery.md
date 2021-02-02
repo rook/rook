@@ -8,6 +8,7 @@ indent: true
 
 Under extenuating circumstances, steps may be necessary to recover the cluster health. There are several types of recovery addressed in this document:
 * [Restoring Mon Quorum](#restoring-mon-quorum)
+* [Restoring Mon Quorum using OSDs](#restoring-mon-quorum-using-osds)
 * [Restoring CRDs After Deletion](#restoring-crds-after-deletion)
 * [Adopt an existing Rook Ceph cluster into a new Kubernetes cluster](#adopt-an-existing-rook-ceph-cluster-into-a-new-kubernetes-cluster)
 * [Backing up and restoring a cluster based on PVCs into a new Kubernetes cluster](#backing-up-and-restoring-a-cluster-based-on-pvcs-into-a-new-kubernetes-cluster)
@@ -236,6 +237,34 @@ kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas=1
 ```
 
 The operator will automatically add more mons to increase the quorum size again, depending on the `mon.count`.
+
+## Restoring Mon Quorum using OSDs
+
+If all MONs fail, we can recover monitor store from OSDs. The steps in this section are based on [this document](https://docs.ceph.com/en/latest/rados/troubleshooting/troubleshooting-mon/#recovery-using-osds).
+
+Known limitations are written in [this document](https://docs.ceph.com/en/latest/rados/troubleshooting/troubleshooting-mon/#known-limitations). Please read carefully this document before trying this process.
+
+### Prerequisites
+
+[toolbox](./ceph-toolbox.md) is deployed.
+
+### Run the recovering script
+
+Run [this script](https://github.com/rook/rook/blob/master/tests/scripts/restore-mon-quorum-using-osds.sh) as follows.
+
+```console
+./tests/scripts/restore-mon-quorum-using-osds.sh -n rook-ceph -b ./backup -t ./tmp
+```
+
+If this script fails, run the following script to restore the original state.
+
+```console
+./tests/scripts/restore-mon-quorum-using-osds.sh -r -n rook-ceph -b ./backup
+```
+
+### Check if the configuration is correct
+
+Some configurations might be lost after restoring cluster. Reconfigure them if necessary.
 
 ## Restoring CRDs After Deletion
 
