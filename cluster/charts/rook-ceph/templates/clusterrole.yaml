@@ -395,6 +395,9 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims/status"]
     verbs: ["update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
 {{- end }}
 {{- if .Values.pspEnable }}
 ---
