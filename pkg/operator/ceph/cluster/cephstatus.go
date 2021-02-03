@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -111,6 +112,10 @@ func (c *cephStatusChecker) checkStatus() {
 	// Check ceph's status
 	status, err = cephclient.StatusWithUser(c.context, c.clusterInfo)
 	if err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info("skipping ceph status since operator is still initializing")
+			return
+		}
 		logger.Errorf("failed to get ceph status. %v", err)
 		condition, reason, message := c.conditionMessageReason(cephv1.ConditionFailure)
 		if err := c.updateCephStatus(cephStatusOnError(err.Error()), condition, reason, message); err != nil {

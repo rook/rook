@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -209,6 +210,10 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	// Create or Update client
 	err = r.createOrUpdateClient(cephClient)
 	if err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info("skipping reconcile since operator is still initializing")
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		}
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update client %q", cephClient.Name)
 	}
