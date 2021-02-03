@@ -317,6 +317,7 @@ allowMultipleFilesystems: false
 ## tolerationKey: Set this to the specific key of the taint to tolerate
 ## tolerations: Array of tolerations in YAML format which will be added to agent deployment
 ## nodeAffinity: Set to labels of the node to match
+## interval: The duration between discovering devices in the rook-discover daemonset
 # discover:
 #   toleration: NoSchedule
 #   tolerationKey: key
@@ -326,6 +327,7 @@ allowMultipleFilesystems: false
 #     effect: NoSchedule
 #   nodeAffinity: key1=value1,value2; key2=value3
 #   podLabels: "key1=value1,key2=value2"
+#   interval: 60m
 
 # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
 # Disable it here if you have similar issues.
