@@ -47,7 +47,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 		return errors.Wrap(err, "failed to add ceph scheme to manager scheme")
 	}
 
-	// this will be used to associate namespaces and cephclusters.
+	// This will be used to associate namespaces and cephclusters.
 	sharedClusterMap := &ClusterMap{}
 
 	reconcileClusterDisruption := &ReconcileClusterDisruption{
@@ -87,14 +87,23 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 		return err
 	}
 
+	// Only reconcile for PDB update event when allowed disruptions for the main OSD PDB is 0.
+	// This means that one of the OSD is down due to node drain or any other reason
 	pdbPredicate := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			// Do not reconcile when PDB is created
+			return false
+		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			pdb, ok := e.ObjectNew.DeepCopyObject().(*policyv1beta1.PodDisruptionBudget)
 			if !ok {
 				return false
 			}
-			// only reconcile if allowed disruptions is 0 in the main PDB
 			return pdb.Name == osdPDBAppName && pdb.Status.DisruptionsAllowed == 0
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			// Do not reconcile when PDB is deleted
+			return false
 		},
 	}
 
@@ -104,7 +113,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(obj client.Object) []reconcile.Request {
 			pdb, ok := obj.(*policyv1beta1.PodDisruptionBudget)
 			if !ok {
-				// not a pdb, returning empty
+				// Not a pdb, returning empty
 				logger.Errorf("PDB handler received non-PDB")
 				return []reconcile.Request{}
 			}
