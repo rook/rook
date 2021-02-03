@@ -97,6 +97,8 @@ spec:
           value: {{ .Values.discover.podLabels }}
 {{- end }}
 {{- end }}
+        - name: ROOK_DISCOVER_DEVICES_INTERVAL
+          value: "{{ .Values.discoverDevicesInterval }}"
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "{{ .Values.hostpathRequiresPrivileged }}"
         - name: ROOK_LOG_LEVEL
@@ -300,3 +302,4 @@ spec:
 {{- if .Values.rbacEnable }}
       serviceAccountName: rook-ceph-system
 {{- end }}
+
