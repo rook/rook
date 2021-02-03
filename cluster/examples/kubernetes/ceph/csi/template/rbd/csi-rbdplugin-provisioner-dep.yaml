@@ -32,6 +32,7 @@ spec:
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
             - "--default-fstype=ext4"
+            - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
