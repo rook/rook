@@ -33,8 +33,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// OperatorSettingConfigMapName refers to ConfigMap that configures rook ceph operator
-const OperatorSettingConfigMapName string = "rook-ceph-operator-config"
+const (
+	// OperatorSettingConfigMapName refers to ConfigMap that configures rook ceph operator
+	OperatorSettingConfigMapName string = "rook-ceph-operator-config"
+
+	// UninitializedCephConfigError refers to the error message printed by the Ceph CLI when there is no ceph configuration file
+	// This typically is raised when the operator has not finished initializing
+	UninitializedCephConfigError = "error calling conf_read_file"
+)
 
 var (
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
@@ -45,6 +51,9 @@ var (
 
 	// WaitForRequeueIfFinalizerBlocked waits for resources to be cleaned up before the finalizer can be removed
 	WaitForRequeueIfFinalizerBlocked = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
+
+	// WaitForRequeueIfOperatorNotInitialized waits for resources to be cleaned up before the finalizer can be removed
+	WaitForRequeueIfOperatorNotInitialized = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
 	// OperatorCephBaseImageVersion is the ceph version in the operator image
 	OperatorCephBaseImageVersion string

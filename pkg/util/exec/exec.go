@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 )
 
 // Executor is the main interface for all the exec commands
@@ -143,7 +144,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duratio
 
 	outFile, err := ioutil.TempFile("", "")
 	if err != nil {
-		return "", fmt.Errorf("failed to open output file: %+v", err)
+		return "", errors.Wrap(err, "failed to open output file")
 	}
 	defer outFile.Close()
 	defer os.Remove(outFile.Name())
@@ -157,6 +158,9 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duratio
 	// #nosec G204 Rook controls the input to the exec arguments
 	cmd := exec.CommandContext(ctx, command, arg...)
 	cmdOut, err := cmd.CombinedOutput()
+	if err != nil {
+		cmdOut = []byte(fmt.Sprintf("%s. %s", string(cmdOut), assertErrorType(err)))
+	}
 
 	// if there was anything that went to stdout/stderr then log it, even before
 	// we return an error
@@ -169,7 +173,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duratio
 	}
 
 	if err != nil {
-		return string(cmdOut), err
+		return string(cmdOut), &CephCLIError{err: err, output: string(cmdOut)}
 	}
 
 	fileOut, err := ioutil.ReadAll(outFile)
@@ -187,7 +191,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 	// it is cleaned up after this function is done
 	outFile, err := ioutil.TempFile("", "")
 	if err != nil {
-		return "", fmt.Errorf("failed to open output file: %+v", err)
+		return "", errors.Wrap(err, "failed to open output file")
 	}
 	defer outFile.Close()
 	defer os.Remove(outFile.Name())
@@ -207,7 +211,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 		logger.Debug(string(cmdOut))
 	}
 	if err != nil {
-		return string(cmdOut), err
+		return string(cmdOut), &CephCLIError{err: err, output: string(cmdOut)}
 	}
 
 	// read the entire output file and return that to the caller
