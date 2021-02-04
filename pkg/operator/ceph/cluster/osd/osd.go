@@ -191,14 +191,19 @@ func (c *Cluster) Start() error {
 	logger.Infof("wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
 	// start the jobs to provision the OSD devices
-	logger.Infof("start provisioning the osds on pvcs, if needed")
+	logger.Info("start provisioning the osds on PVCs, if needed")
 	c.startProvisioningOverPVCs(config)
 
-	logger.Infof("start provisioning the osds on nodes, if needed")
+	if len(config.errorMessages) > 0 {
+		return errors.Errorf("%d failures encountered while running osds on PVCs in namespace %q. %v",
+			len(config.errorMessages), c.clusterInfo.Namespace, strings.Join(config.errorMessages, "\n"))
+	}
+
+	logger.Info("start provisioning the osds on nodes, if needed")
 	c.startProvisioningOverNodes(config)
 
 	if len(config.errorMessages) > 0 {
-		return errors.Errorf("%d failures encountered while running osds in namespace %s: %+v",
+		return errors.Errorf("%d failures encountered while running osds on nodes in namespace %q. %v",
 			len(config.errorMessages), c.clusterInfo.Namespace, strings.Join(config.errorMessages, "\n"))
 	}
 
