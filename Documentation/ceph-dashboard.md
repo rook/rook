@@ -14,7 +14,7 @@ and more. Rook makes it simple to enable the dashboard.
 
 ## Enable the Ceph Dashboard
 
-The [dashboard](http://docs.ceph.com/docs/mimic/mgr/dashboard/) can be enabled with settings in the CephCluster CRD. The CephCluster CRD must have the dashboard `enabled` setting set to `true`.
+The [dashboard](https://docs.ceph.com/en/latest/mgr/dashboard/) can be enabled with settings in the CephCluster CRD. The CephCluster CRD must have the dashboard `enabled` setting set to `true`.
 This is the default setting in the example manifests.
 
 ```yaml
