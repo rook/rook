@@ -183,7 +183,7 @@ func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule
 	cfgSetArgs := []string{"config", "set"}
 	cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
 	cfgPath := fmt.Sprintf("mgr/%s/%s/server_addr", mgrModule, mgrConfig.DaemonID)
-	cfgSetArgs = append(cfgSetArgs, cfgPath, controller.ContainerEnvVarReference(podIPEnvVar))
+	cfgSetArgs = append(cfgSetArgs, cfgPath, "0.0.0.0")
 	cfgSetArgs = append(cfgSetArgs, "--force")
 	cfgSetArgs = append(cfgSetArgs, "--verbose")
 
