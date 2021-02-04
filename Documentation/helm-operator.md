@@ -71,6 +71,8 @@ helm delete --namespace rook-ceph rook-ceph
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
+After uninstalling you may want to clean up the CRDs as described on the [teardown documentation](ceph-teardown.md#removing-the-cluster-crd-finalizer).
+
 ## Configuration
 
 The following tables lists the configurable parameters of the rook-operator chart and their default values.
@@ -80,7 +82,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `image.repository`                 | Image                                                                                                                          | `rook/ceph`                                               |
 | `image.tag`                        | Image tag                                                                                                                      | `master`                                                  |
 | `image.pullPolicy`                 | Image pull policy                                                                                                              | `IfNotPresent`                                            |
-| `crds.enabled`                     | If true, the helm chart will create the Rook CRDs. **WARNING** Do NOT change during upgrades or the cluster will be destroyed. | `true`                                                    |
+| `crds.enabled`                     | If true, the helm chart will create the Rook CRDs.                                                                             | `true`                                                    |
 | `rbacEnable`                       | If true, create & use RBAC resources                                                                                           | `true`                                                    |
 | `pspEnable`                        | If true, create & use PSP resources                                                                                            | `true`                                                    |
 | `resources`                        | Pod resource requests & limits                                                                                                 | `{}`                                                      |
