@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -28,7 +27,6 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -76,20 +74,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec.Spec)
 
-	// Only add the dashboard init container if dashboard is enabled
-	if c.spec.Dashboard.Enabled {
-		podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, []v1.Container{
-			c.makeSetServerAddrInitContainer(mgrConfig, "dashboard"),
-		}...)
-	}
-
-	podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, []v1.Container{
-		c.makeSetServerAddrInitContainer(mgrConfig, "prometheus"),
-	}...)
-
-	// ceph config set commands want admin keyring
-	podSpec.Spec.Volumes = append(podSpec.Spec.Volumes,
-		keyring.Volume().Admin())
 	if c.spec.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.NetworkSpec.IsMultus() {
@@ -173,41 +157,6 @@ func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
 		cephv1.GetMgrResources(c.spec.Resources),
 		controller.PodSecurityContext(),
 	)
-}
-
-func (c *Cluster) makeSetServerAddrInitContainer(mgrConfig *mgrConfig, mgrModule string) v1.Container {
-	// Commands produced for various Ceph major versions (differences highlighted)
-	//  L: config-key set       mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
-	//  M: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR)
-	//  N: config     set mgr.a mgr/<mod>/server_addr $(ROOK_CEPH_<MOD>_SERVER_ADDR) --force
-	cfgSetArgs := []string{"config", "set"}
-	cfgSetArgs = append(cfgSetArgs, fmt.Sprintf("mgr.%s", mgrConfig.DaemonID))
-	cfgPath := fmt.Sprintf("mgr/%s/%s/server_addr", mgrModule, mgrConfig.DaemonID)
-	cfgSetArgs = append(cfgSetArgs, cfgPath, "0.0.0.0")
-	cfgSetArgs = append(cfgSetArgs, "--force")
-	cfgSetArgs = append(cfgSetArgs, "--verbose")
-
-	container := v1.Container{
-		Name: "init-set-" + strings.ToLower(mgrModule) + "-server-addr",
-		Command: []string{
-			"ceph",
-		},
-		Args: append(
-			controller.AdminFlags(c.clusterInfo),
-			cfgSetArgs...,
-		),
-		Image: c.spec.CephVersion.Image,
-		VolumeMounts: append(
-			controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
-			keyring.VolumeMount().Admin(),
-		),
-		Env: append(
-			controller.DaemonEnvVars(c.spec.CephVersion.Image),
-			c.cephMgrOrchestratorModuleEnvs()...,
-		),
-		Resources: cephv1.GetMgrResources(c.spec.Resources),
-	}
-	return container
 }
 
 func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {

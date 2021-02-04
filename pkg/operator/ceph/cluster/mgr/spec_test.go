@@ -25,7 +25,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -113,31 +112,6 @@ func TestHostNetwork(t *testing.T) {
 
 	assert.Equal(t, true, c.spec.Network.IsHost())
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
-}
-
-func TestHttpBindFix(t *testing.T) {
-	clientset := optest.New(t, 1)
-	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
-	clusterInfo.SetName("test")
-	clusterSpec := cephv1.ClusterSpec{
-		Dashboard:       cephv1.DashboardSpec{Enabled: true, Port: 1234},
-		DataDirHostPath: "/var/lib/rook/",
-	}
-	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
-
-	mgrTestConfig := mgrConfig{
-		DaemonID:     "a",
-		ResourceName: "mgr-a",
-		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
-	}
-
-	c.clusterInfo.CephVersion = cephver.Nautilus
-	expectedInitContainers := 3
-	d, err := c.makeDeployment(&mgrTestConfig)
-	assert.NoError(t, err)
-	assert.NotNil(t, d)
-	assert.Equal(t, expectedInitContainers,
-		len(d.Spec.Template.Spec.InitContainers))
 }
 
 func TestApplyPrometheusAnnotations(t *testing.T) {
