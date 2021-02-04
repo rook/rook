@@ -27,6 +27,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
+	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 
 	"github.com/coreos/pkg/capnslog"
@@ -82,20 +83,9 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			// if a node is not present, check if there are any crashcollector deployment for that node and delete it.
-			deploymentList := &appsv1.DeploymentList{}
-			namespaceListOpts := client.InNamespace(request.Namespace)
-			err := r.client.List(context.TODO(), deploymentList, client.MatchingLabels{k8sutil.AppAttr: AppName, NodeNameLabel: request.Name}, namespaceListOpts)
+			err := r.listCrashCollectorAndDelete(request.Name, request.Namespace)
 			if err != nil {
-				logger.Errorf("failed to list crash collector deployments, delete it/them manually. %v", err)
-			}
-			for _, d := range deploymentList.Items {
-				logger.Infof("deleting deployment %q for deleted node %q", d.ObjectMeta.Name, request.Name)
-				err := r.deleteCrashCollector(d)
-				if err != nil {
-					logger.Errorf("failed to delete crash collector deployment %q, delete it manually. %v", d.Name, err)
-					continue
-				}
-				logger.Infof("crash collector deployment %q successfully removed from dead node %q", d.Name, request.Name)
+				logger.Errorf("failed to list and delete crash collector deployment on node %q; user should delete them manually. %v", request.Name, err)
 			}
 		} else {
 			return reconcile.Result{}, errors.Wrapf(err, "could not get node %q", request.Name)
@@ -186,6 +176,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 
+		// If the node has Ceph pods we create a crash collector
 		if hasCephPods {
 			tolerations := uniqueTolerations.ToList()
 			op, err := r.createOrUpdateCephCrash(*node, tolerations, cephCluster, cephVersion)
@@ -193,6 +184,13 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 				return reconcile.Result{}, errors.Wrapf(err, "node reconcile failed on op %q", op)
 			}
 			logger.Debugf("deployment successfully reconciled for node %q. operation: %q", request.Name, op)
+			// If there are no Ceph pods, check that there are no crash collector pods in case Ceph pods moved to another node
+			// Thus the crash collector must be removed from that node
+		} else {
+			err := r.listCrashCollectorAndDelete(request.Name, request.Namespace)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to list and delete crash collector deployments on node %q", request.Name)
+			}
 		}
 
 		if err := r.reconcileCrashRetention(namespace, cephCluster, cephVersion); err != nil {
@@ -205,7 +203,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 
 func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 	cephPods := make([]corev1.Pod, 0)
-	cephAppNames := []string{mon.AppName, mgr.AppName, osd.AppName, object.AppName, mds.AppName, rbd.AppName}
+	cephAppNames := []string{mon.AppName, mgr.AppName, osd.AppName, object.AppName, mds.AppName, rbd.AppName, mirror.AppName}
 
 	for _, app := range cephAppNames {
 		podList := &corev1.PodList{}
@@ -218,6 +216,25 @@ func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 	}
 
 	return cephPods, nil
+}
+
+func (r *ReconcileNode) listCrashCollectorAndDelete(nodeName, ns string) error {
+	deploymentList := &appsv1.DeploymentList{}
+	namespaceListOpts := client.InNamespace(ns)
+	err := r.client.List(context.TODO(), deploymentList, client.MatchingLabels{k8sutil.AppAttr: AppName, NodeNameLabel: nodeName}, namespaceListOpts)
+	if err != nil {
+		return errors.Wrap(err, "failed to list crash collector deployments")
+	}
+	for _, d := range deploymentList.Items {
+		logger.Infof("deleting deployment %q for node %q", d.ObjectMeta.Name, nodeName)
+		err := r.deleteCrashCollector(d)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete crash collector deployment %q", d.Name)
+		}
+		logger.Infof("successfully removed crash collector deployment %q from node %q", d.Name, nodeName)
+	}
+
+	return nil
 }
 
 func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error {
