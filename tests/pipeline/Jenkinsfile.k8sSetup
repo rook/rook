@@ -30,19 +30,17 @@ pipeline {
                         sh "wget -O ceph.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/ceph.tar.gz"
                         sh "wget -O cassandra.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/cassandra.tar.gz"
                         sh "wget -O nfs.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/nfs.tar.gz"
-                        sh "wget -O yugabytedb.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/yugabytedb.tar.gz"
                         sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/version"
 
                     }else {
                         sh "wget -O ceph.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/ceph.tar.gz"
                         sh "wget -O cassandra.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/cassandra.tar.gz"
                         sh "wget -O nfs.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/nfs.tar.gz"
-                        sh "wget -O yugabytedb.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/yugabytedb.tar.gz"
                         sh "wget -O version https://release.rook.io/build/master/${params.version}/version"
 
                      }
                stash name: 'test-scripts',includes: 'tests/scripts/'
-               stash name: 'test-images', includes: 'ceph.tar.gz,cassandra.tar.gz,nfs.tar.gz,yugabytedb.tar.gz,version'
+               stash name: 'test-images', includes: 'ceph.tar.gz,cassandra.tar.gz,nfs.tar.gz,version'
                }
             }
         }
@@ -103,7 +101,6 @@ def setUpRookImages(){
           docker load -i ceph.tar.gz
           docker load -i cassandra.tar.gz
           docker load -i nfs.tar.gz
-          docker load -i yugabytedb.tar.gz
           docker images
           rookImg=$(docker images |grep rook | awk '{print  $1}')
           echo $rookImg
@@ -115,6 +112,4 @@ def setUpRookImages(){
           docker tag $rookImg rook/cassandra:${versionId}
           docker tag $rookImg rook/nfs:master
           docker tag $rookImg rook/nfs:${versionId}
-          docker tag $rookImg rook/yugabytedb:master
-          docker tag $rookImg rook/yugabytedb:${versionId}
 }

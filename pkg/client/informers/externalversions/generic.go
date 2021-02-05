@@ -25,7 +25,6 @@ import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	nfsrookiov1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
 	v1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	yugabytedbrookiov1alpha1 "github.com/rook/rook/pkg/apis/yugabytedb.rook.io/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -93,10 +92,6 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=rook.io, Version=v1alpha2
 	case v1alpha2.SchemeGroupVersion.WithResource("volumes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Rook().V1alpha2().Volumes().Informer()}, nil
-
-		// Group=yugabytedb.rook.io, Version=v1alpha1
-	case yugabytedbrookiov1alpha1.SchemeGroupVersion.WithResource("ybclusters"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Yugabytedb().V1alpha1().YBClusters().Informer()}, nil
 
 	}
 
