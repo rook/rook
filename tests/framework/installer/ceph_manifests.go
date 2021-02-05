@@ -2220,6 +2220,22 @@ spec:
                 secretNames:
                   type: array
   subresources:
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cephfilesystemmirrors.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephFilesystemMirror
+    listKind: CephFilesystemMirrorList
+    plural: cephfilesystemmirrors
+    singular: cephfilesystemmirror
+  scope: Namespaced
+  version: v1
+  subresources:
     status: {}`
 }
 
