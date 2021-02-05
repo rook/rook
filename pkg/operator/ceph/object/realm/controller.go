@@ -29,6 +29,7 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -287,13 +288,11 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-
-	ownerRef, err := opcontroller.GetControllerObjectOwnerReference(realm, r.scheme)
-	if err != nil || ownerRef == nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", realm.Name)
+	err = controllerutil.SetControllerReference(realm, secret, r.scheme)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of secret %q", secret.Name)
 	}
 
-	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
 	if _, err = r.context.Clientset.CoreV1().Secrets(realm.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save rgw secrets")
 	}
