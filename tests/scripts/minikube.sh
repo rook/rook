@@ -44,11 +44,6 @@ function copy_images() {
         echo "copying nfs image"
         copy_image_to_cluster "${BUILD_REGISTRY}/nfs-amd64" rook/nfs:master
     fi
-
-    if [[ "$1" == "" || "$1" == "yugabytedb" ]]; then
-      echo "copying yugabytedb image"
-      copy_image_to_cluster "${BUILD_REGISTRY}/yugabytedb-amd64" rook/yugabytedb:master
-    fi
 }
 
 # configure minikube
@@ -96,11 +91,11 @@ case "${1:-}" in
     ;;
   *)
     echo "usage:" >&2
-    echo "  $0 up [ceph | cassandra | nfs | yugabytedb]" >&2
+    echo "  $0 up [ceph | cassandra | nfs]" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
     echo "  $0 ssh" >&2
-    echo "  $0 update [ceph | cassandra | nfs | yugabytedb]" >&2
+    echo "  $0 update [ceph | cassandra | nfs]" >&2
     echo "  $0 wordpress" >&2
     echo "  $0 helm" >&2
 esac

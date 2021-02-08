@@ -29,7 +29,6 @@ import (
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
 	nfsrookio "github.com/rook/rook/pkg/client/informers/externalversions/nfs.rook.io"
 	rookio "github.com/rook/rook/pkg/client/informers/externalversions/rook.io"
-	yugabytedbrookio "github.com/rook/rook/pkg/client/informers/externalversions/yugabytedb.rook.io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -180,7 +179,6 @@ type SharedInformerFactory interface {
 	Ceph() cephrookio.Interface
 	Nfs() nfsrookio.Interface
 	Rook() rookio.Interface
-	Yugabytedb() yugabytedbrookio.Interface
 }
 
 func (f *sharedInformerFactory) Cassandra() cassandrarookio.Interface {
@@ -197,8 +195,4 @@ func (f *sharedInformerFactory) Nfs() nfsrookio.Interface {
 
 func (f *sharedInformerFactory) Rook() rookio.Interface {
 	return rookio.New(f, f.namespace, f.tweakListOptions)
-}
-
-func (f *sharedInformerFactory) Yugabytedb() yugabytedbrookio.Interface {
-	return yugabytedbrookio.New(f, f.namespace, f.tweakListOptions)
 }

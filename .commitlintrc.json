@@ -15,8 +15,7 @@
         "core",
         "docs",
         "nfs",
-        "test",
-        "yugabytedb"
+        "test"
       ]
     ],
     "body-leading-blank": [

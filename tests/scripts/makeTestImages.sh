@@ -12,7 +12,6 @@ case "${1:-}" in
                 docker tag "${BUILD_REGISTRY}/ceph-$2:latest" rook/ceph:master
                 docker tag "${BUILD_REGISTRY}/cassandra-$2:latest" rook/cassandra:master
                 docker tag "${BUILD_REGISTRY}/nfs-$2:latest" rook/nfs:master
-                docker tag "${BUILD_REGISTRY}/yugabytedb-$2:latest" rook/yugabytedb:master
                 if [ ! -z "$3" ]
                 then
                     docker tag "${BUILD_REGISTRY}/ceph-$2:latest" "rook/ceph:$3"
@@ -21,13 +20,10 @@ case "${1:-}" in
                     docker save -o "cassandra-$2.tar" rook/cassandra:master "rook/cassandra:$3"
                     docker tag "${BUILD_REGISTRY}/nfs-$2:latest" "rook/nfs:$3"
                     docker save -o "nfs-$2.tar" rook/nfs:master "rook/nfs:$3"
-                    docker tag "${BUILD_REGISTRY}/yugabytedb-$2:latest" "rook/yugabytedb:$3"
-                    docker save -o "yugabytedb-$2.tar" rook/yugabytedb:master "rook/yugabytedb:$3"
                 else
                     docker save -o "ceph-$2.tar" rook/ceph:master
                     docker save -o "cassandra-$2.tar" rook/cassandra:master
                     docker save -o "nfs-$2.tar" rook/nfs:master
-                    docker save -o "yugabytedb-$2.tar" rook/yugabytedb:master
                 fi
 
                  echo "Saved docker images in archives: $(ls | grep tar)"
@@ -45,7 +41,6 @@ case "${1:-}" in
                 docker load -i "ceph-$2.tar"
                 docker load -i "cassandra-$2.tar"
                 docker load -i "nfs-$2.tar"
-                docker load -i "yugabytedb-$2.tar"
                 ;;
             *)
                 echo "usage :" >&2
@@ -60,7 +55,6 @@ case "${1:-}" in
                 docker tag "${BUILD_REGISTRY}/ceph-$2:latest" "rook/ceph:${tag_version}"
                 docker tag "${BUILD_REGISTRY}/cassandra-$2:latest" "rook/cassandra:${tag_version}"
                 docker tag "${BUILD_REGISTRY}/nfs-$2:latest" "rook/nfs:${tag_version}"
-                docker tag "${BUILD_REGISTRY}/yugabytedb-$2:latest" "rook/yugabytedb:${tag_version}"
                 ;;
             *)
                 echo "usage :" >&2

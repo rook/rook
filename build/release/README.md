@@ -113,5 +113,6 @@ Containers go to docker hub where we have the following repos:
 
 ```
 rook/ceph
-rook/yugabytedb
+rook/nfs
+rook/cassandra
 ```
