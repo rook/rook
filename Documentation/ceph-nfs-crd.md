@@ -12,9 +12,9 @@ Rook allows exporting NFS shares of the filesystem or object store through the C
 
 ## Samples
 
-The following sample will create a two-node active-active cluster of NFS Ganesha gateways. A CephFS named `myfs` is used, and the recovery objects are stored in a RADOS pool named `myfs-data0` with a RADOS namespace of `nfs-ns`.
+The following sample will create a two-node active-active cluster of NFS Ganesha gateways. The recovery objects are stored in a RADOS pool named `myfs-data0` with a RADOS namespace of `nfs-ns`.
 
-This example requires the filesystem to first be configured by the [Filesystem](ceph-filesystem-crd.md).
+This example requires the filesystem to first be configured by the [Filesystem](ceph-filesystem-crd.md) because here recovery objects are stored in filesystem data pool.
 
 > **NOTE**: For an RGW object store, a data pool of `my-store.rgw.buckets.data` can be used after configuring the [Object Store](ceph-object-store-crd.md).
 
