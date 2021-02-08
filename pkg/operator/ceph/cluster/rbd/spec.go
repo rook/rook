@@ -79,7 +79,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 		podSpec.Spec.Volumes[0].VolumeSource.Projected.Sources = append(podSpec.Spec.Volumes[0].VolumeSource.Projected.Sources, volProjection...)
 	}
 
-	replicas := int32(1)
+	replicas := int32(rbdMirror.Spec.Count)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        daemonConfig.ResourceName,
