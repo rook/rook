@@ -21,18 +21,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-)
-
-var (
-	conditions   *[]cephv1.Condition
-	conditionMap = make(map[cephv1.ConditionType]v1.ConditionStatus)
 )
 
 // ConditionExport function will export each condition into the cluster custom resource
@@ -47,23 +41,20 @@ func ConditionExport(context *clusterd.Context, namespaceName types.NamespacedNa
 
 // setCondition updates the conditions of the cluster custom resource
 func setCondition(c *clusterd.Context, namespaceName types.NamespacedName, newCondition cephv1.Condition) {
-	ctx := context.TODO()
-	cluster, err := c.RookClientset.CephV1().CephClusters(namespaceName.Namespace).Get(ctx, namespaceName.Name, metav1.GetOptions{})
+	cluster, err := getCluster(c, namespaceName)
 	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Errorf("no CephCluster could not be found. %+v", err)
-			return
-		}
-		logger.Errorf("failed to get CephCluster object. %+v", err)
+		logger.Errorf("failed to get cluster to set condition. %v", err)
 		return
 	}
-
-	if conditions == nil {
-		conditions = &cluster.Status.Conditions
-		if cluster.Status.Conditions != nil {
-			conditionMapping(*conditions)
+	conditionMap := conditionMapping(cluster.Status.Conditions)
+	if newCondition.Type == cephv1.ConditionReady {
+		checkConditionFalse(c, namespaceName, conditionMap)
+		cluster, err = getCluster(c, namespaceName)
+		if err != nil {
+			logger.Errorf("failed to get updated cluster to set later condition. %v", err)
 		}
 	}
+	conditions := &cluster.Status.Conditions
 	conditionMap[newCondition.Type] = newCondition.Status
 	existingCondition := findStatusCondition(*conditions, newCondition.Type)
 	if existingCondition == nil {
@@ -73,6 +64,8 @@ func setCondition(c *clusterd.Context, namespaceName types.NamespacedName, newCo
 
 	} else if existingCondition.Status != newCondition.Status || existingCondition.Message != newCondition.Message {
 		newCondition.LastTransitionTime = metav1.NewTime(time.Now())
+	}
+	if existingCondition != nil {
 		existingCondition.Status = newCondition.Status
 		existingCondition.Reason = newCondition.Reason
 		existingCondition.Message = newCondition.Message
@@ -93,9 +86,31 @@ func setCondition(c *clusterd.Context, namespaceName types.NamespacedName, newCo
 	if err != nil {
 		logger.Errorf("failed to update cluster condition to %+v. %v", newCondition, err)
 	}
-	if newCondition.Type == cephv1.ConditionReady {
-		checkConditionFalse(c, namespaceName)
+}
+
+// get the CephCluster with error logging
+func getCluster(c *clusterd.Context, namespaceName types.NamespacedName) (*cephv1.CephCluster, error) {
+	ctx := context.TODO()
+	cluster, err := c.RookClientset.CephV1().CephClusters(namespaceName.Namespace).Get(ctx, namespaceName.Name, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Errorf("no CephCluster could not be found. %+v", err)
+			return nil, err
+		}
+		logger.Errorf("failed to get CephCluster object. %+v", err)
+		return nil, err
 	}
+	return cluster, nil
+}
+
+// conditionMapping maps the condition type to its status
+func conditionMapping(conditions []cephv1.Condition) (conditionMap map[cephv1.ConditionType]v1.ConditionStatus) {
+	conditionMap = make(map[cephv1.ConditionType]v1.ConditionStatus)
+	for i := range conditions {
+		conditionType := conditions[i].Type
+		conditionMap[conditionType] = conditions[i].Status
+	}
+	return conditionMap
 }
 
 // translatePhasetoState convert the Phases to corresponding State
@@ -129,7 +144,7 @@ func translatePhasetoState(phase cephv1.ConditionType) cephv1.ClusterState {
 }
 
 // Updating the status of Progressing, Updating or Upgrading to False once cluster is Ready
-func checkConditionFalse(context *clusterd.Context, namespaceName types.NamespacedName) {
+func checkConditionFalse(context *clusterd.Context, namespaceName types.NamespacedName, conditionMap map[cephv1.ConditionType]v1.ConditionStatus) {
 	tempConditionList := []cephv1.ConditionType{cephv1.ConditionUpdating, cephv1.ConditionUpgrading, cephv1.ConditionProgressing}
 	var tempCondition cephv1.ConditionType
 	for _, conditionType := range tempConditionList {
@@ -175,36 +190,18 @@ func ConditionInitialize(context *clusterd.Context, namespaceName types.Namespac
 	})
 }
 
-// conditionMapping maps the condition type to its status
-func conditionMapping(conditions []cephv1.Condition) {
-	for i := range conditions {
-		conditionType := conditions[i].Type
-		conditionMap[conditionType] = conditions[i].Status
-	}
-}
-
 // CheckConditionReady checks whether the cluster is Ready and returns the message for the Progressing ConditionType
 func CheckConditionReady(c *clusterd.Context, namespaceName types.NamespacedName) string {
-	cluster := &cephv1.CephCluster{}
-	err := c.Client.Get(context.TODO(), namespaceName, cluster)
+	cluster, err := getCluster(c, namespaceName)
 	if err != nil {
-		logger.Errorf("failed to get cluster %v", err)
-	}
-	if cluster.Status.Conditions != nil && len(conditionMap) == 0 {
-		conditionMapping(cluster.Status.Conditions)
-	}
-	if conditionMap[cephv1.ConditionReady] == v1.ConditionTrue {
-		return "Cluster is checking if updates are needed"
+		if cluster.Status.Conditions != nil {
+			conditionMap := conditionMapping(cluster.Status.Conditions)
+			if conditionMap[cephv1.ConditionReady] == v1.ConditionTrue {
+				return "Cluster is checking if updates are needed"
+			}
+		}
 	}
 	return "Cluster is creating"
-}
-
-// ErrorMapping iterate through the Condition Map to see if Failure is True or False
-func ErrorMapping() error {
-	if conditionMap[cephv1.ConditionFailure] == v1.ConditionTrue {
-		return errors.New("failed to initialize the cluster")
-	}
-	return nil
 }
 
 //findStatusCondition is used to find the already existing Condition Type
