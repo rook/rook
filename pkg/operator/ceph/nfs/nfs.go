@@ -277,11 +277,10 @@ func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 		return errors.New("at least one active server required")
 	}
 
-	// We cannot run an NFS server if no MDS is running
 	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
 	_, err := client.GetPoolDetails(context, clusterInfo, n.Spec.RADOS.Pool)
 	if err != nil {
-		return errors.Wrapf(err, "pool %q not found, did the filesystem cr successfully complete?", n.Spec.RADOS.Pool)
+		return errors.Wrapf(err, "pool %q not found", n.Spec.RADOS.Pool)
 	}
 
 	return nil
