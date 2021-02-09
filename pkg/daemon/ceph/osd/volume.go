@@ -31,6 +31,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/display"
@@ -56,6 +57,7 @@ var (
 	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
 	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
 	isEncrypted                     = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
+	isOnPVC                         = os.Getenv(osd.PVCBackedOSDVarName) == "true"
 )
 
 type osdInfoBlock struct {
@@ -810,13 +812,22 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		osdID := osdInfo.OsdID
 
 		if osdInfo.CephFsid != cephfsid {
-			logger.Infof("skipping osd.%d: %s running on a different ceph cluster %q", osdID, osdInfo.OsdUUID, osdInfo.CephFsid)
+			message := fmt.Sprintf("osd.%d: %q belonging to a different ceph cluster %q", osdID, osdInfo.OsdUUID, osdInfo.CephFsid)
+			// We must return an error since the caller only checks the length of osds
+			if isOnPVC {
+				return nil, errors.Errorf("%s", message)
+			}
+			logger.Infof("skipping %s", message)
 			continue
 		}
 		osdFSID = osdInfo.OsdUUID
 
 		if len(osdFSID) == 0 {
-			logger.Infof("Skipping osd.%d as no instances are running on ceph cluster %q", osdID, cephfsid)
+			message := fmt.Sprintf("no instance of osd.%d is running on ceph cluster %q (incomplete prepare? consider wiping the disks)", osdID, cephfsid)
+			if isOnPVC {
+				return nil, errors.Errorf("%s", message)
+			}
+			logger.Infof("skipping since %s", message)
 			continue
 		}
 
