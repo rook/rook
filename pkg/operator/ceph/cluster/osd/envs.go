@@ -37,10 +37,11 @@ const (
 	PVCNameEnvVarName         = "ROOK_PVC_NAME"
 	// CephVolumeEncryptedKeyEnvVarName is the env variable used by ceph-volume to encrypt the OSD (raw mode)
 	// Hardcoded in ceph-volume do NOT touch
-	CephVolumeEncryptedKeyEnvVarName    = "CEPH_VOLUME_DMCRYPT_SECRET"
-	osdMetadataDeviceEnvVarName         = "ROOK_METADATA_DEVICE"
-	osdWalDeviceEnvVarName              = "ROOK_WAL_DEVICE"
-	pvcBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
+	CephVolumeEncryptedKeyEnvVarName = "CEPH_VOLUME_DMCRYPT_SECRET"
+	osdMetadataDeviceEnvVarName      = "ROOK_METADATA_DEVICE"
+	osdWalDeviceEnvVarName           = "ROOK_WAL_DEVICE"
+	// PVCBackedOSDVarName indicates whether the OSD is on PVC ("true") or not ("false")
+	PVCBackedOSDVarName                 = "ROOK_PVC_BACKED_OSD"
 	blockPathVarName                    = "ROOK_BLOCK_PATH"
 	cvModeVarName                       = "ROOK_CV_MODE"
 	lvBackedPVVarName                   = "ROOK_LV_BACKED_PV"
@@ -143,7 +144,7 @@ func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
 }
 
 func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
-	return v1.EnvVar{Name: pvcBackedOSDVarName, Value: pvcBacked}
+	return v1.EnvVar{Name: PVCBackedOSDVarName, Value: pvcBacked}
 }
 
 func setDebugLogLevelEnvVar(debug bool) v1.EnvVar {
