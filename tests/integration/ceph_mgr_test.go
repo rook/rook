@@ -46,12 +46,10 @@ func TestCephMgrSuite(t *testing.T) {
 	}
 	// Skip this test suite in master and release builds. If there is an issue
 	// running against Ceph master we don't want to block the official builds.
-	if installer.TestIsOfficialBuild() {
+	if !installer.TestRunCephMaster() {
+		logger.Infof("Skipping tests against Ceph master")
 		t.Skip()
 	}
-
-	logger.Info("TEMPORARILY disable the mgr test suite until https://github.com/rook/rook/issues/5877 is resolved")
-	t.Skip()
 
 	s := new(CephMgrSuite)
 	defer func(s *CephMgrSuite) {

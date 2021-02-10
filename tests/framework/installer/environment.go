@@ -35,6 +35,11 @@ func testStorageProvider() string {
 	return getEnvVarWithDefault("STORAGE_PROVIDER_TESTS", "")
 }
 
+// TestRunCephMaster gets whether tests can be run against ceph master
+func TestRunCephMaster() bool {
+	return getEnvVarWithDefault("TEST_CEPH_MASTER", "") == "true"
+}
+
 // TestIsOfficialBuild gets the storage provider for which tests should be run
 func TestIsOfficialBuild() bool {
 	// PRs will set this to "false", but the official build will not set it, so we compare against "false"
