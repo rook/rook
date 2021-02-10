@@ -197,6 +197,11 @@ fi
 # Get the Key Encryption Key
 curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_BACKEND"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
 
+# Check for errors in the payload
+if python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < a; then
+	exit 1
+fi
+
 # Put the KEK in a file for cryptsetup to read
 python3 -c "import sys, json; print(json.load(sys.stdin)[\"data\"][\"$KEK_NAME\"], end='')" < "$CURL_PAYLOAD" > "$KEY_PATH"
 `
