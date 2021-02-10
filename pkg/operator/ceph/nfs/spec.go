@@ -138,7 +138,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	if r.cephClusterSpec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	nfs.Spec.Server.Placement.ApplyToPodSpec(&podSpec)
+	nfs.Spec.Server.Placement.ApplyToPodSpec(&podSpec, true)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{

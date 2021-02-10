@@ -157,7 +157,7 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 	cephv1.GetCleanupLabels(cluster.Spec.Labels).ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	// Apply placement
-	cephv1.GetCleanupPlacement(cluster.Spec.Placement).ApplyToPodSpec(&podSpec.Spec)
+	cephv1.GetCleanupPlacement(cluster.Spec.Placement).ApplyToPodSpec(&podSpec.Spec, true)
 
 	return podSpec
 }

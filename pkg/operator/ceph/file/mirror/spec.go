@@ -67,7 +67,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			return nil, err
 		}
 	}
-	fsMirror.Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	fsMirror.Spec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	replicas := int32(1)
 	d := &apps.Deployment{
