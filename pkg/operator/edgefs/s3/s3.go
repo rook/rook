@@ -245,7 +245,7 @@ func (c *S3Controller) makeDeployment(svcname, namespace, rookImage, imageArgs s
 	}
 
 	// apply current S3 CRD options to pod's specification
-	s3Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	s3Spec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 	s3Spec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	d := &apps.Deployment{

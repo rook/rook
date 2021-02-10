@@ -649,7 +649,7 @@ func (c *Cluster) makeStatefulSet(replicas int32, rookImage string, dro edgefsv1
 	}
 	c.annotations.ApplyToObjectMeta(&statefulSet.ObjectMeta)
 	c.annotations.ApplyToObjectMeta(&statefulSet.Spec.Template.ObjectMeta)
-	c.placement.ApplyToPodSpec(&statefulSet.Spec.Template.Spec)
+	c.placement.ApplyToPodSpec(&statefulSet.Spec.Template.Spec, true)
 
 	return statefulSet, nil
 }

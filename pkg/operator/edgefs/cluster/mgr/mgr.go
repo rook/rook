@@ -352,7 +352,7 @@ func (c *Cluster) makeDeployment(name, clusterName, rookImage string, replicas i
 	}
 
 	c.annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
-	c.placement.ApplyToPodSpec(&podSpec.Spec)
+	c.placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

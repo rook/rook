@@ -193,7 +193,7 @@ func (c *SMBController) makeDeployment(svcname, namespace, rookImage string, smb
 	smbSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	// apply current SMB CRD options to pod's specification
-	smbSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	smbSpec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

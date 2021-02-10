@@ -141,7 +141,7 @@ func (c *Cluster) makeJob(name, clusterName, rookImage string, nodeName string) 
 		},
 	}
 	podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	c.placement.ApplyToPodSpec(&podSpec.Spec)
+	c.placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	ds := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{

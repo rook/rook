@@ -231,7 +231,7 @@ func (c *S3XController) makeDeployment(svcname, namespace, rookImage string, s3x
 
 	// apply current S3X CRD options to pod's specification
 	s3xSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
-	s3xSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	s3xSpec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

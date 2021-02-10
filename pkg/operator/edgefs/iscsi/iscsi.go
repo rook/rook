@@ -185,7 +185,7 @@ func (c *ISCSIController) makeDeployment(svcname, namespace, rookImage string, i
 
 	iscsiSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	// apply current ISCSI CRD options to pod's specification
-	iscsiSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	iscsiSpec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	instancesCount := int32(1)
 	d := &apps.Deployment{
