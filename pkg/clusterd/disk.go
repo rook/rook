@@ -103,7 +103,10 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 
 		disks = append(disks, disk)
 	}
-	logger.Debugf("discovered disks are %v", disks)
+	logger.Debug("discovered disks are:")
+	for _, disk := range disks {
+		logger.Debugf("%+v", disk)
+	}
 
 	return disks, nil
 }
