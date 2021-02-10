@@ -101,7 +101,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	cephv1.GetMgrAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.applyPrometheusAnnotations(&podSpec.ObjectMeta)
 	cephv1.GetMgrLabels(c.spec.Labels).ApplyToObjectMeta(&podSpec.ObjectMeta)
-	cephv1.GetMgrPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec.Spec)
+	cephv1.GetMgrPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec.Spec, true)
 
 	replicas := int32(1)
 

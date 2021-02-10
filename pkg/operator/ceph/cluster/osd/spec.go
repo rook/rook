@@ -638,13 +638,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.clusterInfo.OwnerRef)
+
+	// we are passing false in case of osd and prepare pods because we don't want to overlap placement of osd on PVC's and non-PVC's.
 	p := cephv1.GetOSDPlacement(c.spec.Placement)
-	if !osdProps.onPVC() {
-		p.ApplyToPodSpec(&deployment.Spec.Template.Spec)
-	} else {
-		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
-		p.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	if osdProps.onPVC() {
+		osdProps.getPreparePlacement().ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
 	}
+	p.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
 
 	// Change TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES if the OSD has been annotated with a value
 	osdAnnotations := cephv1.GetOSDAnnotations(c.spec.Annotations)
