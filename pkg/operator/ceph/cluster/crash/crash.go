@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"reflect"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -33,7 +32,6 @@ import (
 	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -44,13 +42,6 @@ const (
 	pruneSchedule = "0 0 * * *"
 )
 
-// ClusterResource operator-kit Custom Resource Definition
-var clusterResource = k8sutil.CustomResource{
-	Group:   cephv1.CustomResourceGroup,
-	Version: cephv1.Version,
-	Kind:    reflect.TypeOf(cephv1.CephCluster{}).Name(),
-}
-
 // createOrUpdateCephCrash is a wrapper around controllerutil.CreateOrUpdate
 func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *version.CephVersion) (controllerutil.OperationResult, error) {
 	// Create or Update the deployment default/foo
@@ -60,10 +51,13 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 	}
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", AppName), nodeHostnameLabel),
-			Namespace:       cephCluster.GetNamespace(),
-			OwnerReferences: []metav1.OwnerReference{clusterOwnerRef(cephCluster.GetName(), string(cephCluster.GetUID()))},
+			Name:      k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", AppName), nodeHostnameLabel),
+			Namespace: cephCluster.GetNamespace(),
 		},
+	}
+	err := controllerutil.SetControllerReference(&cephCluster, deploy, r.scheme)
+	if err != nil {
+		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of deployment %q", deploy.Name)
 	}
 
 	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")
@@ -132,10 +126,13 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, cephVersion *version.CephVersion) (controllerutil.OperationResult, error) {
 	cronJob := &v1beta1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            prunerName,
-			Namespace:       cephCluster.GetNamespace(),
-			OwnerReferences: []metav1.OwnerReference{clusterOwnerRef(cephCluster.GetName(), string(cephCluster.GetUID()))},
+			Name:      prunerName,
+			Namespace: cephCluster.GetNamespace(),
 		},
+	}
+	err := controllerutil.SetControllerReference(&cephCluster, cronJob, r.scheme)
+	if err != nil {
+		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of deployment %q", cronJob.Name)
 	}
 
 	// Adding volumes to pods containing data needed to connect to the ceph cluster.
@@ -261,17 +258,6 @@ func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion version.
 	}
 
 	return container
-}
-
-func clusterOwnerRef(clusterName, clusterID string) metav1.OwnerReference {
-	blockOwner := true
-	return metav1.OwnerReference{
-		APIVersion:         fmt.Sprintf("%s/%s", clusterResource.Group, clusterResource.Version),
-		Kind:               clusterResource.Kind,
-		Name:               clusterName,
-		UID:                types.UID(clusterID),
-		BlockOwnerDeletion: &blockOwner,
-	}
 }
 
 func generateCrashEnvVar() corev1.EnvVar {
