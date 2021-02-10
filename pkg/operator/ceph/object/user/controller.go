@@ -309,8 +309,15 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	if err != nil {
 		return errors.Wrapf(err, "Multisite failed to set on object context for object store user")
 	}
+
 	r.objContext = objContext
 	r.objContext.Endpoint = store.Status.Info["endpoint"]
+	if store.Status.Info["secureEndpoint"] != "" {
+		r.objContext.Endpoint = store.Status.Info["secureEndpoint"]
+	}
+	if r.objContext.Endpoint == "" {
+		return errors.Errorf("endpoint is missing in the status Info")
+	}
 
 	return nil
 }
