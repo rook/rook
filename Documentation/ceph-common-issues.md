@@ -31,6 +31,8 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 * [Failed to create CRDs](#failed-to-create-crds)
 
+See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
+
 ## Troubleshooting Techniques
 
 There are two main categories of information you will need to investigate issues in the cluster:
@@ -747,6 +749,8 @@ Ceph CSI in its 1.2 version (with Rook 1.1) does not support the Erasure coded p
 
 So, if you are looking at using such storage class you should enable the Flex driver by setting `ROOK_ENABLE_FLEX_DRIVER: true` in your `operator.yaml`.
 Also, if you are in the need of specific features and wonder if CSI is capable of handling them, you should read [the ceph-csi support matrix](https://github.com/ceph/ceph-csi#support-matrix).
+
+See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
 
 ## A worker node using RBD devices hangs up
 
