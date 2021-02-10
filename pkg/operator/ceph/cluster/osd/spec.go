@@ -198,7 +198,7 @@ fi
 curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_BACKEND"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
 
 # Check for errors in the payload
-if python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < a; then
+if python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
 	exit 1
 fi
 
