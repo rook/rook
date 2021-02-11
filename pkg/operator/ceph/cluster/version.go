@@ -235,7 +235,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 			}
 		}
 		// This is an upgrade
-		logger.Info("upgrading ceph cluster to %q", version.String())
+		logger.Infof("upgrading ceph cluster to %q", version.String())
 		c.isUpgrade = true
 	}
 
