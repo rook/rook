@@ -331,7 +331,11 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsdMapping, error) {
 	desiredDevices := agent.devices
 	logger.Debugf("desiredDevices are %+v", desiredDevices)
-	logger.Debugf("context.Devices are %+v", context.Devices)
+
+	logger.Debug("context.Devices are:")
+	for _, disk := range context.Devices {
+		logger.Debugf("%+v", disk)
+	}
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
