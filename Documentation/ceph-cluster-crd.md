@@ -645,7 +645,7 @@ healthCheck:
         periodSeconds: 3
 ```
 
-Changing the liveness probe is an advanced operation and should rarely be necessary. If you want to change these settings, start with the probe spec Rook generates by default and then modify the desired settings.
+Changing the liveness probe is an advanced operation and should rarely be necessary. If you want to change these settings then modify the desired settings.
 
 ## Samples
 
