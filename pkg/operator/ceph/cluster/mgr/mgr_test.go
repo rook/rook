@@ -39,7 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestStartMGR(t *testing.T) {
+func TestStartMgr(t *testing.T) {
 	ctx := context.TODO()
 	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
@@ -64,7 +64,6 @@ func TestStartMGR(t *testing.T) {
 		Annotations:        map[rookv1.KeyType]rookv1.Annotations{cephv1.KeyMgr: {"my": "annotation"}},
 		Labels:             map[rookv1.KeyType]rookv1.Labels{cephv1.KeyMgr: {"my-label-key": "value"}},
 		Dashboard:          cephv1.DashboardSpec{Enabled: true, SSL: true},
-		Monitoring:         cephv1.MonitoringSpec{Enabled: true, RulesNamespace: ""},
 		Mgr:                cephv1.MgrSpec{Count: 1},
 		PriorityClassNames: map[rookv1.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
 		DataDirHostPath:    "/var/lib/rook/",

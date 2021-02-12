@@ -127,7 +127,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	}
 
 	dashboardInitWaitTime = 0
-	err := c.configureDashboardService()
+	err := c.configureDashboardService("a")
 	assert.NoError(t, err)
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)
@@ -142,7 +142,7 @@ func TestStartSecureDashboard(t *testing.T) {
 
 	// disable the dashboard
 	c.spec.Dashboard.Enabled = false
-	err = c.configureDashboardService()
+	err = c.configureDashboardService("a")
 	assert.Nil(t, err)
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)

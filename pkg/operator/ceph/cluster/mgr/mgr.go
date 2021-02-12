@@ -37,7 +37,6 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -164,33 +163,15 @@ func (c *Cluster) Start() error {
 		}
 	}
 
-	if err := c.configureDashboardService(); err != nil {
-		logger.Errorf("failed to enable dashboard. %v", err)
+	if err := c.reconcileServices(); err != nil {
+		return errors.Wrap(err, "failed to enable mgr services")
 	}
 
 	// configure the mgr modules
 	c.configureModules(daemonIDs)
 
-	// create the metrics service
-	service := c.MakeMetricsService(AppName, serviceMetricName)
-	if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(ctx, service, metav1.CreateOptions{}); err != nil {
-		if !kerrors.IsAlreadyExists(err) {
-			return errors.Wrap(err, "failed to create mgr service")
-		}
-		logger.Infof("mgr metrics service already exists")
-	} else {
-		logger.Infof("mgr metrics service started")
-	}
-
 	// enable monitoring if `monitoring: enabled: true`
 	if c.spec.Monitoring.Enabled {
-		logger.Infof("starting monitoring deployment")
-		// servicemonitor takes some metadata from the service for easy mapping
-		if err := c.EnableServiceMonitor(service); err != nil {
-			logger.Errorf("failed to enable service monitor. %v", err)
-		} else {
-			logger.Infof("servicemonitor enabled")
-		}
 		// namespace in which the prometheusRule should be deployed
 		// if left empty, it will be deployed in current namespace
 		namespace := c.spec.Monitoring.RulesNamespace
@@ -204,6 +185,38 @@ func (c *Cluster) Start() error {
 		}
 		logger.Debugf("ended monitoring deployment")
 	}
+	return nil
+}
+
+func (c *Cluster) reconcileServices() error {
+
+	mgrMap, err := cephclient.CephMgrMap(c.context, c.clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get ceph status for the active mgr")
+	}
+	activeDaemon := mgrMap.ActiveName
+	if activeDaemon == "" {
+		return errors.Errorf("active mgr not found")
+	}
+	logger.Infof("Active mgr is %q", activeDaemon)
+
+	if err := c.configureDashboardService(activeDaemon); err != nil {
+		return errors.Wrap(err, "failed to configure dashboard svc")
+	}
+
+	// create the metrics service
+	service := c.MakeMetricsService(AppName, activeDaemon, serviceMetricName)
+	if _, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.clusterInfo.Namespace, service); err != nil {
+		return errors.Wrap(err, "failed to create mgr metrics service")
+	}
+
+	// enable monitoring if `monitoring: enabled: true`
+	if c.spec.Monitoring.Enabled {
+		if err := c.EnableServiceMonitor(activeDaemon); err != nil {
+			return errors.Wrap(err, "failed to enable service monitor")
+		}
+	}
+
 	return nil
 }
 
@@ -347,21 +360,19 @@ func wellKnownModule(name string) bool {
 }
 
 // EnableServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
-func (c *Cluster) EnableServiceMonitor(service *v1.Service) error {
-	name := service.GetName()
-	namespace := service.GetNamespace()
+func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 	serviceMonitor, err := k8sutil.GetServiceMonitor(path.Join(monitoringPath, serviceMonitorFile))
 	if err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
 	}
-	serviceMonitor.SetName(name)
-	serviceMonitor.SetNamespace(namespace)
+	serviceMonitor.SetName(AppName)
+	serviceMonitor.SetNamespace(c.clusterInfo.Namespace)
 	if c.spec.External.Enable {
 		serviceMonitor.Spec.Endpoints[0].Port = ServiceExternalMetricName
 	}
 	k8sutil.SetOwnerRef(&serviceMonitor.ObjectMeta, &c.clusterInfo.OwnerRef)
-	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{namespace}
-	serviceMonitor.Spec.Selector.MatchLabels = service.GetLabels()
+	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{c.clusterInfo.Namespace}
+	serviceMonitor.Spec.Selector.MatchLabels = c.selectorLabels(activeDaemon)
 	if _, err := k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
 	}

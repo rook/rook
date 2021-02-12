@@ -49,29 +49,13 @@ var (
 	dashboardInitWaitTime = 5 * time.Second
 )
 
-func (c *Cluster) configureDashboardService() error {
+func (c *Cluster) configureDashboardService(activeDaemon string) error {
 	ctx := context.TODO()
-	dashboardService := c.makeDashboardService(AppName)
+	dashboardService := c.makeDashboardService(AppName, activeDaemon)
 	if c.spec.Dashboard.Enabled {
 		// expose the dashboard service
-		if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(ctx, dashboardService, metav1.CreateOptions{}); err != nil {
-			if !kerrors.IsAlreadyExists(err) {
-				return errors.Wrap(err, "failed to create dashboard mgr service")
-			}
-			logger.Infof("dashboard service already exists")
-			original, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(ctx, dashboardService.Name, metav1.GetOptions{})
-			if err != nil {
-				return errors.Wrap(err, "failed to get dashboard service")
-			}
-			if original.Spec.Ports[0].Port != int32(c.dashboardPort()) {
-				logger.Infof("dashboard port changed. updating service")
-				original.Spec.Ports[0].Port = int32(c.dashboardPort())
-				if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Update(ctx, original, metav1.UpdateOptions{}); err != nil {
-					return errors.Wrap(err, "failed to update dashboard mgr service")
-				}
-			}
-		} else {
-			logger.Infof("dashboard service started")
+		if _, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.clusterInfo.Namespace, dashboardService); err != nil {
+			return errors.Wrap(err, "failed to configure dashboard svc")
 		}
 	} else {
 		// delete the dashboard service if it exists

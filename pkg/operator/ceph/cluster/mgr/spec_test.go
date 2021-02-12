@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -83,10 +84,13 @@ func TestServiceSpec(t *testing.T) {
 	clusterSpec := cephv1.ClusterSpec{}
 	c := New(&clusterd.Context{Clientset: clientset}, clusterInfo, clusterSpec, "myversion")
 
-	s := c.MakeMetricsService("rook-mgr", serviceMetricName)
+	s := c.MakeMetricsService("rook-mgr", "foo", serviceMetricName)
 	assert.NotNil(t, s)
 	assert.Equal(t, "rook-mgr", s.Name)
 	assert.Equal(t, 1, len(s.Spec.Ports))
+	assert.Equal(t, 2, len(s.Labels))
+	assert.Equal(t, 3, len(s.Spec.Selector))
+	assert.Equal(t, "foo", s.Spec.Selector[controller.DaemonIDLabel])
 }
 
 func TestHostNetwork(t *testing.T) {

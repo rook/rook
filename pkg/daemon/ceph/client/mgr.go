@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -28,6 +29,24 @@ import (
 var (
 	moduleEnableWaitTime = 5 * time.Second
 )
+
+func CephMgrMap(context *clusterd.Context, clusterInfo *ClusterInfo) (MgrMap, error) {
+	args := []string{"mgr", "dump"}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		if len(buf) > 0 {
+			return MgrMap{}, errors.Wrapf(err, "failed to get status. %s", string(buf))
+		}
+		return MgrMap{}, errors.Wrap(err, "failed to get ceph status")
+	}
+
+	var mgrMap MgrMap
+	if err := json.Unmarshal([]byte(buf), &mgrMap); err != nil {
+		return MgrMap{}, errors.Wrap(err, "failed to unmarshal status response")
+	}
+
+	return mgrMap, nil
+}
 
 // MgrEnableModule enables a mgr module
 func MgrEnableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name string, force bool) error {
