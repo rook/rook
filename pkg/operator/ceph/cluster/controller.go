@@ -91,6 +91,7 @@ type ClusterController struct {
 	osdChecker              *osd.OSDHealthMonitor
 	client                  client.Client
 	namespacedName          types.NamespacedName
+	recorder                *k8sutil.EventReporter
 }
 
 // ReconcileCephCluster reconciles a CephFilesystem object
@@ -114,6 +115,8 @@ func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController
 	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
 		panic(err)
 	}
+
+	clusterController.recorder = k8sutil.NewEventReporter(mgr.GetEventRecorderFor("ClusterController"))
 
 	return &ReconcileCephCluster{
 		client:            mgr.GetClient(),
@@ -215,15 +218,20 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileCephCluster) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
-	reconcileResponse, err := r.reconcile(request)
+	reconcileResponse, cephCluster, err := r.reconcile(request)
+
 	if err != nil {
 		logger.Errorf("failed to reconcile. %v", err)
+		r.clusterController.recorder.ReportIfNotPresent(cephCluster, corev1.EventTypeWarning, "ReconcileFailed", err.Error())
+	} else {
+		logger.Debug("reconcile succeeded.")
+		r.clusterController.recorder.ReportIfNotPresent(cephCluster, corev1.EventTypeNormal, "ReconcileSucceeded", "cluster has been configured successfully")
 	}
 
 	return reconcileResponse, err
 }
 
-func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.Result, *cephv1.CephCluster, error) {
 	// Pass the client context to the ClusterController
 	r.clusterController.client = r.client
 
@@ -239,16 +247,16 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("cephCluster resource not found. Ignoring since object must be deleted.")
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, cephCluster, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrap(err, "failed to get cephCluster")
+		return reconcile.Result{}, cephCluster, errors.Wrap(err, "failed to get cephCluster")
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephCluster)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+		return reconcile.Result{}, cephCluster, errors.Wrap(err, "failed to add finalizer")
 	}
 
 	// DELETE: the CR was deleted
@@ -271,7 +279,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 			if doCleanup {
 				cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
 				if err != nil {
-					return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
+					return reconcile.Result{}, cephCluster, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
 				}
 				go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
 			}
@@ -284,28 +292,28 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 				// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
 				// will eventually be satisfied such as the volumes being removed
 				close(stopCleanupCh)
-				return response, nil
+				return response, cephCluster, nil
 			}
 		}
 
 		// Remove finalizer
 		err = removeFinalizer(r.client, request.NamespacedName)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			return reconcile.Result{}, cephCluster, errors.Wrap(err, "failed to remove finalizer")
 		}
 
 		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, cephCluster, nil
 	}
 
 	// Do reconcile here!
 	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
 	if err := r.clusterController.onAdd(cephCluster, ownerInfo); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
+		return reconcile.Result{}, cephCluster, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
 	}
 
 	// Return and do not requeue
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, cephCluster, nil
 }
 
 // NewClusterController create controller for watching cluster custom resources created
