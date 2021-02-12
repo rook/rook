@@ -167,7 +167,7 @@ class RadosJSON:
         output_group.add_argument("--rgw-endpoint", default="", required=False,
                                   help="Rados GateWay endpoint (in <IP>:<PORT> format)")
         output_group.add_argument("--monitoring-endpoint", default="", required=False,
-                                  help="Ceph Manager prometheus exporter endpoints comma separated list of <IP> entries")
+                                  help="Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)")
         output_group.add_argument("--monitoring-endpoint-port", default="", required=False,
                                   help="Ceph Manager prometheus exporter port")
 
@@ -328,21 +328,27 @@ class RadosJSON:
         del socket
         return ip
 
-    def get_active_ceph_mgr(self):
+    def get_active_and_standby_mgrs(self):
         monitoring_endpoint_port = self._arg_parser.monitoring_endpoint_port
         monitoring_endpoint_ip = self._arg_parser.monitoring_endpoint
+        standby_mgrs = []
         if not monitoring_endpoint_ip:
-            cmd_json = {"prefix": "mgr services", "format": "json"}
+            cmd_json = {"prefix": "status", "format": "json"}
             ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
             # if there is an unsuccessful attempt,
             if ret_val != 0 or len(json_out) == 0:
                 raise ExecutionFailureException(
                     "'mgr services' command failed.\n" +
                     "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
-            monitoring_endpoint = json_out.get('prometheus')
+            monitoring_endpoint = json_out.get('mgrmap', {}).get('services', {}).get('prometheus', '')
             if not monitoring_endpoint:
                 raise ExecutionFailureException(
                     "'prometheus' service not found, is the exporter enabled?'.\n")
+            # now check the stand-by mgr-s
+            standby_arr = json_out.get('mgrmap',{}).get('standbys', [])
+            for each_standby in standby_arr:
+                if 'name' in each_standby.keys():
+                    standby_mgrs.append(each_standby['name'])
             try:
                 parsed_endpoint = urlparse(monitoring_endpoint)
             except ValueError:
@@ -357,16 +363,28 @@ class RadosJSON:
             monitoring_endpoint_port = self.DEFAULT_MONITORING_ENDPOINT_PORT
 
         try:
+            failed_ip = monitoring_endpoint_ip
             monitoring_endpoint_ip = self._convert_hostname_to_ip(
                 monitoring_endpoint_ip)
+            # collect all the 'stand-by' mgr ips
+            mgr_ips = []
+            for each_standby_mgr in standby_mgrs:
+                failed_ip = each_standby_mgr
+                mgr_ips.append(
+                        self._convert_hostname_to_ip(each_standby_mgr))
         except:
             raise ExecutionFailureException(
-                "unable to convert a hostname to an IP address, monitoring host name: {}".format(monitoring_endpoint_ip))
+                "Conversion of host: {} to IP failed. "\
+                "Please enter the IP addresses of all the ceph-mgrs with the '--monitoring-endpoint' flag".format(failed_ip))
         monitoring_endpoint = self._join_host_port(
             monitoring_endpoint_ip, monitoring_endpoint_port)
         self._invalid_endpoint(monitoring_endpoint)
         self.endpoint_dial(monitoring_endpoint)
-        return monitoring_endpoint_ip, monitoring_endpoint_port
+
+        # add the validated active mgr IP into the first index
+        mgr_ips.insert(0, monitoring_endpoint_ip)
+        all_mgr_ips_str = ",".join(mgr_ips)
+        return all_mgr_ips_str, monitoring_endpoint_port
 
     def create_cephCSIKeyring_cephFSProvisioner(self):
         '''
@@ -570,7 +588,7 @@ class RadosJSON:
             self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_cephFSProvisioner()
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
         self.out_map['MONITORING_ENDPOINT'], \
-            self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_ceph_mgr()
+            self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_and_standby_mgrs()
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
 
@@ -972,7 +990,8 @@ class TestRadosJSON(unittest.TestCase):
                 check_port_val = new_mon_port
                 self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
             # for testing, we are using 'DummyRados' object
-            mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+            mon_ips, mon_port = self.rjObj.get_active_and_standby_mgrs()
+            mon_ip = mon_ips.split(",")[0]
             if check_ip_val and check_ip_val != mon_ip:
                 self.fail("Expected IP: {}, Returned IP: {}".format(
                     check_ip_val, mon_ip))
@@ -993,7 +1012,7 @@ class TestRadosJSON(unittest.TestCase):
             if new_mon_port:
                 self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
             try:
-                mon_ip, mon_port = self.rjObj.get_active_ceph_mgr()
+                mon_ip, mon_port = self.rjObj.get_active_and_standby_mgrs()
                 print("[Wrong] MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
                 self.fail("An exception was expected")
             except ExecutionFailureException as err:
