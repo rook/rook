@@ -192,7 +192,8 @@ func configureLivenessProbe(container *v1.Container, healthCheck cephv1.BucketHe
 			probe := healthCheck.LivenessProbe.Probe
 			// If the spec value is empty, let's use a default
 			if probe != nil {
-				container.LivenessProbe = probe
+				// Set the liveness probe on the container to overwrite the default probe created by Rook
+				container.LivenessProbe = cephconfig.GetLivenessProbeWithDefaults(probe, container.LivenessProbe)
 			}
 		} else {
 			container.LivenessProbe = nil

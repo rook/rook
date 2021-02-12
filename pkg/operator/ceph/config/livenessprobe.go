@@ -39,10 +39,10 @@ func ConfigureLivenessProbe(daemon rookv1.KeyType, container v1.Container, healt
 	if _, ok := healthCheck.LivenessProbe[daemon]; ok {
 		if !healthCheck.LivenessProbe[daemon].Disabled {
 			probe := probeFnMap[daemon](healthCheck)
-
 			// If the spec value is empty, let's use a default
 			if probe != nil {
-				container.LivenessProbe = probe
+				// Set the liveness probe on the container to overwrite the default probe created by Rook
+				container.LivenessProbe = GetLivenessProbeWithDefaults(probe, container.LivenessProbe)
 			}
 		} else {
 			container.LivenessProbe = nil
@@ -50,4 +50,29 @@ func ConfigureLivenessProbe(daemon rookv1.KeyType, container v1.Container, healt
 	}
 
 	return container
+}
+
+func GetLivenessProbeWithDefaults(desiredProbe, defaultProbe *v1.Probe) *v1.Probe {
+	if desiredProbe.Handler == (v1.Handler{}) {
+		desiredProbe.Handler = defaultProbe.Handler
+	}
+
+	// If the user has not specified thresholds and timeouts, set them to the same values as
+	// in the default liveness probe created by Rook.
+	if desiredProbe.FailureThreshold == 0 {
+		desiredProbe.FailureThreshold = defaultProbe.FailureThreshold
+	}
+	if desiredProbe.PeriodSeconds == 0 {
+		desiredProbe.PeriodSeconds = defaultProbe.PeriodSeconds
+	}
+	if desiredProbe.SuccessThreshold == 0 {
+		desiredProbe.SuccessThreshold = defaultProbe.SuccessThreshold
+	}
+	if desiredProbe.TimeoutSeconds == 0 {
+		desiredProbe.TimeoutSeconds = defaultProbe.TimeoutSeconds
+	}
+	if desiredProbe.InitialDelaySeconds == 0 {
+		desiredProbe.InitialDelaySeconds = defaultProbe.InitialDelaySeconds
+	}
+	return desiredProbe
 }
