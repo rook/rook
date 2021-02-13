@@ -295,6 +295,7 @@ func TestAddNodeFailure(t *testing.T) {
 		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Nautilus,
 	}
+	clusterInfo.SetName("testcluster")
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}, RequestCancelOrchestration: abool.New()}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
@@ -381,6 +382,7 @@ func TestGetPVCHostName(t *testing.T) {
 
 func TestGetOSDInfo(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	clusterInfo.SetName("test")
 	context := &clusterd.Context{}
 	spec := cephv1.ClusterSpec{DataDirHostPath: "/rook"}
 	c := New(context, clusterInfo, spec, "myversion")
@@ -517,6 +519,7 @@ func TestDetectCrushLocation(t *testing.T) {
 
 func TestGetOSDInfoWithCustomRoot(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	clusterInfo.SetName("test")
 	context := &clusterd.Context{}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: "/rook",

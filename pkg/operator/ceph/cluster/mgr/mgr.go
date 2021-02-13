@@ -37,6 +37,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	v1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -67,13 +68,11 @@ const (
 
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
-	context         *clusterd.Context
-	clusterInfo     *cephclient.ClusterInfo
-	Replicas        int
-	rookVersion     string
-	exitCode        func(err error) (int, bool)
-	appliedHttpBind bool
-	spec            cephv1.ClusterSpec
+	context     *clusterd.Context
+	clusterInfo *cephclient.ClusterInfo
+	rookVersion string
+	exitCode    func(err error) (int, bool)
+	spec        cephv1.ClusterSpec
 }
 
 // New creates an instance of the mgr
@@ -83,16 +82,16 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 		clusterInfo: clusterInfo,
 		spec:        spec,
 		rookVersion: rookVersion,
-		Replicas:    spec.Mgr.Count,
 		exitCode:    exec.ExitStatus,
 	}
 }
 
+var waitForDeploymentToStart = k8sutil.WaitForDeploymentToStart
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // for backward compatibility, default to 1 mgr
 func (c *Cluster) getReplicas() int {
-	replicas := c.Replicas
+	replicas := c.spec.Mgr.Count
 	if replicas == 0 {
 		replicas = 1
 	}
@@ -118,6 +117,8 @@ func (c *Cluster) Start() error {
 
 	logger.Infof("start running mgr")
 	daemonIDs := c.getDaemonIDs()
+	var deploymentsToWaitFor []*v1.Deployment
+
 	for _, daemonID := range daemonIDs {
 		// Check whether we need to cancel the orchestration
 		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
@@ -150,7 +151,7 @@ func (c *Cluster) Start() error {
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 		}
 
-		_, err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, d, metav1.CreateOptions{})
+		newDeployment, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, d, metav1.CreateOptions{})
 		if err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrapf(err, "failed to create mgr deployment %s", resourceName)
@@ -160,11 +161,26 @@ func (c *Cluster) Start() error {
 			if err := updateDeploymentAndWait(c.context, c.clusterInfo, d, config.MgrType, mgrConfig.DaemonID, c.spec.SkipUpgradeChecks, false); err != nil {
 				logger.Errorf("failed to update mgr deployment %q. %v", resourceName, err)
 			}
+		} else {
+			// wait for the new deployment
+			deploymentsToWaitFor = append(deploymentsToWaitFor, newDeployment)
 		}
 	}
 
-	if err := c.reconcileServices(); err != nil {
-		return errors.Wrap(err, "failed to enable mgr services")
+	// If the mgr is newly created, wait for it to start before continuing with the service and
+	// module configuration
+	for _, d := range deploymentsToWaitFor {
+		if err := waitForDeploymentToStart(c.context, d); err != nil {
+			return errors.Wrapf(err, "failed to wait for mgr %q to start", d.Name)
+		}
+	}
+
+	if len(daemonIDs) == 1 {
+		// Only reconcile the mgr services in the operator if there is a single mgr.
+		// If there are multiple mgrs they will be managed by the mgr sidecar.
+		if err := c.reconcileService(daemonIDs[0]); err != nil {
+			return errors.Wrap(err, "failed to enable mgr services")
+		}
 	}
 
 	// configure the mgr modules
@@ -188,17 +204,40 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
-func (c *Cluster) reconcileServices() error {
+// ReconcileMultipleServices reconciles the services if the active mgr is the one running
+// in the sidecar
+func (c *Cluster) ReconcileMultipleServices(daemonNameToUpdate string) error {
+	// If the services are already set to this daemon, no need to attempt to update
+	svc, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), AppName, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("failed to check current mgr service, proceeding to update. %v", err)
+	} else {
+		currentDaemon := svc.Spec.Selector[controller.DaemonIDLabel]
+		if currentDaemon == daemonNameToUpdate {
+			logger.Infof("mgr services already set to daemon %q, no need to update", daemonNameToUpdate)
+			return nil
+		}
+		logger.Infof("mgr service currently set to %q, checking if need to update to %q", currentDaemon, daemonNameToUpdate)
+	}
 
 	mgrMap, err := cephclient.CephMgrMap(c.context, c.clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get ceph status for the active mgr")
 	}
-	activeDaemon := mgrMap.ActiveName
-	if activeDaemon == "" {
-		return errors.Errorf("active mgr not found")
+	if mgrMap.ActiveName == "" {
+		return errors.New("active mgr not found")
 	}
-	logger.Infof("Active mgr is %q", activeDaemon)
+	if daemonNameToUpdate != mgrMap.ActiveName {
+		logger.Infof("no need for the mgr update since the active mgr is %q, rather than the local mgr %q", mgrMap.ActiveName, daemonNameToUpdate)
+		return nil
+	}
+
+	return c.reconcileService(mgrMap.ActiveName)
+}
+
+// reconcile the services, if the active mgr is not detected, use the default mgr
+func (c *Cluster) reconcileService(activeDaemon string) error {
+	logger.Infof("setting services to point to mgr %q", activeDaemon)
 
 	if err := c.configureDashboardService(activeDaemon); err != nil {
 		return errors.Wrap(err, "failed to configure dashboard svc")
@@ -222,7 +261,6 @@ func (c *Cluster) reconcileServices() error {
 
 func (c *Cluster) configureModules(daemonIDs []string) {
 	// Configure the modules asynchronously so we can complete all the configuration much sooner.
-	startModuleConfiguration("http bind settings", c.clearHTTPBindFix)
 	startModuleConfiguration("prometheus", c.enablePrometheusModule)
 	startModuleConfiguration("dashboard", c.configureDashboardModules)
 	// "crash" is part of the "always_on_modules" list as of Octopus

@@ -51,7 +51,6 @@ const (
 	ConfigOverrideName = "rook-config-override"
 	// ConfigOverrideVal config override value
 	ConfigOverrideVal = "config"
-	defaultVersion    = "rook/rook:latest"
 	configMountDir    = "/etc/rook/config"
 	overrideFilename  = "override.conf"
 )
@@ -201,15 +200,6 @@ func GetMatchingContainer(containers []v1.Container, name string) (v1.Container,
 	}
 
 	return *result, nil
-}
-
-// MakeRookImage formats the container name
-func MakeRookImage(version string) string {
-	if version == "" {
-		return defaultVersion
-	}
-
-	return version
 }
 
 // PodsRunningWithLabel returns the number of running pods with the given label

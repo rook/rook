@@ -30,22 +30,22 @@ var (
 	moduleEnableWaitTime = 5 * time.Second
 )
 
-func CephMgrMap(context *clusterd.Context, clusterInfo *ClusterInfo) (MgrMap, error) {
+func CephMgrMap(context *clusterd.Context, clusterInfo *ClusterInfo) (*MgrMap, error) {
 	args := []string{"mgr", "dump"}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		if len(buf) > 0 {
-			return MgrMap{}, errors.Wrapf(err, "failed to get status. %s", string(buf))
+			return nil, errors.Wrapf(err, "failed to get mgr dump. %s", string(buf))
 		}
-		return MgrMap{}, errors.Wrap(err, "failed to get ceph status")
+		return nil, errors.Wrap(err, "failed to get mgr dump")
 	}
 
 	var mgrMap MgrMap
 	if err := json.Unmarshal([]byte(buf), &mgrMap); err != nil {
-		return MgrMap{}, errors.Wrap(err, "failed to unmarshal status response")
+		return nil, errors.Wrap(err, "failed to unmarshal mgr dump")
 	}
 
-	return mgrMap, nil
+	return &mgrMap, nil
 }
 
 // MgrEnableModule enables a mgr module

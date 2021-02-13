@@ -21,11 +21,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
+	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -62,6 +61,9 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			HostNetwork:        c.spec.Network.IsHost(),
 			PriorityClassName:  cephv1.GetMgrPriorityClassName(c.spec.PriorityClassNames),
 		},
+	}
+	if c.spec.Mgr.Count > 1 {
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeMgrSidecarContainer(mgrConfig))
 	}
 
 	// If the log collector is enabled we add the side-car container
@@ -111,42 +113,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
 	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.clusterInfo.OwnerRef)
 	return d, nil
-}
-
-// if we do not need the http bind fix, then we need to be careful. if we are
-// upgrading from a cluster that had the fix applied, then the fix is no longer
-// needed, and furthermore, needs to be removed so that there is not a lingering
-// ceph configuration option that contains an old ip.  by clearing the option,
-// we let ceph bind to its default ANYADDR address.  However, since we don't
-// know which version of Ceph we are may be upgrading _from_ we need to (a)
-// always do this and (b) make sure that all forms of the configuration option
-// are removed (see the init container factory method). Once the minimum
-// supported version of Rook contains the fix, all of this can be removed.
-func (c *Cluster) clearHTTPBindFix() error {
-	// We only need to apply these changes once. No harm in once each time the operator restarts.
-	if c.appliedHttpBind {
-		return nil
-	}
-	for _, daemonID := range c.getDaemonIDs() {
-		for _, module := range []string{"dashboard", "prometheus"} {
-			// there are two forms of the configuration key that might exist which
-			// depends not on the current version, but on the version that may be
-			// the version being upgraded from.
-			if _, err := client.MgrSetConfig(c.context, c.clusterInfo, daemonID,
-				fmt.Sprintf("mgr/%s/server_addr", module), "", false); err != nil {
-				return errors.Wrap(err, "failed to set config for an mgr daemon using v2 format")
-			}
-
-			// this is for the format used in v1.0
-			// https://github.com/rook/rook/commit/11d318fb2f77a6ac9a8f2b9be42c826d3b4a93c3
-			if _, err := client.MgrSetConfig(c.context, c.clusterInfo, daemonID,
-				fmt.Sprintf("mgr/%s/%s/server_addr", module, daemonID), "", false); err != nil {
-				return errors.Wrap(err, "failed to set config for an mgr daemon using v1 format")
-			}
-		}
-	}
-	c.appliedHttpBind = true
-	return nil
 }
 
 func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
@@ -215,6 +181,39 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	}
 
 	return container
+}
+
+func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
+	envVars := []v1.EnvVar{
+		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerRef.UID)},
+		{Name: "ROOK_CLUSTER_NAME", Value: string(c.clusterInfo.NamespacedName().Name)},
+		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+		opmon.PodNamespaceEnvVar(c.clusterInfo.Namespace),
+		opmon.EndpointEnvVar(),
+		opmon.SecretEnvVar(),
+		opmon.CephUsernameEnvVar(),
+		opmon.CephSecretEnvVar(),
+		k8sutil.ConfigOverrideEnvVar(),
+		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
+				Key:                  "fsid",
+			},
+		}},
+		{Name: "ROOK_DASHBOARD_ENABLED", Value: strconv.FormatBool(c.spec.Dashboard.Enabled)},
+		{Name: "ROOK_MONITORING_ENABLED", Value: strconv.FormatBool(c.spec.Monitoring.Enabled)},
+		{Name: "ROOK_UPDATE_INTERVAL", Value: "15s"},
+		{Name: "ROOK_DAEMON_NAME", Value: mgrConfig.DaemonID},
+	}
+
+	return v1.Container{
+		Args:  []string{"ceph", "mgr", "watch-active"},
+		Name:  "watch-active",
+		Image: c.rookVersion,
+		Env:   envVars,
+		//Resources:   **TODO**,
+	}
 }
 
 func getDefaultMgrLivenessProbe() *v1.Probe {

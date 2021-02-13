@@ -35,7 +35,7 @@ import (
 func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdsToRemove []string) error {
 
 	// Generate the ceph config for running ceph commands similar to the operator
-	if err := writeCephConfig(context, clusterInfo); err != nil {
+	if err := client.WriteCephConfig(context, clusterInfo); err != nil {
 		return errors.Wrap(err, "failed to write the ceph config")
 	}
 

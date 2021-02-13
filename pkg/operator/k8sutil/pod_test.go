@@ -26,11 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestMakeRookImage(t *testing.T) {
-	assert.Equal(t, "rook/rook:v1", MakeRookImage("rook/rook:v1"))
-	assert.Equal(t, defaultVersion, MakeRookImage(""))
-}
-
 func TestGetContainerInPod(t *testing.T) {
 	expectedName := "mycontainer"
 	imageName := "myimage"

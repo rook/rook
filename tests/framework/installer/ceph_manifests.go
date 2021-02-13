@@ -1061,6 +1061,8 @@ rules:
   - get
   - list
   - watch
+  - create
+  - update
   - delete
 - apiGroups:
   - batch

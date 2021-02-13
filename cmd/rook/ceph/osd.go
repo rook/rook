@@ -60,6 +60,7 @@ var (
 	osdDataDeviceFilter     string
 	osdDataDevicePathFilter string
 	ownerRefID              string
+	clusterName             string
 	osdID                   int
 	osdStoreType            string
 	osdStringID             string
@@ -106,7 +107,8 @@ func addOSDFlags(command *cobra.Command) {
 }
 
 func addOSDConfigFlags(command *cobra.Command) {
-	command.Flags().StringVar(&ownerRefID, "cluster-id", "", "the UID of the cluster CRD that owns this cluster")
+	command.Flags().StringVar(&ownerRefID, "cluster-id", "", "the UID of the cluster CR that owns this cluster")
+	command.Flags().StringVar(&clusterName, "cluster-name", "", "the name of the cluster CR that owns this cluster")
 	command.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
 	command.Flags().StringVar(&cfg.nodeName, "node-name", os.Getenv("HOSTNAME"), "the host name of the node")
 
@@ -218,7 +220,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	logger.Infof("crush location of osd: %s", crushLocation)
 
 	forceFormat := false
-	ownerRef := opcontroller.ClusterOwnerRef(clusterInfo.Namespace, ownerRefID)
+	ownerRef := opcontroller.ClusterOwnerRef(clusterName, ownerRefID)
 	clusterInfo.OwnerRef = ownerRef
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerRef)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,

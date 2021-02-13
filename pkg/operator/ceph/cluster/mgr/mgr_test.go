@@ -35,12 +35,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestStartMgr(t *testing.T) {
-	ctx := context.TODO()
 	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
@@ -49,11 +50,15 @@ func TestStartMgr(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
+	waitForDeploymentToStart = func(clusterdContext *clusterd.Context, deployment *v1.Deployment) error {
+		logger.Infof("simulated mgr deployment starting")
+		return nil
+	}
 
 	clientset := testop.New(t, 3)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	context := &clusterd.Context{
+	ctx := &clusterd.Context{
 		Executor:                   executor,
 		ConfigDir:                  configDir,
 		Clientset:                  clientset,
@@ -68,13 +73,13 @@ func TestStartMgr(t *testing.T) {
 		PriorityClassNames: map[rookv1.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
 		DataDirHostPath:    "/var/lib/rook/",
 	}
-	c := New(context, clusterInfo, clusterSpec, "myversion")
+	c := New(ctx, clusterInfo, clusterSpec, "myversion")
 	defer os.RemoveAll(c.spec.DataDirHostPath)
 
 	// start a basic service
 	err := c.Start()
 	assert.Nil(t, err)
-	validateStart(ctx, t, c)
+	validateStart(t, c)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
@@ -82,40 +87,64 @@ func TestStartMgr(t *testing.T) {
 	c.spec.Dashboard.Port = 12345
 	err = c.Start()
 	assert.Nil(t, err)
-	validateStart(ctx, t, c)
+	validateStart(t, c)
 	assert.ElementsMatch(t, []string{"rook-ceph-mgr-a"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
-	// starting again with more replicas
-	c.Replicas = 3
+	// starting with more replicas
+	c.spec.Mgr.Count = 2
 	c.spec.Dashboard.Enabled = false
+	// delete the previous mgr since the mocked test won't update the existing one
+	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr-a", metav1.DeleteOptions{})
+	assert.Nil(t, err)
 	err = c.Start()
 	assert.Nil(t, err)
-	validateStart(ctx, t, c)
-	assert.ElementsMatch(t, []string{"rook-ceph-mgr-a"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
-	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+	// trigger the sidecar reconcile since the operator didn't do it so we can perform the full validation
+	err = c.reconcileService("a")
+	assert.Nil(t, err)
+	validateStart(t, c)
+
+	// the dashboard service is only deleted by the operator reconcile if the replicas are 1,
+	// otherwise the sidecar has the responsibility
+	c.spec.Mgr.Count = 1
+	c.spec.Dashboard.Enabled = false
+	// clean the previous deployments
+	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr-a", metav1.DeleteOptions{})
+	assert.Nil(t, err)
+	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr-b", metav1.DeleteOptions{})
+	assert.Nil(t, err)
+	err = c.Start()
+	assert.Nil(t, err)
+	validateStart(t, c)
 }
 
-func validateStart(ctx context.Context, t *testing.T, c *Cluster) {
+func validateStart(t *testing.T, c *Cluster) {
 	mgrNames := []string{"a", "b"}
-	for i := 0; i < c.Replicas; i++ {
-		if i == 2 {
-			logger.Warning("cannot have more than 2 mgrs")
-			break
-		}
+	for i := 0; i < c.spec.Mgr.Count; i++ {
 		logger.Infof("Looking for cephmgr replica %d", i)
 		daemonName := mgrNames[i]
-		d, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(ctx, fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
+		d, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(context.TODO(), fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]string{"my": "annotation"}, d.Spec.Template.Annotations)
 		assert.Contains(t, d.Spec.Template.Labels, "my-label-key")
 		assert.Equal(t, "my-priority-class", d.Spec.Template.Spec.PriorityClassName)
+		if c.spec.Mgr.Count == 1 {
+			assert.Equal(t, 1, len(d.Spec.Template.Spec.Containers))
+		} else {
+			// The sidecar container is only there when multiple mgrs are enabled
+			assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers))
+			assert.Equal(t, "watch-active", d.Spec.Template.Spec.Containers[1].Name)
+		}
 	}
 
-	_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr", metav1.GetOptions{})
+	validateServices(t, c)
+}
+
+func validateServices(t *testing.T, c *Cluster) {
+	_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	ds, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	ds, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	if c.spec.Dashboard.Enabled {
 		assert.NoError(t, err)
 		if c.spec.Dashboard.Port == 0 {
@@ -128,6 +157,65 @@ func validateStart(ctx context.Context, t *testing.T, c *Cluster) {
 	} else {
 		assert.True(t, errors.IsNotFound(err))
 	}
+}
+
+func TestMgrSidecarReconcile(t *testing.T) {
+	activeMgr := "a"
+	spec := cephv1.ClusterSpec{
+		Mgr: cephv1.MgrSpec{Count: 1},
+		Dashboard: cephv1.DashboardSpec{
+			Enabled: true,
+			Port:    7000,
+		},
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outFile string, args ...string) (string, error) {
+			return fmt.Sprintf(`{"active_name":"%s"}`, activeMgr), nil
+		},
+	}
+	clientset := testop.New(t, 3)
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	ctx := &clusterd.Context{
+		Executor:  executor,
+		ConfigDir: configDir,
+		Clientset: clientset,
+	}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	clusterInfo.SetName("test")
+	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
+
+	// Update services according to the active mgr
+	err := c.ReconcileMultipleServices(activeMgr)
+	assert.NoError(t, err)
+	validateServices(t, c)
+	validateServiceMatches(t, c, "a")
+
+	// nothing is created or updated when the requested mgr is not the active mgr
+	err = c.ReconcileMultipleServices("b")
+	assert.NoError(t, err)
+	_, err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
+	assert.True(t, kerrors.IsNotFound(err))
+
+	// nothing is updated when the requested mgr is not the active mgr
+	activeMgr = "b"
+	err = c.ReconcileMultipleServices("b")
+	assert.NoError(t, err)
+	validateServices(t, c)
+	validateServiceMatches(t, c, "b")
+}
+
+func validateServiceMatches(t *testing.T, c *Cluster, expectedActive string) {
+	// The service labels should match the active mgr
+	svc, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
+	assert.NoError(t, err)
+	matchDaemon, ok := svc.Spec.Selector["ceph_daemon_id"]
+	assert.True(t, ok)
+	assert.Equal(t, expectedActive, matchDaemon)
+
+	// clean up the service for the next test
+	err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr", metav1.DeleteOptions{})
+	assert.NoError(t, err)
 }
 
 func TestConfigureModules(t *testing.T) {
@@ -205,8 +293,16 @@ func TestConfigureModules(t *testing.T) {
 }
 
 func TestMgrDaemons(t *testing.T) {
-	c := &Cluster{Replicas: 2}
+	spec := cephv1.ClusterSpec{
+		Mgr: cephv1.MgrSpec{Count: 1},
+	}
+	c := &Cluster{spec: spec}
 	daemons := c.getDaemonIDs()
+	require.Equal(t, 1, len(daemons))
+	assert.Equal(t, "a", daemons[0])
+
+	c.spec.Mgr.Count = 2
+	daemons = c.getDaemonIDs()
 	require.Equal(t, 2, len(daemons))
 	assert.Equal(t, "a", daemons[0])
 	assert.Equal(t, "b", daemons[1])

@@ -33,6 +33,7 @@ func CreateOrUpdateService(
 	ctx := context.TODO()
 	name := serviceDefinition.Name
 	logger.Debugf("creating service %s", name)
+
 	s, err := clientset.CoreV1().Services(namespace).Create(ctx, serviceDefinition, metav1.CreateOptions{})
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -42,6 +43,8 @@ func CreateOrUpdateService(
 		if err != nil {
 			return nil, fmt.Errorf("failed to update service %s. %+v", name, err)
 		}
+	} else {
+		logger.Debugf("created service %s", s.Name)
 	}
 	return s, err
 }
