@@ -282,7 +282,7 @@ spec:
 {{- end }}
 {{- if .Values.allowMultipleFilesystems }}
         - name: ROOK_ALLOW_MULTIPLE_FILESYSTEMS
-          value: {{ .Values.allowMultipleFilesystems }}
+          value: {{ .Values.allowMultipleFilesystems | quote }}
 {{- end }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
