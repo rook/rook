@@ -1,7 +1,7 @@
 # Read-affinity-config
 
 This repo holds the scripts for Ceph/RHCS admin to prepare the cluster for implementing read affinity as part of the Metro DR High Availability feature in Red Hat OCS 4.7 release.
-
+ 
 In OCS 4.7 this feature is released in dev preview (minimal testing) mode.
 
 The repo holds the following scripts:
