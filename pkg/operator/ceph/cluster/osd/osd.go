@@ -313,7 +313,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
 			if c.spec.Security.KeyManagementService.IsTokenAuthEnabled() {
 				err := kms.SetTokenToEnvVar(c.context, c.spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, c.clusterInfo.Namespace)
 				if err != nil {
-					errMsg := fmt.Sprintf("failed to fetch kms token secret %q", c.spec.Security.KeyManagementService.TokenSecretName)
+					errMsg := fmt.Sprintf("failed to fetch kms token secret %q. %v", c.spec.Security.KeyManagementService.TokenSecretName, err)
 					config.addError(errMsg)
 					continue
 				}
