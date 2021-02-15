@@ -143,7 +143,7 @@ else
     if [ -r $input_file ]; then
         crush_tree_json=$(cat $input_file)
     else 
-        echo_error "Cant read $input_file"  
+        echo_error "Can't read $input_file"  
         exit      
     fi
 fi

@@ -100,7 +100,7 @@ function get_rule_data() {
 	##
 	# get arrays with the existing rule names and ids so we can check that new rules do not contradict
 	# with existing ones (can happen if running the scripts more than once). Fixing is not automated yet since
-	# rules might be used, and overrriding them can be dangerous.
+	# rules might be used, and overriding them can be dangerous.
 	##
 	rule_ids=( $($CEPH osd crush rule dump | awk ' /rule_id/ { gsub(",",""); print $2}') ) 
 	(( $verbose == 1 )) && echo " Rule ids=<${rule_ids[@]}>"
@@ -111,15 +111,15 @@ function get_rule_data() {
 
 function check_and_append_rule() {
 	##
-	# Check that the rule in the rule file is a new rule (meaning the rule name or id are not alreasy used
+	# Check that the rule in the rule file is a new rule (meaning the rule name or id are not already used
 	# in the ceph cluster). Additionally this rule increment the counter for valid rules (processed_rules) or for 
 	# duplicate rules (warnings)
 	# This function returns:
 	#     0 - If the file was processed (appended to the rules text file)
 	#     1 - The rule in the file has id of an existing rule 
 	#     2 - The rule in the file has name of an existing rule
-	#     3 - The file does not contain a vaild rule
-	#     4 - The file contains more than one rule - this is not supported in this verison of
+	#     3 - The file does not contain a valid rule
+	#     4 - The file contains more than one rule - this is not supported in this version of
 	#         the script.
 	#
 	# NOTE:

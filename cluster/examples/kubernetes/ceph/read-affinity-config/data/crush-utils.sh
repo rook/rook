@@ -22,7 +22,7 @@ failure_domain_num=0
 declare -A failure_domains
 
 ##
-# Common efinitions for nicer outout
+# Common efinitions for nicer output
 ##
 red_text="\e[1;31m"
 green_text="\e[1;32m"
@@ -105,7 +105,7 @@ function check_rule_by_name() {
     # Check if a rule with the name $1 exists in $CEPH
     #
     # WARNING:
-    #   This function should NOT be called in command substitution "$(check_rule_by_name)" rather it shoudl be called as 
+    #   This function should NOT be called in command substitution "$(check_rule_by_name)" rather it should be called as 
     #   check_rule_by_name
     #   result = $?
     ##
@@ -160,7 +160,7 @@ function build_crush_tree() {
 
 function assert() {     #  If condition false,
                         #+ exit from script with error message.
-						#+ If 3rd parameter exists, debug messages are supressed
+						#+ If 3rd parameter exists, debug messages are suppressed
   	E_PARAM_ERR=98
   	E_ASSERT_FAILED=99
   	if [[ -z "$2" ]]; then    # Not enough parameters passed.
@@ -169,7 +169,7 @@ function assert() {     #  If condition false,
 
 	lineno=$2
 
-	if [[ -z $3 ]]; then  ## if this parametr exists supress debug messages
+	if [[ -z $3 ]]; then  ## if this parameter exists suppress debug messages
 		(( $verbose == 1 )) && echo_dbg "Asserting $1"
 	fi
 
