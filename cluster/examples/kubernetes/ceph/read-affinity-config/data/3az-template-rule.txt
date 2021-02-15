@@ -1,0 +1,16 @@
+rule replicated_affinity3_<<AZ1>><<SFX>> {
+    id <<ID>>
+	type replicated   
+	min_size 1
+	max_size 10
+	step take <<AZ1>>
+	step chooseleaf firstn 1 type <<TYP>>
+	step emit
+	step take <<AZ2>>
+	step chooseleaf firstn 1 type <<TYP>>
+	step emit
+	step take <<AZ3>>
+	step chooseleaf firstn 1 type <<TYP>>
+	step emit
+}
+
