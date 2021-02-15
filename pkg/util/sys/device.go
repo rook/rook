@@ -126,6 +126,16 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 	return strings.Split(devices, "\n"), nil
 }
 
+// GetDiskType returns the filesystem type associated with the disk
+func GetDiskType(executor exec.Executor, device string) (string, error) {
+	diskType, err := executor.ExecuteCommandWithOutput("blkid", "-o", "value", "-s", "TYPE", device)
+	if err != nil {
+		return "", fmt.Errorf("failed to get disk type. %v", err)
+	}
+
+	return diskType, nil
+}
+
 // GetDevicePartitions gets partitions on a given device
 func GetDevicePartitions(device string, executor exec.Executor) (partitions []Partition, unusedSpace uint64, err error) {
 

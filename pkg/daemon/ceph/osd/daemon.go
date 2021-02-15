@@ -39,6 +39,7 @@ const (
 	pvcMetadataTypeDevice = "metadata"
 	pvcWalTypeDevice      = "wal"
 	lvmCommandToCheck     = "lvm"
+	luksDeviceType        = "crypto_LUKS"
 )
 
 var (
@@ -380,15 +381,30 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		rejectedReason := ""
 		if agent.pvcBacked {
 			block := fmt.Sprintf("/mnt/%s", agent.nodeName)
-			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false)
-			if err != nil {
-				isAvailable = false
-				rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)
-			} else if len(rawOsds) > 0 {
-				isAvailable = false
-				rejectedReason = "already in use by a raw OSD, no need to reconfigure"
+			// The 'ceph-volume raw list' command cannot possibly work on a closed encrypted disk
+			// So we must handle this differently, checking if the disk has LUKS metadata is a good indication that we shouldn't do anything with it
+			// We cannot used device.Type since "lsblk" and "blkid" reported "type" differ
+			// "lsblk"'s type reports the "disk" so this won't work
+			if isEncrypted {
+				// Run blkid to determine the device attribute type
+				diskType, err := sys.GetDiskType(context.Executor, block)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to get pv device %q type", block)
+				}
+				if diskType == luksDeviceType {
+					rejectedReason = fmt.Sprintf("device is already encrypted with %q", luksDeviceType)
+				} else {
+					isAvailable = true
+				}
 			} else {
-				isAvailable = true
+				rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false)
+				if err != nil {
+					rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)
+				} else if len(rawOsds) > 0 {
+					rejectedReason = "already in use by a raw OSD, no need to reconfigure"
+				} else {
+					isAvailable = true
+				}
 			}
 		} else {
 			isAvailable, rejectedReason, err = sys.CheckIfDeviceAvailable(context.Executor, device.RealPath, agent.pvcBacked)

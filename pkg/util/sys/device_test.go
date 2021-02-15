@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -195,4 +196,20 @@ func TestListDevicesChildListDevicesChild(t *testing.T) {
 	child, err := ListDevicesChild(executor, device)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(child))
+}
+
+func TestGetDiskType(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+			logger.Infof("command %s", command)
+			if command == "blkid" {
+				return "crypto_LUKS", nil
+			}
+			return "", errors.Errorf("unknown command %q", command)
+		},
+	}
+
+	device := "/dev/vdb"
+	_, err := GetDiskType(executor, device)
+	assert.NoError(t, err)
 }
