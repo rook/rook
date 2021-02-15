@@ -125,7 +125,7 @@ class DummyRados(object):
         host_ip = self.dummy_host_ip_map.get(host_name, "")
         if not host_ip:
             host_ip = "172.9.{}.{}".format(
-                random.randint(0, 255), random.randint(0, 255))
+                random.randint(0, 254), random.randint(0, 254))
             self.dummy_host_ip_map[host_name] = host_ip
         del random
         return host_ip
@@ -797,6 +797,7 @@ if __name__ == '__main__':
         rjObj.main()
     except ExecutionFailureException as err:
         print("Execution Failed: {}".format(err))
+        raise err
     except KeyError as kErr:
         print("KeyError: %s", kErr)
     except OSError as osErr:
