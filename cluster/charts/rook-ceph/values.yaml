@@ -317,6 +317,7 @@ allowMultipleFilesystems: false
 ## tolerationKey: Set this to the specific key of the taint to tolerate
 ## tolerations: Array of tolerations in YAML format which will be added to agent deployment
 ## nodeAffinity: Set to labels of the node to match
+## interval: The duration between discovering devices in the rook-discover daemonset
 # discover:
 #   toleration: NoSchedule
 #   tolerationKey: key
@@ -326,14 +327,12 @@ allowMultipleFilesystems: false
 #     effect: NoSchedule
 #   nodeAffinity: key1=value1,value2; key2=value3
 #   podLabels: "key1=value1,key2=value2"
+#   interval: 60m
 
 # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
 # Disable it here if you have similar issues.
 # For more details see https://github.com/rook/rook/issues/2417
 enableSelinuxRelabeling: true
-
-# The duration between discovering devices in the rook-discover daemonset.
-discoverDevicesInterval: 60m
 
 # Writing to the hostPath is required for the Ceph mon and osd pods. Given the restricted permissions in OpenShift with SELinux,
 # the pod must be running privileged in order to write to the hostPath volume, this must be set to true then.

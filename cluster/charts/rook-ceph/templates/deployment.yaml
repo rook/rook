@@ -96,9 +96,11 @@ spec:
         - name: DISCOVER_AGENT_POD_LABELS
           value: {{ .Values.discover.podLabels }}
 {{- end }}
-{{- end }}
+{{- if .Values.discover.interval }}
         - name: ROOK_DISCOVER_DEVICES_INTERVAL
-          value: "{{ .Values.discoverDevicesInterval }}"
+          value: {{ .Values.discover.interval }}
+{{- end }}
+{{- end }}
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "{{ .Values.hostpathRequiresPrivileged }}"
         - name: ROOK_LOG_LEVEL
