@@ -220,7 +220,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	}
 
 	// set the initial orchestration status
-	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
+	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating}
 	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	if err := writeCephConfig(context, agent.clusterInfo); err != nil {
@@ -253,10 +253,6 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 	context.Devices = rawDevices
 
 	logger.Info("creating and starting the osds")
-
-	// orchestration is about to start, update the status
-	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating, PvcBackedOSD: agent.pvcBacked}
-	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	// Run Drive Group configuration
 	if err := agent.configureDriveGroups(context); err != nil {
