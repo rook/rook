@@ -129,12 +129,22 @@ func configTLS(clusterdContext *clusterd.Context, namespace string, config map[s
 }
 
 func put(v secrets.Secrets, secretName, secretValue string, keyContext map[string]string) error {
+	// First we must see if the key entry already exists, if it does we do nothing
+	key, err := get(v, secretName, keyContext)
+	if err != nil && err != secrets.ErrInvalidSecretId {
+		return errors.Wrapf(err, "failed to get secret %q in vault", secretName)
+	}
+	if key != "" {
+		logger.Debugf("key %q already exists in vault!", secretName)
+		return nil
+	}
+
 	// Build Secret
 	data := make(map[string]interface{})
 	data[secretName] = secretValue
 
 	// #nosec G104 Write the encryption key in Vault
-	err := v.PutSecret(secretName, data, keyContext)
+	err = v.PutSecret(secretName, data, keyContext)
 	if err != nil {
 		return errors.Wrapf(err, "failed to put secret %q in vault", secretName)
 	}
@@ -146,7 +156,7 @@ func get(v secrets.Secrets, secretName string, keyContext map[string]string) (st
 	// #nosec G104 Write the encryption key in Vault
 	s, err := v.GetSecret(secretName, keyContext)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get secret %q in vault", secretName)
+		return "", err
 	}
 
 	return s[secretName].(string), nil
