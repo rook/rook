@@ -366,14 +366,7 @@ class RadosJSON:
             monitoring_endpoint_ip, monitoring_endpoint_port)
         self._invalid_endpoint(monitoring_endpoint)
         self.endpoint_dial(monitoring_endpoint)
-
-        self.validate_monitoring_endpoint(monitoring_endpoint_port)
         return monitoring_endpoint_ip, monitoring_endpoint_port
-
-    def validate_monitoring_endpoint(self, port):
-        if port != self.DEFAULT_MONITORING_ENDPOINT_PORT:
-            raise ExecutionFailureException(
-                "'prometheus' service port must listen on {0}. You can change it with 'ceph config set mgr mgr/prometheus/server_port {0}'.\n".format(self.DEFAULT_MONITORING_ENDPOINT_PORT))
 
     def create_cephCSIKeyring_cephFSProvisioner(self):
         '''
@@ -963,8 +956,8 @@ class TestRadosJSON(unittest.TestCase):
         self.rjObj = RadosJSON(['--rbd-data-pool-name=abc', '--format=json'])
         self.rjObj.cluster = DummyRados.Rados()
 
-        valid_ip_ports = [("10.22.31.131", "9283"),
-                          ("10.177.3.81", ""), ("", ""), ("", "9283")]
+        valid_ip_ports = [("10.22.31.131", "3534"),
+                          ("10.177.3.81", ""), ("", ""), ("", "9092")]
         for each_ip_port_pair in valid_ip_ports:
             # reset monitoring ip and port
             self.rjObj._arg_parser.monitoring_endpoint = ''
@@ -988,8 +981,8 @@ class TestRadosJSON(unittest.TestCase):
                     check_port_val, mon_port))
             print("MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
 
-        invalid_ip_ports = [("10.22.31.131.43", "5334"), ("", "9194"),
-                            ("10.177.3.81", "90320"), ("", "73422"), ("10.232.12.8", "9092")]
+        invalid_ip_ports = [("10.22.31.131.43", "5334"), ("", "91943"),
+                            ("10.177.3.81", "90320"), ("", "73422"), ("10.232.12.8", "90922")]
         for each_ip_port_pair in invalid_ip_ports:
             # reset the command-line monitoring args
             self.rjObj._arg_parser.monitoring_endpoint = ''
