@@ -119,7 +119,10 @@ The operator is responsible for removing the finalizer after the mounts have bee
 If for some reason the operator is not able to remove the finalizer (ie. the operator is not running anymore), you can delete the finalizer manually with the following command:
 
 ```console
-for CRD in $(kubectl get crd -n rook-ceph | awk '/ceph.rook.io/ {print $1}'); do kubectl patch crd -n rook-ceph $CRD --type merge -p '{"metadata":{"finalizers": [null]}}'; done
+for CRD in $(kubectl get crd -n rook-ceph | awk '/ceph.rook.io/ {print $1}'); do
+    kubectl get -n rook-ceph "$CRD" -o name | \
+    xargs -I {} kubectl patch {} --type merge -p '{"metadata":{"finalizers": [null]}}'
+done
 ```
 
 This command will patch the following CRDs on v1.3:
