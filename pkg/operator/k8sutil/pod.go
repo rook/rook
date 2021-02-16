@@ -324,7 +324,7 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 // SetNodeAntiAffinityForPod assign pod anti-affinity when pod should not be co-located
 func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rookv1.Placement, requiredDuringScheduling bool,
 	labels, nodeSelector map[string]string) {
-	p.ApplyToPodSpec(pod)
+	p.ApplyToPodSpec(pod, true)
 	pod.NodeSelector = nodeSelector
 
 	// when a node selector is being used, skip the affinity business below

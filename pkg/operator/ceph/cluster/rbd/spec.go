@@ -67,7 +67,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			return nil, err
 		}
 	}
-	rbdMirror.Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	rbdMirror.Spec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	// If the rbd mirror has a peer we must add the relevant ceph config file and key to connect to it
 	// Both cm and secret have been created already, so it's fine to just reference them
