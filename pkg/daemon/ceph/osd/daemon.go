@@ -195,7 +195,7 @@ func writeCephConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 }
 
 // Provision provisions an OSD
-func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string) error {
+func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topologyAffinity string) error {
 
 	// Check for the presence of LVM on the host when NOT running on PVC
 	// since this scenario is still using LVM
@@ -284,12 +284,13 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation string)
 		return nil
 	}
 
-	logger.Infof("devices = %+v", deviceOSDs)
-
 	// Populate CRUSH location for each OSD on the host
 	for i := range deviceOSDs {
 		deviceOSDs[i].Location = crushLocation
+		deviceOSDs[i].TopologyAffinity = topologyAffinity
 	}
+
+	logger.Infof("devices = %+v", deviceOSDs)
 
 	// Since we are done configuring the PVC we need to release it from LVM
 	// If we don't do this, the device will remain hold by LVM and we won't be able to detach it
