@@ -473,6 +473,48 @@ func TestOSDPlacement(t *testing.T) {
 	assert.Equal(t, "label2", result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key)
 }
 
+func TestDetectCrushLocation(t *testing.T) {
+	location := []string{"host=foo"}
+	nodeLabels := map[string]string{}
+
+	// no change to the location if there are no labels
+	updateLocationWithNodeLabels(&location, nodeLabels)
+	assert.Equal(t, 1, len(location))
+	assert.Equal(t, "host=foo", location[0])
+
+	// no change to the location if an invalid label or invalid topology
+	nodeLabels = map[string]string{
+		"topology.rook.io/foo":          "bar",
+		"invalid.topology.rook.io/rack": "r1",
+		"topology.rook.io/zone":         "z1",
+	}
+	updateLocationWithNodeLabels(&location, nodeLabels)
+	assert.Equal(t, 1, len(location))
+	assert.Equal(t, "host=foo", location[0])
+
+	// update the location with valid topology labels
+	nodeLabels = map[string]string{
+		"failure-domain.beta.kubernetes.io/region": "region1",
+		"failure-domain.beta.kubernetes.io/zone":   "zone1",
+		"topology.rook.io/rack":                    "rack1",
+		"topology.rook.io/row":                     "row1",
+	}
+
+	expected := []string{
+		"host=foo",
+		"rack=rack1",
+		"region=region1",
+		"row=row1",
+		"zone=zone1",
+	}
+	updateLocationWithNodeLabels(&location, nodeLabels)
+
+	assert.Equal(t, 5, len(location))
+	for i, locString := range location {
+		assert.Equal(t, locString, expected[i])
+	}
+}
+
 func TestGetOSDInfoWithCustomRoot(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
 	context := &clusterd.Context{}

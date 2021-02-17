@@ -20,8 +20,10 @@ limitations under the License.
 package osd
 
 import (
+	"fmt"
+
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var (
@@ -31,19 +33,86 @@ var (
 	KubernetesTopologyLabels = []string{"zone", "region"}
 
 	// The node labels that are supported with the topology.rook.io prefix such as topology.rook.io/rack
+	// The labels are in order from lowest to highest in the CRUSH hierarchy
 	CRUSHTopologyLabels = []string{"chassis", "rack", "row", "pdu", "pod", "room", "datacenter"}
 
 	// The list of supported failure domains in the CRUSH map, ordered from lowest to highest
 	CRUSHMapLevelsOrdered = append([]string{"host"}, append(CRUSHTopologyLabels, KubernetesTopologyLabels...)...)
 )
 
+const (
+	topologyLabelPrefix = "topology.rook.io/"
+)
+
 // ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
-func ExtractOSDTopologyFromLabels(labels map[string]string) map[string]string {
-	topology := k8sutil.ExtractTopologyFromLabels(labels, CRUSHTopologyLabels)
+func ExtractOSDTopologyFromLabels(labels map[string]string) (map[string]string, string) {
+	topology, topologyAffinity := extractTopologyFromLabels(labels)
 
 	// Ensure the topology names are normalized for CRUSH
 	for name, value := range topology {
 		topology[name] = client.NormalizeCrushName(value)
 	}
-	return topology
+	return topology, topologyAffinity
+}
+
+// ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
+func extractTopologyFromLabels(labels map[string]string) (map[string]string, string) {
+	topology := make(map[string]string)
+
+	// The topology affinity for the osd is the lowest topology label found in the hierarchy,
+	// not including the host name
+	var topologyAffinity string
+
+	// check for the region k8s topology label that was deprecated in 1.17
+	const regionLabel = "region"
+	region, ok := labels[corev1.LabelZoneRegion]
+	if ok {
+		topology[regionLabel] = region
+		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneRegion, region)
+	}
+
+	// check for the region k8s topology label that is GA in 1.17.
+	region, ok = labels[corev1.LabelZoneRegionStable]
+	if ok {
+		topology[regionLabel] = region
+		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneRegionStable, region)
+	}
+
+	// check for the zone k8s topology label that was deprecated in 1.17
+	const zoneLabel = "zone"
+	zone, ok := labels[corev1.LabelZoneFailureDomain]
+	if ok {
+		topology[zoneLabel] = zone
+		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneFailureDomain, zone)
+	}
+
+	// check for the zone k8s topology label that is GA in 1.17.
+	zone, ok = labels[corev1.LabelZoneFailureDomainStable]
+	if ok {
+		topology[zoneLabel] = zone
+		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneFailureDomainStable, zone)
+	}
+
+	// get host
+	host, ok := labels[corev1.LabelHostname]
+	if ok {
+		topology["host"] = host
+	}
+
+	// get the labels for the CRUSH map hierarchy
+	// iterate in reverse order so that the last topology found will be the lowest level in the hierarchy
+	// for the topology affinity
+	for i := len(CRUSHTopologyLabels) - 1; i >= 0; i-- {
+		topologyID := CRUSHTopologyLabels[i]
+		label := topologyLabelPrefix + topologyID
+		if value, ok := labels[label]; ok {
+			topology[topologyID] = value
+			topologyAffinity = formatTopologyAffinity(label, value)
+		}
+	}
+	return topology, topologyAffinity
+}
+
+func formatTopologyAffinity(label, value string) string {
+	return fmt.Sprintf("%s=%s", label, value)
 }

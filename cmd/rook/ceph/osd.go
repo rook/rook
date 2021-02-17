@@ -221,7 +221,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(provisionCmd)
-	crushLocation, err := getLocation(context.Clientset)
+	crushLocation, topologyAffinity, err := getLocation(context.Clientset)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -234,7 +234,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	agent := osddaemon.NewAgent(context, dgs, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
-	err = osddaemon.Provision(context, agent, crushLocation)
+	err = osddaemon.Provision(context, agent, crushLocation, topologyAffinity)
 	if err != nil {
 		// something failed in the OSD orchestration, update the status map with failure details
 		status := oposd.OrchestrationStatus{
@@ -281,21 +281,17 @@ func commonOSDInit(cmd *cobra.Command) {
 }
 
 // use zone/region/hostname labels in the crushmap
-func getLocation(clientset kubernetes.Interface) (string, error) {
+func getLocation(clientset kubernetes.Interface) (string, string, error) {
 	// get the value the operator instructed to use as the host name in the CRUSH map
 	hostNameLabel := os.Getenv("ROOK_CRUSHMAP_HOSTNAME")
 
 	rootLabel := os.Getenv(oposd.CrushRootVarName)
 
-	loc, err := oposd.GetLocationWithNode(clientset, os.Getenv(k8sutil.NodeNameEnvVar), rootLabel, hostNameLabel)
+	loc, topologyAffinity, err := oposd.GetLocationWithNode(clientset, os.Getenv(k8sutil.NodeNameEnvVar), rootLabel, hostNameLabel)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return loc, nil
-}
-
-func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) {
-	oposd.UpdateLocationWithNodeLabels(location, nodeLabels)
+	return loc, topologyAffinity, nil
 }
 
 // Parse the devices, which are sent as a JSON-marshalled list of device IDs with a StorageConfig spec

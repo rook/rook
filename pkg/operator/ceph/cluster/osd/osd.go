@@ -113,6 +113,8 @@ type OSDInfo struct {
 	LVBackedPV    bool   `json:"lv-backed-pv"`
 	CVMode        string `json:"lv-mode"`
 	Store         string `json:"store"`
+	// Ensure the OSD daemon has affinity with the same topology from the OSD prepare pod
+	TopologyAffinity string `json:"topologyAffinity"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
@@ -831,6 +833,9 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 		if envVar.Name == "ROOK_CV_MODE" {
 			osd.CVMode = envVar.Value
 		}
+		if envVar.Name == "ROOK_TOPOLOGY_AFFINITY" {
+			osd.TopologyAffinity = envVar.Value
+		}
 		if envVar.Name == "ROOK_LV_BACKED_PV" {
 			lvBackedPV, err := strconv.ParseBool(envVar.Value)
 			if err != nil {
@@ -864,7 +869,7 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 	}
 
 	if !locationFound {
-		location, err := getLocationFromPod(c.context.Clientset, d, client.GetCrushRootFromSpec(&c.spec))
+		location, _, err := getLocationFromPod(c.context.Clientset, d, client.GetCrushRootFromSpec(&c.spec))
 		if err != nil {
 			logger.Errorf("failed to get location. %v", err)
 		} else {
@@ -879,16 +884,16 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 	return []OSDInfo{osd}, nil
 }
 
-func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment, crushRoot string) (string, error) {
+func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment, crushRoot string) (string, string, error) {
 	ctx := context.TODO()
 	pods, err := clientset.CoreV1().Pods(d.Namespace).List(ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OsdIdLabelKey, d.Labels[OsdIdLabelKey])})
 	if err != nil || len(pods.Items) == 0 {
-		return "", err
+		return "", "", err
 	}
 	nodeName := pods.Items[0].Spec.NodeName
 	hostName, err := k8sutil.GetNodeHostName(clientset, nodeName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	portable, ok := d.GetLabels()[portableKey]
 	if ok && portable == "true" {
@@ -900,11 +905,15 @@ func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment, crus
 	return GetLocationWithNode(clientset, nodeName, crushRoot, hostName)
 }
 
-func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushRoot, crushHostname string) (string, error) {
+// GetLocationWithNode gets the topology information about the node. The return values are:
+//  location: The CRUSH properties for the OSD to apply
+//  topologyAffinity: The label to be applied to the OSD daemon to guarantee it will start in the same
+//		topology as the OSD prepare job.
+func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushRoot, crushHostname string) (string, string, error) {
 
 	node, err := getNode(clientset, nodeName)
 	if err != nil {
-		return "", errors.Wrapf(err, "could not get the node for topology labels")
+		return "", "", errors.Wrapf(err, "could not get the node for topology labels")
 	}
 
 	// If the operator did not pass a host name, look up the hostname label.
@@ -912,7 +921,7 @@ func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushR
 	if crushHostname == "" {
 		crushHostname, err = k8sutil.GetNodeHostNameLabel(node)
 		if err != nil {
-			return "", errors.Wrapf(err, "failed to get the host name label for node %q", node.Name)
+			return "", "", errors.Wrapf(err, "failed to get the host name label for node %q", node.Name)
 		}
 	}
 
@@ -922,11 +931,11 @@ func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushR
 	locArgs := []string{fmt.Sprintf("root=%s", crushRoot), fmt.Sprintf("host=%s", hostName)}
 
 	nodeLabels := node.GetLabels()
-	UpdateLocationWithNodeLabels(&locArgs, nodeLabels)
+	topologyAffinity := updateLocationWithNodeLabels(&locArgs, nodeLabels)
 
 	loc := strings.Join(locArgs, " ")
 	logger.Infof("CRUSH location=%s", loc)
-	return loc, nil
+	return loc, topologyAffinity, nil
 }
 
 // getNode will try to get the node object for the provided nodeName
@@ -951,9 +960,9 @@ func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, err
 	return node, nil
 }
 
-func UpdateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) {
+func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) string {
 
-	topology := ExtractOSDTopologyFromLabels(nodeLabels)
+	topology, topologyAffinity := ExtractOSDTopologyFromLabels(nodeLabels)
 
 	keys := make([]string, 0, len(topology))
 	for k := range topology {
@@ -966,6 +975,7 @@ func UpdateLocationWithNodeLabels(location *[]string, nodeLabels map[string]stri
 			client.UpdateCrushMapValue(location, topologyType, topology[topologyType])
 		}
 	}
+	return topologyAffinity
 }
 
 func (c *Cluster) applyUpgradeOSDFunctionality() {

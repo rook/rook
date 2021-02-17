@@ -39,7 +39,7 @@ func TestOrderedCRUSHLabels(t *testing.T) {
 	assert.Equal(t, "region", CRUSHMapLevelsOrdered[9])
 }
 
-func TestTopologyLabels(t *testing.T) {
+func TestCleanTopologyLabels(t *testing.T) {
 	// load all the expected labels
 	nodeLabels := map[string]string{
 		corev1.LabelZoneRegionStable:        "r.region",
@@ -49,7 +49,7 @@ func TestTopologyLabels(t *testing.T) {
 		"topology.rook.io/row":              "r.row",
 		"topology.rook.io/datacenter":       "d.datacenter",
 	}
-	topology := ExtractOSDTopologyFromLabels(nodeLabels)
+	topology, affinity := ExtractOSDTopologyFromLabels(nodeLabels)
 	assert.Equal(t, 6, len(topology))
 	assert.Equal(t, "r-region", topology["region"])
 	assert.Equal(t, "z-zone", topology["zone"])
@@ -57,4 +57,81 @@ func TestTopologyLabels(t *testing.T) {
 	assert.Equal(t, "r-rack", topology["rack"])
 	assert.Equal(t, "r-row", topology["row"])
 	assert.Equal(t, "d-datacenter", topology["datacenter"])
+	assert.Equal(t, "topology.rook.io/rack=r.rack", affinity)
+}
+
+func TestTopologyLabels(t *testing.T) {
+	nodeLabels := map[string]string{}
+	topology, affinity := extractTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 0, len(topology))
+	assert.Equal(t, "", affinity)
+
+	// invalid non-namespaced zone and region labels are simply ignored
+	nodeLabels = map[string]string{
+		"region": "badregion",
+		"zone":   "badzone",
+	}
+	topology, affinity = extractTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 0, len(topology))
+	assert.Equal(t, "", affinity)
+
+	// invalid zone and region labels are simply ignored
+	nodeLabels = map[string]string{
+		"topology.rook.io/region": "r1",
+		"topology.rook.io/zone":   "z1",
+	}
+	topology, affinity = extractTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 0, len(topology))
+	assert.Equal(t, "", affinity)
+
+	// load all the expected labels
+	nodeLabels = map[string]string{
+		corev1.LabelZoneRegionStable:        "r1",
+		corev1.LabelZoneFailureDomainStable: "z1",
+		"kubernetes.io/hostname":            "myhost",
+		"topology.rook.io/rack":             "rack1",
+		"topology.rook.io/row":              "row1",
+		"topology.rook.io/datacenter":       "d1",
+	}
+	topology, affinity = extractTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 6, len(topology))
+	assert.Equal(t, "r1", topology["region"])
+	assert.Equal(t, "z1", topology["zone"])
+	assert.Equal(t, "myhost", topology["host"])
+	assert.Equal(t, "rack1", topology["rack"])
+	assert.Equal(t, "row1", topology["row"])
+	assert.Equal(t, "d1", topology["datacenter"])
+	assert.Equal(t, "topology.rook.io/rack=rack1", affinity)
+
+	// ensure deprecated k8s labels are loaded
+	nodeLabels = map[string]string{
+		corev1.LabelZoneRegion:        "r1",
+		corev1.LabelZoneFailureDomain: "z1",
+	}
+	topology, affinity = extractTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 2, len(topology))
+	assert.Equal(t, "r1", topology["region"])
+	assert.Equal(t, "z1", topology["zone"])
+	assert.Equal(t, "failure-domain.beta.kubernetes.io/zone=z1", affinity)
+
+	// ensure deprecated k8s labels are overridden
+	nodeLabels = map[string]string{
+		corev1.LabelZoneRegionStable:        "r1",
+		corev1.LabelZoneFailureDomainStable: "z1",
+		corev1.LabelZoneRegion:              "oldregion",
+		corev1.LabelZoneFailureDomain:       "oldzone",
+	}
+	topology, affinity = extractTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 2, len(topology))
+	assert.Equal(t, "r1", topology["region"])
+	assert.Equal(t, "z1", topology["zone"])
+	assert.Equal(t, "topology.kubernetes.io/zone=z1", affinity)
+
+	// invalid labels under topology.rook.io return an error
+	nodeLabels = map[string]string{
+		"topology.rook.io/row/bad": "r1",
+	}
+	topology, affinity = extractTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 0, len(topology))
+	assert.Equal(t, "", affinity)
 }

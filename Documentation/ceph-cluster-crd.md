@@ -433,6 +433,13 @@ The following are the settings for Storage Class Device Sets which can be config
 
   However, if there are more OSDs than nodes, this anti-affinity will not be effective. Another placement scheme to consider is to add labels to the nodes in such a way that the OSDs can be grouped on those nodes, create multiple storageClassDeviceSets, and add node affinity to each of the device sets that will place the OSDs in those sets of nodes.
 
+  Rook will automatically add required nodeAffinity to the OSD daemons to match the topology labels that are found
+  on the nodes where the OSD prepare jobs ran. To ensure data durability, the OSDs are required to run in the same
+  topology that the Ceph CRUSH map expects. For example, if the nodes are labeled with rack topology labels, the
+  OSDs will be constrained to a certain rack. Without the topology labels, Rook will not constrain the OSDs beyond
+  what is required by the PVs, for example to run in the zone where provisioned. See the [OSD Topology](#osd-topology)
+  section for the related labels.
+
 * `preparePlacement`: The placement criteria for the preparation of the OSD devices. Creating OSDs is a two-step process and the prepare job may require different placement than the OSD daemons. If the `preparePlacement` is not specified, the `placement` will instead be applied for consistent placement for the OSD prepare jobs and OSD deployments. The `preparePlacement` is only useful for `portable` OSDs in the device sets. OSDs that are not portable will be tied to the host where the OSD prepare job initially runs.
   * For example, provisioning may require topology spread constraints across zones, but the OSD daemons may require constraints across hosts within the zones.
 * `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
