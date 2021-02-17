@@ -268,9 +268,6 @@ func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 	if n.Spec.RADOS.Pool == "" {
 		return errors.New("missing RADOS.pool")
 	}
-	if n.Spec.RADOS.Namespace == "" {
-		return errors.New("missing RADOS.namespace")
-	}
 
 	// Ganesha server properties
 	if n.Spec.Server.Active == 0 {
