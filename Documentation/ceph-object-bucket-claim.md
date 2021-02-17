@@ -60,7 +60,7 @@ spec:
   bucketName: photo-booth-c1178d61-1517-431f-8408-ec4c9fa50bee [3]
   storageClassName: rook-ceph-bucket [4]
 status:
-  Phase: bound [5]
+  phase: Bound [5]
 ```
 1. `namespace` where OBC got created.
 1. `ObjectBucketName` generated OB name created using name space and OBC name.
