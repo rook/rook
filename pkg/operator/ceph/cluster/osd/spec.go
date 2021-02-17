@@ -642,7 +642,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// we are passing false in case of osd and prepare pods because we don't want to overlap placement of osd on PVC's and non-PVC's.
 	p := cephv1.GetOSDPlacement(c.spec.Placement)
 	if osdProps.onPVC() {
-		osdProps.getPreparePlacement().ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
+		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
 	}
 	p.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
 
