@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -157,9 +158,28 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 	cephv1.GetCleanupLabels(cluster.Spec.Labels).ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	// Apply placement
-	cephv1.GetCleanupPlacement(cluster.Spec.Placement).ApplyToPodSpec(&podSpec.Spec)
+	getCleanupPlacement(cluster.Spec).ApplyToPodSpec(&podSpec.Spec)
 
 	return podSpec
+}
+
+// getCleanupPlacement returns the placement for the cleanup job
+func getCleanupPlacement(c cephv1.ClusterSpec) rookv1.Placement {
+	// The cleanup jobs are assigned by the operator to a specific node, so the
+	// node affinity and other affinity are not needed for scheduling.
+	// The only placement required for the cleanup daemons is the tolerations.
+	tolerations := c.Placement[rookv1.KeyAll].Tolerations
+	tolerations = append(tolerations, c.Placement[cephv1.KeyCleanup].Tolerations...)
+	tolerations = append(tolerations, c.Placement[cephv1.KeyMonArbiter].Tolerations...)
+	tolerations = append(tolerations, c.Placement[cephv1.KeyMon].Tolerations...)
+	tolerations = append(tolerations, c.Placement[cephv1.KeyMgr].Tolerations...)
+	tolerations = append(tolerations, c.Placement[cephv1.KeyOSD].Tolerations...)
+
+	// Add the tolerations for all the device sets
+	for _, deviceSet := range c.Storage.StorageClassDeviceSets {
+		tolerations = append(tolerations, deviceSet.Placement.Tolerations...)
+	}
+	return rookv1.Placement{Tolerations: tolerations}
 }
 
 func (c *ClusterController) waitForCephDaemonCleanUp(stopCleanupCh chan struct{}, cluster *cephv1.CephCluster, retryInterval time.Duration) error {
