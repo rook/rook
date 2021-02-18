@@ -222,7 +222,7 @@ func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 			Name:      "stuck-pod",
 			Namespace: clusterName.Namespace,
 			Labels: map[string]string{
-				"rook_cluster": clusterName.Name,
+				"app": "rook-ceph-osd",
 			},
 		},
 	}
@@ -287,14 +287,17 @@ func TestGetRookPodsOnNode(t *testing.T) {
 
 	c := newCephStatusChecker(context, clusterInfo, &cephv1.ClusterSpec{})
 	labels := []map[string]string{
-		{"rook_cluster": clusterName.Name},
+		{"app": "rook-ceph-osd"},
 		{"app": "csi-rbdplugin-provisioner"},
 		{"app": "csi-rbdplugin"},
 		{"app": "csi-cephfsplugin-provisioner"},
 		{"app": "csi-cephfsplugin"},
 		{"app": "rook-ceph-operator"},
-		{"rook_cluster": "test", "app": "csi-cephfsplugin"},
+		{"app": "rook-ceph-crashcollector"},
+		{"app": "rook-ceph-mgr"},
+		{"app": "rook-ceph-mds"},
 		{"app": "user-app"},
+		{"app": "rook-ceph-mon"},
 	}
 
 	pod := v1.Pod{
@@ -322,7 +325,7 @@ func TestGetRookPodsOnNode(t *testing.T) {
 	pods, err := c.getRookPodsOnNode("node0")
 	assert.NoError(t, err)
 	// A pod is having two matching labels and its returned only once
-	assert.Equal(t, 7, len(pods))
+	assert.Equal(t, 10, len(pods))
 
 	podNames := []string{}
 	for _, pod := range pods {
