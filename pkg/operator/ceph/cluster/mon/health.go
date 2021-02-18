@@ -181,15 +181,11 @@ func (c *Cluster) checkHealth() error {
 		}
 
 		// when the timeout for the mon has been reached, continue to the
-		// normal failover/delete mon pod part of the code
+		// normal failover mon pod part of the code
 		if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
 			timeToFailover := int(MonOutTimeout.Seconds() - time.Since(c.monTimeoutList[mon.Name]).Seconds())
 			logger.Warningf("mon %q not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
 
-			// Restart the mon if it is stuck on a failed node
-			if err := c.restartMonIfStuckTerminating(mon.Name); err != nil {
-				logger.Error("failed to restart the mon if it is stuck", err)
-			}
 			continue
 		}
 
@@ -557,23 +553,4 @@ func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (b
 
 	logger.Debugf("ClusterInfo.Monitors is %+v", c.ClusterInfo.Monitors)
 	return changed, nil
-}
-
-// restartMonIfStuckTerminating will check if a mon is on a node that is not ready.
-// If the pod is stuck in terminating state, go ahead and force delete the pod so K8s
-// will allow the mon to be restarted on another node.
-func (c *Cluster) restartMonIfStuckTerminating(monName string) error {
-	ctx := context.TODO()
-	logger.Debugf("Checking for a stuck mon %q pod", monName)
-	labels := fmt.Sprintf("app=%s,mon=%s", AppName, monName)
-	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labels})
-	if err != nil {
-		return errors.Wrapf(err, "failed to get pod for mon %q", monName)
-	}
-	for _, pod := range pods.Items {
-		if err := k8sutil.ForceDeletePodIfStuck(c.context, pod); err != nil {
-			logger.Warningf("skipping forced restart of mon %q. %v", monName, err)
-		}
-	}
-	return nil
 }

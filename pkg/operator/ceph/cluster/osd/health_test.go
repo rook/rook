@@ -31,8 +31,6 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -114,68 +112,6 @@ func TestMonitorStart(t *testing.T) {
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(stopCh)
 	close(stopCh)
-}
-
-func TestOSDRestartIfStuck(t *testing.T) {
-	ctx := context.TODO()
-	clientset := testexec.New(t, 1)
-	clusterInfo := client.AdminClusterInfo("test")
-	// Setting up objects needed to create OSD
-	context := &clusterd.Context{
-		Clientset: clientset,
-	}
-
-	pod := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "osd0",
-			Namespace: clusterInfo.Namespace,
-			Labels: map[string]string{
-				"ceph-osd-id": "23",
-				"portable":    "true",
-			},
-		},
-	}
-	pod.Spec.NodeName = "node0"
-	_, err := context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Create(ctx, &pod, metav1.CreateOptions{})
-	assert.NoError(t, err)
-
-	m := NewOSDHealthMonitor(context, clusterInfo, false, cephv1.CephClusterHealthCheckSpec{})
-
-	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
-
-	// The pod should still exist since it wasn't in a deleted state
-	p, err := context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, p)
-
-	// Add a deletion timestamp to the pod
-	pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-	_, err = context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Update(ctx, &pod, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-
-	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
-
-	// The pod should still exist since the node is ready
-	p, err = context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, p)
-
-	// Set the node to a not ready state
-	nodes, err := context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	assert.NoError(t, err)
-	for _, node := range nodes.Items {
-		node.Status.Conditions[0].Status = v1.ConditionFalse
-		localnode := node
-		_, err := context.Clientset.CoreV1().Nodes().Update(ctx, &localnode, metav1.UpdateOptions{})
-		assert.NoError(t, err)
-	}
-
-	assert.NoError(t, k8sutil.ForceDeletePodIfStuck(m.context, pod))
-
-	// The pod should be deleted since the pod is marked as deleted and the node is not ready
-	_, err = context.Clientset.CoreV1().Pods(clusterInfo.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
-	assert.Error(t, err)
-	assert.True(t, kerrors.IsNotFound(err))
 }
 
 func TestNewOSDHealthMonitor(t *testing.T) {
