@@ -23,6 +23,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [Rook Agent modprobe exec format error](#rook-agent-modprobe-exec-format-error)
 * [Rook Agent rbd module missing error](#rook-agent-rbd-module-missing-error)
 * [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
+* [Set debug log level for all Ceph daemons](#set-debug-log-level-for-all-ceph-daemons)
 * [Activate log to file for a particular Ceph daemon](#activate-log-to-file-for-a-particular-ceph-daemon)
 * [Flex storage class versus Ceph CSI storage class](#flex-storage-class-versus-ceph-csi-storage-class)
 * [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
@@ -726,6 +727,33 @@ The only solution to this problem is to upgrade your kernel to `4.7` or higher.
 This is due to a mount flag added in the kernel version `4.7` which allows to chose the filesystem by name.
 
 For additional info on the kernel version requirement for multiple shared filesystems (CephFS), see [Filesystem - Kernel version requirement](ceph-filesystem.md#kernel-version-requirement).
+
+## Set debug log level for all Ceph daemons
+
+You can set a given log level and apply it to all the Ceph daemons at the same time.
+For this, make sure the toolbox pod is running, then determine the level you want (between 0 and 20).
+You can find the list of all subsystems and their default values in [Ceph logging and debug official guide](https://docs.ceph.com/en/latest/rados/troubleshooting/log-and-debug/#ceph-subsystems). Be careful when increasing the level as it will produce very verbose logs.
+
+Assuming you want a log level of 1, you will run:
+
+```console
+kubectl -n rook-ceph exec deploy/rook-ceph-tools -- set-ceph-debug-level 1
+```
+
+Output:
+
+>```quote
+> ceph config set global debug_context 1
+> ceph config set global debug_lockdep 1
+>...
+>...
+>```
+
+Once you are done debugging, you can revert all the debug flag to their default value by running the following:
+
+```console
+kubectl -n rook-ceph exec deploy/rook-ceph-tools -- set-ceph-debug-level default
+```
 
 ## Activate log to file for a particular Ceph daemon
 
