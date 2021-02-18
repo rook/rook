@@ -2,13 +2,7 @@
 title: Prerequisites
 weight: 1000
 ---
-{% assign url = page.url | split: '/' %}
-{% assign currentVersion = url[3] %}
-{% if currentVersion != 'master' %}
-{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
-{% else %}
-{% assign branchName = currentVersion %}
-{% endif %}
+{% include_relative branch.liquid %}
 
 # Prerequisites
 
