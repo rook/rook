@@ -3,9 +3,10 @@ title: Object Multisite
 weight: 2250
 indent: true
 ---
+
 # Object Multisite
 
-Multisite is a feature of Ceph that allows object stores to replicate their data over multiple Ceph clusters. 
+Multisite is a feature of Ceph that allows object stores to replicate their data over multiple Ceph clusters.
 
 Multisite also allows object stores to be independent and isolated from other object stores in a cluster.
 
@@ -37,7 +38,7 @@ object-multisite.yaml in the [examples](/cluster/examples/kubernetes/ceph/) dire
 kubectl create -f object-multisite.yaml
 ```
 
-The first zone group created in a realm is the master zone group. The first zone created in a zone group is the master zone. 
+The first zone group created in a realm is the master zone group. The first zone created in a zone group is the master zone.
 
 When a non-master zone or non-master zone group is created, the zone group or zone is not in the Ceph Radosgw Multisite [Period](https://docs.ceph.com/docs/master/radosgw/multisite/) until an object-store is created in that zone (and zone group).
 
@@ -49,7 +50,7 @@ For more information on the multisite CRDs please read [ceph-object-multisite-cr
 
 # Pulling a Realm
 
-If an admin wants to sync data from another cluster, the admin needs to pull a realm on a Rook Ceph cluster from another Rook Ceph (or Ceph) cluster. 
+If an admin wants to sync data from another cluster, the admin needs to pull a realm on a Rook Ceph cluster from another Rook Ceph (or Ceph) cluster.
 
 To begin doing this, the admin needs 2 pieces of information:
 
@@ -58,7 +59,7 @@ To begin doing this, the admin needs 2 pieces of information:
 
 ## Getting the Pull Endpoint
 
-To pull a Ceph realm from a remote Ceph cluster, an `endpoint` must be added to the CephObjectRealm's `pull` section in the `spec`. This endpoint must be from the master zone in the master zone group of that realm. 
+To pull a Ceph realm from a remote Ceph cluster, an `endpoint` must be added to the CephObjectRealm's `pull` section in the `spec`. This endpoint must be from the master zone in the master zone group of that realm.
 
 If an admin does not know of an endpoint that fits this criteria, the admin can find such an endpoint on the remote Ceph cluster (via the tool box if it is a Rook Ceph Cluster) by running:
 
@@ -134,7 +135,7 @@ radosgw-admin user info --uid="realm-a-system-user"
 }
 ```
 
-Then base64 encode the each of the keys and create a `.yaml` file for the Kubernetes secret from the following template. 
+Then base64 encode the each of the keys and create a `.yaml` file for the Kubernetes secret from the following template.
 
 Only the `access-key`, `secret-key`, and `namespace` sections need to be replaced.
 ```
@@ -180,7 +181,7 @@ When the ceph-object-realm resource is deleted or modified, the realm is not del
 
 ### Deleting a Realm
 
-The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command. 
+The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
 
 The following command, run via the toolbox, deletes the realm.
 
@@ -196,7 +197,7 @@ When the ceph-object-zone group resource is deleted or modified, the zone group 
 
 ### Deleting a Zone Group
 
-The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command. 
+The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
 
 The following command, run via the toolbox, deletes the zone group.
 
@@ -237,7 +238,7 @@ In the other scenario, there are more than one zones in a zone group.
 
 Care must be taken when changing which zone is the master zone.
 
-Please read the following [documentation](https://docs.ceph.com/docs/master/radosgw/multisite/#changing-the-metadata-master-zone) before running the below commands: 
+Please read the following [documentation](https://docs.ceph.com/docs/master/radosgw/multisite/#changing-the-metadata-master-zone) before running the below commands:
 
 The following commands, run via toolboxes, remove the zone from the zone group first, then delete the zone.
 
@@ -281,4 +282,3 @@ kubectl delete -f object-store.yaml
 ```
 
 Removing object store(s) from the master zone of the master zone group should be done with caution. When all of these object-stores are deleted the period cannot be updated and that realm cannot be pulled.
-
