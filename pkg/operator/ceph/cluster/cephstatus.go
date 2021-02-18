@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -300,17 +301,21 @@ func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
 		"csi-cephfsplugin-provisioner",
 		"csi-cephfsplugin",
 		"rook-ceph-operator",
+		"rook-ceph-mon",
+		"rook-ceph-osd",
+		"rook-ceph-crashcollector",
+		"rook-ceph-mgr",
+		"rook-ceph-mds",
 	}
 	podsOnNode := []v1.Pod{}
-	pods, err := c.context.Clientset.CoreV1().Pods(clusterName.Namespace).List(context.TODO(), metav1.ListOptions{})
+	listOpts := metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("spec.nodeName=%s", node),
+	}
+	pods, err := c.context.Clientset.CoreV1().Pods(clusterName.Namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return podsOnNode, errors.Wrapf(err, "failed to get pods on node %q", node)
 	}
 	for _, pod := range pods.Items {
-		if pod.Labels["rook_cluster"] == clusterName.Name {
-			podsOnNode = append(podsOnNode, pod)
-			continue
-		}
 		for _, label := range appLabels {
 			if pod.Labels["app"] == label {
 				podsOnNode = append(podsOnNode, pod)
