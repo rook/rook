@@ -52,6 +52,7 @@ watch_endpoints() {
       write_endpoints
       initial_time=${latest_time}
     fi
+    
     sleep 10
   done
 }

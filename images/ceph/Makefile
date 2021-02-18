@@ -44,6 +44,7 @@ do.build: generate-csv-ceph-templates
 	@echo === container build $(CEPH_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp toolbox.sh $(TEMP)
+	@cp set-ceph-debug-level $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
