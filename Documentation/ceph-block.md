@@ -113,19 +113,23 @@ kubectl create -f wordpress.yaml
 Both of these apps create a block volume and mount it to their respective pod. You can see the Kubernetes volume claims by running the following:
 
 ```console
-$ kubectl get pvc
-NAME             STATUS    VOLUME                                     CAPACITY   ACCESSMODES   AGE
-mysql-pv-claim   Bound     pvc-95402dbc-efc0-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
-wp-pv-claim      Bound     pvc-39e43169-efc1-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
+kubectl get pvc
+```
+>```
+>NAME             STATUS    VOLUME                                     CAPACITY   ACCESSMODES   AGE
+>mysql-pv-claim   Bound     pvc-95402dbc-efc0-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
+>wp-pv-claim      Bound     pvc-39e43169-efc1-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
 ```
 
 Once the wordpress and mysql pods are in the `Running` state, get the cluster IP of the wordpress app and enter it in your browser:
 
 ```console
-$ kubectl get svc wordpress
-NAME        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
-wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
+kubectl get svc wordpress
 ```
+>```
+>NAME        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
+>wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
+>```
 
 You should see the wordpress app running.
 

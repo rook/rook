@@ -31,13 +31,15 @@ You can confirm whether your partitions or devices are formatted filesystems wit
 
 ```console
 lsblk -f
-NAME                  FSTYPE      LABEL UUID                                   MOUNTPOINT
-vda
-└─vda1                LVM2_member       eSO50t-GkUV-YKTH-WsGq-hNJY-eKNf-3i07IB
-  ├─ubuntu--vg-root   ext4              c2366f76-6e21-4f10-a8f3-6776212e2fe4   /
-  └─ubuntu--vg-swap_1 swap              9492a3dc-ad75-47cd-9596-678e8cf17ff9   [SWAP]
-vdb
 ```
+>```
+>NAME                  FSTYPE      LABEL UUID                                   MOUNTPOINT
+>vda
+>└─vda1                LVM2_member       >eSO50t-GkUV-YKTH-WsGq-hNJY-eKNf-3i07IB
+>  ├─ubuntu--vg-root   ext4              c2366f76-6e21-4f10-a8f3-6776212e2fe4   /
+>  └─ubuntu--vg-swap_1 swap              9492a3dc-ad75-47cd-9596-678e8cf17ff9   [SWAP]
+>vdb
+>```
 
 If the `FSTYPE` field is not empty, there is a filesystem on top of the corresponding device. In this case, you can use vdb for Ceph and can't use vda and its partitions.
 
@@ -46,7 +48,7 @@ If the `FSTYPE` field is not empty, there is a filesystem on top of the correspo
 If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands and [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph). For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 
 ```console
-git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
+$ git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/ceph
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 kubectl create -f cluster.yaml
@@ -72,7 +74,7 @@ The first step is to deploy the Rook operator. Check that you are using the [exa
 cd cluster/examples/kubernetes/ceph
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 
-## verify the rook-ceph-operator is in the `Running` state before proceeding
+# verify the rook-ceph-operator is in the `Running` state before proceeding
 kubectl -n rook-ceph get pod
 ```
 
@@ -109,27 +111,30 @@ The CSI, `rook-ceph-agent` (flex driver), and `rook-discover` pods are also opti
 > [Ceph common issues](ceph-common-issues.md) for more details and potential solutions.
 
 ```console
-$ kubectl -n rook-ceph get pod
-NAME                                                 READY   STATUS      RESTARTS   AGE
-csi-cephfsplugin-provisioner-d77bb49c6-n5tgs         5/5     Running     0          140s
-csi-cephfsplugin-provisioner-d77bb49c6-v9rvn         5/5     Running     0          140s
-csi-cephfsplugin-rthrp                               3/3     Running     0          140s
-csi-rbdplugin-hbsm7                                  3/3     Running     0          140s
-csi-rbdplugin-provisioner-5b5cd64fd-nvk6c            6/6     Running     0          140s
-csi-rbdplugin-provisioner-5b5cd64fd-q7bxl            6/6     Running     0          140s
-rook-ceph-crashcollector-minikube-5b57b7c5d4-hfldl   1/1     Running     0          105s
-rook-ceph-mgr-a-64cd7cdf54-j8b5p                     1/1     Running     0          77s
-rook-ceph-mon-a-694bb7987d-fp9w7                     1/1     Running     0          105s
-rook-ceph-mon-b-856fdd5cb9-5h2qk                     1/1     Running     0          94s
-rook-ceph-mon-c-57545897fc-j576h                     1/1     Running     0          85s
-rook-ceph-operator-85f5b946bd-s8grz                  1/1     Running     0          92m
-rook-ceph-osd-0-6bb747b6c5-lnvb6                     1/1     Running     0          23s
-rook-ceph-osd-1-7f67f9646d-44p7v                     1/1     Running     0          24s
-rook-ceph-osd-2-6cd4b776ff-v4d68                     1/1     Running     0          25s
-rook-ceph-osd-prepare-node1-vx2rz                    0/2     Completed   0          60s
-rook-ceph-osd-prepare-node2-ab3fd                    0/2     Completed   0          60s
-rook-ceph-osd-prepare-node3-w4xyz                    0/2     Completed   0          60s
+kubectl -n rook-ceph get pod
 ```
+
+>```
+>NAME                                                 READY   STATUS      RESTARTS   AGE
+>csi-cephfsplugin-provisioner-d77bb49c6-n5tgs         5/5     Running     0          140s
+>csi-cephfsplugin-provisioner-d77bb49c6-v9rvn         5/5     Running     0          140s
+>csi-cephfsplugin-rthrp                               3/3     Running     0          140s
+>csi-rbdplugin-hbsm7                                  3/3     Running     0          140s
+>csi-rbdplugin-provisioner-5b5cd64fd-nvk6c            6/6     Running     0          140s
+>csi-rbdplugin-provisioner-5b5cd64fd-q7bxl            6/6     Running     0          140s
+>rook-ceph-crashcollector-minikube-5b57b7c5d4-hfldl   1/1     Running     0          105s
+>rook-ceph-mgr-a-64cd7cdf54-j8b5p                     1/1     Running     0          77s
+>rook-ceph-mon-a-694bb7987d-fp9w7                     1/1     Running     0          105s
+>rook-ceph-mon-b-856fdd5cb9-5h2qk                     1/1     Running     0          94s
+>rook-ceph-mon-c-57545897fc-j576h                     1/1     Running     0          85s
+>rook-ceph-operator-85f5b946bd-s8grz                  1/1     Running     0          92m
+>rook-ceph-osd-0-6bb747b6c5-lnvb6                     1/1     Running     0          23s
+>rook-ceph-osd-1-7f67f9646d-44p7v                     1/1     Running     0          24s
+>rook-ceph-osd-2-6cd4b776ff-v4d68                     1/1     Running     0          25s
+>rook-ceph-osd-prepare-node1-vx2rz                    0/2     Completed   0          60s
+>rook-ceph-osd-prepare-node2-ab3fd                    0/2     Completed   0          60s
+>rook-ceph-osd-prepare-node3-w4xyz                    0/2     Completed   0          60s
+>```
 
 To verify that the cluster is in a healthy state, connect to the [Rook toolbox](ceph-toolbox.md) and run the
 `ceph status` command.
@@ -140,17 +145,19 @@ To verify that the cluster is in a healthy state, connect to the [Rook toolbox](
 * If the health is not `HEALTH_OK`, the warnings or errors should be investigated
 
 ```console
-$ ceph status
-  cluster:
-    id:     a0452c76-30d9-4c1a-a948-5d8405f19a7c
-    health: HEALTH_OK
-
-  services:
-    mon: 3 daemons, quorum a,b,c (age 3m)
-    mgr: a(active, since 2m)
-    osd: 3 osds: 3 up (since 1m), 3 in (since 1m)
-...
+ceph status
 ```
+>```
+>  cluster:
+>    id:     a0452c76-30d9-4c1a-a948-5d8405f19a7c
+>    health: HEALTH_OK
+>
+>  services:
+>    mon: 3 daemons, quorum a,b,c (age 3m)
+>    mgr: a(active, since 2m)
+>    osd: 3 osds: 3 up (since 1m), 3 in (since 1m)
+>...
+>```
 
 If the cluster is not healthy, please refer to the [Ceph common issues](ceph-common-issues.md) for more details and potential solutions.
 

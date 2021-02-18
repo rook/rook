@@ -6,7 +6,7 @@ NFS Provisioner is a built in dynamic provisioner for Rook NFS. The functionalit
 
 This hierarchy is the current behaviour of NFS Provisioner when provisioning two PV in the same share/export:
 
-```console
+```text
 export
 ├── sample-export
 |   ├── data (from PV-A)
@@ -20,7 +20,7 @@ Both PV-A and PV-B uses the `sample-export` directory as their data location.
 
 This proposal is to make Rook NFS Provisioner create a sub-directory for every provisioned PV in the same share/export. So it will have a hierarchy like:
 
-```console
+```text
 export
 ├── sample-export
 │   ├── pv-a
@@ -50,7 +50,7 @@ Since those directories are not in the NFS Provisioner pod but in the NFS Server
 
 ## Proposal details
 
-The approach will be similar to [Kubernetes NFS Client Provisioner](https://github.com/kubernetes-incubator/external-storage/tree/master/nfs-client), where the provisioner mounts the whole of NFS share/export into the provisioner pod (by kubelet), so that the provisioner can then create the appropriate sub-directory for each provisioned PV. Currently Rook NFS Provisioner is deployed independently and before the NFS Server itself, so we cannot mount the NFS share because we don't know the NFS Server IP or the share/export directory. 
+The approach will be similar to [Kubernetes NFS Client Provisioner](https://github.com/kubernetes-incubator/external-storage/tree/master/nfs-client), where the provisioner mounts the whole of NFS share/export into the provisioner pod (by kubelet), so that the provisioner can then create the appropriate sub-directory for each provisioned PV. Currently Rook NFS Provisioner is deployed independently and before the NFS Server itself, so we cannot mount the NFS share because we don't know the NFS Server IP or the share/export directory.
 
 The idea is to make NFS Provisioner controlled by the operator. So when an NFS Server is created, the operator also then creates its provisioner, which mounts each NFS share/export. Then, the NFS Provisioner can create a sub-directory for each provisioned PV.
 

@@ -32,13 +32,15 @@ The Ceph monitors are the most critical component of the cluster to check first.
 Retrieve the mon endpoints from the services:
 
 ```console
-$ kubectl -n rook-ceph get svc -l app=rook-ceph-mon
-
-NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
-rook-ceph-mon-a   ClusterIP   10.104.165.31   <none>        6789/TCP,3300/TCP   18h
-rook-ceph-mon-b   ClusterIP   10.97.244.93    <none>        6789/TCP,3300/TCP   21s
-rook-ceph-mon-c   ClusterIP   10.99.248.163   <none>        6789/TCP,3300/TCP   8s
+kubectl -n rook-ceph get svc -l app=rook-ceph-mon
 ```
+
+>```
+>NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
+>rook-ceph-mon-a   ClusterIP   10.104.165.31   <none>        6789/TCP,3300/TCP   18h
+>rook-ceph-mon-b   ClusterIP   10.97.244.93    <none>        6789/TCP,3300/TCP   21s
+>rook-ceph-mon-c   ClusterIP   10.99.248.163   <none>        6789/TCP,3300/TCP   8s
+>```
 
 If host networking is enabled in the CephCluster CR, you will instead need to find the
 node IPs for the hosts where the mons are running.
@@ -57,10 +59,10 @@ Connect to the provisioner pods and verify the connection to the mon endpoints s
 
 ```console
 # Connect to the csi-cephfsplugin container in the provisioner pod
-$ kubectl -n rook-ceph exec -ti deploy/csi-cephfsplugin-provisioner -c csi-cephfsplugin -- bash
+kubectl -n rook-ceph exec -ti deploy/csi-cephfsplugin-provisioner -c csi-cephfsplugin -- bash
 
 # Test the network connection to the mon endpoint
-$ curl 10.104.165.31:3300 2>/dev/null
+curl 10.104.165.31:3300 2>/dev/null
 ceph v2
 ```
 
@@ -76,7 +78,10 @@ Check that your Ceph cluster is healthy by connecting to the [Toolbox](ceph-tool
 running the `ceph` commands:
 
 ```console
-$ ceph health detail
+ceph health detail
+```
+
+```console
 HEALTH_OK
 ```
 
@@ -86,12 +91,14 @@ Even slow ops in the ceph cluster can contribute to the issues. In the toolbox,
 make sure that no slow ops are present and the ceph cluster is healthy
 
 ```console
-$ ceph -s
-  cluster:
-    id:     ba41ac93-3b55-4f32-9e06-d3d8c6ff7334
-    health: HEALTH_WARN
-            30 slow ops, oldest one blocked for 10624 sec, mon.a has slow ops
+ceph -s
 ```
+>```
+>cluster:
+>  id:     ba41ac93-3b55-4f32-9e06-d3d8c6ff7334
+>  health: HEALTH_WARN
+>          30 slow ops, oldest one blocked for 10624 sec, mon.a has slow ops
+>```
 
 If Ceph is not healthy, check the following health for more clues:
 
@@ -110,10 +117,13 @@ Suppose the pool name mentioned in the `storageclass.yaml` is `replicapool`. It 
 to exist in the toolbox:
 
 ```console
-$ ceph osd lspools
-1 device_health_metrics
-2 replicapool
+ceph osd lspools
 ```
+
+>```
+>1 device_health_metrics
+>2 replicapool
+>```
 
 If the pool is not in the list, create the `CephBlockPool` CR for the pool if you have not already.
 If you have already created the pool, check the Rook operator log for errors creating the pool.
@@ -125,20 +135,24 @@ For the shared filesystem (CephFS), check that the filesystem and pools you have
 Suppose the `fsName` name mentioned in the `storageclass.yaml` is `myfs`. It can be verified in the toolbox:
 
 ```console
-$ ceph fs ls
-name: myfs, metadata pool: myfs-metadata, data pools: [myfs-data0 ]
+ceph fs ls
 ```
+>```
+>name: myfs, metadata pool: myfs-metadata, data pools: [myfs-data0 ]
+>```
 
 Now verify the `pool` mentioned in the `storageclass.yaml` exists, such as the example `myfs-data0`.
 
 ```console
-$ ceph osd lspools
-
-1 device_health_metrics
-2 replicapool
-3 myfs-metadata0
-4 myfs-data0
+ceph osd lspools
 ```
+
+>```
+>1 device_health_metrics
+>2 replicapool
+>3 myfs-metadata0
+>4 myfs-data0
+>```
 
 The pool for the filesystem will have the suffix `-data0` compared the filesystem name that is created
 by the CephFilesystem CR.
@@ -150,13 +164,16 @@ Ceph-CSI creates the default subvolumegroup with the name csi. Verify that the s
 exists:
 
 ```console
-$ ceph fs subvolumegroup ls myfs
-[
-    {
-        "name": "csi"
-    }
-]
+ceph fs subvolumegroup ls myfs
 ```
+
+>```
+>[
+>    {
+>        "name": "csi"
+>    }
+>]
+>```
 
 If you don’t see any issues with your Ceph cluster, the following sections will start debugging the issue from the CSI side.
 
@@ -180,7 +197,7 @@ and `ControllerDeleteVolume()` functions of CSI drivers. More details about exte
 If there is an issue with PVC Create or Delete, check the logs of the `csi-provisioner` sidecar container.
 
 ```console
-$ kubectl -n rook-ceph logs deploy/csi-rbdplugin-provisioner -c csi-provisioner
+kubectl -n rook-ceph logs deploy/csi-rbdplugin-provisioner -c csi-provisioner
 ```
 
 ### csi-resizer
@@ -192,7 +209,7 @@ on the PersistentVolumeClaim object. More details about external-provisioner can
 If any issue exists in PVC expansion you can check the logs of the `csi-resizer` sidecar container.
 
 ```console
-$ kubectl -n rook-ceph logs deploy/csi-rbdplugin-provisioner -c csi-resizer
+kubectl -n rook-ceph logs deploy/csi-rbdplugin-provisioner -c csi-resizer
 ```
 
 ### csi-snapshotter
@@ -207,12 +224,14 @@ Make sure you have installed the correct snapshotter CRD version. If you have no
 controller, see the [Snapshots guide](ceph-csi-snapshot.md).
 
 ```console
-$ kubectl get crd | grep snapshot
-
-volumesnapshotclasses.snapshot.storage.k8s.io    2021-01-25T11:19:38Z
-volumesnapshotcontents.snapshot.storage.k8s.io   2021-01-25T11:19:39Z
-volumesnapshots.snapshot.storage.k8s.io          2021-01-25T11:19:40Z
+kubectl get crd | grep snapshot
 ```
+
+>```
+>volumesnapshotclasses.snapshot.storage.k8s.io    2021-01-25T11:19:38Z
+>volumesnapshotcontents.snapshot.storage.k8s.io   2021-01-25T11:19:39Z
+>volumesnapshots.snapshot.storage.k8s.io          2021-01-25T11:19:40Z
+>```
 
 The above CRDs must have the matching version in your `snapshotclass.yaml` or `snapshot.yaml`.
 Otherwise, the `VolumeSnapshot` and `VolumesnapshotContent` will not be created.
@@ -230,15 +249,15 @@ If your Kubernetes distribution does not bundle the snapshot controller, you may
 If any issue exists in the snapshot Create/Delete operation you can check the logs of the csi-snapshotter sidecar container.
 
 ```console
-$ kubectl -n rook-ceph logs deploy/csi-rbdplugin-provisioner -c csi-snapshotter
+kubectl -n rook-ceph logs deploy/csi-rbdplugin-provisioner -c csi-snapshotter
 ```
 
 If you see an error such as:
 
-```
-GRPC error: rpc error: code = Aborted desc = an operation with the given Volume ID
-0001-0009-rook-ceph-0000000000000001-8d0ba728-0e17-11eb-a680-ce6eecc894de already exists.
-```
+>```
+>GRPC error: rpc error: code = Aborted desc = an operation with the given Volume ID
+>0001-0009-rook-ceph-0000000000000001-8d0ba728-0e17-11eb-a680-ce6eecc894de already >exists.
+>```
 
 The issue typically is in the Ceph cluster or network connectivity. If the issue is
 in Provisioning the PVC Restarting the Provisioner pods help(for CephFS issue
@@ -273,18 +292,20 @@ If any issue exists in attaching the PVC to the application pod check logs from 
 sidecar container in plugin pod where your application pod is scheduled.
 
 ```console
-$ kubectl -n rook-ceph logs deploy/csi-rbdplugin -c driver-registrar
-
-I0120 12:28:34.231761  124018 main.go:112] Version: v2.0.1
-I0120 12:28:34.233910  124018 connection.go:151] Connecting to unix:///csi/csi.sock
-I0120 12:28:35.242469  124018 node_register.go:55] Starting Registration Server at: /registration/rook-ceph.rbd.csi.ceph.com-reg.sock
-I0120 12:28:35.243364  124018 node_register.go:64] Registration Server started at: /registration/rook-ceph.rbd.csi.ceph.com-reg.sock
-I0120 12:28:35.243673  124018 node_register.go:86] Skipping healthz server because port set to: 0
-I0120 12:28:36.318482  124018 main.go:79] Received GetInfo call: &InfoRequest{}
-I0120 12:28:37.455211  124018 main.go:89] Received NotifyRegistrationStatus call: &RegistrationStatus{PluginRegistered:true,Error:,}
-E0121 05:19:28.658390  124018 connection.go:129] Lost connection to unix:///csi/csi.sock.
-E0125 07:11:42.926133  124018 connection.go:129] Lost connection to unix:///csi/csi.sock.
+kubectl -n rook-ceph logs deploy/csi-rbdplugin -c driver-registrar
 ```
+
+>```
+>I0120 12:28:34.231761  124018 main.go:112] Version: v2.0.1
+>I0120 12:28:34.233910  124018 connection.go:151] Connecting to unix:///csi/csi.sock
+>I0120 12:28:35.242469  124018 node_register.go:55] Starting Registration Server at: /registration/rook-ceph.rbd.csi.ceph.com-reg.sock
+>I0120 12:28:35.243364  124018 node_register.go:64] Registration Server started at: /registration/rook-ceph.rbd.csi.ceph.com-reg.sock
+>I0120 12:28:35.243673  124018 node_register.go:86] Skipping healthz server because port set to: 0
+>I0120 12:28:36.318482  124018 main.go:79] Received GetInfo call: &InfoRequest{}
+>I0120 12:28:37.455211  124018 main.go:89] Received NotifyRegistrationStatus call: &RegistrationStatus{PluginRegistered:true,Error:,}
+>E0121 05:19:28.658390  124018 connection.go:129] Lost connection to unix:///csi/csi.sock.
+>E0125 07:11:42.926133  124018 connection.go:129] Lost connection to unix:///csi/csi.sock.
+>```
 
 You should see the response `RegistrationStatus{PluginRegistered:true,Error:,}` in the logs to
 confirm that plugin is registered with kubelet.
@@ -307,11 +328,16 @@ If any issue exists in attaching the PVC to the application pod first check the 
 and also log from csi-attacher sidecar container in provisioner pod.
 
 ```console
-$ kubectl get volumeattachment
-NAME                                                                   ATTACHER                        PV                                         NODE       ATTACHED   AGE
-csi-75903d8a902744853900d188f12137ea1cafb6c6f922ebc1c116fd58e950fc92   rook-ceph.cephfs.csi.ceph.com   pvc-5c547d2a-fdb8-4cb2-b7fe-e0f30b88d454   minikube   true       4m26s
+kubectl get volumeattachment
+```
 
-$ kubectl logs po/csi-rbdplugin-provisioner-d857bfb5f-ddctl -c csi-attacher
+>```
+>NAME                                                                   ATTACHER                        PV                                         NODE       ATTACHED   AGE
+>csi-75903d8a902744853900d188f12137ea1cafb6c6f922ebc1c116fd58e950fc92   rook-ceph.cephfs.csi.ceph.com   pvc-5c547d2a-fdb8-4cb2-b7fe-e0f30b88d454   minikube   true       4m26s
+>```
+
+```console
+kubectl logs po/csi-rbdplugin-provisioner-d857bfb5f-ddctl -c csi-attacher
 ```
 
 ## CephFS Stale operations
@@ -324,12 +350,15 @@ Identify the `csi-cephfsplugin-xxxx` pod running on the node where your applicat
 `kubectl get po -o wide` and match the node names.
 
 ```console
-$ kubectl exec -it csi-cephfsplugin-tfk2g -c csi-cephfsplugin -- sh
+kubectl exec -it csi-cephfsplugin-tfk2g -c csi-cephfsplugin -- sh
+ps -ef |grep mount
 
-sh-4.4# ps -ef |grep mount
 root          67      60  0 11:55 pts/0    00:00:00 grep mount
+```
 
-sh-4.4# ps -ef |grep ceph
+```console
+ps -ef |grep ceph
+
 root           1       0  0 Jan20 ?        00:00:26 /usr/local/bin/cephcsi --nodeid=minikube --type=cephfs --endpoint=unix:///csi/csi.sock --v=0 --nodeserver=true --drivername=rook-ceph.cephfs.csi.ceph.com --pidlimit=-1 --metricsport=9091 --forcecephkernelclient=true --metricspath=/metrics --enablegrpcmetrics=true
 root          69      60  0 11:55 pts/0    00:00:00 grep ceph
 ```
@@ -349,25 +378,44 @@ Identify the `csi-rbdplugin-xxxx` pod running on the node where your application
 `kubectl get po -o wide` and match the node names.
 
 ```console
-$ kubectl exec -it csi-rbdplugin-vh8d5 -c csi-rbdplugin -- sh
-
-sh-4.4# ps -ef |grep map
-root     1297024 1296907  0 12:00 pts/0    00:00:00 grep map
-
-sh-4.4# ps -ef |grep mount
-root        1824       1  0 Jan19 ?        00:00:00 /usr/sbin/rpc.mountd
-ceph     1041020 1040955  1 07:11 ?        00:03:43 ceph-mgr --fsid=ba41ac93-3b55-4f32-9e06-d3d8c6ff7334 --keyring=/etc/ceph/keyring-store/keyring --log-to-stderr=true --err-to-stderr=true --mon-cluster-log-to-stderr=true --log-stderr-prefix=debug  --default-log-to-file=false --default-mon-cluster-log-to-file=false --mon-host=[v2:10.111.136.166:3300,v1:10.111.136.166:6789] --mon-initial-members=a --id=a --setuser=ceph --setgroup=ceph --client-mount-uid=0 --client-mount-gid=0 --foreground --public-addr=172.17.0.6
-root     1297115 1296907  0 12:00 pts/0    00:00:00 grep mount
-
-sh-4.4# ps -ef |grep mkfs
-root     1297291 1296907  0 12:00 pts/0    00:00:00 grep mkfs
-
-sh-4.4# ps -ef |grep umount
-root     1298500 1296907  0 12:01 pts/0    00:00:00 grep umount
-
-sh-4.4# ps -ef |grep unmap
-root     1298578 1296907  0 12:01 pts/0    00:00:00 grep unmap
+kubectl exec -it csi-rbdplugin-vh8d5 -c csi-rbdplugin -- sh
 ```
+```console
+ps -ef |grep map
+```
+>```
+>root     1297024 1296907  0 12:00 pts/0    00:00:00 grep map
+>```
+
+```console
+ps -ef |grep mount
+```
+>```
+>root        1824       1  0 Jan19 ?        00:00:00 /usr/sbin/rpc.mountd
+>ceph     1041020 1040955  1 07:11 ?        00:03:43 ceph-mgr --fsid=ba41ac93-3b55-4f32-9e06-d3d8c6ff7334 --keyring=/etc/ceph/keyring-store/keyring --log-to-stderr=true --err-to-stderr=true --mon-cluster-log-to-stderr=true --log-stderr-prefix=debug  --default-log-to-file=false --default-mon-cluster-log-to-file=false --mon-host=[v2:10.111.136.166:3300,v1:10.111.136.166:6789] --mon-initial-members=a --id=a --setuser=ceph --setgroup=ceph --client-mount-uid=0 --client-mount-gid=0 --foreground --public-addr=172.17.0.6
+>root     1297115 1296907  0 12:00 pts/0    00:00:00 grep mount
+>```
+
+```console
+ps -ef |grep mkfs
+```
+>```
+>root     1297291 1296907  0 12:00 pts/0    00:00:00 grep mkfs
+>```
+
+```console
+ps -ef |grep umount
+```
+>```
+>root     1298500 1296907  0 12:01 pts/0    00:00:00 grep umount
+>```
+
+```console
+ps -ef |grep unmap
+```
+>```
+>root     1298578 1296907  0 12:01 pts/0    00:00:00 grep unmap
+>```
 
 If any commands are stuck check the **dmesg** logs from the node.
 Restarting the `csi-rbdplugin` pod also may help sometimes.
@@ -380,7 +428,7 @@ Check the dmesg logs on the node where pvc mounting is failing or the `csi-rbdpl
 `csi-rbdplugin-xxxx` pod on that node.
 
 ```console
-$ dmesg
+dmesg
 ```
 
 ## RBD Commands

@@ -76,9 +76,9 @@ NAMESPACE=rook-cassandra
 # Change /var/lib/cassandra to /var/lib/scylla for a scylla cluster
 kubectl exec $POD -n $NAMESPACE -- /bin/bash
 
-> mkdir /var/lib/cassandra/data/data
-> shopt -s extglob
-> mv !(/var/lib/cassandra/data) /var/lib/cassandra/data/data
+mkdir /var/lib/cassandra/data/data
+shopt -s extglob
+mv !(/var/lib/cassandra/data) /var/lib/cassandra/data/data
 ```
 
 After that continue with [the upgrade procedure](#procedure).

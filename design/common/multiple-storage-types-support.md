@@ -342,7 +342,7 @@ The current `rook/rook` repository layout appears to be sufficiently factored to
 Some additional directories will be added to support new API versions, new custom resource types, and new storage backends.
 A source code layout that includes these new additions is shown below, annotated with comments about the use of each important directory:
 
-```console
+```text
 - cmd # binaries with main entry points
   - rook # main command entry points for operators and daemons
     - ceph

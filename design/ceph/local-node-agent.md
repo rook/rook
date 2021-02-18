@@ -192,11 +192,12 @@ When a Rook agent receives a cluster CRD delete event, they will respond by chec
 
 To forcefully remove the storage from local pods, the agent will perform the following sequence of steps for each Rook PVC:
 ```bash
-$ kubectl delete pvc <pvc name>
+$ kubectl delete pvc $pvc_name
 $ sudo rbd unmap -o force /dev/rbdX
+
 # wait for it to time out or send SIGINT
-$ kubectl delete pv <pv name>
-$ sudo umount <mount point>
+$ kubectl delete pv $pv_name
+$ sudo umount $mount_point
 ```
 
 As mentioned above, each agent will be watching for events on cluster CRDs.

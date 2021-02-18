@@ -27,7 +27,7 @@ subjects:
 
 3. Set the required label on the namespace
 
-    `$ oc label namespace rook-ceph "openshift.io/cluster-monitoring=true"`
+    `oc label namespace rook-ceph "openshift.io/cluster-monitoring=true"`
 
 ## Troubleshoot Monitoring Issues
 
@@ -35,27 +35,33 @@ subjects:
 
 1. Ensure ceph-mgr pod is Running
 
-    `$ oc get pods -l app=rook-ceph-mgr`
-
-    ```bash
-    NAME            READY   STATUS    RESTARTS   AGE
-    rook-ceph-mgr   1/1     Running   0          14h
+    ```console
+    oc get pods -l app=rook-ceph-mgr
     ```
+
+    >```
+    >NAME            READY   STATUS    RESTARTS   AGE
+    >rook-ceph-mgr   1/1     Running   0          14h
+    >```
 
 2. Ensure service monitor is present
 
-    `$ oc get servicemonitor rook-ceph-mgr`
-
-    ```bash
-    NAME                          AGE
-    rook-ceph-mgr                 14h
+    ```console
+    oc get servicemonitor rook-ceph-mgr
     ```
+
+    >```
+    >NAME                          AGE
+    >rook-ceph-mgr                 14h
+    >```
 
 3. Ensure prometheus rules are present
 
-    `oc get prometheusrules -l prometheus=rook-prometheus`
-
-    ```bash
-    NAME                    AGE
-    prometheus-ceph-rules   14h
+    ```console
+    oc get prometheusrules -l prometheus=rook-prometheus
     ```
+
+    >```
+    >NAME                    AGE
+    >prometheus-ceph-rules   14h
+    >```
