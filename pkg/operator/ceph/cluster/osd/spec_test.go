@@ -29,6 +29,7 @@ import (
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	operatortest "github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -38,6 +39,7 @@ import (
 
 func TestPodContainer(t *testing.T) {
 	cluster := &Cluster{rookVersion: "23", clusterInfo: client.AdminClusterInfo("myosd")}
+	cluster.clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	osdProps := osdProperties{
 		crushHostname: "node",
 		devices:       []rookv1.Device{},
@@ -89,6 +91,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		CephVersion: cephver.Nautilus,
 	}
 	clusterInfo.SetName("test")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{
 		CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
@@ -432,6 +435,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 			CephVersion: cephver.Octopus,
 		}
 		clusterInfo.SetName("test")
+		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 		c := New(context, clusterInfo, spec, "rook/rook:myversion")
 		deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 		assert.NoError(t, err)
@@ -467,6 +471,7 @@ func TestStorageSpecConfig(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	clusterInfo.SetName("testing")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
@@ -549,6 +554,8 @@ func TestHostNetwork(t *testing.T) {
 		CephVersion: cephver.Nautilus,
 	}
 	clusterInfo.SetName("test")
+
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{
 		Storage: storageSpec,
@@ -588,6 +595,7 @@ func TestOsdPrepareResources(t *testing.T) {
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
 	clusterInfo.SetName("test")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	spec := cephv1.ClusterSpec{
 		Resources: map[string]v1.ResourceRequirements{"prepareosd": {
 			Limits: v1.ResourceList{
@@ -609,7 +617,7 @@ func TestOsdPrepareResources(t *testing.T) {
 }
 
 func TestClusterGetPVCEncryptionOpenInitContainerActivate(t *testing.T) {
-	c := New(&clusterd.Context{}, &cephclient.ClusterInfo{}, cephv1.ClusterSpec{}, "rook/rook:myversion")
+	c := New(&clusterd.Context{}, &cephclient.ClusterInfo{OwnerInfo: &k8sutil.OwnerInfo{}}, cephv1.ClusterSpec{}, "rook/rook:myversion")
 	osdProperties := osdProperties{
 		pvc: v1.PersistentVolumeClaimVolumeSource{
 			ClaimName: "pvc1",
@@ -633,7 +641,7 @@ func TestClusterGetPVCEncryptionOpenInitContainerActivate(t *testing.T) {
 }
 
 func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
-	c := New(&clusterd.Context{}, &cephclient.ClusterInfo{}, cephv1.ClusterSpec{}, "rook/rook:myversion")
+	c := New(&clusterd.Context{}, &cephclient.ClusterInfo{OwnerInfo: &k8sutil.OwnerInfo{}}, cephv1.ClusterSpec{}, "rook/rook:myversion")
 	osdProperties := osdProperties{
 		pvc: v1.PersistentVolumeClaimVolumeSource{
 			ClaimName: "pvc1",

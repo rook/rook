@@ -22,7 +22,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 const (
@@ -43,7 +43,7 @@ const (
 type daemonConfig struct {
 	ResourceName string              // the name rook gives to mirror resources in k8s metadata
 	DataPathMap  *config.DataPathMap // location to store data in container
-	ownerRef     metav1.OwnerReference
+	ownerInfo    *k8sutil.OwnerInfo
 }
 
 // PeerToken is the content of the peer token
@@ -61,7 +61,7 @@ func (r *ReconcileFilesystemMirror) generateKeyring(clusterInfo *client.ClusterI
 		"mds", "allow r",
 		"osd", "allow rw tag cephfs metadata=*, allow r tag cephfs data=*",
 	}
-	s := keyring.GetSecretStore(r.context, clusterInfo, &daemonConfig.ownerRef)
+	s := keyring.GetSecretStore(r.context, clusterInfo, daemonConfig.ownerInfo)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {

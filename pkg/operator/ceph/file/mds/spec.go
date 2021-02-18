@@ -39,15 +39,16 @@ const (
 	mdsCacheMemoryLimitFactor = 0.5
 )
 
-func (c *Cluster) makeDeployment(mdsConfig *mdsConfig) (*apps.Deployment, error) {
+func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.Deployment, error) {
 
 	mdsContainer := c.makeMdsDaemonContainer(mdsConfig)
 	mdsContainer = config.ConfigureLivenessProbe(cephv1.KeyMds, mdsContainer, c.clusterSpec.HealthCheck)
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   mdsConfig.ResourceName,
-			Labels: c.podLabels(mdsConfig, true),
+			Name:      mdsConfig.ResourceName,
+			Namespace: namespace,
+			Labels:    c.podLabels(mdsConfig, true),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{

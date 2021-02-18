@@ -76,7 +76,10 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 
 	k8sutil.AddRookVersionLabelToJob(job)
 	controller.AddCephVersionLabelToJob(c.clusterInfo.CephVersion, job)
-	k8sutil.SetOwnerRef(&job.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err = c.clusterInfo.OwnerInfo.SetControllerReference(job)
+	if err != nil {
+		return nil, err
+	}
 
 	// override the resources of all the init containers and main container with the expected osd prepare resources
 	c.applyResourcesToAllContainers(&podSpec.Spec, cephv1.GetPrepareOSDResources(c.spec.Resources))

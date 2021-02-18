@@ -121,7 +121,7 @@ func UpdateCsiClusterConfig(
 // CreateCsiConfigMap creates an empty config map that will be later used
 // to provide cluster configuration to ceph-csi. If a config map already
 // exists, it will return it.
-func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerRef *metav1.OwnerReference) error {
+func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerInfo *k8sutil.OwnerInfo) error {
 	ctx := context.TODO()
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,8 +133,11 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerR
 		ConfigKey: "[]",
 	}
 
-	k8sutil.SetOwnerRef(&configMap.ObjectMeta, ownerRef)
-	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(ctx, configMap, metav1.CreateOptions{})
+	err := ownerInfo.SetControllerReference(configMap)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to csi configmap %q", configMap.Name)
+	}
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Create(ctx, configMap, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create initial csi config map %q (in %q)", configMap.Name, namespace)

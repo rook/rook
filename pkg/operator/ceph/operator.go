@@ -249,9 +249,10 @@ func (o *Operator) updateDrivers() error {
 		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
 	}
 
+	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, o.operatorNamespace)
 	// create an empty config map. config map will be filled with data
 	// later when clusters have mons
-	err = csi.CreateCsiConfigMap(o.operatorNamespace, o.context.Clientset, ownerRef)
+	err = csi.CreateCsiConfigMap(o.operatorNamespace, o.context.Clientset, ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed creating csi config map")
 	}
@@ -260,7 +261,7 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "invalid csi params")
 	}
 
-	go csi.ValidateAndConfigureDrivers(o.context, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerRef)
+	go csi.ValidateAndConfigureDrivers(o.context, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerInfo)
 	return nil
 }
 

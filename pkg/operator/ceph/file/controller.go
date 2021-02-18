@@ -276,13 +276,6 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 		}
 	}
 
-	// Create the controller owner ref
-	// It will be associated to all resources of the CephObjectStore
-	ref, err := opcontroller.GetControllerObjectOwnerReference(cephFilesystem, r.scheme)
-	if err != nil || ref == nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
-	}
-
 	// preservePoolsOnDelete being set to true has data-loss concerns and is deprecated (see #6492).
 	// If preservePoolsOnDelete is set to true, assume the user means preserveFilesystemOnDelete instead.
 	if cephFilesystem.Spec.PreservePoolsOnDelete {
@@ -292,7 +285,8 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 		}
 	}
 
-	err = createFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
+	ownerInfo := k8sutil.NewOwnerInfo(cephFilesystem, r.scheme)
+	err := createFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, ownerInfo, r.cephClusterSpec.DataDirHostPath)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create filesystem %q", cephFilesystem.Name)
 	}
@@ -312,13 +306,8 @@ func (r *ReconcileCephFilesystem) reconcileCreateFilesystem(cephFilesystem *ceph
 }
 
 func (r *ReconcileCephFilesystem) reconcileDeleteFilesystem(cephFilesystem *cephv1.CephFilesystem) error {
-	// Create the controller owner ref
-	ref, err := opcontroller.GetControllerObjectOwnerReference(cephFilesystem, r.scheme)
-	if err != nil || ref == nil {
-		return errors.Wrapf(err, "failed to get controller %q owner reference", cephFilesystem.Name)
-	}
-
-	err = deleteFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, *ref, r.cephClusterSpec.DataDirHostPath, r.scheme)
+	ownerInfo := k8sutil.NewOwnerInfo(cephFilesystem, r.scheme)
+	err := deleteFilesystem(r.context, r.clusterInfo, *cephFilesystem, r.cephClusterSpec, ownerInfo, r.cephClusterSpec.DataDirHostPath)
 	if err != nil {
 		return err
 	}

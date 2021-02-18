@@ -60,7 +60,7 @@ func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 	ctx := context.TODO()
 	user := fmt.Sprintf("mgr.%s", m.DaemonID)
 	access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
-	s := keyring.GetSecretStore(c.context, c.clusterInfo, &c.clusterInfo.OwnerRef)
+	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.clusterInfo.OwnerInfo)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {

@@ -28,12 +28,13 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -218,14 +219,15 @@ func TestCreateFilesystem(t *testing.T) {
 	clusterInfo := &client.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus}
 
 	// start a basic cluster
-	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// starting again should be a no-op
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{fmt.Sprintf("rook-ceph-mds-%s-a", fsName), fmt.Sprintf("rook-ceph-mds-%s-b", fsName)}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -266,7 +268,7 @@ func TestCreateFilesystem(t *testing.T) {
 		Clientset: clientset}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}})
 
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 	assert.ElementsMatch(t, []string{fmt.Sprintf("rook-ceph-mds-%s-a", fsName), fmt.Sprintf("rook-ceph-mds-%s-b", fsName)}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -292,7 +294,7 @@ func TestCreateFilesystem(t *testing.T) {
 	}
 
 	// Create another filesystem which should fail
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{}, "/var/lib/rook/")
 	assert.Error(t, err)
 	assert.Equal(t, fmt.Sprintf("failed to create filesystem %q: multiple filesystems are only supported as of ceph pacific", fsName), err.Error())
 
@@ -307,7 +309,7 @@ func TestCreateFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset,
 	}
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.NoError(t, err)
 	os.Unsetenv(client.MultiFsEnv)
 
@@ -321,7 +323,7 @@ func TestCreateFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset,
 	}
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.NoError(t, err)
 }
 
@@ -358,12 +360,13 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	clusterInfo := &client.ClusterInfo{FSID: "myfsid"}
 
 	// start a basic cluster
-	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 
 	// starting again should be a no-op
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, metav1.OwnerReference{}, "/var/lib/rook/", scheme.Scheme)
+	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.Nil(t, err)
 	validateStart(ctx, t, context, fs)
 }

@@ -44,7 +44,7 @@ func (c *Cluster) generateKeyring(m *mdsConfig) (string, error) {
 	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
 
 	// At present
-	s := keyring.GetSecretStore(c.context, c.clusterInfo, &c.ownerRef)
+	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.ownerInfo)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {

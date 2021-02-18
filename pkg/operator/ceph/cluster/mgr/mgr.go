@@ -278,7 +278,10 @@ func (c *Cluster) reconcileService(activeDaemon string) error {
 	}
 
 	// create the metrics service
-	service := c.MakeMetricsService(AppName, activeDaemon, serviceMetricName)
+	service, err := c.MakeMetricsService(AppName, activeDaemon, serviceMetricName)
+	if err != nil {
+		return err
+	}
 	if _, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.clusterInfo.Namespace, service); err != nil {
 		return errors.Wrap(err, "failed to create mgr metrics service")
 	}
@@ -442,10 +445,13 @@ func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 	if c.spec.External.Enable {
 		serviceMonitor.Spec.Endpoints[0].Port = ServiceExternalMetricName
 	}
-	k8sutil.SetOwnerRef(&serviceMonitor.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err = c.clusterInfo.OwnerInfo.SetControllerReference(serviceMonitor)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to service monitor %q", serviceMonitor.Name)
+	}
 	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{c.clusterInfo.Namespace}
 	serviceMonitor.Spec.Selector.MatchLabels = c.selectorLabels(activeDaemon)
-	if _, err := k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
+	if _, err = k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
 	}
 	return nil
@@ -463,7 +469,7 @@ func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
 	}
 	prometheusRule.SetName(name)
 	prometheusRule.SetNamespace(namespace)
-	owners := append(prometheusRule.GetOwnerReferences(), c.clusterInfo.OwnerRef)
+	owners := append(prometheusRule.GetOwnerReferences(), *c.clusterInfo.OwnerInfo.GetOwnerRef())
 	k8sutil.SetOwnerRefs(&prometheusRule.ObjectMeta, owners)
 	if _, err := k8sutil.CreateOrUpdatePrometheusRule(prometheusRule); err != nil {
 		return errors.Wrap(err, "prometheus rule could not be deployed")

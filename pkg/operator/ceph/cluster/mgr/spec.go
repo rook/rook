@@ -21,6 +21,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
@@ -122,7 +123,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	k8sutil.AddRookVersionLabelToDeployment(d)
 	cephv1.GetMgrLabels(c.spec.Labels).ApplyToObjectMeta(&d.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, d)
-	k8sutil.SetOwnerRef(&d.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err := c.clusterInfo.OwnerInfo.SetControllerReference(d)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to mgr deployment %q", d.Name)
+	}
 	return d, nil
 }
 
@@ -196,7 +200,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 
 func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 	envVars := []v1.EnvVar{
-		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerRef.UID)},
+		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerInfo.GetUID())},
 		{Name: "ROOK_CLUSTER_NAME", Value: string(c.clusterInfo.NamespacedName().Name)},
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
@@ -241,7 +245,7 @@ func getDefaultMgrLivenessProbe() *v1.Probe {
 }
 
 // MakeMetricsService generates the Kubernetes service object for the monitoring service
-func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName string) *v1.Service {
+func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName string) (*v1.Service, error) {
 	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 
 	svc := &v1.Service{
@@ -267,11 +271,14 @@ func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName s
 		svc.Spec.Selector = c.selectorLabels(activeDaemon)
 	}
 
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.clusterInfo.OwnerRef)
-	return svc
+	err := c.clusterInfo.OwnerInfo.SetControllerReference(svc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to monitoring service %q", svc.Name)
+	}
+	return svc, nil
 }
 
-func (c *Cluster) makeDashboardService(name, activeDaemon string) *v1.Service {
+func (c *Cluster) makeDashboardService(name, activeDaemon string) (*v1.Service, error) {
 	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 	selectorLabels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 	selectorLabels[controller.DaemonIDLabel] = activeDaemon
@@ -298,8 +305,11 @@ func (c *Cluster) makeDashboardService(name, activeDaemon string) *v1.Service {
 			},
 		},
 	}
-	k8sutil.SetOwnerRef(&svc.ObjectMeta, &c.clusterInfo.OwnerRef)
-	return svc
+	err := c.clusterInfo.OwnerInfo.SetControllerReference(svc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to dashboard service %q", svc.Name)
+	}
+	return svc, nil
 }
 
 func (c *Cluster) getPodLabels(daemonName string, includeNewLabels bool) map[string]string {
@@ -332,7 +342,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 }
 
 // CreateExternalMetricsEndpoints creates external metric endpoint
-func CreateExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerRef metav1.OwnerReference) *v1.Endpoints {
+func CreateExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*v1.Endpoints, error) {
 	labels := controller.AppLabels(AppName, namespace)
 
 	endpoints := &v1.Endpoints{
@@ -355,8 +365,11 @@ func CreateExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.Moni
 		},
 	}
 
-	k8sutil.SetOwnerRef(&endpoints.ObjectMeta, &ownerRef)
-	return endpoints
+	err := ownerInfo.SetControllerReference(endpoints)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to metric endpoints %q", endpoints.Name)
+	}
+	return endpoints, nil
 }
 
 func (c *Cluster) selectorLabels(activeDaemon string) map[string]string {

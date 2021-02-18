@@ -23,6 +23,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +32,7 @@ import (
 func TestCreateService(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{}, &sync.Mutex{})
 	m := &monConfig{ResourceName: "rook-ceph-mon-b", DaemonName: "b"}
 	clusterIP, err := c.createService(m)
 	assert.NoError(t, err)

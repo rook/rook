@@ -47,16 +47,16 @@ type Store struct {
 	configMapStore *k8sutil.ConfigMapKVStore
 	namespace      string
 	context        *clusterd.Context
-	ownerRef       *metav1.OwnerReference
+	ownerInfo      *k8sutil.OwnerInfo
 }
 
 // GetStore returns the Store for the cluster.
-func GetStore(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) *Store {
+func GetStore(context *clusterd.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) *Store {
 	return &Store{
-		configMapStore: k8sutil.NewConfigMapKVStore(namespace, context.Clientset, *ownerRef),
+		configMapStore: k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerInfo),
 		namespace:      namespace,
 		context:        context,
-		ownerRef:       ownerRef,
+		ownerInfo:      ownerInfo,
 	}
 }
 
@@ -92,9 +92,12 @@ func (s *Store) createOrUpdateMonHostSecrets(ctx context.Context, clusterInfo *c
 		Type: k8sutil.RookType,
 	}
 	clientset := s.context.Clientset
-	k8sutil.SetOwnerRef(&secret.ObjectMeta, s.ownerRef)
+	err := s.ownerInfo.SetControllerReference(secret)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to moh host secret %q", secret.Name)
+	}
 
-	_, err := clientset.CoreV1().Secrets(s.namespace).Get(ctx, StoreName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(s.namespace).Get(ctx, StoreName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("creating config secret %+v", secret)

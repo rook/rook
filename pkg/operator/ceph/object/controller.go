@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -312,6 +313,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 }
 
 func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName, cluster cephv1.ClusterSpec) (reconcile.Result, error) {
+	ownerInfo := k8sutil.NewOwnerInfo(cephObjectStore, r.scheme)
 	cfg := clusterConfig{
 		context:     r.context,
 		clusterInfo: r.clusterInfo,
@@ -320,7 +322,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		clusterSpec: r.clusterSpec,
 		DataPathMap: opconfig.NewStatelessDaemonDataPathMap(opconfig.RgwType, cephObjectStore.Name, cephObjectStore.Namespace, r.clusterSpec.DataDirHostPath),
 		client:      r.client,
-		scheme:      r.scheme,
+		ownerInfo:   ownerInfo,
 	}
 	objContext := NewContext(r.context, r.clusterInfo, cephObjectStore.Name)
 	objContext.UID = string(cephObjectStore.UID)

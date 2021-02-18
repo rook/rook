@@ -379,7 +379,7 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 	// Set owner ref to the object store user object
 	err := controllerutil.SetControllerReference(cephObjectStoreUser, secret, r.scheme)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference for ceph object user %q secret", secret.Name)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of ceph object user secret %q", secret.Name)
 	}
 
 	// Create Kubernetes Secret

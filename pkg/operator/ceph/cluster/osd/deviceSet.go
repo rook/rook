@@ -27,7 +27,6 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -156,8 +155,11 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 		pvcID = deviceSetPVCID(deviceSetName, pvcTemplate.GetName(), setIndex)
 		existingPVC = existingPVCs[pvcID]
 	}
-	pvc := makeDeviceSetPVC(deviceSetName, pvcID, setIndex, pvcTemplate)
-	k8sutil.SetOwnerRef(&pvc.ObjectMeta, &c.clusterInfo.OwnerRef)
+	pvc := makeDeviceSetPVC(deviceSetName, pvcID, setIndex, pvcTemplate, c.clusterInfo.Namespace)
+	err := c.clusterInfo.OwnerInfo.SetControllerReference(pvc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to osd pvc %q", pvc.Name)
+	}
 
 	if existingPVC != nil {
 		logger.Infof("OSD PVC %q already exists", existingPVC.Name)
@@ -199,7 +201,7 @@ func (c *Cluster) updatePVCIfChanged(desiredPVC *v1.PersistentVolumeClaim, curre
 	}
 }
 
-func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.PersistentVolumeClaim) *v1.PersistentVolumeClaim {
+func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.PersistentVolumeClaim, namespace string) *v1.PersistentVolumeClaim {
 	pvcLabels := makeStorageClassDeviceSetPVCLabel(deviceSetName, pvcID, setIndex)
 
 	// Add user provided labels to pvcTemplates
@@ -213,6 +215,7 @@ func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.
 			// Use a generated name to avoid the possibility of two OSDs being created with the same ID.
 			// If one is removed and a new one is created later with the same ID, the OSD would fail to start.
 			GenerateName: pvcID,
+			Namespace:    namespace,
 			Labels:       pvcLabels,
 			Annotations:  pvcTemplate.Annotations,
 		},

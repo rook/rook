@@ -43,10 +43,13 @@ const (
 // storeSecretInKubernetes stores the dmcrypt key in a Kubernetes Secret
 func (c *Config) storeSecretInKubernetes(pvcName, key string) error {
 	ctx := context.TODO()
-	s := generateOSDEncryptedKeySecret(pvcName, key, c.clusterInfo)
+	s, err := generateOSDEncryptedKeySecret(pvcName, key, c.clusterInfo)
+	if err != nil {
+		return err
+	}
 
 	// Create the Kubernetes Secret
-	_, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(ctx, s, metav1.CreateOptions{})
+	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(ctx, s, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to save ceph osd encryption key as a secret for pvc %q", pvcName)
 	}
@@ -54,7 +57,7 @@ func (c *Config) storeSecretInKubernetes(pvcName, key string) error {
 	return nil
 }
 
-func generateOSDEncryptedKeySecret(pvcName, key string, clusterInfo *cephclient.ClusterInfo) *v1.Secret {
+func generateOSDEncryptedKeySecret(pvcName, key string, clusterInfo *cephclient.ClusterInfo) (*v1.Secret, error) {
 	s := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GenerateOSDEncryptionSecretName(pvcName),
@@ -70,9 +73,12 @@ func generateOSDEncryptedKeySecret(pvcName, key string, clusterInfo *cephclient.
 	}
 
 	// Set the ownerref to the Secret
-	k8sutil.SetOwnerRef(&s.ObjectMeta, &clusterInfo.OwnerRef)
+	err := clusterInfo.OwnerInfo.SetControllerReference(s)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to osd encryption key secret %q", s.Name)
+	}
 
-	return s
+	return s, nil
 }
 
 // GenerateOSDEncryptionSecretName generate the Kubernetes Secret name of the encrypted key

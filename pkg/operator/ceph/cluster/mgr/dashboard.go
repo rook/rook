@@ -51,7 +51,10 @@ var (
 
 func (c *Cluster) configureDashboardService(activeDaemon string) error {
 	ctx := context.TODO()
-	dashboardService := c.makeDashboardService(AppName, activeDaemon)
+	dashboardService, err := c.makeDashboardService(AppName, activeDaemon)
+	if err != nil {
+		return err
+	}
 	if c.spec.Dashboard.Enabled {
 		// expose the dashboard service
 		if _, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.clusterInfo.Namespace, dashboardService); err != nil {
@@ -242,7 +245,10 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(&secret.ObjectMeta, &c.clusterInfo.OwnerRef)
+	err = c.clusterInfo.OwnerInfo.SetControllerReference(secret)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to set owner reference to dashboard secret %q", secret.Name)
+	}
 
 	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil {
