@@ -14,10 +14,6 @@ parameters:
   # Required for provisionVolume: "true"
   pool: myfs-data0
 
-  # Root path of an existing CephFS volume
-  # Required for provisionVolume: "false"
-  # rootPath: /absolute/path
-
   # The secrets contain Ceph admin credentials. These are generated automatically by the operator
   # in the same namespace as the cluster.
   csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
