@@ -190,7 +190,7 @@ func (c *NFSController) makeDeployment(svcname, namespace, rookImage string, nfs
 	nfsSpec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
 	// apply current NFS CRD options to pod's specification
-	nfsSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	nfsSpec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

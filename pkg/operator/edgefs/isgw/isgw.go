@@ -251,7 +251,7 @@ func (c *ISGWController) makeDeployment(svcname, namespace, rookImage string, is
 	}
 
 	// apply current ISGW CRD options to pod's specification
-	isgwSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	isgwSpec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	instancesCount := int32(1)
 	d := &apps.Deployment{

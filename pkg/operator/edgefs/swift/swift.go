@@ -229,7 +229,7 @@ func (c *SWIFTController) makeDeployment(svcname, namespace, rookImage, imageArg
 	}
 
 	// apply current SWIFT CRD options to pod's specification
-	swiftSpec.Placement.ApplyToPodSpec(&podSpec.Spec)
+	swiftSpec.Placement.ApplyToPodSpec(&podSpec.Spec, true)
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
