@@ -23,17 +23,12 @@ import (
 	"strings"
 
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
-)
-
-const (
-	TopologyLabelPrefix = "topology.rook.io/"
 )
 
 // ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,
@@ -326,51 +321,6 @@ func RookNodesMatchingKubernetesNodes(rookStorage rookv1.StorageScopeSpec, kuber
 		}
 	}
 	return nodes
-}
-
-// ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
-func ExtractTopologyFromLabels(labels map[string]string, additionalTopologyIDs []string) map[string]string {
-	topology := make(map[string]string)
-
-	// check for the region k8s topology label that was deprecated in 1.17
-	const regionLabel = "region"
-	region, ok := labels[corev1.LabelZoneRegion]
-	if ok {
-		topology[regionLabel] = region
-	}
-
-	// check for the region k8s topology label that is GA in 1.17.
-	region, ok = labels[corev1.LabelZoneRegionStable]
-	if ok {
-		topology[regionLabel] = region
-	}
-
-	// check for the zone k8s topology label that was deprecated in 1.17
-	const zoneLabel = "zone"
-	zone, ok := labels[corev1.LabelZoneFailureDomain]
-	if ok {
-		topology[zoneLabel] = zone
-	}
-
-	// check for the zone k8s topology label that is GA in 1.17.
-	zone, ok = labels[corev1.LabelZoneFailureDomainStable]
-	if ok {
-		topology[zoneLabel] = zone
-	}
-
-	// get host
-	host, ok := labels[corev1.LabelHostname]
-	if ok {
-		topology["host"] = host
-	}
-
-	// get the labels for the CRUSH map hierarchy
-	for _, topologyID := range additionalTopologyIDs {
-		if value, ok := labels[TopologyLabelPrefix+topologyID]; ok {
-			topology[topologyID] = value
-		}
-	}
-	return topology
 }
 
 // GenerateNodeAffinity will return v1.NodeAffinity or error

@@ -27,6 +27,7 @@ import (
 	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -389,6 +390,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if osdProps.onPVC() {
 		// add the PVC size to the pod spec so that if the size changes the OSD will be restarted and pick up the change
 		envVars = append(envVars, v1.EnvVar{Name: "ROOK_OSD_PVC_SIZE", Value: osdProps.pvcSize})
+		// if the pod is portable, keep track of the topology affinity
+		if osdProps.portable {
+			envVars = append(envVars, v1.EnvVar{Name: "ROOK_TOPOLOGY_AFFINITY", Value: osd.TopologyAffinity})
+		}
 
 		// Append slow tuning flag if necessary
 		if osdProps.tuneSlowDeviceClass {
@@ -600,7 +605,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploymentName,
 			Namespace: c.clusterInfo.Namespace,
-			Labels:    c.getOSDLabels(osd, failureDomainValue, osdProps.portable),
+			Labels:    podTemplateSpec.Labels,
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -647,6 +652,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 	p.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
 
+	// portable OSDs must have affinity to the topology where the osd prepare job was executed
+	if osdProps.portable {
+		if err := applyTopologyAffinity(&deployment.Spec.Template.Spec, osd); err != nil {
+			return nil, err
+		}
+	}
+
 	// Change TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES if the OSD has been annotated with a value
 	osdAnnotations := cephv1.GetOSDAnnotations(c.spec.Annotations)
 	tcmallocMaxTotalThreadCacheBytes, ok := osdAnnotations[tcmallocMaxTotalThreadCacheBytesEnv]
@@ -655,6 +667,23 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	return deployment, nil
+}
+
+func applyTopologyAffinity(spec *v1.PodSpec, osd OSDInfo) error {
+	if osd.TopologyAffinity == "" {
+		logger.Debugf("no topology affinity to set for osd %d", osd.ID)
+		return nil
+	}
+	logger.Infof("assigning osd %d topology affinity to %q", osd.ID, osd.TopologyAffinity)
+	nodeAffinity, err := k8sutil.GenerateNodeAffinity(osd.TopologyAffinity)
+	if err != nil {
+		return errors.Wrapf(err, "failed to generate osd %d topology affinity", osd.ID)
+	}
+	// merge the node affinity for the topology with the existing affinity
+	p := rookv1.Placement{NodeAffinity: nodeAffinity}
+	p.ApplyToPodSpec(spec, true)
+
+	return nil
 }
 
 // To get rook inside the container, the config init container needs to copy "tini" and "rook" binaries into a volume.
