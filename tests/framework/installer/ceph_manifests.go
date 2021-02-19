@@ -1269,6 +1269,16 @@ spec:
                             type: string
                           startTime:
                             type: string
+                quotas:
+                  type: object
+                  nullable: true
+                  properties:
+                    maxBytes:
+                      type: integer
+                      minimum: 0
+                    maxObjects:
+                      type: integer
+                      minimum: 0
                 statusCheck:
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
@@ -3769,6 +3779,9 @@ spec:
   mirroring:
     enabled: true
     mode: image
+  quotas:
+    maxBytes: 10737418240
+    maxObjects: 1000000
   statusCheck:
     mirror:
       disabled: false

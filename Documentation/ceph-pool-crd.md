@@ -192,6 +192,11 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
     * `disabled`: whether to enable or disable pool mirroring status
     * `interval`: time interval to refresh the mirroring status (default 60s)
 
+* `quotas`: Set byte and object quotas. See the [ceph documentation](https://docs.ceph.com/en/latest/rados/operations/pools/#set-pool-quotas) for more info.
+  * `maxBytes`: quota in bytes (default: 0)
+  * `maxObjects`: quota in objects (default: 0)
+    > **NOTE**: A value of 0 disables the quota.
+
 ### Add specific pool properties
 
 With `poolProperties` you can set any pool property:
