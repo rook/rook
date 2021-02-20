@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -312,9 +311,7 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 }
 
 // SetNodeAntiAffinityForPod assign pod anti-affinity when pod should not be co-located
-func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rookv1.Placement, requiredDuringScheduling bool,
-	labels, nodeSelector map[string]string) {
-	p.ApplyToPodSpec(pod, true)
+func SetNodeAntiAffinityForPod(pod *v1.PodSpec, requiredDuringScheduling bool, labels, nodeSelector map[string]string) {
 	pod.NodeSelector = nodeSelector
 
 	// when a node selector is being used, skip the affinity business below

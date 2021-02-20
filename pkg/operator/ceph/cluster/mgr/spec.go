@@ -62,8 +62,14 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			PriorityClassName:  cephv1.GetMgrPriorityClassName(c.spec.PriorityClassNames),
 		},
 	}
+	cephv1.GetMgrPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec.Spec, true)
+
+	// Run the sidecar and require anti affinity only if there are multiple mgrs
 	if c.spec.Mgr.Count > 1 {
 		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeMgrSidecarContainer(mgrConfig))
+		matchLabels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
+
+		k8sutil.SetNodeAntiAffinityForPod(&podSpec.Spec, true, matchLabels, nil)
 	}
 
 	// If the log collector is enabled we add the side-car container
@@ -87,7 +93,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	cephv1.GetMgrAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.applyPrometheusAnnotations(&podSpec.ObjectMeta)
 	cephv1.GetMgrLabels(c.spec.Labels).ApplyToObjectMeta(&podSpec.ObjectMeta)
-	cephv1.GetMgrPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec.Spec, true)
 
 	replicas := int32(1)
 
