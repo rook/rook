@@ -138,7 +138,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 		if rgwerr == ErrorCodeFileExists {
 			user, _, err = GetUser(c.objContext, userConfig.UserID)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get details from ceph object user %q for object store %q", user.UserID, c.namespacedName.Name)
+				return errors.Wrapf(err, "failed to get details from ceph object user %q for object store %q", userConfig.UserID, c.namespacedName.Name)
 			}
 		} else {
 			return errors.Wrapf(err, "failed to create object user %q. error code %d for object store %q", userConfig.UserID, rgwerr, c.namespacedName.Name)
