@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	CephCommandTimeout = 15 * time.Second
+	CephCommandsTimeout = 15 * time.Second
 )
 
 // Executor is the main interface for all the exec commands

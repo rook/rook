@@ -402,6 +402,8 @@ data:
   ROOK_ENABLE_DISCOVERY_DAEMON: "false"
   # Enable volume replication controller
   CSI_ENABLE_VOLUME_REPLICATION: "false"
+  # The timeout value (in seconds) of Ceph commands. It should be >= 1. If this variable is not set or is an invalid value, it's default to 15.
+  ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: "15"
   # CSI_VOLUME_REPLICATION_IMAGE: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
 
   # (Optional) Admission controller NodeAffinity.
