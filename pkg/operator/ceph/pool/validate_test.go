@@ -172,6 +172,16 @@ func TestValidatePool(t *testing.T) {
 		assert.EqualError(t, err, "mirroring must be enabled to configure snapshot scheduling")
 	}
 
+	// Failure and subfailure domains
+	{
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.FailureDomain = "host"
+		p.Spec.Replicated.SubFailureDomain = "host"
+		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failure and subfailure domain cannot be identical")
+	}
+
 }
 
 func TestValidateCrushProperties(t *testing.T) {
