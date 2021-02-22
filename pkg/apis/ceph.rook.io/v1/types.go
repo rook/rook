@@ -392,6 +392,9 @@ type PoolSpec struct {
 
 	// The mirroring statusCheck
 	StatusCheck MirrorHealthCheckSpec `json:"statusCheck"`
+
+	// The quota settings
+	Quotas QuotaSpec `json:"quotas"`
 }
 
 type MirrorHealthCheckSpec struct {
@@ -474,6 +477,15 @@ type SnapshotScheduleSpec struct {
 
 	// StartTime indicates when to start the snapshot
 	StartTime string `json:"startTime,omitempty"`
+}
+
+// QuotaSpec represents the spec for quotas in a pool
+type QuotaSpec struct {
+	// MaxBytes represents the quota in bytes
+	MaxBytes *uint64 `json:"maxBytes,omitempty"`
+
+	// MaxObjects represents the quota in objects
+	MaxObjects *uint64 `json:"maxObjects,omitempty"`
 }
 
 // ErasureCodeSpec represents the spec for erasure code in a pool

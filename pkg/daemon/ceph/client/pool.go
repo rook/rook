@@ -283,6 +283,23 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		}
 	}
 
+	// set max_bytes quota
+	if pool.Quotas.MaxBytes != nil {
+		// set max_bytes quota, 0 value disables quota
+		err := setPoolQuota(context, clusterInfo, poolName, "max_bytes", strconv.FormatUint(*pool.Quotas.MaxBytes, 10))
+		if err != nil {
+			return errors.Wrapf(err, "failed to set max_bytes quota for pool %q", poolName)
+		}
+	}
+	// set max_objects quota
+	if pool.Quotas.MaxObjects != nil {
+		// set max_objects quota, 0 value disables quota
+		err := setPoolQuota(context, clusterInfo, poolName, "max_objects", strconv.FormatUint(*pool.Quotas.MaxObjects, 10))
+		if err != nil {
+			return errors.Wrapf(err, "failed to set max_objects quota for pool %q", poolName)
+		}
+	}
+
 	return nil
 }
 
@@ -484,6 +501,17 @@ func SetPoolProperty(context *clusterd.Context, clusterInfo *ClusterInfo, name, 
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to set pool property %q on pool %q", propName, name)
+	}
+	return nil
+}
+
+// setPoolQuota sets quotas on a given pool
+func setPoolQuota(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, quotaType, quotaVal string) error {
+	args := []string{"osd", "pool", "set-quota", poolName, quotaType, quotaVal}
+	logger.Infof("setting quota %q=%q on pool %q", quotaType, quotaVal, poolName)
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set %q quota on pool %q", quotaType, poolName)
 	}
 	return nil
 }
