@@ -172,7 +172,7 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
 	} else {
 		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
-		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandTimeout, command, args...)
+		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, command, args...)
 	}
 
 	if err != nil {

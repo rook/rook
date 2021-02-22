@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/util/exec"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -33,6 +34,7 @@ func TestOrchestratorModules(t *testing.T) {
 	rookModuleEnabled := false
 	rookBackendSet := false
 	backendErrorCount := 0
+	exec.CephCommandsTimeout = 15 * time.Second
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "mgr" && args[1] == "module" && args[2] == "enable" {
