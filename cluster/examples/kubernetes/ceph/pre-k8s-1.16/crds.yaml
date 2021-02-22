@@ -161,17 +161,6 @@ spec:
                   type: string
                 config: {}
                 storageClassDeviceSets: {}
-            driveGroups:
-              type: array
-              items:
-                properties:
-                  name:
-                    type: string
-                  spec: {}
-                  placement: {}
-                required:
-                - name
-                - spec
             monitoring:
               properties:
                 enabled:

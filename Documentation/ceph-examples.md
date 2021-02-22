@@ -43,9 +43,6 @@ the cluster. These examples represent a very small set of the different ways to 
 * `cluster.yaml`: This file contains common settings for a production storage cluster. Requires at least three worker nodes.
 * `cluster-test.yaml`: Settings for a test cluster where redundancy is not configured. Requires only a single node.
 * `cluster-on-pvc.yaml`: This file contains common settings for backing the Ceph Mons and OSDs by PVs. Useful when running in cloud environments or where local PVs have been created for Ceph to consume.
-* `cluster-with-drive-groups.yaml`: This file contains example configurations for creating advanced
-  OSD layouts on nodes using Ceph Drive Groups.
-  [See docs for more](Documentation/ceph-cluster-crd.md#storage-selection-via-ceph-drive-groups)
 * `cluster-external.yaml`: Connect to an [external Ceph cluster](ceph-cluster-crd.md#external-cluster) with minimal access to monitor the health of the cluster and connect to the storage.
 * `cluster-external-management.yaml`: Connect to an [external Ceph cluster](ceph-cluster-crd.md#external-cluster) with the admin key of the external cluster to enable
   remote creation of pools and configure services such as an [Object Store](ceph-object.md) or a [Shared Filesystem](ceph-filesystem.md).

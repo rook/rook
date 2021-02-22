@@ -472,44 +472,6 @@ The following storage selection settings are specific to Ceph and do not apply t
 * Mimic 13.2.3 or newer
 * Nautilus
 
-### Storage Selection Via Ceph Drive Groups
-
-Ceph Drive Groups allow for specifying highly advanced OSD layouts on nodes including
-non-homogeneous nodes. They are a way to describe a cluster layout using the properties of disks.
-It gives the user an abstract way tell Ceph which disks should turn into an OSD with which
-configuration without knowing the specifics of device names and paths. You can target specific disks
-by their device type, by vendor or model, by size, by whether they are rotational, and more. Disks
-with various properties can be specified to be data disks or wal/db disks.
-
-As a brief example, let's assume nodes with 20 SSDs and 4 NVMe devices. A Drive Group could specify
-that all SSD devices should be data disks and two of the NVMe devices should be wal/db disks for the
-SSDs. That would leave two NVMe devices remaining for other usage, either for Ceph or another
-application.
-
-Ceph supports adding devices as OSDs by Ceph Drive Group definitions in later versions of Ceph
-Octopus (v15.2.5+).
-See Ceph Drive Group docs for more [info](https://docs.ceph.com/docs/master/cephadm/drivegroups/).
-Drive Groups cannot be used to provision OSDs on PVCs.
-
-> **IMPORTANT:** When managing a Rook/Ceph cluster's OSD layouts with Drive Groups, the `storage`
-> config is mostly ignored. `storageClassDeviceSets` can still be used to create OSDs on PVC, but
-> Rook will no longer use `storage` configs for creating OSDs on a node's devices. To avoid
-> confusion, we recommend using the `storage` config OR `driveGroups` and never both. Because
-> `storage` and `driveGroups` should not be used simultaneously, Rook only supports provisioning
-> OSDs with Drive Groups on new Rook-Ceph clusters.
-
-A Drive Group is defined by a name, a Ceph Drive Group spec, and a Rook placement
-
-* `name`: A name for the Drive Group.
-* `spec`: The Ceph Drive group spec. Some components of the spec are treated differently in the
-  context of Rook as noted below:
-  * Rook overrides Ceph's definition of `placement` in order to use Rook's `placement` below.
-  * Rook overrides Ceph's deprecated `host_pattern` in order to use Rook's `placement` below.
-  * Rook overrides Ceph's `service_id` field to be the same as the Drive Group `name` above.
-* `placement`: The placement criteria for nodes to provision with the Drive Group.
-  (Optional) Default is no placement criteria, which matches all untainted nodes.
-  The syntax is the same as for [other placement configuration](#placement-configuration-settings).
-
 ### Annotations and Labels
 
 Annotations and Labels can be specified so that the Rook components will have those annotations / labels added to them.

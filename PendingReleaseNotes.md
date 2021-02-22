@@ -9,6 +9,10 @@ v1.6...
 ## Breaking Changes
 
 ### Ceph
+* Support for adding OSDs via Drive Groups was removed. Please refer to the 
+  [Ceph upgrade guide](Documentation/ceph-upgrade.md#migrate-the-drive-group-spec) for migration
+  instructions.
+  See https://github.com/rook/rook/issues/7275 for more information.
 
 ## Features
 

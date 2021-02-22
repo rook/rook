@@ -64,10 +64,6 @@ type ClusterSpec struct {
 	// The version information that instructs Rook to orchestrate a particular version of Ceph.
 	CephVersion CephVersionSpec `json:"cephVersion,omitempty"`
 
-	// Ceph Drive Groups specification for how storage should be used in the cluster, given
-	// precedent over the Storage spec.
-	DriveGroups DriveGroupsSpec `json:"driveGroups,omitempty"`
-
 	// A spec for available storage in the cluster and how it should be used
 	Storage rookv1.StorageScopeSpec `json:"storage,omitempty"`
 
@@ -169,25 +165,6 @@ type CephVersionSpec struct {
 	// Whether to allow unsupported versions (do not set to true in production)
 	AllowUnsupported bool `json:"allowUnsupported,omitempty"`
 }
-
-// DriveGroupsSpec is a list Ceph Drive Group specifications.
-type DriveGroupsSpec []DriveGroup
-
-// DriveGroup specifies a Ceph Drive Group and where Rook should apply the Drive Group.
-type DriveGroup struct {
-	// Name is a unique name used to identify the Drive Group.
-	Name string `json:"name"`
-
-	// Spec is the JSON or YAML definition of a Ceph Drive Group. Placement information contained
-	// within this spec is ignored, as placement is specified via the Rook placement mechanism below.
-	Spec DriveGroupSpec `json:"spec"`
-
-	// Placement defines which nodes the Drive Group should be applied to.
-	Placement rookv1.Placement `json:"placement,omitempty"`
-}
-
-// DriveGroupSpec is a YAML or JSON definition of a Ceph Drive Group.
-type DriveGroupSpec map[string]interface{}
 
 // DashboardSpec represents the settings for the Ceph dashboard
 type DashboardSpec struct {

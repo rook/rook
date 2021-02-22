@@ -19,7 +19,6 @@ package osd
 import (
 	"strconv"
 
-	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -107,24 +106,8 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 	return envVars
 }
 
-func (c *Cluster) getDriveGroupEnvVar(osdProps osdProperties) (v1.EnvVar, error) {
-	if len(osdProps.driveGroups) == 0 {
-		return v1.EnvVar{}, nil
-	}
-
-	b, err := MarshalAsDriveGroupBlobs(osdProps.driveGroups)
-	if err != nil {
-		return v1.EnvVar{}, errors.Wrap(err, "failed to marshal drive groups into an env var")
-	}
-	return driveGroupsEnvVar(b), nil
-}
-
 func nodeNameEnvVar(name string) v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_NODE_NAME", Value: name}
-}
-
-func driveGroupsEnvVar(driveGroups string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_DRIVE_GROUPS", Value: driveGroups}
 }
 
 func dataDevicesEnvVar(dataDevices string) v1.EnvVar {

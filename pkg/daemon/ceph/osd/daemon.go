@@ -254,16 +254,15 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 
 	logger.Info("creating and starting the osds")
 
-	// Run Drive Group configuration
-	if err := agent.configureDriveGroups(context); err != nil {
-		return err
-	}
-
 	// determine the set of devices that can/should be used for OSDs.
 	devices, err := getAvailableDevices(context, agent)
 	if err != nil {
 		return errors.Wrap(err, "failed to get available devices")
 	}
+
+	// orchestration is about to start, update the status
+	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating, PvcBackedOSD: agent.pvcBacked}
+	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	// start the desired OSDs on devices
 	logger.Infof("configuring osd devices: %+v", devices)
