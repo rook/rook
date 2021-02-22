@@ -441,3 +441,51 @@ $ rbd ls --id=csi-rbd-node -m=10.111.136.166:6789 --key=AQDpIQhg+v83EhAAgLboWIbl
 ```
 
 Where `-m` is one of the mon endpoints and the `--key` is the key used by the CSI driver for accessing the Ceph cluster.
+
+## Node Loss
+
+When a node is lost, you will see application pods on the node stuck in the `Terminating` state while another pod is rescheduled and is in the `ContainerCreating` state.
+
+To allow the application pod to start on another node:
+
+### Force delete your application pod. After some timeout (8-10 minutes), your pod will be rescheduled
+
+To force delete the pod stuck in the `Terminating` state:
+
+```console
+$ kubectl -n rook-ceph delete pod my-app-69cd495f9b-nl6hf --grace-period 0 --force
+```
+
+**And** then wait for timeout (8-10 minutes). If the pod still not in running state in thatcase , we need to wait more or go and blacklist the watcher(mentioned below).
+
+### Shorten the timeout
+
+To shorten the timeout, you can mark the node as "blacklisted" so Rook can safely failover the pod sooner.
+
+```console
+$ PVC_NAME= # enter pvc name
+$ IMAGE=$(kubectl get pv $(kubectl get pv | grep $PVC_NAME | awk '{ print $1 }') -o jsonpath='{.spec.csi.volumeHandle}' | cut -d '-' -f 6- | awk '{print "csi-vol-"$1}')  # enter the pvc name
+$ echo $IMAGE
+```
+
+The solution is to remove the watcher, following the commands below from the [Rook toolbox](ceph-toolbox.md):
+
+```console
+rbd status <image> --pool=replicapool # get image from above output
+```
+>```
+> Watchers:
+>	watcher=10.130.2.1:0/2076971174 client.14206 cookie=18446462598732840961
+>```
+
+```console
+$ ceph osd blacklist add 10.130.2.1:0/207697117 # to know which watcher to block see above output
+blacklisting 10.130.2.1:0/2076971174 until 2021-02-21T18:12:53.115328+0000 (3600 sec)
+```
+
+After running the above command within a few minutes the pod will be running. **But don't forget to remove the above blacklist watcher**
+
+```console
+$ ceph osd blacklist rm 10.130.2.1:0/2076971174
+un-blacklisting 10.130.2.1:0/2076971174
+```
