@@ -80,11 +80,17 @@ func TestReconcileRealm(t *testing.T) {
 	}
 
 	storeName := "myobject"
-	context := &clusterd.Context{Executor: executor}
+	clientset := fake.NewSimpleClientset()
+	ctx := context.TODO()
+	cm := &v1.ConfigMap{}
+	cm.Name = "rook-ceph-operator-config"
+	_, err := clientset.CoreV1().ConfigMaps("").Create(ctx, cm, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster"}, storeName)
 	// create the first realm, marked as default
 	store := cephv1.CephObjectStore{}
-	err := setMultisite(objContext, &store, "1.2.3.4")
+	err = setMultisite(objContext, &store, "1.2.3.4")
 	assert.Nil(t, err)
 
 	// create the second realm, not marked as default
@@ -184,11 +190,18 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executor.MockExecuteCommandWithTimeout = executorFuncWithTimeout
 	executor.MockExecuteCommandWithOutput = executorFunc
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc
-	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: &client.ClusterInfo{Namespace: "ns"}}
+
+	clientset := fake.NewSimpleClientset()
+	ctx := context.TODO()
+	cm := &v1.ConfigMap{}
+	cm.Name = "rook-ceph-operator-config"
+	_, err := clientset.CoreV1().ConfigMaps("").Create(ctx, cm, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	context := &Context{Context: &clusterd.Context{Executor: executor, Clientset: clientset}, Name: "myobj", clusterInfo: &client.ClusterInfo{Namespace: "ns"}}
 
 	// Delete an object store without deleting the pools
 	spec := cephv1.ObjectStoreSpec{}
-	err := deleteRealmAndPools(context, spec)
+	err = deleteRealmAndPools(context, spec)
 	assert.Nil(t, err)
 	expectedPoolsDeleted := 0
 	assert.Equal(t, expectedPoolsDeleted, poolsDeleted)
@@ -259,14 +272,20 @@ func TestDashboard(t *testing.T) {
 			return "", nil
 		},
 	}
-	context := &clusterd.Context{Executor: executor}
+	clientset := fake.NewSimpleClientset()
+	ctx := context.TODO()
+	cm := &v1.ConfigMap{}
+	cm.Name = "rook-ceph-operator-config"
+	_, err := clientset.CoreV1().ConfigMaps("").Create(ctx, cm, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster",
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}},
 		storeName)
 	checkdashboard, err := checkDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.False(t, checkdashboard)
-	err = enableRGWDashboard(objContext)
+	err = enableRGWDashboard(objContext, time.Second)
 	assert.Nil(t, err)
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
@@ -280,13 +299,13 @@ func TestDashboard(t *testing.T) {
 	checkdashboard, err = checkDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.True(t, checkdashboard)
-	disableRGWDashboard(objContext)
+	disableRGWDashboard(objContext, time.Second)
 
-	context = &clusterd.Context{Executor: executor}
+	context = &clusterd.Context{Executor: executor, Clientset: clientset}
 	objContext = NewContext(context, &client.ClusterInfo{Namespace: "mycluster",
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10}},
 		storeName)
-	err = enableRGWDashboard(objContext)
+	err = enableRGWDashboard(objContext, time.Second)
 	assert.Nil(t, err)
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
@@ -300,5 +319,5 @@ func TestDashboard(t *testing.T) {
 	checkdashboard, err = checkDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.True(t, checkdashboard)
-	disableRGWDashboard(objContext)
+	disableRGWDashboard(objContext, time.Second)
 }

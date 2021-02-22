@@ -24,7 +24,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util/exec"
 )
 
 // RunAllCephCommandsInToolboxPod - when running the e2e tests, all ceph commands need to be run in the toolbox.
@@ -54,7 +53,7 @@ func CephConfFilePath(configDir, clusterName string) string {
 }
 
 // FinalizeCephCommandArgs builds the command line to be called
-func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []string, configDir string) (string, []string) {
+func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, timeout time.Duration, args []string, configDir string) (string, []string) {
 	// the rbd client tool does not support the '--connect-timeout' option
 	// so we only use it for the 'ceph' command
 	// Also, there is no point of adding that option to 'crushtool' since that CLI does not connect to anything
@@ -62,15 +61,14 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 
 	// we could use a slice and iterate over it but since we have only 3 elements
 	// I don't think this is worth a loop
-	timeout := strconv.Itoa(int(exec.CephCommandTimeout.Seconds()))
 	if command != "rbd" && command != "crushtool" && command != "radosgw-admin" {
-		args = append(args, "--connect-timeout="+timeout)
+		args = append(args, "--connect-timeout="+strconv.Itoa(int(timeout.Seconds())))
 	}
 
 	// If the command should be run inside the toolbox pod, include the kubectl args to call the toolbox
 	if RunAllCephCommandsInToolboxPod != "" {
 		toolArgs := []string{"exec", "-i", RunAllCephCommandsInToolboxPod, "-n", clusterInfo.Namespace,
-			"--", "timeout", timeout, command}
+			"--", "timeout", strconv.Itoa(int(timeout.Seconds())), command}
 		return Kubectl, append(toolArgs, args...)
 	}
 
@@ -118,7 +116,7 @@ func NewRBDCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []s
 }
 
 func (c *CephToolCommand) run() ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(c.tool, c.clusterInfo, c.args, c.context.ConfigDir)
+	command, args := FinalizeCephCommandArgs(c.tool, c.clusterInfo, c.timeout, c.args, c.context.ConfigDir)
 	if c.JsonOutput {
 		args = append(args, "--format", "json")
 	} else {
@@ -173,8 +171,8 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 // minute. This method is left as a special case in which the caller has fully
 // configured its arguments. It is future work to integrate this case into the
 // generalization.
-func ExecuteRBDCommandWithTimeout(context *clusterd.Context, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(exec.CephCommandTimeout, RBDTool, args...)
+func ExecuteRBDCommandWithTimeout(context *clusterd.Context, timeout time.Duration, args []string) (string, error) {
+	output, err := context.Executor.ExecuteCommandWithTimeout(timeout, RBDTool, args...)
 	return output, err
 }
 

@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -847,7 +848,7 @@ func checkDashboardUser(context *Context) (bool, error) {
 	return false, err
 }
 
-func enableRGWDashboard(context *Context) error {
+func enableRGWDashboard(context *Context, timeout time.Duration) error {
 	logger.Info("enabling rgw dashboard")
 	checkDashboard, err := checkDashboardUser(context)
 	if err != nil {
@@ -911,7 +912,7 @@ func enableRGWDashboard(context *Context) error {
 		// starting in ceph v15.2.8. We run it in a goroutine until the fix
 		// is found. We expect the ceph command to timeout so at least the goroutine exits.
 		logger.Info("setting the dashboard api secret key")
-		_, err = cephCmd.RunWithTimeout(exec.CephCommandTimeout)
+		_, err = cephCmd.RunWithTimeout(timeout)
 		if err != nil {
 			logger.Errorf("failed to set user %q secretkey. %v", DashboardUser, err)
 		}
@@ -927,7 +928,7 @@ func enableRGWDashboard(context *Context) error {
 	return nil
 }
 
-func disableRGWDashboard(context *Context) {
+func disableRGWDashboard(context *Context, timeout time.Duration) {
 	logger.Info("disabling the dashboard api user and secret key")
 
 	_, _, err := GetUser(context, DashboardUser)
@@ -943,14 +944,14 @@ func disableRGWDashboard(context *Context) {
 
 	args := []string{"dashboard", "reset-rgw-api-access-key"}
 	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.RunWithTimeout(exec.CephCommandTimeout)
+	_, err = cephCmd.RunWithTimeout(timeout)
 	if err != nil {
 		logger.Warningf("failed to reset user accesskey for user %q. %v", DashboardUser, err)
 	}
 
 	args = []string{"dashboard", "reset-rgw-api-secret-key"}
 	cephCmd = cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.RunWithTimeout(exec.CephCommandTimeout)
+	_, err = cephCmd.RunWithTimeout(timeout)
 	if err != nil {
 		logger.Warningf("failed to reset user secretkey for user %q. %v", DashboardUser, err)
 	}

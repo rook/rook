@@ -114,7 +114,7 @@ func (c *cephStatusChecker) checkStatus() {
 	}
 
 	// Check ceph's status
-	status, err = cephclient.StatusWithUser(c.context, c.clusterInfo)
+	status, err = cephclient.StatusWithUser(c.context, c.clusterInfo, opcontroller.CephCommandsTimeout(c.context))
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 			logger.Info("skipping ceph status since operator is still initializing")

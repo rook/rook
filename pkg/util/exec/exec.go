@@ -36,10 +36,6 @@ import (
 	kexec "k8s.io/utils/exec"
 )
 
-var (
-	CephCommandTimeout = 15 * time.Second
-)
-
 // Executor is the main interface for all the exec commands
 type Executor interface {
 	ExecuteCommand(command string, arg ...string) error

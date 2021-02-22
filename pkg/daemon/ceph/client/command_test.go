@@ -17,10 +17,9 @@ limitations under the License.
 package client
 
 import (
-	"strconv"
 	"testing"
+	"time"
 
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,7 +30,7 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 	args := []string{"quorum_status"}
 	expectedArgs := []string{
 		"quorum_status",
-		"--connect-timeout=" + strconv.Itoa(int(exec.CephCommandTimeout.Seconds())),
+		"--connect-timeout=15",
 		"--cluster=rook",
 		"--conf=/var/lib/rook/rook-ceph/rook/rook.config",
 		"--name=client.admin",
@@ -39,7 +38,7 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 	}
 
 	clusterInfo := AdminClusterInfo("rook")
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, 15*time.Second, args, configDir)
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
 }
@@ -69,7 +68,7 @@ func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
 	}
 
 	clusterInfo := AdminClusterInfo("rook")
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, 15*time.Second, args, configDir)
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
 }
@@ -94,7 +93,7 @@ func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 	}
 
 	clusterInfo := AdminClusterInfo("rook")
-	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
+	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, 15*time.Second, args, configDir)
 	assert.Exactly(t, "kubectl", cmd)
 	assert.Exactly(t, expectedArgs, args)
 	RunAllCephCommandsInToolboxPod = ""

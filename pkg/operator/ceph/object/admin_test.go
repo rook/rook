@@ -17,6 +17,7 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -28,6 +29,9 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestExtractJson(t *testing.T) {
@@ -124,8 +128,14 @@ this line can't be parsed as json
 }
 
 func TestRunAdminCommandNoMultisite(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	ctx := context.TODO()
+	cm := &corev1.ConfigMap{}
+	cm.Name = "rook-ceph-operator-config"
+	_, err := clientset.CoreV1().ConfigMaps("").Create(ctx, cm, metav1.CreateOptions{})
+	assert.NoError(t, err)
 	objContext := &Context{
-		Context:     &clusterd.Context{RemoteExecutor: exec.RemotePodCommandExecutor{ClientSet: test.New(t, 3)}},
+		Context:     &clusterd.Context{RemoteExecutor: exec.RemotePodCommandExecutor{ClientSet: test.New(t, 3)}, Clientset: clientset},
 		clusterInfo: client.AdminClusterInfo("mycluster"),
 	}
 

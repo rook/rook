@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
@@ -28,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -168,12 +170,14 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 	var output, stderr string
 	var err error
 
+	timeout := opcontroller.CephCommandsTimeout(c.Context)
 	// If Multus is enabled we proxy all the command to the mgr sidecar
 	if c.CephClusterSpec.Network.IsMultus() {
-		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(mgr.AppName, mgr.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
+		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(mgr.AppName, mgr.CommandProxyInitContainerName,
+			strconv.Itoa(int(timeout.Seconds())), c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
 	} else {
-		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
-		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandTimeout, command, args...)
+		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, opcontroller.CephCommandsTimeout(c.Context), args, c.Context.ConfigDir)
+		output, err = c.Context.Executor.ExecuteCommandWithTimeout(timeout, command, args...)
 	}
 
 	if err != nil {

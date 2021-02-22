@@ -18,6 +18,7 @@ package client
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -29,7 +30,7 @@ func TestCephArgs(t *testing.T) {
 	// cluster a under /etc
 	args := []string{}
 	clusterInfo := AdminClusterInfo("a")
-	command, args := FinalizeCephCommandArgs(CephTool, clusterInfo, args, "/etc")
+	command, args := FinalizeCephCommandArgs(CephTool, clusterInfo, 15*time.Second, args, "/etc")
 	assert.Equal(t, CephTool, command)
 	assert.Equal(t, 5, len(args))
 	assert.Equal(t, "--connect-timeout=15", args[0])
@@ -40,7 +41,7 @@ func TestCephArgs(t *testing.T) {
 
 	RunAllCephCommandsInToolboxPod = "rook-ceph-tools"
 	args = []string{}
-	command, args = FinalizeCephCommandArgs(CephTool, clusterInfo, args, "/etc")
+	command, args = FinalizeCephCommandArgs(CephTool, clusterInfo, 15*time.Second, args, "/etc")
 	assert.Equal(t, Kubectl, command)
 	assert.Equal(t, 10, len(args), fmt.Sprintf("%+v", args))
 	assert.Equal(t, "exec", args[0])
@@ -55,7 +56,7 @@ func TestCephArgs(t *testing.T) {
 
 	// cluster under /var/lib/rook
 	args = []string{"myarg"}
-	command, args = FinalizeCephCommandArgs(RBDTool, clusterInfo, args, "/var/lib/rook")
+	command, args = FinalizeCephCommandArgs(RBDTool, clusterInfo, 15*time.Second, args, "/var/lib/rook")
 	assert.Equal(t, RBDTool, command)
 	assert.Equal(t, 5, len(args))
 	assert.Equal(t, "myarg", args[0])

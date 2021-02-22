@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"syscall"
+	"time"
 
 	"strconv"
 
@@ -129,7 +130,7 @@ func DeleteImage(context *clusterd.Context, clusterInfo *ClusterInfo, name, pool
 	return nil
 }
 
-func ExpandImage(context *clusterd.Context, clusterInfo *ClusterInfo, name, poolName, monitors, keyring string, size uint64) error {
+func ExpandImage(context *clusterd.Context, clusterInfo *ClusterInfo, name, poolName, monitors, keyring string, size uint64, timeout time.Duration) error {
 	logger.Infof("expanding rbd image %q in pool %q to size %dMB", name, poolName, display.BToMb(size))
 	imageSpec := getImageSpec(name, poolName)
 	args := []string{
@@ -140,7 +141,7 @@ func ExpandImage(context *clusterd.Context, clusterInfo *ClusterInfo, name, pool
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,
 	}
-	output, err := ExecuteRBDCommandWithTimeout(context, args)
+	output, err := ExecuteRBDCommandWithTimeout(context, timeout, args)
 	if err != nil {
 		return errors.Wrapf(err, "failed to resize image %s in pool %s, output: %s", name, poolName, string(output))
 	}
@@ -148,7 +149,7 @@ func ExpandImage(context *clusterd.Context, clusterInfo *ClusterInfo, name, pool
 }
 
 // MapImage maps an RBD image using admin cephfx and returns the device path
-func MapImage(context *clusterd.Context, clusterInfo *ClusterInfo, imageName, poolName, id, keyring, monitors string) error {
+func MapImage(context *clusterd.Context, clusterInfo *ClusterInfo, imageName, poolName, id, keyring, monitors string, timeout time.Duration) error {
 	imageSpec := getImageSpec(imageName, poolName)
 	args := []string{
 		"map",
@@ -160,7 +161,7 @@ func MapImage(context *clusterd.Context, clusterInfo *ClusterInfo, imageName, po
 		"--conf=/dev/null", // no config file needed because we are passing all required config as arguments
 	}
 
-	output, err := ExecuteRBDCommandWithTimeout(context, args)
+	output, err := ExecuteRBDCommandWithTimeout(context, timeout, args)
 	if err != nil {
 		return errors.Wrapf(err, "failed to map image %s, output: %s", imageSpec, output)
 	}
@@ -169,7 +170,7 @@ func MapImage(context *clusterd.Context, clusterInfo *ClusterInfo, imageName, po
 }
 
 // UnMapImage unmap an RBD image from the node
-func UnMapImage(context *clusterd.Context, clusterInfo *ClusterInfo, imageName, poolName, id, keyring, monitors string, force bool) error {
+func UnMapImage(context *clusterd.Context, clusterInfo *ClusterInfo, imageName, poolName, id, keyring, monitors string, force bool, timeout time.Duration) error {
 	deviceImage := getImageSpec(imageName, poolName)
 	args := []string{
 		"unmap",
@@ -185,7 +186,7 @@ func UnMapImage(context *clusterd.Context, clusterInfo *ClusterInfo, imageName, 
 		args = append(args, "-o", "force")
 	}
 
-	output, err := ExecuteRBDCommandWithTimeout(context, args)
+	output, err := ExecuteRBDCommandWithTimeout(context, timeout, args)
 	if err != nil {
 		return errors.Wrapf(err, "failed to unmap image %s, output: %s", deviceImage, output)
 	}

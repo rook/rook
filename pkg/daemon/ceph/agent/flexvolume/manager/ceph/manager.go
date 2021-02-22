@@ -29,6 +29,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -135,7 +136,7 @@ func (vm *VolumeManager) Attach(image, pool, id, key, clusterNamespace string) (
 	}
 
 	clusterInfo := cephclient.AdminClusterInfo(clusterNamespace)
-	err = cephclient.MapImage(vm.context, clusterInfo, image, pool, id, keyring, monitors)
+	err = cephclient.MapImage(vm.context, clusterInfo, image, pool, id, keyring, monitors, opcontroller.CephCommandsTimeout(vm.context))
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to map image %s/%s cluster %s", pool, image, clusterNamespace)
 	}
@@ -168,7 +169,7 @@ func (vm *VolumeManager) Expand(image, pool, clusterNamespace string, size uint6
 		return errors.Wrapf(err, "failed to resize volume %s/%s cluster %s", pool, image, clusterNamespace)
 	}
 	clusterInfo := cephclient.AdminClusterInfo(clusterNamespace)
-	err = cephclient.ExpandImage(vm.context, clusterInfo, image, pool, monitors, keyring, size)
+	err = cephclient.ExpandImage(vm.context, clusterInfo, image, pool, monitors, keyring, size, opcontroller.CephCommandsTimeout(vm.context))
 	if err != nil {
 		return errors.Wrapf(err, "failed to resize volume %s/%s cluster %s", pool, image, clusterNamespace)
 	}
@@ -211,7 +212,7 @@ func (vm *VolumeManager) Detach(image, pool, id, key, clusterNamespace string, f
 	}
 
 	clusterInfo := cephclient.AdminClusterInfo(clusterNamespace)
-	err = cephclient.UnMapImage(vm.context, clusterInfo, image, pool, id, keyring, monitors, force)
+	err = cephclient.UnMapImage(vm.context, clusterInfo, image, pool, id, keyring, monitors, force, opcontroller.CephCommandsTimeout(vm.context))
 	if err != nil {
 		return errors.Wrapf(err, "failed to detach volume %s/%s cluster %s", pool, image, clusterNamespace)
 	}

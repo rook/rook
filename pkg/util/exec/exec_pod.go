@@ -25,7 +25,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -130,6 +129,6 @@ func execute(method string, url *url.URL, config *rest.Config, stdin io.Reader, 
 	})
 }
 
-func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
-	return e.ExecCommandInContainerWithFullOutput(appLabel, containerName, namespace, append([]string{"timeout", strconv.Itoa(int(CephCommandTimeout.Seconds()))}, cmd...)...)
+func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(appLabel, containerName, namespace, timeout string, cmd ...string) (string, string, error) {
+	return e.ExecCommandInContainerWithFullOutput(appLabel, containerName, namespace, append([]string{"timeout", timeout}, cmd...)...)
 }
