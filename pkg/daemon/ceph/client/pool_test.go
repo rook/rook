@@ -310,7 +310,7 @@ func testCreateStretchCrushRule(t *testing.T, alreadyExists bool) {
 	}
 	clusterInfo := AdminClusterInfo("mycluster")
 	clusterSpec := &cephv1.ClusterSpec{}
-	poolSpec := cephv1.PoolSpec{}
+	poolSpec := cephv1.PoolSpec{FailureDomain: "rack"}
 	ruleName := "testrule"
 	if alreadyExists {
 		ruleName = "replicated_ruleset"
