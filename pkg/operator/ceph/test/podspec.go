@@ -73,6 +73,10 @@ func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 		// #nosec because of the word `Secret`
 		keyringSecretName = "rook-ceph-mons-keyring"
 	}
+	// CephFS mirror has no index so the daemon name is just "rook-ceph-fs-mirror"
+	if daemonType == config.FilesystemMirrorType {
+		keyringSecretName = fmt.Sprintf("rook-ceph-%s-keyring", daemonType)
+	}
 	requiredVols := []string{"rook-config-override", keyringSecretName}
 	if daemonType != config.RbdMirrorType && daemonType != config.FilesystemMirrorType {
 		requiredVols = append(requiredVols, "ceph-daemon-data")

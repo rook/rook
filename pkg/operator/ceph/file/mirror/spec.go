@@ -32,7 +32,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
-			Labels: controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, daemonConfig.DaemonID, true),
+			Labels: controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, true),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -75,7 +75,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Name:        daemonConfig.ResourceName,
 			Namespace:   fsMirror.Namespace,
 			Annotations: fsMirror.Spec.Annotations,
-			Labels:      controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, daemonConfig.DaemonID, true),
+			Labels:      controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, true),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -110,9 +110,9 @@ func (r *ReconcileFilesystemMirror) makeFsMirroringDaemonContainer(daemonConfig 
 			"cephfs-mirror",
 		},
 		Args: append(
-			controller.DaemonFlags(r.clusterInfo, r.cephClusterSpec, daemonConfig.DaemonID),
+			controller.DaemonFlags(r.clusterInfo, r.cephClusterSpec, userID),
 			"--foreground",
-			"--name="+fullDaemonName(daemonConfig.DaemonID),
+			"--name="+user,
 		),
 		Image:           r.cephClusterSpec.CephVersion.Image,
 		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),

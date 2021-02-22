@@ -36,8 +36,7 @@ import (
 func TestPodSpec(t *testing.T) {
 	namespace := "ns"
 	daemonConf := daemonConfig{
-		DaemonID:     "a",
-		ResourceName: "rook-ceph-fs-mirror-a",
+		ResourceName: "rook-ceph-fs-mirror",
 		DataPathMap:  config.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook"),
 	}
 	cephCluster := &cephv1.CephCluster{
@@ -54,7 +53,7 @@ func TestPodSpec(t *testing.T) {
 
 	fsMirror := &cephv1.CephFilesystemMirror{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "a",
+			Name:      userID,
 			Namespace: namespace,
 		},
 		Spec: cephv1.FilesystemMirroringSpec{
@@ -84,17 +83,17 @@ func TestPodSpec(t *testing.T) {
 
 	d, err := r.makeDeployment(&daemonConf, fsMirror)
 	assert.NoError(t, err)
-	assert.Equal(t, "rook-ceph-fs-mirror-a", d.Name)
+	assert.Equal(t, "rook-ceph-fs-mirror", d.Name)
 	assert.Equal(t, 4, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, 1, len(d.Spec.Template.Spec.Volumes[0].Projected.Sources))
 	assert.Equal(t, 4, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
 
 	// Deployment should have Ceph labels
 	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-		config.FilesystemMirrorType, "a", AppName, "ns")
+		config.FilesystemMirrorType, userID, AppName, "ns")
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
-	podTemplate.RunFullSuite(config.FilesystemMirrorType, "a", AppName, "ns", "ceph/ceph:v16",
+	podTemplate.RunFullSuite(config.FilesystemMirrorType, userID, AppName, "ns", "ceph/ceph:v16",
 		"200", "100", "600", "300", /* resources */
 		"my-priority-class")
 }
