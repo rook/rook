@@ -138,7 +138,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 
 	// If host networking is not enabled, preferred pod anti-affinity is added to the rgw daemons
 	labels := getLabels(c.store.Name, c.store.Namespace, false)
-	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.clusterSpec.Network.IsHost(), labels, nil)
+	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.clusterSpec.Network.IsHost(), v1.LabelHostname, labels, nil)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{

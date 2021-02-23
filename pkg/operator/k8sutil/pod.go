@@ -311,7 +311,7 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 }
 
 // SetNodeAntiAffinityForPod assign pod anti-affinity when pod should not be co-located
-func SetNodeAntiAffinityForPod(pod *v1.PodSpec, requiredDuringScheduling bool, labels, nodeSelector map[string]string) {
+func SetNodeAntiAffinityForPod(pod *v1.PodSpec, requiredDuringScheduling bool, topologyKey string, labels, nodeSelector map[string]string) {
 	pod.NodeSelector = nodeSelector
 
 	// when a node selector is being used, skip the affinity business below
@@ -324,7 +324,7 @@ func SetNodeAntiAffinityForPod(pod *v1.PodSpec, requiredDuringScheduling bool, l
 		LabelSelector: &metav1.LabelSelector{
 			MatchLabels: labels,
 		},
-		TopologyKey: v1.LabelHostname,
+		TopologyKey: topologyKey,
 	}
 
 	// Ensures that pod.Affinity is non-nil

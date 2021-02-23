@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -69,7 +70,12 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeMgrSidecarContainer(mgrConfig))
 		matchLabels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 
-		k8sutil.SetNodeAntiAffinityForPod(&podSpec.Spec, true, matchLabels, nil)
+		// Stretch the mgrs across hosts by default, or across a bigger failure domain for stretch clusters
+		topologyKey := v1.LabelHostname
+		if c.spec.IsStretchCluster() {
+			topologyKey = mon.StretchFailureDomainLabel(c.spec)
+		}
+		k8sutil.SetNodeAntiAffinityForPod(&podSpec.Spec, !c.spec.Mgr.AllowMultiplePerNode, topologyKey, matchLabels, nil)
 	}
 
 	// If the log collector is enabled we add the side-car container

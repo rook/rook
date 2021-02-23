@@ -662,7 +662,7 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// setup affinity settings for pod scheduling
 	p := c.getMonPlacement(mon.Zone)
 	p.ApplyToPodSpec(&d.Spec.Template.Spec, true)
-	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec),
+	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
 		map[string]string{k8sutil.AppAttr: AppName}, nil)
 
 	// setup storage on the canary since scheduling will be affected when
@@ -1266,10 +1266,10 @@ func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 		if c.spec.Network.IsHost() || !pvcExists {
 			p.PodAffinity = nil
 			p.PodAntiAffinity = nil
-			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec),
+			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
 				map[string]string{k8sutil.AppAttr: AppName}, existingDeployment.Spec.Template.Spec.NodeSelector)
 		} else {
-			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec),
+			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
 				map[string]string{k8sutil.AppAttr: AppName}, nil)
 		}
 		return c.updateMon(m, d)
@@ -1291,12 +1291,12 @@ func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 	}
 
 	if schedule == nil || schedule.Zone != "" {
-		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec),
+		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
 			map[string]string{k8sutil.AppAttr: AppName}, nil)
 	} else {
 		p.PodAffinity = nil
 		p.PodAntiAffinity = nil
-		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec),
+		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
 			map[string]string{k8sutil.AppAttr: AppName}, map[string]string{v1.LabelHostname: schedule.Hostname})
 	}
 

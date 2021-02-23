@@ -301,8 +301,9 @@ type StretchClusterZoneSpec struct {
 
 // MgrSpec represents options to configure a ceph mgr
 type MgrSpec struct {
-	Count   int      `json:"count,omitempty"`
-	Modules []Module `json:"modules,omitempty"`
+	Count                int      `json:"count,omitempty"`
+	AllowMultiplePerNode bool     `json:"allowMultiplePerNode,omitempty"`
+	Modules              []Module `json:"modules,omitempty"`
 }
 
 // Module represents mgr modules that the user wants to enable or disable

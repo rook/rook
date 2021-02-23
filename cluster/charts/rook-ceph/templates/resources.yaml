@@ -104,9 +104,10 @@ spec:
                   properties:
                     count:
                       type: integer
-                      minimum: 1
+                      minimum: 0
                       maximum: 2
-                      default: 1
+                    allowMultiplePerNode:
+                      type: boolean
                     modules:
                       type: array
                       items:
@@ -1518,8 +1519,10 @@ spec:
               properties:
                 count:
                   type: integer
-                  minimum: 1
+                  minimum: 0
                   maximum: 2
+                allowMultiplePerNode:
+                  type: boolean
                 modules:
                   items:
                     properties:

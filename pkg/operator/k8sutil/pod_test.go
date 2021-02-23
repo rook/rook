@@ -180,7 +180,7 @@ func testPodSpecPlacement(t *testing.T, requiredDuringScheduling bool, req, pref
 	}
 
 	placement.ApplyToPodSpec(&spec, true)
-	SetNodeAntiAffinityForPod(&spec, requiredDuringScheduling, map[string]string{"app": "mon"}, nil)
+	SetNodeAntiAffinityForPod(&spec, requiredDuringScheduling, v1.LabelHostname, map[string]string{"app": "mon"}, nil)
 
 	// should have a required anti-affinity and no preferred anti-affinity
 	assert.Equal(t,

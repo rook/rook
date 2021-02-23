@@ -207,7 +207,7 @@ func (h *CephInstaller) Execute(command string, parameters []string, namespace s
 
 // CreateRookCluster creates rook cluster via kubectl
 func (h *CephInstaller) CreateRookCluster(namespace, systemNamespace, storeType string, usePVC bool, storageClassName string,
-	mon cephv1.MonSpec, startWithAllNodes bool, skipOSDCreation bool, useCrashPruner bool, cephVersion cephv1.CephVersionSpec) error {
+	mon cephv1.MonSpec, startWithAllNodes, multipleMgrs, skipOSDCreation bool, useCrashPruner bool, cephVersion cephv1.CephVersionSpec) error {
 
 	ctx := context.TODO()
 	dataDirHostPath, err := h.initTestDir(namespace)
@@ -250,7 +250,7 @@ osd_pool_default_size = 1
 	}
 
 	logger.Info("Starting Rook Cluster with yaml")
-	settings := &clusterSettings{h.clusterName, namespace, storeType, dataDirHostPath, mon.Count, 0, usePVC, storageClassName, skipOSDCreation, cephVersion, useCrashPruner}
+	settings := &clusterSettings{h.clusterName, namespace, storeType, dataDirHostPath, mon.Count, multipleMgrs, 0, usePVC, storageClassName, skipOSDCreation, cephVersion, useCrashPruner}
 	rookCluster := h.Manifests.GetRookCluster(settings)
 	logger.Info(rookCluster)
 	maxTry := 3
@@ -484,9 +484,10 @@ func (h *CephInstaller) InstallRook(namespace, storeType string, usePVC bool, st
 	useCrashPruner := rookVersion == VersionMaster
 
 	// Create rook cluster
+	multipleManagers := false
 	err = h.CreateRookCluster(namespace, onamespace, storeType, usePVC, storageClassName,
 		cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
-		skipOSDCreation, useCrashPruner, h.CephVersion)
+		multipleManagers, skipOSDCreation, useCrashPruner, h.CephVersion)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err

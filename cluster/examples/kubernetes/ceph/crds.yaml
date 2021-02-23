@@ -104,9 +104,11 @@ spec:
                   properties:
                     count:
                       type: integer
-                      minimum: 1
+                      # 0 will be interpreted as a default of 1 for backward compatibility
+                      minimum: 0
                       maximum: 2
-                      default: 1
+                    allowMultiplePerNode:
+                      type: boolean
                     modules:
                       type: array
                       items:
