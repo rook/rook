@@ -161,7 +161,7 @@ KEK_NAME=%s
 KEY_PATH=%s
 VAULT_DEFAULT_KV_VERS=v1
 CURL_PAYLOAD=$(mktemp)
-ARGS=(--silent --request GET --header "X-Vault-Token: ${VAULT_TOKEN}")
+ARGS=(--silent --show-error --request GET --header "X-Vault-Token: ${VAULT_TOKEN}")
 
 # If a vault namespace is set
 if [ -n "$VAULT_NAMESPACE" ]; then
