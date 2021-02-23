@@ -290,8 +290,9 @@ The `dataDirHostPath` setting specifies a path on the local host for the Ceph da
 ### Symptoms
 
 * Rook operator is running
-* Either a single mon starts or the mons skip letters, specifically named `a`, `d`, and `f`
-* No mgr, osd, or other daemons are created
+* Either a single mon starts or the mons start very slowly (at least several minutes apart)
+* The crash-collector pods are crashing
+* No mgr, osd, or other daemons are created except the CSI driver
 
 ### Investigation
 
@@ -299,11 +300,16 @@ When the operator is starting a cluster, the operator will start one mon at a ti
 If the first mon is not detected healthy, the operator will continue to check until it is healthy. If the first mon fails to start, a second and then a third
 mon may attempt to start. However, they will never form quorum and the orchestration will be blocked from proceeding.
 
-The likely causes for the mon health not being detected:
+The crash-collector pods will be blocked from starting until the mons have formed quorum the first time.
 
-* The operator pod does not have network connectivity to the mon pod
-* The mon pod is failing to start
-* One or more mon pods are in running state, but are not able to form quorum
+There are several common causes for the mons failing to form quorum:
+
+* The operator pod does not have network connectivity to the mon pod(s). The network may be configured incorrectly.
+* One or more mon pods are in running state, but the operator log shows they are not able to form quorum
+* A mon is using configuration from a previous installation. See the [cleanup guide](ceph-teardown.md#delete-the-data-on-hosts)
+  for cleaning the previous cluster.
+* A firewall may be blocking the ports required for the Ceph mons to form quorum. Ensure ports 6789 and 3300 are enabled.
+  See the [Ceph networking guide](https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/) for more details.
 
 #### Operator fails to connect to the mon
 
@@ -333,6 +339,23 @@ If you see the timeout in the operator log, verify if the mon pod is running (se
 If the mon pod is running, check the network connectivity between the operator pod and the mon pod.
 A common issue is that the CNI is not configured correctly.
 
+To verify the network connectivity:
+- Get the endpoint for a mon
+- Curl the mon from the operator pod
+
+For example, this command will curl the first mon from the operator:
+
+```
+kubectl -n rook-ceph exec deploy/rook-ceph-operator -- curl $(kubectl -n rook-ceph get svc -l app=rook-ceph-mon -o jsonpath='{.items[0].spec.clusterIP}'):3300 2>/dev/null
+```
+
+>```
+>ceph v2
+>```
+
+If "ceph v2" is printed to the console, the connection was successful. If the command does not respond or
+otherwise fails, the network connection cannot be established.
+
 #### Failing mon pod
 
 Second we need to verify if the mon pod started successfully.
@@ -358,17 +381,6 @@ $ kubectl -n rook-ceph describe pod -l mon=rook-ceph-mon0
 ```
 
 See the solution in the next section regarding cleaning up the `dataDirHostPath` on the nodes.
-
-#### Three mons named a, d, and f
-
-If you see the three mons running with the names `a`, `d`, and `f`, they likely did not form quorum even though they are running.
-
-```console
-NAME                               READY   STATUS    RESTARTS   AGE
-rook-ceph-mon-a-7d9fd97d9b-cdq7g   1/1     Running   0          10m
-rook-ceph-mon-d-77df8454bd-r5jwr   1/1     Running   0          9m2s
-rook-ceph-mon-f-58b4f8d9c7-89lgs   1/1     Running   0          7m38s
-```
 
 #### Solution
 
@@ -454,6 +466,9 @@ Get the logs of each of the pods. One of them should be the "leader" and be resp
 ```
 kubectl -n rook-ceph logs csi-cephfsplugin-provisioner-d77bb49c6-q9hwq csi-provisioner
 ```
+
+See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
+
 
 #### Operator unresponsiveness
 
