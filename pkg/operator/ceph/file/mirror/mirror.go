@@ -92,7 +92,7 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		}
 		logger.Infof("deployment for filesystem-mirror %q already exists. updating if needed", d.Name)
 
-		if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.RbdMirrorType, AppName, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
+		if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.FilesystemMirrorType, AppName, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 			// fail could be an issue updating label selector (immutable), so try del and recreate
 			logger.Debugf("updateDeploymentAndWait failed for filesystem-mirror %q. Attempting del-and-recreate. %v", d.Name, err)
 			err = r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Delete(ctx, filesystemMirror.Name, metav1.DeleteOptions{})
