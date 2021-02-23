@@ -47,7 +47,7 @@ type CephDaemonsVersions struct {
 var (
 	// we don't perform any checks on these daemons
 	// they don't have any "ok-to-stop" command implemented
-	daemonNoCheck = []string{"mgr", "rgw", "rbd-mirror", "nfs"}
+	daemonNoCheck = []string{"mgr", "rgw", "rbd-mirror", "nfs", "fs-mirror"}
 )
 
 func getCephMonVersionString(context *clusterd.Context, clusterInfo *ClusterInfo) (string, error) {
