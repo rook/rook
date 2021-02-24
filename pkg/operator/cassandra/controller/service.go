@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/controller/endpoint"
 )
 
 // SyncClusterHeadlessService checks if a Headless Service exists
@@ -124,7 +123,6 @@ func memberServiceForPod(pod *corev1.Pod, cluster *cassandrav1alpha1.Cluster) *c
 			Namespace:       pod.Namespace,
 			OwnerReferences: []metav1.OwnerReference{util.NewControllerRef(cluster)},
 			Labels:          labels,
-			Annotations:     map[string]string{endpoint.TolerateUnreadyEndpointsAnnotation: "true"},
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
