@@ -282,13 +282,30 @@ func testOSDsOnPVC(t *testing.T) {
 	}
 
 	var c *Cluster
+	var provisionDone bool = false
+	waitForDone := func() {
+		for {
+			if provisionDone {
+				infof(t, "provisioning done")
+				break
+			}
+			infof(t, "provisioning not done. waiting...")
+			time.Sleep(time.Millisecond)
+		}
+	}
 	run := func() {
+		// reset
+		deploymentOps = newResourceOperationList()
+		statusMapWatcher.Reset()
+
 		// kick off the start of the orchestration in a goroutine so we can watch the results
 		// and manipulate confimaps in the test if needed
 		c = New(context, clusterInfo, spec, "myversion")
+		provisionDone = false
 		go func() {
 			provisionConfig := c.newProvisionConfig()
 			c.startProvisioningOverPVCs(provisionConfig)
+			provisionDone = true
 		}()
 	}
 	run()
@@ -302,6 +319,8 @@ func testOSDsOnPVC(t *testing.T) {
 	// all 5 should be create operations
 	assert.Len(t, deploymentOps.ResourcesWithOperation("create"), 5)
 	infof(t, "deployments successfully created for new PVCs")
+
+	waitForDone()
 
 	// =============================================================================================
 	infof(t, "Step 2: verify deployments are updated when run again")
@@ -325,6 +344,8 @@ func testOSDsOnPVC(t *testing.T) {
 
 	// use later to ensure existing deployments are updated
 	existingDeployments := updatedDeployments
+
+	waitForDone()
 
 	// =============================================================================================
 	infof(t, "Step 3: verify new deployments are created before existing ones are updated")
@@ -358,6 +379,8 @@ func testOSDsOnPVC(t *testing.T) {
 	}
 
 	existingDeployments = append(createdDeployments, updatedDeployments...)
+
+	waitForDone()
 
 	// =============================================================================================
 	infof(t, "Step 4: verify updates can happen opportunistically")
@@ -427,6 +450,8 @@ func testOSDsOnPVC(t *testing.T) {
 
 	existingDeployments = append(createdDeployments, updatedDeployments...)
 
+	waitForDone()
+
 	// =============================================================================================
 	infof(t, "Step 5: verify opportunistic updates can all happen before creates")
 	reset()
@@ -483,6 +508,7 @@ func testOSDsOnPVC(t *testing.T) {
 		}
 	}
 
+	waitForDone()
 	infof(t, "success")
 }
 
