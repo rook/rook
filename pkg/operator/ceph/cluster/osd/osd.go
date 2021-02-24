@@ -590,15 +590,6 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
 
-		// keyring must be generated before deployment creation in order to avoid a race condition resulting
-		// in intermittent failure of first-attempt OSD pods.
-		_, err := c.generateKeyring(osd.ID)
-		if err != nil {
-			errMsg := fmt.Sprintf("failed to create keyring for pvc %q, osd %v. %v", osdProps.crushHostname, osd, err)
-			config.addError(errMsg)
-			continue
-		}
-
 		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to create deployment for pvc %q. %v", osdProps.crushHostname, err)
@@ -659,15 +650,6 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
 		opconfig.ConditionExport(c.context, c.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", fmt.Sprintf("Processing node %s osd %d", nodeName, osd.ID))
-
-		// keyring must be generated before deployment creation in order to avoid a race condition resulting
-		// in intermittent failure of first-attempt OSD pods.
-		_, err := c.generateKeyring(osd.ID)
-		if err != nil {
-			errMsg := fmt.Sprintf("failed to create keyring for node %q, osd %v. %v", n.Name, osd, err)
-			config.addError(errMsg)
-			continue
-		}
 
 		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
