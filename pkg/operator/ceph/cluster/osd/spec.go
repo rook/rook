@@ -175,7 +175,7 @@ fi
 
 # TLS args
 if [ -n "$VAULT_CACERT" ]; then
-	ARGS+=(--cacert "${VAULT_CACERT}")
+	ARGS+=(--capath $(dirname "${VAULT_CACERT}"))
 fi
 if [ -n "$VAULT_CLIENT_CERT" ]; then
 	ARGS+=(--cert "${VAULT_CLIENT_CERT}")
