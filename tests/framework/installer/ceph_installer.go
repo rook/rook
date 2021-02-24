@@ -47,8 +47,8 @@ const (
 	nautilusTestImageOnPartitions = "ceph/ceph:v14.2.12"
 	// test with the latest octopus build
 	octopusTestImage = "ceph/ceph:v15"
-	// test with the latest octopus build. ceph-volume is not allowing OSDs on partitions on v15.2.8 and newer.
-	octopusTestImageOnPartitions = "ceph/ceph:v15.2.7"
+	// test with the latest octopus build.
+	octopusTestImageOnPartitions = "ceph/ceph:v15.2.9"
 	// test with the latest master image
 	masterTestImage    = "ceph/daemon-base:latest-master-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
