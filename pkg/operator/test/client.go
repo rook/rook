@@ -68,7 +68,7 @@ func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
 	_, err := clientset.CoreV1().Nodes().Create(context.TODO(), n, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
-			infof(t, "AddReadyNode: node %q already exists; not treating this as an error")
+			t.Logf("AddReadyNode: node %q already exists; not treating this as an error", n.Name)
 		}
 		panic(fmt.Errorf("failed to create node %q: %+v", name, err))
 	}
@@ -119,11 +119,6 @@ var (
 	nodeGVR schema.GroupVersionResource = corev1.SchemeGroupVersion.WithResource("nodes")
 )
 
-// make infof function for helping identify logs from unit test helpers versus from runtime code.
-func infof(t *testing.T, format string, args ...interface{}) {
-	logger.Infof(t.Name()+": "+format, args...)
-}
-
 // NewComplexClientset is a reusable clientset for Rook unit tests that adds some complex behavior
 // to the clientset to mimic more of what K8s does in the real world.
 //  - Generate a name for resources that have 'generateName' set and 'name' unset.
@@ -154,7 +149,7 @@ func NewComplexClientset(t *testing.T) *fake.Clientset {
 			b32 := base32.StdEncoding.EncodeToString(b[:])    // includes trailing equal signs
 			newName := genName + "-" + strings.Trim(b32, "=") // trim off the trailing equal signs
 			objMeta.SetName(newName)
-			infof(t, "generateName reactor: generated name for %s: %s", resource, objMeta.GetName())
+			t.Logf("generateName reactor: generated name for %s: %s", resource, objMeta.GetName())
 		}
 		// setting obj.Name above modifies the action in-place before future reactors occur
 		// we want the default reactor to create the resource, so return false as if we did nothing
@@ -196,18 +191,18 @@ func PrependComplexJobReactor(t *testing.T, clientset *fake.Clientset, assignPod
 			err := clientset.Tracker().Create(podGVR, &pod, action.GetNamespace())
 			if err != nil {
 				if errors.IsAlreadyExists(err) {
-					infof(t, "job reactor: pod %q is already created for job %q; not treating this as an error", pod.GetName(), job.GetName())
+					t.Logf("job reactor: pod %q is already created for job %q; not treating this as an error", pod.GetName(), job.GetName())
 				}
 				panic(fmt.Errorf("failed to create Pod %q for job %+v. %v", pod.Name, job, err))
 			}
-			infof(t, "job reactor: created pod %q for job %q", pod.Name, job.Name)
+			t.Logf("job reactor: created pod %q for job %q", pod.Name, job.Name)
 
 		case k8stesting.DeleteActionImpl:
 			jobName := action.GetName()
 			obj, err := clientset.Tracker().Get(action.GetResource(), action.GetNamespace(), jobName)
 			if err != nil && !errors.IsNotFound(err) {
 				if errors.IsNotFound(err) {
-					infof(t, "job reactor: job %q being deleted does not exist; will not delete a pod", jobName)
+					t.Logf("job reactor: job %q being deleted does not exist; will not delete a pod", jobName)
 					return false, nil, nil
 				}
 				panic(fmt.Errorf("failed to get info about job %q being deleted. %+v", jobName, err))
@@ -220,12 +215,12 @@ func PrependComplexJobReactor(t *testing.T, clientset *fake.Clientset, assignPod
 			err = clientset.Tracker().Delete(podGVR, action.GetNamespace(), podName)
 			if err != nil {
 				if errors.IsNotFound(err) {
-					infof(t, "job reactor: pod %q does not exist to be deleted while deleting job %q", podName, jobName)
+					t.Logf("job reactor: pod %q does not exist to be deleted while deleting job %q", podName, jobName)
 					return false, nil, nil
 				}
 				panic(fmt.Errorf("failed to delete pod %q while deleting job %+v", podName, job))
 			}
-			infof(t, "job reactor: deleted pod %q while deleting job %q", podName, jobName)
+			t.Logf("job reactor: deleted pod %q while deleting job %q", podName, jobName)
 		}
 
 		return false, nil, nil
