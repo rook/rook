@@ -90,6 +90,9 @@ type NFSServerSpec struct {
 
 	// The parameters to configure the NFS export
 	Exports []ExportsSpec `json:"exports,omitempty"`
+
+	// The image to use for the NFS server pod.
+	Image string `json:"image,omitempty"` `default:"rook/nfs:master"`
 }
 
 // ExportsSpec represents the spec of NFS exports
