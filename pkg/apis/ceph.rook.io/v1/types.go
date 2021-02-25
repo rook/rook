@@ -265,23 +265,30 @@ type CephHealthMessage struct {
 type Condition struct {
 	Type               ConditionType      `json:"type,omitempty"`
 	Status             v1.ConditionStatus `json:"status,omitempty"`
-	Reason             string             `json:"reason,omitempty"`
+	Reason             ClusterReasonType  `json:"reason,omitempty"`
 	Message            string             `json:"message,omitempty"`
 	LastHeartbeatTime  metav1.Time        `json:"lastHeartbeatTime,omitempty"`
 	LastTransitionTime metav1.Time        `json:"lastTransitionTime,omitempty"`
 }
 
+type ClusterReasonType string
+
+const (
+	ClusterCreatedReason     ClusterReasonType = "ClusterCreated"
+	ClusterConnectedReason   ClusterReasonType = "ClusterConnected"
+	ClusterProgressingReason ClusterReasonType = "ClusterProgressing"
+	ClusterDeletingReason    ClusterReasonType = "ClusterDeleting"
+	ClusterConnectingReason  ClusterReasonType = "ClusterConnecting"
+)
+
 type ConditionType string
 
 const (
-	ConditionIgnored     ConditionType = "Ignored"
 	ConditionConnecting  ConditionType = "Connecting"
 	ConditionConnected   ConditionType = "Connected"
 	ConditionProgressing ConditionType = "Progressing"
 	ConditionReady       ConditionType = "Ready"
-	ConditionUpdating    ConditionType = "Updating"
 	ConditionFailure     ConditionType = "Failure"
-	ConditionUpgrading   ConditionType = "Upgrading"
 	ConditionDeleting    ConditionType = "Deleting"
 )
 
