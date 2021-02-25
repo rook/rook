@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -42,12 +43,12 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		return errors.Wrap(err, "failed to validate external cluster specs")
 	}
 
-	config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionConnecting, v1.ConditionTrue, "ClusterConnecting", "Cluster is connecting")
+	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionConnecting, v1.ConditionTrue, cephv1.ClusterConnectingReason, "Attempting to connect to an external Ceph cluster")
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
 	cluster.ClusterInfo = mon.PopulateExternalClusterInfo(c.context, c.namespacedName.Namespace, cluster.ownerRef)
-	cluster.ClusterInfo.SetName(cluster.crdName)
+	cluster.ClusterInfo.SetName(c.namespacedName.Name)
 
 	if !client.IsKeyringBase64Encoded(cluster.ClusterInfo.CephCred.Secret) {
 		return errors.Errorf("invalid user health checker key for user %q", cluster.ClusterInfo.CephCred.Username)

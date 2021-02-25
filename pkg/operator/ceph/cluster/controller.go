@@ -31,7 +31,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -353,11 +352,11 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.Ow
 }
 
 func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (reconcile.Result, bool) {
-	config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Cluster is deleting")
+	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, cephv1.ClusterDeletingReason, "Cluster is deleting")
 
-	if existing, ok := c.clusterMap[cluster.Namespace]; ok && existing.crdName != cluster.Name {
+	if existing, ok := c.clusterMap[cluster.Namespace]; ok && existing.namespacedName.Name != cluster.Name {
 		logger.Errorf("skipping deletion of cluster cr %q in namespace %q. cluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
-			cluster.Name, cluster.Namespace, existing.crdName)
+			cluster.Name, cluster.Namespace, existing.namespacedName.Name)
 		return reconcile.Result{}, true
 	}
 
@@ -384,7 +383,7 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 	} else {
 		err := c.checkIfVolumesExist(cluster)
 		if err != nil {
-			config.ConditionExport(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, "ClusterDeleting", "Failed to delete cluster")
+			opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionFalse, "ClusterDeleting", err.Error())
 			logger.Errorf("failed to check if volumes exist. %v", err)
 			return opcontroller.WaitForRequeueIfFinalizerBlocked, false
 		}
