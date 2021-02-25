@@ -29,7 +29,6 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -144,11 +143,6 @@ func (m *OSDHealthMonitor) checkOSDDump() error {
 
 		logger.Debugf("osd.%d is marked 'DOWN'", id)
 
-		// check if the down osd is stuck terminating
-		if err := m.restartOSDIfStuck(id); err != nil {
-			logger.Warningf("failed to restart OSD %d. %v", id, err)
-		}
-
 		if in != inStatus {
 			logger.Debugf("osd.%d is marked 'OUT'", id)
 			if m.removeOSDsIfOUTAndSafeToRemove {
@@ -187,24 +181,6 @@ func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) erro
 					return errors.Wrapf(err, "failed to delete osd deployment %s", dp.Items[0].Name)
 				}
 			}
-		}
-	}
-	return nil
-}
-
-// restartOSDIfStuck will check if a portable OSD is on a node that is not ready.
-// If the pod is stuck in terminating state, go ahead and force delete the pod so K8s
-// will free up the volume and allow the OSD to be restarted on another node.
-func (m *OSDHealthMonitor) restartOSDIfStuck(osdID int) error {
-	ctx := context.TODO()
-	labels := fmt.Sprintf("ceph-osd-id=%d,portable=true", osdID)
-	pods, err := m.context.Clientset.CoreV1().Pods(m.clusterInfo.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labels})
-	if err != nil {
-		return errors.Wrapf(err, "failed to get OSD with ID %d", osdID)
-	}
-	for _, pod := range pods.Items {
-		if err := k8sutil.ForceDeletePodIfStuck(m.context, pod); err != nil {
-			logger.Warningf("skipping restart of OSD %d. %v", osdID, err)
 		}
 	}
 	return nil
