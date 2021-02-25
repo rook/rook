@@ -20,45 +20,17 @@ import (
 	"encoding/base64"
 	"fmt"
 	"path"
-	"strconv"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	v1 "k8s.io/api/core/v1"
 )
 
 const (
-	// don't list caps in keyring; allow OSD to get those from mons
-	keyringTemplate = `[osd.%s]
-key = %s
-`
-
-	// OsdEncryptionSecretNameKeyName is the key name of the Secret that contains the OSD encryption key
-	// #nosec G101 since this is not leaking any hardcoded credentials, it's just the secret key name
-	OsdEncryptionSecretNameKeyName = "dmcrypt-key"
-	dmCryptKeySize                 = 128
+	dmCryptKeySize = 128
 )
-
-func (c *Cluster) generateKeyring(osdID int) (string, error) {
-	deploymentName := fmt.Sprintf(osdAppNameFmt, osdID)
-	osdIDStr := strconv.Itoa(osdID)
-
-	user := fmt.Sprintf("osd.%s", osdIDStr)
-	access := []string{"osd", "allow *", "mon", "allow profile osd"}
-
-	s := keyring.GetSecretStore(c.context, c.clusterInfo, &c.clusterInfo.OwnerRef)
-
-	key, err := s.GenerateKey(user, access)
-	if err != nil {
-		return "", err
-	}
-
-	keyring := fmt.Sprintf(keyringTemplate, osdIDStr, key)
-	return keyring, s.CreateOrUpdate(deploymentName, keyring)
-}
 
 // PrivilegedContext returns a privileged Pod security context
 func PrivilegedContext() *v1.SecurityContext {
