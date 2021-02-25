@@ -119,6 +119,9 @@ type ServerSpec struct {
 	// The clients allowed to access the NFS export
 	// +optional
 	AllowedClients []AllowedClientsSpec `json:"allowedClients,omitempty"`
+
+        // The image to use for the NFS server container.
+	Image string `json:"image,omitempty"`
 }
 
 // AllowedClientsSpec represents the client specs for accessing the NFS export
