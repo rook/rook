@@ -517,9 +517,12 @@ This allows to keep Rook components running when for example a node runs out of 
 
 You can set resource requests/limits for Rook components through the [Resource Requirements/Limits](#resource-requirementslimits) structure in the following keys:
 
-* `mgr`: Set resource requests/limits for MGRs
 * `mon`: Set resource requests/limits for mons
 * `osd`: Set resource requests/limits for OSDs
+* `mgr`: Set resource requests/limits for MGRs
+* `mgr-sidecar`: Set resource requests/limits for the MGR sidecar, which is only created when `mgr.count: 2`.
+  The sidecar requires very few resources since it only executes every 15 seconds to query Ceph for the active
+  mgr and update the mgr services if the active mgr changed.
 * `prepareosd`: Set resource requests/limits for OSD prepare job
 * `crashcollector`: Set resource requests/limits for crash. This pod runs wherever there is a Ceph pod running.
 It scrapes for Ceph daemon core dumps and sends them to the Ceph manager crash module so that core dumps are centralized and can be easily listed/accessed.
@@ -536,6 +539,7 @@ If a user configures a limit or request value that is too low, Rook will still r
 * `mds`: 4096MB
 * `prepareosd`: 50MB
 * `crashcollector`: 60MB
+* `mgr-sidecar`: 100MB limit, 40MB requests
 
 ### Resource Requirements/Limits
 
