@@ -19,5 +19,6 @@ jobs:
       run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
 
     - name: run unit tests
-      run: cd /home/runner/go/src/github.com/rook/rook && GOPATH=$(go env GOPATH) make -j $(nproc) test
+      working-directory: /home/runner/go/src/github.com/rook/rook
+      run: GOPATH=$(go env GOPATH) make -j $(nproc) test
 
