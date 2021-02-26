@@ -236,7 +236,11 @@ func (r *NFSServerReconciler) reconcileNFSServer(ctx context.Context, cr *nfsv1a
 		r.Recorder.Eventf(cr, corev1.EventTypeNormal, nfsv1alpha1.EventUpdated, "%s nfs-server service: %s", strings.Title(string(svcop)), svc.Name)
 	}
 
-	sts := newStatefulSetForNFSServer(cr)
+	sts, err := newStatefulSetForNFSServer(cr, r.Context.Clientset, ctx)
+	if err != nil {
+		return fmt.Errorf("unable to generate the NFS StatefulSet spec: %v", err)
+	}
+
 	stsop, err := controllerutil.CreateOrUpdate(ctx, r.Client, sts, func() error {
 		if sts.ObjectMeta.CreationTimestamp.IsZero() {
 			sts.Spec.Selector = &metav1.LabelSelector{

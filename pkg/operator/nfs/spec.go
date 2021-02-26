@@ -17,11 +17,14 @@ limitations under the License.
 package nfs
 
 import (
+	"context"
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 )
 
 func newLabels(cr *nfsv1alpha1.NFSServer) map[string]string {
@@ -66,7 +69,16 @@ func newServiceForNFSServer(cr *nfsv1alpha1.NFSServer) *corev1.Service {
 	}
 }
 
-func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
+func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer, clientset kubernetes.Interface, ctx context.Context) (*appsv1.StatefulSet, error) {
+	pod, err := k8sutil.GetRunningPod(clientset)
+	if err != nil {
+		return nil, err
+	}
+	image, err := k8sutil.GetContainerImage(pod, "")
+	if err != nil {
+		return nil, err
+	}
+
 	privileged := true
 	replicas := int32(cr.Spec.Replicas)
 	return &appsv1.StatefulSet{
@@ -89,7 +101,7 @@ func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
 					Containers: []corev1.Container{
 						{
 							Name:  "nfs-server",
-							Image: "rook/nfs:master",
+							Image: image,
 							Args:  []string{"nfs", "server", "--ganeshaConfigPath=" + nfsConfigMapPath + "/" + cr.Name},
 							Ports: []corev1.ContainerPort{
 								{
@@ -112,7 +124,7 @@ func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
 						},
 						{
 							Name:                     "nfs-provisioner",
-							Image:                    "rook/nfs:master",
+							Image:                    image,
 							Args:                     []string{"nfs", "provisioner", "--provisioner=" + "nfs.rook.io/" + cr.Name + "-provisioner"},
 							TerminationMessagePath:   "/dev/termination-log",
 							TerminationMessagePolicy: corev1.TerminationMessageReadFile,
@@ -124,5 +136,5 @@ func newStatefulSetForNFSServer(cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
 				},
 			},
 		},
-	}
+	}, nil
 }
