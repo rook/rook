@@ -269,24 +269,6 @@ spec:
                             items:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
-                driveGroups:
-                  type: array
-                  nullable: true
-                  items:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                      spec:
-                        type: object
-                        x-kubernetes-preserve-unknown-fields: true
-                      placement:
-                        type: object
-                        nullable: true
-                        x-kubernetes-preserve-unknown-fields: true
-                    required:
-                      - name
-                      - spec
                 monitoring:
                   type: object
                   properties:

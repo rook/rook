@@ -68,7 +68,6 @@ var (
 	pvcBackedOSD            bool
 	blockPath               string
 	lvBackedPV              bool
-	driveGroups             string
 	osdIDsToRemove          string
 )
 
@@ -77,7 +76,6 @@ func addOSDFlags(command *cobra.Command) {
 	addOSDConfigFlags(provisionCmd)
 
 	// flags specific to provisioning
-	provisionCmd.Flags().StringVar(&driveGroups, "drive-groups", "", "JSON marshalled specification of Ceph Drive Groups")
 	provisionCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
 	provisionCmd.Flags().StringVar(&osdDataDeviceFilter, "data-device-filter", "", "a regex filter for the device names to use, or \"all\"")
 	provisionCmd.Flags().StringVar(&osdDataDevicePathFilter, "data-device-path-filter", "", "a regex filter for the device path names to use")
@@ -186,14 +184,6 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var dgs osdcfg.DriveGroupBlobs
-	if driveGroups != "" {
-		err := json.Unmarshal([]byte(driveGroups), &dgs)
-		if err != nil {
-			return errors.Wrap(err, "failed to unmarshal Ceph Drive Groups spec")
-		}
-	}
-
 	var dataDevices []osddaemon.DesiredDevice
 	if osdDataDeviceFilter != "" {
 		if cfg.devices != "" || osdDataDevicePathFilter != "" {
@@ -231,7 +221,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := opcontroller.ClusterOwnerRef(clusterInfo.Namespace, ownerRefID)
 	clusterInfo.OwnerRef = ownerRef
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerRef)
-	agent := osddaemon.NewAgent(context, dgs, dataDevices, cfg.metadataDevice, forceFormat,
+	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
 	err = osddaemon.Provision(context, agent, crushLocation, topologyAffinity)
@@ -296,10 +286,6 @@ func getLocation(clientset kubernetes.Interface) (string, string, error) {
 
 // Parse the devices, which are sent as a JSON-marshalled list of device IDs with a StorageConfig spec
 func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
-	if devices == "" {
-		return []osddaemon.DesiredDevice{}, nil
-	}
-
 	configuredDevices := []osdcfg.ConfiguredDevice{}
 	err := json.Unmarshal([]byte(devices), &configuredDevices)
 	if err != nil {

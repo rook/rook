@@ -191,23 +191,6 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	// enable debug logging in the prepare job
 	envVars = append(envVars, setDebugLogLevelEnvVar(true))
 
-	// Drive Groups cannot be used to configure OSDs on PVCs, so ignore if this is a PVC config
-	// This shouldn't ever happen, but do the PVC check to be sure
-	if len(osdProps.driveGroups) > 0 && !osdProps.onPVC() {
-		v, err := c.getDriveGroupEnvVar(osdProps)
-		if err != nil {
-			// Because OSD creation via drive groups should take precedent over other types of drive
-			// creation, if there is an error here, we should fail. Allowing OSD creation to proceed
-			// without drive group information could result in OSD configs being created which the
-			// user does not want.
-			return v1.Container{}, errors.Wrapf(err, "failed to get drive group info for OSD provisioning container")
-		}
-		// An env var with no name means there are no groups, don't add the var
-		if v.Name != "" {
-			envVars = append(envVars, v)
-		}
-	}
-
 	// only 1 of device list, device filter, device path filter and use all devices can be specified.  We prioritize in that order.
 	if len(osdProps.devices) > 0 {
 		configuredDevices := []config.ConfiguredDevice{}

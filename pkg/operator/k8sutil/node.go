@@ -267,12 +267,6 @@ func normalizeHostname(kubernetesNode v1.Node) string {
 	return hostname
 }
 
-// GetNormalizedHostname returns the normalized hostname of the Kubernetes node. Rook uses
-// normalized hostnames as its internal reference for nodes.
-func GetNormalizedHostname(kubernetesNode v1.Node) string {
-	return normalizeHostname(kubernetesNode)
-}
-
 // GetKubernetesNodesMatchingRookNodes lists all the nodes in Kubernetes and returns all the
 // Kubernetes nodes that have a corresponding match in the list of Rook nodes.
 func GetKubernetesNodesMatchingRookNodes(rookNodes []rookv1.Node, clientset kubernetes.Interface) ([]v1.Node, error) {
