@@ -280,15 +280,8 @@ func (c *clusterConfig) storeLabelSelector() string {
 
 // Validate the object store arguments
 func (r *ReconcileCephObjectStore) validateStore(s *cephv1.CephObjectStore) error {
-	if s.Name == "" {
-		return errors.New("missing name")
-	}
-	if s.Namespace == "" {
-		return errors.New("missing namespace")
-	}
-	securePort := s.Spec.Gateway.SecurePort
-	if securePort < 0 || securePort > 65535 {
-		return errors.Errorf("securePort value of %d must be between 0 and 65535", securePort)
+	if err := cephv1.ValidateObjectSpec(s); err != nil {
+		return err
 	}
 
 	// Validate the pool settings, but allow for empty pools specs in case they have already been created

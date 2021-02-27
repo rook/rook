@@ -26,7 +26,7 @@ import (
 
 var (
 	scheme    = runtime.NewScheme()
-	resources = []webhook.Validator{&cephv1.CephCluster{}, &cephv1.CephBlockPool{}}
+	resources = []webhook.Validator{&cephv1.CephCluster{}, &cephv1.CephBlockPool{}, &cephv1.CephObjectStore{}}
 )
 
 const (
