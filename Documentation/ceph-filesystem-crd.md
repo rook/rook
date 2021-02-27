@@ -94,7 +94,8 @@ spec:
     activeStandby: true
 ```
 
-(These definitions can also be found in the [`filesystem-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/filesystem-ec.yaml) file)
+(These definitions can also be found in the [`filesystem-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/filesystem-ec.yaml) file.
+Also see an example in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/storageclass-ec.yaml) for how to configure the volume.)
 
 ## Filesystem Settings
 
