@@ -42,24 +42,19 @@ import (
 
 const (
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/ceph:v14"
-	// test with the latest nautilus build. ceph-volume is not allowing OSDs on partitions on v14.2.13 and newer.
-	nautilusTestImageOnPartitions = "ceph/ceph:v14.2.12"
+	nautilusTestImage = "ceph/ceph:v14.2.12"
 	// test with the latest octopus build
 	octopusTestImage = "ceph/ceph:v15"
-	// test with the latest octopus build.
-	octopusTestImageOnPartitions = "ceph/ceph:v15.2.9"
 	// test with the latest master image
 	masterTestImage    = "ceph/daemon-base:latest-master-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
 	defaultclusterName = "test-cluster"
-	// if false, expect to create OSDs on raw devices,
-	// otherwise use a version of ceph that is compatible with OSDs on partitions
-	usePartitionEnvVar = "TEST_OSDS_ON_PARTITIONS"
 )
 
 var (
-	MasterVersion = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
+	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage}
+	OctopusVersion  = cephv1.CephVersionSpec{Image: octopusTestImage}
+	MasterVersion   = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform
@@ -75,20 +70,6 @@ type CephInstaller struct {
 	CephVersion      cephv1.CephVersionSpec
 	T                func() *testing.T
 	cleanupHost      bool
-}
-
-func NautilusVersion() cephv1.CephVersionSpec {
-	if os.Getenv(usePartitionEnvVar) == "false" {
-		return cephv1.CephVersionSpec{Image: nautilusTestImage}
-	}
-	return cephv1.CephVersionSpec{Image: nautilusTestImageOnPartitions}
-}
-
-func OctopusVersion() cephv1.CephVersionSpec {
-	if os.Getenv(usePartitionEnvVar) == "false" {
-		return cephv1.CephVersionSpec{Image: octopusTestImage}
-	}
-	return cephv1.CephVersionSpec{Image: octopusTestImageOnPartitions}
 }
 
 // CreateCephOperator creates rook-operator via kubectl

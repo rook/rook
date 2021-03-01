@@ -86,7 +86,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: upgradeMinimalTestVersion,
 		rookVersion:             installer.Version1_4,
-		cephVersion:             installer.NautilusVersion(),
+		cephVersion:             installer.NautilusVersion,
 	}
 
 	s.op, s.k8sh = StartTestCluster(s.T, &upgradeTestCluster)
@@ -200,7 +200,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	//
 	logger.Infof("*** UPGRADING CEPH FROM Nautilus TO Octopus ***")
 	s.gatherLogs(systemNamespace, "_before_octopus_upgrade")
-	s.upgradeCephVersion(installer.OctopusVersion().Image, numOSDs)
+	s.upgradeCephVersion(installer.OctopusVersion.Image, numOSDs)
 	// Verify reading and writing to the test clients
 	newFile = "post-octopus-upgrade-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)

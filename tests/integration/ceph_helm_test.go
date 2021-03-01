@@ -74,7 +74,7 @@ func (hs *HelmSuite) SetupSuite() {
 		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: helmMinimalTestVersion,
 		rookVersion:             installer.VersionMaster,
-		cephVersion:             installer.NautilusVersion(),
+		cephVersion:             installer.NautilusVersion,
 	}
 
 	hs.op, hs.kh = StartTestCluster(hs.T, &helmTestCluster)
