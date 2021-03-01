@@ -8,16 +8,20 @@ jobs:
   codegen:
     runs-on: ubuntu-latest
     steps:
-    - name: checkout
-      uses: actions/checkout@v1
-
     - uses: actions/setup-go@v2
       with:
         go-version: 1.15
 
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - name: copy working directory to GOPATH
+      run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
+
     - name: run codegen
+      working-directory: /home/runner/go/src/github.com/rook/rook
       run: GOPATH=$(go env GOPATH) make codegen
 
     - name: validate codegen
+      working-directory: /home/runner/go/src/github.com/rook/rook
       run: tests/scripts/validate_modified_files.sh codegen
-
