@@ -3,7 +3,7 @@ on: [pull_request]
 
 jobs:
   canary:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -81,7 +81,7 @@ jobs:
         # execute the test file
 
   pvc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -152,7 +152,7 @@ jobs:
         kubectl -n rook-ceph get pods
 
   pvc-db:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -231,7 +231,7 @@ jobs:
         kubectl -n rook-ceph get pods
 
   pvc-db-wal:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -312,7 +312,7 @@ jobs:
         kubectl -n rook-ceph get pods
 
   encryption-pvc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -381,7 +381,7 @@ jobs:
         sudo lsblk
 
   encryption-pvc-db:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -462,7 +462,7 @@ jobs:
         kubectl -n rook-ceph get secrets
 
   encryption-pvc-db-wal:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -541,7 +541,7 @@ jobs:
         kubectl -n rook-ceph get secrets
 
   encryption-pvc-kms-vault-token-auth:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2

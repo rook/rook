@@ -3,7 +3,7 @@ on: [pull_request]
 
 jobs:
   codegen:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v1
