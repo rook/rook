@@ -1920,10 +1920,17 @@ spec:
               properties:
                 bucket:
                   properties:
-                    enabled:
+                    disabled:
                       type: boolean
                     interval:
                       type: string
+                    timeout:
+                      type: string
+                livenessProbe:
+                  type: object
+                  properties:
+                    disabled:
+                      type: boolean
   subresources:
   subresources:
     status: {}
