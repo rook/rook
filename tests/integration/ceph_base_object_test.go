@@ -160,8 +160,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
 	s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 	s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
+<<<<<<< HEAD
 	s3client, err := rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
 	require.Nil(s.T(), err)
+=======
+	s3client, err := rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
+	assert.Nil(s.T(), err)
+>>>>>>> bcbe707bc... ceph: fix healthcheck incase ssl enabled for rgw
 	logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
 	logger.Infof("Step 5 : Put Object on bucket")
