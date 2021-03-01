@@ -17,6 +17,7 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,15 +45,15 @@ type bucketChecker struct {
 	objContext      *Context
 	interval        time.Duration
 	serviceIP       string
-	port            string
+	port            int32
 	client          client.Client
 	namespacedName  types.NamespacedName
-	healthCheckSpec *cephv1.BucketHealthCheckSpec
+	objectStoreSpec *cephv1.ObjectStoreSpec
 	isExternal      bool
 }
 
 // newbucketChecker creates a new HealthChecker object
-func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP, port string, client client.Client, namespacedName types.NamespacedName, healthCheckSpec *cephv1.BucketHealthCheckSpec, isExternal bool) *bucketChecker {
+func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP string, port int32, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec, isExternal bool) *bucketChecker {
 	c := &bucketChecker{
 		context:         context,
 		objContext:      objContext,
@@ -60,12 +62,12 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP,
 		port:            port,
 		namespacedName:  namespacedName,
 		client:          client,
-		healthCheckSpec: healthCheckSpec,
+		objectStoreSpec: objectStoreSpec,
 		isExternal:      isExternal,
 	}
 
 	// allow overriding the check interval
-	checkInterval := healthCheckSpec.Bucket.Interval
+	checkInterval := objectStoreSpec.HealthCheck.Bucket.Interval
 	if checkInterval != "" {
 		if duration, err := time.ParseDuration(checkInterval); err == nil {
 			logger.Infof("ceph rgw status check interval for object store %q is %q", namespacedName.Name, checkInterval)
@@ -122,10 +124,11 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 
 		Always keep the bucket and the user for the health check, just do PUT and GET because bucket creation is expensive
 	*/
-
+	ctx := context.TODO()
 	var s3AccessKey string
 	var s3SecretKey string
-	s3endpoint := fmt.Sprintf("%s:%s", BuildDomainName(c.objContext.Name, c.namespacedName.Namespace), c.port)
+	var sslCert []byte
+	s3endpoint := buildDNSEndpoint(BuildDomainName(c.objContext.Name, c.namespacedName.Namespace), c.port, c.objectStoreSpec.IsTLSEnabled())
 
 	// Generate unique user and bucket name
 	bucketName := genUniqueBucketName(c.objContext.UID)
@@ -148,9 +151,13 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	s3AccessKey = *user.AccessKey
 	s3SecretKey = *user.SecretKey
 
+	if c.objectStoreSpec.IsTLSEnabled() {
+		sslSecretCert, _ := c.context.Clientset.CoreV1().Secrets(c.namespacedName.Namespace).Get(ctx, c.objectStoreSpec.Gateway.SSLCertificateRef, metav1.GetOptions{})
+		sslCert = sslSecretCert.Data[certKeyName]
+	}
 	// Initiate s3 agent
 	logger.Debugf("initializing s3 connection for object store %q", c.namespacedName.Name)
-	s3client, err := NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, false)
+	s3client, err := NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, false, sslCert)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize s3 connection")
 	}

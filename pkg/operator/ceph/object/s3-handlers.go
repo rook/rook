@@ -18,6 +18,8 @@ package object
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"net/http"
 	"strings"
 	"time"
@@ -35,12 +37,26 @@ type S3Agent struct {
 	Client *s3.S3
 }
 
-func NewS3Agent(accessKey, secretKey, endpoint string, debug bool) (*S3Agent, error) {
+func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte) (*S3Agent, error) {
 	const cephRegion = "us-east-1"
 
 	logLevel := aws.LogOff
 	if debug {
 		logLevel = aws.LogDebug
+	}
+	client := http.Client{
+		Timeout: time.Second * 15,
+	}
+	tlsEnabled := false
+	if len(tlsCert) > 0 {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(tlsCert)
+
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12},
+		}
+		client.Transport = tr
+		tlsEnabled = true
 	}
 	sess, err := session.NewSession(
 		aws.NewConfig().
@@ -49,10 +65,8 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool) (*S3Agent, er
 			WithEndpoint(endpoint).
 			WithS3ForcePathStyle(true).
 			WithMaxRetries(5).
-			WithDisableSSL(true).
-			WithHTTPClient(&http.Client{
-				Timeout: time.Second * 15,
-			}).
+			WithDisableSSL(!tlsEnabled).
+			WithHTTPClient(&client).
 			WithLogLevel(logLevel),
 	)
 	if err != nil {
