@@ -6,7 +6,7 @@ on:
 
 jobs:
   modcheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2

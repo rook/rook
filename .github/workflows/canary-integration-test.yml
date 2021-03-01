@@ -12,7 +12,7 @@ on:
 
 jobs:
   canary:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -112,7 +112,7 @@ jobs:
 
 
   pvc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -198,7 +198,7 @@ jobs:
         path: test
 
   pvc-db:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -285,7 +285,7 @@ jobs:
         path: test
 
   pvc-db-wal:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -374,7 +374,7 @@ jobs:
         path: test
 
   encryption-pvc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -451,7 +451,7 @@ jobs:
         path: test
 
   encryption-pvc-db:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -540,7 +540,7 @@ jobs:
         path: test
 
   encryption-pvc-db-wal:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -627,7 +627,7 @@ jobs:
         path: test
 
   encryption-pvc-kms-vault-token-auth:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -717,7 +717,7 @@ jobs:
         path: test
 
   lvm-pvc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
       uses: actions/checkout@v2
