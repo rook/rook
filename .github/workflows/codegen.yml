@@ -13,7 +13,7 @@ jobs:
         go-version: 1.15
 
     - name: checkout
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
 
     - name: copy working directory to GOPATH
       run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
