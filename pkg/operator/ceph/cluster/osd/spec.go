@@ -198,6 +198,13 @@ fi
 # Get the Key Encryption Key
 curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_BACKEND"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
 
+# Check for warnings in the payload
+if python3 -c "import sys, json; print(json.load(sys.stdin)[\"warnings\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
+	# We could get a warning but it is not necessary an issue, so if there is no key we exit
+	if ! python3 -c "import sys, json; print(json.load(sys.stdin)[\"data\"][\"$KEK_NAME\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
+		exit 1
+	fi
+fi
 
 # Check for errors in the payload
 if python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
