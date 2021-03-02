@@ -215,14 +215,6 @@ func TestGenerateLiveProbe(t *testing.T) {
 	assert.Equal(t, int32(8080), p.Handler.HTTPGet.Port.IntVal)
 	assert.Equal(t, v1.URISchemeHTTP, p.Handler.HTTPGet.Scheme)
 
-	// SSL - HostNetwork is disabled - using internal port
-	c.store.Spec.Gateway.Port = 0
-	c.store.Spec.Gateway.SecurePort = 321
-	c.store.Spec.Gateway.SSLCertificateRef = "foo"
-	p = c.generateLiveProbe()
-	assert.Equal(t, int32(8080), p.Handler.HTTPGet.Port.IntVal)
-	assert.Equal(t, v1.URISchemeHTTPS, p.Handler.HTTPGet.Scheme)
-
 	// No SSL - HostNetwork is enabled
 	c.store.Spec.Gateway.Port = 123
 	c.store.Spec.Gateway.SecurePort = 0

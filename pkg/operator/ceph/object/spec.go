@@ -234,13 +234,12 @@ func (c *clusterConfig) generateLiveProbePort() intstr.IntOrString {
 
 	// If Host Networking is enabled, the port from the spec must be reflected
 	if c.clusterSpec.Network.IsHost() {
-		if c.store.Spec.Gateway.Port == 0 && c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
-			port = intstr.FromInt(int(c.store.Spec.Gateway.SecurePort))
-		} else {
-			port = intstr.FromInt(int(c.store.Spec.Gateway.Port))
-		}
+		port = intstr.FromInt(int(c.store.Spec.Gateway.Port))
 	}
 
+	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
+		port = intstr.FromInt(int(c.store.Spec.Gateway.SecurePort))
+	}
 	return port
 }
 
