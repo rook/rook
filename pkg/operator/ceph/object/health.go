@@ -44,7 +44,6 @@ type bucketChecker struct {
 	context         *clusterd.Context
 	objContext      *Context
 	interval        time.Duration
-	serviceIP       string
 	port            int32
 	client          client.Client
 	namespacedName  types.NamespacedName
@@ -53,12 +52,11 @@ type bucketChecker struct {
 }
 
 // newbucketChecker creates a new HealthChecker object
-func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP string, port int32, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec, isExternal bool) *bucketChecker {
+func newBucketChecker(context *clusterd.Context, objContext *Context, port int32, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec, isExternal bool) *bucketChecker {
 	c := &bucketChecker{
 		context:         context,
 		objContext:      objContext,
 		interval:        defaultHealthCheckInterval,
-		serviceIP:       serviceIP,
 		port:            port,
 		namespacedName:  namespacedName,
 		client:          client,
