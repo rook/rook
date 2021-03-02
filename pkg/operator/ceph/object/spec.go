@@ -246,7 +246,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 					path.Join(c.DataPathMap.ContainerDataDir, kms.VaultFileName)),
 				cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
 				cephconfig.NewFlag("rgw crypt vault secret engine",
-					c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey]),
+					c.clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
 			)
 		}
 	}
@@ -401,14 +401,14 @@ func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore
 }
 
 func (c *clusterConfig) vaultPrefixRGW() string {
-	secretEngine := c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey]
+	secretEngine := c.clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]
 	vaultPrefixPath := "/v1/"
 
 	switch secretEngine {
-	case "kv":
+	case kms.VaultKVSecretEngineKey:
 		vaultPrefixPath = path.Join(vaultPrefixPath,
 			c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey])
-	case "transit":
+	case kms.VaultTransitSecretEngineKey:
 		vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine, "/export/encryption-key")
 	}
 

@@ -1414,7 +1414,7 @@ security:
       KMS_PROVIDER: vault
       VAULT_ADDR: https://vault.default.svc.cluster.local:8200
       VAULT_BACKEND_PATH: rook
-      VAULT_BACKEND: kv
+      VAULT_SECRET_ENGINE: kv
     # name of the k8s secret containing the kms authentication token
     tokenSecretName: rook-vault-token
 ```
@@ -1512,7 +1512,7 @@ Communications will remain encrypted but the validity of the certificate will no
 
 For RGW, please note the following:
 
-* `VAULT_BACKEND` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit).
+* `VAULT_SECRET_ENGINE` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit).
 * The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption
 ```console
 # kv engine

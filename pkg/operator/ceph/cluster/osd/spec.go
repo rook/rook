@@ -191,12 +191,13 @@ if [ -n "$VAULT_TLS_SERVER_NAME" ]; then
 fi
 
 # Check KV engine version
-if [ -z "$VAULT_KV_VERS" ]; then
-	VAULT_KV_VERS=$VAULT_DEFAULT_KV_VERS
+if [ -z "$VAULT_BACKEND" ]; then
+	VAULT_BACKEND=$VAULT_DEFAULT_KV_VERS
 fi
 
 # Get the Key Encryption Key
-curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_KV_VERS"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
+curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_BACKEND"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
+
 
 # Check for errors in the payload
 if python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
