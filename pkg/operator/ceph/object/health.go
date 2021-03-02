@@ -43,8 +43,12 @@ const (
 type bucketChecker struct {
 	context         *clusterd.Context
 	objContext      *Context
+<<<<<<< HEAD
 	interval        time.Duration
 	serviceIP       string
+=======
+	interval        *time.Duration
+>>>>>>> 70f94a2d3... ceph: removing serviceIP from bucketChecker struct
 	port            int32
 	client          client.Client
 	namespacedName  types.NamespacedName
@@ -60,6 +64,7 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP,
 }
 
 // newbucketChecker creates a new HealthChecker object
+<<<<<<< HEAD
 func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP string, port int32, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec) *bucketChecker {
 >>>>>>> bcbe707bc... ceph: fix healthcheck incase ssl enabled for rgw
 	c := &bucketChecker{
@@ -67,6 +72,13 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP 
 		objContext:      objContext,
 		interval:        defaultHealthCheckInterval,
 		serviceIP:       serviceIP,
+=======
+func newBucketChecker(context *clusterd.Context, objContext *Context, port int32, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec) *bucketChecker {
+	c := &bucketChecker{
+		context:         context,
+		objContext:      objContext,
+		interval:        &defaultHealthCheckInterval,
+>>>>>>> 70f94a2d3... ceph: removing serviceIP from bucketChecker struct
 		port:            port,
 		namespacedName:  namespacedName,
 		client:          client,

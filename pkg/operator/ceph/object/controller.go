@@ -337,7 +337,6 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	objContext := NewContext(r.context, r.clusterInfo, cephObjectStore.Name)
 	objContext.UID = string(cephObjectStore.UID)
 
-	var serviceIP string
 	var err error
 
 	if cephObjectStore.Spec.IsExternal() {
@@ -345,7 +344,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// RECONCILE SERVICE
 		logger.Info("reconciling object store service")
-		serviceIP, err = cfg.reconcileService(cephObjectStore)
+		_, err = cfg.reconcileService(cephObjectStore)
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
 		}
@@ -382,7 +381,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// RECONCILE SERVICE
 		logger.Debug("reconciling object store service")
-		serviceIP, err = cfg.reconcileService(cephObjectStore)
+		serviceIP, err := cfg.reconcileService(cephObjectStore)
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
 		}
@@ -412,7 +411,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 	// Start monitoring
 	if !cephObjectStore.Spec.HealthCheck.Bucket.Disabled {
-		r.startMonitoring(cephObjectStore, objContext, serviceIP, namespacedName)
+		r.startMonitoring(cephObjectStore, objContext, namespacedName)
 	}
 
 	return reconcile.Result{}, nil
@@ -500,7 +499,7 @@ func (r *ReconcileCephObjectStore) verifyObjectBucketCleanup(objectstore *cephv1
 	return opcontroller.WaitForRequeueIfFinalizerBlocked, false
 }
 
-func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, serviceIP string, namespacedName types.NamespacedName) {
+func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, namespacedName types.NamespacedName) {
 	// Start monitoring object store
 	if r.objectStoreChannels[objectstore.Name].monitoringRunning {
 		logger.Debug("external rgw endpoint monitoring go routine already running!")
@@ -523,10 +522,14 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 	}
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck, r.clusterSpec.External.Enable)
 =======
 	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec)
 >>>>>>> bcbe707bc... ceph: fix healthcheck incase ssl enabled for rgw
+=======
+	rgwChecker := newBucketChecker(r.context, objContext, port, r.client, namespacedName, &objectstore.Spec)
+>>>>>>> 70f94a2d3... ceph: removing serviceIP from bucketChecker struct
 	logger.Info("starting rgw healthcheck")
 	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
 }
