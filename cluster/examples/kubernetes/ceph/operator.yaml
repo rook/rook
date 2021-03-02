@@ -386,12 +386,6 @@ spec:
         # (Optional) Discover Agent Pod Labels.
         # - name: DISCOVER_AGENT_POD_LABELS
         #   value: "key1=value1,key2=value2"
-        # Allow rook to create multiple file systems. Note: This is considered
-        # an experimental feature in Ceph as described at
-        # http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster
-        # which might cause mons to crash as seen in https://github.com/rook/rook/issues/1027
-        - name: ROOK_ALLOW_MULTIPLE_FILESYSTEMS
-          value: "false"
 
         # The logging level for the operator: INFO | DEBUG
         - name: ROOK_LOG_LEVEL

@@ -130,13 +130,13 @@ func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name,
 	logger.Infof("creating filesystem %q with metadata pool %q and data pools %v", name, metadataPool, dataPools)
 	var err error
 
-	if IsMultiFSEnabled() {
+	// Always enable multiple fs when running on Pacific
+	if IsMultiFSEnabled() || clusterInfo.CephVersion.IsAtLeastPacific() {
 		// enable multiple file systems in case this is not the first
 		args := []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
 		_, err = NewCephCommand(context, clusterInfo, args).Run()
 		if err != nil {
-			// continue if this fails
-			logger.Warning("failed enabling multiple file systems. %v", err)
+			return errors.Wrap(err, "failed to enable multiple file systems")
 		}
 	}
 
