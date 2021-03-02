@@ -23,7 +23,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -32,13 +31,14 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{rookVersion: "23", clusterInfo: client.AdminClusterInfo("myosd")}
+	cluster := &Cluster{rookVersion: "23", clusterInfo: cephclient.AdminClusterInfo("myosd")}
 	cluster.clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	osdProps := osdProperties{
 		crushHostname: "node",
@@ -117,7 +117,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		return
 	}
 	osd := OSDInfo{
-		ID: 0,
+		ID:     0,
+		CVMode: "raw",
 	}
 
 	osdProp := osdProperties{
@@ -565,7 +566,8 @@ func TestHostNetwork(t *testing.T) {
 
 	n := c.spec.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	osd := OSDInfo{
-		ID: 0,
+		ID:     0,
+		CVMode: "raw",
 	}
 
 	osdProp := osdProperties{
@@ -663,4 +665,44 @@ func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
 	osdProperties.walPVC.ClaimName = "pvcWal"
 	containers = c.getPVCEncryptionInitContainerActivate(mountPath, osdProperties)
 	assert.Equal(t, 3, len(containers))
+}
+
+// WARNING! modifies c.ValidStorage
+func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName string, osdID int) *appsv1.Deployment {
+	osd := OSDInfo{
+		ID:        osdID,
+		UUID:      "some-uuid",
+		BlockPath: "/some/path",
+		CVMode:    "raw",
+	}
+	c.ValidStorage.VolumeSources = append(c.ValidStorage.VolumeSources, rookv1.VolumeSource{
+		Name: pvcName,
+		PVCSources: map[string]v1.PersistentVolumeClaimVolumeSource{
+			bluestorePVCData: {ClaimName: pvcName},
+		},
+		Portable: true,
+	})
+	config := c.newProvisionConfig()
+	d, err := deploymentOnPVC(c, osd, pvcName, config)
+	if err != nil {
+		panic(err)
+	}
+	return d
+}
+
+// WARNING! modifies c.ValidStorage
+func getDummyDeploymentOnNode(clientset *fake.Clientset, c *Cluster, nodeName string, osdID int) *appsv1.Deployment {
+	osd := OSDInfo{
+		ID:        osdID,
+		UUID:      "some-uuid",
+		BlockPath: "/dev/vda",
+		CVMode:    "raw",
+	}
+	c.ValidStorage.Nodes = append(c.ValidStorage.Nodes, rookv1.Node{Name: nodeName})
+	config := c.newProvisionConfig()
+	d, err := deploymentOnNode(c, osd, nodeName, config)
+	if err != nil {
+		panic(err)
+	}
+	return d
 }

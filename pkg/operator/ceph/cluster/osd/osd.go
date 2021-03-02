@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"sort"
@@ -27,34 +28,25 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	apps "k8s.io/api/apps/v1"
-	batch "k8s.io/api/batch/v1"
+	"github.com/rook/rook/pkg/util"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/version"
 )
 
 var (
 	logger                                            = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
-	updateDeploymentAndWait                           = mon.UpdateCephDeploymentAndWait
 	cephVolumeRawEncryptionModeMinNautilusCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 11}
 	cephVolumeRawEncryptionModeMinOctopusCephVersion  = cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
 )
@@ -130,12 +122,12 @@ type osdProperties struct {
 	//crushHostname refers to the hostname or PVC name when the OSD is provisioned on Nodes or PVC block device, respectively.
 	crushHostname       string
 	devices             []rookv1.Device
-	pvc                 v1.PersistentVolumeClaimVolumeSource
-	metadataPVC         v1.PersistentVolumeClaimVolumeSource
-	walPVC              v1.PersistentVolumeClaimVolumeSource
+	pvc                 corev1.PersistentVolumeClaimVolumeSource
+	metadataPVC         corev1.PersistentVolumeClaimVolumeSource
+	walPVC              corev1.PersistentVolumeClaimVolumeSource
 	pvcSize             string
 	selection           rookv1.Selection
-	resources           v1.ResourceRequirements
+	resources           corev1.ResourceRequirements
 	storeConfig         osdconfig.StoreConfig
 	placement           rookv1.Placement
 	preparePlacement    *rookv1.Placement
@@ -171,14 +163,16 @@ func (osdProps osdProperties) getPreparePlacement() rookv1.Placement {
 
 // Start the osd management
 func (c *Cluster) Start() error {
+	namespace := c.clusterInfo.Namespace
 	config := c.newProvisionConfig()
+	errs := newProvisionErrors()
 
 	// Validate pod's memory if specified
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyOSD, cephv1.GetOSDResources(c.spec.Resources), cephOsdPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "failed to check pod memory")
 	}
-	logger.Infof("start running osds in namespace %s", c.clusterInfo.Namespace)
+	logger.Infof("start running osds in namespace %q", namespace)
 
 	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 && len(c.spec.Storage.VolumeSources) == 0 && len(c.spec.Storage.StorageClassDeviceSets) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
@@ -191,29 +185,52 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
-	// start the jobs to provision the OSD devices
-	logger.Info("start provisioning the osds on PVCs, if needed")
-	c.startProvisioningOverPVCs(config)
+	// prepare for updating existing OSDs
+	updateQueue, deployments, err := c.getOSDUpdateInfo(errs)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get information about currently-running OSD Deployments in namespace %q", namespace)
+	}
+	logger.Debugf("%d of %d OSD Deployments need updated", updateQueue.Len(), deployments.Len())
+	updateConfig := c.newUpdateConfig(config, updateQueue, deployments)
 
-	if len(config.errorMessages) > 0 {
-		return errors.Errorf("%d failures encountered while running osds on PVCs in namespace %q. %v",
-			len(config.errorMessages), c.clusterInfo.Namespace, strings.Join(config.errorMessages, "\n"))
+	// prepare for creating new OSDs
+	statusConfigMaps := util.NewSet()
+
+	logger.Info("start provisioning the OSDs on PVCs, if needed")
+	pvcConfigMaps, err := c.startProvisioningOverPVCs(config, errs)
+	if err != nil {
+		return err
+	}
+	statusConfigMaps.AddSet(pvcConfigMaps)
+
+	logger.Info("start provisioning the OSDs on nodes, if needed")
+	nodeConfigMaps, err := c.startProvisioningOverNodes(config, errs)
+	if err != nil {
+		return err
+	}
+	statusConfigMaps.AddSet(nodeConfigMaps.Copy())
+
+	createConfig := c.newCreateConfig(config, statusConfigMaps, deployments)
+
+	// do the update and create operations
+	err = c.updateAndCreateOSDs(createConfig, updateConfig, errs)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update/create OSDs")
 	}
 
-	logger.Info("start provisioning the osds on nodes, if needed")
-	c.startProvisioningOverNodes(config)
-
-	if len(config.errorMessages) > 0 {
-		return errors.Errorf("%d failures encountered while running osds on nodes in namespace %q. %v",
-			len(config.errorMessages), c.clusterInfo.Namespace, strings.Join(config.errorMessages, "\n"))
+	if errs.len() > 0 {
+		return errors.Errorf("%d failures encountered while running osds on nodes in namespace %q. %s",
+			errs.len(), namespace, errs.asMessages())
 	}
+
+	// clean up status configmaps that might be dangling from previous reconciles
+	// for example, if the storage spec changed from or a node failed in a previous failed reconcile
+	c.deleteAllStatusConfigMaps()
 
 	// The following block is used to apply any command(s) required by an upgrade
-	// The block below handles the upgrade from Mimic to Nautilus.
-	// This should only run before Octopus
 	c.applyUpgradeOSDFunctionality()
 
-	logger.Infof("completed running osds in namespace %s", c.clusterInfo.Namespace)
+	logger.Infof("finished running OSDs in namespace %q", namespace)
 	return nil
 }
 
@@ -221,158 +238,7 @@ func (c *Cluster) shouldProvisionOverPVCs() bool {
 	return len(c.spec.Storage.VolumeSources) > 0 || len(c.spec.Storage.StorageClassDeviceSets) > 0
 }
 
-func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig) {
-	// Parsing storageClassDeviceSets and parsing it to volume sources
-	c.spec.Storage.VolumeSources = append(c.spec.Storage.VolumeSources, c.prepareStorageClassDeviceSets(config)...)
-
-	c.ValidStorage.VolumeSources = c.spec.Storage.VolumeSources
-
-	// no validVolumeSource is ready to run an osd
-	if !c.shouldProvisionOverPVCs() {
-		logger.Info("no volume sources defined to configure OSDs on PVCs.")
-		return
-	}
-
-	// Check k8s version
-	k8sVersion, err := k8sutil.GetK8SVersion(c.context.Clientset)
-	if err != nil {
-		config.addError("error finding Kubernetes version. %v", err)
-		return
-	}
-	if !k8sVersion.AtLeast(version.MustParseSemantic("v1.13.0")) {
-		logger.Warningf("skipping OSD on PVC provisioning. Minimum Kubernetes version required: 1.13.0. Actual version: %s", k8sVersion.String())
-		return
-	}
-
-	existingDeployments, err := c.getExistingOSDDeploymentsOnPVCs()
-	if err != nil {
-		config.addError("failed to query existing OSD deployments on PVCs. %v", err)
-		return
-	}
-
-	for _, volume := range c.ValidStorage.VolumeSources {
-		// Check whether we need to cancel the orchestration
-		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
-			config.addError("%s", err.Error())
-			return
-		}
-
-		dataSource, dataOK := volume.PVCSources[bluestorePVCData]
-
-		// The data PVC template is required.
-		if !dataOK {
-			config.addError("failed to create osd for storageClassDeviceSet %q, missing the data template", volume.Name)
-			continue
-		}
-
-		metadataSource, metadataOK := volume.PVCSources[bluestorePVCMetadata]
-		if metadataOK {
-			logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", dataSource.ClaimName, metadataSource.ClaimName)
-		} else {
-			logger.Infof("OSD will have its main bluestore block on %q", dataSource.ClaimName)
-		}
-
-		walSource, walOK := volume.PVCSources[bluestorePVCWal]
-		if walOK {
-			logger.Infof("OSD will have its wal device on %q", walSource.ClaimName)
-		}
-
-		osdProps := osdProperties{
-			crushHostname:    dataSource.ClaimName,
-			pvc:              dataSource,
-			metadataPVC:      metadataSource,
-			walPVC:           walSource,
-			resources:        volume.Resources,
-			placement:        volume.Placement,
-			preparePlacement: volume.PreparePlacement,
-			portable:         volume.Portable,
-			schedulerName:    volume.SchedulerName,
-			encrypted:        volume.Encrypted,
-			deviceSetName:    volume.Name,
-		}
-		osdProps.storeConfig.DeviceClass = volume.CrushDeviceClass
-
-		logger.Debugf("osdProps are %+v", osdProps)
-
-		if osdProps.encrypted {
-			// If the deviceSet template has "encrypted" but the Ceph version is not compatible
-			if !c.isCephVolumeRawModeSupported() {
-				errMsg := fmt.Sprintf("failed to validate storageClassDeviceSet %q. min required ceph version to support encryption is %q or %q", volume.Name, cephVolumeRawEncryptionModeMinNautilusCephVersion.String(), cephVolumeRawEncryptionModeMinOctopusCephVersion.String())
-				config.addError(errMsg)
-				continue
-			}
-
-			// create encryption Kubernetes Secret if the PVC is encrypted
-			key, err := generateDmCryptKey()
-			if err != nil {
-				errMsg := fmt.Sprintf("failed to generate dmcrypt key for osd claim %q. %v", osdProps.pvc.ClaimName, err)
-				config.addError(errMsg)
-				continue
-			}
-
-			// Initialize the KMS code
-			kmsConfig := kms.NewConfig(c.context, &c.spec, c.clusterInfo)
-
-			// We could set an env var in the Operator or a global var instead of the API call?
-			// Hopefully, the API is cheap and we can always retrieve the token if it has changed...
-			if c.spec.Security.KeyManagementService.IsTokenAuthEnabled() {
-				err := kms.SetTokenToEnvVar(c.context, c.spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, c.clusterInfo.Namespace)
-				if err != nil {
-					errMsg := fmt.Sprintf("failed to fetch kms token secret %q. %v", c.spec.Security.KeyManagementService.TokenSecretName, err)
-					config.addError(errMsg)
-					continue
-				}
-			}
-
-			// Generate and store the encrypted key in whatever KMS is configured
-			err = kmsConfig.PutSecret(osdProps.pvc.ClaimName, key)
-			if err != nil {
-				errMsg := fmt.Sprintf("failed to store secret. %v", err)
-				config.addError(errMsg)
-				continue
-			}
-		}
-
-		// Skip OSD prepare if deployment already exists for the PVC
-		if osdDeployment, ok := existingDeployments[dataSource.ClaimName]; ok {
-			logger.Infof("skip OSD prepare pod creation as OSD daemon already exists for %q", osdProps.crushHostname)
-			osds, err := c.getOSDInfo(osdDeployment)
-			if err != nil {
-				config.addError("failed to get osdInfo for pvc %q. %v", osdProps.crushHostname, err)
-				continue
-			}
-			// Update the orchestration status of this pvc to the completed state
-			status := OrchestrationStatus{OSDs: osds, Status: OrchestrationStatusAlreadyExists, PvcBackedOSD: true}
-			c.updateOSDStatus(osdProps.crushHostname, status)
-			continue
-		}
-
-		// Update the orchestration status of this pvc to the starting state
-		status := OrchestrationStatus{Status: OrchestrationStatusStarting, PvcBackedOSD: true}
-		c.updateOSDStatus(osdProps.crushHostname, status)
-
-		job, err := c.makeJob(osdProps, config)
-		if err != nil {
-			message := fmt.Sprintf("failed to create prepare job for pvc %s: %v", osdProps.crushHostname, err)
-			config.addError(message)
-			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message, PvcBackedOSD: true}
-			c.updateOSDStatus(osdProps.crushHostname, status)
-		}
-
-		if !c.runJob(job, osdProps.crushHostname, config, "provision") {
-			status := OrchestrationStatus{
-				Status:       OrchestrationStatusCompleted,
-				Message:      fmt.Sprintf("failed to start osd provisioning on pvc %s", osdProps.crushHostname),
-				PvcBackedOSD: true,
-			}
-			c.updateOSDStatus(osdProps.crushHostname, status)
-		}
-	}
-	logger.Infof("start osds after provisioning is completed, if needed")
-	c.completeProvision(config)
-}
-
-func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (map[string]*apps.Deployment, error) {
+func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (*util.Set, error) {
 	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
 
@@ -381,232 +247,46 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (map[string]*apps.Deployment
 		return nil, errors.Wrap(err, "failed to query existing OSD deployments")
 	}
 
-	result := map[string]*apps.Deployment{}
-	for i, deployment := range deployments.Items {
+	result := util.NewSet()
+	for _, deployment := range deployments.Items {
 		if pvcID, ok := deployment.Labels[OSDOverPVCLabelKey]; ok {
-			result[pvcID] = &deployments.Items[i]
+			result.Add(pvcID)
 		}
 	}
 
 	return result, nil
 }
 
-func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
-	if len(c.spec.DataDirHostPath) == 0 {
-		logger.Warningf("skipping osd provisioning where no dataDirHostPath is set")
-		return
+func deploymentOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provisionConfig) (*appsv1.Deployment, error) {
+	osdLongName := fmt.Sprintf("OSD %d on node %q", osd.ID, nodeName)
+
+	osdProps, err := c.getOSDPropsForNode(nodeName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate config for %s", osdLongName)
 	}
 
-	if c.spec.Storage.UseAllNodes {
-		if len(c.spec.Storage.Nodes) > 0 {
-			logger.Warningf("useAllNodes is TRUE, but nodes are specified. NODES in the cluster CR will be IGNORED unless useAllNodes is FALSE.")
-		}
-
-		// Get the list of all nodes in the cluster. The placement settings will be applied below.
-		hostnameMap, err := k8sutil.GetNodeHostNames(c.context.Clientset)
-		if err != nil {
-			config.addError("failed to get node hostnames: %v", err)
-			return
-		}
-		c.spec.Storage.Nodes = nil
-		for _, hostname := range hostnameMap {
-			storageNode := rookv1.Node{
-				Name: hostname,
-			}
-			c.spec.Storage.Nodes = append(c.spec.Storage.Nodes, storageNode)
-		}
-		logger.Debugf("storage nodes: %+v", c.spec.Storage.Nodes)
-	}
-	// generally speaking, this finds nodes which are capable of running new osds
-	validNodes := k8sutil.GetValidNodes(c.spec.Storage, c.context.Clientset, cephv1.GetOSDPlacement(c.spec.Placement))
-
-	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.spec.Storage.Nodes))
-
-	c.ValidStorage = *c.spec.Storage.DeepCopy()
-	c.ValidStorage.Nodes = validNodes
-
-	// no valid node is ready to run an osd
-	if len(validNodes) == 0 {
-		logger.Warningf("no valid nodes available to run osds on nodes in namespace %s", c.clusterInfo.Namespace)
-		return
+	d, err := c.makeDeployment(osdProps, osd, config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate deployment for %s", osdLongName)
 	}
 
-	// start with nodes currently in the storage spec
-	for _, node := range c.ValidStorage.Nodes {
-		// Check whether we need to cancel the orchestration
-		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
-			config.addError("%s", err.Error())
-			return
-		}
-
-		// fully resolve the storage config and resources for this node
-		n := c.resolveNode(node.Name)
-		if n == nil {
-			logger.Warningf("node %s did not resolve", node.Name)
-			continue
-		}
-
-		if n.Name == "" {
-			logger.Warningf("skipping node with a blank name! %+v", n)
-			continue
-		}
-
-		// update the orchestration status of this node to the starting state
-		status := OrchestrationStatus{Status: OrchestrationStatusStarting}
-		c.updateOSDStatus(n.Name, status)
-
-		// create the job that prepares osds on the node
-		storeConfig := osdconfig.ToStoreConfig(n.Config)
-		metadataDevice := osdconfig.MetadataDevice(n.Config)
-		osdProps := osdProperties{
-			crushHostname:  n.Name,
-			devices:        n.Devices,
-			selection:      n.Selection,
-			resources:      n.Resources,
-			storeConfig:    storeConfig,
-			metadataDevice: metadataDevice,
-		}
-		job, err := c.makeJob(osdProps, config)
-		if err != nil {
-			message := fmt.Sprintf("failed to create prepare job node %q. %v", n.Name, err)
-			config.addError(message)
-			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-			c.updateOSDStatus(n.Name, status)
-		}
-
-		if !c.runJob(job, n.Name, config, "provision") {
-			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning job on node %s", n.Name)}
-			c.updateOSDStatus(n.Name, status)
-		}
-	}
-
-	logger.Infof("start osds after provisioning is completed, if needed")
-	c.completeProvision(config)
+	return d, nil
 }
 
-func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
-	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {
-		if !kerrors.IsAlreadyExists(err) {
-			// we failed to create job, update the orchestration status for this node
-			message := fmt.Sprintf("failed to create %q job for node %q. %v", action, nodeName, err)
-			c.handleOrchestrationFailure(config, nodeName, message)
-			return false
-		}
+func deploymentOnPVC(c *Cluster, osd OSDInfo, pvcName string, config *provisionConfig) (*appsv1.Deployment, error) {
+	osdLongName := fmt.Sprintf("OSD %d on PVC %q", osd.ID, pvcName)
 
-		// the job is already in progress so we will let it run to completion
-	}
-
-	logger.Infof("osd %s job started for node %s", action, nodeName)
-	return true
-}
-
-func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
-	ctx := context.TODO()
-	osds := status.OSDs
-	logger.Infof("starting %d osd daemons on pvc %s", len(osds), pvcName)
 	osdProps, err := c.getOSDPropsForPVC(pvcName)
 	if err != nil {
-		config.addError(fmt.Sprintf("%v", err))
-		return
+		return nil, errors.Wrapf(err, "failed to generate config for %s", osdLongName)
 	}
 
-	// start osds
-	for _, osd := range osds {
-		logger.Debugf("start osd %v", osd)
-
-		dp, err := c.makeDeployment(osdProps, osd, config)
-		if err != nil {
-			errMsg := fmt.Sprintf("failed to create deployment for pvc %q. %v", osdProps.crushHostname, err)
-			config.addError(errMsg)
-			continue
-		}
-
-		// Set the deployment hash as an annotation
-		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(dp)
-		if err != nil {
-			errMsg := fmt.Sprintf("failed to set annotation for deployment %q. %v", dp.Name, err)
-			config.addError(errMsg)
-			continue
-		}
-
-		_, createErr := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, dp, metav1.CreateOptions{})
-		if createErr != nil {
-			if kerrors.IsAlreadyExists(createErr) {
-				logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
-				if err = updateDeploymentAndWait(c.context, c.clusterInfo, dp, opconfig.OsdType, strconv.Itoa(osd.ID), c.spec.SkipUpgradeChecks, c.spec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-					logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
-				}
-			} else {
-				// we failed to create job, update the orchestration status for this pvc
-				logger.Warningf("failed to create osd deployment for pvc %q, osd %v. %v", osdProps.pvc.ClaimName, osd, createErr)
-				continue
-			}
-		}
-
-		logger.Infof("started deployment for osd %d on pvc", osd.ID)
-	}
-}
-
-func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
-	ctx := context.TODO()
-	osds := status.OSDs
-	logger.Infof("starting %d osd daemons on node %s", len(osds), nodeName)
-
-	// fully resolve the storage config and resources for this node
-	n := c.resolveNode(nodeName)
-	if n == nil {
-		logger.Errorf("node %q did not resolve to start osds", nodeName)
-		return
-	}
-	storeConfig := osdconfig.ToStoreConfig(n.Config)
-	metadataDevice := osdconfig.MetadataDevice(n.Config)
-
-	osdProps := osdProperties{
-		crushHostname:  n.Name,
-		devices:        n.Devices,
-		selection:      n.Selection,
-		resources:      n.Resources,
-		storeConfig:    storeConfig,
-		metadataDevice: metadataDevice,
+	d, err := c.makeDeployment(osdProps, osd, config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate deployment for %s", osdLongName)
 	}
 
-	// start osds
-	for _, osd := range osds {
-		logger.Debugf("start osd %v", osd)
-		message := fmt.Sprintf("Processing OSD %d on node %q", osd.ID, nodeName)
-		opcontroller.UpdateCondition(c.context, c.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
-
-		dp, err := c.makeDeployment(osdProps, osd, config)
-		if err != nil {
-			errMsg := fmt.Sprintf("failed to create deployment for node %s: %v", n.Name, err)
-			config.addError(errMsg)
-			continue
-		}
-
-		// Set the deployment hash as an annotation
-		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(dp)
-		if err != nil {
-			errMsg := fmt.Sprintf("failed to set annotation for deployment %q. %v", dp.Name, err)
-			config.addError(errMsg)
-			continue
-		}
-
-		_, createErr := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, dp, metav1.CreateOptions{})
-		if createErr != nil {
-			if kerrors.IsAlreadyExists(createErr) {
-				logger.Debugf("deployment for osd %d already exists. updating if needed", osd.ID)
-				if err = updateDeploymentAndWait(c.context, c.clusterInfo, dp, opconfig.OsdType, strconv.Itoa(osd.ID), c.spec.SkipUpgradeChecks, c.spec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-					logger.Errorf("failed to update osd deployment %d. %v", osd.ID, err)
-				}
-			} else {
-				// we failed to create job, update the orchestration status for this pvc
-				logger.Warningf("failed to create osd deployment for node %q, osd %+v. %v", n.Name, osd, createErr)
-				continue
-			}
-		} else {
-			logger.Infof("created deployment for osd %d", osd.ID)
-		}
-	}
+	return d, nil
 }
 
 func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {
@@ -618,6 +298,27 @@ func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {
 	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, cephv1.GetOSDResources(c.spec.Resources))
 
 	return rookNode
+}
+
+func (c *Cluster) getOSDPropsForNode(nodeName string) (osdProperties, error) {
+	// fully resolve the storage config and resources for this node
+	n := c.resolveNode(nodeName)
+	if n == nil {
+		return osdProperties{}, errors.Errorf("failed to resolve node %q", nodeName)
+	}
+
+	storeConfig := osdconfig.ToStoreConfig(n.Config)
+	metadataDevice := osdconfig.MetadataDevice(n.Config)
+	osdProps := osdProperties{
+		crushHostname:  n.Name,
+		devices:        n.Devices,
+		selection:      n.Selection,
+		resources:      n.Resources,
+		storeConfig:    storeConfig,
+		metadataDevice: metadataDevice,
+	}
+
+	return osdProps, nil
 }
 
 func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
@@ -668,13 +369,13 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				var err error
 				osdProps.crushHostname, err = c.getPVCHostName(pvcName)
 				if err != nil {
-					return osdProperties{}, errors.Wrapf(err, "Unable to get crushHostname of non portable pvc %s", pvcName)
+					return osdProperties{}, errors.Wrapf(err, "failed to get crushHostname of non-portable PVC %q", pvcName)
 				}
 			}
 			return osdProps, nil
 		}
 	}
-	return osdProperties{}, errors.Errorf("no valid VolumeSource found for pvc %s", pvcName)
+	return osdProperties{}, errors.Errorf("failed to find valid VolumeSource for PVC %q", pvcName)
 }
 
 // getPVCHostName finds the node where an OSD pod should be assigned with a node selector.
@@ -693,7 +394,7 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 	for _, d := range deployments.Items {
 		selectors := d.Spec.Template.Spec.NodeSelector
 		for label, value := range selectors {
-			if label == v1.LabelHostname {
+			if label == corev1.LabelHostname {
 				return value, nil
 			}
 		}
@@ -720,19 +421,33 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 	return "", errors.Errorf("node selector not found on deployment for osd with pvc %q", pvcName)
 }
 
-func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
+func getOSDID(d *appsv1.Deployment) (int, error) {
+	osdID, err := strconv.Atoi(d.Labels[OsdIdLabelKey])
+	if err != nil {
+		// add a question to the user AFTER the error text to help them recover from user error
+		return -1, errors.Wrapf(err, "failed to parse label \"ceph-osd-id\" on deployment %q. did a user modify the deployment and remove the label?", d.Name)
+	}
+	return osdID, nil
+}
+
+func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	container := d.Spec.Template.Spec.Containers[0]
 	var osd OSDInfo
 
-	osdID, err := strconv.Atoi(d.Labels[OsdIdLabelKey])
+	osdID, err := getOSDID(d)
 	if err != nil {
-		return []OSDInfo{}, errors.Wrap(err, "error parsing ceph-osd-id")
+		return OSDInfo{}, err
 	}
 	osd.ID = osdID
+
+	isPVC := false
 
 	for _, envVar := range d.Spec.Template.Spec.Containers[0].Env {
 		if envVar.Name == "ROOK_OSD_UUID" {
 			osd.UUID = envVar.Value
+		}
+		if envVar.Name == "ROOK_PVC_BACKED_OSD" {
+			isPVC = true
 		}
 		if envVar.Name == "ROOK_BLOCK_PATH" || envVar.Name == "ROOK_LV_PATH" {
 			osd.BlockPath = envVar.Value
@@ -746,7 +461,7 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 		if envVar.Name == "ROOK_LV_BACKED_PV" {
 			lvBackedPV, err := strconv.ParseBool(envVar.Value)
 			if err != nil {
-				return []OSDInfo{}, errors.Wrap(err, "error parsing ROOK_LV_BACKED_PV")
+				return OSDInfo{}, errors.Wrap(err, "failed to parse ROOK_LV_BACKED_PV")
 			}
 			osd.LVBackedPV = lvBackedPV
 		}
@@ -758,9 +473,19 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 		}
 	}
 
+	// Needed for upgrade from v1.5 to v1.6. Rook v1.5 did not set ROOK_BLOCK_PATH for OSDs on nodes
+	// where the 'activate' init container was needed.
+	if !isPVC && osd.BlockPath == "" {
+		osd.BlockPath, err = getBlockPathFromActivateInitContainer(d)
+		if err != nil {
+			return OSDInfo{}, errors.Wrapf(err, "failed to extract legacy OSD block path from deployment %q", d.Name)
+		}
+	}
+
 	// If CVMode is empty, this likely means we upgraded Rook
 	// This property did not exist before so we need to initialize it
 	if osd.CVMode == "" {
+		logger.Infof("required CVMode for OSD %d was not found. assuming this is an LVM OSD", osd.ID)
 		osd.CVMode = "lvm"
 	}
 
@@ -776,7 +501,7 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 	}
 
 	if !locationFound {
-		location, _, err := getLocationFromPod(c.context.Clientset, d, client.GetCrushRootFromSpec(&c.spec))
+		location, _, err := getLocationFromPod(c.context.Clientset, d, cephclient.GetCrushRootFromSpec(&c.spec))
 		if err != nil {
 			logger.Errorf("failed to get location. %v", err)
 		} else {
@@ -785,13 +510,59 @@ func (c *Cluster) getOSDInfo(d *apps.Deployment) ([]OSDInfo, error) {
 	}
 
 	if osd.UUID == "" || osd.BlockPath == "" {
-		return []OSDInfo{}, errors.Errorf("failed to get required osdInfo. %+v", osd)
+		return OSDInfo{}, errors.Errorf("failed to get required osdInfo. %+v", osd)
 	}
 
-	return []OSDInfo{osd}, nil
+	return osd, nil
 }
 
-func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment, crushRoot string) (string, string, error) {
+func osdIsOnPVC(d *appsv1.Deployment) bool {
+	if _, ok := d.Labels[OSDOverPVCLabelKey]; ok {
+		return true
+	}
+	return false
+}
+
+func getNodeOrPVCName(d *appsv1.Deployment) (string, error) {
+	if v, ok := d.Labels[OSDOverPVCLabelKey]; ok {
+		return v, nil // OSD is on PVC
+	}
+	for k, v := range d.Spec.Template.Spec.NodeSelector {
+		if k == corev1.LabelHostname {
+			return v, nil
+		}
+	}
+	return "", errors.Errorf("failed to find node/PVC name for OSD deployment %q: %+v", d.Name, d)
+}
+
+// Needed for upgrades from v1.5 to v1.6
+func getBlockPathFromActivateInitContainer(d *appsv1.Deployment) (string, error) {
+	initContainers := d.Spec.Template.Spec.InitContainers
+	for _, c := range initContainers {
+		if c.Name != activatePVCOSDInitContainer {
+			continue
+		}
+		if len(c.Command) != 3 {
+			return "", errors.Errorf("activate init container has fewer command arguments (%d) than expected (3)", len(c.Command))
+		}
+		script := c.Command[2]
+		varAssignment := "DEVICE=" // this variable assignment is followed by the block path
+		scanner := bufio.NewScanner(strings.NewReader(script))
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if strings.HasPrefix(line, varAssignment) {
+				device := strings.TrimPrefix(line, varAssignment)
+				return device, nil
+			}
+		}
+		if scanner.Err() != nil {
+			return "", errors.Wrapf(scanner.Err(), "failed to scan through activate init script for variable assignment %q", varAssignment)
+		}
+	}
+	return "", errors.Errorf("failed to find activate init container")
+}
+
+func getLocationFromPod(clientset kubernetes.Interface, d *appsv1.Deployment, crushRoot string) (string, string, error) {
 	ctx := context.TODO()
 	pods, err := clientset.CoreV1().Pods(d.Namespace).List(ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OsdIdLabelKey, d.Labels[OsdIdLabelKey])})
 	if err != nil || len(pods.Items) == 0 {
@@ -817,7 +588,6 @@ func getLocationFromPod(clientset kubernetes.Interface, d *apps.Deployment, crus
 //  topologyAffinity: The label to be applied to the OSD daemon to guarantee it will start in the same
 //		topology as the OSD prepare job.
 func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushRoot, crushHostname string) (string, string, error) {
-
 	node, err := getNode(clientset, nodeName)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "could not get the node for topology labels")
@@ -834,7 +604,7 @@ func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushR
 
 	// Start with the host name in the CRUSH map
 	// Keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
-	hostName := client.NormalizeCrushName(crushHostname)
+	hostName := cephclient.NormalizeCrushName(crushHostname)
 	locArgs := []string{fmt.Sprintf("root=%s", crushRoot), fmt.Sprintf("host=%s", hostName)}
 
 	nodeLabels := node.GetLabels()
@@ -868,7 +638,6 @@ func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, err
 }
 
 func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) string {
-
 	topology, topologyAffinity := ExtractOSDTopologyFromLabels(nodeLabels)
 
 	keys := make([]string, 0, len(topology))
@@ -879,7 +648,7 @@ func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]stri
 
 	for _, topologyType := range keys {
 		if topologyType != "host" {
-			client.UpdateCrushMapValue(location, topologyType, topology[topologyType])
+			cephclient.UpdateCrushMapValue(location, topologyType, topology[topologyType])
 		}
 	}
 	return topologyAffinity
@@ -889,7 +658,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 	var osdVersion *cephver.CephVersion
 
 	// Get all the daemons versions
-	versions, err := client.GetAllCephDaemonVersions(c.context, c.clusterInfo)
+	versions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
 	if err != nil {
 		logger.Warningf("failed to get ceph daemons versions; this likely means there are no osds yet. %v", err)
 		return
@@ -909,7 +678,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 			}
 			// if the version of these OSDs is Octopus then we run the command
 			if osdVersion.IsOctopus() {
-				err = client.EnableReleaseOSDFunctionality(c.context, c.clusterInfo, "octopus")
+				err = cephclient.EnableReleaseOSDFunctionality(c.context, c.clusterInfo, "octopus")
 				if err != nil {
 					logger.Warningf("failed to enable new osd functionality. %v", err)
 					return

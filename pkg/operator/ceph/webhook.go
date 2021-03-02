@@ -130,7 +130,7 @@ func createWebhookDeployment(ctx context.Context, context *clusterd.Context, adm
 	antiAffinity := csi.GetPodAntiAffinity(k8sutil.AppAttr, appName)
 	admissionControllerDeployment := getDeployment(ctx, context, secretVolume, antiAffinity, admissionImage, admission_parameters, secretVolumeMount)
 
-	err := k8sutil.CreateDeployment(context.Clientset, appName, namespace, &admissionControllerDeployment)
+	_, err := k8sutil.CreateOrUpdateDeployment(context.Clientset, &admissionControllerDeployment)
 	if err != nil {
 		return errors.Wrap(err, "failed to create admission-controller deployment")
 	}

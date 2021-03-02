@@ -80,7 +80,7 @@ func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
 			m.checkOSDHealth()
 
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of OSDs in namespace %s", m.clusterInfo.Namespace)
+			logger.Infof("Stopping monitoring of OSDs in namespace %q", m.clusterInfo.Namespace)
 			return
 		}
 	}

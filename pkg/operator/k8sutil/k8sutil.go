@@ -159,6 +159,18 @@ func addRookVersionLabel(labels map[string]string) {
 	labels[RookVersionLabelKey] = value
 }
 
+// RookVersionLabelMatchesCurrent returns true if the Rook version on the resource label matches the
+// current Rook version running. It returns false if the label does not match. It returns an error
+// if the label does not exist.
+func RookVersionLabelMatchesCurrent(labels map[string]string) (bool, error) {
+	v, ok := labels[RookVersionLabelKey]
+	if !ok {
+		return false, fmt.Errorf("failed to find Rook version label %q", RookVersionLabelKey)
+	}
+	expectedVersion := validateLabelValue(rookversion.Version)
+	return (v == expectedVersion), nil
+}
+
 // validateLabelValue replaces any invalid characters
 // in the input string with a replacement character,
 // and enforces other limitations for k8s label values.

@@ -68,7 +68,7 @@ func (s *Set) Add(newValue string) bool {
 	return false
 }
 
-// Add a value to the set. Returns true if the value was added, false if it already exists.
+// Remove a value from the set. Returns true if the value was removed, false if it does not exist.
 func (s *Set) Remove(oldValue string) bool {
 	if _, ok := s.values[oldValue]; ok {
 		delete(s.values, oldValue)

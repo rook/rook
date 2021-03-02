@@ -450,7 +450,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
-		err = k8sutil.CreateDeployment(clientset, csiRBDProvisioner, namespace, rbdProvisionerDeployment)
+		_, err = k8sutil.CreateOrUpdateDeployment(clientset, rbdProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
@@ -510,7 +510,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}
-		err = k8sutil.CreateDeployment(clientset, csiCephFSProvisioner, namespace, cephfsProvisionerDeployment)
+		_, err = k8sutil.CreateOrUpdateDeployment(clientset, cephfsProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}

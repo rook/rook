@@ -76,7 +76,7 @@ func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job, timeou
 			return false, nil
 		}
 		if job.Status.Failed > 0 {
-			return false, fmt.Errorf("job %s failed.", job.Name)
+			return false, fmt.Errorf("job %s failed", job.Name)
 		}
 		if job.Status.Succeeded > 0 {
 			return true, nil

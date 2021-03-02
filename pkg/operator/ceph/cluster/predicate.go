@@ -132,23 +132,19 @@ func watchControllerPredicate(rookContext *clusterd.Context) predicate.Funcs {
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
 				if diff != "" {
+					// Set the cancellation flag to stop any ongoing orchestration
+					rookContext.RequestCancelOrchestration.Set()
+
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
-
-					// If spec Images are different we cancel any on-going orchestration
-					if objOld.Spec.CephVersion.Image != objNew.Spec.CephVersion.Image {
-						// Set the cancellation flag to stop any ongoing orchestration
-						rookContext.RequestCancelOrchestration.Set()
-
-						logger.Info("upgrade requested, cancelling any ongoing orchestration")
-					}
-
 					return true
+
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
 					// Set the cancellation flag to stop any ongoing orchestration
 					rookContext.RequestCancelOrchestration.Set()
 
 					logger.Infof("CR %q is going be deleted, cancelling any ongoing orchestration", objNew.Name)
 					return true
+
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}

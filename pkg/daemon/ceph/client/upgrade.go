@@ -356,6 +356,40 @@ func buildHostListFromTree(tree OsdTree) (OsdTree, error) {
 	return osdList, nil
 }
 
+// OSDUpdateShouldCheckOkToStop returns true if Rook should check ok-to-stop for OSDs when doing
+// OSD daemon updates. It will return false if it should not perform ok-to-stop checks, for example,
+// when there are fewer than 3 OSDs
+func OSDUpdateShouldCheckOkToStop(context *clusterd.Context, clusterInfo *ClusterInfo) bool {
+	userIntervention := "the user will likely need to set continueUpgradeAfterChecksEvenIfNotHealthy to allow OSD updates to proceed"
+
+	osds, err := OsdListNum(context, clusterInfo)
+	if err != nil {
+		// If calling osd list fails, we assume there are more than 3 OSDs and we check if ok-to-stop
+		// If there are less than 3 OSDs, the ok-to-stop call will fail
+		// this can still be controlled by setting continueUpgradeAfterChecksEvenIfNotHealthy
+		// At least this will happen for a single OSD only, which means 2 OSDs will restart in a small interval
+		logger.Warningf("failed to determine the total number of osds. will check if OSDs are ok-to-stop. if there are fewer than 3 OSDs %s. %v", userIntervention, err)
+		return true
+	}
+	if len(osds) < 3 {
+		logger.Warningf("the cluster has fewer than 3 osds. not performing upgrade check. running in best-effort")
+		return false
+	}
+
+	// aio means all in one
+	aio, err := allOSDsSameHost(context, clusterInfo)
+	if err != nil {
+		logger.Warningf("failed to determine if all osds are running on the same host. will check if OSDs are ok-to-stop. if all OSDs are running on one host %s. %v", userIntervention, err)
+		return true
+	}
+	if aio {
+		logger.Warningf("all OSDs are running on the same host. not performing upgrade check. running in best-effort")
+		return false
+	}
+
+	return true
+}
+
 // osdDoNothing determines whether we should perform upgrade pre-check and post-checks for the OSD daemon
 // it checks for various cluster info like number of OSD and their placement
 // it returns 'true' if we need to do nothing and false and we should pre-check/post-check
@@ -377,7 +411,6 @@ func osdDoNothing(context *clusterd.Context, clusterInfo *ClusterInfo) bool {
 	// aio means all in one
 	aio, err := allOSDsSameHost(context, clusterInfo)
 	if err != nil {
-		// If calling osd list fails, we assume there are more than 3 OSDs and we check if ok-to-stop
 		logger.Warningf("failed to determine if all osds are running on the same host, performing upgrade check anyways. %v", err)
 		return false
 	}

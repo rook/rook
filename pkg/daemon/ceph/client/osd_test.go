@@ -17,10 +17,13 @@ limitations under the License.
 package client
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client/fake"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -109,4 +112,90 @@ func TestOsdListNum(t *testing.T) {
 	list, err = OsdListNum(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"))
 	assert.Error(t, err)
 	assert.Equal(t, 0, len(list))
+}
+
+func TestOSDOkToStop(t *testing.T) {
+	returnString := ""
+	returnOkResult := true
+	seenArgs := []string{}
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		switch {
+		case args[0] == "osd" && args[1] == "ok-to-stop":
+			seenArgs = args
+			if returnOkResult {
+				return returnString, nil
+			}
+			return returnString, errors.Errorf("Error EBUSY: unsafe to stop osd(s) at this time (50 PGs are or would become offline)")
+		}
+		panic(fmt.Sprintf("unexpected ceph command %q", args))
+	}
+
+	context := &clusterd.Context{Executor: executor}
+	clusterInfo := AdminClusterInfo("mycluster")
+
+	doSetup := func() {
+		seenArgs = []string{}
+	}
+
+	t.Run("pacific output ok to stop", func(t *testing.T) {
+		doSetup()
+		clusterInfo.CephVersion = version.Pacific
+		returnString = fake.OsdOkToStopOutput(1, []int{1, 2}, true)
+		returnOkResult = true
+		osds, err := OSDOkToStop(context, clusterInfo, 1, 2)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, osds, []int{1, 2})
+		assert.Equal(t, "1", seenArgs[2])
+		assert.Equal(t, "--max=2", seenArgs[3])
+	})
+
+	t.Run("pacific output not ok to stop", func(t *testing.T) {
+		doSetup()
+		clusterInfo.CephVersion = version.Pacific
+		returnString = fake.OsdOkToStopOutput(3, []int{}, true)
+		returnOkResult = false
+		_, err := OSDOkToStop(context, clusterInfo, 3, 5)
+		assert.Error(t, err)
+		assert.Equal(t, "3", seenArgs[2])
+		assert.Equal(t, "--max=5", seenArgs[3])
+	})
+
+	t.Run("pacific handles maxReturned=0", func(t *testing.T) {
+		doSetup()
+		clusterInfo.CephVersion = version.Pacific
+		returnString = fake.OsdOkToStopOutput(4, []int{4, 8}, true)
+		returnOkResult = true
+		osds, err := OSDOkToStop(context, clusterInfo, 4, 0)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, osds, []int{4, 8})
+		assert.Equal(t, "4", seenArgs[2])
+		// should just pass through as --max=0; don't do any special processing
+		assert.Equal(t, "--max=0", seenArgs[3])
+	})
+
+	t.Run("octopus output not ok to stop", func(t *testing.T) {
+		doSetup()
+		clusterInfo.CephVersion = version.Octopus
+		returnString = fake.OsdOkToStopOutput(3, []int{}, false)
+		returnOkResult = false
+		_, err := OSDOkToStop(context, clusterInfo, 3, 5)
+		assert.Error(t, err)
+		assert.Equal(t, "3", seenArgs[2])
+		assert.NotContains(t, seenArgs[3], "--max") // do not issue the "--max" flag below pacific
+	})
+
+	t.Run("octopus output ok to stop", func(t *testing.T) {
+		doSetup()
+		clusterInfo.CephVersion = version.Octopus
+		returnString = fake.OsdOkToStopOutput(50, []int{50}, false)
+		returnOkResult = true
+		osds, err := OSDOkToStop(context, clusterInfo, 50, 2)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, osds, []int{50})
+		assert.Equal(t, "50", seenArgs[2])
+		assert.NotContains(t, seenArgs[3], "--max") // do not issue the "--max" flag below pacific
+	})
 }

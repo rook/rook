@@ -23,14 +23,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
-	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 )
 
 const (
@@ -41,9 +41,6 @@ const (
 	// OrchestrationStatusCompleted denotes the OSD provisioning has completed. This does not imply
 	// the provisioning completed successfully in whole or in part.
 	OrchestrationStatusCompleted = "completed"
-	// OrchestrationStatusAlreadyExists denotes the OSD provisioning was not started because an OSD
-	// has already been provisioned and started.
-	OrchestrationStatusAlreadyExists = "alreadyExists"
 	// OrchestrationStatusFailed denotes the OSD provisioning has failed.
 	OrchestrationStatusFailed = "failed"
 
@@ -51,17 +48,18 @@ const (
 	orchestrationStatusKey     = "status"
 	provisioningLabelKey       = "provisioning"
 	nodeLabelKey               = "node"
-	completeProvisionTimeout   = 20
 )
 
 var (
 	// time to wait before updating OSDs opportunistically while waiting for OSDs to finish provisioning
 	osdOpportunisticUpdateDuration = 100 * time.Millisecond
+
+	// a ticker that ticks every minute to check progress
+	minuteTickerDuration = time.Minute
 )
 
 type provisionConfig struct {
-	errorMessages []string
-	DataPathMap   *config.DataPathMap // location to store data in container
+	DataPathMap *config.DataPathMap // location to store data in OSD and OSD prepare containers
 }
 
 func (c *Cluster) newProvisionConfig() *provisionConfig {
@@ -70,26 +68,58 @@ func (c *Cluster) newProvisionConfig() *provisionConfig {
 	}
 }
 
-func (c *provisionConfig) addError(message string, args ...interface{}) {
+// The provisionErrors struct can get passed around to provisioning code which can add errors to its
+// internal list of errors. The errors will be reported at the end of provisioning.
+type provisionErrors struct {
+	errors []error
+}
+
+func newProvisionErrors() *provisionErrors {
+	return &provisionErrors{
+		errors: []error{},
+	}
+}
+
+func (e *provisionErrors) addError(message string, args ...interface{}) {
 	logger.Errorf(message, args...)
-	c.errorMessages = append(c.errorMessages, fmt.Sprintf(message, args...))
+	e.errors = append(e.errors, errors.Errorf(message, args...))
 }
 
-func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) {
-	UpdateNodeStatus(c.kv, node, status)
+func (e *provisionErrors) len() int {
+	return len(e.errors)
 }
 
-func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) {
-	labels := map[string]string{
+func (e *provisionErrors) asMessages() string {
+	o := ""
+	for _, err := range e.errors {
+		o = fmt.Sprintf("%s\n%v", o, err)
+	}
+	return o
+}
+
+// return name of status ConfigMap
+func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) string {
+	return UpdateNodeStatus(c.kv, node, status)
+}
+
+func statusConfigMapLabels(node string) map[string]string {
+	return map[string]string{
 		k8sutil.AppAttr:        AppName,
 		orchestrationStatusKey: provisioningLabelKey,
 		nodeLabelKey:           node,
 	}
+}
+
+// UpdateNodeStatus updates the status ConfigMap for the OSD on the given node. It returns the name
+// the ConfigMap used.
+func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) string {
+	labels := statusConfigMapLabels(node)
 
 	// update the status map with the given status now
 	s, _ := json.Marshal(status)
+	cmName := statusConfigMapName(node)
 	if err := kv.SetValueWithLabels(
-		k8sutil.TruncateNodeName(orchestrationStatusMapName, node),
+		cmName,
 		orchestrationStatusKey,
 		string(s),
 		labels,
@@ -97,10 +127,11 @@ func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status Orchestr
 		// log the error, but allow the orchestration to continue even if the status update failed
 		logger.Errorf("failed to set node %q status to %q for osd orchestration. %s", node, status.Status, status.Message)
 	}
+	return cmName
 }
 
-func (c *Cluster) handleOrchestrationFailure(config *provisionConfig, nodeName, message string) {
-	config.addError(message)
+func (c *Cluster) handleOrchestrationFailure(errors *provisionErrors, nodeName, message string, args ...interface{}) {
+	errors.addError(message, args...)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
 	UpdateNodeStatus(c.kv, nodeName, status)
 }
@@ -125,313 +156,215 @@ func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
 	return &status
 }
 
-func (c *Cluster) completeProvision(config *provisionConfig) bool {
-	return c.completeOSDsForAllNodes(config, true, completeProvisionTimeout)
+// return errors from this function when OSD provisioning should stop and the reconcile be restarted
+func (c *Cluster) updateAndCreateOSDs(
+	createConfig *createConfig,
+	updateConfig *updateConfig,
+	errs *provisionErrors, // add errors here
+) error {
+	// tick every mintue to check-in on housekeeping stuff and report overall progress
+	minuteTicker := time.NewTicker(minuteTickerDuration)
+	defer minuteTicker.Stop()
+
+	var err error
+
+	doLoop := true
+	for doLoop {
+		doLoop, err = c.updateAndCreateOSDsLoop(createConfig, updateConfig, minuteTicker, errs)
+		if err != nil {
+			if !doLoop {
+				return err
+			}
+			logger.Errorf("%v", err)
+		}
+	}
+
+	return nil
 }
 
-func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, configOSDs bool) (int, *util.Set, bool, *v1.ConfigMapList, []*v1.ConfigMap, error) {
-	ctx := context.TODO()
-	opts := metav1.ListOptions{
-		LabelSelector: selector,
-		Watch:         false,
-	}
-	remainingNodes := util.NewSet()
-	deferredConfigMaps := []*v1.ConfigMap{}
-
-	// check the status map to see if the node is already completed before we start watching
-	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).List(ctx, opts)
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			config.addError("failed to get config status. %v", err)
-			return 0, remainingNodes, false, statuses, deferredConfigMaps, err
-		}
-		// the status map doesn't exist yet, watching below is still an OK thing to do
-	}
-
-	originalNodes := len(statuses.Items)
-	// check the nodes to see which ones are already completed
-	for _, configMap := range statuses.Items {
-		node, ok := configMap.Labels[nodeLabelKey]
-		if !ok {
-			logger.Warningf("missing node label on configmap %s", configMap.Name)
-			continue
-		}
-		var completed bool
-		localconfigMap := configMap
-		completed, deferredConfigMaps = c.handleStatusConfigMapStatus(node, config, &localconfigMap, deferredConfigMaps, configOSDs)
-		if !completed {
-			remainingNodes.Add(node)
-		}
-	}
-	if remainingNodes.Count() == 0 {
-		return originalNodes, remainingNodes, true, statuses, deferredConfigMaps, nil
-	}
-	return originalNodes, remainingNodes, false, statuses, deferredConfigMaps, nil
-}
-
-func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
-	ctx := context.TODO()
-	selector := fmt.Sprintf("%s=%s,%s=%s",
+func statusConfigMapSelector() string {
+	return fmt.Sprintf("%s=%s,%s=%s",
 		k8sutil.AppAttr, AppName,
 		orchestrationStatusKey, provisioningLabelKey,
 	)
+}
 
-	// For OSDs that are definitely update operations, we want to be able to defer the update until
-	// after we have created new OSDs in order to speed up cluster scale-out. Allow us to defer
-	// updating by keeping a list of deferred configmaps and processing those after creates have
-	// been done. If OSD provisioning doesn't report "alreadyExists" status, then no configmaps will
-	// be deferred, and OSD create/update ops will be intermixed in whatever order is processed.
-	deferredConfigMaps := []*v1.ConfigMap{}
-	// handleDeferredConfigMaps NEEDS to happen before the outer function returns.
-	// The nested for loops make it hard to break out and handle the return value cleanly,
-	// so remember to call this before all return statements.
-	handleDeferredConfigMaps := func() {
-		logger.Debugf("handling all deferred OSD statuses")
-		for _, configMap := range deferredConfigMaps {
-			node, ok := configMap.Labels[nodeLabelKey]
-			if !ok {
-				logger.Infof("missing node label on deferred configmap %q", configMap.Name)
-				continue
-			}
+func (c *Cluster) updateAndCreateOSDsLoop(
+	createConfig *createConfig,
+	updateConfig *updateConfig,
+	minuteTicker *time.Ticker, // pass in the minute ticker so that we always know when a minute passes
+	errs *provisionErrors, // add errors here
+) (shouldRestart bool, err error) {
+	cmClient := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace)
+	ctx := context.TODO()
+	selector := statusConfigMapSelector()
 
-			c.handleDeferredStatusConfigMapStatus(node, config, configMap, configOSDs)
-		}
+	listOptions := metav1.ListOptions{
+		LabelSelector: selector,
+	}
+	configMapList, err := cmClient.List(ctx, listOptions)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to list OSD provisioning status ConfigMaps")
 	}
 
-	var originalNodes int
-	var remainingNodes *util.Set
-	var completed bool
-	var statuses *v1.ConfigMapList
-	var err error
-	originalNodes, remainingNodes, completed, statuses, deferredConfigMaps, err = c.checkNodesCompleted(selector, config, configOSDs)
-	if err == nil && completed {
-		handleDeferredConfigMaps()
-		return true
+	// Process the configmaps initially in case any are already in a processable state
+	for i := range configMapList.Items {
+		// reference index to prevent implicit memory aliasing error
+		c.createOSDsForStatusMap(&configMapList.Items[i], createConfig, errs)
 	}
 
-	// Make a timer to help us opportunistically handle OSD updates while waiting on OSD prepare
-	// jobs to finish. The timer value created here doesn't practically matter for the code below.
-	opportunityTimer := time.NewTimer(osdOpportunisticUpdateDuration)
+	watchOptions := metav1.ListOptions{
+		LabelSelector:   selector,
+		Watch:           true,
+		ResourceVersion: configMapList.ResourceVersion,
+	}
+	watcher, err := cmClient.Watch(ctx, watchOptions)
+	defer watcher.Stop()
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to start watching OSD provisioning status ConfigMaps")
+	}
 
-	// Make a timer that helps us log every minute that goes by without making progress and will
-	// be used to determine if we have gone past our timeout without making progress.
-	timeoutTimer := time.NewTimer(time.Minute)
-	shouldResetTimeoutTimer := true // set true when timeout timer should be reset
-	currentTimeoutMinutes := 0      // track how many minutes have gone by without progress
+	// tick after a short time of waiting for new OSD provision status configmaps to change state
+	// in order to allow opportunistic deployment updates while we wait
+	updateTicker := time.NewTicker(osdOpportunisticUpdateDuration)
+	defer updateTicker.Stop()
 
+	watchErrMsg := "failed during watch of OSD provisioning status ConfigMaps"
 	for {
-		// Check whether we need to cancel the orchestration
-		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
-			config.addError("%s", err.Error())
-			return false
+		if updateConfig.doneUpdating() && createConfig.doneCreating() {
+			break // loop
 		}
 
-		opts := metav1.ListOptions{
-			LabelSelector: selector,
-			Watch:         true,
-			// start watching for changes on the orchestration status map
-			ResourceVersion: statuses.ResourceVersion,
+		// reset the update ticker (and drain the channel if necessary) to make sure we always
+		// wait a little bit for an OSD prepare result before opportunistically updating deployments
+		updateTicker.Reset(osdOpportunisticUpdateDuration)
+		if len(updateTicker.C) > 0 {
+			<-updateTicker.C
 		}
-		logger.Infof("%d/%d node(s) completed osd provisioning, resource version %v", (originalNodes - remainingNodes.Count()), originalNodes, opts.ResourceVersion)
 
-		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).Watch(ctx, opts)
-		if err != nil {
-			logger.Warningf("failed to start watch on osd status, trying again. %v", err)
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		defer w.Stop()
-
-	ResultLoop:
-		for {
-			// Reset the opportunity timer every time we start this loop. If the timer fires before
-			// there is a ConfigMap update (new OSD created), we opportunistically handle an OSD
-			// update and then return to the top of this loop. If the ConfigMap watcher has a result
-			// before the timeout, a new OSD will be created. The opportunity timer might fire while
-			// creation is happening. When the OSD is done being created, we return to the top of
-			// this loop and reset the timeout here to make sure a previous timer firing doesn't
-			// take update precedence away from any ConfigMap updates (new OSD) that need handled.
-			if !opportunityTimer.Stop() {
-				// the timer already fired
-				if len(opportunityTimer.C) > 0 {
-					// the timer fired, but the result channel needs drained before Reset below
-					<-opportunityTimer.C
-				}
+		select {
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				logger.Infof("restarting watcher for OSD provisioning status ConfigMaps. the watcher closed the channel")
+				return true, nil
 			}
-			opportunityTimer.Reset(osdOpportunisticUpdateDuration)
 
-			if shouldResetTimeoutTimer {
-				if !timeoutTimer.Stop() {
-					// the timer already fired
-					if len(timeoutTimer.C) > 0 {
-						// the timer fired, but the result channel needs drained before Reset below
-						<-timeoutTimer.C
-					}
-				}
-				timeoutTimer.Reset(time.Minute)
+			if !isAddOrModifyEvent(event.Type) {
+				// We don't want to process delete events when we delete configmaps after having
+				// processed them. We also don't want to process BOOKMARK or ERROR events.
+				logger.Debugf("not processing %s event for object %q", event.Type, eventObjectName(event))
+				break // case
 			}
-			shouldResetTimeoutTimer = false // don't reset the timer unless a case below asks for it
 
-			select {
-			case e, ok := <-w.ResultChan():
-				if !ok {
-					logger.Infof("orchestration status config map result channel closed, will restart watch.")
-					w.Stop()
-					<-time.After(5 * time.Second)
-					var leftNodes int
-					var leftRemainingNodes *util.Set
-					var completed bool
-					leftNodes, leftRemainingNodes, completed, _, deferredConfigMaps, err = c.checkNodesCompleted(selector, config, configOSDs)
-					if err == nil {
-						if completed {
-							logger.Infof("additional %d/%d node(s) completed osd provisioning", leftNodes, originalNodes)
-							handleDeferredConfigMaps()
-							return true
-						}
-						remainingNodes = leftRemainingNodes
-					} else {
-						logger.Warningf("failed to list orchestration configmap, status: %v", err)
-					}
-					break ResultLoop
-				}
-				if e.Type == watch.Modified {
-					configMap, ok := e.Object.(*v1.ConfigMap)
-					if !ok {
-						logger.Errorf("expected type ConfigMap but found %T", configMap)
-						continue
-					}
-					node, ok := configMap.Labels[nodeLabelKey]
-					if !ok {
-						logger.Infof("missing node label on configmap %s", configMap.Name)
-						continue
-					}
-					if !remainingNodes.Contains(node) {
-						logger.Infof("skipping event from node %s status update since it is already completed", node)
-						continue
-					}
-					var completed bool
-					completed, deferredConfigMaps = c.handleStatusConfigMapStatus(node, config, configMap, deferredConfigMaps, configOSDs)
-					if completed {
-						remainingNodes.Remove(node)
-						if remainingNodes.Count() == 0 {
-							logger.Infof("%d/%d node(s) completed osd provisioning", originalNodes, originalNodes)
-							handleDeferredConfigMaps()
-							return true
-						}
-					}
-					// made progress on creating/updating OSDs; reset the timeout timer
-					shouldResetTimeoutTimer = true
-				}
-
-			case <-opportunityTimer.C:
-				// We want to make a best-effort attempt to update configmaps while provisioning is
-				// ongoing. While there are deferred configmaps remaining, grab one and process it.
-				if len(deferredConfigMaps) > 0 {
-					configMap := deferredConfigMaps[0]
-					logger.Debugf("opportunistically handling deferred OSD status %q", configMap.Name)
-
-					node, ok := configMap.Labels[nodeLabelKey]
-					if !ok {
-						logger.Infof("missing node label on deferred configmap %q", configMap.Name)
-						continue
-					}
-
-					c.handleDeferredStatusConfigMapStatus(node, config, configMap, configOSDs)
-
-					// remove the configmap we just processed from the deferred configmap list
-					deferredConfigMaps = deferredConfigMaps[1:]
-					// made progress on updating OSDs; reset the timeout timer
-					shouldResetTimeoutTimer = true
-				}
-
-			case <-timeoutTimer.C:
-				// Check whether we need to cancel the orchestration
-				if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
-					config.addError("%s", err.Error())
-					return false
-				}
-				// log every so often while we are waiting
-				currentTimeoutMinutes++
-				if currentTimeoutMinutes == timeoutMinutes {
-					config.addError("timed out waiting for %d nodes: %+v", remainingNodes.Count(), remainingNodes)
-					// start to remove remainingNodes waiting timeout.
-					for remainingNode := range remainingNodes.Iter() {
-						clearNodeName := k8sutil.TruncateNodeName(orchestrationStatusMapName, remainingNode)
-						if err := c.kv.ClearStore(clearNodeName); err != nil {
-							config.addError("failed to clear node %q status with name %q. %v", remainingNode, clearNodeName, err)
-						}
-					}
-					handleDeferredConfigMaps()
-					return false
-				}
-				logger.Infof("waiting on orchestration status update from %d remaining nodes", remainingNodes.Count())
-				// made no progress, but the timer needs reset so we can timeout again
-				shouldResetTimeoutTimer = true
+			configMap, ok := event.Object.(*corev1.ConfigMap)
+			if !ok {
+				logger.Errorf("recovering. %s. expected type ConfigMap but found %T", watchErrMsg, configMap)
+				break // case
 			}
+
+			c.createOSDsForStatusMap(configMap, createConfig, errs)
+
+		case <-updateTicker.C:
+			// do an update
+			updateConfig.updateExistingOSDs(errs)
+
+		case <-minuteTicker.C:
+			// Check whether we need to cancel the orchestration
+			if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+				return false, err
+			}
+			// Log progress
+			c, cExp := createConfig.progress()
+			u, uExp := updateConfig.progress()
+			logger.Infof("waiting... %d of %d OSD prepare jobs have finished processing and %d of %d OSDs have been updated", c, cExp, u, uExp)
 		}
+	}
+
+	return false, nil
+}
+
+func isAddOrModifyEvent(t k8swatch.EventType) bool {
+	switch t {
+	case k8swatch.Added, k8swatch.Modified:
+		return true
+	default:
+		return false
 	}
 }
 
-func (c *Cluster) createOrUpdateOSDs(status *OrchestrationStatus, nodeName string, config *provisionConfig, configMap *v1.ConfigMap) {
-	if status.PvcBackedOSD {
-		c.startOSDDaemonsOnPVC(nodeName, config, configMap, status)
-	} else {
-		c.startOSDDaemonsOnNode(nodeName, config, configMap, status)
+func eventObjectName(e k8swatch.Event) string {
+	objName := "[could not determine name]"
+	objMeta, _ := meta.Accessor(e.Object)
+	if objMeta != nil {
+		objName = objMeta.GetName()
 	}
-	// remove the status configmap that indicated the progress
-	if err := c.kv.ClearStore(k8sutil.TruncateNodeName(orchestrationStatusMapName, nodeName)); err != nil {
-		logger.Errorf("failed to remove the status configmap %q. %v", orchestrationStatusMapName, err)
-	}
+	return objName
 }
 
-func (c *Cluster) handleStatusConfigMapStatus(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, deferredConfigMaps []*v1.ConfigMap, configOSDs bool) (completed bool, updatedDeferredConfigMaps []*v1.ConfigMap) {
-	// by default, do not append the input configmap to output to be deferred for processing later
-	updatedDeferredConfigMaps = deferredConfigMaps
-
-	status := parseOrchestrationStatus(configMap.Data)
-	if status == nil {
-		return false, deferredConfigMaps
-	}
-
-	logger.Infof("osd orchestration status for node %s is %s", nodeName, status.Status)
-
-	if status.Status == OrchestrationStatusAlreadyExists {
-		logger.Debugf("deferring OSD update for node %q", nodeName)
-
-		// in case where the OSD has already been provisioned, this is an update case which we want
-		// to defer until later
-		updatedDeferredConfigMaps = append(deferredConfigMaps, configMap)
-
-		// we report that the node finished provisioning here but still rely on the caller to make
-		// sure to process deferred configmaps at a later point
-		return true, updatedDeferredConfigMaps
-	}
-
-	if status.Status == OrchestrationStatusCompleted {
-		if configOSDs {
-			c.createOrUpdateOSDs(status, nodeName, config, configMap)
-		}
-
-		return true, updatedDeferredConfigMaps
-	}
-
-	if status.Status == OrchestrationStatusFailed {
-		config.addError("orchestration for node %s failed: %+v", nodeName, status)
-		return true, updatedDeferredConfigMaps
-	}
-	return false, updatedDeferredConfigMaps
-}
-
-// deferred configmaps are OSD update operations we want to defer until after new OSDs have been created
-func (c *Cluster) handleDeferredStatusConfigMapStatus(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, configOSDs bool) {
-	status := parseOrchestrationStatus(configMap.Data)
-	if status == nil {
-		logger.Warningf("failed to handle deferred update of OSD for node %s. osd orchestration status for node %s is %s", nodeName, nodeName, status.Status)
+// Create OSD Deployments for OSDs reported by the prepare job status configmap.
+// Do not create OSD deployments if a deployment already exists for a given OSD.
+func (c *Cluster) createOSDsForStatusMap(
+	configMap *corev1.ConfigMap,
+	createConfig *createConfig,
+	errs *provisionErrors, // add errors here
+) {
+	nodeOrPVCName, ok := configMap.Labels[nodeLabelKey]
+	if !ok {
+		logger.Warningf("missing node label on configmap %s", configMap.Name)
 		return
 	}
 
-	if configOSDs {
-		logger.Infof("handling deferred update of OSD for node %q", nodeName)
-		c.createOrUpdateOSDs(status, nodeName, config, configMap)
+	status := parseOrchestrationStatus(configMap.Data)
+	if status == nil {
+		return
+	}
+	nodeOrPVC := "node"
+	if status.PvcBackedOSD {
+		nodeOrPVC = "PVC"
+	}
+
+	logger.Infof("OSD orchestration status for %s %s is %q", nodeOrPVC, nodeOrPVCName, status.Status)
+
+	if status.Status == OrchestrationStatusCompleted {
+		createConfig.createNewOSDsFromStatus(status, nodeOrPVCName, errs)
+		c.deleteStatusConfigMap(nodeOrPVCName) // remove the provisioning status configmap
+		return
+	}
+
+	if status.Status == OrchestrationStatusFailed {
+		createConfig.doneWithStatus(nodeOrPVCName)
+		errs.addError("failed to provision OSD(s) on %s %s. %+v", nodeOrPVC, nodeOrPVCName, status)
+		c.deleteStatusConfigMap(nodeOrPVCName) // remove the provisioning status configmap
+		return
+	}
+}
+
+func statusConfigMapName(nodeOrPVCName string) string {
+	return k8sutil.TruncateNodeName(orchestrationStatusMapName, nodeOrPVCName)
+}
+
+func (c *Cluster) deleteStatusConfigMap(nodeOrPVCName string) {
+	if err := c.kv.ClearStore(statusConfigMapName(nodeOrPVCName)); err != nil {
+		logger.Errorf("failed to remove the status configmap %q. %v", statusConfigMapName(nodeOrPVCName), err)
+	}
+}
+
+func (c *Cluster) deleteAllStatusConfigMaps() {
+	ctx := context.TODO()
+	listOpts := metav1.ListOptions{
+		LabelSelector: statusConfigMapSelector(),
+	}
+	cmClientset := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace)
+	cms, err := cmClientset.List(ctx, listOpts)
+	if err != nil {
+		logger.Warningf("failed to clean up any dangling OSD prepare status configmaps. failed to list OSD prepare status configmaps. %v", err)
+		return
+	}
+	for _, cm := range cms.Items {
+		logger.Debugf("cleaning up dangling OSD prepare status configmap %q", cm.Name)
+		err := cmClientset.Delete(ctx, cm.Name, metav1.DeleteOptions{})
+		if err != nil {
+			logger.Warningf("failed to clean up dangling OSD prepare status configmap %q. %v", cm.Name, err)
+		}
 	}
 }
