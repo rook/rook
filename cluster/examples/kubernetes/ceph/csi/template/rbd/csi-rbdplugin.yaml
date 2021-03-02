@@ -135,15 +135,15 @@ spec:
         - name: plugin-mount-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins"
-            type: Directory
+            type: DirectoryOrCreate
         - name: registration-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins_registry/"
-            type: Directory
+            type: DirectoryOrCreate
         - name: pods-mount-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/pods"
-            type: Directory
+            type: DirectoryOrCreate
         - name: host-dev
           hostPath:
             path: /dev
