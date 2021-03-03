@@ -15,11 +15,9 @@ This example runs a shared filesystem for the [kube-registry](https://github.com
 
 This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](ceph-quickstart.md)
 
-### Multiple Filesystems Not Supported
+### Multiple Filesystems Support
 
-By default only one shared filesystem can be created with Rook. Multiple filesystem support in Ceph is still considered experimental and can be enabled with the environment variable `ROOK_ALLOW_MULTIPLE_FILESYSTEMS` defined in `operator.yaml`.
-
-Please refer to [cephfs experimental features](http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster) page for more information.
+Multiple filesystems are supported as of the Ceph Pacific release.
 
 ## Create the Filesystem
 

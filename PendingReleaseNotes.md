@@ -20,6 +20,8 @@ v1.6...
 
 ### Ceph
 
+* Ceph Pacific support
+* Multiple Ceph Filesystems (with Pacific only)
 * CephClient CRD has been converted to use the controller-runtime library
 * Extending the support of vault KMS configuration for Ceph RGW
 * Enable disruption budgets (PDBs) by default for Mon, RGW, MDS, and OSD daemons
