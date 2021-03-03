@@ -616,6 +616,81 @@ healthCheck:
 
 Changing the liveness probe is an advanced operation and should rarely be necessary. If you want to change these settings then modify the desired settings.
 
+## Status
+
+The operator is regularly configuring and checking the health of the cluster. The results of the configuration
+and health checks can be seen in the `status` section of the CephCluster CR.
+
+```
+kubectl -n rook-ceph get CephCluster -o yaml
+```
+
+```yaml
+  ...
+  status:
+    ceph:
+      health: HEALTH_OK
+      lastChecked: "2021-03-02T21:22:11Z"
+      capacity:
+        bytesAvailable: 22530293760
+        bytesTotal: 25757220864
+        bytesUsed: 3226927104
+        lastUpdated: "2021-03-02T21:22:11Z"
+    message: Cluster created successfully
+    phase: Ready
+    state: Created
+    storage:
+      deviceClasses:
+      - name: hdd
+    version:
+      image: ceph/ceph:v15
+      version: 15.2.9-0
+    conditions:
+    - lastHeartbeatTime: "2021-03-02T21:22:11Z"
+      lastTransitionTime: "2021-03-02T21:21:09Z"
+      message: Cluster created successfully
+      reason: ClusterCreated
+      status: "True"
+      type: Ready
+```
+
+### Ceph Status
+
+Ceph is constantly monitoring the health of the data plane and reporting back if there are
+any warnings or errors. If everything is healthy from Ceph's perspective, you will see
+`HEALTH_OK`.
+
+If Ceph reports any warnings or errors, the details will be printed to the status.
+If further troubleshooting is needed to resolve these issues, the toolbox will likely
+be needed where you can run `ceph` commands to find more details.
+
+The `capacity` of the cluster is reported, including bytes available, total, and used.
+The available space will be less that you may expect due to overhead in the OSDs.
+
+### Conditions
+
+The `conditions` represent the status of the Rook operator.
+- If the cluster is fully configured and the operator is stable, the
+  `Ready` condition is raised with `ClusterCreated` reason and no other conditions. The cluster
+  will remain in the `Ready` condition after the first successful configuration since it
+  is expected the storage is consumable from this point on. If there are issues preventing
+  the storage layer from working, they are expected to show as Ceph health errors.
+- If the cluster is externally connected successfully, the `Ready` condition will have the reason `ClusterConnected`.
+- If the operator is currently being configured or the operator is checking for update,
+  there will be a `Progressing` condition.
+- If there was a failure, the condition(s) status will be `false` and the `message` will
+  give a summary of the error. See the operator log for more details.
+
+### Other Status
+
+There are several other properties for the overall status including:
+- `message`, `phase`, and `state`: A summary of the overall current state of the cluster, which
+  is somewhat duplicated from the conditions for backward compatibility.
+- `storage.deviceClasses`: The names of the types of storage devices that Ceph discovered
+  in the cluster. These types will be `ssd` or `hdd` unless they have been overridden
+  with the `crushDeviceClass` in the `storageClassDeviceSets`.
+- `version`: The version of the Ceph image currently deployed.
+
 ## Samples
 
 Here are several samples for configuring Ceph clusters. Each of the samples must also include the namespace and corresponding access granted for management by the Ceph operator. See the [common cluster resources](#common-cluster-resources) below.
