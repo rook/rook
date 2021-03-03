@@ -3,6 +3,7 @@ title: OSD Management
 weight: 11140
 indent: true
 ---
+{% include_relative branch.liquid %}
 
 # Ceph OSD Management
 
@@ -92,7 +93,7 @@ in the toolbox may show which OSD is `down`. If you want to remove a healthy OSD
 
 ### Purge the OSD from the Ceph cluster
 
-OSD removal can be automated with the example found in the [rook-ceph-purge-osd job](/cluster/examples/kubernetes/ceph/osd-purge.yaml).
+OSD removal can be automated with the example found in the [rook-ceph-purge-osd job](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/osd-purge.yaml).
 In the osd-purge.yaml, change the `<OSD-IDs>` to the ID(s) of the OSDs you want to remove.
 
 1. Run the job: `kubectl create -f osd-purge.yaml`
