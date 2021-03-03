@@ -196,17 +196,8 @@ func writeCephConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 
 // Provision provisions an OSD
 func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topologyAffinity string) error {
-
-	// Check for the presence of LVM on the host when NOT running on PVC
-	// since this scenario is still using LVM
-	if !agent.pvcBacked {
-		ne := NewNsenter(context, lvmCommandToCheck, []string{"--help"})
-		err := ne.checkIfBinaryExistsOnHost()
-		if err != nil {
-			return errors.Wrapf(err, "binary %q does not exist on the host, make sure lvm2 package is installed", lvmCommandToCheck)
-		}
+	if agent.pvcBacked {
 		// Init KMS store, retrieve the KEK and store it as an env var for ceph-volume
-	} else {
 		err := setKEKinEnv(context, agent.clusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to set kek as an environment variable")

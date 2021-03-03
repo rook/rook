@@ -96,7 +96,7 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: flexDriverMinimalTestVersion,
 		rookVersion:             installer.VersionMaster,
-		cephVersion:             installer.OctopusVersion(),
+		cephVersion:             installer.OctopusVersion,
 	}
 
 	s.clusterInfo = client.AdminClusterInfo(s.namespace)

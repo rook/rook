@@ -61,8 +61,6 @@ jobs:
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         sed -i "s|#deviceFilter:|deviceFilter: $(lsblk|awk '/14G/ {print $1}'| head -1)|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
-        # recent c-v changes don't allow OSDs on a partition, so we stick with v15.2.7 until that is resolved
-        sed -i "s|:v15|:v15.2.7|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/cluster-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/object-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/pool-test.yaml
