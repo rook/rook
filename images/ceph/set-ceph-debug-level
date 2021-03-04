@@ -23,8 +23,6 @@ fi
 
 CEPH_DEBUG_LEVEL=$1
 CEPH_DEBUG_FLAG=(
-  lockdep
-  context
   crush
   mds
   mds_balancer
@@ -32,54 +30,33 @@ CEPH_DEBUG_FLAG=(
   mds_log
   mds_log_expire
   mds_migrator
-  buffer
-  timer
-  filer
-  striper
-  objecter
   rados
   rbd
   rbd_mirror
   rbd_replay
-  journaler
-  objectcacher
-  client
   osd
-  optracker
-  objclass
-  filestore
-  journal
   ms
   mon
   monc
   paxos
-  tp
   auth
-  crypto
-  finisher
-  reserver
-  heartbeatmap
-  perfcounter
   rgw
   rgw_sync
-  civetweb
-  javaclient
   asok
-  throttle
-  refs
-  compressor
   bluestore
   bluefs
   bdev
   kstore
   rocksdb
-  leveldb
-  memdb
-  fuse
   mgr
   mgrc
-  dpdk
-  eventtrace
+)
+
+DAEMONS=(
+  mon
+  mgr
+  osd
+  mds
 )
 
 #############
@@ -105,14 +82,15 @@ exec_ceph_command() {
   
   # exec command
   for flag in "${CEPH_DEBUG_FLAG[@]}"; do
-    ARGS=("$action" global debug_"$flag")
-    if [[ "$debug_level" != "default" ]]; then
-      ARGS+=("$debug_level")
-    fi
-    # put stdout in /dev/null since increase debug log will overflow the terminal
-    echo "ceph config ${ARGS[*]}"
-    ceph config "${ARGS[@]}" &> /dev/null & pids+=($!)
-    
+    for daemon in "${DAEMONS[@]}"; do
+      ARGS=("$action" "$daemon" debug_"$flag")
+      if [[ "$debug_level" != "default" ]]; then
+        ARGS+=("$debug_level")
+      fi
+      # put stdout in /dev/null since increase debug log will overflow the terminal
+      echo "ceph config ${ARGS[*]}"
+      ceph config "${ARGS[@]}" &> /dev/null & pids+=($!)
+    done
   done
   echo "waiting for all the new logging configuration to be applied, this can take a few seconds"
   wait "${pids[@]}"
