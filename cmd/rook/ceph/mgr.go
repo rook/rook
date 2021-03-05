@@ -39,6 +39,7 @@ var (
 	updateMgrServicesInterval string
 	daemonName                string
 	clusterSpec               cephv1.ClusterSpec
+	mgrStatSupported          bool
 )
 
 func init() {
@@ -53,6 +54,7 @@ func init() {
 	mgrSidecarCmd.Flags().StringVar(&ownerRefID, "cluster-id", "", "the UID of the cluster CR that owns this cluster")
 	mgrSidecarCmd.Flags().StringVar(&clusterName, "cluster-name", "", "the name of the cluster CR that owns this cluster")
 	mgrSidecarCmd.Flags().StringVar(&daemonName, "daemon-name", "", "the name of the local mgr daemon")
+	mgrSidecarCmd.Flags().BoolVar(&mgrStatSupported, "mgr-stat-supported", false, "whether the version of ceph supports mgr stat")
 
 	flags.SetFlagsFromEnv(mgrCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(mgrSidecarCmd.Flags(), rook.RookEnvVarPrefix)
@@ -81,7 +83,7 @@ func runMgrSidecar(cmd *cobra.Command, args []string) error {
 
 	m := mgr.New(context, &clusterInfo, clusterSpec, "")
 	for {
-		err := m.ReconcileMultipleServices(daemonName)
+		err := m.ReconcileMultipleServices(daemonName, mgrStatSupported)
 		if err != nil {
 			logger.Errorf("failed to reconcile services. %v", err)
 		} else {

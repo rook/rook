@@ -206,7 +206,7 @@ func (c *Cluster) Start() error {
 
 // ReconcileMultipleServices reconciles the services if the active mgr is the one running
 // in the sidecar
-func (c *Cluster) ReconcileMultipleServices(daemonNameToUpdate string) error {
+func (c *Cluster) ReconcileMultipleServices(daemonNameToUpdate string, mgrStatSupported bool) error {
 	// If the services are already set to this daemon, no need to attempt to update
 	svc, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), AppName, metav1.GetOptions{})
 	if err != nil {
@@ -220,19 +220,33 @@ func (c *Cluster) ReconcileMultipleServices(daemonNameToUpdate string) error {
 		logger.Infof("mgr service currently set to %q, checking if need to update to %q", currentDaemon, daemonNameToUpdate)
 	}
 
-	mgrMap, err := cephclient.CephMgrMap(c.context, c.clusterInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to get ceph status for the active mgr")
+	var activeName string
+	// mgrStatSupported is a flag instead of calling c.clusterInfo.CephVersion.IsAtLeastPacific() directly since we're inside the sidecar
+	// where the cephVersion is not directly available
+	if mgrStatSupported {
+		// The preferred way to query the active mgr is "ceph mgr stat", which is only available in pacific
+		mgrStat, err := cephclient.CephMgrStat(c.context, c.clusterInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to get mgr stat for the active mgr")
+		}
+		activeName = mgrStat.ActiveName
+	} else {
+		// The legacy way to query the active mgr is with the verbose "ceph mgr dump"
+		mgrMap, err := cephclient.CephMgrMap(c.context, c.clusterInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to get mgr map for the active mgr")
+		}
+		activeName = mgrMap.ActiveName
 	}
-	if mgrMap.ActiveName == "" {
+	if activeName == "" {
 		return errors.New("active mgr not found")
 	}
-	if daemonNameToUpdate != mgrMap.ActiveName {
-		logger.Infof("no need for the mgr update since the active mgr is %q, rather than the local mgr %q", mgrMap.ActiveName, daemonNameToUpdate)
+	if daemonNameToUpdate != activeName {
+		logger.Infof("no need for the mgr update since the active mgr is %q, rather than the local mgr %q", activeName, daemonNameToUpdate)
 		return nil
 	}
 
-	return c.reconcileService(mgrMap.ActiveName)
+	return c.reconcileService(activeName)
 }
 
 // reconcile the services, if the active mgr is not detected, use the default mgr

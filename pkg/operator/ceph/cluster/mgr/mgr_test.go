@@ -161,6 +161,8 @@ func validateServices(t *testing.T, c *Cluster) {
 
 func TestMgrSidecarReconcile(t *testing.T) {
 	activeMgr := "a"
+	calledMgrStat := false
+	calledMgrDump := false
 	spec := cephv1.ClusterSpec{
 		Mgr: cephv1.MgrSpec{Count: 1},
 		Dashboard: cephv1.DashboardSpec{
@@ -170,6 +172,12 @@ func TestMgrSidecarReconcile(t *testing.T) {
 	}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outFile string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[1] == "dump" {
+				calledMgrDump = true
+			} else if args[1] == "stat" {
+				calledMgrStat = true
+			}
 			return fmt.Sprintf(`{"active_name":"%s"}`, activeMgr), nil
 		},
 	}
@@ -186,20 +194,25 @@ func TestMgrSidecarReconcile(t *testing.T) {
 	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
 
 	// Update services according to the active mgr
-	err := c.ReconcileMultipleServices(activeMgr)
+	err := c.ReconcileMultipleServices(activeMgr, false)
 	assert.NoError(t, err)
+	assert.False(t, calledMgrStat)
+	assert.True(t, calledMgrDump)
 	validateServices(t, c)
 	validateServiceMatches(t, c, "a")
 
 	// nothing is created or updated when the requested mgr is not the active mgr
-	err = c.ReconcileMultipleServices("b")
+	calledMgrDump = false
+	err = c.ReconcileMultipleServices("b", true)
 	assert.NoError(t, err)
+	assert.True(t, calledMgrStat)
+	assert.False(t, calledMgrDump)
 	_, err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err))
 
 	// nothing is updated when the requested mgr is not the active mgr
 	activeMgr = "b"
-	err = c.ReconcileMultipleServices("b")
+	err = c.ReconcileMultipleServices("b", true)
 	assert.NoError(t, err)
 	validateServices(t, c)
 	validateServiceMatches(t, c, "b")
