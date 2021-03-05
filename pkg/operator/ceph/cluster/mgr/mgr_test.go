@@ -111,7 +111,6 @@ func TestStartMgr(t *testing.T) {
 	// clean the previous deployments
 	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr-a", metav1.DeleteOptions{})
 	assert.Nil(t, err)
-	err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr-b", metav1.DeleteOptions{})
 	assert.Nil(t, err)
 	err = c.Start()
 	assert.Nil(t, err)
@@ -136,6 +135,13 @@ func validateStart(t *testing.T, c *Cluster) {
 			assert.Equal(t, "watch-active", d.Spec.Template.Spec.Containers[1].Name)
 		}
 	}
+
+	// verify we have exactly the expected number of deployments and not extra
+	// the expected deployments were already retrieved above, but now we check for no extra deployments
+	options := metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"}
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(context.TODO(), options)
+	assert.NoError(t, err)
+	assert.Equal(t, c.spec.Mgr.Count, len(deployments.Items))
 
 	validateServices(t, c)
 }

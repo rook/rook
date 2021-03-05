@@ -50,9 +50,9 @@ var prometheusRuleName = "prometheus-ceph-vVERSION-rules"
 var PrometheusExternalRuleName = "prometheus-ceph-vVERSION-rules-external"
 
 const (
-	// AppName is the ceph mgr application name
 	AppName                = "rook-ceph-mgr"
 	serviceAccountName     = "rook-ceph-mgr"
+	maxMgrCount            = 2
 	PrometheusModuleName   = "prometheus"
 	crashModuleName        = "crash"
 	PgautoscalerModuleName = "pg_autoscaler"
@@ -100,7 +100,11 @@ func (c *Cluster) getReplicas() int {
 
 func (c *Cluster) getDaemonIDs() []string {
 	var daemonIDs []string
-	for i := 0; i < c.getReplicas(); i++ {
+	replicas := c.getReplicas()
+	if replicas > maxMgrCount {
+		replicas = maxMgrCount
+	}
+	for i := 0; i < replicas; i++ {
 		daemonIDs = append(daemonIDs, k8sutil.IndexToName(i))
 	}
 	return daemonIDs
@@ -175,6 +179,9 @@ func (c *Cluster) Start() error {
 		}
 	}
 
+	// check if any extra mgrs need to be removed
+	c.removeExtraMgrs(daemonIDs)
+
 	if len(daemonIDs) == 1 {
 		// Only reconcile the mgr services in the operator if there is a single mgr.
 		// If there are multiple mgrs they will be managed by the mgr sidecar.
@@ -202,6 +209,19 @@ func (c *Cluster) Start() error {
 		logger.Debugf("ended monitoring deployment")
 	}
 	return nil
+}
+
+func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
+	// In case the mgr count was reduced, delete the extra mgrs
+	for i := maxMgrCount - 1; i >= len(daemonIDs); i-- {
+		mgrName := fmt.Sprintf("%s-%s", AppName, k8sutil.IndexToName(i))
+		err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), mgrName, metav1.DeleteOptions{})
+		if err == nil {
+			logger.Infof("removed extra mgr %q", mgrName)
+		} else if !kerrors.IsNotFound(err) {
+			logger.Warningf("failed to remove extra mgr %q. %v", mgrName, err)
+		}
+	}
 }
 
 // ReconcileMultipleServices reconciles the services if the active mgr is the one running
