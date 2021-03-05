@@ -21,7 +21,7 @@ This script will help us achieve the following tasks
 Run the following commands:
 ```console
 kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml -f cluster/examples/kubernetes/ceph/common.yaml
-cluster/examples/kubernetes/ceph/config-admission-controller.sh
+tests/scripts/deploy_admission_controller.sh
 ```
 Now that the Secrets have been deployed, we can deploy the operator:
 ```console
