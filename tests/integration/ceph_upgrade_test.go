@@ -85,7 +85,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		rookCephCleanup:         false,
 		skipOSDCreation:         false,
 		minimalMatrixK8sVersion: upgradeMinimalTestVersion,
-		rookVersion:             installer.Version1_4,
+		rookVersion:             installer.Version1_5,
 		cephVersion:             installer.NautilusVersion,
 	}
 
@@ -156,7 +156,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.True(s.T(), created)
 
 	// verify that we're actually running the right pre-upgrade image
-	s.verifyOperatorImage(installer.Version1_4)
+	s.verifyOperatorImage(installer.Version1_5)
 
 	message := "my simple message"
 	preFilename := "pre-upgrade-file"
@@ -177,14 +177,14 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	//
 	// Upgrade Rook from v1.4 to master
 	//
-	logger.Infof("*** UPGRADING ROOK FROM v1.4 to master ***")
+	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_5)
 	s.gatherLogs(systemNamespace, "_before_master_upgrade")
 	s.upgradeToMaster()
 
 	s.verifyOperatorImage(installer.VersionMaster)
 	s.verifyRookUpgrade(numOSDs)
-	logger.Infof("Done with automatic upgrade from v1.4 to master")
-	newFile := "post-upgrade-1_4-to-master-file"
+	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_5)
+	newFile := "post-upgrade-1_5-to-master-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
@@ -193,7 +193,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
 	require.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
 
-	logger.Infof("Verified upgrade from v1.4 to master")
+	logger.Infof("Verified upgrade from %s to master", installer.Version1_5)
 
 	//
 	// Upgrade from nautilus to octopus
@@ -347,83 +347,8 @@ func (s *UpgradeSuite) upgradeToMaster() {
 }
 
 func upgradeManifestToMaster(namespace string, useV1Extensions bool) string {
-	rbacAuthVersion := "rbac.authorization.k8s.io/v1beta1"
-	if useV1Extensions {
-		rbacAuthVersion = "rbac.authorization.k8s.io/v1"
-	}
-
 	// Always apply CRDs for the latest master
 	m := installer.NewCephManifests(installer.VersionMaster)
 	manifests := m.GetRookCRDs(useV1Extensions)
-
-	manifests += `
----
-kind: ClusterRole
-apiVersion: ` + rbacAuthVersion + `
-metadata:
-  name: rbd-external-provisioner-runner
-rules:
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update", "patch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments/status"]
-    verbs: ["patch"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["list", "watch", "create", "update", "patch"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshots"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotcontents"]
-    verbs: ["create", "get", "list", "watch", "update", "delete"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotcontents/status"]
-    verbs: ["update"]
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["create", "list", "watch", "delete", "get", "update"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshots/status"]
-    verbs: ["update"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims/status"]
-    verbs: ["update", "patch"]
----
-kind: Role
-apiVersion: ` + rbacAuthVersion + `
-metadata:
-  namespace: ` + namespace + `
-  name: rbd-external-provisioner-cfg
-rules:
-  - apiGroups: [""]
-    resources: ["endpoints"]
-    verbs: ["get", "watch", "list", "delete", "update", "create"]
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "watch", "create", "delete", "update"]
-  - apiGroups: ["coordination.k8s.io"]
-    resources: ["leases"]
-    verbs: ["get", "watch", "list", "delete", "update", "create"]
-`
 	return manifests
 }

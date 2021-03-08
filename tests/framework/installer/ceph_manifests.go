@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	// Version1_4 rook version 1.4
-	Version1_4 = "v1.4.7"
+	// The version from which the upgrade test will start
+	Version1_5 = "v1.5.8"
 )
 
 type CephManifests interface {
@@ -88,8 +88,8 @@ func NewCephManifests(version string) CephManifests {
 	switch version {
 	case VersionMaster:
 		return &CephManifestsMaster{imageTag: VersionMaster}
-	case Version1_4:
-		return &CephManifestsV1_4{imageTag: Version1_4}
+	case Version1_5:
+		return &CephManifestsV1_4{imageTag: Version1_5}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", version))
 }
