@@ -8,10 +8,10 @@ metadata:
     rook_cluster: rook-ceph # namespace:cluster
 spec:
   ports:
-  - name: dashboard
-    port: 7000
-    protocol: TCP
-    targetPort: 7000
+    - name: dashboard
+      port: 7000
+      protocol: TCP
+      targetPort: 7000
   selector:
     app: rook-ceph-mgr
     rook_cluster: rook-ceph

@@ -55,10 +55,10 @@ spec:
     # mgr is active, Rook will update the mgr services to match the active mgr.
     count: 1
     modules:
-    # Several modules should not need to be included in this list. The "dashboard" and "monitoring" modules
-    # are already enabled by other settings in the cluster CR.
-    - name: pg_autoscaler
-      enabled: true
+      # Several modules should not need to be included in this list. The "dashboard" and "monitoring" modules
+      # are already enabled by other settings in the cluster CR.
+      - name: pg_autoscaler
+        enabled: true
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
