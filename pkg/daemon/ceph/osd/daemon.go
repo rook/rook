@@ -196,17 +196,8 @@ func writeCephConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 
 // Provision provisions an OSD
 func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topologyAffinity string) error {
-
-	// Check for the presence of LVM on the host when NOT running on PVC
-	// since this scenario is still using LVM
-	if !agent.pvcBacked {
-		ne := NewNsenter(context, lvmCommandToCheck, []string{"--help"})
-		err := ne.checkIfBinaryExistsOnHost()
-		if err != nil {
-			return errors.Wrapf(err, "binary %q does not exist on the host, make sure lvm2 package is installed", lvmCommandToCheck)
-		}
+	if agent.pvcBacked {
 		// Init KMS store, retrieve the KEK and store it as an env var for ceph-volume
-	} else {
 		err := setKEKinEnv(context, agent.clusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to set kek as an environment variable")
@@ -254,16 +245,15 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 
 	logger.Info("creating and starting the osds")
 
-	// Run Drive Group configuration
-	if err := agent.configureDriveGroups(context); err != nil {
-		return err
-	}
-
 	// determine the set of devices that can/should be used for OSDs.
 	devices, err := getAvailableDevices(context, agent)
 	if err != nil {
 		return errors.Wrap(err, "failed to get available devices")
 	}
+
+	// orchestration is about to start, update the status
+	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating, PvcBackedOSD: agent.pvcBacked}
+	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
 	// start the desired OSDs on devices
 	logger.Infof("configuring osd devices: %+v", devices)

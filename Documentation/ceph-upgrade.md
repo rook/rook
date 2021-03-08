@@ -260,6 +260,10 @@ if applicable.
 
 Let's get started!
 
+> **IMPORTANT** If your CephCluster has specified `driveGroups` in the spec, you must follow the
+> instructions to [migrate the Drive Group spec](#migrate-the-drive-group-spec) before performing
+> any of the upgrade steps below.
+
 ## 1. Update common resources and CRDs
 
 > Automatically updated if you are upgrading via the helm chart
@@ -379,7 +383,7 @@ until all the daemons have been updated.
 Official Ceph container images can be found on [Docker Hub](https://hub.docker.com/r/ceph/ceph/tags/).
 These images are tagged in a few ways:
 
-* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v15.2.8-20201201`).
+* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v15.2.9-20210224`).
   These tags are recommended for production clusters, as there is no possibility for the cluster to
   be heterogeneous with respect to the version of Ceph running in containers.
 * Ceph major version tags (e.g., `v15`) are useful for development and test clusters so that the
@@ -395,7 +399,7 @@ The majority of the upgrade will be handled by the Rook operator. Begin the upgr
 Ceph image field in the cluster CRD (`spec.cephVersion.image`).
 
 ```sh
-NEW_CEPH_IMAGE='ceph/ceph:v15.2.8-20201217'
+NEW_CEPH_IMAGE='ceph/ceph:v15.2.9-20210224'
 CLUSTER_NAME="$ROOK_CLUSTER_NAMESPACE"  # change if your cluster name is not the Rook namespace
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
@@ -459,7 +463,7 @@ variables matching `ROOK_CSI_*_IMAGE` from the above ConfigMap and/or the operat
 You can use the below command to see the CSI images currently being used in the cluster.
 
 ```console
-# kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
+# kubectl --namespace $ROOK_CLUSTER_NAMESPACE get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
 quay.io/cephcsi/cephcsi:v3.2.0
 k8s.gcr.io/sig-storage/csi-attacher:v3.0.0
 k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1
@@ -471,4 +475,36 @@ k8s.gcr.io/sig-storage/csi-resizer:v1.0.0
 
 ## Replace lvm mode OSDs with raw mode (if you use LV-backed PVC)
 
-For LV-backed PVC, we recommend replacing lvm mode OSDs with raw mode OSDs. See [common issue](Documentation/ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc).
+For LV-backed PVC, we recommend replacing lvm mode OSDs with raw mode OSDs. See 
+[common issue](Documentation/ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc).
+
+
+## Migrate the Drive Group spec
+
+If your CephCluster has specified `driveGroups` in the `spec`, you must follow these instructions to 
+migrate the Drive Group spec before performing the upgrade from Rook v1.5.x to v1.6.x. Do not follow
+these steps if no `driveGroups` are specified.
+
+Refer to the [CephCluster CRD Storage config](ceph-cluster-crd.md#storage-selection-settings) to
+understand how to configure your nodes to host OSDs as you desire for future disks added to cluster
+nodes.
+
+At minimum, you must migrate enough of the config so that Rook knows which nodes are already acting 
+as OSD hosts so that it can update the OSD Deployments. This minimal migration that allows Rook to 
+update existing OSD Deployments is explained below.
+
+1. If any of your specified Drive Groups use `host_pattern: '*'`, set `spec.storage.useAllNodes: true`.
+   1. If a drive group that uses `host_pattern: '*'` also sets `data_devices:all: true`, set
+     `spec.storage.useAllDevices: true`, and no more config migration should be necessary.
+1. If no Drive Groups use `host_pattern: '*'`, there are two basic options:
+   1. Determine which nodes apply to the Drive Group, then add each nodes to the 
+      `spec.storage.nodes` list.
+      1. Determine which nodes are already hosting OSDs using the below one-liner to list the nodes.
+          ```sh
+          kubectl -n $ROOK_CLUSTER_NAMESPACE get pod --selector 'app==rook-ceph-osd' --output custom-columns='NAME:.metadata.name,NODE:.spec.nodeName,LABELS:.metadata.labels' --no-headers | grep -v ceph.rook.io/pvc | awk '{print $2}' | uniq
+          ```
+   1. Or, you can use labels on Kubernetes nodes and `spec.placement.osd.nodeAffinity` to tell Rook
+      which nodes should be running OSDs. [See also](ceph-cluster-crd.md#node-affinity).
+
+You may wish to reference the Rook issue where deprecation of this feature was introduced:
+https://github.com/rook/rook/issues/7275.

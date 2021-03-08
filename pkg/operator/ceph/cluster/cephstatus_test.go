@@ -34,7 +34,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	controllerclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestCephStatus(t *testing.T) {
@@ -156,55 +155,6 @@ func TestNewCephStatusChecker(t *testing.T) {
 	}
 }
 
-func Test_cephStatusChecker_conditionMessageReason(t *testing.T) {
-	c := &clusterd.Context{}
-	clusterInfo := client.AdminClusterInfo("ns")
-	type fields struct {
-		context     *clusterd.Context
-		clusterInfo *cephclient.ClusterInfo
-		interval    time.Duration
-		client      controllerclient.Client
-		isExternal  bool
-	}
-	type args struct {
-		condition cephv1.ConditionType
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   cephv1.ConditionType
-		want1  string
-		want2  string
-	}{
-		{"failure-converged", fields{c, clusterInfo, defaultStatusCheckInterval, c.Client, false}, args{cephv1.ConditionFailure}, cephv1.ConditionFailure, "ClusterFailure", "Failed to configure ceph cluster"},
-		{"failure-external", fields{c, clusterInfo, defaultStatusCheckInterval, c.Client, true}, args{cephv1.ConditionFailure}, cephv1.ConditionFailure, "ClusterFailure", "Failed to configure external ceph cluster"},
-		{"success-converged", fields{c, clusterInfo, defaultStatusCheckInterval, c.Client, false}, args{cephv1.ConditionReady}, cephv1.ConditionReady, "ClusterCreated", "Cluster created successfully"},
-		{"success-external", fields{c, clusterInfo, defaultStatusCheckInterval, c.Client, true}, args{cephv1.ConditionReady}, cephv1.ConditionConnected, "ClusterConnected", "Cluster connected successfully"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &cephStatusChecker{
-				context:     tt.fields.context,
-				clusterInfo: tt.fields.clusterInfo,
-				interval:    tt.fields.interval,
-				client:      tt.fields.client,
-				isExternal:  tt.fields.isExternal,
-			}
-			got, got1, got2 := c.conditionMessageReason(tt.args.condition)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("cephStatusChecker.conditionMessageReason() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("cephStatusChecker.conditionMessageReason() got1 = %v, want %v", got1, tt.want1)
-			}
-			if got2 != tt.want2 {
-				t.Errorf("cephStatusChecker.conditionMessageReason() got2 = %v, want %v", got2, tt.want2)
-			}
-		})
-	}
-}
-
 func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 	ctx := context.TODO()
 	clientset := optest.New(t, 1)
@@ -222,7 +172,7 @@ func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 			Name:      "stuck-pod",
 			Namespace: clusterName.Namespace,
 			Labels: map[string]string{
-				"rook_cluster": clusterName.Name,
+				"app": "rook-ceph-osd",
 			},
 		},
 	}
@@ -287,14 +237,17 @@ func TestGetRookPodsOnNode(t *testing.T) {
 
 	c := newCephStatusChecker(context, clusterInfo, &cephv1.ClusterSpec{})
 	labels := []map[string]string{
-		{"rook_cluster": clusterName.Name},
+		{"app": "rook-ceph-osd"},
 		{"app": "csi-rbdplugin-provisioner"},
 		{"app": "csi-rbdplugin"},
 		{"app": "csi-cephfsplugin-provisioner"},
 		{"app": "csi-cephfsplugin"},
 		{"app": "rook-ceph-operator"},
-		{"rook_cluster": "test", "app": "csi-cephfsplugin"},
+		{"app": "rook-ceph-crashcollector"},
+		{"app": "rook-ceph-mgr"},
+		{"app": "rook-ceph-mds"},
 		{"app": "user-app"},
+		{"app": "rook-ceph-mon"},
 	}
 
 	pod := v1.Pod{
@@ -322,7 +275,7 @@ func TestGetRookPodsOnNode(t *testing.T) {
 	pods, err := c.getRookPodsOnNode("node0")
 	assert.NoError(t, err)
 	// A pod is having two matching labels and its returned only once
-	assert.Equal(t, 7, len(pods))
+	assert.Equal(t, 10, len(pods))
 
 	podNames := []string{}
 	for _, pod := range pods {

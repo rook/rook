@@ -6,10 +6,10 @@ on:
 
 jobs:
   unittests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: checkout
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
 
     - uses: actions/setup-go@v2
       with:
@@ -19,5 +19,6 @@ jobs:
       run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
 
     - name: run unit tests
-      run: cd /home/runner/go/src/github.com/rook/rook && GOPATH=$(go env GOPATH) make -j $(nproc) test
+      working-directory: /home/runner/go/src/github.com/rook/rook
+      run: GOPATH=$(go env GOPATH) make -j $(nproc) test
 

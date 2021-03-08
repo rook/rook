@@ -27,7 +27,7 @@ import (
 
 const (
 	keyringTemplate = `
-[client.fs-mirror.%s]
+[client.fs-mirror]
 	key = %s
 	caps mon = "allow r"
 	caps mgr = "allow r"
@@ -35,12 +35,13 @@ const (
 	caps osd = "'allow rw tag cephfs metadata=*, allow r tag cephfs data=*'"
 
 `
+	user   = "client.fs-mirror"
+	userID = "fs-mirror"
 )
 
 // daemonConfig for a single rbd-mirror
 type daemonConfig struct {
 	ResourceName string              // the name rook gives to mirror resources in k8s metadata
-	DaemonID     string              // the ID of the Ceph daemon ("a", "b", ...)
 	DataPathMap  *config.DataPathMap // location to store data in container
 	ownerRef     metav1.OwnerReference
 }
@@ -54,7 +55,6 @@ type PeerToken struct {
 }
 
 func (r *ReconcileFilesystemMirror) generateKeyring(clusterInfo *client.ClusterInfo, daemonConfig *daemonConfig) (string, error) {
-	user := fullDaemonName(daemonConfig.DaemonID)
 	access := []string{
 		"mon", "allow r",
 		"mgr", "allow r",
@@ -68,10 +68,6 @@ func (r *ReconcileFilesystemMirror) generateKeyring(clusterInfo *client.ClusterI
 		return "", err
 	}
 
-	keyring := fmt.Sprintf(keyringTemplate, daemonConfig.DaemonID, key)
+	keyring := fmt.Sprintf(keyringTemplate, key)
 	return keyring, s.CreateOrUpdate(daemonConfig.ResourceName, keyring)
-}
-
-func fullDaemonName(daemonID string) string {
-	return fmt.Sprintf("client.fs-mirror.%s", daemonID)
 }

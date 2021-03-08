@@ -32,7 +32,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
-			Labels: controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, daemonConfig.DaemonID, true),
+			Labels: controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, true),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -52,7 +52,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 	if r.cephClusterSpec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-client.fs-mirror.%s", daemonConfig.DaemonID), r.clusterInfo.Namespace, *r.cephClusterSpec))
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-%s", user), r.clusterInfo.Namespace, *r.cephClusterSpec))
 	}
 
 	// Replace default unreachable node toleration
@@ -75,7 +75,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Name:        daemonConfig.ResourceName,
 			Namespace:   fsMirror.Namespace,
 			Annotations: fsMirror.Spec.Annotations,
-			Labels:      controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, daemonConfig.DaemonID, true),
+			Labels:      controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, true),
 		},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -110,9 +110,9 @@ func (r *ReconcileFilesystemMirror) makeFsMirroringDaemonContainer(daemonConfig 
 			"cephfs-mirror",
 		},
 		Args: append(
-			controller.DaemonFlags(r.clusterInfo, r.cephClusterSpec, daemonConfig.DaemonID),
+			controller.DaemonFlags(r.clusterInfo, r.cephClusterSpec, userID),
 			"--foreground",
-			"--name="+fullDaemonName(daemonConfig.DaemonID),
+			"--name="+user,
 		),
 		Image:           r.cephClusterSpec.CephVersion.Image,
 		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),

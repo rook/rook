@@ -32,6 +32,12 @@ import (
 const (
 	// EtcVaultDir is vault config dir
 	EtcVaultDir = "/etc/vault"
+	// VaultSecretEngineKey is the type of secret engine used (kv, transit)
+	VaultSecretEngineKey = "VAULT_SECRET_ENGINE"
+	// VaultKVSecretEngineKey is a kv secret engine type
+	VaultKVSecretEngineKey = "kv"
+	// VaultTransitSecretEngineKey is a transit secret engine type
+	VaultTransitSecretEngineKey = "transit"
 )
 
 var (

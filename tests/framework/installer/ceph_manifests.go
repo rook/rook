@@ -361,23 +361,6 @@ spec:
                             items:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
-                driveGroups:
-                  type: array
-                  nullable: true
-                  items:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                      spec:
-                        type: object
-                        x-kubernetes-preserve-unknown-fields: true
-                      placement:
-                        type: object
-                        x-kubernetes-preserve-unknown-fields: true
-                    required:
-                      - name
-                      - spec
                 monitoring:
                   type: object
                   properties:
@@ -1628,17 +1611,6 @@ spec:
                 deviceFilter: {}
                 config: {}
                 storageClassDeviceSets: {}
-            driveGroups:
-              type: array
-              items:
-                properties:
-                  name:
-                    type: string
-                  spec: {}
-                  placement: {}
-                required:
-                - name
-                - spec
             monitoring:
               properties:
                 enabled:
@@ -1966,10 +1938,18 @@ spec:
               properties:
                 bucket:
                   properties:
-                    enabled:
+                    disabled:
                       type: boolean
                     interval:
                       type: string
+                    timeout:
+                      type: string
+                livenessProbe:
+                  type: object
+                  nullable: true
+                  properties:
+                    disabled:
+                      type: boolean
   subresources:
   subresources:
     status: {}

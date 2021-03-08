@@ -18,9 +18,9 @@ include ../image.mk
 # Image Build Options
 
 ifeq ($(GOARCH),amd64)
-CEPH_VERSION = v15.2.8-20201217
+CEPH_VERSION = v15.2.9-20210224
 else
-CEPH_VERSION = v15.2.8-20201217
+CEPH_VERSION = v15.2.9-20210224
 endif
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
@@ -44,12 +44,14 @@ do.build: generate-csv-ceph-templates
 	@echo === container build $(CEPH_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp toolbox.sh $(TEMP)
+	@cp set-ceph-debug-level $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
 	@cp -r ../../cluster/examples/kubernetes/ceph/monitoring $(TEMP)/ceph-monitoring
-	@mkdir -p $(TEMP)/rook-external
+	@mkdir -p $(TEMP)/rook-external/test-data
 	@cp ../../cluster/examples/kubernetes/ceph/create-external-cluster-resources.* $(TEMP)/rook-external/
+	@cp ../../cluster/examples/kubernetes/ceph/test-data/ceph-status-out $(TEMP)/rook-external/test-data/
 	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
 		cp -r ../../cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates;\
 	else\

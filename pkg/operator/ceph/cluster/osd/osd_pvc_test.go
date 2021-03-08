@@ -49,11 +49,6 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
-// make infof function for helping identify logs from unit test helpers versus from runtime code.
-func infof(t *testing.T, format string, args ...interface{}) {
-	logger.Infof(t.Name()+": "+format, args...)
-}
-
 // The definition for this test is a wrapper for the test function that adds a timeout
 func TestOSDsOnPVC(t *testing.T) {
 	oldLogger := *logger
@@ -112,7 +107,7 @@ func testOSDsOnPVC(t *testing.T) {
 		// can't use mockNodeOrchestrationCompleted here b/c it uses a context.CoreV1() method that
 		// is mutex locked when a reactor is processing
 		status := parseOrchestrationStatus(cm.Data)
-		infof(t, "configmap reactor: updating configmap %q status to completed", cm.Name)
+		t.Logf("configmap reactor: updating configmap %q status to completed", cm.Name)
 		// configmap names are deterministic can be mapped indirectly to an OSD ID, and since the
 		// configmaps are used to report completion status of OSD provisioning, we use this property in
 		// thse unit tests
@@ -165,11 +160,11 @@ func testOSDsOnPVC(t *testing.T) {
 
 			status := parseOrchestrationStatus(cm.Data)
 			if status.Status == OrchestrationStatusAlreadyExists {
-				infof(t, "configmap reactor: delete: OSD for configmap %q was updated", cm.Name)
+				t.Logf("configmap reactor: delete: OSD for configmap %q was updated", cm.Name)
 				// allow tests to specify a custom callback for this case
 				deleteConfigMapWithStatusAlreadyExistsCallback(cm, action)
 			} else if status.Status == OrchestrationStatusCompleted {
-				infof(t, "configmap reactor: delete: OSD for configmap %q was created", cm.Name)
+				t.Logf("configmap reactor: delete: OSD for configmap %q was created", cm.Name)
 			}
 		}
 
@@ -197,7 +192,7 @@ func testOSDsOnPVC(t *testing.T) {
 			// deployment already exists, so this isn't be a valid create
 			return false, nil, nil
 		}
-		infof(t, "creating deployment %q", d.Name)
+		t.Logf("creating deployment %q", d.Name)
 		deploymentOps.Add(d.Name, "create")
 		return false, nil, nil
 	}
@@ -210,7 +205,7 @@ func testOSDsOnPVC(t *testing.T) {
 		updateDeploymentAndWait = oldUDAW
 	}()
 	updateDeploymentAndWait = func(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, deployment *appsv1.Deployment, daemonType string, daemonName string, skipUpgradeChecks bool, continueUpgradeAfterChecksEvenIfNotHealthy bool) error {
-		infof(t, "updating deployment %q", deployment.Name)
+		t.Logf("updating deployment %q", deployment.Name)
 		deploymentOps.Add(deployment.Name, "update")
 		return nil
 	}
@@ -269,7 +264,7 @@ func testOSDsOnPVC(t *testing.T) {
 	}
 
 	// =============================================================================================
-	infof(t, "Step 1: create new PVCs")
+	t.Log("Step 1: create new PVCs")
 
 	// when creating new configmaps with status "starting", simulate them becoming "completed"
 	// before any opportunistic updates can happen by changing the status to "completed" before
@@ -282,13 +277,30 @@ func testOSDsOnPVC(t *testing.T) {
 	}
 
 	var c *Cluster
+	var provisionDone bool = false
+	waitForDone := func() {
+		for {
+			if provisionDone {
+				t.Log("provisioning done")
+				break
+			}
+			t.Log("provisioning not done. waiting...")
+			time.Sleep(time.Millisecond)
+		}
+	}
 	run := func() {
+		// reset
+		deploymentOps = newResourceOperationList()
+		statusMapWatcher.Reset()
+
 		// kick off the start of the orchestration in a goroutine so we can watch the results
 		// and manipulate confimaps in the test if needed
 		c = New(context, clusterInfo, spec, "myversion")
+		provisionDone = false
 		go func() {
 			provisionConfig := c.newProvisionConfig()
 			c.startProvisioningOverPVCs(provisionConfig)
+			provisionDone = true
 		}()
 	}
 	run()
@@ -301,10 +313,12 @@ func testOSDsOnPVC(t *testing.T) {
 	assert.Equal(t, 5, deploymentOps.Len())
 	// all 5 should be create operations
 	assert.Len(t, deploymentOps.ResourcesWithOperation("create"), 5)
-	infof(t, "deployments successfully created for new PVCs")
+	t.Log("deployments successfully created for new PVCs")
+
+	waitForDone()
 
 	// =============================================================================================
-	infof(t, "Step 2: verify deployments are updated when run again")
+	t.Log("Step 2: verify deployments are updated when run again")
 	// clean the create times maps
 	reset := func() {
 		deploymentOps = newResourceOperationList()
@@ -326,8 +340,10 @@ func testOSDsOnPVC(t *testing.T) {
 	// use later to ensure existing deployments are updated
 	existingDeployments := updatedDeployments
 
+	waitForDone()
+
 	// =============================================================================================
-	infof(t, "Step 3: verify new deployments are created before existing ones are updated")
+	t.Log("Step 3: verify new deployments are created before existing ones are updated")
 	reset()
 
 	spec.Storage.StorageClassDeviceSets[0].Count = 8
@@ -359,8 +375,10 @@ func testOSDsOnPVC(t *testing.T) {
 
 	existingDeployments = append(createdDeployments, updatedDeployments...)
 
+	waitForDone()
+
 	// =============================================================================================
-	infof(t, "Step 4: verify updates can happen opportunistically")
+	t.Log("Step 4: verify updates can happen opportunistically")
 	reset()
 
 	spec.Storage.StorageClassDeviceSets[0].Count = 10
@@ -374,7 +392,7 @@ func testOSDsOnPVC(t *testing.T) {
 	// in update-then-create fashion until all creates are done, followed by all updates.
 	configMapsThatNeedUpdatedToCompleted := []string{}
 	createConfigMapWithStatusStartingCallback = func(cm *corev1.ConfigMap) {
-		infof(t, "configmap reactor: create: marking that configmap %q needs to be completed later", cm.Name)
+		t.Logf("configmap reactor: create: marking that configmap %q needs to be completed later", cm.Name)
 		configMapsThatNeedUpdatedToCompleted = append(configMapsThatNeedUpdatedToCompleted, cm.Name)
 	}
 	deleteConfigMapWithStatusAlreadyExistsCallback = func(cm *corev1.ConfigMap, action k8stesting.DeleteActionImpl) {
@@ -427,8 +445,10 @@ func testOSDsOnPVC(t *testing.T) {
 
 	existingDeployments = append(createdDeployments, updatedDeployments...)
 
+	waitForDone()
+
 	// =============================================================================================
-	infof(t, "Step 5: verify opportunistic updates can all happen before creates")
+	t.Log("Step 5: verify opportunistic updates can all happen before creates")
 	reset()
 
 	spec.Storage.StorageClassDeviceSets[0].Count = 12
@@ -440,7 +460,7 @@ func testOSDsOnPVC(t *testing.T) {
 	configMapsThatNeedUpdatedToCompleted = []string{}
 	createConfigMapWithStatusStartingCallback = func(cm *corev1.ConfigMap) {
 		// re-define this behavior as a reminder for readers of the test
-		infof(t, "configmap reactor: create: marking that configmap %q needs to be completed later", cm.Name)
+		t.Logf("configmap reactor: create: marking that configmap %q needs to be completed later", cm.Name)
 		configMapsThatNeedUpdatedToCompleted = append(configMapsThatNeedUpdatedToCompleted, cm.Name)
 	}
 	deleteConfigMapWithStatusAlreadyExistsCallback = func(cm *corev1.ConfigMap, action k8stesting.DeleteActionImpl) {
@@ -483,7 +503,8 @@ func testOSDsOnPVC(t *testing.T) {
 		}
 	}
 
-	infof(t, "success")
+	waitForDone()
+	t.Log("success")
 }
 
 /*
@@ -493,7 +514,7 @@ func testOSDsOnPVC(t *testing.T) {
 func osdPVCTestExecutor(t *testing.T, clientset *fake.Clientset, namespace string) *exectest.MockExecutor {
 	return &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
-			infof(t, "command: %s %v", command, args)
+			t.Logf("command: %s %v", command, args)
 			if command != "ceph" {
 				return "", errors.Errorf("unexpected command %q with args %v", command, args)
 			}
@@ -545,7 +566,7 @@ func waitForNumPVCs(t *testing.T, clientset *fake.Clientset, namespace string, c
 		l, err := clientset.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		if len(l.Items) >= count {
-			infof(t, "PVCs for OSDs on PVC all exist")
+			t.Log("PVCs for OSDs on PVC all exist")
 			break
 		}
 		<-time.After(1 * time.Millisecond)
@@ -557,7 +578,7 @@ func waitForNumDeployments(t *testing.T, clientset *fake.Clientset, namespace st
 		l, err := clientset.AppsV1().Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		if len(l.Items) >= count {
-			infof(t, "Deployments for OSDs on PVC all exist")
+			t.Log("Deployments for OSDs on PVC all exist")
 			break
 		}
 		<-time.After(1 * time.Millisecond)
@@ -582,13 +603,13 @@ func newOSDIDGenerator() osdIDGenerator {
 
 func (g *osdIDGenerator) osdID(t *testing.T, namedResource string) int {
 	if id, ok := g.osdIDMap[namedResource]; ok {
-		infof(t, "resource %q has existing OSD ID %d", namedResource, id)
+		t.Logf("resource %q has existing OSD ID %d", namedResource, id)
 		return id
 	}
 	id := g.nextOSDID
 	g.osdIDMap[namedResource] = id
 	g.nextOSDID++
-	infof(t, "generated new OSD ID %d for resource %q", id, namedResource)
+	t.Logf("generated new OSD ID %d for resource %q", id, namedResource)
 	return id
 }
 

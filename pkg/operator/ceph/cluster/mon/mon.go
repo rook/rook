@@ -1169,11 +1169,6 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 	logger.Infof("deployment for mon %s already exists. updating if needed",
 		d.Name)
 
-	// Restart the mon if it is stuck on a failed node
-	if err := c.restartMonIfStuckTerminating(m.DaemonName); err != nil {
-		logger.Error("failed to restart mon if it is stuck", err)
-	}
-
 	err := updateDeploymentAndWait(c.context, c.ClusterInfo, d, config.MonType, m.DaemonName, c.spec.SkipUpgradeChecks, false)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update mon deployment %s", m.ResourceName)

@@ -109,13 +109,6 @@ func convertToIntIgnoreErr(raw string) int {
 	return val
 }
 
-// A DriveGroupBlob is a simple JSON blob defining a Ceph Drive Group. Drive Group blobs are passed
-// to ceph-volume for node disk configuration.
-type DriveGroupBlob string
-
-// DriveGroupBlobs is a mapping from Ceph Drive Group names to JSON blobs of Drive Group specs.
-type DriveGroupBlobs map[string]string
-
 // ConfiguredDevice is a device with a corresponding configuration.
 type ConfiguredDevice struct {
 	ID          string      `json:"id"`

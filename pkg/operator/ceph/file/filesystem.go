@@ -222,7 +222,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 
 	_, err := client.GetFilesystem(context, clusterInfo, f.Name)
 	if err == nil {
-		logger.Infof("filesystem %s already exists", f.Name)
+		logger.Infof("filesystem %q already exists", f.Name)
 		return f.updateFilesystem(context, clusterInfo, clusterSpec, spec)
 	}
 	if len(spec.DataPools) == 0 {
@@ -231,10 +231,12 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 
 	fslist, err := client.ListFilesystems(context, clusterInfo)
 	if err != nil {
-		return errors.Wrap(err, "Unable to list existing filesystem")
+		return errors.Wrap(err, "failed to list existing filesystem(s)")
 	}
-	if len(fslist) > 0 && !client.IsMultiFSEnabled() {
-		return errors.Errorf("cannot create multiple filesystems. enable %s env variable to create more than one", client.MultiFsEnv)
+	// This check prevents from concurrent CephFilesystem CRD trying to create a filesystem
+	// Whoever gets to create the Filesystem first wins the race, then we fail if that cluster is not Ceph Pacific and one Filesystem is present
+	if len(fslist) > 0 && !clusterInfo.CephVersion.IsAtLeastPacific() && !client.IsMultiFSEnabled() {
+		return errors.New("multiple filesystems are only supported as of ceph pacific")
 	}
 
 	poolNames, err := client.GetPoolNamesByID(context, clusterInfo)
@@ -242,7 +244,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		return errors.Wrap(err, "failed to get pool names")
 	}
 
-	logger.Infof("Creating filesystem %s", f.Name)
+	logger.Infof("creating filesystem %q", f.Name)
 
 	// Make easy to locate a pool by name and avoid repeated searches
 	reversedPoolMap := make(map[string]int)
@@ -284,18 +286,18 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		return err
 	}
 
-	logger.Infof("created filesystem %s on %d data pool(s) and metadata pool %s", f.Name, len(dataPoolNames), metadataPoolName)
+	logger.Infof("created filesystem %q on %d data pool(s) and metadata pool %q", f.Name, len(dataPoolNames), metadataPoolName)
 	return nil
 }
 
 // downFilesystem marks the filesystem as down and the MDS' as failed
 func downFilesystem(context *clusterd.Context, clusterInfo *client.ClusterInfo, filesystemName string) error {
-	logger.Infof("Downing filesystem %s", filesystemName)
+	logger.Infof("downing filesystem %q", filesystemName)
 
 	if err := client.FailFilesystem(context, clusterInfo, filesystemName); err != nil {
 		return err
 	}
-	logger.Infof("Downed filesystem %s", filesystemName)
+	logger.Infof("downed filesystem %q", filesystemName)
 	return nil
 }
 

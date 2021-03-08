@@ -32,7 +32,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v15.2.8
+    image: ceph/ceph:v15.2.9
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -59,7 +59,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v15.2.8
+    image: ceph/ceph:v15.2.9
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -168,7 +168,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 * `external`:
   * `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs if an image is provided and will refuse otherwise. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](#external-cluster). If `cephVersion.image` is left blank, Rook will refuse the creation of extra CRs like object, file and nfs.
 * `cephVersion`: The version information for launching the ceph daemons.
-  * `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v14.2.12` or `ceph/ceph:v15.2.8`. For more details read the [container images section](#ceph-container-images).
+  * `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v14.2.12` or `ceph/ceph:v15.2.9`. For more details read the [container images section](#ceph-container-images).
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
   To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
   Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v14` will be updated each time a new nautilus build is released.
@@ -472,44 +472,6 @@ The following storage selection settings are specific to Ceph and do not apply t
 * Mimic 13.2.3 or newer
 * Nautilus
 
-### Storage Selection Via Ceph Drive Groups
-
-Ceph Drive Groups allow for specifying highly advanced OSD layouts on nodes including
-non-homogeneous nodes. They are a way to describe a cluster layout using the properties of disks.
-It gives the user an abstract way tell Ceph which disks should turn into an OSD with which
-configuration without knowing the specifics of device names and paths. You can target specific disks
-by their device type, by vendor or model, by size, by whether they are rotational, and more. Disks
-with various properties can be specified to be data disks or wal/db disks.
-
-As a brief example, let's assume nodes with 20 SSDs and 4 NVMe devices. A Drive Group could specify
-that all SSD devices should be data disks and two of the NVMe devices should be wal/db disks for the
-SSDs. That would leave two NVMe devices remaining for other usage, either for Ceph or another
-application.
-
-Ceph supports adding devices as OSDs by Ceph Drive Group definitions in later versions of Ceph
-Octopus (v15.2.5+).
-See Ceph Drive Group docs for more [info](https://docs.ceph.com/docs/master/cephadm/drivegroups/).
-Drive Groups cannot be used to provision OSDs on PVCs.
-
-> **IMPORTANT:** When managing a Rook/Ceph cluster's OSD layouts with Drive Groups, the `storage`
-> config is mostly ignored. `storageClassDeviceSets` can still be used to create OSDs on PVC, but
-> Rook will no longer use `storage` configs for creating OSDs on a node's devices. To avoid
-> confusion, we recommend using the `storage` config OR `driveGroups` and never both. Because
-> `storage` and `driveGroups` should not be used simultaneously, Rook only supports provisioning
-> OSDs with Drive Groups on new Rook-Ceph clusters.
-
-A Drive Group is defined by a name, a Ceph Drive Group spec, and a Rook placement
-
-* `name`: A name for the Drive Group.
-* `spec`: The Ceph Drive group spec. Some components of the spec are treated differently in the
-  context of Rook as noted below:
-  * Rook overrides Ceph's definition of `placement` in order to use Rook's `placement` below.
-  * Rook overrides Ceph's deprecated `host_pattern` in order to use Rook's `placement` below.
-  * Rook overrides Ceph's `service_id` field to be the same as the Drive Group `name` above.
-* `placement`: The placement criteria for nodes to provision with the Drive Group.
-  (Optional) Default is no placement criteria, which matches all untainted nodes.
-  The syntax is the same as for [other placement configuration](#placement-configuration-settings).
-
 ### Annotations and Labels
 
 Annotations and Labels can be specified so that the Rook components will have those annotations / labels added to them.
@@ -654,6 +616,81 @@ healthCheck:
 
 Changing the liveness probe is an advanced operation and should rarely be necessary. If you want to change these settings then modify the desired settings.
 
+## Status
+
+The operator is regularly configuring and checking the health of the cluster. The results of the configuration
+and health checks can be seen in the `status` section of the CephCluster CR.
+
+```
+kubectl -n rook-ceph get CephCluster -o yaml
+```
+
+```yaml
+  ...
+  status:
+    ceph:
+      health: HEALTH_OK
+      lastChecked: "2021-03-02T21:22:11Z"
+      capacity:
+        bytesAvailable: 22530293760
+        bytesTotal: 25757220864
+        bytesUsed: 3226927104
+        lastUpdated: "2021-03-02T21:22:11Z"
+    message: Cluster created successfully
+    phase: Ready
+    state: Created
+    storage:
+      deviceClasses:
+      - name: hdd
+    version:
+      image: ceph/ceph:v15
+      version: 15.2.9-0
+    conditions:
+    - lastHeartbeatTime: "2021-03-02T21:22:11Z"
+      lastTransitionTime: "2021-03-02T21:21:09Z"
+      message: Cluster created successfully
+      reason: ClusterCreated
+      status: "True"
+      type: Ready
+```
+
+### Ceph Status
+
+Ceph is constantly monitoring the health of the data plane and reporting back if there are
+any warnings or errors. If everything is healthy from Ceph's perspective, you will see
+`HEALTH_OK`.
+
+If Ceph reports any warnings or errors, the details will be printed to the status.
+If further troubleshooting is needed to resolve these issues, the toolbox will likely
+be needed where you can run `ceph` commands to find more details.
+
+The `capacity` of the cluster is reported, including bytes available, total, and used.
+The available space will be less that you may expect due to overhead in the OSDs.
+
+### Conditions
+
+The `conditions` represent the status of the Rook operator.
+- If the cluster is fully configured and the operator is stable, the
+  `Ready` condition is raised with `ClusterCreated` reason and no other conditions. The cluster
+  will remain in the `Ready` condition after the first successful configuration since it
+  is expected the storage is consumable from this point on. If there are issues preventing
+  the storage layer from working, they are expected to show as Ceph health errors.
+- If the cluster is externally connected successfully, the `Ready` condition will have the reason `ClusterConnected`.
+- If the operator is currently being configured or the operator is checking for update,
+  there will be a `Progressing` condition.
+- If there was a failure, the condition(s) status will be `false` and the `message` will
+  give a summary of the error. See the operator log for more details.
+
+### Other Status
+
+There are several other properties for the overall status including:
+- `message`, `phase`, and `state`: A summary of the overall current state of the cluster, which
+  is somewhat duplicated from the conditions for backward compatibility.
+- `storage.deviceClasses`: The names of the types of storage devices that Ceph discovered
+  in the cluster. These types will be `ssd` or `hdd` unless they have been overridden
+  with the `crushDeviceClass` in the `storageClassDeviceSets`.
+- `version`: The version of the Ceph image currently deployed.
+
 ## Samples
 
 Here are several samples for configuring Ceph clusters. Each of the samples must also include the namespace and corresponding access granted for management by the Ceph operator. See the [common cluster resources](#common-cluster-resources) below.
@@ -668,7 +705,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v15.2.8
+    image: ceph/ceph:v15.2.9
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -700,7 +737,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v15.2.8
+    image: ceph/ceph:v15.2.9
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -741,7 +778,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v15.2.8
+    image: ceph/ceph:v15.2.9
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -788,7 +825,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v15.2.8
+    image: ceph/ceph:v15.2.9
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -891,7 +928,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v15.2.8
+    image: ceph/ceph:v15.2.9
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -937,7 +974,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v15.2.8
+    image: ceph/ceph:v15.2.9
     allowUnsupported: false
   dashboard:
     enabled: true
@@ -1350,7 +1387,7 @@ spec:
     enable: true
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: ceph/ceph:v15.2.8 # Should match external cluster version
+    image: ceph/ceph:v15.2.9 # Should match external cluster version
 ```
 
 ### Cleanup policy
@@ -1414,7 +1451,7 @@ security:
       KMS_PROVIDER: vault
       VAULT_ADDR: https://vault.default.svc.cluster.local:8200
       VAULT_BACKEND_PATH: rook
-      VAULT_BACKEND: kv
+      VAULT_SECRET_ENGINE: kv
     # name of the k8s secret containing the kms authentication token
     tokenSecretName: rook-vault-token
 ```
@@ -1512,7 +1549,7 @@ Communications will remain encrypted but the validity of the certificate will no
 
 For RGW, please note the following:
 
-* `VAULT_BACKEND` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit).
+* `VAULT_SECRET_ENGINE` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit).
 * The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption
 ```console
 # kv engine

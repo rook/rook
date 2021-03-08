@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -27,7 +28,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -109,6 +109,13 @@ func (c *cephStatusChecker) checkStatus() {
 
 	logger.Debugf("checking health of cluster")
 
+	condition := cephv1.ConditionReady
+	reason := cephv1.ClusterCreatedReason
+	if c.isExternal {
+		condition = cephv1.ConditionConnected
+		reason = cephv1.ClusterConnectedReason
+	}
+
 	// Check ceph's status
 	status, err = cephclient.StatusWithUser(c.context, c.clusterInfo)
 	if err != nil {
@@ -117,18 +124,22 @@ func (c *cephStatusChecker) checkStatus() {
 			return
 		}
 		logger.Errorf("failed to get ceph status. %v", err)
-		condition, reason, message := c.conditionMessageReason(cephv1.ConditionFailure)
-		if err := c.updateCephStatus(cephStatusOnError(err.Error()), condition, reason, message); err != nil {
-			logger.Errorf("failed to query cluster status in namespace %q. %v", c.clusterInfo.Namespace, err)
+
+		message := "Failed to configure ceph cluster"
+		if c.isExternal {
+			message = "Failed to configure external ceph cluster"
 		}
+		status := cephStatusOnError(err.Error())
+		c.updateCephStatus(status, condition, reason, message, v1.ConditionFalse)
 		return
 	}
 
 	logger.Debugf("cluster status: %+v", status)
-	condition, reason, message := c.conditionMessageReason(cephv1.ConditionReady)
-	if err := c.updateCephStatus(&status, condition, reason, message); err != nil {
-		logger.Errorf("failed to query cluster status in namespace %q. %v", c.clusterInfo.Namespace, err)
+	message := "Cluster created successfully"
+	if c.isExternal {
+		message = "Cluster connected successfully"
 	}
+	c.updateCephStatus(&status, condition, reason, message, v1.ConditionTrue)
 
 	if status.Health.Status != "HEALTH_OK" {
 		logger.Debug("checking for stuck pods on not ready nodes")
@@ -139,30 +150,24 @@ func (c *cephStatusChecker) checkStatus() {
 }
 
 // updateStatus updates an object with a given status
-func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, condition cephv1.ConditionType, reason, message string) error {
-	ctx := context.TODO()
+func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, condition cephv1.ConditionType, reason cephv1.ClusterReasonType, message string, conditionStatus v1.ConditionStatus) {
 	clusterName := c.clusterInfo.NamespacedName()
-	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(ctx, clusterName.Name, metav1.GetOptions{})
+	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(context.TODO(), clusterName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
-			return nil
+			return
 		}
-		return errors.Wrapf(err, "failed to retrieve ceph cluster %q in namespace %q to update status to %+v", clusterName.Name, clusterName.Namespace, status)
+		logger.Errorf("failed to retrieve ceph cluster %q in namespace %q to update status to %+v", clusterName.Name, clusterName.Namespace, status)
+		return
 	}
 
 	// Update with Ceph Status
 	cephCluster.Status.CephStatus = toCustomResourceStatus(cephCluster.Status, status)
-	cephCluster.Status.Phase = condition
-	if err := opcontroller.UpdateStatus(c.client, cephCluster); err != nil {
-		return errors.Wrapf(err, "failed to update cluster %q status", clusterName.Namespace)
-	}
 
 	// Update condition
-	config.ConditionExport(c.context, c.clusterInfo.NamespacedName(), condition, v1.ConditionTrue, reason, message)
-
-	logger.Debugf("ceph cluster %q status and condition updated to %+v, %v, %s, %s", clusterName.Namespace, status, v1.ConditionTrue, reason, message)
-	return nil
+	logger.Debugf("updating ceph cluster %q status and condition to %+v, %v, %s, %s", clusterName.Namespace, status, conditionStatus, reason, message)
+	opcontroller.UpdateClusterCondition(c.context, cephCluster, c.clusterInfo.NamespacedName(), condition, conditionStatus, reason, message, true)
 }
 
 // toCustomResourceStatus converts the ceph status to the struct expected for the CephCluster CR status
@@ -248,29 +253,6 @@ func cephStatusOnError(errorMessage string) *cephclient.CephStatus {
 	}
 }
 
-func (c *cephStatusChecker) conditionMessageReason(condition cephv1.ConditionType) (cephv1.ConditionType, string, string) {
-	var reason, message string
-
-	switch condition {
-	case cephv1.ConditionFailure:
-		reason = "ClusterFailure"
-		message = "Failed to configure ceph cluster"
-		if c.isExternal {
-			message = "Failed to configure external ceph cluster"
-		}
-	case cephv1.ConditionReady:
-		reason = "ClusterCreated"
-		message = "Cluster created successfully"
-		if c.isExternal {
-			condition = cephv1.ConditionConnected
-			reason = "ClusterConnected"
-			message = "Cluster connected successfully"
-		}
-	}
-
-	return condition, reason, message
-}
-
 // forceDeleteStuckPodsOnNotReadyNodes lists all the nodes that are in NotReady state and
 // gets all the pods on the failed node and force delete the pods stuck in terminating state.
 func (c *cephStatusChecker) forceDeleteStuckRookPodsOnNotReadyNodes() error {
@@ -300,17 +282,21 @@ func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
 		"csi-cephfsplugin-provisioner",
 		"csi-cephfsplugin",
 		"rook-ceph-operator",
+		"rook-ceph-mon",
+		"rook-ceph-osd",
+		"rook-ceph-crashcollector",
+		"rook-ceph-mgr",
+		"rook-ceph-mds",
 	}
 	podsOnNode := []v1.Pod{}
-	pods, err := c.context.Clientset.CoreV1().Pods(clusterName.Namespace).List(context.TODO(), metav1.ListOptions{})
+	listOpts := metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("spec.nodeName=%s", node),
+	}
+	pods, err := c.context.Clientset.CoreV1().Pods(clusterName.Namespace).List(context.TODO(), listOpts)
 	if err != nil {
 		return podsOnNode, errors.Wrapf(err, "failed to get pods on node %q", node)
 	}
 	for _, pod := range pods.Items {
-		if pod.Labels["rook_cluster"] == clusterName.Name {
-			podsOnNode = append(podsOnNode, pod)
-			continue
-		}
 		for _, label := range appLabels {
 			if pod.Labels["app"] == label {
 				podsOnNode = append(podsOnNode, pod)

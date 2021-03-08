@@ -161,17 +161,6 @@ spec:
                   type: string
                 config: {}
                 storageClassDeviceSets: {}
-            driveGroups:
-              type: array
-              items:
-                properties:
-                  name:
-                    type: string
-                  spec: {}
-                  placement: {}
-                required:
-                - name
-                - spec
             monitoring:
               properties:
                 enabled:
@@ -547,10 +536,17 @@ spec:
               properties:
                 bucket:
                   properties:
-                    enabled:
+                    disabled:
                       type: boolean
                     interval:
                       type: string
+                    timeout:
+                      type: string
+                livenessProbe:
+                  type: object
+                  properties:
+                    disabled:
+                      type: boolean
   subresources:
     status: {}
 

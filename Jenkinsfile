@@ -238,7 +238,6 @@ def RunIntegrationTest(k, v) {
                                   STORAGE_PROVIDER_TESTS='''+"${env.testProvider}"+''' \
                                   TEST_ARGUMENTS='''+"${env.testArgs}"+''' \
                                   TEST_IS_OFFICIAL_BUILD='''+"${env.isOfficialBuild}"+''' \
-                                  TEST_OSDS_ON_PARTITIONS="false" \
                                   TEST_SCRATCH_DEVICE=/dev/nvme0n1
                               kubectl config view
                               _output/tests/linux_amd64/integration -test.v -test.timeout 7200s 2>&1 | tee _output/tests/integrationTests.log'''

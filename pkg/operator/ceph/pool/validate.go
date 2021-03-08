@@ -46,6 +46,12 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo
 		return errors.New("both replication and erasure code settings cannot be specified")
 	}
 
+	if p.FailureDomain != "" && p.Replicated.SubFailureDomain != "" {
+		if p.FailureDomain == p.Replicated.SubFailureDomain {
+			return errors.New("failure and subfailure domain cannot be identical")
+		}
+	}
+
 	// validate pools for stretch clusters
 	if clusterSpec.IsStretchCluster() {
 		if p.IsReplicated() {

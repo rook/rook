@@ -40,6 +40,7 @@ import (
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -145,8 +146,6 @@ type osdProperties struct {
 	schedulerName       string
 	encrypted           bool
 	deviceSetName       string
-	// Drive Groups which apply to the node
-	driveGroups cephv1.DriveGroupsSpec
 }
 
 func (osdProps osdProperties) onPVC() bool {
@@ -181,8 +180,8 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("start running osds in namespace %s", c.clusterInfo.Namespace)
 
-	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 && len(c.spec.Storage.VolumeSources) == 0 && len(c.spec.Storage.StorageClassDeviceSets) == 0 && len(c.spec.DriveGroups) == 0 {
-		logger.Warningf("useAllNodes is set to false and no nodes, driveGroups, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
+	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 && len(c.spec.Storage.VolumeSources) == 0 && len(c.spec.Storage.StorageClassDeviceSets) == 0 {
+		logger.Warningf("useAllNodes is set to false and no nodes, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
 	}
 
 	if c.spec.WaitTimeoutForHealthyOSDInMinutes != 0 {
@@ -398,22 +397,6 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig) {
 		return
 	}
 
-	// Only provision nodes with either the 'storage' config or the 'driveGroups'; not both
-	// If Drive Groups are configured, always use those
-	// This should not apply to OSDs on PVCs; those can be configured alongside Drive Groups
-	if len(c.spec.DriveGroups) > 0 {
-		c.startNodeDriveGroupProvisioners(config)
-	} else {
-		c.startNodeStorageProvisioners(config)
-	}
-
-	logger.Infof("start osds after provisioning is completed, if needed")
-	c.completeProvision(config)
-}
-
-func (c *Cluster) startNodeStorageProvisioners(config *provisionConfig) {
-	logger.Debug("starting provisioning on nodes using storage config")
-
 	if c.spec.Storage.UseAllNodes {
 		if len(c.spec.Storage.Nodes) > 0 {
 			logger.Warningf("useAllNodes is TRUE, but nodes are specified. NODES in the cluster CR will be IGNORED unless useAllNodes is FALSE.")
@@ -468,6 +451,10 @@ func (c *Cluster) startNodeStorageProvisioners(config *provisionConfig) {
 			continue
 		}
 
+		// update the orchestration status of this node to the starting state
+		status := OrchestrationStatus{Status: OrchestrationStatusStarting}
+		c.updateOSDStatus(n.Name, status)
+
 		// create the job that prepares osds on the node
 		storeConfig := osdconfig.ToStoreConfig(n.Config)
 		metadataDevice := osdconfig.MetadataDevice(n.Config)
@@ -479,85 +466,22 @@ func (c *Cluster) startNodeStorageProvisioners(config *provisionConfig) {
 			storeConfig:    storeConfig,
 			metadataDevice: metadataDevice,
 		}
-		c.makeAndRunJob(n.Name, "provision", osdProps, config)
-	}
-}
-
-func (c *Cluster) startNodeDriveGroupProvisioners(config *provisionConfig) {
-	ctx := context.TODO()
-	logger.Debug("starting provisioning on nodes using Drive Groups config")
-
-	if c.spec.Storage.UseAllNodes {
-		logger.Warningf("The user has specified useAllNodes=true in the storage config. This will be ignored because driveGroups are configured.")
-	}
-	if len(c.spec.Storage.Nodes) > 0 {
-		logger.Warningf("The user has specified nodes in the storage config. This will be ignored because driveGroups are configured.")
-	}
-
-	nodes, err := c.context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		config.addError("failed to get all nodes: %v", err)
-		return
-	}
-
-	// With Drive Groups, we effectively treat it as though the user has specified
-	// 'useAllNodes: true` because we want the Drive Groups' placements to determine whether the
-	// DGroups are configured on a node
-	c.spec.Storage.Nodes = nil
-
-	sanitizedDGs := SanitizeDriveGroups(c.spec.DriveGroups)
-
-	// Drive Groups should considered on every node in the k8s cluster; each drive group's
-	// 'placement' should be the selector for placement across all of K8s' nodes and not be affected
-	// by node selections in the 'storage' config
-	for _, n := range nodes.Items {
-		normalizedHostname := k8sutil.GetNormalizedHostname(n)
-		storageNode := rookv1.Node{
-			Name: normalizedHostname,
-		}
-		c.spec.Storage.Nodes = append(c.spec.Storage.Nodes, storageNode)
-		localnode := n
-		groups, err := DriveGroupsWithPlacementMatchingNode(sanitizedDGs, &localnode)
+		job, err := c.makeJob(osdProps, config)
 		if err != nil {
-			config.addError("failed to determine drive groups with placement matching node %q (hostname: %q): %+v", n.Name, normalizedHostname, err)
-			continue
+			message := fmt.Sprintf("failed to create prepare job node %q. %v", n.Name, err)
+			config.addError(message)
+			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
+			c.updateOSDStatus(n.Name, status)
 		}
 
-		if len(groups) == 0 {
-			logger.Debugf("skipping drive group provisioning on node %q (hostname: %q). no drive groups match node or node is not ready/schedulable", n.Name, normalizedHostname)
-			continue
+		if !c.runJob(job, n.Name, config, "provision") {
+			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd provisioning job on node %s", n.Name)}
+			c.updateOSDStatus(n.Name, status)
 		}
-
-		osdProps := osdProperties{
-			crushHostname: normalizedHostname,
-			driveGroups:   groups,
-		}
-		c.makeAndRunJob(normalizedHostname, "provision drive groups", osdProps, config)
 	}
 
-	// With Drive Groups, any node *could* be valid, and we need to do this so nodes resolve when
-	// starting OSD daemons. Each DGroup's individual placement will determine if the group is valid
-	// for a given node.
-	c.ValidStorage = *c.spec.Storage.DeepCopy()
-}
-
-func (c *Cluster) makeAndRunJob(nodeName, action string, osdProps osdProperties, config *provisionConfig) {
-	// update the orchestration status of this node to the starting state
-	status := OrchestrationStatus{Status: OrchestrationStatusStarting}
-	c.updateOSDStatus(nodeName, status)
-
-	job, err := c.makeJob(osdProps, config)
-	if err != nil {
-		message := fmt.Sprintf("failed to create OSD %s job for node %q. %v", action, nodeName, err)
-		config.addError(message)
-		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-		c.updateOSDStatus(nodeName, status)
-	}
-
-	if !c.runJob(job, nodeName, config, action) {
-		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to start osd %s job on node %s", action, nodeName)}
-		c.updateOSDStatus(nodeName, status)
-	}
+	logger.Infof("start osds after provisioning is completed, if needed")
+	c.completeProvision(config)
 }
 
 func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
@@ -589,15 +513,6 @@ func (c *Cluster) startOSDDaemonsOnPVC(pvcName string, config *provisionConfig, 
 	// start osds
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
-
-		// keyring must be generated before deployment creation in order to avoid a race condition resulting
-		// in intermittent failure of first-attempt OSD pods.
-		_, err := c.generateKeyring(osd.ID)
-		if err != nil {
-			errMsg := fmt.Sprintf("failed to create keyring for pvc %q, osd %v. %v", osdProps.crushHostname, osd, err)
-			config.addError(errMsg)
-			continue
-		}
 
 		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
@@ -658,16 +573,8 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 	// start osds
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
-		opconfig.ConditionExport(c.context, c.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, "ClusterProgressing", fmt.Sprintf("Processing node %s osd %d", nodeName, osd.ID))
-
-		// keyring must be generated before deployment creation in order to avoid a race condition resulting
-		// in intermittent failure of first-attempt OSD pods.
-		_, err := c.generateKeyring(osd.ID)
-		if err != nil {
-			errMsg := fmt.Sprintf("failed to create keyring for node %q, osd %v. %v", n.Name, osd, err)
-			config.addError(errMsg)
-			continue
-		}
+		message := fmt.Sprintf("Processing OSD %d on node %q", osd.ID, nodeName)
+		opcontroller.UpdateCondition(c.context, c.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 
 		dp, err := c.makeDeployment(osdProps, osd, config)
 		if err != nil {
