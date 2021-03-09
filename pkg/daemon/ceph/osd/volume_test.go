@@ -331,6 +331,7 @@ func TestConfigureCVDevices(t *testing.T) {
 
 	// Test case for creating new raw mode OSD on LV-backed PVC
 	{
+		t.Log("Test case for creating new raw mode OSD on LV-backed PVC")
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutputFile = func(command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
@@ -360,7 +361,7 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithCombinedOutput] %s %v", command, args)
 			if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[6] == mapperDev {
-				return initializeBlockPVCTestResult, nil
+				return "", nil
 			}
 			if contains(args, "lvm") && contains(args, "list") {
 				return `{}`, nil
@@ -375,9 +376,7 @@ func TestConfigureCVDevices(t *testing.T) {
 		}
 		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true}
 		devices := createPVCAvailableDevices()
-
 		deviceOSDs, err := agent.configureCVDevices(context, devices)
-
 		assert.Nil(t, err)
 		assert.Len(t, deviceOSDs, 1)
 		deviceOSD := deviceOSDs[0]
@@ -392,6 +391,7 @@ func TestConfigureCVDevices(t *testing.T) {
 
 	{
 		// Test case for tending to create new lvm mode OSD on LV-backed PVC, but it catches an error
+		t.Log("Test case for tending to create new lvm mode OSD on LV-backed PVC, but it catches an error")
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
@@ -423,6 +423,7 @@ func TestConfigureCVDevices(t *testing.T) {
 
 	{
 		// Test case for with no available lvm mode OSD and existing raw mode OSD on LV-backed PVC, it should return info of raw mode OSD
+		t.Log("Test case for with no available lvm mode OSD and existing raw mode OSD on LV-backed PVC, it should return info of raw mode OSD")
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
@@ -474,6 +475,7 @@ func TestConfigureCVDevices(t *testing.T) {
 
 	{
 		// Test case for a lvm mode OSD on LV-backed PVC, it should return info of lvm mode OSD
+		t.Log("Test case for a lvm mode OSD on LV-backed PVC, it should return info of lvm mode OSD")
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
@@ -1311,4 +1313,50 @@ func contains(arr []string, str string) bool {
 		}
 	}
 	return false
+}
+
+func TestAppendOSDInfo(t *testing.T) {
+	// Set 1: duplicate entries
+	{
+		currentOSDs := []oposd.OSDInfo{
+			{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/ceph-48b22180-8358-4ab4-aec0-3fb83a20328b/osd-block-275950b5-dcb3-4c3e-b0df-014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/ceph-140a1344-636d-4442-85b3-bb3cd18ca002/osd-block-3206c1c0-7ea2-412b-bd42-708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/ceph-0c466524-57a3-4e5f-b4e3-04538ff0aced/osd-block-7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+		}
+		newOSDs := []oposd.OSDInfo{
+			{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--0c466524--57a3--4e5f--b4e3--04538ff0aced-osd--block--7ea5e98b--755c--4837--a2a3--9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--48b22180--8358--4ab4--aec0--3fb83a20328b-osd--block--275950b5--dcb3--4c3e--b0df--014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/mapper/ceph--140a1344--636d--4442--85b3--bb3cd18ca002-osd--block--3206c1c0--7ea2--412b--bd42--708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+		}
+		trimmedOSDs := appendOSDInfo(currentOSDs, newOSDs)
+		assert.Equal(t, 3, len(trimmedOSDs))
+		assert.NotContains(t, trimmedOSDs[0].BlockPath, "mapper")
+	}
+
+	// Set 2: no duplicate entries, just a mix of RAW and LVM OSDs should not trim anything
+	{
+		currentOSDs := []oposd.OSDInfo{
+			{ID: 0, Cluster: "ceph", UUID: "275950b5-dcb3-4c3e-b0df-014b16755dc5", DevicePartUUID: "", BlockPath: "/dev/ceph-48b22180-8358-4ab4-aec0-3fb83a20328b/osd-block-275950b5-dcb3-4c3e-b0df-014b16755dc5", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 1, Cluster: "ceph", UUID: "3206c1c0-7ea2-412b-bd42-708cfe5e4acb", DevicePartUUID: "", BlockPath: "/dev/ceph-140a1344-636d-4442-85b3-bb3cd18ca002/osd-block-3206c1c0-7ea2-412b-bd42-708cfe5e4acb", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 2, Cluster: "ceph", UUID: "7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", DevicePartUUID: "", BlockPath: "/dev/ceph-0c466524-57a3-4e5f-b4e3-04538ff0aced/osd-block-7ea5e98b-755c-4837-a2a3-9ad61e67cf6f", MetadataPath: "", WalPath: "", SkipLVRelease: false, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "lvm", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+		}
+		newOSDs := []oposd.OSDInfo{
+			{ID: 3, Cluster: "ceph", UUID: "35e61dbc-4455-45fd-b5c8-39be2a29db02", DevicePartUUID: "", BlockPath: "/dev/sdb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 4, Cluster: "ceph", UUID: "f5c0ce2c-76ee-4cbf-94df-9e480da6c614", DevicePartUUID: "", BlockPath: "/dev/sdd", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 5, Cluster: "ceph", UUID: "4aadb152-2b30-477a-963e-44447ded6a66", DevicePartUUID: "", BlockPath: "/dev/sde", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+		}
+		trimmedOSDs := appendOSDInfo(currentOSDs, newOSDs)
+		assert.Equal(t, 6, len(trimmedOSDs))
+	}
+	// Set 3: no current OSDs (no LVM, just RAW)
+	{
+		currentOSDs := []oposd.OSDInfo{}
+		newOSDs := []oposd.OSDInfo{
+			{ID: 3, Cluster: "ceph", UUID: "35e61dbc-4455-45fd-b5c8-39be2a29db02", DevicePartUUID: "", BlockPath: "/dev/sdb", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 4, Cluster: "ceph", UUID: "f5c0ce2c-76ee-4cbf-94df-9e480da6c614", DevicePartUUID: "", BlockPath: "/dev/sdd", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+			{ID: 5, Cluster: "ceph", UUID: "4aadb152-2b30-477a-963e-44447ded6a66", DevicePartUUID: "", BlockPath: "/dev/sde", MetadataPath: "", WalPath: "", SkipLVRelease: true, Location: "root=default host=minikube rack=rack1 zone=b", LVBackedPV: false, CVMode: "raw", Store: "bluestore", TopologyAffinity: "topology.rook.io/rack=rack1"},
+		}
+		trimmedOSDs := appendOSDInfo(currentOSDs, newOSDs)
+		assert.Equal(t, 3, len(trimmedOSDs))
+	}
 }
