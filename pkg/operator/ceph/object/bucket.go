@@ -80,6 +80,7 @@ func bucketStatsFromRGW(stats rgwBucketStats) ObjectBucketStats {
 
 func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, error) {
 	result, err := runAdminCommand(c,
+		true,
 		"bucket",
 		"stats",
 		"--bucket", bucketName)
@@ -104,6 +105,7 @@ func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, er
 
 func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
 	result, err := runAdminCommand(c,
+		true,
 		"bucket",
 		"stats")
 	if err != nil {
@@ -126,6 +128,7 @@ func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
 
 func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, error) {
 	result, err := runAdminCommand(c,
+		false,
 		"metadata",
 		"get",
 		"bucket:"+bucket)
@@ -136,6 +139,10 @@ func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, 
 	if strings.Contains(result, "can't get key") {
 		return nil, true, errors.New("not found")
 	}
+	match, err := extractJSON(result)
+	if err != nil {
+		return nil, false, errors.Wrapf(err, "failed to read buckets list result=%s", result)
+	}
 
 	var s struct {
 		Data struct {
@@ -143,8 +150,8 @@ func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, 
 			CreationTime string `json:"creation_time"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal([]byte(result), &s); err != nil {
-		return nil, false, errors.Wrapf(err, "failed to read buckets list result=%s", result)
+	if err := json.Unmarshal([]byte(match), &s); err != nil {
+		return nil, false, errors.Wrapf(err, "failed to read buckets list result=%s", match)
 	}
 
 	timeParser := octopusAndAfterTime
@@ -216,7 +223,7 @@ func DeleteObjectBucket(c *Context, bucketName string, purge bool) (int, error) 
 		options = append(options, "--purge-objects")
 	}
 
-	result, err := runAdminCommand(c, options...)
+	result, err := runAdminCommand(c, false, options...)
 	if err != nil {
 		return RGWErrorUnknown, errors.Wrap(err, "failed to delete bucket")
 	}
