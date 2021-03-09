@@ -159,60 +159,62 @@ set -e
 
 KEK_NAME=%s
 KEY_PATH=%s
-VAULT_DEFAULT_KV_VERS=v1
 CURL_PAYLOAD=$(mktemp)
 ARGS=(--silent --show-error --request GET --header "X-Vault-Token: ${VAULT_TOKEN}")
+PYTHON_DATA_PARSE="['data']"
 
 # If a vault namespace is set
 if [ -n "$VAULT_NAMESPACE" ]; then
-	ARGS+=(--header "X-Vault-Namespace: ${VAULT_NAMESPACE}")
+  ARGS+=(--header "X-Vault-Namespace: ${VAULT_NAMESPACE}")
 fi
 
 # If SSL is configured but self-signed CA is used
 if [ -n "$VAULT_SKIP_VERIFY" ] && [[ "$VAULT_SKIP_VERIFY" == "true" ]]; then
-	ARGS+=(--insecure)
+  ARGS+=(--insecure)
 fi
 
 # TLS args
 if [ -n "$VAULT_CACERT" ]; then
-	ARGS+=(--capath $(dirname "${VAULT_CACERT}"))
+  ARGS+=(--capath $(dirname "${VAULT_CACERT}"))
 fi
 if [ -n "$VAULT_CLIENT_CERT" ]; then
-	ARGS+=(--cert "${VAULT_CLIENT_CERT}")
+  ARGS+=(--cert "${VAULT_CLIENT_CERT}")
 fi
 if [ -n "$VAULT_CLIENT_KEY" ]; then
-	ARGS+=(--key "${VAULT_CLIENT_KEY}")
+  ARGS+=(--key "${VAULT_CLIENT_KEY}")
 fi
 
-# For a request to any host/port, connect to VAULT_TLS_SERVER_NAME:request's original port instead
+# For a request to any host/port, connect to VAULT_TLS_SERVER_NAME:requests original port instead
 # Used for SNI validation and correct certificate matching
 if [ -n "$VAULT_TLS_SERVER_NAME" ]; then
-	ARGS+=(--connect-to ::"${VAULT_TLS_SERVER_NAME}":)
+  ARGS+=(--connect-to ::"${VAULT_TLS_SERVER_NAME}":)
 fi
 
 # Check KV engine version
-if [ -z "$VAULT_BACKEND" ]; then
-	VAULT_BACKEND=$VAULT_DEFAULT_KV_VERS
+if [[ "$VAULT_BACKEND" == "v2" ]]; then
+  PYTHON_DATA_PARSE="['data']['data']"
+  VAULT_BACKEND_PATH="$VAULT_BACKEND_PATH/data"
 fi
 
+
 # Get the Key Encryption Key
-curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_BACKEND"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
+curl "${ARGS[@]}" "$VAULT_ADDR"/v1/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
 
 # Check for warnings in the payload
 if python3 -c "import sys, json; print(json.load(sys.stdin)[\"warnings\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
-	# We could get a warning but it is not necessary an issue, so if there is no key we exit
-	if ! python3 -c "import sys, json; print(json.load(sys.stdin)[\"data\"][\"$KEK_NAME\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
-		exit 1
-	fi
+  # We could get a warning but it is not necessary an issue, so if there is no key we exit
+  if ! python3 -c "import sys, json; print(json.load(sys.stdin)${PYTHON_DATA_PARSE}[\"$KEK_NAME\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
+    exit 1
+  fi
 fi
 
 # Check for errors in the payload
 if python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
-	exit 1
+  exit 1
 fi
 
 # Put the KEK in a file for cryptsetup to read
-python3 -c "import sys, json; print(json.load(sys.stdin)[\"data\"][\"$KEK_NAME\"], end='')" < "$CURL_PAYLOAD" > "$KEY_PATH"
+python3 -c "import sys, json; print(json.load(sys.stdin)${PYTHON_DATA_PARSE}[\"$KEK_NAME\"], end='')" < "$CURL_PAYLOAD" > "$KEY_PATH"
 `
 
 	// If the disk identifier changes (different major and minor) we must force copy
