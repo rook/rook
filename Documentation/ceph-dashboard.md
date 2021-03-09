@@ -30,10 +30,13 @@ This example shows that port 8443 was configured.
 
 ```console
 kubectl -n rook-ceph get service
-NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-rook-ceph-mgr                ClusterIP   10.108.111.192   <none>        9283/TCP         3h
-rook-ceph-mgr-dashboard      ClusterIP   10.110.113.240   <none>        8443/TCP         3h
 ```
+
+>```
+>NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+>rook-ceph-mgr                ClusterIP   10.108.111.192   <none>        9283/TCP         3h
+>rook-ceph-mgr-dashboard      ClusterIP   10.110.113.240   <none>        8443/TCP         3h
+>```
 
 The first service is for reporting the [Prometheus metrics](ceph-monitoring.md), while the latter service is for the dashboard.
 If you are on a node in the cluster, you will be able to connect to the dashboard by using either the
@@ -119,12 +122,15 @@ kubectl create -f dashboard-external-https.yaml
 You will see the new service `rook-ceph-mgr-dashboard-external-https` created:
 
 ```console
-$ kubectl -n rook-ceph get service
-NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-rook-ceph-mgr                           ClusterIP   10.108.111.192   <none>        9283/TCP         4h
-rook-ceph-mgr-dashboard                 ClusterIP   10.110.113.240   <none>        8443/TCP         4h
-rook-ceph-mgr-dashboard-external-https  NodePort    10.101.209.6     <none>        8443:31176/TCP   4h
+kubectl -n rook-ceph get service
 ```
+
+>```
+>NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+>rook-ceph-mgr                           ClusterIP   10.108.111.192   <none>        9283/TCP         4h
+>rook-ceph-mgr-dashboard  this is long video b               ClusterIP   10.110.113.240   <none>        8443/TCP         4h
+>rook-ceph-mgr-dashboard-external-https  NodePort    10.101.209.6     <none>        8443:31176/TCP   4h
+>```
 
 In this example, port `31176` will be opened to expose port `8443` from the ceph-mgr pod. Find the ip address
 of the VM. If using minikube, you can run `minikube ip` to find the ip address.
@@ -151,12 +157,15 @@ kubectl create -f dashboard-loadbalancer.yaml
 You will see the new service `rook-ceph-mgr-dashboard-loadbalancer` created:
 
 ```console
-$ kubectl -n rook-ceph get service
-NAME                                     TYPE           CLUSTER-IP       EXTERNAL-IP                                                               PORT(S)             AGE
-rook-ceph-mgr                            ClusterIP      172.30.11.40     <none>                                                                    9283/TCP            4h
-rook-ceph-mgr-dashboard                  ClusterIP      172.30.203.185   <none>                                                                    8443/TCP            4h
-rook-ceph-mgr-dashboard-loadbalancer     LoadBalancer   172.30.27.242    a7f23e8e2839511e9b7a5122b08f2038-1251669398.us-east-1.elb.amazonaws.com   8443:32747/TCP      4h
+kubectl -n rook-ceph get service
 ```
+
+>```
+>NAME                                     TYPE           CLUSTER-IP       EXTERNAL-IP                                                               PORT(S)             AGE
+>rook-ceph-mgr                            ClusterIP      172.30.11.40     <none>                                                                    9283/TCP            4h
+>rook-ceph-mgr-dashboard                  ClusterIP      172.30.203.185   <none>                                                                    8443/TCP            4h
+>rook-ceph-mgr-dashboard-loadbalancer     LoadBalancer   172.30.27.242    a7f23e8e2839511e9b7a5122b08f2038-1251669398.us-east-1.elb.amazonaws.com   8443:32747/TCP      4h
+>```
 
 Now you can enter the URL in your browser such as `https://a7f23e8e2839511e9b7a5122b08f2038-1251669398.us-east-1.elb.amazonaws.com:8443` and the dashboard will appear.
 
@@ -210,17 +219,23 @@ kubectl create -f dashboard-ingress-https.yaml
 You will see the new Ingress `rook-ceph-mgr-dashboard` created:
 
 ```console
-$ kubectl -n rook-ceph get ingress
-NAME                      HOSTS                      ADDRESS   PORTS     AGE
-rook-ceph-mgr-dashboard   rook-ceph.example.com      80, 443   5m
+kubectl -n rook-ceph get ingress
 ```
+
+>```
+>NAME                      HOSTS                      ADDRESS   PORTS     AGE
+>rook-ceph-mgr-dashboard   rook-ceph.example.com      80, 443   5m
+>```
 
 And the new Secret for the TLS certificate:
 
 ```console
-$ kubectl -n rook-ceph get secret rook-ceph.example.com
-NAME                       TYPE                DATA      AGE
-rook-ceph.example.com      kubernetes.io/tls   2         4m
+kubectl -n rook-ceph get secret rook-ceph.example.com
 ```
+
+>```
+>NAME                       TYPE                DATA      AGE
+>rook-ceph.example.com      kubernetes.io/tls   2         4m
+>```
 
 You can now browse to `https://rook-ceph.example.com/` to log into the dashboard.

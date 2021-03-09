@@ -37,7 +37,7 @@ kubectl create -f ceph-object-realm.yaml
     - A [ceph-object-zone](/design/ceph/object/ceph-object-zone.md) referring to the ceph-object-zone-group resource.
     - A [ceph-object-store](/design/ceph/object/ceph-object-store.md) referring to the ceph-object-zone resource.
 
-The order in which these resources are created is not important. 
+The order in which these resources are created is not important.
 
 3. Once all of the resources from step #2 are started up, the operator will create a realm on the Rook Ceph cluster and the ceph-realm resource will be running.
 
@@ -66,11 +66,11 @@ spec:
 ```
 
 Now create the ceph-object-realm
-```bash
+```console
 kubectl create -f ceph-object-realm-pulling.yaml
 ```
 
-Once the creation of the ceph-object-realm resource has been kicked off, the realm will be pulled on the pulling cluster. 
+Once the creation of the ceph-object-realm resource has been kicked off, the realm will be pulled on the pulling cluster.
 
 If this realm pull succeeds, the ceph-object-realm resource is updated as Complete.
 
@@ -81,7 +81,7 @@ If this realm pull succeeds, the ceph-object-realm resource is updated as Comple
     1. A [ceph-object-zone](/design/ceph/ceph-object-zone.md) referring to the zone group the endpoint in the `pull` section is in.
     2. A [ceph-object-store](/design/ceph/ceph-object-store.md) referring to the newly created ceph-object-zone.
 
-The order in which these resources are created is not important. 
+The order in which these resources are created is not important.
 
 4. Once all of the resources steps #3 are started up and if the realm pull succeeds, the resource is updated as Complete and data will start syncing between the clusters.
 
@@ -91,7 +91,7 @@ The order in which these resources are created is not important.
 
 ## Deleting and Reconfiguring the Object Realm
 
-At the moment creating an ceph-object-realm resource only handles Day 1 initial configuration for the realm. 
+At the moment creating an ceph-object-realm resource only handles Day 1 initial configuration for the realm.
 
 Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
 
@@ -99,17 +99,19 @@ To be clear, when the ceph-object-realm resource is deleted or modified, the rea
 
 ### Deleting a Realm
 
-The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command. 
+The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
 
 The following command, run via the toolbox, deletes the realm.
 
-`$ radosgw-admin realm rm --rgw-realm=my-realm`
+```console
+radosgw-admin realm rm --rgw-realm=my-realm
+```
 
 ## CephObjectRealm CRD
 
 The ceph-object-realm settings are exposed to Rook as a Custom Resource Definition (CRD). The CRD is the Kubernetes-native means by which the Rook operator can watch for new resources.
 
-The name of the resource provided in the `metadata` section becomes the name of the realm. 
+The name of the resource provided in the `metadata` section becomes the name of the realm.
 
 If the `pull` section is included, the name in the `metadata` section must be the same as the realm it is trying to pull from.
 

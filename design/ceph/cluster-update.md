@@ -177,7 +177,7 @@ For each OSD to remove, the following steps should be performed:
 
 If the entire node is being removed, ensure that the host node is also removed from the CRUSH map:
 ```console
-ceph osd crush rm <host-bucket-name>
+$ ceph osd crush rm <host-bucket-name>
 ```
 
 #### Completion

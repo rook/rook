@@ -9,6 +9,7 @@ indent: true
 * [Using KVM/QEMU and Kubespray](#using-kvmqemu-and-kubespray)
 * [Using VirtualBox and k8s-vagrant-multi-node](#using-virtualbox-and-k8s-vagrant-multi-node)
 * [Using Vagrant on Linux with libvirt](#using-vagrant-on-linux-with-libvirt)
+* [Using CodeReady Containers for setting up single node openshift 4.x cluster](#using-codeready-containers-for-setting-up-single-node-openshift-4x-cluster)
 
 ## Using KVM/QEMU and Kubespray
 
@@ -71,57 +72,62 @@ vagrant up --no-provision ; vagrant provision
 
 Go grab a coffee:
 
+>```
+>PLAY RECAP *********************************************************************
+>k8s-01                     : ok=351  changed=111  unreachable=0    failed=0
+>k8s-02                     : ok=230  changed=65   unreachable=0    failed=0
+>k8s-03                     : ok=230  changed=65   unreachable=0    failed=0
+>k8s-04                     : ok=229  changed=65   unreachable=0    failed=0
+>k8s-05                     : ok=229  changed=65   unreachable=0    failed=0
+>k8s-06                     : ok=229  changed=65   unreachable=0    failed=0
+>k8s-07                     : ok=229  changed=65   unreachable=0    failed=0
+>k8s-08                     : ok=229  changed=65   unreachable=0    failed=0
+>k8s-09                     : ok=229  changed=65   unreachable=0    failed=0
+>
+>Friday 12 January 2018  10:25:45 +0100 (0:00:00.017)       0:17:24.413 ********
+>===============================================================================
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) - 192.44s
+>kubernetes/preinstall : Update package management cache (YUM) --------- 178.26s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) - 102.24s
+>docker : ensure docker packages are installed -------------------------- 57.20s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 52.33s
+>kubernetes/preinstall : Install packages requirements ------------------ 25.18s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 23.74s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 18.90s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 15.39s
+>kubernetes/master : Master | wait for the apiserver to be running ------ 12.44s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 11.83s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 11.66s
+>kubernetes/node : install | Copy kubelet from hyperkube container ------ 11.44s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 11.41s
+>download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 11.00s
+>docker : Docker | pause while Docker restarts >-------------------------- 10.22s
+>kubernetes/secrets : Check certs | check if a cert already exists on node --- 6.05s
+>kubernetes-apps/network_plugin/flannel : Flannel | Wait for flannel subnet.env file presence --- 5.33s
+>kubernetes/master : Master | wait for kube-scheduler -------------------- 5.30s
+>kubernetes/master : Copy kubectl from hyperkube container --------------- 4.77s
+>```
+```console
+vagrant ssh k8s-01
 ```
-PLAY RECAP *********************************************************************
-k8s-01                     : ok=351  changed=111  unreachable=0    failed=0
-k8s-02                     : ok=230  changed=65   unreachable=0    failed=0
-k8s-03                     : ok=230  changed=65   unreachable=0    failed=0
-k8s-04                     : ok=229  changed=65   unreachable=0    failed=0
-k8s-05                     : ok=229  changed=65   unreachable=0    failed=0
-k8s-06                     : ok=229  changed=65   unreachable=0    failed=0
-k8s-07                     : ok=229  changed=65   unreachable=0    failed=0
-k8s-08                     : ok=229  changed=65   unreachable=0    failed=0
-k8s-09                     : ok=229  changed=65   unreachable=0    failed=0
-
-Friday 12 January 2018  10:25:45 +0100 (0:00:00.017)       0:17:24.413 ********
-===============================================================================
-download : container_download | Download containers if pull is required or told to always pull (all nodes) - 192.44s
-kubernetes/preinstall : Update package management cache (YUM) --------- 178.26s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) - 102.24s
-docker : ensure docker packages are installed -------------------------- 57.20s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 52.33s
-kubernetes/preinstall : Install packages requirements ------------------ 25.18s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 23.74s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 18.90s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 15.39s
-kubernetes/master : Master | wait for the apiserver to be running ------ 12.44s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 11.83s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 11.66s
-kubernetes/node : install | Copy kubelet from hyperkube container ------ 11.44s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 11.41s
-download : container_download | Download containers if pull is required or told to always pull (all nodes) -- 11.00s
-docker : Docker | pause while Docker restarts -------------------------- 10.22s
-kubernetes/secrets : Check certs | check if a cert already exists on node --- 6.05s
-kubernetes-apps/network_plugin/flannel : Flannel | Wait for flannel subnet.env file presence --- 5.33s
-kubernetes/master : Master | wait for kube-scheduler -------------------- 5.30s
-kubernetes/master : Copy kubectl from hyperkube container --------------- 4.77s
-[leseb@tarox kubespray]$
-[leseb@tarox kubespray]$
-[leseb@tarox kubespray]$ vagrant ssh k8s-01
-Last login: Fri Jan 12 09:22:18 2018 from 192.168.121.1
-
-[vagrant@k8s-01 ~]$ kubectl get nodes
-NAME      STATUS    ROLES         AGE       VERSION
-k8s-01    Ready     master,node   2m        v1.9.0+coreos.0
-k8s-02    Ready     node          2m        v1.9.0+coreos.0
-k8s-03    Ready     node          2m        v1.9.0+coreos.0
-k8s-04    Ready     node          2m        v1.9.0+coreos.0
-k8s-05    Ready     node          2m        v1.9.0+coreos.0
-k8s-06    Ready     node          2m        v1.9.0+coreos.0
-k8s-07    Ready     node          2m        v1.9.0+coreos.0
-k8s-08    Ready     node          2m        v1.9.0+coreos.0
-k8s-09    Ready     node          2m        v1.9.0+coreos.0
+>```
+>Last login: Fri Jan 12 09:22:18 2018 from 192.168.121.1
+>```
+```console
+kubectl get nodes
 ```
+>```
+>NAME      STATUS    ROLES         AGE       VERSION
+>k8s-01    Ready     master,node   2m        v1.9.0+coreos.0
+>k8s-02    Ready     node          2m        v1.9.0+coreos.0
+>k8s-03    Ready     node          2m        v1.9.0+coreos.0
+>k8s-04    Ready     node          2m        v1.9.0+coreos.0
+>k8s-05    Ready     node          2m        v1.9.0+coreos.0
+>k8s-06    Ready     node          2m        v1.9.0+coreos.0
+>k8s-07    Ready     node          2m        v1.9.0+coreos.0
+>k8s-08    Ready     node          2m        v1.9.0+coreos.0
+>k8s-09    Ready     node          2m        v1.9.0+coreos.0
+>```
 
 ### Running the Kubernetes Dashboard UI
 
@@ -188,7 +194,7 @@ Typically, to flush your environment you will run the following from within kube
 This action will be performed on the host:
 
 ```console
-[user@host-machine kubespray]$ vagrant destroy -f
+vagrant destroy -f
 ```
 
 Also, if you were using `kubectl` on that host machine, you can resurrect your old configuration by renaming `$HOME/.kube/config.before.rook.$TIMESTAMP` with `$HOME/.kube/config`.

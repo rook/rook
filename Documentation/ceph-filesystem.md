@@ -47,24 +47,32 @@ spec:
 The Rook operator will create all the pools and other resources necessary to start the service. This may take a minute to complete.
 
 ```console
-## Create the filesystem
-$ kubectl create -f filesystem.yaml
+# Create the filesystem
+kubectl create -f filesystem.yaml
 [...]
-## To confirm the filesystem is configured, wait for the mds pods to start
-$ kubectl -n rook-ceph get pod -l app=rook-ceph-mds
-NAME                                      READY     STATUS    RESTARTS   AGE
-rook-ceph-mds-myfs-7d59fdfcf4-h8kw9       1/1       Running   0          12s
-rook-ceph-mds-myfs-7d59fdfcf4-kgkjp       1/1       Running   0          12s
 ```
+
+```console
+# To confirm the filesystem is configured, wait for the mds pods to start
+kubectl -n rook-ceph get pod -l app=rook-ceph-mds
+```
+
+>```
+>NAME                                      READY     STATUS    RESTARTS   AGE
+>rook-ceph-mds-myfs-7d59fdfcf4-h8kw9       1/1       Running   0          12s
+>rook-ceph-mds-myfs-7d59fdfcf4-kgkjp       1/1       Running   0          12s
+>```
 
 To see detailed status of the filesystem, start and connect to the [Rook toolbox](ceph-toolbox.md). A new line will be shown with `ceph status` for the `mds` service. In this example, there is one active instance of MDS which is up, with one MDS instance in `standby-replay` mode in case of failover.
 
 ```console
-$ ceph status
-  ...
-  services:
-    mds: myfs-1/1/1 up {[myfs:0]=mzw58b=up:active}, 1 up:standby-replay
+ceph status
 ```
+>```
+>  ...
+>  services:
+>    mds: myfs-1/1/1 up {[myfs:0]=mzw58b=up:active}, 1 up:standby-replay
+>```
 
 ## Provision Storage
 

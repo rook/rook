@@ -24,14 +24,14 @@ Signed-off-by: Random J Developer <random@developer.example.org>
 Git even has a -s command line option to append this automatically to your
 commit message:
 
-```
-$ git commit -s -m 'This is my commit message'
+```console
+git commit -s -m 'This is my commit message'
 ```
 
 If you have already made a commit and forgot to include the sign-off, you can amend your last commit
 to add the sign-off with the following command, which can then be force pushed.
 
-```
+```console
 git commit --amend -s
 ```
 
@@ -85,7 +85,7 @@ We follow a rough convention for commit messages that is designed to answer two
 questions: what changed and why. The subject line should feature the what and
 the body of the commit should describe the why.
 
-```
+```console
 ceph: update MON to use rocksdb
 
 this enables us to remove leveldb from the codebase.

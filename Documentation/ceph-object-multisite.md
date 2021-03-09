@@ -64,26 +64,30 @@ To pull a Ceph realm from a remote Ceph cluster, an `endpoint` must be added to 
 If an admin does not know of an endpoint that fits this criteria, the admin can find such an endpoint on the remote Ceph cluster (via the tool box if it is a Rook Ceph Cluster) by running:
 
 ```
-radosgw-admin zonegroup get --rgw-realm=$REALM_NAME --rgw-zonegroup=$MASTER_ZONEGROUP_NAME
-{
-    ...
-    "endpoints": [http://10.17.159.77:80],
-    ...
-}
+$ radosgw-admin zonegroup get --rgw-realm=$REALM_NAME --rgw-zonegroup=$MASTER_ZONEGROUP_NAME
 ```
+>```
+>{
+>    ...
+>    "endpoints": [http://10.17.159.77:80],
+>    ...
+>}
+>```
 
 A list of endpoints in the master zone group in the master zone is in the `endpoints` section of the JSON output of the `zonegoup get` command.
 
 This endpoint must also be resolvable from the new Rook Ceph cluster. To test this run the `curl` command on the endpoint:
 
 ```
-curl -L http://10.17.159.77:80
-<?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
+$ curl -L http://10.17.159.77:80
 ```
+>```
+><?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
+>```
 
 Finally add the endpoint to the `pull` section of the CephObjectRealm's spec. The CephObjectRealm should have the same name as the CephObjectRealm/Ceph realm it is pulling from.
 
-```
+```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephObjectRealm
 metadata:
@@ -108,7 +112,7 @@ These keys for the user are exported as a kubernetes [secret](https://kubernetes
 
 To get these keys from the cluster the realm was originally created on, run:
 ```console
-kubectl -n $ORIGINAL_CLUSTER_NAMESPACE get secrets realm-a-keys -o yaml > realm-a-keys.yaml
+$ kubectl -n $ORIGINAL_CLUSTER_NAMESPACE get secrets realm-a-keys -o yaml > realm-a-keys.yaml
 ```
 Edit the `realm-a-keys.yaml` file, and change the `namespace` with the namespace that the new Rook Ceph cluster exists in.
 
@@ -122,23 +126,24 @@ kubectl create -f realm-a-keys.yaml
 The access key and the secret key of the system user can be found in the output of running the following command on a non-rook ceph cluster:
 ```
 radosgw-admin user info --uid="realm-a-system-user"
-{
-    ...
-    "keys": [
-        {
-            "user": "realm-a-system-user"
-            "access_key": "aSw4blZIKV9nKEU5VC0="
-            "secret_key": "JSlDXFt5TlgjSV9QOE9XUndrLiI5JEo9YDBsJg==",
-        }
-    ],
-    ...
-}
 ```
+>```{
+>    ...
+>    "keys": [
+>        {
+>            "user": "realm-a-system-user"
+>            "access_key": "aSw4blZIKV9nKEU5VC0="
+>            "secret_key": "JSlDXFt5TlgjSV9QOE9XUndrLiI5JEo9YDBsJg==",
+>        }
+>    ],
+>    ...
+>}
+>```
 
 Then base64 encode the each of the keys and create a `.yaml` file for the Kubernetes secret from the following template.
 
 Only the `access-key`, `secret-key`, and `namespace` sections need to be replaced.
-```
+```yaml
 apiVersion: v1
 data:
   access-key: YVN3NGJsWklLVjluS0VVNVZDMD0=

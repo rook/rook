@@ -466,7 +466,7 @@ The following storage selection settings are specific to Ceph and do not apply t
 * `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled. See [encryption](http://docs.ceph.com/docs/nautilus/ceph-volume/lvm/encryption/) for more information on encryption in Ceph.
 * `crushRoot`: The value of the `root` CRUSH map label. The default is `default`. Generally, you should not need to change this. However, if any of your topology labels may have the value `default`, you need to change `crushRoot` to avoid conflicts, since CRUSH map values need to be unique.
 
-** **NOTE**: Depending on the Ceph image running in your cluster, OSDs will be configured differently. Newer images will configure OSDs with `ceph-volume`, which provides support for `osdsPerDevice`, `encryptedDevice`, as well as other features that will be exposed in future Rook releases. OSDs created prior to Rook v0.9 or with older images of Luminous and Mimic are not created with `ceph-volume` and thus would not support the same features. For `ceph-volume`, the following images are supported:
+**NOTE**: Depending on the Ceph image running in your cluster, OSDs will be configured differently. Newer images will configure OSDs with `ceph-volume`, which provides support for `osdsPerDevice`, `encryptedDevice`, as well as other features that will be exposed in future Rook releases. OSDs created prior to Rook v0.9 or with older images of Luminous and Mimic are not created with `ceph-volume` and thus would not support the same features. For `ceph-volume`, the following images are supported:
 
 * Luminous 12.2.10 or newer
 * Mimic 13.2.3 or newer
@@ -880,15 +880,18 @@ kubectl label node mynode topology.rook.io/rack=zone1-rack1
 These labels would result in the following hierarchy for OSDs on that node (this command can be run in the Rook toolbox):
 
 ```console
-[root@mynode /]# ceph osd tree
-ID CLASS WEIGHT  TYPE NAME                 STATUS REWEIGHT PRI-AFF
--1       0.01358 root default
--5       0.01358     zone zone1
--4       0.01358         rack zone1-rack1
--3       0.01358             host mynode
- 0   hdd 0.00679                 osd.0         up  1.00000 1.00000
- 1   hdd 0.00679                 osd.1         up  1.00000 1.00000
+ceph osd tree
 ```
+
+>```
+>ID CLASS WEIGHT  TYPE NAME                 STATUS REWEIGHT PRI-AFF
+>-1       0.01358 root default
+>-5       0.01358     zone zone1
+>-4       0.01358         rack rack1
+>-3       0.01358             host mynode
+>0   hdd 0.00679                 osd.0         up  1.00000 1.00000
+>1   hdd 0.00679                 osd.1         up  1.00000 1.00000
+>```
 
 Ceph requires unique names at every level in the hierarchy (CRUSH map). For example, you cannot have two racks
 with the same name that are in different zones. Racks in different zones must be named uniquely.
@@ -1309,9 +1312,12 @@ If this is successful you will see the CepCluster status as connected.
 
 ```console
 kubectl get CephCluster -n rook-ceph-external
-NAME                 DATADIRHOSTPATH   MONCOUNT   AGE    STATE       HEALTH
-rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
 ```
+
+>```
+>NAME                 DATADIRHOSTPATH   MONCOUNT   AGE    STATE       HEALTH
+>rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
+>```
 
 Before you create a StorageClass with this cluster you will need to create a Pool in your external Ceph Cluster.
 
@@ -1321,50 +1327,56 @@ In Ceph Cluster let us list the pools available:
 
 ```console
 rados df
-POOL_NAME     USED OBJECTS CLONES COPIES MISSING_ON_PRIMARY UNFOUND DEGRADED RD_OPS  RD WR_OPS  WR USED COMPR UNDER COMPR
-replicated_2g  0 B       0      0      0                  0       0        0      0 0 B      0 0 B        0 B         0 B
 ```
+
+>```
+>POOL_NAME     USED OBJECTS CLONES COPIES MISSING_ON_PRIMARY UNFOUND DEGRADED RD_OPS  RD WR_OPS  WR USED COMPR UNDER COMPR
+>replicated_2g  0 B       0      0      0                  0       0        0      0 0 B      0 0 B        0 B         0 B
+> ```
 
 Here is an example StorageClass configuration that uses the `replicated_2g` pool from the external cluster:
 
 ```console
 cat << EOF | kubectl apply -f -
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: rook-ceph-block-ext
-# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
-provisioner: rook-ceph.rbd.csi.ceph.com
-parameters:
-    # clusterID is the namespace where the rook cluster is running
-    clusterID: rook-ceph-external
-    # Ceph pool into which the RBD image shall be created
-    pool: replicated_2g
-
-    # RBD image format. Defaults to "2".
-    imageFormat: "2"
-
-    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
-    imageFeatures: layering
-
-    # The secrets contain Ceph admin credentials.
-    csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
-    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph-external
-    csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
-    csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph-external
-    csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
-    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph-external
-
-    # Specify the filesystem type of the volume. If not specified, csi-provisioner
-    # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
-    # in hyperconverged settings where the volume is mounted on the same node as the osds.
-    csi.storage.k8s.io/fstype: ext4
-
-# Delete the rbd volume when a PVC is deleted
-reclaimPolicy: Delete
-allowVolumeExpansion: true
-EOF
 ```
+
+>```
+>apiVersion: storage.k8s.io/v1
+>kind: StorageClass
+>metadata:
+>   name: rook-ceph-block-ext
+># Change "rook-ceph" provisioner prefix to match the operator namespace if needed
+>provisioner: rook-ceph.rbd.csi.ceph.com
+>parameters:
+>    # clusterID is the namespace where the rook cluster is running
+>    clusterID: rook-ceph-external
+>    # Ceph pool into which the RBD image shall be created
+>    pool: replicated_2g
+>
+>    # RBD image format. Defaults to "2".
+>    imageFormat: "2"
+>
+>    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
+>    imageFeatures: layering
+>
+>    # The secrets contain Ceph admin credentials.
+>    csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+>    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph-external
+>    csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+>    csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph-external
+>    csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+>    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph-external
+>
+>    # Specify the filesystem type of the volume. If not specified, csi-provisioner
+>    # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
+>    # in hyperconverged settings where the volume is mounted on the same node as the osds.
+>    csi.storage.k8s.io/fstype: ext4
+>
+># Delete the rbd volume when a PVC is deleted
+>reclaimPolicy: Delete
+>allowVolumeExpansion: true
+>EOF
+>```
 
 You can now create a persistent volume based on this StorageClass.
 
@@ -1486,16 +1498,18 @@ You can write the policy like so and then create a token:
 ```console
 vault policy write rook /tmp/rook.hcl
 vault token create -policy=rook
-Key                  Value
----                  -----
-token                s.FYzlo02cgnTehF8dXnAoq2Z9
-token_accessor       oMo7sAXQKbYtxU4HtO8k3pko
-token_duration       768h
-token_renewable      true
-token_policies       ["default" "rook"]
-identity_policies    []
-policies             ["default" "rook"]
 ```
+>```
+>Key                  Value
+>---                  -----
+>token                s.FYzlo02cgnTehF8dXnAoq2Z9
+>token_accessor       oMo7sAXQKbYtxU4HtO8k3pko
+>token_duration       768h
+>token_renewable      true
+>token_policies       ["default" "rook"]
+>identity_policies    []
+>policies             ["default" "rook"]
+>```
 
 In this example the backend path named `rook` is used it must be enabled in Vault with the following:
 

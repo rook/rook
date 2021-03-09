@@ -32,7 +32,7 @@ mkdir -p $GOPATH/src/github.com/rook
 cd $GOPATH/src/github.com/rook
 
 # Clone your fork, where <user> is your GitHub account name
-git clone https://github.com/<user>/rook.git
+$ git clone https://github.com/<user>/rook.git
 cd rook
 ```
 

@@ -23,7 +23,7 @@ You can read further about the details and limitations of these volumes in the [
 First deploy the Rook NFS operator using the following commands:
 
 ```console
-git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
+$ git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/nfs
 kubectl create -f common.yaml
 kubectl create -f operator.yaml
@@ -33,10 +33,12 @@ You can check if the operator is up and running with:
 
 ```console
 kubectl -n rook-nfs-system get pod
-
-NAME                                    READY   STATUS    RESTARTS   AGE
-rook-nfs-operator-879f5bf8b-gnwht       1/1     Running   0          29m
 ```
+
+>```
+>NAME                                    READY   STATUS    RESTARTS   AGE
+>rook-nfs-operator-879f5bf8b-gnwht       1/1     Running   0          29m
+>```
 
 ## Deploy NFS Admission Webhook (Optional)
 
@@ -54,12 +56,14 @@ This will easily get the latest version (`v0.15.1`) of `cert-manager`  installed
 
 ```console
 kubectl get -n cert-manager pod
-
-NAME                                      READY   STATUS    RESTARTS   AGE
-cert-manager-7747db9d88-jmw2f             1/1     Running   0          2m1s
-cert-manager-cainjector-87c85c6ff-dhtl8   1/1     Running   0          2m1s
-cert-manager-webhook-64dc9fff44-5g565     1/1     Running   0          2m1s
 ```
+
+>```
+>NAME                                      READY   STATUS    RESTARTS   AGE
+>cert-manager-7747db9d88-jmw2f             1/1     Running   0          2m1s
+>cert-manager-cainjector-87c85c6ff-dhtl8   1/1     Running   0          2m1s
+>cert-manager-webhook-64dc9fff44-5g565     1/1     Running   0          2m1s
+>```
 
 Once `cert-manager` is running, you can now deploy the NFS webhook:
 
@@ -71,11 +75,13 @@ Verify the webhook is up and running:
 
 ```console
 kubectl -n rook-nfs-system get pod
-
-NAME                                    READY   STATUS    RESTARTS   AGE
-rook-nfs-operator-78d86bf969-k7lqp      1/1     Running   0          102s
-rook-nfs-webhook-74749cbd46-6jw2w       1/1     Running   0          102s
 ```
+
+>```
+>NAME                                    READY   STATUS    RESTARTS   AGE
+>rook-nfs-operator-78d86bf969-k7lqp      1/1     Running   0          102s
+>rook-nfs-webhook-74749cbd46-6jw2w       1/1     Running   0          102s
+>```
 
 ## Create Openshift Security Context Constraints (Optional)
 
@@ -449,19 +455,23 @@ We can verify that a Kubernetes object has been created that represents our new 
 
 ```console
 kubectl -n rook-nfs get nfsservers.nfs.rook.io
-
-NAME       AGE   STATE
-rook-nfs   32s   Running
 ```
+
+>```
+>NAME       AGE   STATE
+>rook-nfs   32s   Running
+>```
 
 Verify that the NFS server pod is up and running:
 
 ```console
 kubectl -n rook-nfs get pod -l app=rook-nfs
-
-NAME         READY     STATUS    RESTARTS   AGE
-rook-nfs-0   2/2       Running   0          2m
 ```
+
+>```
+>NAME         READY     STATUS    RESTARTS   AGE
+>rook-nfs-0   1/1       Running   0          2m
+>```
 
 If the NFS server pod is in the `Running` state, then we have successfully created an exported NFS share that clients can start to access over the network.
 
@@ -554,12 +564,13 @@ We can then use the busybox writer pod we launched before to check that nginx is
 In the below 1-liner command, we use `kubectl exec` to run a command in the busybox writer pod that uses `wget` to retrieve the web page that the web server pod is hosting. As the busybox writer pod continues to write a new timestamp, we should see the returned output also update every ~10 seconds or so.
 
 ```console
-> echo; kubectl exec $(kubectl get pod -l app=nfs-demo,role=busybox -o jsonpath='{.items[0].metadata.name}') -- wget -qO- http://$(kubectl get services nfs-web -o jsonpath='{.spec.clusterIP}'); echo
-
-Thu Oct 22 19:28:55 UTC 2015
-nfs-busybox-w3s4t
-
+$ echo; kubectl exec $(kubectl get pod -l app=nfs-demo,role=busybox -o jsonpath='{.items[0].metadata.name}') -- wget -qO- http://$(kubectl get services nfs-web -o jsonpath='{.spec.clusterIP}'); echo
 ```
+
+>```
+>Thu Oct 22 19:28:55 UTC 2015
+>nfs-busybox-w3s4t
+>```
 
 ## Teardown
 

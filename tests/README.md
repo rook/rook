@@ -160,5 +160,5 @@ export RETRY_MAX=40
 
 To run a `CephSmokeSuite` (uses regex):
 ```console
-$ go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
+go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 ```

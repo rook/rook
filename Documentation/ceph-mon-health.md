@@ -81,34 +81,41 @@ reconcile is triggered, such as when the CephCluster CR is updated.
 ### Example Failover
 
 Rook will create mons with pod names such as mon-a, mon-b, and mon-c. Let's say mon-b had an issue and the pod failed.
+```console
+kubectl -n rook-ceph get pod -l app=rook-ceph-mon
 ```
-$ kubectl -n rook-ceph get pod -l app=rook-ceph-mon
-NAME                               READY   STATUS    RESTARTS   AGE
-rook-ceph-mon-a-74dc96545-ch5ns    1/1     Running   0          9m
-rook-ceph-mon-b-6b9d895c4c-bcl2h   1/1     Error     2          9m
-rook-ceph-mon-c-7d6df6d65c-5cjwl   1/1     Running   0          8m
-```
+
+>```
+>NAME                               READY   STATUS    RESTARTS   AGE
+>rook-ceph-mon-a-74dc96545-ch5ns    1/1     Running   0          9m
+>rook-ceph-mon-b-6b9d895c4c-bcl2h   1/1     Error     2          9m
+>rook-ceph-mon-c-7d6df6d65c-5cjwl   1/1     Running   0          8m
+>```
 
 After a failover, you will see the unhealthy mon removed and a new mon added such as mon-d. A fully healthy mon quorum is now running again.
+```console
+kubectl -n rook-ceph get pod -l app=rook-ceph-mon
 ```
-$ kubectl -n rook-ceph get pod -l app=rook-ceph-mon
-NAME                             READY     STATUS    RESTARTS   AGE
-rook-ceph-mon-a-74dc96545-ch5ns    1/1     Running   0          19m
-rook-ceph-mon-c-7d6df6d65c-5cjwl   1/1     Running   0          18m
-rook-ceph-mon-d-9e7ea7e76d-4bhxm   1/1     Running   0          20s
-```
+>```
+>NAME                             READY     STATUS    RESTARTS   AGE
+>rook-ceph-mon-a-74dc96545-ch5ns    1/1     Running   0          19m
+>rook-ceph-mon-c-7d6df6d65c-5cjwl   1/1     Running   0          18m
+>rook-ceph-mon-d-9e7ea7e76d-4bhxm   1/1     Running   0          20s
+>```
 
 From the toolbox we can verify the status of the health mon quorum:
+```console
+ceph -s
 ```
-[root@rook-ceph-tools-78cdfd976c-8p6dn /]# ceph -s
-  cluster:
-    id:     35179270-8a39-4e08-a352-a10c52bb04ff
-    health: HEALTH_OK
 
-  services:
-    mon: 3 daemons, quorum a,b,d (age 2m)
-    mgr: a(active, since 12m)
-    osd: 3 osds: 3 up (since 10m), 3 in (since 10m)
-
-  ...
-```
+>```
+>  cluster:
+>    id:     35179270-8a39-4e08-a352-a10c52bb04ff
+>    health: HEALTH_OK
+>
+>  services:
+>    mon: 3 daemons, quorum a,b,d (age 2m)
+>    mgr: a(active, since 12m)
+>    osd: 3 osds: 3 up (since 10m), 3 in (since 10m)
+>  ...
+>```
