@@ -77,7 +77,7 @@ func SetParams(clientset kubernetes.Interface) error {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ALLOW_UNSUPPORTED_VERSION'")
 	}
 
-	csiEnableCSIGRPCMetrics, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_ENABLE_GRPC_METRICS", "true")
+	csiEnableCSIGRPCMetrics, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_ENABLE_GRPC_METRICS", "false")
 	if err != nil {
 		return errors.Wrap(err, "unable to determine if CSI GRPC metrics is enabled")
 	}

@@ -27,7 +27,7 @@ data:
   ROOK_CSI_ENABLE_CEPHFS: "true"
   # Enable the default version of the CSI RBD driver. To start another version of the CSI driver, see image properties below.
   ROOK_CSI_ENABLE_RBD: "true"
-  ROOK_CSI_ENABLE_GRPC_METRICS: "true"
+  ROOK_CSI_ENABLE_GRPC_METRICS: "false"
 
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.

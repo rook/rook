@@ -25,6 +25,7 @@ v1.5...
 
 ### Ceph
 
+<<<<<<< HEAD
 * Stretch clusters for mons and OSDs to work reliably across two datacenters (Experimental mode)
 * Ceph Block Pool: add mirroring with snapshot scheduling support
 * Ceph Block Pool: add `replicasPerFailureDomain` to set the number of replica in a failure domain ([#5591](https://github.com/rook/rook/issues/5591))
@@ -33,3 +34,13 @@ v1.5...
 * Ceph Cluster: add encryption support with Key Management Service
 * The helm chart is updated to v3.4
   * A `crds.enabled` setting allows the CRDs to be managed separately from the helm chart
+=======
+* Ceph Pacific support
+* Multiple Ceph Filesystems (with Pacific only)
+* CephClient CRD has been converted to use the controller-runtime library
+* Extending the support of vault KMS configuration for Ceph RGW
+* Enable disruption budgets (PDBs) by default for Mon, RGW, MDS, and OSD daemons
+* Add CephFilesystemMirror CRD to deploy cephfs-mirror daemon
+* Ceph OSD: as of Nautilus 14.2.14 and Octopus 15.2.9 if the OSD scenario is simple (one OSD per disk) we won't use LVM to prepare the disk anymore
+* Disable CSI GRPC metrics by default
+>>>>>>> 0a81ce225... ceph: disable CSI GRPC metrics by default
