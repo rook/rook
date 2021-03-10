@@ -293,7 +293,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		// Remove finalizer
 		err = removeFinalizer(r.client, request.NamespacedName)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalize")
+			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 		}
 
 		// Return and do not requeue. Successful deletion.
@@ -421,7 +421,7 @@ func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) err
 			return err
 		}
 	}
-	if controllerutil.FlexDriverEnabled(c.context) {
+	if !controllerutil.FlexDriverEnabled(c.context) {
 		logger.Debugf("Flex driver disabled, skipping check for volume attachments for cluster %q", cluster.Namespace)
 		return nil
 	}

@@ -17,7 +17,7 @@ trap cleanup SIGINT ERR
 SERVER_VERSION=$(kubectl version --short | awk -F  "."  '/Server Version/ {print $2}')
 MINIMUM_VERSION=16
 
-if [ ${SERVER_VERSION} -le ${MINIMUM_VERSION} ]; then
+if [ ${SERVER_VERSION} -lt ${MINIMUM_VERSION} ]; then
     echo "required minimum kubernetes version 1.$MINIMUM_VERSION.0"
     exit
 fi

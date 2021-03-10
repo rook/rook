@@ -47,7 +47,7 @@ func TestCephHelmSuite(t *testing.T) {
 
 	s := new(HelmSuite)
 	defer func(s *HelmSuite) {
-		HandlePanics(recover(), s.op, s.T)
+		HandlePanics(recover(), s.TearDownSuite, s.T)
 	}(s)
 	suite.Run(t, s)
 }
@@ -55,56 +55,56 @@ func TestCephHelmSuite(t *testing.T) {
 type HelmSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
-	kh        *utils.K8sHelper
-	op        *TestCluster
-	namespace string
+	installer *installer.CephInstaller
+	settings  *installer.TestCephSettings
+	k8shelper *utils.K8sHelper
 }
 
-func (hs *HelmSuite) SetupSuite() {
-	hs.namespace = "helm-ns"
-	helmTestCluster := TestCluster{
-		namespace:               hs.namespace,
-		storeType:               "bluestore",
-		storageClassName:        "",
-		useHelm:                 true,
-		usePVC:                  false,
-		mons:                    1,
-		rbdMirrorWorkers:        1,
-		rookCephCleanup:         true,
-		skipOSDCreation:         false,
-		minimalMatrixK8sVersion: helmMinimalTestVersion,
-		rookVersion:             installer.VersionMaster,
-		cephVersion:             installer.NautilusVersion,
+func (h *HelmSuite) SetupSuite() {
+	namespace := "helm-ns"
+	h.settings = &installer.TestCephSettings{
+		Namespace:                 namespace,
+		OperatorNamespace:         namespace,
+		StorageClassName:          "",
+		UseHelm:                   true,
+		UsePVC:                    false,
+		Mons:                      1,
+		UseCSI:                    true,
+		SkipOSDCreation:           false,
+		EnableAdmissionController: true,
+		EnableDiscovery:           true,
+		RookVersion:               installer.VersionMaster,
+		CephVersion:               installer.OctopusVersion,
 	}
 
-	hs.op, hs.kh = StartTestCluster(hs.T, &helmTestCluster)
-	hs.helper = clients.CreateTestClient(hs.kh, hs.op.installer.Manifests)
+	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings, helmMinimalTestVersion)
+	h.helper = clients.CreateTestClient(h.k8shelper, h.installer.Manifests)
 }
 
-func (hs *HelmSuite) TearDownSuite() {
-	hs.op.Teardown()
+func (h *HelmSuite) TearDownSuite() {
+	h.installer.UninstallRook()
 }
 
-func (hs *HelmSuite) AfterTest(suiteName, testName string) {
-	hs.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(hs.namespace))
+func (h *HelmSuite) AfterTest(suiteName, testName string) {
+	h.installer.CollectOperatorLog(suiteName, testName)
 }
 
 // Test to make sure all rook components are installed and Running
-func (hs *HelmSuite) TestARookInstallViaHelm() {
-	checkIfRookClusterIsInstalled(hs.Suite, hs.kh, hs.namespace, hs.namespace, 1)
+func (h *HelmSuite) TestARookInstallViaHelm() {
+	checkIfRookClusterIsInstalled(h.Suite, h.k8shelper, h.settings.Namespace, h.settings.Namespace, 1)
 }
 
 // Test BlockCreation on Rook that was installed via Helm
-func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
-	runBlockCSITestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, hs.namespace, hs.op.installer.CephVersion)
+func (h *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
+	runBlockCSITestLite(h.helper, h.k8shelper, h.Suite, h.settings)
 }
 
 // Test File System Creation on Rook that was installed via helm
-func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
-	runFileE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, "testfs")
+func (h *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
+	runFileE2ETestLite(h.helper, h.k8shelper, h.Suite, h.settings, "testfs")
 }
 
 // Test Object StoreCreation on Rook that was installed via helm
-func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
-	runObjectE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, "default", 3, true)
+func (h *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
+	runObjectE2ETestLite(h.helper, h.k8shelper, h.Suite, h.settings, "default", 3, true)
 }

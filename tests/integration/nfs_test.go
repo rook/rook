@@ -45,7 +45,7 @@ func TestNfsSuite(t *testing.T) {
 
 	s := new(NfsSuite)
 	defer func(s *NfsSuite) {
-		HandlePanics(recover(), s, s.T)
+		HandlePanics(recover(), s.Teardown, s.T)
 	}(s)
 	suite.Run(t, s)
 }
@@ -60,87 +60,87 @@ type NfsSuite struct {
 	instanceCount   int
 }
 
-func (suite *NfsSuite) SetupSuite() {
-	suite.Setup()
+func (s *NfsSuite) SetupSuite() {
+	s.Setup()
 }
 
-func (suite *NfsSuite) TearDownSuite() {
-	suite.Teardown()
+func (s *NfsSuite) TearDownSuite() {
+	s.Teardown()
 }
 
-func (suite *NfsSuite) Setup() {
-	suite.namespace = "rook-nfs"
-	suite.systemNamespace = installer.SystemNamespace(suite.namespace)
-	suite.instanceCount = 1
+func (s *NfsSuite) Setup() {
+	s.namespace = "rook-nfs"
+	s.systemNamespace = installer.SystemNamespace(s.namespace)
+	s.instanceCount = 1
 
-	k8shelper, err := utils.CreateK8sHelper(suite.T)
+	k8shelper, err := utils.CreateK8sHelper(s.T)
 	v := version.MustParseSemantic(k8shelper.GetK8sServerVersion())
 	if !v.AtLeast(version.MustParseSemantic("1.14.0")) {
 		logger.Info("Skipping NFS tests when not at least K8s v1.14")
-		suite.T().Skip()
+		s.T().Skip()
 	}
 
-	require.NoError(suite.T(), err)
-	suite.k8shelper = k8shelper
+	require.NoError(s.T(), err)
+	s.k8shelper = k8shelper
 
-	k8sversion := suite.k8shelper.GetK8sServerVersion()
+	k8sversion := s.k8shelper.GetK8sServerVersion()
 	logger.Infof("Installing nfs server on k8s %s", k8sversion)
 
-	suite.installer = installer.NewNFSInstaller(suite.k8shelper, suite.T)
+	s.installer = installer.NewNFSInstaller(s.k8shelper, s.T)
 
-	suite.rwClient = clients.CreateReadWriteOperation(suite.k8shelper)
+	s.rwClient = clients.CreateReadWriteOperation(s.k8shelper)
 
-	err = suite.installer.InstallNFSServer(suite.systemNamespace, suite.namespace, suite.instanceCount)
+	err = s.installer.InstallNFSServer(s.systemNamespace, s.namespace, s.instanceCount)
 	if err != nil {
 		logger.Errorf("nfs server installation failed: %+v", err)
-		suite.T().Fail()
-		suite.Teardown()
-		suite.T().FailNow()
+		s.T().Fail()
+		s.Teardown()
+		s.T().FailNow()
 	}
 }
 
-func (suite *NfsSuite) Teardown() {
-	suite.installer.GatherAllNFSServerLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
-	suite.installer.UninstallNFSServer(suite.systemNamespace, suite.namespace)
+func (s *NfsSuite) Teardown() {
+	s.installer.GatherAllNFSServerLogs(s.systemNamespace, s.namespace, s.T().Name())
+	s.installer.UninstallNFSServer(s.systemNamespace, s.namespace)
 }
 
-func (suite *NfsSuite) TestNfsServerInstallation() {
-	logger.Infof("Verifying that nfs server pod %s is running", suite.namespace)
+func (s *NfsSuite) TestNfsServerInstallation() {
+	logger.Infof("Verifying that nfs server pod %s is running", s.namespace)
 
 	// verify nfs server operator is running OK
-	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-nfs-operator", suite.systemNamespace, 1, "Running"),
+	assert.True(s.T(), s.k8shelper.CheckPodCountAndState("rook-nfs-operator", s.systemNamespace, 1, "Running"),
 		"1 rook-nfs-operator must be in Running state")
 
 	// verify nfs server instances are running OK
-	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState(suite.namespace, suite.namespace, suite.instanceCount, "Running"),
-		fmt.Sprintf("%d rook-nfs pods must be in Running state", suite.instanceCount))
+	assert.True(s.T(), s.k8shelper.CheckPodCountAndState(s.namespace, s.namespace, s.instanceCount, "Running"),
+		fmt.Sprintf("%d rook-nfs pods must be in Running state", s.instanceCount))
 
 	// verify bigger export is running OK
-	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim-bigger"))
+	assert.True(s.T(), true, s.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim-bigger"))
 
-	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim-bigger")
-	require.NoError(suite.T(), err)
-	assert.True(suite.T(), true, suite.checkReadData(podList))
-	err = suite.rwClient.Delete()
-	assert.NoError(suite.T(), err)
+	podList, err := s.rwClient.CreateWriteClient("nfs-pv-claim-bigger")
+	require.NoError(s.T(), err)
+	assert.True(s.T(), true, s.checkReadData(podList))
+	err = s.rwClient.Delete()
+	assert.NoError(s.T(), err)
 
 	// verify another smaller export is running OK
-	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
+	assert.True(s.T(), true, s.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
-	defer suite.rwClient.Delete() //nolint, delete a nfs consuming pod in rook
-	podList, err = suite.rwClient.CreateWriteClient("nfs-pv-claim")
-	require.NoError(suite.T(), err)
-	assert.True(suite.T(), true, suite.checkReadData(podList))
+	defer s.rwClient.Delete() //nolint, delete a nfs consuming pod in rook
+	podList, err = s.rwClient.CreateWriteClient("nfs-pv-claim")
+	require.NoError(s.T(), err)
+	assert.True(s.T(), true, s.checkReadData(podList))
 }
 
-func (suite *NfsSuite) checkReadData(podList []string) bool {
+func (s *NfsSuite) checkReadData(podList []string) bool {
 	var result string
 	var err error
 	// the following for loop retries to read data from the first pod in the pod list
 	for i := 0; i < utils.RetryLoop; i++ {
 		// the nfs volume is mounted on "/mnt" and the data(hostname of the pod) is written in "/mnt/data" of the pod
 		// results stores the hostname of either one of the pod which is same as the pod name, which is read from "/mnt/data"
-		result, err = suite.rwClient.Read(podList[0])
+		result, err = s.rwClient.Read(podList[0])
 		logger.Infof("nfs volume read exited, err: %+v. result: %s", err, result)
 		if err == nil {
 			break
@@ -148,7 +148,7 @@ func (suite *NfsSuite) checkReadData(podList []string) bool {
 		logger.Warning("nfs volume read failed, will try again")
 		time.Sleep(utils.RetryInterval * time.Second)
 	}
-	require.NoError(suite.T(), err)
+	require.NoError(s.T(), err)
 	// the value of result must be same as the name of pod.
 	if result == podList[0] || result == podList[1] {
 		return true

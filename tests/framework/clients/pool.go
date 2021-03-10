@@ -50,7 +50,7 @@ func (p *PoolOperation) Update(name, namespace string, replicas int) error {
 }
 
 func (p *PoolOperation) createOrUpdatePool(name, namespace, action string, replicas int) error {
-	return p.k8sh.ResourceOperation(action, p.manifests.GetBlockPoolDef(name, namespace, strconv.Itoa(replicas)))
+	return p.k8sh.ResourceOperation(action, p.manifests.GetBlockPool(name, strconv.Itoa(replicas)))
 }
 
 func (p *PoolOperation) ListCephPools(clusterInfo *client.ClusterInfo) ([]client.CephStoragePoolSummary, error) {
@@ -147,5 +147,5 @@ func (p *PoolOperation) DeletePool(blockClient *BlockOperation, clusterInfo *cli
 		return err
 	}
 
-	return p.k8sh.WaitForCustomResourceDeletion(clusterInfo.Namespace, crdCheckerFunc)
+	return p.k8sh.WaitForCustomResourceDeletion(clusterInfo.Namespace, poolName, crdCheckerFunc)
 }

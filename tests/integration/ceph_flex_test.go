@@ -61,7 +61,7 @@ func TestCephFlexSuite(t *testing.T) {
 
 	s := new(CephFlexDriverSuite)
 	defer func(s *CephFlexDriverSuite) {
-		HandlePanics(recover(), s.op, s.T)
+		HandlePanics(recover(), s.TearDownSuite, s.T)
 	}(s)
 	suite.Run(t, s)
 }
@@ -72,47 +72,45 @@ type CephFlexDriverSuite struct {
 	clusterInfo *client.ClusterInfo
 	bc          *clients.BlockOperation
 	kh          *utils.K8sHelper
-	namespace   string
+	installer   *installer.CephInstaller
+	settings    *installer.TestCephSettings
 	pvcNameRWO  string
 	pvcNameRWX  string
-	op          *TestCluster
 }
 
 func (s *CephFlexDriverSuite) SetupSuite() {
 
-	s.namespace = "flex-ns"
+	namespace := "flex-ns"
 	s.pvcNameRWO = "block-persistent-rwo"
 	s.pvcNameRWX = "block-persistent-rwx"
-
-	flexTestCluster := TestCluster{
-		namespace:               s.namespace,
-		storeType:               "bluestore",
-		storageClassName:        "",
-		useHelm:                 false,
-		usePVC:                  false,
-		mons:                    1,
-		rbdMirrorWorkers:        1,
-		rookCephCleanup:         true,
-		skipOSDCreation:         false,
-		minimalMatrixK8sVersion: flexDriverMinimalTestVersion,
-		rookVersion:             installer.VersionMaster,
-		cephVersion:             installer.OctopusVersion,
+	s.settings = &installer.TestCephSettings{
+		ClusterName:        "flex-test",
+		Namespace:          namespace,
+		OperatorNamespace:  installer.SystemNamespace(namespace),
+		StorageClassName:   "",
+		UseHelm:            false,
+		UsePVC:             false,
+		Mons:               1,
+		SkipOSDCreation:    false,
+		UseCSI:             false,
+		DirectMountToolbox: true,
+		RookVersion:        installer.VersionMaster,
+		CephVersion:        installer.OctopusVersion,
 	}
 
-	s.clusterInfo = client.AdminClusterInfo(s.namespace)
-	s.op, s.kh = StartTestCluster(s.T, &flexTestCluster)
-	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
+	s.clusterInfo = client.AdminClusterInfo(namespace)
+	s.installer, s.kh = StartTestCluster(s.T, s.settings, flexDriverMinimalTestVersion)
+	s.testClient = clients.CreateTestClient(s.kh, s.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }
 
 func (s *CephFlexDriverSuite) AfterTest(suiteName, testName string) {
-	s.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(s.namespace))
+	s.installer.CollectOperatorLog(suiteName, testName)
 }
 
 func (s *CephFlexDriverSuite) TestFileSystem() {
-	useCSI := false
 	preserveFilesystemOnDelete := false
-	runFileE2ETest(s.testClient, s.kh, s.Suite, s.namespace, "smoke-test-fs", useCSI, preserveFilesystemOnDelete)
+	runFileE2ETest(s.testClient, s.kh, s.Suite, s.settings, "flex-fs", preserveFilesystemOnDelete)
 }
 
 func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
@@ -127,9 +125,9 @@ func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	logger.Infof("Test case when block persistent volumes are scaled up and down along with StatefulSet")
 	logger.Info("Step 1: Create pool and storageClass")
 
-	err := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
+	err := s.testClient.PoolClient.Create(poolName, s.settings.Namespace, 1)
 	assert.Nil(s.T(), err)
-	err = s.testClient.BlockClient.CreateStorageClass(false, poolName, storageClassName, reclaimPolicy, s.namespace)
+	err = s.testClient.BlockClient.CreateStorageClass(false, poolName, storageClassName, reclaimPolicy, s.settings.Namespace)
 	assert.Nil(s.T(), err)
 	logger.Info("Step 2 : Deploy statefulSet with 1X replication")
 	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
@@ -190,11 +188,9 @@ func (s *CephFlexDriverSuite) setupPVCs() {
 	logger.Infof("creating the test PVCs")
 	poolNameRWO := "block-pool-rwo"
 	storageClassNameRWO := "rook-ceph-block-rwo"
-	systemNamespace := installer.SystemNamespace(s.namespace)
 
 	// Create PVCs
-	useCSI := false
-	err := s.testClient.BlockClient.CreateStorageClassAndPVC(useCSI, defaultNamespace, s.namespace, systemNamespace, poolNameRWO, storageClassNameRWO, "Delete", s.pvcNameRWO, "ReadWriteOnce")
+	err := s.testClient.BlockClient.CreateStorageClassAndPVC(defaultNamespace, poolNameRWO, storageClassNameRWO, "Delete", s.pvcNameRWO, "ReadWriteOnce")
 	require.Nil(s.T(), err)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWO), "Make sure PVC is Bound")
 
@@ -207,13 +203,13 @@ func (s *CephFlexDriverSuite) setupPVCs() {
 	require.Nil(s.T(), err)
 	crdName, err := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
 	require.Nil(s.T(), err)
-	s.kh.IsVolumeResourcePresent(systemNamespace, crdName)
+	s.kh.IsVolumeResourcePresent(s.settings.OperatorNamespace, crdName)
 
 	err = s.bc.CreateClientPod(getFlexBlockPodDefinition("setup-block-rwx", s.pvcNameRWX, false))
 	require.Nil(s.T(), err)
 	crdName, err = s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
 	require.Nil(s.T(), err)
-	s.kh.IsVolumeResourcePresent(systemNamespace, crdName)
+	s.kh.IsVolumeResourcePresent(s.settings.OperatorNamespace, crdName)
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwo", defaultNamespace), "make sure setup-block-rwo pod is in running state")
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is in running state")
 
@@ -239,9 +235,9 @@ func (s *CephFlexDriverSuite) TearDownSuite() {
 		"setup-block-rwo", "setup-block-rwx", "rwo-block-rw-one", "rwo-block-rw-two", "rwo-block-ro-one",
 		"rwo-block-ro-two", "rwx-block-rw-one", "rwx-block-rw-two", "rwx-block-ro-one", "rwx-block-ro-two")
 	assert.NoError(s.T(), err)
-	err = s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWO)
+	err = s.testClient.BlockClient.DeletePVC(s.settings.Namespace, s.pvcNameRWO)
 	assertNoErrorUnlessNotFound(s.Suite, err)
-	err = s.testClient.BlockClient.DeletePVC(s.namespace, s.pvcNameRWX)
+	err = s.testClient.BlockClient.DeletePVC(s.settings.Namespace, s.pvcNameRWX)
 	assertNoErrorUnlessNotFound(s.Suite, err)
 	err = s.testClient.BlockClient.DeleteStorageClass("rook-ceph-block-rwo")
 	assert.NoError(s.T(), err)
@@ -251,7 +247,7 @@ func (s *CephFlexDriverSuite) TearDownSuite() {
 	assert.NoError(s.T(), err)
 	err = s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, s.clusterInfo, "block-pool-rwx")
 	assert.NoError(s.T(), err)
-	s.op.Teardown()
+	s.installer.UninstallRook()
 }
 
 func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
@@ -267,12 +263,12 @@ func (s *CephFlexDriverSuite) TestBlockStorageMountUnMountForDifferentAccessMode
 	require.Nil(s.T(), err)
 	crdName, err := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName), fmt.Sprintf("make sure Volume %s is created", crdName))
+	assert.True(s.T(), s.kh.IsVolumeResourcePresent(s.settings.OperatorNamespace, crdName), fmt.Sprintf("make sure Volume %s is created", crdName))
 	assert.True(s.T(), s.kh.IsPodRunning("rwo-block-rw-one", defaultNamespace), "make sure block-rw-one pod is in running state")
 
 	crdName, err = s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName), fmt.Sprintf("make sure Volume %s is created", crdName))
+	assert.True(s.T(), s.kh.IsVolumeResourcePresent(s.settings.OperatorNamespace, crdName), fmt.Sprintf("make sure Volume %s is created", crdName))
 	assert.True(s.T(), s.kh.IsPodRunning("rwx-block-rw-one", defaultNamespace), "make sure rwx-block-rw-one pod is in running state")
 
 	logger.Infof("Step 2: Check if previously persisted data is readable from ReadWriteOnce and ReadWriteMany PVC")

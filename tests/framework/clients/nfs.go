@@ -42,7 +42,7 @@ func CreateNFSOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests
 func (n *NFSOperation) Create(namespace, name, pool string, daemonCount int) error {
 
 	logger.Infof("creating the NFS daemons via CRD")
-	if err := n.k8sh.ResourceOperation("apply", n.manifests.GetNFS(namespace, name, pool, daemonCount)); err != nil {
+	if err := n.k8sh.ResourceOperation("apply", n.manifests.GetNFS(name, pool, daemonCount)); err != nil {
 		return err
 	}
 

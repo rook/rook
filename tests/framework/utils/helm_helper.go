@@ -62,7 +62,7 @@ func (h *HelmHelper) InstallLocalRookHelmChart(namespace, chartSettings string) 
 		return errors.Wrap(err, "failed to find rook root")
 	}
 	chartDir := path.Join(rootDir, "cluster/charts/rook-ceph/")
-	cmdArgs := []string{"install", HelmDeployName, chartDir, "-f", path.Join(chartDir, "values.yaml")}
+	cmdArgs := []string{"install", "--create-namespace", HelmDeployName, chartDir, "-f", path.Join(chartDir, "values.yaml")}
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, "--namespace", namespace)
 	}

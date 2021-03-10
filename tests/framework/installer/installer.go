@@ -45,11 +45,6 @@ var (
 	deleteFromStdinArgs = append(deleteArgs, "-")
 )
 
-type TestSuite interface {
-	Setup()
-	Teardown()
-}
-
 func SkipTestSuite(name string) bool {
 	testsToRun := testStorageProvider()
 	// jenkins passes "null" if the env var is not set.

@@ -42,7 +42,7 @@ func CreateClientOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 // Create creates a client in Rook
 func (c *ClientOperation) Create(name, namespace string, caps map[string]string) error {
 	logger.Infof("creating the client via CRD")
-	if err := c.k8sh.ResourceOperation("apply", c.manifests.GetClient(namespace, name, caps)); err != nil {
+	if err := c.k8sh.ResourceOperation("apply", c.manifests.GetClient(name, caps)); err != nil {
 		return err
 	}
 	return nil
@@ -76,7 +76,7 @@ func (c *ClientOperation) Get(clusterInfo *client.ClusterInfo, clientName string
 func (c *ClientOperation) Update(clusterInfo *client.ClusterInfo, clientName string, caps map[string]string) (updatedcaps map[string]string, error error) {
 	context := c.k8sh.MakeContext()
 	logger.Infof("updating the client via CRD")
-	if err := c.k8sh.ResourceOperation("apply", c.manifests.GetClient(clusterInfo.Namespace, clientName, caps)); err != nil {
+	if err := c.k8sh.ResourceOperation("apply", c.manifests.GetClient(clientName, caps)); err != nil {
 		return nil, err
 	}
 

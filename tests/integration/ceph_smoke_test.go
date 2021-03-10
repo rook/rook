@@ -72,7 +72,7 @@ func TestCephSmokeSuite(t *testing.T) {
 
 	s := new(SmokeSuite)
 	defer func(s *SmokeSuite) {
-		HandlePanics(recover(), s.op, s.T)
+		HandlePanics(recover(), s.TearDownSuite, s.T)
 	}(s)
 	suite.Run(t, s)
 }
@@ -80,83 +80,84 @@ func TestCephSmokeSuite(t *testing.T) {
 type SmokeSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
-	op        *TestCluster
+	settings  *installer.TestCephSettings
+	installer *installer.CephInstaller
 	k8sh      *utils.K8sHelper
-	namespace string
 }
 
-func (suite *SmokeSuite) SetupSuite() {
-	suite.namespace = "smoke-ns"
-	smokeTestCluster := TestCluster{
-		namespace:               suite.namespace,
-		storeType:               "bluestore",
-		storageClassName:        installer.StorageClassName(),
-		useHelm:                 false,
-		usePVC:                  installer.UsePVC(),
-		mons:                    3,
-		rbdMirrorWorkers:        1,
-		rookCephCleanup:         true,
-		skipOSDCreation:         false,
-		minimalMatrixK8sVersion: smokeSuiteMinimalTestVersion,
-		rookVersion:             installer.VersionMaster,
-		cephVersion:             installer.OctopusVersion,
+func (s *SmokeSuite) SetupSuite() {
+	namespace := "smoke-ns"
+	s.settings = &installer.TestCephSettings{
+		ClusterName:               "smoke-cluster",
+		Namespace:                 namespace,
+		OperatorNamespace:         installer.SystemNamespace(namespace),
+		StorageClassName:          installer.StorageClassName(),
+		UseHelm:                   false,
+		UsePVC:                    installer.UsePVC(),
+		Mons:                      3,
+		SkipOSDCreation:           false,
+		UseCSI:                    true,
+		EnableAdmissionController: true,
+		UseCrashPruner:            true,
+		RookVersion:               installer.VersionMaster,
+		CephVersion:               installer.OctopusVersion,
 	}
 
-	suite.op, suite.k8sh = StartTestCluster(suite.T, &smokeTestCluster)
-	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
+	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, smokeSuiteMinimalTestVersion)
+	s.helper = clients.CreateTestClient(s.k8sh, s.installer.Manifests)
 }
 
-func (suite *SmokeSuite) AfterTest(suiteName, testName string) {
-	suite.op.installer.CollectOperatorLog(suiteName, testName, installer.SystemNamespace(suite.namespace))
+func (s *SmokeSuite) AfterTest(suiteName, testName string) {
+	s.installer.CollectOperatorLog(suiteName, testName)
 }
 
-func (suite *SmokeSuite) TearDownSuite() {
-	suite.op.Teardown()
+func (s *SmokeSuite) TearDownSuite() {
+	s.installer.UninstallRook()
 }
 
-func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
-	runBlockCSITest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
+func (s *SmokeSuite) TestBlockStorage_SmokeTest() {
+	runBlockCSITest(s.helper, s.k8sh, s.Suite, s.settings.Namespace)
 }
 
-func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
-	useCSI := true
+func (s *SmokeSuite) TestFileStorage_SmokeTest() {
 	preserveFilesystemOnDelete := true
-	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs", useCSI, preserveFilesystemOnDelete)
+	runFileE2ETest(s.helper, s.k8sh, s.Suite, s.settings, "smoke-test-fs", preserveFilesystemOnDelete)
 }
 
-func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
-	if !utils.IsPlatformOpenShift() {
-		runObjectE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
+func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
+	if utils.IsPlatformOpenShift() {
+		s.T().Skip("object store tests skipped on openshift")
 	}
+	runObjectE2ETest(s.helper, s.k8sh, s.Suite, s.settings.Namespace)
 }
 
 // Test to make sure all rook components are installed and Running
-func (suite *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
-	checkIfRookClusterIsInstalled(suite.Suite, suite.k8sh, installer.SystemNamespace(suite.namespace), suite.namespace, 3)
+func (s *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
+	checkIfRookClusterIsInstalled(s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 3)
 }
 
 // Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
 // Delete mon pod, Wait for new mon pod
-func (suite *SmokeSuite) TestMonFailover() {
+func (s *SmokeSuite) TestMonFailover() {
 	ctx := context.TODO()
 	logger.Infof("Mon Failover Smoke Test")
 
-	deployments, err := suite.getNonCanaryMonDeployments()
-	require.Nil(suite.T(), err)
-	require.Equal(suite.T(), 3, len(deployments))
+	deployments, err := s.getNonCanaryMonDeployments()
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), 3, len(deployments))
 
 	monToKill := deployments[0].Name
 	logger.Infof("Killing mon %s", monToKill)
 	propagation := metav1.DeletePropagationForeground
 	delOptions := &metav1.DeleteOptions{PropagationPolicy: &propagation}
-	err = suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).Delete(ctx, monToKill, *delOptions)
-	require.Nil(suite.T(), err)
+	err = s.k8sh.Clientset.AppsV1().Deployments(s.settings.Namespace).Delete(ctx, monToKill, *delOptions)
+	require.NoError(s.T(), err)
 
 	// Wait for the health check to start a new monitor
 	originalMonDeleted := false
 	for i := 0; i < 30; i++ {
-		deployments, err := suite.getNonCanaryMonDeployments()
-		require.Nil(suite.T(), err)
+		deployments, err := s.getNonCanaryMonDeployments()
+		require.NoError(s.T(), err)
 
 		// Make sure the old mon is not still alive
 		foundOldMon := false
@@ -188,31 +189,31 @@ func (suite *SmokeSuite) TestMonFailover() {
 				return
 			}
 
-			assert.Equal(suite.T(), 2, len(deployments))
+			assert.Equal(s.T(), 2, len(deployments))
 		}
 
 		time.Sleep(5 * time.Second)
 	}
 
-	require.Fail(suite.T(), "giving up waiting for a new monitor")
+	require.Fail(s.T(), "giving up waiting for a new monitor")
 }
 
 // Smoke Test for pool Resizing
-func (suite *SmokeSuite) TestPoolResize() {
+func (s *SmokeSuite) TestPoolResize() {
 	ctx := context.TODO()
 	logger.Infof("Pool Resize Smoke Test")
 
 	poolName := "testpool"
-	err := suite.helper.PoolClient.Create(poolName, suite.namespace, 1)
-	require.Nil(suite.T(), err)
+	err := s.helper.PoolClient.Create(poolName, s.settings.Namespace, 1)
+	require.NoError(s.T(), err)
 
 	poolFound := false
-	clusterInfo := client.AdminClusterInfo(suite.namespace)
+	clusterInfo := client.AdminClusterInfo(s.settings.Namespace)
 
 	// Wait for pool to appear
 	for i := 0; i < 10; i++ {
-		pools, err := suite.helper.PoolClient.ListCephPools(clusterInfo)
-		require.Nil(suite.T(), err)
+		pools, err := s.helper.PoolClient.ListCephPools(clusterInfo)
+		require.NoError(s.T(), err)
 		for _, p := range pools {
 			if p.Name != poolName {
 				continue
@@ -227,24 +228,24 @@ func (suite *SmokeSuite) TestPoolResize() {
 		time.Sleep(2 * time.Second)
 	}
 
-	require.Equal(suite.T(), true, poolFound, "pool not found")
+	require.Equal(s.T(), true, poolFound, "pool not found")
 
-	err = suite.helper.PoolClient.Update(poolName, suite.namespace, 2)
-	require.Nil(suite.T(), err)
+	err = s.helper.PoolClient.Update(poolName, s.settings.Namespace, 2)
+	require.NoError(s.T(), err)
 
 	poolResized := false
 	// Wait for pool resize to happen
 	for i := 0; i < 10; i++ {
-		details, err := suite.helper.PoolClient.GetCephPoolDetails(clusterInfo, poolName)
-		require.Nil(suite.T(), err)
+		details, err := s.helper.PoolClient.GetCephPoolDetails(clusterInfo, poolName)
+		require.NoError(s.T(), err)
 		if details.Size > 1 {
 			logger.Infof("pool %s size was updated", poolName)
-			require.Equal(suite.T(), 2, int(details.Size))
+			require.Equal(s.T(), 2, int(details.Size))
 			poolResized = true
 
 			// resize the pool back to 1 to avoid hangs around not having enough OSDs to satisfy rbd
-			err = suite.helper.PoolClient.Update(poolName, suite.namespace, 1)
-			require.Nil(suite.T(), err)
+			err = s.helper.PoolClient.Update(poolName, s.settings.Namespace, 1)
+			require.NoError(s.T(), err)
 		} else if poolResized && details.Size == 1 {
 			logger.Infof("pool resized back to 1")
 			break
@@ -255,45 +256,45 @@ func (suite *SmokeSuite) TestPoolResize() {
 		time.Sleep(2 * time.Second)
 	}
 
-	require.Equal(suite.T(), true, poolResized, fmt.Sprintf("pool %s not found", poolName))
+	require.Equal(s.T(), true, poolResized, fmt.Sprintf("pool %s not found", poolName))
 
 	// Verify the Kubernetes Secret has been created (bootstrap peer token)
-	pool, err := suite.k8sh.RookClientset.CephV1().CephBlockPools(suite.namespace).Get(ctx, poolName, metav1.GetOptions{})
-	assert.NoError(suite.T(), err)
+	pool, err := s.k8sh.RookClientset.CephV1().CephBlockPools(s.settings.Namespace).Get(ctx, poolName, metav1.GetOptions{})
+	assert.NoError(s.T(), err)
 	if pool.Spec.Mirroring.Enabled {
 		secretName := pool.Status.Info[oppool.RBDMirrorBootstrapPeerSecretName]
-		assert.NotEmpty(suite.T(), secretName)
+		assert.NotEmpty(s.T(), secretName)
 		// now fetch the secret which contains the bootstrap peer token
-		s, err := suite.k8sh.Clientset.CoreV1().Secrets(suite.namespace).Get(ctx, secretName, metav1.GetOptions{})
-		require.Nil(suite.T(), err)
-		assert.NotEmpty(suite.T(), s.Data["token"])
+		secret, err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+		require.NoError(s.T(), err)
+		assert.NotEmpty(s.T(), secret.Data["token"])
 
 		// Once we have a scenario with another Ceph cluster - needs to be added in the MultiCluster suite
 		// We would need to add a bootstrap peer token following the below procedure
 		// bootstrapSecretName := "bootstrap-peer-token"
 		// token := "eyJmc2lkIjoiYzZiMDg3ZjItNzgyOS00ZGJiLWJjZmMtNTNkYzM0ZTBiMzVkIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBV1lsWmZVQ1Q2RGhBQVBtVnAwbGtubDA5YVZWS3lyRVV1NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMTExLjEwOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTA6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjEyOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTI6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjExOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTE6Njc4OV0ifQ=="
-		// s = oppool.GenerateBootstrapPeerSecret(bootstrapSecretName, suite.namespace, string(pool.GetUID()), []byte(token))
-		// s, err = suite.k8sh.Clientset.CoreV1().Secrets(suite.namespace).Create(s)
-		// require.Nil(suite.T(), err, err.Error())
+		// s = oppool.GenerateBootstrapPeerSecret(bootstrapSecretName, s.settings.Namespace, string(pool.GetUID()), []byte(token))
+		// s, err = s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Create(s)
+		// require.Nil(s.T(), err, err.Error())
 
 		// // update the ceph block pool cr
 		// pool.Spec.Mirrored.PeersSecretNames = append(pool.Spec.Mirrored.PeersSecretNames, bootstrapSecretName)
-		// _, err = suite.k8sh.RookClientset.CephV1().CephBlockPools(suite.namespace).Update(pool)
-		// require.Nil(suite.T(), err, err.Error())
+		// _, err = s.k8sh.RookClientset.CephV1().CephBlockPools(s.settings.Namespace).Update(pool)
+		// require.Nil(s.T(), err, err.Error())
 
-		// mirrorInfo, err := client.PrintPoolMirroringInfo(suite.k8sh.MakeContext(), clusterInfo, poolName)
-		// require.Nil(suite.T(), err, err.Error())
-		// assert.Equal(suite.T(), "image", mirrorInfo.Mode)
-		// assert.Equal(suite.T(), 1, len(mirrorInfo.Peers))
+		// mirrorInfo, err := client.PrintPoolMirroringInfo(s.k8sh.MakeContext(), clusterInfo, poolName)
+		// require.Nil(s.T(), err, err.Error())
+		// assert.Equal(s.T(), "image", mirrorInfo.Mode)
+		// assert.Equal(s.T(), 1, len(mirrorInfo.Peers))
 	}
 
 	// clean up the pool
-	err = suite.helper.PoolClient.DeletePool(suite.helper.BlockClient, clusterInfo, poolName)
-	assert.NoError(suite.T(), err)
+	err = s.helper.PoolClient.DeletePool(s.helper.BlockClient, clusterInfo, poolName)
+	assert.NoError(s.T(), err)
 }
 
 // Smoke Test for Client CRD
-func (suite *SmokeSuite) TestCreateClient() {
+func (s *SmokeSuite) TestCreateClient() {
 	logger.Infof("Create Client Smoke Test")
 
 	clientName := "client1"
@@ -302,14 +303,14 @@ func (suite *SmokeSuite) TestCreateClient() {
 		"mgr": "allow rwx",
 		"osd": "allow rwx",
 	}
-	clusterInfo := client.AdminClusterInfo(suite.namespace)
-	err := suite.helper.UserClient.Create(clientName, suite.namespace, caps)
-	require.Nil(suite.T(), err)
+	clusterInfo := client.AdminClusterInfo(s.settings.Namespace)
+	err := s.helper.UserClient.Create(clientName, s.settings.Namespace, caps)
+	require.NoError(s.T(), err)
 
 	clientFound := false
 
 	for i := 0; i < 30; i++ {
-		clients, _ := suite.helper.UserClient.Get(clusterInfo, "client."+clientName)
+		clients, _ := s.helper.UserClient.Get(clusterInfo, "client."+clientName)
 		if clients != "" {
 			clientFound = true
 		}
@@ -322,7 +323,7 @@ func (suite *SmokeSuite) TestCreateClient() {
 		time.Sleep(2 * time.Second)
 	}
 
-	require.Equal(suite.T(), true, clientFound, "client not found")
+	assert.Equal(s.T(), true, clientFound, "client not found")
 
 	logger.Infof("Update Client Smoke Test")
 	newcaps := map[string]string{
@@ -330,30 +331,33 @@ func (suite *SmokeSuite) TestCreateClient() {
 		"mgr": "allow rw",
 		"osd": "allow *",
 	}
-	caps, _ = suite.helper.UserClient.Update(clusterInfo, clientName, newcaps)
+	caps, _ = s.helper.UserClient.Update(clusterInfo, clientName, newcaps)
 
-	require.Equal(suite.T(), "allow r", caps["mon"], "wrong caps")
-	require.Equal(suite.T(), "allow rw", caps["mgr"], "wrong caps")
-	require.Equal(suite.T(), "allow *", caps["osd"], "wrong caps")
+	assert.Equal(s.T(), "allow r", caps["mon"], "wrong caps")
+	assert.Equal(s.T(), "allow rw", caps["mgr"], "wrong caps")
+	assert.Equal(s.T(), "allow *", caps["osd"], "wrong caps")
+
+	err = s.helper.UserClient.Delete(clientName, s.settings.Namespace)
+	require.NoError(s.T(), err)
 }
 
 // Smoke Test for RBD Mirror CRD
-func (suite *SmokeSuite) TestCreateRBDMirrorClient() {
+func (s *SmokeSuite) TestCreateRBDMirrorClient() {
 	logger.Infof("Create rbd-mirror Smoke Test")
 
 	rbdMirrorName := "my-rbd-mirror"
 
-	err := suite.helper.RBDMirrorClient.Create(suite.namespace, rbdMirrorName, 1)
-	require.Nil(suite.T(), err)
+	err := s.helper.RBDMirrorClient.Create(s.settings.Namespace, rbdMirrorName, 1)
+	require.NoError(s.T(), err)
 
-	err = suite.helper.RBDMirrorClient.Delete(suite.namespace, rbdMirrorName)
-	require.Nil(suite.T(), err)
+	err = s.helper.RBDMirrorClient.Delete(s.settings.Namespace, rbdMirrorName)
+	require.NoError(s.T(), err)
 }
 
-func (suite *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
+func (s *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
 	ctx := context.TODO()
 	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
-	deployments, err := suite.k8sh.Clientset.AppsV1().Deployments(suite.namespace).List(ctx, opts)
+	deployments, err := s.k8sh.Clientset.AppsV1().Deployments(s.settings.Namespace).List(ctx, opts)
 	if err != nil {
 		return nil, err
 	}

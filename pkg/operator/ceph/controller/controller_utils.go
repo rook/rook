@@ -142,6 +142,7 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 		}
 	}
 
+	logger.Debugf("%q: CephCluster %q initial reconcile is not complete yet...", controllerName, namespacedName.Namespace)
 	return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }
 

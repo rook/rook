@@ -17,16 +17,14 @@ limitations under the License.
 package integration
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
-	"time"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -58,180 +56,128 @@ func TestCephMultiClusterDeploySuite(t *testing.T) {
 
 	s := new(MultiClusterDeploySuite)
 	defer func(s *MultiClusterDeploySuite) {
-		HandlePanics(recover(), s.op, s.T)
+		HandlePanics(recover(), s.TearDownSuite, s.T)
 	}(s)
 	suite.Run(t, s)
 }
 
 type MultiClusterDeploySuite struct {
 	suite.Suite
-	testClient *clients.TestClient
-	k8sh       *utils.K8sHelper
-	namespace1 string
-	namespace2 string
-	op         *MCTestOperations
-	poolName   string
+	testClient        *clients.TestClient
+	k8sh              *utils.K8sHelper
+	settings          *installer.TestCephSettings
+	externalManifests installer.CephManifests
+	installer         *installer.CephInstaller
+	coreToolbox       string
+	externalToolbox   string
+	poolName          string
 }
 
 // Deploy Multiple Rook clusters
-func (mrc *MultiClusterDeploySuite) SetupSuite() {
-	mrc.poolName = "multi-cluster-pool1"
-	mrc.namespace1 = "mrc-n1"
-	mrc.namespace2 = "mrc-n2"
-
-	mrc.op, mrc.k8sh = NewMCTestOperations(mrc.T, mrc.namespace1, mrc.namespace2)
-	mrc.testClient = clients.CreateTestClient(mrc.k8sh, mrc.op.installer.Manifests)
-	mrc.createPools()
-}
-
-func (mrc *MultiClusterDeploySuite) AfterTest(suiteName, testName string) {
-	mrc.op.installer.CollectOperatorLog(suiteName, testName, mrc.op.systemNamespace)
-}
-
-func (mrc *MultiClusterDeploySuite) createPools() {
-	// create a test pool in each cluster so that we get some PGs
-	logger.Infof("Creating pool %s", mrc.poolName)
-	err := mrc.testClient.PoolClient.Create(mrc.poolName, mrc.namespace1, 1)
-	require.Nil(mrc.T(), err)
-}
-
-func (mrc *MultiClusterDeploySuite) deletePools() {
-	// create a test pool in each cluster so that we get some PGs
-	logger.Infof("Deleting pool %s", mrc.poolName)
-	clusterInfo := client.AdminClusterInfo(mrc.namespace1)
-	if err := mrc.testClient.PoolClient.DeletePool(mrc.testClient.BlockClient, clusterInfo, mrc.poolName); err != nil {
-		logger.Errorf("failed to delete pool %q. %v", mrc.poolName, err)
-	} else {
-		logger.Infof("deleted pool %q", mrc.poolName)
+func (s *MultiClusterDeploySuite) SetupSuite() {
+	s.poolName = "multi-cluster-pool1"
+	coreNamespace := "multi-core"
+	s.settings = &installer.TestCephSettings{
+		ClusterName:               "multi-cluster",
+		Namespace:                 coreNamespace,
+		OperatorNamespace:         installer.SystemNamespace(coreNamespace),
+		StorageClassName:          "manual",
+		UsePVC:                    installer.UsePVC(),
+		Mons:                      1,
+		UseCSI:                    true,
+		MultipleMgrs:              true,
+		EnableAdmissionController: true,
+		RookVersion:               installer.VersionMaster,
+		CephVersion:               installer.NautilusVersion,
 	}
-}
-
-func (mrc *MultiClusterDeploySuite) TearDownSuite() {
-	mrc.deletePools()
-	mrc.op.Teardown()
-}
-
-// Test to make sure all rook components are installed and Running
-func (mrc *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
-	// Check if Rook cluster 1 is deployed successfully
-	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), mrc.namespace1, 1)
-	checkIfRookClusterIsHealthy(mrc.Suite, mrc.testClient, mrc.namespace1)
-
-	// Check if Rook external cluster is deployed successfully
-	// Checking health status is enough to validate the connection
-	checkIfRookClusterIsHealthy(mrc.Suite, mrc.testClient, mrc.namespace2)
-}
-
-// MCTestOperations struct for handling panic and test suite tear down
-type MCTestOperations struct {
-	installer        *installer.CephInstaller
-	kh               *utils.K8sHelper
-	T                func() *testing.T
-	namespace1       string
-	namespace2       string
-	systemNamespace  string
-	storageClassName string
-	testOverPVC      bool
-}
-
-// NewMCTestOperations creates new instance of TestCluster struct
-func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 string) (*MCTestOperations, *utils.K8sHelper) {
-
-	kh, err := utils.CreateK8sHelper(t)
-	require.NoError(t(), err)
-	checkIfShouldRunForMinimalTestMatrix(t, kh, multiClusterMinimalTestVersion)
-
-	cleanupHost := false
-	i := installer.NewCephInstaller(t, kh.Clientset, false, "", installer.VersionMaster, installer.NautilusVersion, cleanupHost)
-
-	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), "", false}
-	if kh.VersionAtLeast("v1.13.0") {
-		op.testOverPVC = true
-		op.storageClassName = "manual"
+	externalSettings := &installer.TestCephSettings{
+		IsExternal:        true,
+		ClusterName:       "test-external",
+		Namespace:         "multi-external",
+		OperatorNamespace: s.settings.OperatorNamespace,
+		RookVersion:       s.settings.RookVersion,
+		UseCSI:            true,
 	}
-	op.Setup()
-	return op, kh
-}
+	s.externalManifests = installer.NewCephManifests(externalSettings)
 
-// Setup is wrapper for setting up multiple rook clusters.
-func (o MCTestOperations) Setup() {
-	var err error
-	if o.testOverPVC {
-		root, err := utils.FindRookRoot()
-		require.NoError(o.T(), err, "failed to get rook root")
-		cmdArgs := utils.CommandArgs{Command: filepath.Join(root, localPathPVCmd),
-			CmdArgs: []string{installer.TestScratchDevice()}}
-		cmdOut := utils.ExecuteCommand(cmdArgs)
-		require.NoError(o.T(), cmdOut.Err)
+	k8sh, err := utils.CreateK8sHelper(s.T)
+	assert.NoError(s.T(), err)
+	if !k8sh.VersionAtLeast("v1.16.0") {
+		s.T().Skip("requires at least k8s 1.16, no need to run on older versions")
 	}
 
-	err = o.installer.CreateCephOperator(installer.SystemNamespace(o.namespace1))
-	require.NoError(o.T(), err)
+	// Start the core storage cluster
+	s.setupMultiClusterCore()
+	s.createPools()
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-operator", o.systemNamespace, "Running"),
-		"Make sure rook-operator is in running state")
-
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", o.systemNamespace, "Running"),
-		"Make sure rook-discover is in running state")
-
-	time.Sleep(10 * time.Second)
-
-	// start the two clusters in parallel
-	logger.Infof("starting two clusters, one traditional and one external")
-	err = o.startCluster(o.namespace1, "bluestore")
-	require.NoError(o.T(), err)
-	// Wait for the monitors to be up so that we can fetch the configmap and secrets
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-mon", o.namespace1, "Running"),
-		"Make sure rook-ceph-mon is in running state")
-
+	// Start the external cluster that will connect to the core cluster
 	// create an external cluster
-	err = o.startExternalCluster(o.namespace2)
-	require.NoError(o.T(), err)
+	s.startExternalCluster()
 
 	logger.Infof("finished starting clusters")
 }
 
-// Teardown is a wrapper for tearDown after suite
-func (o MCTestOperations) Teardown() {
-	o.installer.UninstallRookFromMultipleNS(installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
+func (s *MultiClusterDeploySuite) AfterTest(suiteName, testName string) {
+	s.installer.CollectOperatorLog(suiteName, testName)
 }
 
-func (o MCTestOperations) startCluster(namespace, store string) error {
-	logger.Infof("starting cluster %s", namespace)
-	multipleManagers := true
-	err := o.installer.CreateRookCluster(namespace, o.systemNamespace, store, o.testOverPVC, o.storageClassName,
-		cephv1.MonSpec{Count: 1, AllowMultiplePerNode: true}, true, multipleManagers, false, false, installer.NautilusVersion)
-	if err != nil {
-		o.T().Fail()
-		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
-		return fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
-	}
-
-	if err := o.installer.CreateRookToolbox(namespace); err != nil {
-		o.T().Fail()
-		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
-		return fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
-	}
-	logger.Infof("succeeded starting cluster %s", namespace)
-	return nil
+func (s *MultiClusterDeploySuite) createPools() {
+	// create a test pool in each cluster so that we get some PGs
+	logger.Infof("Creating pool %s", s.poolName)
+	err := s.testClient.PoolClient.Create(s.poolName, s.settings.Namespace, 1)
+	require.Nil(s.T(), err)
 }
 
-func (o MCTestOperations) startExternalCluster(namespace string) error {
-	logger.Infof("starting external cluster %q", namespace)
-	err := o.installer.CreateRookExternalCluster(namespace, o.namespace1)
+func (s *MultiClusterDeploySuite) deletePools() {
+	// create a test pool in each cluster so that we get some PGs
+	clusterInfo := client.AdminClusterInfo(s.settings.Namespace)
+	if err := s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, clusterInfo, s.poolName); err != nil {
+		logger.Errorf("failed to delete pool %q. %v", s.poolName, err)
+	} else {
+		logger.Infof("deleted pool %q", s.poolName)
+	}
+}
+
+func (s *MultiClusterDeploySuite) TearDownSuite() {
+	s.deletePools()
+	s.installer.UninstallRookFromMultipleNS(s.installer.Manifests, s.externalManifests)
+}
+
+// Test to make sure all rook components are installed and Running
+func (s *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
+	// Check if Rook cluster 1 is deployed successfully
+	client.RunAllCephCommandsInToolboxPod = s.coreToolbox
+	checkIfRookClusterIsInstalled(s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 1)
+	checkIfRookClusterIsHealthy(s.Suite, s.testClient, s.settings.Namespace)
+
+	// Check if Rook external cluster is deployed successfully
+	// Checking health status is enough to validate the connection
+	client.RunAllCephCommandsInToolboxPod = s.externalToolbox
+	checkIfRookClusterIsHealthy(s.Suite, s.testClient, s.externalManifests.Settings().Namespace)
+}
+
+// Setup is wrapper for setting up multiple rook clusters.
+func (s *MultiClusterDeploySuite) setupMultiClusterCore() {
+	root, err := utils.FindRookRoot()
+	require.NoError(s.T(), err, "failed to get rook root")
+	cmdArgs := utils.CommandArgs{Command: filepath.Join(root, localPathPVCmd),
+		CmdArgs: []string{installer.TestScratchDevice()}}
+	cmdOut := utils.ExecuteCommand(cmdArgs)
+	require.NoError(s.T(), cmdOut.Err)
+
+	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, multiClusterMinimalTestVersion)
+	s.testClient = clients.CreateTestClient(s.k8sh, s.installer.Manifests)
+	s.coreToolbox = client.RunAllCephCommandsInToolboxPod
+}
+
+func (s *MultiClusterDeploySuite) startExternalCluster() {
+	err := s.installer.CreateRookExternalCluster(s.externalManifests)
 	if err != nil {
-		o.T().Fail()
-		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
-		return fmt.Errorf("failed to create external cluster %s. %+v", namespace, err)
+		s.T().Fail()
+		s.installer.GatherAllRookLogs(s.T().Name(), s.externalManifests.Settings().Namespace)
+		require.NoError(s.T(), err)
 	}
 
-	logger.Infof("running toolbox on namespace %q", namespace)
-	if err := o.installer.CreateRookToolbox(namespace); err != nil {
-		o.T().Fail()
-		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
-		return fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
-	}
-
-	logger.Infof("succeeded starting external cluster %s", namespace)
-	return nil
+	s.externalToolbox = client.RunAllCephCommandsInToolboxPod
+	logger.Infof("succeeded starting external cluster %s", s.externalManifests.Settings().Namespace)
 }

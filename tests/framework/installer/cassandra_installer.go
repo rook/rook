@@ -131,7 +131,7 @@ func (ci *CassandraInstaller) DeleteCassandraCluster(namespace string) {
 		_, err := ci.k8sHelper.RookClientset.CassandraV1alpha1().Clusters(namespace).Get(ctx, namespace, metav1.GetOptions{})
 		return err
 	}
-	err = ci.k8sHelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
+	err = ci.k8sHelper.WaitForCustomResourceDeletion(namespace, namespace, crdCheckerFunc)
 	assert.NoError(ci.T(), err)
 
 	// Delete Namespace
