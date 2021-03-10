@@ -125,14 +125,17 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
-	if c.clusterSpec.Security.KeyManagementService.IsEnabled() {
+	if kmsEnabled, err := c.checkRGWKMS(); kmsEnabled {
 		if c.clusterSpec.Security.KeyManagementService.IsTokenAuthEnabled() {
 			podSpec.Volumes = append(podSpec.Volumes,
 				kms.VaultTokenFileVolume(c.clusterSpec.Security.KeyManagementService.TokenSecretName))
 			podSpec.InitContainers = append(podSpec.InitContainers,
 				c.vaultTokenInitContainer(rgwConfig))
 		}
+	} else if err != nil {
+		return v1.PodTemplateSpec{}, err
 	}
+
 	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
 	// If host networking is not enabled, preferred pod anti-affinity is added to the rgw daemons
@@ -232,7 +235,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
 	}
-	if c.clusterSpec.Security.KeyManagementService.IsEnabled() {
+	if kmsEnabled, _ := c.checkRGWKMS(); kmsEnabled {
 		container.Args = append(container.Args,
 			cephconfig.NewFlag("rgw crypt s3 kms backend",
 				c.clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.Provider]),
@@ -410,12 +413,23 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 	switch secretEngine {
 	case kms.VaultKVSecretEngineKey:
 		vaultPrefixPath = path.Join(vaultPrefixPath,
-			c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey])
+			c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey], "/data")
 	case kms.VaultTransitSecretEngineKey:
 		vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine, "/export/encryption-key")
 	}
 
 	return vaultPrefixPath
+}
+
+func (c *clusterConfig) checkRGWKMS() (bool, error) {
+	secretEngine := c.clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]
+	kvVers := c.clusterSpec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey]
+
+	// RGW only supports v2 version of kv-engine
+	if secretEngine == kms.VaultKVSecretEngineKey && kvVers != "v2" {
+		return false, errors.New("failed to validate vault kv version, only v2 is supported")
+	}
+	return c.clusterSpec.Security.KeyManagementService.IsEnabled(), nil
 }
 
 func addPort(service *v1.Service, name string, port, destPort int32) {
