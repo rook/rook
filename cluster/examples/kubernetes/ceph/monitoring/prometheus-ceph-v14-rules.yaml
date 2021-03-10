@@ -125,6 +125,19 @@ spec:
       for: 40s
       labels:
         severity: critical
+    - alert: CephOSDFlapping
+      annotations:
+        description: Storage daemon {{ $labels.ceph_daemon }} has restarted 5 times
+          in last 5 minutes. Please check the pod events or ceph status to find out
+          the cause.
+        message: Ceph storage osd flapping.
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        changes(ceph_osd_up[5m]) >= 10
+      for: 0s
+      labels:
+        severity: critical
     - alert: CephOSDNearFull
       annotations:
         description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class
