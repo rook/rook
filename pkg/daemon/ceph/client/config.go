@@ -20,9 +20,11 @@ package client
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -269,4 +271,34 @@ func PopulateMonHostMembers(monitors map[string]*MonInfo) ([]string, []string) {
 	}
 
 	return monMembers, monHosts
+}
+
+// WriteCephConfig writes the ceph config so ceph commands can be executed
+func WriteCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) error {
+	// create the ceph.conf with the default settings
+	cephConfig, err := CreateDefaultCephConfig(context, clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to create default ceph config")
+	}
+
+	// write the latest config to the config dir
+	confFilePath, err := GenerateConnectionConfigWithSettings(context, clusterInfo, cephConfig)
+	if err != nil {
+		return errors.Wrap(err, "failed to write connection config")
+	}
+	src, err := ioutil.ReadFile(filepath.Clean(confFilePath))
+	if err != nil {
+		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
+	}
+	err = ioutil.WriteFile(DefaultConfigFilePath(), src, 0444)
+	if err != nil {
+		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", DefaultConfigFilePath())
+	}
+	dst, err := ioutil.ReadFile(DefaultConfigFilePath())
+	if err == nil {
+		logger.Debugf("config file @ %s: %s", DefaultConfigFilePath(), dst)
+	} else {
+		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %v", DefaultConfigFilePath(), err)
+	}
+	return nil
 }

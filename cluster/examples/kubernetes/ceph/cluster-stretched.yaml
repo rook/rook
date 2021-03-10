@@ -35,6 +35,8 @@ spec:
         arbiter: true
       - name: b
       - name: c
+  mgr:
+    count: 2
   cephVersion:
     # Stretch cluster support upstream is only planned starting in Ceph Pacific
     image: ceph/daemon-base:latest-master

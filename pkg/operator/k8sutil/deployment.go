@@ -61,11 +61,11 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d apps.Deployment, c
 //   2. verify that we can continue the update procedure
 // Basically, we go one resource by one and check if we can stop and then if the resource has been successfully updated
 // we check if we can go ahead and move to the next one.
-func UpdateDeploymentAndWait(clusterdContext *clusterd.Context, modifiedDeployment *apps.Deployment, namespace string, verifyCallback func(action string) error) (*v1.Deployment, error) {
+func UpdateDeploymentAndWait(clusterContext *clusterd.Context, modifiedDeployment *apps.Deployment, namespace string, verifyCallback func(action string) error) error {
 	ctx := context.TODO()
-	currentDeployment, err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Get(ctx, modifiedDeployment.Name, metav1.GetOptions{})
+	currentDeployment, err := clusterContext.Clientset.AppsV1().Deployments(namespace).Get(ctx, modifiedDeployment.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get deployment %s. %+v", modifiedDeployment.Name, err)
+		return fmt.Errorf("failed to get deployment %s. %+v", modifiedDeployment.Name, err)
 	}
 
 	// Check whether the current deployment and newly generated one are identical
@@ -78,67 +78,66 @@ func UpdateDeploymentAndWait(clusterdContext *clusterd.Context, modifiedDeployme
 		patchChanged = true
 	}
 
-	// If deployments are different, let's update!
-	if patchChanged {
-		logger.Infof("updating deployment %q after verifying it is safe to stop", modifiedDeployment.Name)
-
-		// Let's verify the deployment can be stopped
-		err = verifyCallback("stop")
-		if err != nil {
-			return nil, fmt.Errorf("failed to check if deployment %q can be updated. %v", modifiedDeployment.Name, err)
-		}
-
-		// Set hash annotation to the newly generated deployment
-		err := patch.DefaultAnnotator.SetLastAppliedAnnotation(modifiedDeployment)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set hash annotation on deployment %q. %v", modifiedDeployment.Name, err)
-		}
-
-		if _, err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Update(ctx, modifiedDeployment, metav1.UpdateOptions{}); err != nil {
-			return nil, fmt.Errorf("failed to update deployment %q. %v", modifiedDeployment.Name, err)
-		}
-
-		// wait for the deployment to be restarted
-		sleepTime := 2
-		attempts := 30
-		if currentDeployment.Spec.ProgressDeadlineSeconds != nil {
-			// make the attempts double the progress deadline since the pod is both stopping and starting
-			attempts = 2 * (int(*currentDeployment.Spec.ProgressDeadlineSeconds) / sleepTime)
-		}
-		for i := 0; i < attempts; i++ {
-			// check for the status of the deployment
-			d, err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Get(ctx, modifiedDeployment.Name, metav1.GetOptions{})
-			if err != nil {
-				return nil, fmt.Errorf("failed to get deployment %q. %v", modifiedDeployment.Name, err)
-			}
-			if d.Status.ObservedGeneration != currentDeployment.Status.ObservedGeneration && d.Status.UpdatedReplicas > 0 && d.Status.ReadyReplicas > 0 {
-				logger.Infof("finished waiting for updated deployment %q", d.Name)
-
-				// Now we check if we can go to the next daemon
-				err = verifyCallback("continue")
-				if err != nil {
-					return nil, fmt.Errorf("failed to check if deployment %q can continue: %v", modifiedDeployment.Name, err)
-				}
-
-				return d, nil
-			}
-
-			// If ProgressDeadlineExceeded is reached let's fail earlier
-			// This can happen if one of the deployment cannot be scheduled on a node and stays in "pending" state
-			for _, condition := range d.Status.Conditions {
-				if condition.Type == v1.DeploymentProgressing && condition.Reason == "ProgressDeadlineExceeded" {
-					return nil, fmt.Errorf("gave up waiting for deployment %q to update because %q", modifiedDeployment.Name, condition.Reason)
-				}
-			}
-
-			logger.Debugf("deployment %q status=%+v", d.Name, d.Status)
-			time.Sleep(time.Duration(sleepTime) * time.Second)
-		}
-		return nil, fmt.Errorf("gave up waiting for deployment %q to update", modifiedDeployment.Name)
+	if !patchChanged {
+		logger.Infof("deployment %q did not change, nothing to update", currentDeployment.Name)
+		return nil
 	}
 
-	logger.Infof("deployment %q did not change, nothing to update", currentDeployment.Name)
-	return nil, nil
+	// If deployments are different, let's update!
+	logger.Infof("updating deployment %q after verifying it is safe to stop", modifiedDeployment.Name)
+
+	// Let's verify the deployment can be stopped
+	if err := verifyCallback("stop"); err != nil {
+		return fmt.Errorf("failed to check if deployment %q can be updated. %v", modifiedDeployment.Name, err)
+	}
+
+	// Set hash annotation to the newly generated deployment
+	if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(modifiedDeployment); err != nil {
+		return fmt.Errorf("failed to set hash annotation on deployment %q. %v", modifiedDeployment.Name, err)
+	}
+
+	if _, err := clusterContext.Clientset.AppsV1().Deployments(namespace).Update(ctx, modifiedDeployment, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("failed to update deployment %q. %v", modifiedDeployment.Name, err)
+	}
+
+	if err := WaitForDeploymentToStart(clusterContext, currentDeployment); err != nil {
+		return err
+	}
+
+	// Now we check if we can go to the next daemon
+	if err := verifyCallback("continue"); err != nil {
+		return fmt.Errorf("failed to check if deployment %q can continue: %v", modifiedDeployment.Name, err)
+	}
+	return nil
+}
+
+func WaitForDeploymentToStart(clusterdContext *clusterd.Context, deployment *v1.Deployment) error {
+	// wait for the deployment to be restarted up to 300s
+	sleepTime := 3
+	attempts := 100
+	for i := 0; i < attempts; i++ {
+		// check for the status of the deployment
+		d, err := clusterdContext.Clientset.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get deployment %q. %v", deployment.Name, err)
+		}
+		if d.Status.ObservedGeneration != deployment.Status.ObservedGeneration && d.Status.UpdatedReplicas > 0 && d.Status.ReadyReplicas > 0 {
+			logger.Infof("finished waiting for updated deployment %q", d.Name)
+			return nil
+		}
+
+		// If ProgressDeadlineExceeded is reached let's fail earlier
+		// This can happen if one of the deployment cannot be scheduled on a node and stays in "pending" state
+		for _, condition := range d.Status.Conditions {
+			if condition.Type == v1.DeploymentProgressing && condition.Reason == "ProgressDeadlineExceeded" {
+				return fmt.Errorf("gave up waiting for deployment %q to update because %q", deployment.Name, condition.Reason)
+			}
+		}
+
+		logger.Debugf("deployment %q status=%+v", d.Name, d.Status)
+		time.Sleep(time.Duration(sleepTime) * time.Second)
+	}
+	return fmt.Errorf("gave up waiting for deployment %q to update", deployment.Name)
 }
 
 // GetDeployments returns a list of deployment names labels matching a given selector

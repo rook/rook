@@ -9,7 +9,7 @@ v1.6...
 ## Breaking Changes
 
 ### Ceph
-* Support for adding OSDs via Drive Groups was removed. Please refer to the 
+* Support for adding OSDs via Drive Groups was removed. Please refer to the
   [Ceph upgrade guide](Documentation/ceph-upgrade.md#migrate-the-drive-group-spec) for migration
   instructions.
   See https://github.com/rook/rook/issues/7275 for more information.
@@ -26,5 +26,6 @@ v1.6...
 * Extending the support of vault KMS configuration for Ceph RGW
 * Enable disruption budgets (PDBs) by default for Mon, RGW, MDS, and OSD daemons
 * Add CephFilesystemMirror CRD to deploy cephfs-mirror daemon
+* Multiple Ceph mgr daemons are supported for stretch clusters and other clusters where HA of the mgr is more critical
 * Ceph OSD: as of Nautilus 14.2.14 and Octopus 15.2.9 if the OSD scenario is simple (one OSD per disk) we won't use LVM to prepare the disk anymore
 * Disable CSI GRPC metrics by default

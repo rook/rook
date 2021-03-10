@@ -81,6 +81,7 @@ func AdminClusterInfo(namespace string) *ClusterInfo {
 		CephCred: CephCred{
 			Username: AdminUsername,
 		},
+		name: "testing",
 	}
 }
 

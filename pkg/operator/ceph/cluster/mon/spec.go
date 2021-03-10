@@ -62,7 +62,7 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 }
 
 func (c *Cluster) stretchFailureDomainName() string {
-	label := c.stretchFailureDomainLabel()
+	label := StretchFailureDomainLabel(c.spec)
 	index := strings.Index(label, "/")
 	if index == -1 {
 		return label
@@ -70,9 +70,9 @@ func (c *Cluster) stretchFailureDomainName() string {
 	return label[index+1:]
 }
 
-func (c *Cluster) stretchFailureDomainLabel() string {
-	if c.spec.Mon.StretchCluster.FailureDomainLabel != "" {
-		return c.spec.Mon.StretchCluster.FailureDomainLabel
+func StretchFailureDomainLabel(spec cephv1.ClusterSpec) string {
+	if spec.Mon.StretchCluster.FailureDomainLabel != "" {
+		return spec.Mon.StretchCluster.FailureDomainLabel
 	}
 	// The default topology label is for a zone
 	return corev1.LabelZoneFailureDomainStable
@@ -210,7 +210,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*v1.Pod, error)
 	}
 
 	if c.spec.IsStretchCluster() {
-		nodeAffinity, err := k8sutil.GenerateNodeAffinity(fmt.Sprintf("%s=%s", c.stretchFailureDomainLabel(), monConfig.Zone))
+		nodeAffinity, err := k8sutil.GenerateNodeAffinity(fmt.Sprintf("%s=%s", StretchFailureDomainLabel(c.spec), monConfig.Zone))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to generate mon %q node affinity", monConfig.DaemonName)
 		}
@@ -362,6 +362,6 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.
 		return nil
 	}
 
-	_, err := k8sutil.UpdateDeploymentAndWait(context, deployment, clusterInfo.Namespace, callback)
+	err := k8sutil.UpdateDeploymentAndWait(context, deployment, clusterInfo.Namespace, callback)
 	return err
 }

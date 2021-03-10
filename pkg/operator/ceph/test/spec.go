@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	e "github.com/pkg/errors"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -63,7 +64,7 @@ func VerifyAppLabels(appName, namespace string, labels map[string]string) error 
 // VerifyPodLabels returns a descriptive error if pod labels are not present or not as expected.
 func VerifyPodLabels(appName, namespace, daemonType, daemonID string, labels map[string]string) error {
 	errA := VerifyAppLabels(appName, namespace, labels)
-	errB := checkLabel("ceph_daemon_id", daemonID, labels)
+	errB := checkLabel(controller.DaemonIDLabel, daemonID, labels)
 	errC := checkLabel(daemonType, daemonID, labels)
 	return combineErrors(errA, errB, errC)
 }

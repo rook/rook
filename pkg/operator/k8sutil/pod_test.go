@@ -26,11 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestMakeRookImage(t *testing.T) {
-	assert.Equal(t, "rook/rook:v1", MakeRookImage("rook/rook:v1"))
-	assert.Equal(t, defaultVersion, MakeRookImage(""))
-}
-
 func TestGetContainerInPod(t *testing.T) {
 	expectedName := "mycontainer"
 	imageName := "myimage"
@@ -184,7 +179,8 @@ func testPodSpecPlacement(t *testing.T, requiredDuringScheduling bool, req, pref
 		RestartPolicy:  v1.RestartPolicyAlways,
 	}
 
-	SetNodeAntiAffinityForPod(&spec, *placement, requiredDuringScheduling, map[string]string{"app": "mon"}, nil)
+	placement.ApplyToPodSpec(&spec, true)
+	SetNodeAntiAffinityForPod(&spec, requiredDuringScheduling, v1.LabelHostname, map[string]string{"app": "mon"}, nil)
 
 	// should have a required anti-affinity and no preferred anti-affinity
 	assert.Equal(t,

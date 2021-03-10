@@ -204,7 +204,7 @@ func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster)
 	)
 
 	// Create external monitoring Service
-	service := manager.MakeMetricsService(mgr.ExternalMgrAppName, mgr.ServiceExternalMetricName)
+	service := manager.MakeMetricsService(mgr.ExternalMgrAppName, "", mgr.ServiceExternalMetricName)
 	logger.Info("creating mgr external monitoring service")
 	_, err := k8sutil.CreateOrUpdateService(c.context.Clientset, cluster.Namespace, service)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
@@ -223,7 +223,7 @@ func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster)
 	// Deploy external ServiceMonittor
 	logger.Info("creating external service monitor")
 	// servicemonitor takes some metadata from the service for easy mapping
-	err = manager.EnableServiceMonitor(service)
+	err = manager.EnableServiceMonitor("")
 	if err != nil {
 		logger.Errorf("failed to enable external service monitor. %v", err)
 	} else {

@@ -224,6 +224,7 @@ func testOSDsOnPVC(t *testing.T) {
 		Namespace:   namespace,
 		CephVersion: cephver.Nautilus,
 	}
+	clusterInfo.SetName("mycluster")
 	executor := osdPVCTestExecutor(t, clientset, namespace)
 
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: executor, RequestCancelOrchestration: abool.New()}

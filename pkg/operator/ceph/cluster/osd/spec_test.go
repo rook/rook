@@ -88,6 +88,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		Namespace:   "ns",
 		CephVersion: cephver.Nautilus,
 	}
+	clusterInfo.SetName("test")
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{
 		CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
@@ -430,6 +431,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 			Namespace:   "ns",
 			CephVersion: cephver.Octopus,
 		}
+		clusterInfo.SetName("test")
 		c := New(context, clusterInfo, spec, "rook/rook:myversion")
 		deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 		assert.NoError(t, err)
@@ -464,6 +466,7 @@ func TestStorageSpecConfig(t *testing.T) {
 		Namespace:   "ns",
 		CephVersion: cephver.Nautilus,
 	}
+	clusterInfo.SetName("testing")
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
@@ -545,6 +548,7 @@ func TestHostNetwork(t *testing.T) {
 		Namespace:   "ns",
 		CephVersion: cephver.Nautilus,
 	}
+	clusterInfo.SetName("test")
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{
 		Storage: storageSpec,
@@ -583,6 +587,7 @@ func TestOsdPrepareResources(t *testing.T) {
 
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	clusterInfo.SetName("test")
 	spec := cephv1.ClusterSpec{
 		Resources: map[string]v1.ResourceRequirements{"prepareosd": {
 			Limits: v1.ResourceList{

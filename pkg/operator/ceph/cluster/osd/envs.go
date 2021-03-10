@@ -57,6 +57,7 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(osdProps.crushHostname),
 		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerRef.UID)},
+		{Name: "ROOK_CLUSTER_NAME", Value: string(c.clusterInfo.NamespacedName().Name)},
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		opmon.PodNamespaceEnvVar(c.clusterInfo.Namespace),

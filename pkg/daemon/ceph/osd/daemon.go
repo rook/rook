@@ -18,7 +18,6 @@ package osd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -29,7 +28,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/util/sys"
 )
@@ -163,37 +162,6 @@ func configRawDevice(name string, context *clusterd.Context) (*sys.LocalDisk, er
 	return rawDevice, nil
 }
 
-// writeCephConfig writes the ceph config so ceph commands can be executed
-func writeCephConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
-
-	// create the ceph.conf with the default settings
-	cephConfig, err := cephclient.CreateDefaultCephConfig(context, clusterInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to create default ceph config")
-	}
-
-	// write the latest config to the config dir
-	confFilePath, err := cephclient.GenerateConnectionConfigWithSettings(context, clusterInfo, cephConfig)
-	if err != nil {
-		return errors.Wrap(err, "failed to write connection config")
-	}
-	src, err := ioutil.ReadFile(filepath.Clean(confFilePath))
-	if err != nil {
-		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
-	}
-	err = ioutil.WriteFile(cephclient.DefaultConfigFilePath(), src, 0444)
-	if err != nil {
-		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", cephclient.DefaultConfigFilePath())
-	}
-	dst, err := ioutil.ReadFile(cephclient.DefaultConfigFilePath())
-	if err == nil {
-		logger.Debugf("config file @ %s: %s", cephclient.DefaultConfigFilePath(), dst)
-	} else {
-		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %v", cephclient.DefaultConfigFilePath(), err)
-	}
-	return nil
-}
-
 // Provision provisions an OSD
 func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topologyAffinity string) error {
 	if agent.pvcBacked {
@@ -214,7 +182,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating}
 	oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status)
 
-	if err := writeCephConfig(context, agent.clusterInfo); err != nil {
+	if err := client.WriteCephConfig(context, agent.clusterInfo); err != nil {
 		return errors.Wrap(err, "failed to generate ceph config")
 	}
 

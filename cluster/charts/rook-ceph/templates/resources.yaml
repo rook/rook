@@ -102,6 +102,12 @@ spec:
                 mgr:
                   type: object
                   properties:
+                    count:
+                      type: integer
+                      minimum: 0
+                      maximum: 2
+                    allowMultiplePerNode:
+                      type: boolean
                     modules:
                       type: array
                       items:
@@ -1511,6 +1517,12 @@ spec:
                 volumeClaimTemplate: {}
             mgr:
               properties:
+                count:
+                  type: integer
+                  minimum: 0
+                  maximum: 2
+                allowMultiplePerNode:
+                  type: boolean
                 modules:
                   items:
                     properties:

@@ -198,8 +198,9 @@ func (o MCTestOperations) Teardown() {
 
 func (o MCTestOperations) startCluster(namespace, store string) error {
 	logger.Infof("starting cluster %s", namespace)
+	multipleManagers := true
 	err := o.installer.CreateRookCluster(namespace, o.systemNamespace, store, o.testOverPVC, o.storageClassName,
-		cephv1.MonSpec{Count: 1, AllowMultiplePerNode: true}, true, false, false, installer.NautilusVersion)
+		cephv1.MonSpec{Count: 1, AllowMultiplePerNode: true}, true, multipleManagers, false, false, installer.NautilusVersion)
 	if err != nil {
 		o.T().Fail()
 		o.installer.GatherAllRookLogs(o.T().Name(), namespace, o.systemNamespace)
