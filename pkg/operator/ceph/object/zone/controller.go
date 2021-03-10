@@ -214,7 +214,7 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 
 	// get zone group to see if master zone exists yet
-	output, err := object.RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	output, err := object.RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			return reconcile.Result{}, errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)
@@ -230,7 +230,7 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 	}
 
 	// create zone
-	_, err = object.RunAdminCommandNoMultisite(objContext, "zone", "get", realmArg, zoneGroupArg, zoneArg)
+	_, err = object.RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err == nil {
 		logger.Debugf("ceph zone %q already exists, new zone and pools will not be created", zone.Name)
 		return reconcile.Result{}, nil
@@ -279,7 +279,7 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 		args = append(args, "--master")
 	}
 
-	output, err := object.RunAdminCommandNoMultisite(objContext, args...)
+	output, err := object.RunAdminCommandNoMultisite(objContext, false, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create ceph zone %q for reason %q", zone.Name, output)
 	}
@@ -308,7 +308,7 @@ func (r *ReconcileObjectZone) reconcileCephZoneGroup(zone *cephv1.CephObjectZone
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 
-	_, err := object.RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	_, err := object.RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			return waitForRequeueIfObjectZoneGroupNotReady, errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)

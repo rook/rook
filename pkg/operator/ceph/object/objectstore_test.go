@@ -67,9 +67,15 @@ func TestReconcileRealm(t *testing.T) {
 		logger.Infof("Execute: %s %v", command, args)
 		return idResponse, nil
 	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		testResponse := `{"id": "test-id"}`
+		logger.Infof("Execute: %s %v", command, args)
+		return testResponse, nil
+	}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput:         executorFunc,
 		MockExecuteCommandWithCombinedOutput: executorFunc,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
 	}
 
 	storeName := "myobject"
