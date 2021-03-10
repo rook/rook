@@ -119,7 +119,7 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 
 	zoneGroupIsMaster := false
 	if zoneIsMaster {
-		_, err = RunAdminCommandNoMultisite(objContext, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+		_, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone group %q", objContext.Name, objContext.ZoneGroup)
 		}
@@ -132,7 +132,7 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 		}
 	}
 
-	_, err = runAdminCommand(objContext, "zone", "modify", endpointArg)
+	_, err = runAdminCommand(objContext, false, "zone", "modify", endpointArg)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone %q", objContext.Name, spec.Zone.Name)
 	}
@@ -143,7 +143,7 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 	}
 
 	// the period will help notify other zones of changes if there are multi-zones
-	_, err = runAdminCommand(objContext, "period", "update", "--commit")
+	_, err = runAdminCommand(objContext, false, "period", "update", "--commit")
 	if err != nil {
 		return errors.Wrap(err, "failed to update period after removing an endpoint from the zone")
 	}
@@ -216,7 +216,7 @@ func checkZoneIsMaster(objContext *Context) (bool, error) {
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
-	zoneGroupJson, err := RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	zoneGroupJson, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get rgw zone group")
 	}
@@ -226,7 +226,7 @@ func checkZoneIsMaster(objContext *Context) (bool, error) {
 	}
 	logger.Debugf("got master zone ID for zone group %v", objContext.ZoneGroup)
 
-	zoneOutput, err := RunAdminCommandNoMultisite(objContext, "zone", "get", realmArg, zoneGroupArg, zoneArg)
+	zoneOutput, err := RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get rgw zone")
 	}
@@ -250,7 +250,7 @@ func checkZoneGroupIsMaster(objContext *Context) (bool, error) {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 
-	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get rgw zone group")
 	}
@@ -310,7 +310,7 @@ func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, er
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 
-	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		return []string{}, errors.Wrap(err, "failed to get rgw zone group")
 	}
@@ -343,11 +343,11 @@ func createMultisite(objContext *Context, endpointArg string) error {
 
 	updatePeriod := false
 	// create the realm if it doesn't exist yet
-	output, err := RunAdminCommandNoMultisite(objContext, "realm", "get", realmArg)
+	output, err := RunAdminCommandNoMultisite(objContext, true, "realm", "get", realmArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			updatePeriod = true
-			output, err = RunAdminCommandNoMultisite(objContext, "realm", "create", realmArg)
+			output, err = RunAdminCommandNoMultisite(objContext, false, "realm", "create", realmArg)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create ceph realm %q, for reason %q", objContext.ZoneGroup, output)
 			}
@@ -358,11 +358,11 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	}
 
 	// create the zonegroup if it doesn't exist yet
-	output, err = RunAdminCommandNoMultisite(objContext, "zonegroup", "get", realmArg, zoneGroupArg)
+	output, err = RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			updatePeriod = true
-			output, err = RunAdminCommandNoMultisite(objContext, "zonegroup", "create", "--master", realmArg, zoneGroupArg, endpointArg)
+			output, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "create", "--master", realmArg, zoneGroupArg, endpointArg)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create ceph zone group %q, for reason %q", objContext.ZoneGroup, output)
 			}
@@ -373,11 +373,11 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	}
 
 	// create the zone if it doesn't exist yet
-	output, err = runAdminCommand(objContext, "zone", "get")
+	output, err = runAdminCommand(objContext, true, "zone", "get")
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			updatePeriod = true
-			output, err = runAdminCommand(objContext, "zone", "create", "--master", endpointArg)
+			output, err = runAdminCommand(objContext, false, "zone", "create", "--master", endpointArg)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create ceph zone %q, for reason %q", objContext.Zone, output)
 			}
@@ -389,7 +389,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 
 	if updatePeriod {
 		// the period will help notify other zones of changes if there are multi-zones
-		_, err := runAdminCommand(objContext, "period", "update", "--commit")
+		_, err := runAdminCommand(objContext, false, "period", "update", "--commit")
 		if err != nil {
 			return errors.Wrap(err, "failed to update period")
 		}
@@ -415,7 +415,7 @@ func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 
 	if zoneIsMaster {
 		// endpoints that are part of a master zone are supposed to be the endpoints for a zone group
-		_, err := RunAdminCommandNoMultisite(objContext, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+		_, err := RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
 		if err != nil {
 			return errors.Wrapf(err, "failed to add object store %q in rgw zone group %q", objContext.Name, objContext.ZoneGroup)
 		}
@@ -427,14 +427,14 @@ func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 			return errors.Wrapf(err, "failed to find out whether zone group %q in is the master zone group", objContext.ZoneGroup)
 		}
 	}
-	_, err = RunAdminCommandNoMultisite(objContext, "zone", "modify", realmArg, zoneGroupArg, zoneArg, endpointArg)
+	_, err = RunAdminCommandNoMultisite(objContext, false, "zone", "modify", realmArg, zoneGroupArg, zoneArg, endpointArg)
 	if err != nil {
 		return errors.Wrapf(err, "failed to add object store %q in rgw zone %q", objContext.Name, objContext.Zone)
 	}
 	logger.Debugf("endpoints for zone %q are now %q", objContext.Zone, zoneEndpoints)
 
 	// the period will help notify other zones of changes if there are multi-zones
-	_, err = RunAdminCommandNoMultisite(objContext, "period", "update", "--commit", realmArg, zoneGroupArg, zoneArg)
+	_, err = RunAdminCommandNoMultisite(objContext, false, "period", "update", "--commit", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
 		return errors.Wrap(err, "failed to update period")
 	}
@@ -458,7 +458,7 @@ func createSystemUser(objContext *Context, namespace string) error {
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
-	output, err := RunAdminCommandNoMultisite(objContext, "user", "info", uidArg)
+	output, err := RunAdminCommandNoMultisite(objContext, false, "user", "info", uidArg)
 	if err == nil {
 		logger.Debugf("realm system user %q has already been created", uid)
 		return nil
@@ -473,7 +473,7 @@ func createSystemUser(objContext *Context, namespace string) error {
 		logger.Debugf("found keys to create realm system user %v", uid)
 		systemArg := "--system"
 		displayNameArg := fmt.Sprintf("--display-name=%s.user", objContext.Realm)
-		output, err = RunAdminCommandNoMultisite(objContext, "user", "create", realmArg, zoneGroupArg, zoneArg, uidArg, displayNameArg, accessKeyArg, secretKeyArg, systemArg)
+		output, err = RunAdminCommandNoMultisite(objContext, false, "user", "create", realmArg, zoneGroupArg, zoneArg, uidArg, displayNameArg, accessKeyArg, secretKeyArg, systemArg)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create realm system user %q for reason: %q", uid, output)
 		}
@@ -523,17 +523,17 @@ func deleteRealm(context *Context) error {
 	//  <name>
 	realmArg := fmt.Sprintf("--rgw-realm=%s", context.Name)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", context.Name)
-	_, err := RunAdminCommandNoMultisite(context, "realm", "delete", realmArg)
+	_, err := RunAdminCommandNoMultisite(context, false, "realm", "delete", realmArg)
 	if err != nil {
 		logger.Warningf("failed to delete rgw realm %q. %v", context.Name, err)
 	}
 
-	_, err = RunAdminCommandNoMultisite(context, "zonegroup", "delete", realmArg, zoneGroupArg)
+	_, err = RunAdminCommandNoMultisite(context, false, "zonegroup", "delete", realmArg, zoneGroupArg)
 	if err != nil {
 		logger.Warningf("failed to delete rgw zonegroup %q. %v", context.Name, err)
 	}
 
-	_, err = runAdminCommand(context, "zone", "delete")
+	_, err = runAdminCommand(context, false, "zone", "delete")
 	if err != nil {
 		logger.Warningf("failed to delete rgw zone %q. %v", context.Name, err)
 	}
@@ -562,7 +562,7 @@ func DecodeZoneGroupConfig(data string) (zoneGroupType, error) {
 }
 
 func getObjectStores(context *Context) ([]string, error) {
-	output, err := RunAdminCommandNoMultisite(context, "realm", "list")
+	output, err := RunAdminCommandNoMultisite(context, true, "realm", "list")
 	if err != nil {
 		// exit status 2 indicates the object store does not exist, so return nothing
 		if strings.Index(err.Error(), "exit status 2") == 0 {

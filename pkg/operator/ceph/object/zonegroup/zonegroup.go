@@ -18,6 +18,7 @@ package zonegroup
 
 import (
 	"encoding/json"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )

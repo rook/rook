@@ -18,6 +18,7 @@ package object
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/pkg/errors"
@@ -56,9 +57,20 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *client.ClusterI
 	return objContext, nil
 }
 
+func extractJSON(output string) (string, error) {
+	// `radosgw-admin` sometimes leaves logs to stderr even if it succeeds.
+	// So we should skip them if parsing output as json.
+	pattern := regexp.MustCompile("(?ms)^{.*")
+	match := pattern.Find([]byte(output))
+	if match == nil {
+		return "", errors.Errorf("didn't contain json. %s", output)
+	}
+	return string(match), nil
+}
+
 // RunAdminCommandNoMultisite is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)
 // This function times out after a fixed interval if no response is received.
-func RunAdminCommandNoMultisite(c *Context, args ...string) (string, error) {
+func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (string, error) {
 	command, args := client.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
 
 	timeout, err := time.ParseDuration(fmt.Sprintf("%ss", client.CephConnectionTimeout))
@@ -71,12 +83,19 @@ func RunAdminCommandNoMultisite(c *Context, args ...string) (string, error) {
 	if err != nil {
 		return output, err
 	}
+	if expectJSON {
+		match, err := extractJSON(output)
+		if err != nil {
+			return output, errors.Wrap(err, "failed to parse as JSON")
+		}
+		output = match
+	}
 
 	return output, nil
 }
 
 // This function is for running radosgw-admin commands in scenarios where an object-store has been created and the Context has been updated with the appropriate realm, zone group, and zone.
-func runAdminCommand(c *Context, args ...string) (string, error) {
+func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error) {
 	// If the objectStoreName is not passed in the storage class
 	// This means we are pointing to an external cluster so these commands are not needed
 	// simply because the external cluster mode does not support that yet
@@ -91,8 +110,8 @@ func runAdminCommand(c *Context, args ...string) (string, error) {
 			fmt.Sprintf("--rgw-zone=%s", c.Zone),
 		}
 
-		return RunAdminCommandNoMultisite(c, append(args, options...)...)
+		return RunAdminCommandNoMultisite(c, expectJSON, append(args, options...)...)
 	}
 
-	return RunAdminCommandNoMultisite(c, args...)
+	return RunAdminCommandNoMultisite(c, expectJSON, args...)
 }

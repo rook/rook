@@ -222,7 +222,7 @@ func (r *ReconcileObjectRealm) pullCephRealm(realm *cephv1.CephObjectRealm) (rec
 	logger.Debugf("keys found to pull realm, getting ready to pull from endpoint %q", realm.Spec.Pull.Endpoint)
 
 	objContext := object.NewContext(r.context, r.clusterInfo, realm.Name)
-	output, err := object.RunAdminCommandNoMultisite(objContext, "realm", "pull", realmArg, urlArg, accessKeyArg, secretKeyArg)
+	output, err := object.RunAdminCommandNoMultisite(objContext, false, "realm", "pull", realmArg, urlArg, accessKeyArg, secretKeyArg)
 
 	if err != nil {
 		return waitForRequeueIfRealmNotReady, errors.Wrapf(err, "realm pull failed for reason: %v", output)
@@ -236,12 +236,12 @@ func (r *ReconcileObjectRealm) createCephRealm(realm *cephv1.CephObjectRealm) (r
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realm.Name)
 	objContext := object.NewContext(r.context, r.clusterInfo, realm.Namespace)
 
-	_, err := object.RunAdminCommandNoMultisite(objContext, "realm", "get", realmArg)
+	_, err := object.RunAdminCommandNoMultisite(objContext, true, "realm", "get", realmArg)
 
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
 			logger.Debugf("ceph realm %q not found, running `radosgw-admin realm create`", realm.Name)
-			_, err := object.RunAdminCommandNoMultisite(objContext, "realm", "create", realmArg)
+			_, err := object.RunAdminCommandNoMultisite(objContext, false, "realm", "create", realmArg)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph realm %s", realm.Name)
 			}
