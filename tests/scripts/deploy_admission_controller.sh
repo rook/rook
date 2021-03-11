@@ -5,6 +5,7 @@ set -eEo pipefail
 
 function cleanup() {
   set +e
+  kubectl -n cert-manager get pods
   kubectl -n rook-ceph delete validatingwebhookconfigurations $WEBHOOK_CONFIG_NAME
   kubectl -n rook-ceph delete certificate rook-admission-controller-cert
   kubectl -n rook-ceph delete issuers selfsigned-issuer
@@ -34,7 +35,7 @@ export SERVICE_NAME="rook-ceph-admission-controller"
 echo "$BASE_DIR"
 
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/$CERT_VERSION/cert-manager.yaml
-timeout 150 sh -c 'until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running|grep -c ^cert-) -eq 3 ]; do sleep 1; done'
+timeout 180 sh -c 'until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running|grep -c ^cert-) -eq 3 ]; do sleep 1; done'
 timeout 20 sh -c 'until [ $(kubectl -n cert-manager get pods -o custom-columns=READY:status.containerStatuses[*].ready | grep -c true) -eq 3 ]; do sleep 1; done'
 
 echo "Deploying webhook config"
