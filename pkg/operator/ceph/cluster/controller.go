@@ -31,6 +31,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -51,7 +52,6 @@ import (
 
 const (
 	controllerName           = "ceph-cluster-controller"
-	enableFlexDriver         = "ROOK_ENABLE_FLEX_DRIVER"
 	detectCephVersionTimeout = 15 * time.Minute
 )
 
@@ -421,8 +421,7 @@ func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) err
 			return err
 		}
 	}
-	flexDriverEnabled := os.Getenv(enableFlexDriver) != "false"
-	if !flexDriverEnabled {
+	if controllerutil.FlexDriverEnabled(c.context) {
 		logger.Debugf("Flex driver disabled, skipping check for volume attachments for cluster %q", cluster.Namespace)
 		return nil
 	}
