@@ -179,9 +179,8 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterInfo *ClusterInfo, 
 
 func checkForImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
 	var err error
-	var stats = new(PoolStatistics)
 	logger.Debugf("checking any images/snapshosts present in pool %q", name)
-	stats, err = GetPoolStatistics(context, clusterInfo, name)
+	stats, err := GetPoolStatistics(context, clusterInfo, name)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such file or directory") {
 			return nil

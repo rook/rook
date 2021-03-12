@@ -40,8 +40,9 @@ type CephManifestsV1_5 struct {
 func readManifestFromGithub(filename string) string {
 	url := fmt.Sprintf("https://raw.githubusercontent.com/rook/rook/%s/cluster/examples/kubernetes/ceph/%s", Version1_5, filename)
 	logger.Infof("Retrieving manifest: %s", url)
-	// nolint:gosec G107 This is only test code and is expected to read from a url
+	// #nosec G107 This is only test code and is expected to read from a url
 	response, err := http.Get(url)
+
 	if err != nil {
 		panic(errors.Wrapf(err, "failed to read manifest from %s", url))
 	}
