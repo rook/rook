@@ -312,7 +312,7 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 
 	r.objContext = objContext
 	r.objContext.Endpoint = store.Status.Info["endpoint"]
-	if store.Status.Info["secureEndpoint"] != "" {
+	if store.Status != nil && store.Status.Info["secureEndpoint"] != "" {
 		r.objContext.Endpoint = store.Status.Info["secureEndpoint"]
 	}
 	if r.objContext.Endpoint == "" {
