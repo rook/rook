@@ -93,29 +93,38 @@ spec:
 You can use the existing `object-external.yaml` file.
 When ready the ceph-object-controller will output a message in the Operator log similar to this one:
 
-```log
-ceph-object-controller: ceph object store gateway service running at 10.100.28.138:8080
-```
+>```
+>ceph-object-controller: ceph object store gateway service >running at 10.100.28.138:8080
+>```
 
 You can now get and access the store via:
 
 ```console
 kubectl -n rook-ceph get svc -l app=rook-ceph-rgw
-NAME                     TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-rook-ceph-rgw-my-store   ClusterIP   10.100.28.138   <none>        8080/TCP   6h59m
 ```
+
+>```
+>NAME                     TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+>rook-ceph-rgw-my-store   ClusterIP   10.100.28.138   <none>        8080/TCP   6h59m
+>```
 
 Any pod from your cluster can now access this endpoint:
 
 ```console
-curl 10.100.28.138:8080
-<?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
+$ curl 10.100.28.138:8080
 ```
+
+>```
+><?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
+>```
 
 It is also possible to use the internally registered DNS name:
 
 ```console
 curl rook-ceph-rgw-my-store.rook-ceph:8080
+```
+
+```console
 <?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
 ```
 
@@ -249,10 +258,13 @@ you will need to setup an external service through a `NodePort`.
 First, note the service that exposes RGW internal to the cluster. We will leave this service intact and create a new service for external access.
 
 ```console
-$ kubectl -n rook-ceph get service rook-ceph-rgw-my-store
-NAME                     CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
-rook-ceph-rgw-my-store   10.3.0.177   <none>        80/TCP      2m
+kubectl -n rook-ceph get service rook-ceph-rgw-my-store
 ```
+
+>```
+>NAME                     CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
+>rook-ceph-rgw-my-store   10.3.0.177   <none>        80/TCP      2m
+>```
 
 Save the external service as `rgw-external.yaml`:
 
@@ -289,11 +301,14 @@ kubectl create -f rgw-external.yaml
 See both rgw services running and notice what port the external service is running on:
 
 ```console
-$ kubectl -n rook-ceph get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
-NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
-rook-ceph-rgw-my-store            ClusterIP   10.104.82.228    <none>        80/TCP         4m
-rook-ceph-rgw-my-store-external   NodePort    10.111.113.237   <none>        80:31536/TCP   39s
+kubectl -n rook-ceph get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
 ```
+
+>```
+>NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+>rook-ceph-rgw-my-store            ClusterIP   10.104.82.228    <none>        80/TCP         4m
+>rook-ceph-rgw-my-store-external   NodePort    10.111.113.237   <none>        80:31536/TCP   39s
+>```
 
 Internally the rgw service is running on port `80`. The external port in this case is `31536`. Now you can access the `CephObjectStore` from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
 
@@ -322,24 +337,28 @@ When the `CephObjectStoreUser` is created, the Rook operator will then create th
 ```console
 # Create the object store user
 kubectl create -f object-user.yaml
+```
 
+```console
 # To confirm the object store user is configured, describe the secret
 kubectl -n rook-ceph describe secret rook-ceph-object-user-my-store-my-user
-
-Name:		rook-ceph-object-user-my-store-my-user
-Namespace:	rook-ceph
-Labels:			app=rook-ceph-rgw
-			      rook_cluster=rook-ceph
-			      rook_object_store=my-store
-Annotations:	<none>
-
-Type:	kubernetes.io/rook
-
-Data
-====
-AccessKey:	20 bytes
-SecretKey:	40 bytes
 ```
+
+>```
+>Name:		rook-ceph-object-user-my-store-my-user
+>Namespace:	rook-ceph
+>Labels:			app=rook-ceph-rgw
+>			      rook_cluster=rook-ceph
+>			      rook_object_store=my-store
+>Annotations:	<none>
+>
+>Type:	kubernetes.io/rook
+>
+>Data
+>====
+>AccessKey:	20 bytes
+>SecretKey:	40 bytes
+>```
 
 The AccessKey and SecretKey data fields can be mounted in a pod as an environment variable. More information on consuming
 kubernetes secrets can be found in the [K8s secret documentation](https://kubernetes.io/docs/concepts/configuration/secret/)

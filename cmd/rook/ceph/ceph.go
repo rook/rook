@@ -61,6 +61,7 @@ func init() {
 		agentCmd,
 		admissionCmd,
 		osdCmd,
+		mgrCmd,
 		configCmd)
 }
 

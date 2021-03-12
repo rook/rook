@@ -18,16 +18,16 @@ spec:
         role: web-frontend
     spec:
       containers:
-      - name: web
-        image: nginx
-        ports:
-          - name: web
-            containerPort: 80
-        volumeMounts:
+        - name: web
+          image: nginx
+          ports:
+            - name: web
+              containerPort: 80
+          volumeMounts:
             # name must match the volume name below
             - name: rook-nfs-vol
               mountPath: "/usr/share/nginx/html"
       volumes:
-      - name: rook-nfs-vol
-        persistentVolumeClaim:
-          claimName: rook-nfs-pv-claim
+        - name: rook-nfs-vol
+          persistentVolumeClaim:
+            claimName: rook-nfs-pv-claim

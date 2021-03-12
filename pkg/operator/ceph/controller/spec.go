@@ -44,6 +44,8 @@ const (
 	initialDelaySecondsNonOSDDaemon int32 = 10
 	initialDelaySecondsOSDDaemon    int32 = 45
 	logCollector                          = "log-collector"
+	DaemonIDLabel                         = "ceph_daemon_id"
+	daemonTypeLabel                       = "ceph_daemon_type"
 )
 
 type daemonConfig struct {
@@ -359,9 +361,9 @@ func CephDaemonAppLabels(appName, namespace, daemonType, daemonID string, includ
 
 	// New labels cannot be applied to match selectors during upgrade
 	if includeNewLabels {
-		labels["ceph_daemon_type"] = daemonType
+		labels[daemonTypeLabel] = daemonType
 	}
-	labels["ceph_daemon_id"] = daemonID
+	labels[DaemonIDLabel] = daemonID
 	// Also report the daemon id keyed by its daemon type: "mon: a", "mds: c", etc.
 	labels[daemonType] = daemonID
 	return labels

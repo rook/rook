@@ -9,50 +9,50 @@ spec:
   template:
     spec:
       initContainers:
-      - name: config-init
-        image: rook/ceph:master
-        command: ["/usr/local/bin/toolbox.sh"]
-        args: ["--skip-watch"]
-        imagePullPolicy: IfNotPresent
-        env:
-        - name: ROOK_CEPH_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: rook-ceph-mon
-              key: ceph-username
-        - name: ROOK_CEPH_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: rook-ceph-mon
-              key: ceph-secret
-        volumeMounts:
-        - mountPath: /etc/ceph
-          name: ceph-config
-        - name: mon-endpoint-volume
-          mountPath: /etc/rook
+        - name: config-init
+          image: rook/ceph:master
+          command: ["/usr/local/bin/toolbox.sh"]
+          args: ["--skip-watch"]
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ROOK_CEPH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-username
+            - name: ROOK_CEPH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-secret
+          volumeMounts:
+            - mountPath: /etc/ceph
+              name: ceph-config
+            - name: mon-endpoint-volume
+              mountPath: /etc/rook
       containers:
-      - name: script
-        image: rook/ceph:master
-        volumeMounts:
-        - mountPath: /etc/ceph
-          name: ceph-config
-          readOnly: true
-        command:
-        - "bash"
-        - "-c"
-        - |
-          # Modify this script to run any ceph, rbd, radosgw-admin, or other commands that could
-          # be run in the toolbox pod. The output of the commands can be seen by getting the pod log.
-          #
-          # example: print the ceph status
-          ceph status
+        - name: script
+          image: rook/ceph:master
+          volumeMounts:
+            - mountPath: /etc/ceph
+              name: ceph-config
+              readOnly: true
+          command:
+            - "bash"
+            - "-c"
+            - |
+              # Modify this script to run any ceph, rbd, radosgw-admin, or other commands that could
+              # be run in the toolbox pod. The output of the commands can be seen by getting the pod log.
+              #
+              # example: print the ceph status
+              ceph status
       volumes:
-      - name: mon-endpoint-volume
-        configMap:
-          name: rook-ceph-mon-endpoints
-          items:
-          - key: data
-            path: mon-endpoints
-      - name: ceph-config
-        emptyDir: {}
+        - name: mon-endpoint-volume
+          configMap:
+            name: rook-ceph-mon-endpoints
+            items:
+              - key: data
+                path: mon-endpoints
+        - name: ceph-config
+          emptyDir: {}
       restartPolicy: Never

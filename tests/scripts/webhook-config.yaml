@@ -2,7 +2,8 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: ${WEBHOOK_CONFIG_NAME}
-  namespace: ${NAMESPACE}
+  annotations:
+    cert-manager.io/inject-ca-from: ${NAMESPACE}/rook-admission-controller-cert
 webhooks:
   - name: cephcluster-wh-${SERVICE_NAME}-${NAMESPACE}.rook.io
     rules:
@@ -30,6 +31,21 @@ webhooks:
         name: ${SERVICE_NAME}
         namespace: ${NAMESPACE}
         path: /validate-ceph-rook-io-v1-cephblockpool
+      caBundle: ${CA_BUNDLE}
+    admissionReviewVersions: ["v1", "v1beta1"]  # API server will try to use first version in the list which it supports.
+    sideEffects: None
+    timeoutSeconds: 5
+  - name: cephobjectstore-wh-${SERVICE_NAME}-${NAMESPACE}.rook.io
+    rules:
+      - apiGroups:   ["ceph.rook.io"]
+        apiVersions: ["v1"]
+        operations:  ["CREATE","UPDATE","DELETE"]
+        resources:   ["cephobjectstores"]
+    clientConfig:
+      service:
+        name: ${SERVICE_NAME}
+        namespace: ${NAMESPACE}
+        path: /validate-ceph-rook-io-v1-cephobjectstore
       caBundle: ${CA_BUNDLE}
     admissionReviewVersions: ["v1", "v1beta1"]  # API server will try to use first version in the list which it supports.
     sideEffects: None

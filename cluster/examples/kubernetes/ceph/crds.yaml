@@ -102,6 +102,13 @@ spec:
                 mgr:
                   type: object
                   properties:
+                    count:
+                      type: integer
+                      # 0 will be interpreted as a default of 1 for backward compatibility
+                      minimum: 0
+                      maximum: 2
+                    allowMultiplePerNode:
+                      type: boolean
                     modules:
                       type: array
                       items:

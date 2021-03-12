@@ -1,5 +1,5 @@
 spec:
-  replaces:  rook-ceph.v1.1.1
+  replaces: rook-ceph.v1.1.1
   customresourcedefinitions:
     owned:
       - kind: CephCluster
@@ -22,92 +22,92 @@ spec:
             displayName: Coding Chunks
             path: dataPool.erasureCoded.codingChunks
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
-              - 'urn:alm:descriptor:com.tectonic.ui:number'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool"
+              - "urn:alm:descriptor:com.tectonic.ui:number"
           - description: Data Chunks
             displayName: Data Chunks
             path: dataPool.erasureCoded.dataChunks
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
-              - 'urn:alm:descriptor:com.tectonic.ui:number'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool"
+              - "urn:alm:descriptor:com.tectonic.ui:number"
           - description: failureDomain
             displayName: failureDomain
             path: dataPool.failureDomain
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
-              - 'urn:alm:descriptor:com.tectonic.ui:text'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool"
+              - "urn:alm:descriptor:com.tectonic.ui:text"
           - description: Size
             displayName: Size
             path: dataPool.replicated.size
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool'
-              - 'urn:alm:descriptor:com.tectonic.ui:number'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:dataPool"
+              - "urn:alm:descriptor:com.tectonic.ui:number"
           - description: Annotations
             displayName: Annotations
             path: gateway.annotations
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
-              - 'urn:alm:descriptor:io.kubernetes:annotations'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway"
+              - "urn:alm:descriptor:io.kubernetes:annotations"
           - description: Instances
             displayName: Instances
             path: gateway.instances
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
-              - 'urn:alm:descriptor:com.tectonic.ui:number'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway"
+              - "urn:alm:descriptor:com.tectonic.ui:number"
           - description: Resources
             displayName: Resources
             path: gateway.resources
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
-              - 'urn:alm:descriptor:com.tectonic.ui:resourceRequirements'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway"
+              - "urn:alm:descriptor:com.tectonic.ui:resourceRequirements"
           - description: placement
             displayName: placement
             path: gateway.placement
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
-              - 'urn:alm:descriptor:io.kubernetes:placement'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway"
+              - "urn:alm:descriptor:io.kubernetes:placement"
           - description: securePort
             displayName: securePort
             path: gateway.securePort
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
-              - 'urn:alm:descriptor:io.kubernetes:securePort'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway"
+              - "urn:alm:descriptor:io.kubernetes:securePort"
           - description: sslCertificateRef
             displayName: sslCertificateRef
             path: gateway.sslCertificateRef
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
-              - 'urn:alm:descriptor:io.kubernetes:sslCertificateRef'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway"
+              - "urn:alm:descriptor:io.kubernetes:sslCertificateRef"
           - description: Type
             displayName: Type
             path: gateway.type
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway'
-              - 'urn:alm:descriptor:com.tectonic.ui:text'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:gateway"
+              - "urn:alm:descriptor:com.tectonic.ui:text"
           - description: Coding Chunks
             displayName: Coding Chunks
             path: metadataPool.erasureCoded.codingChunks
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
-              - 'urn:alm:descriptor:com.tectonic.ui:number'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool"
+              - "urn:alm:descriptor:com.tectonic.ui:number"
           - description: Data Chunks
             displayName: Data Chunks
             path: metadataPool.erasureCoded.dataChunks
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
-              - 'urn:alm:descriptor:com.tectonic.ui:number'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool"
+              - "urn:alm:descriptor:com.tectonic.ui:number"
           - description: failureDomain
             displayName: failureDomain
             path: metadataPool.failureDomain
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
-              - 'urn:alm:descriptor:com.tectonic.ui:text'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool"
+              - "urn:alm:descriptor:com.tectonic.ui:text"
           - description: Size
             displayName: Size
             path: metadataPool.replicated.size
             x-descriptors:
-              - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool'
-              - 'urn:alm:descriptor:com.tectonic.ui:number'
+              - "urn:alm:descriptor:com.tectonic.ui:fieldGroup:metadataPool"
+              - "urn:alm:descriptor:com.tectonic.ui:number"
       - kind: CephObjectStoreUser
         name: cephobjectstoreusers.ceph.rook.io
         version: v1
@@ -178,7 +178,16 @@ spec:
     ## Before you start
     https://rook.io/docs/rook/v1.0/k8s-pre-reqs.html
 
-  keywords: ["rook", "ceph", "storage", "object storage", "open source", "block storage", "shared filesystem"]
+  keywords:
+    [
+      "rook",
+      "ceph",
+      "storage",
+      "object storage",
+      "open source",
+      "block storage",
+      "shared filesystem",
+    ]
   minKubeVersion: 1.10.0
   labels:
     alm-owner-etcd: rookoperator
@@ -193,8 +202,8 @@ spec:
     - name: Documentation
       url: https://rook.github.io/docs/rook/v1.0/
   icon:
-  - base64data: PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDIzLjAuMiwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPgo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IgoJIHZpZXdCb3g9IjAgMCA3MCA3MCIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgNzAgNzA7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4KPHN0eWxlIHR5cGU9InRleHQvY3NzIj4KCS5zdDB7ZmlsbDojMkIyQjJCO30KPC9zdHlsZT4KPGc+Cgk8Zz4KCQk8Zz4KCQkJPHBhdGggY2xhc3M9InN0MCIgZD0iTTUwLjUsNjcuNkgxOS45Yy04LDAtMTQuNS02LjUtMTQuNS0xNC41VjI5LjJjMC0xLjEsMC45LTIuMSwyLjEtMi4xaDU1LjRjMS4xLDAsMi4xLDAuOSwyLjEsMi4xdjIzLjkKCQkJCUM2NSw2MS4xLDU4LjUsNjcuNiw1MC41LDY3LjZ6IE05LjYsMzEuMnYyMS45YzAsNS43LDQuNiwxMC4zLDEwLjMsMTAuM2gzMC42YzUuNywwLDEwLjMtNC42LDEwLjMtMTAuM1YzMS4ySDkuNnoiLz4KCQk8L2c+CgkJPGc+CgkJCTxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik00Mi40LDU2LjdIMjhjLTEuMSwwLTIuMS0wLjktMi4xLTIuMXYtNy4yYzAtNS4xLDQuMi05LjMsOS4zLTkuM3M5LjMsNC4yLDkuMyw5LjN2Ny4yCgkJCQlDNDQuNSw1NS43LDQzLjYsNTYuNyw0Mi40LDU2Ljd6IE0zMCw1Mi41aDEwLjN2LTUuMmMwLTIuOS0yLjMtNS4yLTUuMi01LjJjLTIuOSwwLTUuMiwyLjMtNS4yLDUuMlY1Mi41eiIvPgoJCTwvZz4KCQk8Zz4KCQkJPHBhdGggY2xhc3M9InN0MCIgZD0iTTYyLjksMjMuMkM2Mi45LDIzLjIsNjIuOSwyMy4yLDYyLjksMjMuMmwtMTEuMSwwYy0xLjEsMC0yLjEtMC45LTIuMS0yLjFjMC0xLjEsMC45LTIuMSwyLjEtMi4xCgkJCQljMCwwLDAsMCwwLDBsOS4xLDBWNi43aC02Ljl2My41YzAsMC41LTAuMiwxLjEtMC42LDEuNWMtMC40LDAuNC0wLjksMC42LTEuNSwwLjZsMCwwbC0xMS4xLDBjLTEuMSwwLTIuMS0wLjktMi4xLTIuMVY2LjdoLTYuOQoJCQkJdjMuNWMwLDEuMS0wLjksMi4xLTIuMSwyLjFsLTExLjEsMGMtMC41LDAtMS4xLTAuMi0xLjUtMC42Yy0wLjQtMC40LTAuNi0wLjktMC42LTEuNVY2LjdIOS42djEyLjRoOWMxLjEsMCwyLjEsMC45LDIuMSwyLjEKCQkJCXMtMC45LDIuMS0yLjEsMi4xaC0xMWMtMS4xLDAtMi4xLTAuOS0yLjEtMi4xVjQuNmMwLTEuMSwwLjktMi4xLDIuMS0yLjFoMTEuMWMxLjEsMCwyLjEsMC45LDIuMSwyLjF2My41bDcsMFY0LjYKCQkJCWMwLTEuMSwwLjktMi4xLDIuMS0yLjFoMTEuMWMxLjEsMCwyLjEsMC45LDIuMSwyLjF2My41bDYuOSwwVjQuNmMwLTEuMSwwLjktMi4xLDIuMS0yLjFoMTEuMUM2NCwyLjYsNjUsMy41LDY1LDQuNnYxNi41CgkJCQljMCwwLjUtMC4yLDEuMS0wLjYsMS41QzY0LDIzLDYzLjQsMjMuMiw2Mi45LDIzLjJ6Ii8+CgkJPC9nPgoJPC9nPgo8L2c+Cjwvc3ZnPg==
-    mediatype: image/svg+xml
+    - base64data: PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDIzLjAuMiwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPgo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IgoJIHZpZXdCb3g9IjAgMCA3MCA3MCIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgNzAgNzA7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4KPHN0eWxlIHR5cGU9InRleHQvY3NzIj4KCS5zdDB7ZmlsbDojMkIyQjJCO30KPC9zdHlsZT4KPGc+Cgk8Zz4KCQk8Zz4KCQkJPHBhdGggY2xhc3M9InN0MCIgZD0iTTUwLjUsNjcuNkgxOS45Yy04LDAtMTQuNS02LjUtMTQuNS0xNC41VjI5LjJjMC0xLjEsMC45LTIuMSwyLjEtMi4xaDU1LjRjMS4xLDAsMi4xLDAuOSwyLjEsMi4xdjIzLjkKCQkJCUM2NSw2MS4xLDU4LjUsNjcuNiw1MC41LDY3LjZ6IE05LjYsMzEuMnYyMS45YzAsNS43LDQuNiwxMC4zLDEwLjMsMTAuM2gzMC42YzUuNywwLDEwLjMtNC42LDEwLjMtMTAuM1YzMS4ySDkuNnoiLz4KCQk8L2c+CgkJPGc+CgkJCTxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik00Mi40LDU2LjdIMjhjLTEuMSwwLTIuMS0wLjktMi4xLTIuMXYtNy4yYzAtNS4xLDQuMi05LjMsOS4zLTkuM3M5LjMsNC4yLDkuMyw5LjN2Ny4yCgkJCQlDNDQuNSw1NS43LDQzLjYsNTYuNyw0Mi40LDU2Ljd6IE0zMCw1Mi41aDEwLjN2LTUuMmMwLTIuOS0yLjMtNS4yLTUuMi01LjJjLTIuOSwwLTUuMiwyLjMtNS4yLDUuMlY1Mi41eiIvPgoJCTwvZz4KCQk8Zz4KCQkJPHBhdGggY2xhc3M9InN0MCIgZD0iTTYyLjksMjMuMkM2Mi45LDIzLjIsNjIuOSwyMy4yLDYyLjksMjMuMmwtMTEuMSwwYy0xLjEsMC0yLjEtMC45LTIuMS0yLjFjMC0xLjEsMC45LTIuMSwyLjEtMi4xCgkJCQljMCwwLDAsMCwwLDBsOS4xLDBWNi43aC02Ljl2My41YzAsMC41LTAuMiwxLjEtMC42LDEuNWMtMC40LDAuNC0wLjksMC42LTEuNSwwLjZsMCwwbC0xMS4xLDBjLTEuMSwwLTIuMS0wLjktMi4xLTIuMVY2LjdoLTYuOQoJCQkJdjMuNWMwLDEuMS0wLjksMi4xLTIuMSwyLjFsLTExLjEsMGMtMC41LDAtMS4xLTAuMi0xLjUtMC42Yy0wLjQtMC40LTAuNi0wLjktMC42LTEuNVY2LjdIOS42djEyLjRoOWMxLjEsMCwyLjEsMC45LDIuMSwyLjEKCQkJCXMtMC45LDIuMS0yLjEsMi4xaC0xMWMtMS4xLDAtMi4xLTAuOS0yLjEtMi4xVjQuNmMwLTEuMSwwLjktMi4xLDIuMS0yLjFoMTEuMWMxLjEsMCwyLjEsMC45LDIuMSwyLjF2My41bDcsMFY0LjYKCQkJCWMwLTEuMSwwLjktMi4xLDIuMS0yLjFoMTEuMWMxLjEsMCwyLjEsMC45LDIuMSwyLjF2My41bDYuOSwwVjQuNmMwLTEuMSwwLjktMi4xLDIuMS0yLjFoMTEuMUM2NCwyLjYsNjUsMy41LDY1LDQuNnYxNi41CgkJCQljMCwwLjUtMC4yLDEuMS0wLjYsMS41QzY0LDIzLDYzLjQsMjMuMiw2Mi45LDIzLjJ6Ii8+CgkJPC9nPgoJPC9nPgo8L2c+Cjwvc3ZnPg==
+      mediatype: image/svg+xml
   installModes:
     - type: OwnNamespace
       supported: true

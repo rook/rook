@@ -7,7 +7,7 @@ metadata:
   namespace: rook-nfs
 spec:
   accessModes:
-  - ReadWriteMany
+    - ReadWriteMany
   resources:
     requests:
       storage: 1Gi
@@ -20,13 +20,13 @@ metadata:
 spec:
   replicas: 1
   exports:
-  - name: share1
-    server:
-      accessMode: ReadWrite
-      squash: "none"
-    # A Persistent Volume Claim must be created before creating NFS CRD instance.
-    persistentVolumeClaim:
-      claimName: nfs-default-claim
+    - name: share1
+      server:
+        accessMode: ReadWrite
+        squash: "none"
+      # A Persistent Volume Claim must be created before creating NFS CRD instance.
+      persistentVolumeClaim:
+        claimName: nfs-default-claim
   # A key/value list of annotations
   annotations:
     rook: nfs

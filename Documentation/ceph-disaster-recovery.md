@@ -98,6 +98,7 @@ Patch the `rook-ceph-mon-b` Deployment to stop this mon working without deleting
 
 ```console
 kubectl -n rook-ceph patch deployment rook-ceph-mon-b -p '[{"op":"remove", "path":"/spec/template/spec/containers/0/livenessProbe"}]'
+
 kubectl -n rook-ceph patch deployment rook-ceph-mon-b -p '{"spec": {"template": {"spec": {"containers": [{"name": "mon", "command": ["sleep", "infinity"], "args": []}]}}}}'
 ```
 
@@ -105,68 +106,69 @@ Connect to the pod of a healthy mon and run the following commands.
 
 ```console
 kubectl -n rook-ceph exec -it <mon-pod> bash
-
-# set a few simple variables
-cluster_namespace=rook-ceph
-good_mon_id=b
-monmap_path=/tmp/monmap
-
-# extract the monmap to a file, by pasting the ceph mon command
-# from the good mon deployment and adding the
-# `--extract-monmap=${monmap_path}` flag
-ceph-mon \
-    --fsid=41a537f2-f282-428e-989f-a9e07be32e47 \
-    --keyring=/etc/ceph/keyring-store/keyring \
-    --log-to-stderr=true \
-    --err-to-stderr=true \
-    --mon-cluster-log-to-stderr=true \
-    --log-stderr-prefix=debug \
-    --default-log-to-file=false \
-    --default-mon-cluster-log-to-file=false \
-    --mon-host=$ROOK_CEPH_MON_HOST \
-    --mon-initial-members=$ROOK_CEPH_MON_INITIAL_MEMBERS \
-    --id=b \
-    --setuser=ceph \
-    --setgroup=ceph \
-    --foreground \
-    --public-addr=10.100.13.242 \
-    --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
-    --public-bind-addr=$ROOK_POD_IP \
-    --extract-monmap=${monmap_path}
-
-# review the contents of the monmap
-monmaptool --print /tmp/monmap
-
-# remove the bad mon(s) from the monmap
-monmaptool ${monmap_path} --rm <bad_mon>
-
-# in this example we remove mon0 and mon2:
-monmaptool ${monmap_path} --rm a
-monmaptool ${monmap_path} --rm c
-
-# inject the modified monmap into the good mon, by pasting
-# the ceph mon command and adding the
-# `--inject-monmap=${monmap_path}` flag, like this
-ceph-mon \
-    --fsid=41a537f2-f282-428e-989f-a9e07be32e47 \
-    --keyring=/etc/ceph/keyring-store/keyring \
-    --log-to-stderr=true \
-    --err-to-stderr=true \
-    --mon-cluster-log-to-stderr=true \
-    --log-stderr-prefix=debug \
-    --default-log-to-file=false \
-    --default-mon-cluster-log-to-file=false \
-    --mon-host=$ROOK_CEPH_MON_HOST \
-    --mon-initial-members=$ROOK_CEPH_MON_INITIAL_MEMBERS \
-    --id=b \
-    --setuser=ceph \
-    --setgroup=ceph \
-    --foreground \
-    --public-addr=10.100.13.242 \
-    --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
-    --public-bind-addr=$ROOK_POD_IP \
-    --inject-monmap=${monmap_path}
 ```
+>```
+># set a few simple variables
+>cluster_namespace=rook-ceph
+>good_mon_id=b
+>monmap_path=/tmp/monmap
+>
+># extract the monmap to a file, by pasting the ceph mon command
+># from the good mon deployment and adding the
+># `--extract-monmap=${monmap_path}` flag
+>ceph-mon \
+>    --fsid=41a537f2-f282-428e-989f-a9e07be32e47 \
+>    --keyring=/etc/ceph/keyring-store/keyring \
+>    --log-to-stderr=true \
+>    --err-to-stderr=true \
+>    --mon-cluster-log-to-stderr=true \
+>    --log-stderr-prefix=debug \
+>    --default-log-to-file=false \
+>    --default-mon-cluster-log-to-file=false \
+>    --mon-host=$ROOK_CEPH_MON_HOST \
+>    --mon-initial-members=$ROOK_CEPH_MON_INITIAL_MEMBERS \
+>    --id=b \
+>    --setuser=ceph \
+>    --setgroup=ceph \
+>    --foreground \
+>    --public-addr=10.100.13.242 \
+>    --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
+>    --public-bind-addr=$ROOK_POD_IP \
+>    --extract-monmap=${monmap_path}
+>
+># review the contents of the monmap
+>monmaptool --print /tmp/monmap
+>
+># remove the bad mon(s) from the monmap
+>monmaptool ${monmap_path} --rm <bad_mon>
+>
+># in this example we remove mon0 and mon2:
+>monmaptool ${monmap_path} --rm a
+>monmaptool ${monmap_path} --rm c
+>
+># inject the modified monmap into the good mon, by pasting
+># the ceph mon command and adding the
+># `--inject-monmap=${monmap_path}` flag, like this
+>ceph-mon \
+>    --fsid=41a537f2-f282-428e-989f-a9e07be32e47 \
+>    --keyring=/etc/ceph/keyring-store/keyring \
+>    --log-to-stderr=true \
+>    --err-to-stderr=true \
+>    --mon-cluster-log-to-stderr=true \
+>    --log-stderr-prefix=debug \
+>    --default-log-to-file=false \
+>    --default-mon-cluster-log-to-file=false \
+>    --mon-host=$ROOK_CEPH_MON_HOST \
+>    --mon-initial-members=$ROOK_CEPH_MON_INITIAL_MEMBERS \
+>    --id=b \
+>    --setuser=ceph \
+>    --setgroup=ceph \
+>    --foreground \
+>    --public-addr=10.100.13.242 \
+>    --setuser-match-path=/var/lib/ceph/mon/ceph-b/store.db \
+>    --public-bind-addr=$ROOK_POD_IP \
+>    --inject-monmap=${monmap_path}
+>```
 
 Exit the shell to continue.
 
@@ -286,25 +288,25 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
     4. Run `docker run -it --rm -v /var/lib/rook:/var/lib/rook ceph/ceph:v14.2.1-20190430 bash`. The Docker image tag should match the Ceph version used in the Rook cluster. The `/etc/ceph/ceph.conf` file needs to exist for `ceph-mon` to work.
 
         ```shell
-        container# touch /etc/ceph/ceph.conf
-        container# cd /var/lib/rook
-        container# ceph-mon --extract-monmap monmap --mon-data ./mon-a/data  # Extract monmap from old ceph-mon db and save as monmap
-        container# monmaptool --print monmap  # Print the monmap content, which reflects the old cluster ceph-mon configuration.
-        container# monmaptool --rm a monmap  # Delete `a` from monmap.
-        container# monmaptool --rm b monmap  # Repeat, and delete `b` from monmap.
-        container# monmaptool --rm c monmap  # Repeat this pattern until all the old ceph-mons are removed
-        container# monmaptool --rm d monmap
-        container# monmaptool --rm e monmap
-        container# monmaptool --addv a [v2:10.77.2.216:3300,v1:10.77.2.216:6789] monmap   # Replace it with the rook-ceph-mon-a address you got from previous command.
-        container# ceph-mon --inject-monmap monmap --mon-data ./mon-a/data  # Replace monmap in ceph-mon db with our modified version.
-        container# rm monmap
-        container# exit
+        touch /etc/ceph/ceph.conf
+        cd /var/lib/rook
+        ceph-mon --extract-monmap monmap --mon-data ./mon-a/data  # Extract monmap from old ceph-mon db and save as monmap
+        monmaptool --print monmap  # Print the monmap content, which reflects the old cluster ceph-mon configuration.
+        monmaptool --rm a monmap  # Delete `a` from monmap.
+        monmaptool --rm b monmap  # Repeat, and delete `b` from monmap.
+        monmaptool --rm c monmap  # Repeat this pattern until all the old ceph-mons are removed
+        monmaptool --rm d monmap
+        monmaptool --rm e monmap
+        monmaptool --addv a [v2:10.77.2.216:3300,v1:10.77.2.216:6789] monmap   # Replace it with the rook-ceph-mon-a address you got from previous command.
+        ceph-mon --inject-monmap monmap --mon-data ./mon-a/data  # Replace monmap in ceph-mon db with our modified version.
+        rm monmap
+        exit
         ```
 
 1. Tell Rook to run as old cluster by running `kubectl -n rook-ceph edit secret/rook-ceph-mon` and changing `fsid` to the original `fsid`. Note that the `fsid` is base64 encoded and must not contain a trailing carriage return. For example:
 
     ```shell
-    echo -n a811f99a-d865-46b7-8f2c-f94c064e4356 | base64  # Replace with the fsid from your old cluster.
+    $ echo -n a811f99a-d865-46b7-8f2c-f94c064e4356 | base64  # Replace with the fsid from your old cluster.
     ```
 
 1. Disable authentication by running `kubectl -n rook-ceph edit cm/rook-config-override` and adding content below:
@@ -325,10 +327,10 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
 1. Run `kubectl -n rook-ceph exec -it rook-ceph-tools-XXXXXXX bash` to enter tools pod:
 
     ```console
-    tools# vi key
-    [paste keyring content saved before, preserving only `[client admin]` section]
-    tools# ceph auth import -i key
-    tools# rm key
+    vi key
+    # [paste keyring content saved before, preserving only `[client admin]` section]
+    ceph auth import -i key
+    rm key
     ```
 
 1. Re-enable authentication by running `kubectl -n rook-ceph edit cm/rook-config-override` and removing auth configuration added in previous steps.
@@ -354,4 +356,3 @@ and deleting the other deployments. An example command to do this is `k -n rook-
 1. Copy the endpoints configmap from the old cluster: `rook-ceph-mon-endpoints`
 1. Scale the rook operator up again : `kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas 1`
 1. Wait until the reconciliation is over.
-

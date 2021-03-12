@@ -9,17 +9,17 @@ allowHostPID: false
 allowHostPorts: false
 allowPrivilegedContainer: false
 allowedCapabilities:
-- SYS_ADMIN
-- DAC_READ_SEARCH
+  - SYS_ADMIN
+  - DAC_READ_SEARCH
 defaultAddCapabilities: null
 fsGroup:
   type: MustRunAs
 priority: null
 readOnlyRootFilesystem: false
 requiredDropCapabilities:
-- KILL
-- MKNOD
-- SYS_CHROOT
+  - KILL
+  - MKNOD
+  - SYS_CHROOT
 runAsUser:
   type: RunAsAny
 seLinuxContext:
@@ -27,10 +27,10 @@ seLinuxContext:
 supplementalGroups:
   type: RunAsAny
 volumes:
-- configMap
-- downwardAPI
-- emptyDir
-- persistentVolumeClaim
-- secret
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - secret
 users:
   - system:serviceaccount:rook-nfs:rook-nfs-server

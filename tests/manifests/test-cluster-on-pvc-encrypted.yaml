@@ -14,7 +14,7 @@ spec:
           requests:
             storage: 5Gi
   cephVersion:
-    image: ceph/daemon-base:latest-nautilus-devel
+    image: ceph/ceph:v14
   dashboard:
     enabled: false
   network:

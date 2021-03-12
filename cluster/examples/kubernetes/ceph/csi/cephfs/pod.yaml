@@ -5,13 +5,13 @@ metadata:
   name: csicephfs-demo-pod
 spec:
   containers:
-   - name: web-server
-     image: nginx
-     volumeMounts:
-       - name: mypvc
-         mountPath: /var/lib/www/html
+    - name: web-server
+      image: nginx
+      volumeMounts:
+        - name: mypvc
+          mountPath: /var/lib/www/html
   volumes:
-   - name: mypvc
-     persistentVolumeClaim:
-       claimName: cephfs-pvc
-       readOnly: false
+    - name: mypvc
+      persistentVolumeClaim:
+        claimName: cephfs-pvc
+        readOnly: false

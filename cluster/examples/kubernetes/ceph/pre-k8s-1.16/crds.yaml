@@ -86,6 +86,10 @@ spec:
                 volumeClaimTemplate: {}
             mgr:
               properties:
+                count:
+                  type: integer
+                  minimum: 0
+                  maximum: 2
                 modules:
                   items:
                     properties:

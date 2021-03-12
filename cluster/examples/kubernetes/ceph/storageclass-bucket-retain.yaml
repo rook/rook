@@ -6,11 +6,11 @@ provisioner: rook-ceph.ceph.rook.io/bucket # driver:namespace:cluster
 # set the reclaim policy to retain the bucket when its OBC is deleted
 reclaimPolicy: Retain
 parameters:
-  objectStoreName: my-store # port 80 assumed
-  objectStoreNamespace: rook-ceph # namespace:cluster
-  region: us-east-1
-  # To accommodate brownfield cases reference the existing bucket name here instead
-  # of in the ObjectBucketClaim (OBC). In this case the provisioner will grant
-  # access to the bucket by creating a new user, attaching it to the bucket, and
-  # providing the credentials via a Secret in the namespace of the requesting OBC.
-  #bucketName:
+   objectStoreName: my-store # port 80 assumed
+   objectStoreNamespace: rook-ceph # namespace:cluster
+   region: us-east-1
+   # To accommodate brownfield cases reference the existing bucket name here instead
+   # of in the ObjectBucketClaim (OBC). In this case the provisioner will grant
+   # access to the bucket by creating a new user, attaching it to the bucket, and
+   # providing the credentials via a Secret in the namespace of the requesting OBC.
+   #bucketName:

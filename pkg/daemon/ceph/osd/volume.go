@@ -187,7 +187,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		if err != nil {
 			logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
 		}
-		osds = append(osds, rawOsds...)
+		osds = appendOSDInfo(osds, rawOsds)
 
 		return osds, nil
 	}
@@ -248,6 +248,12 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	}
 
 	// List OSD configured with ceph-volume lvm mode
+	lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, false, lvBackedPV)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume lvm")
+	}
+	osds = append(osds, lvmOsds...)
+
 	// List THE configured OSD with ceph-volume raw mode
 	// When the block is encrypted we need to list against the encrypted device mapper
 	if !isEncrypted {
@@ -261,13 +267,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
 	}
-	osds = append(osds, rawOsds...)
-
-	lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, false, lvBackedPV)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume lvm")
-	}
-	osds = append(osds, lvmOsds...)
+	osds = appendOSDInfo(osds, rawOsds)
 
 	return osds, err
 }
@@ -506,6 +506,11 @@ func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, 
 
 	if a.clusterInfo.CephVersion.IsOctopus() && a.clusterInfo.CephVersion.IsAtLeast(cephFlockFixOctopusMinCephVersion) {
 		logger.Debugf("will use raw mode since cluster version is at least %v", cephFlockFixOctopusMinCephVersion)
+		useRawMode = true
+	}
+
+	if a.clusterInfo.CephVersion.IsAtLeastPacific() {
+		logger.Debug("will use raw mode since cluster version is at least pacific")
 		useRawMode = true
 	}
 
@@ -1064,4 +1069,23 @@ func callCephVolume(context *clusterd.Context, requiresCombinedOutput bool, args
 	logger.Debugf("%v", co)
 
 	return co, nil
+}
+
+func appendOSDInfo(currentOSDs, osdsToAppend []oposd.OSDInfo) []oposd.OSDInfo {
+	for _, osdToAppend := range osdsToAppend {
+		if !isInOSDInfoList(osdToAppend.UUID, currentOSDs) {
+			currentOSDs = append(currentOSDs, osdToAppend)
+		}
+	}
+	return currentOSDs
+}
+
+func isInOSDInfoList(uuid string, osds []oposd.OSDInfo) bool {
+	for _, osd := range osds {
+		if osd.UUID == uuid {
+			return true
+		}
+	}
+
+	return false
 }

@@ -9,10 +9,10 @@ metadata:
     rook_object_store: my-store
 spec:
   ports:
-  - name: rgw
-    port: 80 # service port mentioned in object store crd
-    protocol: TCP
-    targetPort: 8080
+    - name: rgw
+      port: 80 # service port mentioned in object store crd
+      protocol: TCP
+      targetPort: 8080
   selector:
     app: rook-ceph-rgw
     rook_cluster: rook-ceph # namespace:cluster

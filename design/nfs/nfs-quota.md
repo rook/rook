@@ -40,7 +40,7 @@ mountOptions:
 
 > Note: Many distributed storage providers for Kubernetes support xfs filesystem. Typically by defining `fsType: xfs` or `fs: xfs` (depend on storage providers) in storageClass parameters. for more detail about specify filesystem type please see https://kubernetes.io/docs/concepts/storage/storage-classes/
 
-Then the underlying PersistentVolumeClaim should be using that StorageClass 
+Then the underlying PersistentVolumeClaim should be using that StorageClass
 
 ```yaml
 apiVersion: v1
@@ -74,7 +74,7 @@ which
 
 Since Rook NFS has the ability to create more than one NFS share/export that have different underlying volume directories, the *projects_file* will be saved on each underlying volume directory. So each NFS share/export will have different *projects_file* and each *project_file* will be persisted. The *projects_file* will only be created if underlying volume directory is mounted as `xfs` with `prjquota` mount options. This mean the existence of *project_file* will indicate if quota was enabled. The hierarchy of directory will look like:
 
-```console
+```text
 /
 ├── underlying-volume-A (export A) (mounted as xfs with prjquota mount options)
 │   ├── projects_file

@@ -98,7 +98,7 @@ time without compatibility support and without prior notice.
 We will do all our work in the Ceph example manifests directory.
 
 ```sh
-cd $YOUR_ROOK_REPO/cluster/examples/kubernetes/ceph/
+$ cd $YOUR_ROOK_REPO/cluster/examples/kubernetes/ceph/
 ```
 
 Unless your Rook cluster was created with customized namespaces, namespaces for Rook clusters are
@@ -145,7 +145,7 @@ In a healthy Rook cluster, the operator, the agents and all Rook namespace pods 
 `Running` state and have few, if any, pod restarts. To verify this, run the following commands:
 
 ```sh
-kubectl -n $ROOK_CLUSTER_NAMESPACE get pods
+$ kubectl -n $ROOK_CLUSTER_NAMESPACE get pods
 ```
 
 ### Status Output
@@ -154,32 +154,32 @@ The Rook toolbox contains the Ceph tools that can give you status details of the
 `ceph status` command. Let's look at an output sample and review some of the details:
 
 ```sh
-TOOLS_POD=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')
-kubectl -n $ROOK_CLUSTER_NAMESPACE exec -it $TOOLS_POD -- ceph status
+$ TOOLS_POD=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')
+$ kubectl -n $ROOK_CLUSTER_NAMESPACE exec -it $TOOLS_POD -- ceph status
 ```
 
-```console
-  cluster:
-    id:     a3f4d647-9538-4aff-9fd1-b845873c3fe9
-    health: HEALTH_OK
-
-  services:
-    mon: 3 daemons, quorum b,c,a
-    mgr: a(active)
-    mds: myfs-1/1/1 up  {0=myfs-a=up:active}, 1 up:standby-replay
-    osd: 6 osds: 6 up, 6 in
-    rgw: 1 daemon active
-
-  data:
-    pools:   9 pools, 900 pgs
-    objects: 67  objects, 11 KiB
-    usage:   6.1 GiB used, 54 GiB / 60 GiB avail
-    pgs:     900 active+clean
-
-  io:
-    client:   7.4 KiB/s rd, 681 B/s wr, 11 op/s rd, 4 op/s wr
-    recovery: 164 B/s, 1 objects/s
-```
+>```
+>  cluster:
+>    id:     a3f4d647-9538-4aff-9fd1-b845873c3fe9
+>    health: HEALTH_OK
+>
+>  services:
+>    mon: 3 daemons, quorum b,c,a
+>    mgr: a(active)
+>    mds: myfs-1/1/1 up  {0=myfs-a=up:active}, 1 up:standby-replay
+>    osd: 6 osds: 6 up, 6 in
+>    rgw: 1 daemon active
+>
+>  data:
+>    pools:   9 pools, 900 pgs
+>    objects: 67  objects, 11 KiB
+>    usage:   6.1 GiB used, 54 GiB / 60 GiB avail
+>    pgs:     900 active+clean
+>
+>  io:
+>    client:   7.4 KiB/s rd, 681 B/s wr, 11 op/s rd, 4 op/s wr
+>    recovery: 164 B/s, 1 objects/s
+>```
 
 In the output above, note the following indications that the cluster is in a healthy state:
 
@@ -209,16 +209,16 @@ output. For example for the monitor pod `mon-b`, we can verify the container ver
 with the below commands:
 
 ```sh
-POD_NAME=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -o custom-columns=name:.metadata.name --no-headers | grep rook-ceph-mon-b)
-kubectl -n $ROOK_CLUSTER_NAMESPACE get pod ${POD_NAME} -o jsonpath='{.spec.containers[0].image}'
+$ POD_NAME=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -o custom-columns=name:.metadata.name --no-headers | grep rook-ceph-mon-b)
+$ kubectl -n $ROOK_CLUSTER_NAMESPACE get pod ${POD_NAME} -o jsonpath='{.spec.containers[0].image}'
 ```
 
 The status and container versions for all Rook pods can be collected all at once with the following
 commands:
 
 ```sh
-kubectl -n $ROOK_OPERATOR_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t\t"}{.spec.containers[0].image}{"\t"}{.spec.initContainers[0]}{"\n"}{end}' && \
-kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t\t"}{.spec.containers[0].image}{"\t"}{.spec.initContainers[0].image}{"\n"}{end}'
+$ kubectl -n $ROOK_OPERATOR_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t\t"}{.spec.containers[0].image}{"\t"}{.spec.initContainers[0]}{"\n"}{end}' && \
+$ kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t\t"}{.spec.containers[0].image}{"\t"}{.spec.initContainers[0].image}{"\n"}{end}'
 ```
 
 The `rook-version` label exists on Ceph controller resources. For various resource controllers, a
@@ -286,7 +286,7 @@ If you have deployed the Rook Operator or the Ceph cluster into a different name
 `rook-ceph`, update the common resource manifests to use your `ROOK_OPERATOR_NAMESPACE` and
 `ROOK_CLUSTER_NAMESPACE` using `sed`.
 ```sh
-sed -i.bak \
+$ sed -i.bak \
     -e "s/\(.*\):.*# namespace:operator/\1: $ROOK_OPERATOR_NAMESPACE # namespace:operator/g" \
     -e "s/\(.*\):.*# namespace:cluster/\1: $ROOK_CLUSTER_NAMESPACE # namespace:cluster/g" \
   common.yaml
@@ -313,7 +313,7 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```sh
-kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.5.3
+$ kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.5.3
 ```
 
 ## 4. Wait for the upgrade to complete
@@ -325,24 +325,24 @@ and the Ceph Filesystem may fall offline a few times while the MDSes are upgradi
 The versions of the components can be viewed as they are updated:
 
 ```sh
-watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
+$ watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \trook-version="}{.metadata.labels.rook-version}{"\n"}{end}'
 ```
 
 As an example, this cluster is midway through updating the OSDs from v1.4 to v1.5. When all
 deployments report `1/1/1` availability and `rook-version=v1.5.3`, the Ceph cluster's core
 components are fully updated.
 
-```console
-Every 2.0s: kubectl -n rook-ceph get deployment -o j...
-
-rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.5.3
-rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.5.3
-rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.5.3
-rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.5.3
-rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.5.3
-rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.4.7
-rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.4.7
-```
+>```
+>Every 2.0s: kubectl -n rook-ceph get deployment -o j...
+>
+>rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.5.3
+>rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.5.3
+>rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.5.3
+>rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.5.3
+>rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.5.3
+>rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.4.7
+>rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.4.7
+>```
 
 An easy check to see if the upgrade is totally finished is to check that there is only one
 `rook-version` reported across the cluster.
@@ -399,9 +399,15 @@ The majority of the upgrade will be handled by the Rook operator. Begin the upgr
 Ceph image field in the cluster CRD (`spec.cephVersion.image`).
 
 ```sh
+<<<<<<< HEAD
 NEW_CEPH_IMAGE='ceph/ceph:v15.2.9-20210224'
 CLUSTER_NAME="$ROOK_CLUSTER_NAMESPACE"  # change if your cluster name is not the Rook namespace
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
+=======
+NEW_CEPH_IMAGE='ceph/ceph:v15.2.8-20201217'
+$ CLUSTER_NAME="$ROOK_CLUSTER_NAMESPACE"  # change if your cluster name is not the Rook namespace
+$ kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
+>>>>>>> 7eac99f68 (docs: updating according to the markdown convention)
 ```
 
 #### 2. Wait for the daemon pod updates to complete
@@ -410,13 +416,13 @@ As with upgrading Rook, you must now wait for the upgrade to complete. Status ca
 similar way to the Rook upgrade as well.
 
 ```sh
-watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \tceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}'
+$ watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \tceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}'
 ```
 
 Determining when the Ceph has fully updated is rather simple.
 
 ```console
-# kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
+$ kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
     ceph-version=14.2.7-0
     ceph-version=15.2.4-0
@@ -439,7 +445,7 @@ The operator configuration variables have recently moved from the operator deplo
 but if the ConfigMap settings are applied, they will override the operator deployment settings.
 
 ```console
-kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-ceph-operator-config
+$ kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-ceph-operator-config
 ```
 
 The default upstream images are included below, which you can change to your desired images.
@@ -463,7 +469,10 @@ variables matching `ROOK_CSI_*_IMAGE` from the above ConfigMap and/or the operat
 You can use the below command to see the CSI images currently being used in the cluster.
 
 ```console
-# kubectl --namespace $ROOK_CLUSTER_NAMESPACE get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
+kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
+```
+
+```console
 quay.io/cephcsi/cephcsi:v3.2.0
 k8s.gcr.io/sig-storage/csi-attacher:v3.0.0
 k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1
@@ -475,13 +484,13 @@ k8s.gcr.io/sig-storage/csi-resizer:v1.0.0
 
 ## Replace lvm mode OSDs with raw mode (if you use LV-backed PVC)
 
-For LV-backed PVC, we recommend replacing lvm mode OSDs with raw mode OSDs. See 
+For LV-backed PVC, we recommend replacing lvm mode OSDs with raw mode OSDs. See
 [common issue](Documentation/ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc).
 
 
 ## Migrate the Drive Group spec
 
-If your CephCluster has specified `driveGroups` in the `spec`, you must follow these instructions to 
+If your CephCluster has specified `driveGroups` in the `spec`, you must follow these instructions to
 migrate the Drive Group spec before performing the upgrade from Rook v1.5.x to v1.6.x. Do not follow
 these steps if no `driveGroups` are specified.
 
@@ -489,15 +498,15 @@ Refer to the [CephCluster CRD Storage config](ceph-cluster-crd.md#storage-select
 understand how to configure your nodes to host OSDs as you desire for future disks added to cluster
 nodes.
 
-At minimum, you must migrate enough of the config so that Rook knows which nodes are already acting 
-as OSD hosts so that it can update the OSD Deployments. This minimal migration that allows Rook to 
+At minimum, you must migrate enough of the config so that Rook knows which nodes are already acting
+as OSD hosts so that it can update the OSD Deployments. This minimal migration that allows Rook to
 update existing OSD Deployments is explained below.
 
 1. If any of your specified Drive Groups use `host_pattern: '*'`, set `spec.storage.useAllNodes: true`.
    1. If a drive group that uses `host_pattern: '*'` also sets `data_devices:all: true`, set
      `spec.storage.useAllDevices: true`, and no more config migration should be necessary.
 1. If no Drive Groups use `host_pattern: '*'`, there are two basic options:
-   1. Determine which nodes apply to the Drive Group, then add each nodes to the 
+   1. Determine which nodes apply to the Drive Group, then add each nodes to the
       `spec.storage.nodes` list.
       1. Determine which nodes are already hosting OSDs using the below one-liner to list the nodes.
           ```sh

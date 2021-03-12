@@ -71,13 +71,13 @@ Using a custom Ceph user and secret can be done for filesystem and block storage
 Create a custom user in Ceph with read-write access in the `/bar` directory on CephFS (For Ceph Mimic or newer, use `data=POOL_NAME` instead of `pool=POOL_NAME`):
 
 ```console
-ceph auth get-or-create-key client.user1 mon 'allow r' osd 'allow rw tag cephfs pool=YOUR_FS_DATA_POOL' mds 'allow r, allow rw path=/bar'
+$ ceph auth get-or-create-key client.user1 mon 'allow r' osd 'allow rw tag cephfs pool=YOUR_FS_DATA_POOL' mds 'allow r, allow rw path=/bar'
 ```
 
 The command will return a Ceph secret key, this key should be added as a secret in Kubernetes like this:
 
 ```console
-kubectl create secret generic ceph-user1-secret --from-literal=key=YOUR_CEPH_KEY
+$ kubectl create secret generic ceph-user1-secret --from-literal=key=YOUR_CEPH_KEY
 ```
 
 > **NOTE**: This secret with the same name must be created in each namespace where the StorageClass will be used.
@@ -222,36 +222,37 @@ done
 
 The output should look something like this.
 
-```console
-Pod:  osd-m2fz2
-Node: node1.zbrbdl
--osd0  sda3  557.3G  bluestore
--osd1  sdf3  110.2G  bluestore
--osd2  sdd3  277.8G  bluestore
--osd3  sdb3  557.3G  bluestore
--osd4  sde3  464.2G  bluestore
--osd5  sdc3  557.3G  bluestore
+>```
+>Pod:  osd-m2fz2
+>Node: node1.zbrbdl
+>-osd0  sda3  557.3G  bluestore
+>-osd1  sdf3  110.2G  bluestore
+>-osd2  sdd3  277.8G  bluestore
+>-osd3  sdb3  557.3G  bluestore
+>-osd4  sde3  464.2G  bluestore
+>-osd5  sdc3  557.3G  bluestore
+>
+>Pod:  osd-nxxnq
+>Node: node3.zbrbdl
+>-osd6   sda3  110.7G  bluestore
+>-osd17  sdd3  1.8T    bluestore
+>-osd18  sdb3  231.8G  bluestore
+>-osd19  sdc3  231.8G  bluestore
+>
+>Pod:  osd-tww1h
+>Node: node2.zbrbdl
+>-osd7   sdc3  464.2G  bluestore
+>-osd8   sdj3  557.3G  bluestore
+>-osd9   sdf3  66.7G   bluestore
+>-osd10  sdd3  464.2G  bluestore
+>-osd11  sdb3  147.4G  bluestore
+>-osd12  sdi3  557.3G  bluestore
+>-osd13  sdk3  557.3G  bluestore
+>-osd14  sde3  66.7G   bluestore
+>-osd15  sda3  110.2G  bluestore
+>-osd16  sdh3  135.1G  bluestore
+>```
 
-Pod:  osd-nxxnq
-Node: node3.zbrbdl
--osd6   sda3  110.7G  bluestore
--osd17  sdd3  1.8T    bluestore
--osd18  sdb3  231.8G  bluestore
--osd19  sdc3  231.8G  bluestore
-
-Pod:  osd-tww1h
-Node: node2.zbrbdl
--osd7   sdc3  464.2G  bluestore
--osd8   sdj3  557.3G  bluestore
--osd9   sdf3  66.7G   bluestore
--osd10  sdd3  464.2G  bluestore
--osd11  sdb3  147.4G  bluestore
--osd12  sdi3  557.3G  bluestore
--osd13  sdk3  557.3G  bluestore
--osd14  sde3  66.7G   bluestore
--osd15  sda3  110.2G  bluestore
--osd16  sdh3  135.1G  bluestore
-```
 
 ## Separate Storage Groups
 
@@ -354,7 +355,10 @@ The default override settings are blank. Cutting out the extraneous properties,
 we would see the following defaults after creating a cluster:
 
 ```console
-$ kubectl -n rook-ceph get ConfigMap rook-config-override -o yaml
+kubectl -n rook-ceph get ConfigMap rook-config-override -o yaml
+```
+
+```console
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -498,13 +502,13 @@ ceph osd tree
 
 An example output looks like this:
 
-```console
-ID  CLASS WEIGHT  TYPE NAME STATUS REWEIGHT PRI-AFF
- -1       57.38062 root default
--13        7.17258     host node1.example.com
-  2   hdd  3.61859         osd.2                up  1.00000 1.00000
- -7              0     host node2.example.com   down    0    1.00000
-```
+>```
+>ID  CLASS WEIGHT  TYPE NAME STATUS REWEIGHT PRI-AFF
+>-1       57.38062 root default
+>-13        7.17258     host node1.example.com
+>2   hdd  3.61859         osd.2                up  1.00000 1.00000
+>-7              0     host node2.example.com   down    0    1.00000
+>```
 
 The host `node2.example.com` in the output has no disks, so it is most likely a "Phantom OSD".
 
@@ -512,10 +516,10 @@ Now to remove it, use the ID in the first column of the output and replace `<ID>
 The commands are:
 
 ```console
-ceph osd out <ID>
-ceph osd crush remove osd.<ID>
-ceph auth del osd.<ID>
-ceph osd rm <ID>
+$ ceph osd out <ID>
+$ ceph osd crush remove osd.<ID>
+$ ceph auth del osd.<ID>
+$ ceph osd rm <ID>
 ```
 
 To recheck that the Phantom OSD was removed, re-run the following command and check if the OSD with the ID doesn't show up anymore:
@@ -543,10 +547,15 @@ spec:
 However, due to several reasons, we may need to change such failure domain to its other value: `host`. Unfortunately, changing it directly in the YAML manifest is not currently handled by Rook, so we need to perform the change directly using Ceph commands using the Rook tools pod, for instance:
 
 ```console
-$ ceph osd pool get replicapool crush_rule
-crush_rule: replicapool
+ceph osd pool get replicapool crush_rule
+```
 
-$ceph osd crush rule create-replicated replicapool_host_rule default host
+>```
+>crush_rule: replicapool
+>```
+
+```console
+ceph osd crush rule create-replicated replicapool_host_rule default host
 ```
 
 Notice that the suffix `host_rule` in the name of the rule is just for clearness about the type of rule we are creating here, and can be anything else as long as it is different from the existing one. Once the new rule has been created, we simply apply it to our block pool:
@@ -558,9 +567,11 @@ ceph osd pool set replicapool crush_rule replicapool_host_rule
 And validate that it has been actually applied properly:
 
 ```console
-$ ceph osd pool get replicapool crush_rule
-crush_rule: replicapool_host_rule
+ceph osd pool get replicapool crush_rule
 ```
+>```
+> crush_rule: replicapool_host_rule
+>```
 
 If the cluster's health was `HEALTH_OK` when we performed this change, immediately, the new rule is applied to the cluster transparently without service disruption.
 

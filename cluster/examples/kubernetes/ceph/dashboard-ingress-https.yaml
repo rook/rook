@@ -18,14 +18,14 @@ metadata:
       proxy_ssl_verify off;
 spec:
   tls:
-   - hosts:
-     - rook-ceph.example.com
-     secretName: rook-ceph.example.com
+    - hosts:
+        - rook-ceph.example.com
+      secretName: rook-ceph.example.com
   rules:
-  - host: rook-ceph.example.com
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: rook-ceph-mgr-dashboard
-          servicePort: https-dashboard
+    - host: rook-ceph.example.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: rook-ceph-mgr-dashboard
+              servicePort: https-dashboard

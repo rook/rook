@@ -59,7 +59,7 @@ allowPrivilegedContainer: true
 allowHostNetwork: true
 allowHostDirVolumePlugin: true
 priority:
-allowedCapabilities: ['*']
+allowedCapabilities: ["*"]
 allowHostPorts: true
 allowHostPID: true
 allowHostIPC: true
@@ -77,7 +77,7 @@ supplementalGroups:
 allowedFlexVolumes:
   - driver: "ceph.rook.io/rook"
   - driver: "ceph.rook.io/rook-ceph"
-volumes: ['*']
+volumes: ["*"]
 users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
@@ -103,7 +103,7 @@ data:
   ROOK_CSI_ENABLE_CEPHFS: "true"
   # Enable the default version of the CSI RBD driver. To start another version of the CSI driver, see image properties below.
   ROOK_CSI_ENABLE_RBD: "true"
-  ROOK_CSI_ENABLE_GRPC_METRICS: "true"
+  ROOK_CSI_ENABLE_GRPC_METRICS: "false"
 
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
@@ -384,148 +384,148 @@ spec:
     spec:
       serviceAccountName: rook-ceph-system
       containers:
-      - name: rook-ceph-operator
-        image: rook/ceph:master
-        args: ["ceph", "operator"]
-        volumeMounts:
-        - mountPath: /var/lib/rook
-          name: rook-config
-        - mountPath: /etc/ceph
-          name: default-config-dir
-        env:
-        - name: ROOK_CURRENT_NAMESPACE_ONLY
-          value: "false"
-        # To disable RBAC, uncomment the following:
-        # - name: RBAC_ENABLED
-        #  value: "false"
-        # Rook Agent toleration. Will tolerate all taints with all keys.
-        # Choose between NoSchedule, PreferNoSchedule and NoExecute:
-        # - name: AGENT_TOLERATION
-        #   value: "NoSchedule"
-        # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
-        # - name: AGENT_TOLERATION_KEY
-        #   value: "<KeyOfTheTaintToTolerate>"
-        # (Optional) Rook Agent priority class name to set on the pod(s)
-        # - name: AGENT_PRIORITY_CLASS_NAME
-        #   value: "<PriorityClassName>"
-        # (Optional) Rook Agent NodeAffinity.
-        # - name: AGENT_NODE_AFFINITY
-        #   value: "role=storage-node; storage=rook,ceph"
-        # (Optional) Rook Agent mount security mode. Can by `Any` or `Restricted`.
-        # `Any` uses Ceph admin credentials by default/fallback.
-        # For using `Restricted` you must have a Ceph secret in each namespace storage should be consumed from and
-        # set `mountUser` to the Ceph user, `mountSecret` to the Kubernetes secret name.
-        # to the namespace in which the `mountSecret` Kubernetes secret namespace.
-        # - name: AGENT_MOUNT_SECURITY_MODE
-        #   value: "Any"
-        # Set the path where the Rook agent can find the flex volumes
-        - name: FLEXVOLUME_DIR_PATH
-          value: "/etc/kubernetes/kubelet-plugins/volume/exec"
-        # Set the path where kernel modules can be found
-        # - name: LIB_MODULES_DIR_PATH
-        #  value: "<PathToLibModules>"
-        # Mount any extra directories into the agent container
-        # - name: AGENT_MOUNTS
-        #  value: "somemount=/host/path:/container/path,someothermount=/host/path2:/container/path2"
-        # Rook Discover toleration. Will tolerate all taints with all keys.
-        # Choose between NoSchedule, PreferNoSchedule and NoExecute:
-        # - name: DISCOVER_TOLERATION
-        #   value: "NoSchedule"
-        # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
-        # - name: DISCOVER_TOLERATION_KEY
-        #  value: "<KeyOfTheTaintToTolerate>"
-        # (Optional) Rook Discover priority class name to set on the pod(s)
-        # - name: DISCOVER_PRIORITY_CLASS_NAME
-        #   value: "<PriorityClassName>"
-        # (Optional) Discover Agent NodeAffinity.
-        # - name: DISCOVER_AGENT_NODE_AFFINITY
-        #   value: "role=storage-node; storage=rook, ceph"
-        # (Optional) Discover Agent Pod Labels.
-        # - name: DISCOVER_AGENT_POD_LABELS
-        #   value: "key1=value1,key2=value2"
+        - name: rook-ceph-operator
+          image: rook/ceph:master
+          args: ["ceph", "operator"]
+          volumeMounts:
+            - mountPath: /var/lib/rook
+              name: rook-config
+            - mountPath: /etc/ceph
+              name: default-config-dir
+          env:
+            - name: ROOK_CURRENT_NAMESPACE_ONLY
+              value: "false"
+            # To disable RBAC, uncomment the following:
+            # - name: RBAC_ENABLED
+            #  value: "false"
+            # Rook Agent toleration. Will tolerate all taints with all keys.
+            # Choose between NoSchedule, PreferNoSchedule and NoExecute:
+            # - name: AGENT_TOLERATION
+            #   value: "NoSchedule"
+            # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
+            # - name: AGENT_TOLERATION_KEY
+            #   value: "<KeyOfTheTaintToTolerate>"
+            # (Optional) Rook Agent priority class name to set on the pod(s)
+            # - name: AGENT_PRIORITY_CLASS_NAME
+            #   value: "<PriorityClassName>"
+            # (Optional) Rook Agent NodeAffinity.
+            # - name: AGENT_NODE_AFFINITY
+            #   value: "role=storage-node; storage=rook,ceph"
+            # (Optional) Rook Agent mount security mode. Can by `Any` or `Restricted`.
+            # `Any` uses Ceph admin credentials by default/fallback.
+            # For using `Restricted` you must have a Ceph secret in each namespace storage should be consumed from and
+            # set `mountUser` to the Ceph user, `mountSecret` to the Kubernetes secret name.
+            # to the namespace in which the `mountSecret` Kubernetes secret namespace.
+            # - name: AGENT_MOUNT_SECURITY_MODE
+            #   value: "Any"
+            # Set the path where the Rook agent can find the flex volumes
+            - name: FLEXVOLUME_DIR_PATH
+              value: "/etc/kubernetes/kubelet-plugins/volume/exec"
+            # Set the path where kernel modules can be found
+            # - name: LIB_MODULES_DIR_PATH
+            #  value: "<PathToLibModules>"
+            # Mount any extra directories into the agent container
+            # - name: AGENT_MOUNTS
+            #  value: "somemount=/host/path:/container/path,someothermount=/host/path2:/container/path2"
+            # Rook Discover toleration. Will tolerate all taints with all keys.
+            # Choose between NoSchedule, PreferNoSchedule and NoExecute:
+            # - name: DISCOVER_TOLERATION
+            #   value: "NoSchedule"
+            # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
+            # - name: DISCOVER_TOLERATION_KEY
+            #  value: "<KeyOfTheTaintToTolerate>"
+            # (Optional) Rook Discover priority class name to set on the pod(s)
+            # - name: DISCOVER_PRIORITY_CLASS_NAME
+            #   value: "<PriorityClassName>"
+            # (Optional) Discover Agent NodeAffinity.
+            # - name: DISCOVER_AGENT_NODE_AFFINITY
+            #   value: "role=storage-node; storage=rook, ceph"
+            # (Optional) Discover Agent Pod Labels.
+            # - name: DISCOVER_AGENT_POD_LABELS
+            #   value: "key1=value1,key2=value2"
 
-        # The logging level for the operator: INFO | DEBUG
-        - name: ROOK_LOG_LEVEL
-          value: "INFO"
-        # The duration between discovering devices in the rook-discover daemonset.
-        - name: ROOK_DISCOVER_DEVICES_INTERVAL
-          value: "60m"
-        # Whether to start pods as privileged that mount a host path, which includes the Ceph mon and osd pods.
-        # Set this to true if SELinux is enabled (e.g. OpenShift) to workaround the anyuid issues.
-        # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
-        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
-          value: "true"
-        # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
-        # Disable it here if you have similar issues.
-        # For more details see https://github.com/rook/rook/issues/2417
-        - name: ROOK_ENABLE_SELINUX_RELABELING
-          value: "true"
-        # In large volumes it will take some time to chown all the files. Disable it here if you have performance issues.
-        # For more details see https://github.com/rook/rook/issues/2254
-        - name: ROOK_ENABLE_FSGROUP
-          value: "true"
-        # Disable automatic orchestration when new devices are discovered
-        - name: ROOK_DISABLE_DEVICE_HOTPLUG
-          value: "false"
-        # Provide customised regex as the values using comma. For eg. regex for rbd based volume, value will be like "(?i)rbd[0-9]+".
-        # In case of more than one regex, use comma to separate between them.
-        # Default regex will be "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
-        # add regex expression after putting a comma to blacklist a disk
-        # If value is empty, the default regex will be used.
-        - name: DISCOVER_DAEMON_UDEV_BLACKLIST
-          value: "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
+            # The logging level for the operator: INFO | DEBUG
+            - name: ROOK_LOG_LEVEL
+              value: "INFO"
+            # The duration between discovering devices in the rook-discover daemonset.
+            - name: ROOK_DISCOVER_DEVICES_INTERVAL
+              value: "60m"
+            # Whether to start pods as privileged that mount a host path, which includes the Ceph mon and osd pods.
+            # Set this to true if SELinux is enabled (e.g. OpenShift) to workaround the anyuid issues.
+            # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
+            - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+              value: "true"
+            # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
+            # Disable it here if you have similar issues.
+            # For more details see https://github.com/rook/rook/issues/2417
+            - name: ROOK_ENABLE_SELINUX_RELABELING
+              value: "true"
+            # In large volumes it will take some time to chown all the files. Disable it here if you have performance issues.
+            # For more details see https://github.com/rook/rook/issues/2254
+            - name: ROOK_ENABLE_FSGROUP
+              value: "true"
+            # Disable automatic orchestration when new devices are discovered
+            - name: ROOK_DISABLE_DEVICE_HOTPLUG
+              value: "false"
+            # Provide customised regex as the values using comma. For eg. regex for rbd based volume, value will be like "(?i)rbd[0-9]+".
+            # In case of more than one regex, use comma to separate between them.
+            # Default regex will be "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
+            # add regex expression after putting a comma to blacklist a disk
+            # If value is empty, the default regex will be used.
+            - name: DISCOVER_DAEMON_UDEV_BLACKLIST
+              value: "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
 
-        # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
-        # in favor of the CSI driver.
-        - name: ROOK_ENABLE_FLEX_DRIVER
-          value: "false"
+            # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
+            # in favor of the CSI driver.
+            - name: ROOK_ENABLE_FLEX_DRIVER
+              value: "false"
 
-        # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
-        # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
-        - name: ROOK_ENABLE_DISCOVERY_DAEMON
-          value: "false"
+            # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
+            # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
+            - name: ROOK_ENABLE_DISCOVERY_DAEMON
+              value: "false"
 
-        # Whether to start machineDisruptionBudget and machineLabel controller to watch for the osd pods and MDBs.
-        - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
-          value: "false"
+            # Whether to start machineDisruptionBudget and machineLabel controller to watch for the osd pods and MDBs.
+            - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
+              value: "false"
 
-        # Time to wait until the node controller will move Rook pods to other
-        # nodes after detecting an unreachable node.
-        # Pods affected by this setting are:
-        # mgr, rbd, mds, rgw, nfs, PVC based mons and osds, and ceph toolbox
-        # The value used in this variable replaces the default value of 300 secs
-        # added automatically by k8s as Toleration for
-        # <node.kubernetes.io/unreachable>
-        # The total amount of time to reschedule Rook pods in healthy nodes
-        # before detecting a <not ready node> condition will be the sum of:
-        #  --> node-monitor-grace-period: 40 seconds (k8s kube-controller-manager flag)
-        #  --> ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS: 5 seconds
-        - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
-          value: "5"
+            # Time to wait until the node controller will move Rook pods to other
+            # nodes after detecting an unreachable node.
+            # Pods affected by this setting are:
+            # mgr, rbd, mds, rgw, nfs, PVC based mons and osds, and ceph toolbox
+            # The value used in this variable replaces the default value of 300 secs
+            # added automatically by k8s as Toleration for
+            # <node.kubernetes.io/unreachable>
+            # The total amount of time to reschedule Rook pods in healthy nodes
+            # before detecting a <not ready node> condition will be the sum of:
+            #  --> node-monitor-grace-period: 40 seconds (k8s kube-controller-manager flag)
+            #  --> ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS: 5 seconds
+            - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
+              value: "5"
 
-        # The name of the node to pass with the downward API
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        # The pod name to pass with the downward API
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        # The pod namespace to pass with the downward API
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
+            # The name of the node to pass with the downward API
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            # The pod name to pass with the downward API
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # The pod namespace to pass with the downward API
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
 
-        #  Uncomment it to run lib bucket provisioner in multithreaded mode
-        #- name: LIB_BUCKET_PROVISIONER_THREADS
-        #  value: "5"
+          #  Uncomment it to run lib bucket provisioner in multithreaded mode
+          #- name: LIB_BUCKET_PROVISIONER_THREADS
+          #  value: "5"
 
       volumes:
-      - name: rook-config
-        emptyDir: {}
-      - name: default-config-dir
-        emptyDir: {}
+        - name: rook-config
+          emptyDir: {}
+        - name: default-config-dir
+          emptyDir: {}
 # OLM: END OPERATOR DEPLOYMENT

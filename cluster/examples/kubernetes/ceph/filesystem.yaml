@@ -18,7 +18,8 @@ spec:
     parameters:
       # Inline compression mode for the data pool
       # Further reference: https://docs.ceph.com/docs/nautilus/rados/configuration/bluestore-config-ref/#inline-compression
-      compression_mode: none
+      compression_mode:
+        none
         # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
       # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
       #target_size_ratio: ".5"
@@ -33,7 +34,8 @@ spec:
       parameters:
         # Inline compression mode for the data pool
         # Further reference: https://docs.ceph.com/docs/nautilus/rados/configuration/bluestore-config-ref/#inline-compression
-        compression_mode: none
+        compression_mode:
+          none
           # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
         # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
         #target_size_ratio: ".5"
@@ -48,38 +50,38 @@ spec:
     activeStandby: true
     # The affinity rules to apply to the mds deployment
     placement:
-    #  nodeAffinity:
-    #    requiredDuringSchedulingIgnoredDuringExecution:
-    #      nodeSelectorTerms:
-    #      - matchExpressions:
-    #        - key: role
-    #          operator: In
-    #          values:
-    #          - mds-node
-    #  topologySpreadConstraints:
-    #  tolerations:
-    #  - key: mds-node
-    #    operator: Exists
-    #  podAffinity:
-       podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
+      #  nodeAffinity:
+      #    requiredDuringSchedulingIgnoredDuringExecution:
+      #      nodeSelectorTerms:
+      #      - matchExpressions:
+      #        - key: role
+      #          operator: In
+      #          values:
+      #          - mds-node
+      #  topologySpreadConstraints:
+      #  tolerations:
+      #  - key: mds-node
+      #    operator: Exists
+      #  podAffinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - rook-ceph-mds
+                - key: app
+                  operator: In
+                  values:
+                    - rook-ceph-mds
             # topologyKey: kubernetes.io/hostname will place MDS across different hosts
             topologyKey: kubernetes.io/hostname
-          preferredDuringSchedulingIgnoredDuringExecution:
+        preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
             podAffinityTerm:
               labelSelector:
                 matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - rook-ceph-mds
+                  - key: app
+                    operator: In
+                    values:
+                      - rook-ceph-mds
               # topologyKey: */zone can be used to spread MDS across different AZ
               # Use <topologyKey: failure-domain.beta.kubernetes.io/zone> in k8s cluster if your cluster is v1.16 or lower
               # Use <topologyKey: topology.kubernetes.io/zone>  in k8s cluster is v1.17 or upper

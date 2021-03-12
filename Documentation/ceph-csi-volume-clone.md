@@ -40,10 +40,13 @@ kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-clone.yaml
 
 ```console
 kubectl get pvc
-NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS          AGE
-rbd-pvc           Bound    pvc-74734901-577a-11e9-b34f-525400581048   1Gi        RWO            rook-ceph-block       34m
-rbd-pvc-clone     Bound    pvc-70473135-577f-11e9-b34f-525400581048   1Gi        RWO            rook-ceph-block       8s
 ```
+
+>```
+>NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS          AGE
+>rbd-pvc           Bound    pvc-74734901-577a-11e9-b34f-525400581048   1Gi        >RWO            rook-ceph-block       34m
+>rbd-pvc-clone     Bound    pvc-70473135-577f-11e9-b34f-525400581048   1Gi        RWO            rook-ceph-block       8s
+>```
 
 ## RBD clone resource Cleanup
 
@@ -78,10 +81,13 @@ kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/pvc-clone.yaml
 
 ```console
 kubectl get pvc
-NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-cephfs-pvc        Bound    pvc-1ea51547-a88b-4ab0-8b4a-812caeaf025d   1Gi        RWX            rook-cephfs    39m
-cephfs-pvc-clone  Bound    pvc-b575bc35-d521-4c41-b4f9-1d733cd28fdf   1Gi        RWX            rook-cephfs    8s
 ```
+
+>```
+>NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+>cephfs-pvc        Bound    pvc-1ea51547-a88b-4ab0-8b4a-812caeaf025d   1Gi        RWX            rook-cephfs    39m
+>cephfs-pvc-clone  Bound    pvc-b575bc35-d521-4c41-b4f9-1d733cd28fdf   1Gi        RWX            rook-cephfs    8s
+>```
 
 ## CephFS clone resource Cleanup
 

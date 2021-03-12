@@ -74,17 +74,22 @@ Disks on nodes used by Rook for osds can be reset to a usable state with the fol
 ```console
 #!/usr/bin/env bash
 DISK="/dev/sdb"
+
 # Zap the disk to a fresh, usable state (zap-all is important, b/c MBR has to be clean)
+
 # You will have to run this step for all disks.
 sgdisk --zap-all $DISK
+
 # Clean hdds with dd
 dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct,dsync
+
 # Clean disks such as ssd with blkdiscard instead of dd
 blkdiscard $DISK
 
 # These steps only have to be run once on each node
 # If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
 ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
+
 # ceph-volume setup can leave ceph-<UUID> directories in /dev (unnecessary clutter)
 rm -rf /dev/ceph-*
 ```
@@ -126,13 +131,13 @@ done
 ```
 
 This command will patch the following CRDs on v1.3:
-```console
-cephblockpools.ceph.rook.io
-cephclients.ceph.rook.io
-cephfilesystems.ceph.rook.io
-cephnfses.ceph.rook.io
-cephobjectstores.ceph.rook.io
-cephobjectstoreusers.ceph.rook.io
-```
+>```
+>cephblockpools.ceph.rook.io
+>cephclients.ceph.rook.io
+>cephfilesystems.ceph.rook.io
+>cephnfses.ceph.rook.io
+>cephobjectstores.ceph.rook.io
+>cephobjectstoreusers.ceph.rook.io
+>```
 
 Within a few seconds you should see that the cluster CRD has been deleted and will no longer block other cleanup such as deleting the `rook-ceph` namespace.

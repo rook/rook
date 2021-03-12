@@ -31,10 +31,12 @@ spec:
       # the osds are started.
       subFailureDomain: host
       zones:
-      - name: a
-        arbiter: true
-      - name: b
-      - name: c
+        - name: a
+          arbiter: true
+        - name: b
+        - name: c
+  mgr:
+    count: 2
   cephVersion:
     # Stretch cluster support upstream is only planned starting in Ceph Pacific
     image: ceph/daemon-base:latest-master
@@ -55,18 +57,18 @@ spec:
     # settings as other mons. In this example, the arbiter has a toleration to run on a master node.
     arbiter:
       tolerations:
-      - key: node-role.kubernetes.io/master
-        operator: Exists
-        effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
     osd:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           nodeSelectorTerms:
-          - matchExpressions:
-            - key: topology.kubernetes.io/zone
-              operator: In
-              values:
-              - b
-              - c
+            - matchExpressions:
+                - key: topology.kubernetes.io/zone
+                  operator: In
+                  values:
+                    - b
+                    - c
   disruptionManagement:
     managePodBudgets: true

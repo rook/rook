@@ -78,6 +78,13 @@ type MonMap struct {
 	Mons         []MonMapEntry `json:"mons"`
 }
 
+type MgrStat struct {
+	Epoch      int    `json:"epoch"`
+	Available  bool   `json:"available"`
+	ActiveName string `json:"active_name"`
+	NumStandby int    `json:"num_standby"`
+}
+
 type MgrMap struct {
 	Epoch      int          `json:"epoch"`
 	ActiveGID  int          `json:"active_gid"`

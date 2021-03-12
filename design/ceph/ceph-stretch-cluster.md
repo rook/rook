@@ -190,13 +190,13 @@ The mons will be configured so Ceph will associate the mons with the correct fai
 Rook will set each mon location to the zone name
 
 ```console
-ceph mon set_location <mon> <zone>
+$ ceph mon set_location <mon> <zone>
 ```
 
 The stretch mode will be enabled with the command:
 
 ```console
-ceph mon enable_stretch_mode tiebreaker_mon <mon> new_crush_rule <rule> dividing_bucket zone
+$ ceph mon enable_stretch_mode tiebreaker_mon <mon> new_crush_rule <rule> dividing_bucket zone
 ```
 
 ### Pools

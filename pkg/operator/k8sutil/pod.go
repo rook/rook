@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -51,7 +50,6 @@ const (
 	ConfigOverrideName = "rook-config-override"
 	// ConfigOverrideVal config override value
 	ConfigOverrideVal = "config"
-	defaultVersion    = "rook/rook:latest"
 	configMountDir    = "/etc/rook/config"
 	overrideFilename  = "override.conf"
 )
@@ -203,15 +201,6 @@ func GetMatchingContainer(containers []v1.Container, name string) (v1.Container,
 	return *result, nil
 }
 
-// MakeRookImage formats the container name
-func MakeRookImage(version string) string {
-	if version == "" {
-		return defaultVersion
-	}
-
-	return version
-}
-
 // PodsRunningWithLabel returns the number of running pods with the given label
 func PodsRunningWithLabel(clientset kubernetes.Interface, namespace, label string) (int, error) {
 	running, _, err := podStatusWithLabel(clientset, namespace, label)
@@ -322,9 +311,7 @@ func ClusterDaemonEnvVars(image string) []v1.EnvVar {
 }
 
 // SetNodeAntiAffinityForPod assign pod anti-affinity when pod should not be co-located
-func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rookv1.Placement, requiredDuringScheduling bool,
-	labels, nodeSelector map[string]string) {
-	p.ApplyToPodSpec(pod, true)
+func SetNodeAntiAffinityForPod(pod *v1.PodSpec, requiredDuringScheduling bool, topologyKey string, labels, nodeSelector map[string]string) {
 	pod.NodeSelector = nodeSelector
 
 	// when a node selector is being used, skip the affinity business below
@@ -337,7 +324,7 @@ func SetNodeAntiAffinityForPod(pod *v1.PodSpec, p rookv1.Placement, requiredDuri
 		LabelSelector: &metav1.LabelSelector{
 			MatchLabels: labels,
 		},
-		TopologyKey: v1.LabelHostname,
+		TopologyKey: topologyKey,
 	}
 
 	// Ensures that pod.Affinity is non-nil

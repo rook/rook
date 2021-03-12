@@ -10,7 +10,7 @@ metadata:
 spec:
   storageClassName: rook-ceph-block
   accessModes:
-  - ReadWriteMany
+    - ReadWriteMany
   resources:
     requests:
       storage: 2Gi
@@ -23,15 +23,15 @@ metadata:
 spec:
   replicas: 1
   exports:
-  - name: share1
-    server:
-      accessMode: ReadWrite
-      squash: "none"
-    # A Persistent Volume Claim must be created before creating NFS CRD instance.
-    # Create a Ceph cluster for using this example
-    # Create a ceph PVC after creating the rook ceph cluster using ceph-pvc.yaml
-    persistentVolumeClaim:
-      claimName: nfs-ceph-claim
+    - name: share1
+      server:
+        accessMode: ReadWrite
+        squash: "none"
+      # A Persistent Volume Claim must be created before creating NFS CRD instance.
+      # Create a Ceph cluster for using this example
+      # Create a ceph PVC after creating the rook ceph cluster using ceph-pvc.yaml
+      persistentVolumeClaim:
+        claimName: nfs-ceph-claim
   # A key/value list of annotations
   annotations:
     rook: nfs
