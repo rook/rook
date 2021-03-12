@@ -35,42 +35,42 @@ spec:
     activeStandby: true
     # The affinity rules to apply to the mds deployment
     placement:
-    #  nodeAffinity:
-    #    requiredDuringSchedulingIgnoredDuringExecution:
-    #      nodeSelectorTerms:
-    #      - matchExpressions:
-    #        - key: role
-    #          operator: In
-    #          values:
-    #          - mds-node
-    #  topologySpreadConstraints:
-    #  tolerations:
-    #  - key: mds-node
-    #    operator: Exists
-    #  podAffinity:
-       podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
+      #  nodeAffinity:
+      #    requiredDuringSchedulingIgnoredDuringExecution:
+      #      nodeSelectorTerms:
+      #      - matchExpressions:
+      #        - key: role
+      #          operator: In
+      #          values:
+      #          - mds-node
+      #  topologySpreadConstraints:
+      #  tolerations:
+      #  - key: mds-node
+      #    operator: Exists
+      #  podAffinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - rook-ceph-mds
+                - key: app
+                  operator: In
+                  values:
+                    - rook-ceph-mds
             # topologyKey: kubernetes.io/hostname will place MDS across different hosts
             topologyKey: kubernetes.io/hostname
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
                   - key: app
                     operator: In
                     values:
-                    - rook-ceph-mds
-                # topologyKey: */zone can be used to spread MDS across different AZ
-                # Use <topologyKey: failure-domain.beta.kubernetes.io/zone> in k8s cluster if your cluster is v1.16 or lower
-                # Use <topologyKey: topology.kubernetes.io/zone>  in k8s cluster is v1.17 or upper
-                topologyKey: topology.kubernetes.io/zone
+                      - rook-ceph-mds
+              # topologyKey: */zone can be used to spread MDS across different AZ
+              # Use <topologyKey: failure-domain.beta.kubernetes.io/zone> in k8s cluster if your cluster is v1.16 or lower
+              # Use <topologyKey: topology.kubernetes.io/zone>  in k8s cluster is v1.17 or upper
+              topologyKey: topology.kubernetes.io/zone
     # A key/value list of annotations
     annotations:
     #  key: value

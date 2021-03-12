@@ -7,8 +7,8 @@ spec:
   fsGroup:
     rule: RunAsAny
   allowedCapabilities:
-  - DAC_READ_SEARCH
-  - SYS_RESOURCE
+    - DAC_READ_SEARCH
+    - SYS_RESOURCE
   runAsUser:
     rule: RunAsAny
   seLinux:
@@ -16,9 +16,9 @@ spec:
   supplementalGroups:
     rule: RunAsAny
   volumes:
-  - configMap
-  - downwardAPI
-  - emptyDir
-  - persistentVolumeClaim
-  - secret
-  - hostPath
+    - configMap
+    - downwardAPI
+    - emptyDir
+    - persistentVolumeClaim
+    - secret
+    - hostPath

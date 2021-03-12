@@ -5,7 +5,6 @@ metadata:
   name: rook-cassandra
 
 ---
-
 # Role for cassandra members.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -36,7 +35,6 @@ rules:
       - get
 
 ---
-
 # ServiceAccount for cassandra members.
 apiVersion: v1
 kind: ServiceAccount
@@ -45,7 +43,6 @@ metadata:
   namespace: rook-cassandra
 
 ---
-
 # RoleBinding for cassandra members.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -57,12 +54,11 @@ roleRef:
   kind: Role
   name: rook-cassandra-member
 subjects:
-- kind: ServiceAccount
-  name: rook-cassandra-member
-  namespace: rook-cassandra
+  - kind: ServiceAccount
+    name: rook-cassandra-member
+    namespace: rook-cassandra
 
 ---
-
 # Cassandra Cluster
 apiVersion: cassandra.rook.io/v1alpha1
 kind: Cluster
@@ -82,12 +78,12 @@ spec:
         members: 3
         storage:
           volumeClaimTemplates:
-                - metadata:
-                    name: rook-cassandra-data
-                  spec:
-                    resources:
-                      requests:
-                        storage: 5Gi
+            - metadata:
+                name: rook-cassandra-data
+              spec:
+                resources:
+                  requests:
+                    storage: 5Gi
         resources:
           requests:
             cpu: 1

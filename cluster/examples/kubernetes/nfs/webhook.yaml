@@ -10,11 +10,11 @@ metadata:
   name: rook-nfs-webhook
   namespace: rook-nfs-system
 rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  resourceNames:
-  - 'rook-nfs-webhook-cert'
-  verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - "rook-nfs-webhook-cert"
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -26,10 +26,10 @@ roleRef:
   kind: Role
   name: rook-nfs-webhook
 subjects:
-- apiGroup: ""
-  kind: ServiceAccount
-  name: rook-nfs-webhook
-  namespace: rook-nfs-system
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: rook-nfs-webhook
+    namespace: rook-nfs-system
 ---
 apiVersion: cert-manager.io/v1alpha2
 kind: Certificate
@@ -38,8 +38,8 @@ metadata:
   namespace: rook-nfs-system
 spec:
   dnsNames:
-  - rook-nfs-webhook.rook-nfs-system.svc
-  - rook-nfs-webhook.rook-nfs-system.svc.cluster.local
+    - rook-nfs-webhook.rook-nfs-system.svc
+    - rook-nfs-webhook.rook-nfs-system.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: rook-nfs-selfsigned-issuer
@@ -61,24 +61,24 @@ metadata:
   creationTimestamp: null
   name: rook-nfs-validating-webhook-configuration
 webhooks:
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: rook-nfs-webhook
-      namespace: rook-nfs-system
-      path: /validate-nfs-rook-io-v1alpha1-nfsserver
-  failurePolicy: Fail
-  name: validation.nfsserver.nfs.rook.io
-  rules:
-  - apiGroups:
-    - nfs.rook.io
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - nfsservers
+  - clientConfig:
+      caBundle: Cg==
+      service:
+        name: rook-nfs-webhook
+        namespace: rook-nfs-system
+        path: /validate-nfs-rook-io-v1alpha1-nfsserver
+    failurePolicy: Fail
+    name: validation.nfsserver.nfs.rook.io
+    rules:
+      - apiGroups:
+          - nfs.rook.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - nfsservers
 ---
 kind: Service
 apiVersion: v1
@@ -89,8 +89,8 @@ spec:
   selector:
     app: rook-nfs-webhook
   ports:
-  - port: 443
-    targetPort: webhook-server
+    - port: 443
+      targetPort: webhook-server
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -110,19 +110,19 @@ spec:
         app: rook-nfs-webhook
     spec:
       containers:
-      - name: rook-nfs-webhook
-        image: rook/nfs:master
-        imagePullPolicy: IfNotPresent
-        args: ["nfs", "webhook"]
-        ports:
-        - containerPort: 9443
-          name: webhook-server
-        volumeMounts:
-        - mountPath: /tmp/k8s-webhook-server/serving-certs
-          name: cert
-          readOnly: true
+        - name: rook-nfs-webhook
+          image: rook/nfs:master
+          imagePullPolicy: IfNotPresent
+          args: ["nfs", "webhook"]
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
       volumes:
-      - name: cert
-        secret:
-          defaultMode: 420
-          secretName: rook-nfs-webhook-cert
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: rook-nfs-webhook-cert

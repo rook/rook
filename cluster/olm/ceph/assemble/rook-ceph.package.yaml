@@ -1,4 +1,4 @@
 packageName: rook-ceph
 channels:
-- name: beta
-  currentCSV: rook-ceph.v1.2.2
+  - name: beta
+    currentCSV: rook-ceph.v1.2.2

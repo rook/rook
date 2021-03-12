@@ -33,9 +33,9 @@ roleRef:
   kind: ClusterRole
   name: rook-ceph-cluster-mgmt
 subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: rook-ceph # namespace:operator
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: rook-ceph # namespace:operator
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -47,9 +47,9 @@ roleRef:
   kind: Role
   name: rook-ceph-cmd-reporter
 subjects:
-- kind: ServiceAccount
-  name: rook-ceph-cmd-reporter
-  namespace: rook-ceph-external # namespace:cluster
+  - kind: ServiceAccount
+    name: rook-ceph-cmd-reporter
+    namespace: rook-ceph-external # namespace:cluster
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -63,15 +63,15 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph-external # namespace:cluster
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete

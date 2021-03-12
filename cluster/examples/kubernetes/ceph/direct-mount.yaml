@@ -17,33 +17,33 @@ spec:
     spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
-      - name: rook-direct-mount
-        image: rook/ceph:master
-        command: ["/tini"]
-        args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
-        imagePullPolicy: IfNotPresent
-        env:
-          - name: ROOK_CEPH_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: rook-ceph-mon
-                key: ceph-username
-          - name: ROOK_CEPH_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: rook-ceph-mon
-                key: ceph-secret
-        securityContext:
-          privileged: true
-        volumeMounts:
-          - mountPath: /dev
-            name: dev
-          - mountPath: /sys/bus
-            name: sysbus
-          - mountPath: /lib/modules
-            name: libmodules
-          - name: mon-endpoint-volume
-            mountPath: /etc/rook
+        - name: rook-direct-mount
+          image: rook/ceph:master
+          command: ["/tini"]
+          args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ROOK_CEPH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-username
+            - name: ROOK_CEPH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-secret
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /dev
+              name: dev
+            - mountPath: /sys/bus
+              name: sysbus
+            - mountPath: /lib/modules
+              name: libmodules
+            - name: mon-endpoint-volume
+              mountPath: /etc/rook
       # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
       hostNetwork: true
       volumes:
@@ -60,5 +60,5 @@ spec:
           configMap:
             name: rook-ceph-mon-endpoints
             items:
-            - key: data
-              path: mon-endpoints
+              - key: data
+                path: mon-endpoints

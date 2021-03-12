@@ -17,34 +17,34 @@ spec:
     spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
-      - name: rook-ceph-tools
-        image: rook/ceph:master
-        command: ["/tini"]
-        args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
-        imagePullPolicy: IfNotPresent
-        env:
-          - name: ROOK_CEPH_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: rook-ceph-mon
-                key: ceph-username
-          - name: ROOK_CEPH_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: rook-ceph-mon
-                key: ceph-secret
-        volumeMounts:
-          - mountPath: /etc/ceph
-            name: ceph-config
-          - name: mon-endpoint-volume
-            mountPath: /etc/rook
+        - name: rook-ceph-tools
+          image: rook/ceph:master
+          command: ["/tini"]
+          args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ROOK_CEPH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-username
+            - name: ROOK_CEPH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-secret
+          volumeMounts:
+            - mountPath: /etc/ceph
+              name: ceph-config
+            - name: mon-endpoint-volume
+              mountPath: /etc/rook
       volumes:
         - name: mon-endpoint-volume
           configMap:
             name: rook-ceph-mon-endpoints
             items:
-            - key: data
-              path: mon-endpoints
+              - key: data
+                path: mon-endpoints
         - name: ceph-config
           emptyDir: {}
       tolerations:
