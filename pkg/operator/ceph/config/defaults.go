@@ -79,6 +79,13 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
 		}...)
 	}
 
+	// Every release before Quincy will enable PG auto repair on Bluestore OSDs
+	if !cephVersion.IsAtLeastQuincy() {
+		overrides = append(overrides, []Option{
+			configOverride("global", "osd scrub auto repair", "true"),
+		}...)
+	}
+
 	return overrides
 }
 
