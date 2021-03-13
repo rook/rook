@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -283,8 +284,22 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		}
 	}
 
-	// set max_bytes quota
-	if pool.Quotas.MaxBytes != nil {
+	// set maxSize quota
+	if pool.Quotas.MaxSize != nil {
+		// check for format errors
+		maxBytesQuota, err := resource.ParseQuantity(*pool.Quotas.MaxSize)
+		if err != nil {
+			if err == resource.ErrFormatWrong {
+				return errors.Wrapf(err, "maxSize quota incorrectly formatted for pool %q, valid units include K, M, G, T, P, Ki, Mi, Gi, Ti, Pi", poolName)
+			}
+			return errors.Wrapf(err, "failed setting quota for pool %q, maxSize quota parse error", poolName)
+		}
+		// set max_bytes quota, 0 value disables quota
+		err = setPoolQuota(context, clusterInfo, poolName, "max_bytes", strconv.FormatInt(maxBytesQuota.Value(), 10))
+		if err != nil {
+			return errors.Wrapf(err, "failed to set max_bytes quota for pool %q", poolName)
+		}
+	} else if pool.Quotas.MaxBytes != nil {
 		// set max_bytes quota, 0 value disables quota
 		err := setPoolQuota(context, clusterInfo, poolName, "max_bytes", strconv.FormatUint(*pool.Quotas.MaxBytes, 10))
 		if err != nil {
