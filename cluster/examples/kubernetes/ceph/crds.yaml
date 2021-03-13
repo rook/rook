@@ -1267,6 +1267,9 @@ spec:
                     maxBytes:
                       type: integer
                       minimum: 0
+                    maxSize:
+                      pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE][i]?)?$
+                      type: string
                     maxObjects:
                       type: integer
                       minimum: 0

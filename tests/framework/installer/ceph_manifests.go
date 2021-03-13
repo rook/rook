@@ -1569,7 +1569,7 @@ spec:
     enabled: true
     mode: image
   quotas:
-    maxBytes: 10737418240
+    maxSize: 10Gi
     maxObjects: 1000000
   statusCheck:
     mirror:
