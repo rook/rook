@@ -90,8 +90,9 @@ blkdiscard $DISK
 # If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
 ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
 
-# ceph-volume setup can leave ceph-<UUID> directories in /dev (unnecessary clutter)
+# ceph-volume setup can leave ceph-<UUID> directories in /dev and /dev/mapper (unnecessary clutter)
 rm -rf /dev/ceph-*
+rm -rf /dev/mapper/ceph--*
 ```
 
 ## Troubleshooting
