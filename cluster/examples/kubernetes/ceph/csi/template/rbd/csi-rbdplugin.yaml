@@ -22,7 +22,7 @@ spec:
       {{ if .PluginPriorityClassName }}
       priorityClassName: {{ .PluginPriorityClassName }}
       {{ end }}
-      hostNetwork: true
+      hostNetwork: {{ .EnableCSIHostNetwork }}
       hostPID: true
       # to use e.g. Rook orchestrated cluster, and mons' FQDN is
       # resolved through k8s service, set dns policy to cluster first

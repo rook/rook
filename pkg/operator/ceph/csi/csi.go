@@ -84,6 +84,14 @@ func SetParams(clientset kubernetes.Interface) error {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_GRPC_METRICS'")
 	}
 
+	csiEnableCSIHostNetwork, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_HOST_NETWORK", "false")
+	if err != nil {
+		return errors.Wrap(err, "failed to determine if CSI Host Network is enabled")
+	}
+	if CSIParam.EnableCSIHostNetwork, err = strconv.ParseBool(csiEnableCSIHostNetwork); err != nil {
+		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
+	}
+
 	CSIParam.CSIPluginImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
 	if err != nil {
 		return errors.Wrap(err, "unable to configure CSI plugin image")

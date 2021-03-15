@@ -55,6 +55,7 @@ type Param struct {
 	PluginPriorityClassName        string
 	ProvisionerPriorityClassName   string
 	VolumeReplicationImage         string
+	EnableCSIHostNetwork           bool
 	EnableOMAPGenerator            bool
 	EnableRBDSnapshotter           bool
 	EnableCephFSSnapshotter        bool
