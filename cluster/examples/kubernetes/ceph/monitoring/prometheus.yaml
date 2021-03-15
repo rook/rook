@@ -10,8 +10,8 @@ metadata:
   name: prometheus
 aggregationRule:
   clusterRoleSelectors:
-    - matchLabels:
-        rbac.ceph.rook.io/aggregate-to-prometheus: "true"
+  - matchLabels:
+      rbac.ceph.rook.io/aggregate-to-prometheus: "true"
 rules: []
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -21,19 +21,19 @@ metadata:
   labels:
     rbac.ceph.rook.io/aggregate-to-prometheus: "true"
 rules:
-  - apiGroups: [""]
-    resources:
-      - nodes
-      - services
-      - endpoints
-      - pods
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources:
-      - configmaps
-    verbs: ["get"]
-  - nonResourceURLs: ["/metrics"]
-    verbs: ["get"]
+- apiGroups: [""]
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -44,9 +44,9 @@ roleRef:
   kind: ClusterRole
   name: prometheus
 subjects:
-  - kind: ServiceAccount
-    name: prometheus
-    namespace: rook-ceph
+- kind: ServiceAccount
+  name: prometheus
+  namespace: rook-ceph
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus

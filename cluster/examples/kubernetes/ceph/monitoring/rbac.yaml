@@ -7,12 +7,12 @@ metadata:
   name: rook-ceph-monitor
   namespace: rook-ceph
 rules:
-  - apiGroups:
-      - monitoring.coreos.com
-    resources:
-      - "*"
-    verbs:
-      - "*"
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - '*'
+  verbs:
+  - '*'
 # OLM: END ROLE
 ---
 # OLM: BEGIN ROLE BINDING
@@ -27,9 +27,9 @@ roleRef:
   kind: Role
   name: rook-ceph-monitor
 subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-system
-    namespace: rook-ceph
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph
 # OLM: END ROLE BINDING
 ---
 # OLM: BEGIN ROLE
@@ -40,16 +40,16 @@ metadata:
   name: rook-ceph-metrics
   namespace: rook-ceph
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - services
-      - endpoints
-      - pods
-    verbs:
-      - get
-      - list
-      - watch
+ - apiGroups:
+   - ""
+   resources:
+    - services
+    - endpoints
+    - pods
+   verbs:
+    - get
+    - list
+    - watch
 # OLM: END ROLE
 ---
 # OLM: BEGIN ROLE BINDING
@@ -64,9 +64,9 @@ roleRef:
   kind: Role
   name: rook-ceph-metrics
 subjects:
-  - kind: ServiceAccount
-    # change to the serviceaccount and namespace to use for monitoring
-    name: prometheus-k8s
-    namespace: rook-ceph
+- kind: ServiceAccount
+  # change to the serviceaccount and namespace to use for monitoring
+  name: prometheus-k8s
+  namespace: rook-ceph
 # OLM: END ROLE BINDING
 ---
