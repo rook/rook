@@ -99,6 +99,7 @@ func (s *SmokeSuite) SetupSuite() {
 		UseCSI:                    true,
 		EnableAdmissionController: true,
 		UseCrashPruner:            true,
+		EnableVolumeReplication:   true,
 		RookVersion:               installer.VersionMaster,
 		CephVersion:               installer.PacificVersion,
 	}

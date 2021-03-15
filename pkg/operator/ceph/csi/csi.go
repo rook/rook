@@ -108,6 +108,10 @@ func SetParams(clientset kubernetes.Interface) error {
 	if err != nil {
 		return errors.Wrap(err, "unable to configure CSI kubelet directory path")
 	}
+	CSIParam.VolumeReplicationImage, err = k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_VOLUME_REPLICATION_IMAGE", DefaultVolumeReplicationImage)
+	if err != nil {
+		return errors.Wrap(err, "unable to configure Volume replication controller image")
+	}
 
 	csiCephFSPodLabels, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_CEPHFS_POD_LABELS", "")
 	if err != nil {

@@ -279,6 +279,10 @@ csi:
   #cephfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
   #rbdPodLabels: "key1=value1,key2=value2"
+  # Enable volume replication controller
+  volumeReplication:
+    enabled: false
+    #image: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
 
 enableFlexDriver: false
 enableDiscoveryDaemon: false
