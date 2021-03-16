@@ -21,6 +21,7 @@ jobs:
               .github/workflows/
               cluster/examples/kubernetes/ceph/crds.yaml
               cluster/examples/kubernetes/ceph/pre-k8s-1.16/crds.yaml
+              cluster/examples/kubernetes/ceph/monitoring/
               tests/
             rules:
               line-length: disable

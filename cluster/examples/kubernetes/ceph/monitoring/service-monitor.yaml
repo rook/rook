@@ -14,6 +14,6 @@ spec:
       app: rook-ceph-mgr
       rook_cluster: rook-ceph
   endpoints:
-    - port: http-metrics
-      path: /metrics
-      interval: 5s
+  - port: http-metrics
+    path: /metrics
+    interval: 5s
