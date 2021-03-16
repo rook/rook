@@ -32,26 +32,16 @@ CRDS_BEFORE_1_16_FILE_PATH="${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/pre-
 #############
 # TODO: revisit later
 # ensures the vendor dir has the right deps, e,g. code-generator
-# if [ ! -d vendor/github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1/ ];then
-#   echo "Vendoring project"
-#   go mod vendor
-# fi
-
-copy_ob_obc_crds() {
-  mkdir -p "$OLM_CATALOG_DIR"
-  cp -f "${SCRIPT_ROOT}/cluster/olm/ceph/assemble/objectbucket.io_objectbucketclaims.yaml" "$OLM_CATALOG_DIR"
-  cp -f "${SCRIPT_ROOT}/cluster/olm/ceph/assemble/objectbucket.io_objectbuckets.yaml" "$OLM_CATALOG_DIR"
-}
+if [ ! -d vendor/github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1/ ];then
+  echo "Vendoring project"
+  go mod vendor
+fi
 
 generating_crds() {
   echo "Generating crds.yaml"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/rook.io/v1alpha2" output:crd:artifacts:config="$OLM_CATALOG_DIR"
-  # TODO: revisit later
-  # * remove copy_ob_obc_crds()
-  # * remove files cluster/olm/ceph/assemble/{objectbucket.io_objectbucketclaims.yaml,objectbucket.io_objectbuckets.yaml}
-  # Activate code below
-  # "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./vendor/github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
+  "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./vendor/github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
 }
 
 generating_main_crd() {
@@ -90,7 +80,6 @@ build_helm_resources() {
 ########
 # MAIN #
 ########
-copy_ob_obc_crds
 generating_crds
 generating_main_crd
 
