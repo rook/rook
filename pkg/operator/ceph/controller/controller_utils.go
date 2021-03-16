@@ -136,12 +136,14 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 // ClusterOwnerRef represents the owner reference of the CephCluster CR
 func ClusterOwnerRef(clusterName, clusterID string) metav1.OwnerReference {
 	blockOwner := true
+	controller := true
 	return metav1.OwnerReference{
 		APIVersion:         fmt.Sprintf("%s/%s", ClusterResource.Group, ClusterResource.Version),
 		Kind:               ClusterResource.Kind,
 		Name:               clusterName,
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
+		Controller:         &controller,
 	}
 }
 

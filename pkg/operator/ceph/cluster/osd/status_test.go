@@ -45,7 +45,8 @@ func TestOrchestrationStatus(t *testing.T) {
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{}
 	c := New(context, clusterInfo, spec, "myversion")
-	kv := k8sutil.NewConfigMapKVStore(c.clusterInfo.Namespace, clientset, metav1.OwnerReference{})
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	kv := k8sutil.NewConfigMapKVStore(c.clusterInfo.Namespace, clientset, ownerInfo)
 	nodeName := "mynode"
 	cmName := fmt.Sprintf(orchestrationStatusMapName, nodeName)
 

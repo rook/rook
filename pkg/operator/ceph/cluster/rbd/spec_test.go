@@ -23,7 +23,8 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
+
+	"github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -91,10 +92,10 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, 4, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
 
 	// Deployment should have Ceph labels
-	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
+	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
 		config.RbdMirrorType, "a", AppName, "ns")
 
-	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
+	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.RbdMirrorType, "a", AppName, "ns", "ceph/ceph:myceph",
 		"200", "100", "600", "300", /* resources */
 		"my-priority-class")

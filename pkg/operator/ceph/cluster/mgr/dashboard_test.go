@@ -53,7 +53,8 @@ func TestGeneratePassword(t *testing.T) {
 func TestGetOrGeneratePassword(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 3)
-	clusterInfo := &client.ClusterInfo{Namespace: "myns"}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	clusterInfo := &client.ClusterInfo{Namespace: "myns", OwnerInfo: ownerInfo}
 	c := &Cluster{context: &clusterd.Context{Clientset: clientset}, clusterInfo: clusterInfo}
 	_, err := c.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(ctx, dashboardPasswordName, metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err))
@@ -109,9 +110,11 @@ func TestStartSecureDashboard(t *testing.T) {
 		return executor.MockExecuteCommandWithOutputFile(command, outfileArg, arg...)
 	}
 
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "myns",
 		CephVersion: cephver.Nautilus,
+		OwnerInfo:   ownerInfo,
 	}
 	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor},
 		spec: cephv1.ClusterSpec{

@@ -119,7 +119,7 @@ func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion,
 func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Duration) (*cephver.CephVersion, error) {
 	logger.Infof("detecting the ceph image version for image %s...", cephImage)
 	versionReporter, err := cmdreporter.New(
-		c.context.Clientset, &c.ownerRef,
+		c.context.Clientset, c.ownerInfo,
 		detectVersionName, detectVersionName, c.Namespace,
 		[]string{"ceph"}, []string{"--version"},
 		rookImage, cephImage)

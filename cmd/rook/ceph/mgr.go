@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -70,7 +71,7 @@ func runMgrSidecar(cmd *cobra.Command, args []string) error {
 	rook.LogStartupInfo(mgrSidecarCmd.Flags())
 
 	ownerRef := opcontroller.ClusterOwnerRef(clusterName, ownerRefID)
-	clusterInfo.OwnerRef = ownerRef
+	clusterInfo.OwnerInfo = k8sutil.NewOwnerInfoWithOwnerRef(&ownerRef, clusterInfo.Namespace)
 
 	if err := client.WriteCephConfig(context, &clusterInfo); err != nil {
 		rook.TerminateFatal(err)

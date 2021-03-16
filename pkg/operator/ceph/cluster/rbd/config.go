@@ -64,7 +64,7 @@ type daemonConfig struct {
 	ResourceName string              // the name rook gives to mirror resources in k8s metadata
 	DaemonID     string              // the ID of the Ceph daemon ("a", "b", ...)
 	DataPathMap  *config.DataPathMap // location to store data in container
-	ownerRef     metav1.OwnerReference
+	ownerInfo    *k8sutil.OwnerInfo
 }
 
 // PeerToken is the content of the peer token
@@ -79,7 +79,7 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 	ctx := context.TODO()
 	user := fullDaemonName(daemonConfig.DaemonID)
 	access := []string{"mon", "profile rbd-mirror", "osd", "profile rbd"}
-	s := keyring.GetSecretStore(r.context, clusterInfo, &daemonConfig.ownerRef)
+	s := keyring.GetSecretStore(r.context, clusterInfo, daemonConfig.ownerInfo)
 
 	key, err := s.GenerateKey(user, access)
 	if err != nil {

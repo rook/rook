@@ -33,7 +33,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -369,9 +368,9 @@ func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephOb
 
 	endpoint := c.generateEndpoint(cephObjectStore)
 	// Set owner ref to the parent object
-	err := controllerutil.SetControllerReference(cephObjectStore, endpoint, c.scheme)
+	err := c.ownerInfo.SetControllerReference(endpoint)
 	if err != nil {
-		return errors.Wrap(err, "failed to set owner reference to ceph object store endpoint")
+		return errors.Wrapf(err, "failed to set owner reference to ceph object store endpoint %q", endpoint.Name)
 	}
 
 	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, cephObjectStore.Namespace, endpoint)
@@ -385,9 +384,9 @@ func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephOb
 func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore) (string, error) {
 	service := c.generateService(cephObjectStore)
 	// Set owner ref to the parent object
-	err := controllerutil.SetControllerReference(cephObjectStore, service, c.scheme)
+	err := c.ownerInfo.SetControllerReference(service)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to set owner reference to ceph object store service")
+		return "", errors.Wrapf(err, "failed to set owner reference to ceph object store service %q", service.Name)
 	}
 
 	svc, err := k8sutil.CreateOrUpdateService(c.context.Clientset, cephObjectStore.Namespace, service)

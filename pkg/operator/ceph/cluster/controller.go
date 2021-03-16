@@ -293,14 +293,9 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, nil
 	}
 
-	// Create the controller owner ref
-	ref, err := opcontroller.GetControllerObjectOwnerReference(cephCluster, r.scheme)
-	if err != nil || ref == nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", cephCluster.Name)
-	}
-
 	// Do reconcile here!
-	if err := r.clusterController.onAdd(cephCluster, ref); err != nil {
+	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
+	if err := r.clusterController.onAdd(cephCluster, ownerInfo); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
 	}
 
@@ -321,7 +316,7 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 	}
 }
 
-func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.OwnerReference) error {
+func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ownerInfo *k8sutil.OwnerInfo) error {
 	if clusterObj.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
 		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
 		return nil
@@ -330,7 +325,7 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.Ow
 	cluster, ok := c.clusterMap[clusterObj.Namespace]
 	if !ok {
 		// It's a new cluster so let's populate the struct
-		cluster = newCluster(clusterObj, c.context, c.csiConfigMutex, ref)
+		cluster = newCluster(clusterObj, c.context, c.csiConfigMutex, ownerInfo)
 	}
 
 	// Note that this lock is held through the callback process, as this creates CSI resources, but we must lock in

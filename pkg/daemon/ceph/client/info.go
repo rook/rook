@@ -19,10 +19,15 @@ package client
 import (
 	"fmt"
 	"net"
+	"testing"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -35,7 +40,7 @@ type ClusterInfo struct {
 	Monitors      map[string]*MonInfo
 	CephVersion   cephver.CephVersion
 	Namespace     string
-	OwnerRef      metav1.OwnerReference
+	OwnerInfo     *k8sutil.OwnerInfo
 	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
 	// If the CR name is needed, access it through the NamespacedName() method.
 	name              string
@@ -76,12 +81,14 @@ func (c *ClusterInfo) NamespacedName() types.NamespacedName {
 // so this clusterInfo cannot be used to generate the mon config or request the
 // namespacedName. A full cluster info must be populated for those operations.
 func AdminClusterInfo(namespace string) *ClusterInfo {
+	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(&metav1.OwnerReference{}, "")
 	return &ClusterInfo{
 		Namespace: namespace,
 		CephCred: CephCred{
 			Username: AdminUsername,
 		},
-		name: "testing",
+		name:      "testing",
+		OwnerInfo: ownerInfo,
 	}
 }
 
@@ -122,4 +129,16 @@ func (c *ClusterInfo) IsInitialized(logError bool) bool {
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.
 func NewMonInfo(name, ip string, port int32) *MonInfo {
 	return &MonInfo{Name: name, Endpoint: net.JoinHostPort(ip, fmt.Sprintf("%d", port))}
+}
+
+func NewMinimumOwnerInfo(t *testing.T) *k8sutil.OwnerInfo {
+	cluster := &cephv1.CephCluster{}
+	scheme := runtime.NewScheme()
+	err := cephv1.AddToScheme(scheme)
+	assert.NoError(t, err)
+	return k8sutil.NewOwnerInfo(cluster, scheme)
+}
+
+func NewMinimumOwnerInfoWithOwnerRef() *k8sutil.OwnerInfo {
+	return k8sutil.NewOwnerInfoWithOwnerRef(&metav1.OwnerReference{}, "")
 }

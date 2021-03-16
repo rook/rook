@@ -220,9 +220,11 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	logger.Infof("crush location of osd: %s", crushLocation)
 
 	forceFormat := false
+
 	ownerRef := opcontroller.ClusterOwnerRef(clusterName, ownerRefID)
-	clusterInfo.OwnerRef = ownerRef
-	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerRef)
+	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(&ownerRef, clusterInfo.Namespace)
+	clusterInfo.OwnerInfo = ownerInfo
+	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerInfo)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 

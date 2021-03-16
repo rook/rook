@@ -232,7 +232,8 @@ osd_pool_default_size = 1
 `}
 	customCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "rook-config-override",
+			Name:      "rook-config-override",
+			Namespace: namespace,
 		},
 		Data: customSettings,
 	}

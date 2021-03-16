@@ -29,14 +29,11 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 type clusterConfig struct {
@@ -45,10 +42,9 @@ type clusterConfig struct {
 	store       *cephv1.CephObjectStore
 	rookVersion string
 	clusterSpec *cephv1.ClusterSpec
-	ownerRef    *metav1.OwnerReference
+	ownerInfo   *k8sutil.OwnerInfo
 	DataPathMap *config.DataPathMap
 	client      client.Client
-	scheme      *runtime.Scheme
 }
 
 type rgwConfig struct {
@@ -86,14 +82,6 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		logger.Warning("spec.gateway.instances must be set to at least 1")
 		c.store.Spec.Gateway.Instances = 1
 	}
-
-	// Create the controller owner ref
-	// It will be associated to all resources of the CephObjectStore
-	ref, err := opcontroller.GetControllerObjectOwnerReference(c.store, c.scheme)
-	if err != nil || ref == nil {
-		return errors.Wrapf(err, "failed to get controller %q owner reference", c.store.Name)
-	}
-	c.ownerRef = ref
 
 	// start a new deployment and scale up
 	desiredRgwInstances := int(c.store.Spec.Gateway.Instances)
@@ -143,9 +131,9 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		logger.Infof("object store %q deployment %q started", c.store.Name, deployment.Name)
 
 		// Set owner ref to cephObjectStore object
-		err = controllerutil.SetControllerReference(c.store, deployment, c.scheme)
+		err = c.ownerInfo.SetControllerReference(deployment)
 		if err != nil {
-			return errors.Wrapf(err, "failed to set owner reference for ceph object %q secret", deployment.Name)
+			return errors.Wrapf(err, "failed to set owner reference for rgw deployment %q", deployment.Name)
 		}
 
 		// Set the deployment hash as an annotation

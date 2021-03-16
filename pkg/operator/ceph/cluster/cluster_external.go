@@ -47,7 +47,8 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
-	cluster.ClusterInfo = mon.PopulateExternalClusterInfo(c.context, c.namespacedName.Namespace, cluster.ownerRef)
+
+	cluster.ClusterInfo = mon.PopulateExternalClusterInfo(c.context, c.namespacedName.Namespace, cluster.ownerInfo)
 	cluster.ClusterInfo.SetName(c.namespacedName.Name)
 
 	if !client.IsKeyringBase64Encoded(cluster.ClusterInfo.CephCred.Secret) {
@@ -75,13 +76,13 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		//
 		// Only do this when doing a bit of management...
 		logger.Infof("creating %q configmap", k8sutil.ConfigOverrideName)
-		err = populateConfigOverrideConfigMap(c.context, c.namespacedName.Namespace, cluster.ClusterInfo.OwnerRef)
+		err = populateConfigOverrideConfigMap(c.context, c.namespacedName.Namespace, cluster.ClusterInfo.OwnerInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to populate config override config map")
 		}
 
 		logger.Infof("creating %q secret", config.StoreName)
-		err = config.GetStore(c.context, c.namespacedName.Namespace, &cluster.ClusterInfo.OwnerRef).CreateOrUpdate(cluster.ClusterInfo)
+		err = config.GetStore(c.context, c.namespacedName.Namespace, cluster.ClusterInfo.OwnerInfo).CreateOrUpdate(cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to update the global config")
 		}
@@ -102,7 +103,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 
 	// Create CSI config map
-	err = csi.CreateCsiConfigMap(c.namespacedName.Namespace, c.context.Clientset, &cluster.ownerRef)
+	err = csi.CreateCsiConfigMap(c.namespacedName.Namespace, c.context.Clientset, cluster.ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to create csi config map")
 	}
@@ -204,16 +205,22 @@ func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster)
 	)
 
 	// Create external monitoring Service
-	service := manager.MakeMetricsService(mgr.ExternalMgrAppName, "", mgr.ServiceExternalMetricName)
+	service, err := manager.MakeMetricsService(mgr.ExternalMgrAppName, "", mgr.ServiceExternalMetricName)
+	if err != nil {
+		return err
+	}
 	logger.Info("creating mgr external monitoring service")
-	_, err := k8sutil.CreateOrUpdateService(c.context.Clientset, cluster.Namespace, service)
+	_, err = k8sutil.CreateOrUpdateService(c.context.Clientset, cluster.Namespace, service)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create or update mgr service")
 	}
 	logger.Info("mgr external metrics service created")
 
 	// Create external monitoring Endpoints
-	endpoint := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring, cluster.ownerRef)
+	endpoint, err := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring, cluster.ownerInfo)
+	if err != nil {
+		return err
+	}
 	logger.Info("creating mgr external monitoring endpoints")
 	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, c.namespacedName.Namespace, endpoint)
 	if err != nil {
