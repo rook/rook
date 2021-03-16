@@ -175,6 +175,18 @@ spec:
       for: 1m
       labels:
         severity: critical
+    - alert: CephOSDSlowOps
+      annotations:
+        description: '{{ $value }} Ceph OSD requests are taking too long to process.
+          Please check ceph status to find out the cause.'
+        message: OSD requests are taking too long to process.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        ceph_healthcheck_slow_ops > 0
+      for: 30s
+      labels:
+        severity: warning
     - alert: CephDataRecoveryTakingTooLong
       annotations:
         description: Data recovery has been active for too long. Contact Support.
