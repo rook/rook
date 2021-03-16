@@ -76,7 +76,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.
 
 	c.fs.Spec.MetadataServer.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.fs.Spec.MetadataServer.Labels.ApplyToObjectMeta(&podSpec.ObjectMeta)
-	c.fs.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec.Spec, true)
+	c.fs.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
 	d := &apps.Deployment{

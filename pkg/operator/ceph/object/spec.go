@@ -133,7 +133,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 				c.vaultTokenInitContainer(rgwConfig))
 		}
 	}
-	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec, true)
+	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
 	// If host networking is not enabled, preferred pod anti-affinity is added to the rgw daemons
 	labels := getLabels(c.store.Name, c.store.Namespace, false)

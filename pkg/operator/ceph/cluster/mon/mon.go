@@ -661,7 +661,7 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 
 	// setup affinity settings for pod scheduling
 	p := c.getMonPlacement(mon.Zone)
-	p.ApplyToPodSpec(&d.Spec.Template.Spec, true)
+	p.ApplyToPodSpec(&d.Spec.Template.Spec)
 	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
 		map[string]string{k8sutil.AppAttr: AppName}, nil)
 
@@ -1260,7 +1260,7 @@ func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 	}
 	p := c.getMonPlacement(zone)
 
-	p.ApplyToPodSpec(&d.Spec.Template.Spec, true)
+	p.ApplyToPodSpec(&d.Spec.Template.Spec)
 	if deploymentExists {
 		// the existing deployment may have a node selector. if the cluster
 		// isn't using host networking and the deployment is using pvc storage,

@@ -24,12 +24,12 @@ func (p PlacementSpec) All() Placement {
 }
 
 // ApplyToPodSpec adds placement to a pod spec
-func (p Placement) ApplyToPodSpec(t *v1.PodSpec, merge bool) {
+func (p Placement) ApplyToPodSpec(t *v1.PodSpec) {
 	if t.Affinity == nil {
 		t.Affinity = &v1.Affinity{}
 	}
 	if p.NodeAffinity != nil {
-		t.Affinity.NodeAffinity = p.mergeNodeAffinity(t.Affinity.NodeAffinity, merge)
+		t.Affinity.NodeAffinity = p.mergeNodeAffinity(t.Affinity.NodeAffinity)
 	}
 	if p.PodAffinity != nil {
 		t.Affinity.PodAffinity = p.PodAffinity.DeepCopy()
@@ -45,7 +45,7 @@ func (p Placement) ApplyToPodSpec(t *v1.PodSpec, merge bool) {
 	}
 }
 
-func (p Placement) mergeNodeAffinity(nodeAffinity *v1.NodeAffinity, merge bool) *v1.NodeAffinity {
+func (p Placement) mergeNodeAffinity(nodeAffinity *v1.NodeAffinity) *v1.NodeAffinity {
 	// no node affinity is specified yet, so return the placement's nodeAffinity
 	result := p.NodeAffinity.DeepCopy()
 	if nodeAffinity == nil {
@@ -53,11 +53,9 @@ func (p Placement) mergeNodeAffinity(nodeAffinity *v1.NodeAffinity, merge bool) 
 	}
 
 	// merge the preferred node affinity that was already specified, and the placement's nodeAffinity
-	if merge {
-		result.PreferredDuringSchedulingIgnoredDuringExecution = append(
-			nodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
-			p.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution...)
-	}
+	result.PreferredDuringSchedulingIgnoredDuringExecution = append(
+		nodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+		p.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution...)
 
 	// nothing to merge if no affinity was passed in
 	if nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
@@ -82,16 +80,14 @@ func (p Placement) mergeNodeAffinity(nodeAffinity *v1.NodeAffinity, merge bool) 
 
 	// merge the match expressions together since they are defined in both placements
 	// this will only work if we want an "and" between all the expressions, more complex conditions won't work with this merge
-	if merge {
-		var nodeTerm v1.NodeSelectorTerm
-		nodeTerm.MatchExpressions = append(
-			nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions,
-			p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
-		nodeTerm.MatchFields = append(
-			nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields,
-			p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields...)
-		result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0] = nodeTerm
-	}
+	var nodeTerm v1.NodeSelectorTerm
+	nodeTerm.MatchExpressions = append(
+		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions,
+		p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
+	nodeTerm.MatchFields = append(
+		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields,
+		p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields...)
+	result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0] = nodeTerm
 
 	return result
 }
