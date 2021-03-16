@@ -255,6 +255,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 	// DELETE: the CR was deleted
 	if !cephCluster.GetDeletionTimestamp().IsZero() {
+		doCleanup := true
 		logger.Infof("deleting ceph cluster %q", cephCluster.Name)
 
 		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
@@ -265,22 +266,28 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 			monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(cephCluster.Namespace)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to get mon secret, no cleanup")
+				logger.Warningf("failed to get mon secret. Skip cluster cleanup and remove finalizer. %v", err)
+				doCleanup = false
 			}
-			cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
+
+			if doCleanup {
+				cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
+				if err != nil {
+					return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
+				}
+				go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
 			}
-			go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
 		}
 
-		// Run delete sequence
-		response, ok := r.clusterController.requestClusterDelete(cephCluster)
-		if !ok {
-			// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
-			// will eventually be satisfied such as the volumes being removed
-			close(stopCleanupCh)
-			return response, nil
+		if doCleanup {
+			// Run delete sequence
+			response, ok := r.clusterController.requestClusterDelete(cephCluster)
+			if !ok {
+				// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
+				// will eventually be satisfied such as the volumes being removed
+				close(stopCleanupCh)
+				return response, nil
+			}
 		}
 
 		// Remove finalizer
