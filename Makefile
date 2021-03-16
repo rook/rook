@@ -20,6 +20,16 @@ all: build
 # ====================================================================================
 # Build Options
 
+# Controller-gen version
+CONTROLLER_GEN_VERSION=v0.4.1
+
+# Set GOBIN
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
 # set the shell to bash in case some environments use sh
 SHELL := /bin/bash
 
@@ -157,11 +167,31 @@ distclean: clean ## Remove all files that are created by building or configuring
 prune: ## Prune cached artifacts.
 	@$(MAKE) -C images prune
 
-csv-ceph: ## Generate a CSV file for OLM.
+csv-ceph: crds-gen ## Generate a CSV file for OLM.
+	@echo Generating CSV manifests
 	@cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
 csv-clean: ## Remove existing OLM files.
 	@rm -fr cluster/olm/ceph/deploy/* cluster/olm/ceph/templates/*
+
+controller-gen:
+ifeq (, $(shell command -v controller-gen))
+	@{ \
+	set -e ;\
+	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$CONTROLLER_GEN_TMP_DIR ;\
+	go mod init tmp;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION);\
+	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	}
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell command -v controller-gen)
+endif
+
+crds-gen: controller-gen
+	@echo Updating CRD manifests
+	@build/crds/build-crds.sh $(CONTROLLER_GEN)
 
 .PHONY: all build.common cross.build.parallel
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune

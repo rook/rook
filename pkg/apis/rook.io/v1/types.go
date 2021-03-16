@@ -27,63 +27,106 @@ import (
 // ************************************************************************************
 
 type StorageScopeSpec struct {
-	Nodes       []Node            `json:"nodes,omitempty"`
-	UseAllNodes bool              `json:"useAllNodes,omitempty"`
-	NodeCount   int               `json:"nodeCount,omitempty"`
-	Config      map[string]string `json:"config"`
-	Selection
-	VolumeSources          []VolumeSource          `json:"volumeSources,omitempty"`
-	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets"`
+	// +nullable
+	// +optional
+	Nodes []Node `json:"nodes,omitempty"`
+	// +optional
+	UseAllNodes bool `json:"useAllNodes,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config    map[string]string `json:"config,omitempty"`
+	Selection `json:",inline"`
+	// +nullable
+	// +optional
+	VolumeSources []VolumeSource `json:"volumeSources,omitempty"`
+	// +nullable
+	// +optional
+	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
 }
 
+// Node is a storage nodes
+// +nullable
 type Node struct {
-	Name      string                  `json:"name,omitempty"`
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
-	Config    map[string]string       `json:"config"`
-	Selection
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config    map[string]string `json:"config,omitempty"`
+	Selection `json:",inline"`
 }
 
+// Device represents a disk to use in the cluster
 type Device struct {
-	Name     string            `json:"name,omitempty"`
-	FullPath string            `json:"fullpath,omitempty"`
-	Config   map[string]string `json:"config"`
-}
-
-type Directory struct {
-	Path   string            `json:"path,omitempty"`
-	Config map[string]string `json:"config"`
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +optional
+	FullPath string `json:"fullpath,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Config map[string]string `json:"config,omitempty"`
 }
 
 type Selection struct {
 	// Whether to consume all the storage devices found on a machine
+	// +optional
 	UseAllDevices *bool `json:"useAllDevices,omitempty"`
 	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
+	// +optional
 	DeviceFilter string `json:"deviceFilter,omitempty"`
 	// A regular expression to allow more fine-grained selection of devices with path names
+	// +optional
 	DevicePathFilter string `json:"devicePathFilter,omitempty"`
 	// List of devices to use as storage devices
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
 	Devices []Device `json:"devices,omitempty"`
-	// List of host directories to use as storage
-	Directories []Directory `json:"directories,omitempty"`
 	// PersistentVolumeClaims to use as storage
+	// +optional
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
+// PlacementSpec is the placement for core ceph daemons part of the CephCluster CRD
 type PlacementSpec map[KeyType]Placement
 
+// Placement is the placement for an object
 type Placement struct {
-	NodeAffinity              *v1.NodeAffinity              `json:"nodeAffinity,omitempty"`
-	PodAffinity               *v1.PodAffinity               `json:"podAffinity,omitempty"`
-	PodAntiAffinity           *v1.PodAntiAffinity           `json:"podAntiAffinity,omitempty"`
-	Tolerations               []v1.Toleration               `json:"tolerations,omitempty"`
+	// NodeAffinity is a group of node affinity scheduling rules
+	// +optional
+	NodeAffinity *v1.NodeAffinity `json:"nodeAffinity,omitempty"`
+	// PodAffinity is a group of inter pod affinity scheduling rules
+	// +optional
+	PodAffinity *v1.PodAffinity `json:"podAffinity,omitempty"`
+	// PodAntiAffinity is a group of inter pod anti affinity scheduling rules
+	// +optional
+	PodAntiAffinity *v1.PodAntiAffinity `json:"podAntiAffinity,omitempty"`
+	// The pod this Toleration is attached to tolerates any taint that matches
+	// the triple <key,value,effect> using the matching operator <operator>
+	// +optional
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+	// TopologySpreadConstraint specifies how to spread matching pods among the given topology
+	// +optional
 	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
+// ResourceSpec is a collection of ResourceRequirements that describes the compute resource requirements
 type ResourceSpec map[string]v1.ResourceRequirements
 
+// ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon
 type ProbeSpec struct {
-	Disabled bool      `json:"disabled,omitempty"`
-	Probe    *v1.Probe `json:"probe,omitempty"`
+	// Disabled determines whether probe is disable or not
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
+	// Probe describes a health check to be performed against a container to determine whether it is
+	// alive or ready to receive traffic.
+	// +optional
+	Probe *v1.Probe `json:"probe,omitempty"`
 }
 
 // PriorityClassNamesSpec is a map of priority class names to be assigned to components
@@ -92,57 +135,118 @@ type PriorityClassNamesSpec map[KeyType]string
 // NetworkSpec represents cluster network settings
 type NetworkSpec struct {
 	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
-	Provider string `json:"provider"`
+	// +optional
+	Provider string `json:"provider,omitempty"`
 
 	// Selectors string values describe what networks will be used to connect the cluster.
 	// Meanwhile the keys describe each network respective responsibilities or any metadata
 	// storage provider decide.
-	Selectors map[string]string `json:"selectors"`
+	// +nullable
+	// +optional
+	Selectors map[string]string `json:"selectors,omitempty"`
 }
 
 // KeyType type safety
 type KeyType string
 
-// AnnotationsSpec
+// AnnotationsSpec is the main spec annotation for all daemons
+// +kubebuilder:pruning:PreserveUnknownFields
+// +nullable
 type AnnotationsSpec map[KeyType]Annotations
 
-// Annotations
+// Annotations are annotations
 type Annotations map[string]string
 
-// LabelsSpec
+// LabelsSpec is the main spec label for all daemons
 type LabelsSpec map[KeyType]Labels
 
-// Labels
+// Labels are label for a given daemons
 type Labels map[string]string
 
+// StorageClassDeviceSet is a storage class device set
+// +nullable
 type StorageClassDeviceSet struct {
-	Name                 string                     `json:"name,omitempty"`                 // A unique identifier for the set
-	Count                int                        `json:"count,omitempty"`                // Number of devices in this set
-	Resources            v1.ResourceRequirements    `json:"resources,omitempty"`            // Requests/limits for the devices
-	Placement            Placement                  `json:"placement,omitempty"`            // Placement constraints for the device daemons
-	PreparePlacement     *Placement                 `json:"preparePlacement,omitempty"`     // Placement constraints for the device preparation
-	Config               map[string]string          `json:"config,omitempty"`               // Provider-specific device configuration
-	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"` // List of PVC templates for the underlying storage devices
-	Portable             bool                       `json:"portable,omitempty"`             // OSD portability across the hosts
-	TuneSlowDeviceClass  bool                       `json:"tuneDeviceClass,omitempty"`      // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
-	TuneFastDeviceClass  bool                       `json:"tuneFastDeviceClass,omitempty"`  // TuneFastDeviceClass Tune the OSD when running on a fast Device Class
-	SchedulerName        string                     `json:"schedulerName,omitempty"`        // Scheduler name for OSD pod placement
-	Encrypted            bool                       `json:"encrypted,omitempty"`            // Whether to encrypt the deviceSet
+	// Name is a unique identifier for the set
+	Name string `json:"name"`
+	// Count is the number of devices in this set
+	// +kubebuilder:validation:Minimum=1
+	Count int `json:"count"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"` // Requests/limits for the devices
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Placement Placement `json:"placement,omitempty"` // Placement constraints for the device daemons
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	PreparePlacement *Placement `json:"preparePlacement,omitempty"` // Placement constraints for the device preparation
+	// Provider-specific device configuration
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config map[string]string `json:"config,omitempty"`
+	// VolumeClaimTemplates is a list of PVC templates for the underlying storage devices
+	// +kubebuilder:pruning:PreserveUnknownFields
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
+	// Portable represents OSD portability across the hosts
+	// +optional
+	Portable bool `json:"portable,omitempty"`
+	// TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	// +optional
+	TuneSlowDeviceClass bool `json:"tuneDeviceClass,omitempty"`
+	// TuneFastDeviceClass Tune the OSD when running on a fast Device Class
+	// +optional
+	TuneFastDeviceClass bool `json:"tuneFastDeviceClass,omitempty"`
+	// Scheduler name for OSD pod placement
+	// +optional
+	SchedulerName string `json:"schedulerName,omitempty"`
+	// Whether to encrypt the deviceSet
+	// +optional
+	Encrypted bool `json:"encrypted,omitempty"`
 }
 
 // VolumeSource is a volume source spec for Rook
 type VolumeSource struct {
-	Name                string                                          `json:"name,omitempty"`
-	PVCSources          map[string]v1.PersistentVolumeClaimVolumeSource `json:"pvcSources,omitempty"`
-	Resources           v1.ResourceRequirements                         `json:"resources,omitempty"`
-	Placement           Placement                                       `json:"placement,omitempty"`
-	PreparePlacement    *Placement                                      `json:"preparePlacement,omitempty"`
-	Config              map[string]string                               `json:"config,omitempty"`
-	Portable            bool                                            `json:"portable,omitempty"`            // Portable OSD portability across the hosts
-	TuneSlowDeviceClass bool                                            `json:"tuneDeviceClass,omitempty"`     // TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
-	TuneFastDeviceClass bool                                            `json:"tuneFastDeviceClass,omitempty"` // TuneFastDeviceClass Tune the OSD when running on a Fast Device Class
-	SchedulerName       string                                          `json:"schedulerName,omitempty"`       // Scheduler name for OSD pod placement
-	CrushDeviceClass    string                                          `json:"crushDeviceClass,omitempty"`    // CrushDeviceClass represents the crush device class for an OSD
-	Size                string                                          `json:"size,omitempty"`                // Size represents the size requested for the PVC
-	Encrypted           bool                                            `json:"encrypted,omitempty"`           // Whether to encrypt the deviceSet
+	// Name is the name of the volume source
+	Name string `json:"name"`
+	// PVCSources
+	PVCSources map[string]v1.PersistentVolumeClaimVolumeSource `json:"pvcSources,omitempty"`
+	// CrushDeviceClass represents the crush device class for an OSD
+	// +optional
+	CrushDeviceClass string `json:"crushDeviceClass,omitempty"`
+	// Size represents the size requested for the PVC
+	Size string `json:"size"`
+	// Resources requests/limits for the devices
+	// +nullable
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Placement Placement `json:"placement,omitempty"` // Placement constraints for the device daemons
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	PreparePlacement *Placement `json:"preparePlacement,omitempty"` // Placement constraints for the device preparation
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config map[string]string `json:"config,omitempty"` // Provider-specific device configuration
+	// Portable represents OSD portability across the hosts
+	// +optional
+	Portable bool `json:"portable,omitempty"`
+	// TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	// +optional
+	TuneSlowDeviceClass bool `json:"tuneDeviceClass,omitempty"`
+	// TuneFastDeviceClass Tune the OSD when running on a fast Device Class
+	// +optional
+	TuneFastDeviceClass bool `json:"tuneFastDeviceClass,omitempty"`
+	// Scheduler name for OSD pod placement
+	// +optional
+	SchedulerName string `json:"schedulerName,omitempty"`
+	// Whether to encrypt the deviceSet
+	// +optional
+	Encrypted bool `json:"encrypted,omitempty"`
 }

@@ -101,8 +101,8 @@ func TestPodSpec(t *testing.T) {
 
 	// Test with peer
 	rbdMirror.Spec.Peers.SecretNames = append(rbdMirror.Spec.Peers.SecretNames, "foo")
-	p := cephclient.PeersSpec{UUID: "c9838c14-d9a1-4e69-b51e-09ff0a4d617c", SiteName: "foo", ClientName: "client.rbd-mirror-peer"}
-	r.peers["foo"] = &peerSpec{poolName: "foo", info: &cephclient.PoolMirroringInfo{Peers: []cephclient.PeersSpec{p}}}
+	p := cephv1.PeersSpec{UUID: "c9838c14-d9a1-4e69-b51e-09ff0a4d617c", SiteName: "foo", ClientName: "client.rbd-mirror-peer"}
+	r.peers["foo"] = &peerSpec{poolName: "foo", info: &cephv1.PoolMirroringInfo{Peers: []cephv1.PeersSpec{p}}}
 	d, err = r.makeDeployment(&daemonConf, rbdMirror)
 	assert.NoError(t, err)
 	// We now have the volume for the ConfigMap and the Secret
