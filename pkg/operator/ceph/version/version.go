@@ -46,6 +46,8 @@ var (
 	Octopus = CephVersion{15, 0, 0, 0}
 	// Pacific Ceph version
 	Pacific = CephVersion{16, 0, 0, 0}
+	// Quincy Ceph version
+	Quincy = CephVersion{17, 0, 0, 0}
 
 	// cephVolumeLVMDiskSortingCephVersion introduced a major regression in c-v and thus is not suitable for production
 	cephVolumeLVMDiskSortingCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 13}
@@ -84,6 +86,10 @@ func (v *CephVersion) ReleaseName() string {
 		return "octopus"
 	case Nautilus.Major:
 		return "nautilus"
+	case Pacific.Major:
+		return "pacific"
+	case Quincy.Major:
+		return "quincy"
 	default:
 		return unknownVersionString
 	}
@@ -168,6 +174,11 @@ func (v *CephVersion) IsPacific() bool {
 	return v.isRelease(Pacific)
 }
 
+// IsQuincy checks if the Ceph version is Quincy
+func (v *CephVersion) IsQuincy() bool {
+	return v.isRelease(Quincy)
+}
+
 // IsAtLeast checks a given Ceph version is at least a given one
 func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	if v.Major > other.Major {
@@ -189,6 +200,11 @@ func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	}
 	// If we arrive here then both versions are identical
 	return true
+}
+
+// IsAtLeastQuincy check that the Ceph version is at least Quincy
+func (v *CephVersion) IsAtLeastQuincy() bool {
+	return v.IsAtLeast(Quincy)
 }
 
 // IsAtLeastPacific check that the Ceph version is at least Pacific
