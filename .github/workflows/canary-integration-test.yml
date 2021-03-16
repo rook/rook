@@ -108,6 +108,10 @@ jobs:
         name: canary
         path: test
 
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary')
+      uses: mxschmitt/action-tmate@v3
+
 
   pvc:
     runs-on: ubuntu-18.04
@@ -195,6 +199,10 @@ jobs:
         name:  pvc
         path: test
 
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc')
+      uses: mxschmitt/action-tmate@v3
+
   pvc-db:
     runs-on: ubuntu-18.04
     steps:
@@ -281,6 +289,10 @@ jobs:
       with:
         name: pvc-db
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc-db')
+      uses: mxschmitt/action-tmate@v3
 
   pvc-db-wal:
     runs-on: ubuntu-18.04
@@ -371,6 +383,10 @@ jobs:
         name: pvc-db-wal
         path: test
 
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc-db-wal')
+      uses: mxschmitt/action-tmate@v3
+
   encryption-pvc:
     runs-on: ubuntu-18.04
     steps:
@@ -447,6 +463,10 @@ jobs:
       with:
         name: encryption-pvc
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc')
+      uses: mxschmitt/action-tmate@v3
 
   encryption-pvc-db:
     runs-on: ubuntu-18.04
@@ -537,6 +557,10 @@ jobs:
         name: encryption-pvc-db
         path: test
 
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-db')
+      uses: mxschmitt/action-tmate@v3
+
   encryption-pvc-db-wal:
     runs-on: ubuntu-18.04
     steps:
@@ -623,6 +647,10 @@ jobs:
       with:
         name: encryption-pvc-db-wal
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-db-wal')
+      uses: mxschmitt/action-tmate@v3
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-18.04
@@ -713,6 +741,10 @@ jobs:
       with:
         name: encryption-pvc-kms-vault-token-auth
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-kms-vault-token-auth')
+      uses: mxschmitt/action-tmate@v3
 
   lvm-pvc:
     runs-on: ubuntu-18.04
@@ -806,3 +838,7 @@ jobs:
       with:
         name:  lvm-pvc
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-lvm-pvc')
+      uses: mxschmitt/action-tmate@v3
