@@ -2320,12 +2320,6 @@ rules:
   - create
   - update
   - delete
-- apiGroups:
-  - k8s.cni.cncf.io
-  resources:
-  - network-attachment-definitions
-  verbs:
-  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -2476,6 +2470,12 @@ rules:
   - delete
   - get
   - update
+- apiGroups:
+  - k8s.cni.cncf.io
+  resources:
+  - network-attachment-definitions
+  verbs:
+  - get
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1

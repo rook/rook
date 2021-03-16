@@ -38,12 +38,6 @@ rules:
   - update
   - delete
 - apiGroups:
-  - k8s.cni.cncf.io
-  resources:
-  - network-attachment-definitions
-  verbs:
-  - get
-- apiGroups:
   - monitoring.coreos.com
   resources:
   - servicemonitors
