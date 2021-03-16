@@ -1970,6 +1970,11 @@ func (in *QuotaSpec) DeepCopyInto(out *QuotaSpec) {
 		*out = new(uint64)
 		**out = **in
 	}
+	if in.MaxSize != nil {
+		in, out := &in.MaxSize, &out.MaxSize
+		*out = new(string)
+		**out = **in
+	}
 	if in.MaxObjects != nil {
 		in, out := &in.MaxObjects, &out.MaxObjects
 		*out = new(uint64)
