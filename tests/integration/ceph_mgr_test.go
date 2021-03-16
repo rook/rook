@@ -104,7 +104,7 @@ func (s *CephMgrSuite) SetupSuite() {
 		RookVersion:       installer.VersionMaster,
 		CephVersion:       installer.MasterVersion,
 	}
-
+	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, cephMasterSuiteMinimalTestVersion)
 	s.waitForOrchestrationModule()
 }

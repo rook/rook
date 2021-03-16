@@ -936,6 +936,16 @@ func (k8sh *K8sHelper) PrintPVCs(namespace string, detailed bool) {
 	}
 }
 
+func (k8sh *K8sHelper) PrintResources(namespace, name string) {
+	args := []string{"-n", namespace, "get", name, "-o", "yaml"}
+	result, err := k8sh.Kubectl(args...)
+	if err != nil {
+		logger.Warningf("failed to get resource %s. %v", name, err)
+	} else {
+		logger.Infof("%s\n", result)
+	}
+}
+
 func (k8sh *K8sHelper) PrintStorageClasses(detailed bool) {
 	ctx := context.TODO()
 	scs, err := k8sh.Clientset.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})

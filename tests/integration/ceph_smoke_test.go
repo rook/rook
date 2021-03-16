@@ -102,6 +102,7 @@ func (s *SmokeSuite) SetupSuite() {
 		RookVersion:               installer.VersionMaster,
 		CephVersion:               installer.OctopusVersion,
 	}
+	s.settings.ApplyEnvVars()
 
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, smokeSuiteMinimalTestVersion)
 	s.helper = clients.CreateTestClient(s.k8sh, s.installer.Manifests)

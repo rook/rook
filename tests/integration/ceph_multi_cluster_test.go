@@ -90,6 +90,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		RookVersion:               installer.VersionMaster,
 		CephVersion:               installer.NautilusVersion,
 	}
+	s.settings.ApplyEnvVars()
 	externalSettings := &installer.TestCephSettings{
 		IsExternal:        true,
 		ClusterName:       "test-external",
@@ -98,6 +99,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		RookVersion:       s.settings.RookVersion,
 		UseCSI:            true,
 	}
+	externalSettings.ApplyEnvVars()
 	s.externalManifests = installer.NewCephManifests(externalSettings)
 
 	k8sh, err := utils.CreateK8sHelper(s.T)

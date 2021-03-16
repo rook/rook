@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 
@@ -45,8 +46,23 @@ type TestCephSettings struct {
 	EnableDiscovery           bool
 	EnableAdmissionController bool
 	IsExternal                bool
+	SkipClusterCleanup        bool
+	SkipCleanupPolicy         bool
+	DirectMountToolbox        bool
 	RookVersion               string
 	CephVersion               cephv1.CephVersionSpec
+}
+
+func (s *TestCephSettings) ApplyEnvVars() {
+	// skip the cleanup by default
+	s.SkipClusterCleanup = true
+	if os.Getenv("SKIP_TEST_CLEANUP") == "false" {
+		s.SkipClusterCleanup = false
+	}
+	s.SkipCleanupPolicy = true
+	if os.Getenv("SKIP_CLEANUP_POLICY") == "false" {
+		s.SkipCleanupPolicy = false
+	}
 }
 
 func (s *TestCephSettings) readManifest(filename string) string {

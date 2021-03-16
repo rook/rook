@@ -97,7 +97,7 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 		RookVersion:        installer.VersionMaster,
 		CephVersion:        installer.OctopusVersion,
 	}
-
+	s.settings.ApplyEnvVars()
 	s.clusterInfo = client.AdminClusterInfo(namespace)
 	s.installer, s.kh = StartTestCluster(s.T, s.settings, flexDriverMinimalTestVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.installer.Manifests)

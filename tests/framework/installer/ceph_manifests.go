@@ -94,8 +94,11 @@ func (m *CephManifestsMaster) GetCommon() string {
 }
 
 func (m *CephManifestsMaster) GetToolbox() string {
-	manifest := strings.ReplaceAll(m.settings.readManifest("direct-mount.yaml"), "name: rook-direct-mount", "name: rook-ceph-tools")
-	return strings.ReplaceAll(manifest, "app: rook-direct-mount", "app: rook-ceph-tools")
+	if m.settings.DirectMountToolbox {
+		manifest := strings.ReplaceAll(m.settings.readManifest("direct-mount.yaml"), "name: rook-direct-mount", "name: rook-ceph-tools")
+		return strings.ReplaceAll(manifest, "app: rook-direct-mount", "app: rook-ceph-tools")
+	}
+	return m.settings.readManifest("toolbox.yaml")
 }
 
 //**********************************************************************************

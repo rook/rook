@@ -76,7 +76,7 @@ func (h *HelmSuite) SetupSuite() {
 		RookVersion:               installer.VersionMaster,
 		CephVersion:               installer.OctopusVersion,
 	}
-
+	h.settings.ApplyEnvVars()
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings, helmMinimalTestVersion)
 	h.helper = clients.CreateTestClient(h.k8shelper, h.installer.Manifests)
 }
