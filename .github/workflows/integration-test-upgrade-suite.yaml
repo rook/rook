@@ -51,3 +51,7 @@ jobs:
       with:
         name: ceph-upgrade-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-upgrade-suite')
+      uses: mxschmitt/action-tmate@v3
