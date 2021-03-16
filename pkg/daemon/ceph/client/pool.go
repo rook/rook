@@ -289,7 +289,7 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		maxBytesQuota, err := resource.ParseQuantity(*pool.Quotas.MaxSize)
 		if err != nil {
 			if err == resource.ErrFormatWrong {
-				return errors.Wrapf(err, "maxSize quota incorrectly formatted for pool %q, valid units include K, M, G, T, P, Ki, Mi, Gi, Ti, Pi", poolName)
+				return errors.Wrapf(err, "maxSize quota incorrectly formatted for pool %q, valid units include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei", poolName)
 			}
 			return errors.Wrapf(err, "failed setting quota for pool %q, maxSize quota parse error", poolName)
 		}

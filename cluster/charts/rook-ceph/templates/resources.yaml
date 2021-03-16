@@ -107,6 +107,7 @@ spec:
                   x-kubernetes-preserve-unknown-fields: true
                 quotas:
                   description: The quota settings
+                  nullable: true
                   properties:
                     maxBytes:
                       description: MaxBytes represents the quota in bytes Deprecated in favor of MaxSize
@@ -118,6 +119,7 @@ spec:
                       type: integer
                     maxSize:
                       description: MaxSize represents the quota in bytes as a string
+                      pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$
                       type: string
                   type: object
                 replicated:
@@ -4727,6 +4729,7 @@ spec:
                         x-kubernetes-preserve-unknown-fields: true
                       quotas:
                         description: The quota settings
+                        nullable: true
                         properties:
                           maxBytes:
                             description: MaxBytes represents the quota in bytes Deprecated in favor of MaxSize
@@ -4738,6 +4741,7 @@ spec:
                             type: integer
                           maxSize:
                             description: MaxSize represents the quota in bytes as a string
+                            pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$
                             type: string
                         type: object
                       replicated:
@@ -4858,6 +4862,7 @@ spec:
                       x-kubernetes-preserve-unknown-fields: true
                     quotas:
                       description: The quota settings
+                      nullable: true
                       properties:
                         maxBytes:
                           description: MaxBytes represents the quota in bytes Deprecated in favor of MaxSize
@@ -4869,6 +4874,7 @@ spec:
                           type: integer
                         maxSize:
                           description: MaxSize represents the quota in bytes as a string
+                          pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$
                           type: string
                       type: object
                     replicated:
@@ -6138,6 +6144,7 @@ spec:
                       x-kubernetes-preserve-unknown-fields: true
                     quotas:
                       description: The quota settings
+                      nullable: true
                       properties:
                         maxBytes:
                           description: MaxBytes represents the quota in bytes Deprecated in favor of MaxSize
@@ -6149,6 +6156,7 @@ spec:
                           type: integer
                         maxSize:
                           description: MaxSize represents the quota in bytes as a string
+                          pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$
                           type: string
                       type: object
                     replicated:
@@ -6900,6 +6908,7 @@ spec:
                       x-kubernetes-preserve-unknown-fields: true
                     quotas:
                       description: The quota settings
+                      nullable: true
                       properties:
                         maxBytes:
                           description: MaxBytes represents the quota in bytes Deprecated in favor of MaxSize
@@ -6911,6 +6920,7 @@ spec:
                           type: integer
                         maxSize:
                           description: MaxSize represents the quota in bytes as a string
+                          pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$
                           type: string
                       type: object
                     replicated:
@@ -7245,6 +7255,7 @@ spec:
                       x-kubernetes-preserve-unknown-fields: true
                     quotas:
                       description: The quota settings
+                      nullable: true
                       properties:
                         maxBytes:
                           description: MaxBytes represents the quota in bytes Deprecated in favor of MaxSize
@@ -7256,6 +7267,7 @@ spec:
                           type: integer
                         maxSize:
                           description: MaxSize represents the quota in bytes as a string
+                          pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$
                           type: string
                       type: object
                     replicated:
@@ -7375,6 +7387,7 @@ spec:
                       x-kubernetes-preserve-unknown-fields: true
                     quotas:
                       description: The quota settings
+                      nullable: true
                       properties:
                         maxBytes:
                           description: MaxBytes represents the quota in bytes Deprecated in favor of MaxSize
@@ -7386,6 +7399,7 @@ spec:
                           type: integer
                         maxSize:
                           description: MaxSize represents the quota in bytes as a string
+                          pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$
                           type: string
                       type: object
                     replicated:

@@ -564,6 +564,8 @@ type PoolSpec struct {
 	StatusCheck MirrorHealthCheckSpec `json:"statusCheck,omitempty"`
 
 	// The quota settings
+	// +optional
+	// +nullable
 	Quotas QuotaSpec `json:"quotas,omitempty"`
 }
 
@@ -806,6 +808,8 @@ type QuotaSpec struct {
 	MaxBytes *uint64 `json:"maxBytes,omitempty"`
 
 	// MaxSize represents the quota in bytes as a string
+	// +kubebuilder:validation:Pattern=`^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$`
+	// +optional
 	MaxSize *string `json:"maxSize,omitempty"`
 
 	// MaxObjects represents the quota in objects
