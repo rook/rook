@@ -15,3 +15,5 @@ v1.7...
 ### Core
 
 ### Ceph
+
+* Stop standby mds agents before upgrading ceph filesystem

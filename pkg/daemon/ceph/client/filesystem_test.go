@@ -18,6 +18,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -165,4 +166,320 @@ func TestFilesystemRemove(t *testing.T) {
 	assert.True(t, metadataDeleted)
 	assert.True(t, dataDeleted)
 	assert.True(t, crushDeleted)
+}
+
+func TestFailAllStandbyReplayMDS(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	failedGids := make([]string, 0)
+	fs := CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				failedGids = append(failedGids, args[2])
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	err := FailAllStandbyReplayMDS(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, failedGids, []string{"124"})
+
+	fs = CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", errors.Errorf("unexpected execution of mds fail")
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	err = FailAllStandbyReplayMDS(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName)
+	assert.NoError(t, err)
+
+	fs = CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", errors.Errorf("expected execution of mds fail")
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	err = FailAllStandbyReplayMDS(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "expected execution of mds fail")
+}
+
+func TestGetMdsIdByRank(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	fs := CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	name, err := GetMdsIdByRank(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, 0)
+	assert.Equal(t, name, "myfs1-a")
+	assert.NoError(t, err)
+
+	// test errors
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				return "", errors.Errorf("test ceph fs get error")
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	name, err = GetMdsIdByRank(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, 0)
+	assert.Equal(t, "", name)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "test ceph fs get error")
+
+	fs = CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_1": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	// test get mds by id failed error
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	name, err = GetMdsIdByRank(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, 0)
+	assert.Equal(t, "", name)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get mds gid from rank 0")
+
+	fs = CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_122": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	name, err = GetMdsIdByRank(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, 0)
+	assert.Equal(t, "", name)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get mds info for rank 0")
 }
