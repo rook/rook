@@ -489,7 +489,11 @@ type SnapshotScheduleSpec struct {
 // QuotaSpec represents the spec for quotas in a pool
 type QuotaSpec struct {
 	// MaxBytes represents the quota in bytes
+	// Deprecated in favor of MaxSize
 	MaxBytes *uint64 `json:"maxBytes,omitempty"`
+
+	// MaxSize represents the quota in bytes as a string
+	MaxSize *string `json:"maxSize,omitempty"`
 
 	// MaxObjects represents the quota in objects
 	MaxObjects *uint64 `json:"maxObjects,omitempty"`
