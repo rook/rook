@@ -43,7 +43,7 @@ func CreateObjectOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32) error {
 
 	logger.Infof("creating the object store via CRD")
-	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStore(namespace, storeName, int(replicaCount), rgwPort)); err != nil {
+	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStore(storeName, int(replicaCount), rgwPort)); err != nil {
 		return err
 	}
 

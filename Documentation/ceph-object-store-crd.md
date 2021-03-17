@@ -12,7 +12,7 @@ Rook allows creation and customization of object stores through the custom resou
 
 ### Erasure Coded
 
-Erasure coded pools require the OSDs to use `bluestore` for the configured [`storeType`](ceph-cluster-crd.md#osd-configuration-settings). Additionally, erasure coded pools can only be used with `dataPools`. The `metadataPool` must use a replicated pool.
+Erasure coded pools can only be used with `dataPools`. The `metadataPool` must use a replicated pool.
 
 > **NOTE**: This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 

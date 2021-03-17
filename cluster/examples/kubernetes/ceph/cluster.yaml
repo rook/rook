@@ -218,7 +218,6 @@ spec:
 #          osdsPerDevice: "5"
 #      - name: "/dev/disk/by-id/ata-ST4000DM004-XXXX" # devices can be specified using full udev paths
 #      config: # configuration can be specified at the node level which overrides the cluster level config
-#        storeType: filestore
 #    - name: "172.17.4.301"
 #      deviceFilter: "^sd."
   # The section for configuring management of daemon disruptions during upgrade or fencing.

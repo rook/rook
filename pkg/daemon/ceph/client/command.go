@@ -25,9 +25,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-// RunAllCephCommandsInToolbox - when running the e2e tests, all ceph commands need to be run in the toolbox.
+// RunAllCephCommandsInToolboxPod - when running the e2e tests, all ceph commands need to be run in the toolbox.
 // Everywhere else, the ceph tools are assumed to be in the container where we can shell out.
-var RunAllCephCommandsInToolbox = false
+// This is the name of the pod.
+var RunAllCephCommandsInToolboxPod string
 
 const (
 	// AdminUsername is the name of the admin user
@@ -66,8 +67,8 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 	}
 
 	// If the command should be run inside the toolbox pod, include the kubectl args to call the toolbox
-	if RunAllCephCommandsInToolbox {
-		toolArgs := []string{"exec", "-i", "rook-ceph-tools", "-n", clusterInfo.Namespace, "--", command}
+	if RunAllCephCommandsInToolboxPod != "" {
+		toolArgs := []string{"exec", "-i", RunAllCephCommandsInToolboxPod, "-n", clusterInfo.Namespace, "--", command}
 		return Kubectl, append(toolArgs, args...)
 	}
 

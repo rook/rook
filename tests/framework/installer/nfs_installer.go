@@ -166,7 +166,7 @@ func (h *NFSInstaller) UninstallNFSServer(systemNamespace, namespace string) {
 		_, err := h.k8shelper.RookClientset.NfsV1alpha1().NFSServers(namespace).Get(ctx, namespace, metav1.GetOptions{})
 		return err
 	}
-	err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)
+	err = h.k8shelper.WaitForCustomResourceDeletion(namespace, namespace, crdCheckerFunc)
 	checkError(h.T(), err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
 
 	err = h.k8shelper.DeleteResource("namespace", namespace)

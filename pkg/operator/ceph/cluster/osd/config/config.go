@@ -33,7 +33,6 @@ func GetConfigStoreName(nodeName string) string {
 }
 
 const (
-	StoreTypeKey       = "storeType"
 	WalSizeMBKey       = "walSizeMB"
 	DatabaseSizeMBKey  = "databaseSizeMB"
 	JournalSizeMBKey   = "journalSizeMB"
@@ -45,7 +44,6 @@ const (
 
 // StoreConfig represents the configuration of an OSD on a device.
 type StoreConfig struct {
-	StoreType       string `json:"storeType,omitempty"`
 	WalSizeMB       int    `json:"walSizeMB,omitempty"`
 	DatabaseSizeMB  int    `json:"databaseSizeMB,omitempty"`
 	OSDsPerDevice   int    `json:"osdsPerDevice,omitempty"`
@@ -66,8 +64,6 @@ func ToStoreConfig(config map[string]string) StoreConfig {
 	storeConfig := NewStoreConfig()
 	for k, v := range config {
 		switch k {
-		case StoreTypeKey:
-			storeConfig.StoreType = v
 		case WalSizeMBKey:
 			storeConfig.WalSizeMB = convertToIntIgnoreErr(v)
 		case DatabaseSizeMBKey:

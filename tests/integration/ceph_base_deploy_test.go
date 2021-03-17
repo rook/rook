@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -87,34 +86,13 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	require.Nil(s.T(), err)
 }
 
-func HandlePanics(r interface{}, op installer.TestSuite, t func() *testing.T) {
+func HandlePanics(r interface{}, uninstaller func(), t func() *testing.T) {
 	if r != nil {
 		logger.Infof("unexpected panic occurred during test %s, --> %v", t().Name(), r)
 		t().Fail()
-		op.Teardown()
+		uninstaller()
 		t().FailNow()
 	}
-}
-
-// TestCluster struct for handling panic and test suite tear down
-type TestCluster struct {
-	installer               *installer.CephInstaller
-	kh                      *utils.K8sHelper
-	helper                  *clients.TestClient
-	T                       func() *testing.T
-	clusterName             string
-	namespace               string
-	storeType               string
-	storageClassName        string
-	useHelm                 bool
-	usePVC                  bool
-	mons                    int
-	rbdMirrorWorkers        int
-	rookCephCleanup         bool
-	skipOSDCreation         bool
-	minimalMatrixK8sVersion string
-	rookVersion             string
-	cephVersion             cephv1.CephVersionSpec
 }
 
 func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHelper, version string) {
@@ -140,50 +118,27 @@ func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHe
 	logger.Infof("Running test suite since kube version is %q", kubeVersion)
 }
 
-// StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, cluster *TestCluster) (*TestCluster, *utils.K8sHelper) {
-	kh, err := utils.CreateK8sHelper(t)
+// StartTestCluster creates new instance of TestCephSettings struct
+func StartTestCluster(t func() *testing.T, settings *installer.TestCephSettings, minimalMatrixK8sVersion string) (*installer.CephInstaller, *utils.K8sHelper) {
+	k8shelper, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
-	checkIfShouldRunForMinimalTestMatrix(t, kh, cluster.minimalMatrixK8sVersion)
+	checkIfShouldRunForMinimalTestMatrix(t, k8shelper, minimalMatrixK8sVersion)
 
-	cluster.installer = installer.NewCephInstaller(t, kh.Clientset, cluster.useHelm, cluster.clusterName, cluster.rookVersion, cluster.cephVersion, cluster.rookCephCleanup)
-	cluster.kh = kh
-	cluster.helper = nil
-	cluster.T = t
-
-	if cluster.rookVersion != installer.VersionMaster {
-		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
-		assert.NoError(t(), kh.GetDockerImage("rook/ceph:"+cluster.rookVersion))
-	}
-
-	assert.NoError(t(), kh.GetDockerImage(cluster.cephVersion.Image))
-
-	cluster.Setup()
-	return cluster, kh
-}
-
-// Setup is a wrapper for setting up rook
-func (op *TestCluster) Setup() {
 	// Turn on DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	isRookInstalled, err := op.installer.InstallRook(op.namespace, op.storeType, op.usePVC, op.storageClassName,
-		cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers, op.skipOSDCreation, op.rookVersion)
+
+	installer := installer.NewCephInstaller(t, k8shelper.Clientset, settings)
+	isRookInstalled, err := installer.InstallRook()
 
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)
-		if !op.installer.T().Failed() {
-			op.installer.GatherAllRookLogs(op.installer.T().Name(), op.namespace, installer.SystemNamespace(op.namespace))
+		if !installer.T().Failed() {
+			installer.GatherAllRookLogs(t().Name(), settings.Namespace, settings.OperatorNamespace)
 		}
-		op.T().Fail()
-		op.Teardown()
-		op.T().FailNow()
+		t().Fail()
+		installer.UninstallRook()
+		t().FailNow()
 	}
-}
 
-// SetInstallData updates the installer helper based on the version of Rook desired
-func (op *TestCluster) SetInstallData(version string) {}
-
-// Teardown is a wrapper for tearDown after Suite
-func (op *TestCluster) Teardown() {
-	op.installer.UninstallRook(op.namespace)
+	return installer, k8shelper
 }

@@ -37,20 +37,20 @@ func CreateBucketOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 }
 
 func (b *BucketOperation) CreateBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) error {
-	return b.k8sh.ResourceOperation("create", b.manifests.GetBucketStorageClass(namespace, storeName, storageClassName, reclaimPolicy, region))
+	return b.k8sh.ResourceOperation("create", b.manifests.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region))
 }
 
 func (b *BucketOperation) DeleteBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) error {
-	err := b.k8sh.ResourceOperation("delete", b.manifests.GetBucketStorageClass(namespace, storeName, storageClassName, reclaimPolicy, region))
+	err := b.k8sh.ResourceOperation("delete", b.manifests.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region))
 	return err
 }
 
 func (b *BucketOperation) CreateObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("create", b.manifests.GetObc(obcName, storageClassName, bucketName, maxObject, createBucket))
+	return b.k8sh.ResourceOperation("create", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
 func (b *BucketOperation) DeleteObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("delete", b.manifests.GetObc(obcName, storageClassName, bucketName, maxObject, createBucket))
+	return b.k8sh.ResourceOperation("delete", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
 // CheckOBC, returns true if the obc, secret and configmap are all in the "check" state,

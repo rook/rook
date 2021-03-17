@@ -59,6 +59,18 @@ var (
 	OperatorCephBaseImageVersion string
 )
 
+func FlexDriverEnabled(context *clusterd.Context) bool {
+	// Ignore the error. In the remote chance that the configmap fails to be read, we will default to disabling the flex driver
+	value, _ := k8sutil.GetOperatorSetting(context.Clientset, OperatorSettingConfigMapName, "ROOK_ENABLE_FLEX_DRIVER", "false")
+	return value == "true"
+}
+
+func DiscoveryDaemonEnabled(context *clusterd.Context) bool {
+	// Ignore the error. In the remote chance that the configmap fails to be read, we will default to disabling the discovery daemon
+	value, _ := k8sutil.GetOperatorSetting(context.Clientset, OperatorSettingConfigMapName, "ROOK_ENABLE_DISCOVERY_DAEMON", "false")
+	return value == "true"
+}
+
 // CheckForCancelledOrchestration checks whether a cancellation has been requested
 func CheckForCancelledOrchestration(context *clusterd.Context) error {
 	defer context.RequestCancelOrchestration.UnSet()
@@ -130,6 +142,7 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 		}
 	}
 
+	logger.Debugf("%q: CephCluster %q initial reconcile is not complete yet...", controllerName, namespacedName.Namespace)
 	return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 }
 

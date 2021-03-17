@@ -41,7 +41,7 @@ func CreateRBDMirrorOperation(k8sh *utils.K8sHelper, manifests installer.CephMan
 func (r *RBDMirrorOperation) Create(namespace, name string, daemonCount int) error {
 
 	logger.Infof("creating the RBDMirror daemons via CRD")
-	if err := r.k8sh.ResourceOperation("apply", r.manifests.GetRBDMirror(namespace, name, daemonCount)); err != nil {
+	if err := r.k8sh.ResourceOperation("apply", r.manifests.GetRBDMirror(name, daemonCount)); err != nil {
 		return err
 	}
 

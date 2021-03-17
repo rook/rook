@@ -62,26 +62,26 @@ func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 
 }
 
-func (b *BlockOperation) CreateStorageClassAndPVC(csi bool, pvcNamespace, clusterNamespace, systemNamespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
-	if err := b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPoolDef(poolName, clusterNamespace, "1")); err != nil {
+func (b *BlockOperation) CreateStorageClassAndPVC(pvcNamespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
+	if err := b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPool(poolName, "1")); err != nil {
 		return err
 	}
-	if err := b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClassDef(csi, poolName, storageClassName, reclaimPolicy, clusterNamespace, systemNamespace)); err != nil {
+	if err := b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClass(poolName, storageClassName, reclaimPolicy)); err != nil {
 		return err
 	}
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetPVC(blockName, pvcNamespace, storageClassName, mode, "1M"))
+	return b.k8sClient.ResourceOperation("apply", installer.GetPVC(blockName, pvcNamespace, storageClassName, mode, "1M"))
 }
 
 func (b *BlockOperation) CreatePVC(namespace, claimName, storageClassName, mode, size string) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetPVC(claimName, namespace, storageClassName, mode, size))
+	return b.k8sClient.ResourceOperation("apply", installer.GetPVC(claimName, namespace, storageClassName, mode, size))
 }
 
 func (b *BlockOperation) CreatePod(podName, claimName, namespace, mountPoint string, readOnly bool) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetPod(podName, claimName, namespace, mountPoint, readOnly))
+	return b.k8sClient.ResourceOperation("apply", installer.GetPodWithVolume(podName, claimName, namespace, mountPoint, readOnly))
 }
 
 func (b *BlockOperation) CreateStorageClass(csi bool, poolName, storageClassName, reclaimPolicy, namespace string) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClassDef(csi, poolName, storageClassName, reclaimPolicy, namespace, installer.SystemNamespace(namespace)))
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClass(poolName, storageClassName, reclaimPolicy))
 }
 
 func (b *BlockOperation) DeletePVC(namespace, claimName string) error {
@@ -91,27 +91,27 @@ func (b *BlockOperation) DeletePVC(namespace, claimName string) error {
 }
 
 func (b *BlockOperation) CreatePVCRestore(namespace, claimName, snapshotName, storageClassName, mode, size string) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetPVCRestore(claimName, snapshotName, namespace, storageClassName, mode, size))
+	return b.k8sClient.ResourceOperation("apply", installer.GetPVCRestore(claimName, snapshotName, namespace, storageClassName, mode, size))
 }
 
 func (b *BlockOperation) CreatePVCClone(namespace, cloneClaimName, parentClaimName, storageClassName, mode, size string) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetPVCClone(cloneClaimName, parentClaimName, namespace, storageClassName, mode, size))
+	return b.k8sClient.ResourceOperation("apply", installer.GetPVCClone(cloneClaimName, parentClaimName, namespace, storageClassName, mode, size))
 }
 
 func (b *BlockOperation) CreateSnapshotClass(snapshotClassName, deletePolicy, namespace string) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockSnapshotClass(snapshotClassName, namespace, namespace, deletePolicy))
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockSnapshotClass(snapshotClassName, deletePolicy))
 }
 
 func (b *BlockOperation) DeleteSnapshotClass(snapshotClassName, deletePolicy, namespace string) error {
-	return b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockSnapshotClass(snapshotClassName, namespace, namespace, deletePolicy))
+	return b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockSnapshotClass(snapshotClassName, deletePolicy))
 }
 
 func (b *BlockOperation) CreateSnapshot(snapshotName, claimName, snapshotClassName, namespace string) error {
-	return b.k8sClient.ResourceOperation("apply", b.manifests.GetSnapshot(snapshotName, claimName, snapshotClassName, namespace))
+	return b.k8sClient.ResourceOperation("apply", installer.GetSnapshot(snapshotName, claimName, snapshotClassName, namespace))
 }
 
 func (b *BlockOperation) DeleteSnapshot(snapshotName, claimName, snapshotClassName, namespace string) error {
-	return b.k8sClient.ResourceOperation("delete", b.manifests.GetSnapshot(snapshotName, claimName, snapshotClassName, namespace))
+	return b.k8sClient.ResourceOperation("delete", installer.GetSnapshot(snapshotName, claimName, snapshotClassName, namespace))
 }
 
 func (b *BlockOperation) DeleteStorageClass(storageClassName string) error {
