@@ -3,6 +3,7 @@ on: [pull_request]
 
 jobs:
   TestCephFlexSuite:
+    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' }}
     runs-on: ubuntu-18.04
     steps:
     - name: checkout
@@ -17,7 +18,7 @@ jobs:
       uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
-        kubernetes version: 'v1.19.2'
+        kubernetes version: 'v1.15.12'
         start args: --memory 6g --cpus=2
 
     - name: check k8s cluster status
