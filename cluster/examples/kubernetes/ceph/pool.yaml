@@ -57,7 +57,7 @@ spec:
   # quota in bytes and/or objects, default value is 0 (unlimited)
   # see https://docs.ceph.com/en/latest/rados/operations/pools/#set-pool-quotas
   # quotas:
-    # maxSize: "10Gi" # valid suffixes include K, M, G, T, P, Ki, Mi, Gi, Ti, Pi
+    # maxSize: "10Gi" # valid suffixes include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei
     # maxObjects: 1000000000 # 1 billion objects
   # A key/value list of annotations
   annotations:
