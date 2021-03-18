@@ -888,10 +888,18 @@ spec:
                       type: object
                       nullable: true
                       properties:
-                        enabled:
+                        disabled:
                           type: boolean
                         interval:
                           type: string
+                        timeout:
+                          type: string
+                    livenessProbe:
+                      type: object
+                      nullable: true
+                      properties:
+                        disabled:
+                          type: boolean
             status:
               type: object
               x-kubernetes-preserve-unknown-fields: true
