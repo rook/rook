@@ -99,9 +99,14 @@ func (info *OwnerInfo) SetControllerReference(object metav1.Object) error {
 	if err != nil {
 		return err
 	}
-	blockOwnerDeletion := true
+
+	// Do not override the BlockOwnerDeletion is already set
+	if info.ownerRef.BlockOwnerDeletion == nil {
+		blockOwnerDeletion := true
+		info.ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
+	}
+
 	controller := true
-	info.ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
 	info.ownerRef.Controller = &controller
 	SetOwnerRef(object, info.ownerRef)
 	return nil
