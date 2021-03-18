@@ -72,8 +72,9 @@ class DummyRados(object):
     def _init_cmd_output_map(self):
         json_file_name = 'test-data/ceph-status-out'
         script_dir = path.abspath(path.dirname(__file__))
-        json_file = open(path.join(script_dir, json_file_name), 'r')
-        ceph_status_str = json_file.read()
+        ceph_status_str = ""
+        with open(path.join(script_dir, json_file_name), 'r') as json_file:
+            ceph_status_str = json_file.read()
         self.cmd_names['fs ls'] = '''{"format": "json", "prefix": "fs ls"}'''
         self.cmd_names['quorum_status'] = '''{"format": "json", "prefix": "quorum_status"}'''
         self.cmd_names['caps_change_default_pool_prefix'] = '''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}'''
