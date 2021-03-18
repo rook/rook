@@ -171,7 +171,7 @@ NAME="ceph--89fa04fa--b93a--4874--9364--c95be3ec01c6-osd--data--70847bdb--2ec1--
 
 	partitions, _, err = GetDevicePartitions("dm-0", executor)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(partitions))
+	assert.Equal(t, 0, len(partitions))
 
 	partitions, _, err = GetDevicePartitions("sdx", executor)
 	assert.Nil(t, err)
