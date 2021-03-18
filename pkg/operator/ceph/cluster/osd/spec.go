@@ -652,12 +652,19 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.clusterInfo.OwnerRef)
 
-	// we are passing false in case of osd and prepare pods because we don't want to overlap placement of osd on PVC's and non-PVC's.
-	p := cephv1.GetOSDPlacement(c.spec.Placement)
 	if osdProps.onPVC() {
-		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
+		// the "all" placement is applied separately so it will have lower priority.
+		// We want placement from the storageClassDeviceSet to be applied and override
+		// the "all" placement if there are any overlapping placement settings.
+		c.spec.Placement.All().ApplyToPodSpec(&deployment.Spec.Template.Spec, true)
+		// apply storageClassDeviceSet Placement
+		// If nodeAffinity is specified both in the device set and "all" placement,
+		// they will be merged.
+		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec, true)
+	} else {
+		p := cephv1.GetOSDPlacement(c.spec.Placement)
+		p.ApplyToPodSpec(&deployment.Spec.Template.Spec, true)
 	}
-	p.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
 
 	// portable OSDs must have affinity to the topology where the osd prepare job was executed
 	if osdProps.portable {
