@@ -1,0 +1,12 @@
+extends: default
+ignore: |
+  cluster/examples/kubernetes/ceph/csi/template
+  cluster/examples/kubernetes/ceph/crds.yaml
+  cluster/examples/kubernetes/ceph/pre-k8s-1.16/crds.yaml
+  cluster/examples/kubernetes/ceph/monitoring/
+rules:
+  line-length: disable
+  new-lines: disable
+  document-start: disable
+  comments: disable
+  truthy: disable
