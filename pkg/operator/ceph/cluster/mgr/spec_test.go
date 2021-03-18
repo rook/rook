@@ -91,7 +91,7 @@ func TestServiceSpec(t *testing.T) {
 	assert.NotNil(t, s)
 	assert.Equal(t, "rook-mgr", s.Name)
 	assert.Equal(t, 1, len(s.Spec.Ports))
-	assert.Equal(t, 2, len(s.Labels))
+	assert.Equal(t, 3, len(s.Labels))
 	assert.Equal(t, 3, len(s.Spec.Selector))
 	assert.Equal(t, "foo", s.Spec.Selector[controller.DaemonIDLabel])
 }
