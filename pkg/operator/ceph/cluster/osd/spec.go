@@ -655,12 +655,19 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		return nil, errors.Wrapf(err, "failed to set owner reference to osd deployment %q", deployment.Name)
 	}
 
-	// we are passing false in case of osd and prepare pods because we don't want to overlap placement of osd on PVC's and non-PVC's.
-	p := cephv1.GetOSDPlacement(c.spec.Placement)
 	if osdProps.onPVC() {
-		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
+		// the "all" placement is applied separately so it will have lower priority.
+		// We want placement from the storageClassDeviceSet to be applied and override
+		// the "all" placement if there are any overlapping placement settings.
+		c.spec.Placement.All().ApplyToPodSpec(&deployment.Spec.Template.Spec)
+		// apply storageClassDeviceSet Placement
+		// If nodeAffinity is specified both in the device set and "all" placement,
+		// they will be merged.
+		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	} else {
+		p := cephv1.GetOSDPlacement(c.spec.Placement)
+		p.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	}
-	p.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
 
 	// portable OSDs must have affinity to the topology where the osd prepare job was executed
 	if osdProps.portable {
@@ -691,7 +698,7 @@ func applyTopologyAffinity(spec *v1.PodSpec, osd OSDInfo) error {
 	}
 	// merge the node affinity for the topology with the existing affinity
 	p := rookv1.Placement{NodeAffinity: nodeAffinity}
-	p.ApplyToPodSpec(spec, true)
+	p.ApplyToPodSpec(spec)
 
 	return nil
 }
