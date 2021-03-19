@@ -22,6 +22,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	cephcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -42,10 +43,11 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Containers: []v1.Container{
 				r.makeFsMirroringDaemonContainer(daemonConfig, fsMirror),
 			},
-			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
-			PriorityClassName: fsMirror.Spec.PriorityClassName,
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+			HostNetwork:        r.cephClusterSpec.Network.IsHost(),
+			PriorityClassName:  fsMirror.Spec.PriorityClassName,
+			ServiceAccountName: cephcontroller.DefaultServiceAccount,
 		},
 	}
 

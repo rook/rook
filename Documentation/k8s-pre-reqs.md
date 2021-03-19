@@ -127,7 +127,7 @@ imagePullSecrets:
 The service accounts are:
 
 * `rook-ceph-system` (namespace: `rook-ceph`): Will affect all pods created by the rook operator in the `rook-ceph` namespace.
-* `default` (namespace: `rook-ceph`): Will affect most pods in the `rook-ceph` namespace.
+* `rook-ceph-default` (namespace: `rook-ceph`): Will affect most pods in the `rook-ceph` namespace.
 * `rook-ceph-mgr` (namespace: `rook-ceph`): Will affect the MGR pods in the `rook-ceph` namespace.
 * `rook-ceph-osd` (namespace: `rook-ceph`): Will affect the OSD pods in the `rook-ceph` namespace.
 
@@ -153,6 +153,14 @@ imagePullSecrets:                # here are the new
 ```
 
 After doing this for all service accounts all pods should be able to pull the image from your registry.
+
+### Helm Configuration
+
+In [Values.yaml](https://github.com/rook/rook/blob/master/cluster/charts/rook-ceph/values.yaml) populate `imagePullSecrets` to be set on all service accounts.
+```yaml
+imagePullSecrets:
+ - name: my-registry-secret
+```
 
 ## Bootstrapping Kubernetes
 
