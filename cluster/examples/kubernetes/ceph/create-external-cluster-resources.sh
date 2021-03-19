@@ -31,6 +31,11 @@ function checkEnv() {
 fi
 }
 
+function getFSID() {
+  fsid=$(ceph fsid)
+  echo "export ROOK_EXTERNAL_FSID=$fsid"
+}
+
 function createCheckerKey() {
   checkerKey=$(ceph auth get-or-create "$CLIENT_CHECKER_NAME" mon 'allow r, allow command quorum_status' mgr 'allow command config' osd 'allow rwx pool='"$RGW_POOL_PREFIX"'.rgw.meta, allow r pool=.rgw.root, allow rw pool='"$RGW_POOL_PREFIX"'.rgw.control, allow x pool='"$RGW_POOL_PREFIX"'.rgw.buckets.index, allow x pool='"$RGW_POOL_PREFIX"'.rgw.log'|awk '/key =/ { print $3}')
   echo "export ROOK_EXTERNAL_USER_SECRET=$checkerKey"
@@ -57,15 +62,25 @@ function createCephCSIKeyringCephFSProvisioner() {
   echo "export CSI_CEPHFS_PROVISIONER_SECRET=$cephCSIKeyringCephFSProvisionerKey"
 }
 
+function getMonIP () {
+  monip=$(ceph mon stat | awk '{ print $5 }' | awk -F ':' '{ print $2 }')
+  echo "export ROOK_EXTERNAL_CEPH_MON_DATA=a=$monip:6789"
+}
 
 ########
 # MAIN #
 ########
 checkEnv
+getFSID
 createCheckerKey
 createCephCSIKeyringRBDNode
 createCephCSIKeyringRBDProvisioner
 createCephCSIKeyringCephFSNode
 createCephCSIKeyringCephFSProvisioner
+getMonIP
+
+echo "export NAMESPACE=rook-ceph"
+echo ""
+echo "!! IMPORTENT !! Check if all exports correct, particularly NAMESPCAE and ROOK_EXTERNAL_FSID. (For intern slave Cluster must be NAMESPACE=rook-ceph-extern and ROOK_EXTERNAL_FSID=rook-ceph)"
 
 echo -e "successfully created users and keys, execute the above commands and run import-external-cluster.sh to inject them in your Kubernetes cluster."
