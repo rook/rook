@@ -1,0 +1,15 @@
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: host
+  replicated:
+    size: 3
+    # Disallow setting pool with replica 1, this could lead to data loss without recovery.
+    # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
+    requireSafeReplicaSize: true
+    # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
+    # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
+    #targetSizeRatio: .5
