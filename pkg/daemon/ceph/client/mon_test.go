@@ -38,7 +38,7 @@ func TestCephArgs(t *testing.T) {
 	assert.Equal(t, "--name=client.admin", args[3])
 	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[4])
 
-	RunAllCephCommandsInToolbox = true
+	RunAllCephCommandsInToolboxPod = "rook-ceph-tools"
 	args = []string{}
 	command, args = FinalizeCephCommandArgs(CephTool, clusterInfo, args, "/etc")
 	assert.Equal(t, Kubectl, command)
@@ -51,7 +51,7 @@ func TestCephArgs(t *testing.T) {
 	assert.Equal(t, "--", args[5])
 	assert.Equal(t, CephTool, args[6])
 	assert.Equal(t, "--connect-timeout=15", args[7])
-	RunAllCephCommandsInToolbox = false
+	RunAllCephCommandsInToolboxPod = ""
 
 	// cluster under /var/lib/rook
 	args = []string{"myarg"}

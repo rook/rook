@@ -347,7 +347,12 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 // ResourceOperation performs a kubectl action on a pod definition
 func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 	args := []string{action, "-f", "-"}
-	logger.Infof("kubectl %s manifest:\n%s", action, manifest)
+	maxManifestCharsToPrint := 4000
+	if len(manifest) > maxManifestCharsToPrint {
+		logger.Infof("kubectl %s manifest (too long to print)", action)
+	} else {
+		logger.Infof("kubectl %s manifest:\n%s", action, manifest)
+	}
 	_, err := k8sh.KubectlWithStdin(manifest, args...)
 	if err == nil {
 		return nil
@@ -381,23 +386,23 @@ func (k8sh *K8sHelper) DeleteResource(args ...string) error {
 }
 
 // WaitForCustomResourceDeletion waits for the CRD deletion
-func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFunc func() error) error {
+func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, checkerFunc func() error) error {
 
 	// wait for the operator to finalize and delete the CRD
 	for i := 0; i < 60; i++ {
 		err := checkerFunc()
 		if err == nil {
-			logger.Infof("custom resource %s still exists", namespace)
+			logger.Infof("custom resource %q in namespace %q still exists", name, namespace)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 		if kerrors.IsNotFound(err) {
-			logger.Infof("custom resource %s deleted", namespace)
+			logger.Infof("custom resource %q in namespace %s deleted", name, namespace)
 			return nil
 		}
 		return err
 	}
-	logger.Errorf("gave up deleting custom resource %s", namespace)
+	logger.Errorf("gave up deleting custom resource %q ", name)
 	return nil
 }
 
@@ -931,6 +936,16 @@ func (k8sh *K8sHelper) PrintPVCs(namespace string, detailed bool) {
 	}
 }
 
+func (k8sh *K8sHelper) PrintResources(namespace, name string) {
+	args := []string{"-n", namespace, "get", name, "-o", "yaml"}
+	result, err := k8sh.Kubectl(args...)
+	if err != nil {
+		logger.Warningf("failed to get resource %s. %v", name, err)
+	} else {
+		logger.Infof("%s\n", result)
+	}
+}
+
 func (k8sh *K8sHelper) PrintStorageClasses(detailed bool) {
 	ctx := context.TODO()
 	scs, err := k8sh.Clientset.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
@@ -1218,6 +1233,7 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 			}
 		}
 
+		logger.Infof("waiting for pod with label app=%s in namespace %q to be in state %q...", podNamePattern, namespace, state)
 		time.Sleep(RetryInterval * time.Second)
 	}
 

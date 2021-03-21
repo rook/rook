@@ -151,10 +151,13 @@ func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiRBDProvisionerS
 			Data: secret,
 			Type: k8sutil.RookType,
 		}
-		k8sutil.SetOwnerRef(&s.ObjectMeta, &clusterInfo.OwnerRef)
+		err := clusterInfo.OwnerInfo.SetControllerReference(s)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to keyring secret %q", secretName)
+		}
 
 		// Create Kubernetes Secret
-		err := k.CreateSecret(s)
+		err = k.CreateSecret(s)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", secret, clusterInfo.Namespace)
 		}
@@ -167,7 +170,7 @@ func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiRBDProvisionerS
 
 // CreateCSISecrets creates all the Kubernetes CSI Secrets
 func CreateCSISecrets(context *clusterd.Context, clusterInfo *client.ClusterInfo) error {
-	k := keyring.GetSecretStore(context, clusterInfo, &clusterInfo.OwnerRef)
+	k := keyring.GetSecretStore(context, clusterInfo, clusterInfo.OwnerInfo)
 
 	// Create CSI RBD Provisioner Ceph key
 	csiRBDProvisionerSecretKey, err := createCSIKeyringRBDProvisioner(k)

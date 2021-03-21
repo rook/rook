@@ -94,34 +94,29 @@ topologySpreadConstraints:
 func TestMergeNodeAffinity(t *testing.T) {
 	// affinity is nil
 	p := Placement{}
-	result := p.mergeNodeAffinity(nil, true)
+	result := p.mergeNodeAffinity(nil)
 	assert.Nil(t, result)
 
 	// node affinity is only set on the placement and should remain unchanged
 	p.NodeAffinity = placementTestGenerateNodeAffinity()
-	result = p.mergeNodeAffinity(nil, true)
+	result = p.mergeNodeAffinity(nil)
 	assert.Equal(t, p.NodeAffinity, result)
 
 	// preferred set, but required not set
 	affinityToMerge := placementTestGenerateNodeAffinity()
 	affinityToMerge.RequiredDuringSchedulingIgnoredDuringExecution = nil
-	result = p.mergeNodeAffinity(affinityToMerge, true)
+	result = p.mergeNodeAffinity(affinityToMerge)
 	assert.Equal(t, 2, len(result.PreferredDuringSchedulingIgnoredDuringExecution))
 	assert.Equal(t, p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution, result.RequiredDuringSchedulingIgnoredDuringExecution)
 
 	// preferred and required expressions set
 	affinityToMerge = placementTestGenerateNodeAffinity()
 	affinityToMerge.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key = "baz"
-	result = p.mergeNodeAffinity(affinityToMerge, true)
+	result = p.mergeNodeAffinity(affinityToMerge)
 	assert.Equal(t, 2, len(result.PreferredDuringSchedulingIgnoredDuringExecution))
 	assert.Equal(t, 2, len(result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions))
 	assert.Equal(t, "baz", result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key)
 	assert.Equal(t, "foo", result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[1].Key)
-
-	result = p.mergeNodeAffinity(affinityToMerge, false)
-	assert.Equal(t, 1, len(result.PreferredDuringSchedulingIgnoredDuringExecution))
-	assert.Equal(t, 1, len(result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions))
-	assert.Equal(t, "foo", result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key)
 }
 
 func TestPlacementApplyToPodSpec(t *testing.T) {
@@ -145,7 +140,7 @@ func TestPlacementApplyToPodSpec(t *testing.T) {
 		TopologySpreadConstraints: tc,
 	}
 	ps = &v1.PodSpec{}
-	p.ApplyToPodSpec(ps, true)
+	p.ApplyToPodSpec(ps)
 	assert.Equal(t, expected, ps)
 	assert.Equal(t, 1, len(ps.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
 
@@ -159,7 +154,7 @@ func TestPlacementApplyToPodSpec(t *testing.T) {
 	// partial update
 	p = Placement{NodeAffinity: na, PodAntiAffinity: antiaffinity}
 	ps = &v1.PodSpec{Tolerations: to, TopologySpreadConstraints: tc}
-	p.ApplyToPodSpec(ps, true)
+	p.ApplyToPodSpec(ps)
 	assert.Equal(t, expected, ps)
 
 	// overridden attributes
@@ -173,7 +168,7 @@ func TestPlacementApplyToPodSpec(t *testing.T) {
 		Tolerations:               placementTestGetTolerations("bar", "baz"),
 		TopologySpreadConstraints: placementTestGetTopologySpreadConstraints("rack"),
 	}
-	p.ApplyToPodSpec(ps, true)
+	p.ApplyToPodSpec(ps)
 	assert.Equal(t, expected, ps)
 
 	// The preferred affinity is merged from both sources to result in two node affinities
@@ -185,11 +180,8 @@ func TestPlacementApplyToPodSpec(t *testing.T) {
 		Tolerations:               to,
 		TopologySpreadConstraints: tc,
 	}
-	p.ApplyToPodSpec(ps, true)
+	p.ApplyToPodSpec(ps)
 	assert.Equal(t, 2, len(ps.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
-
-	p.ApplyToPodSpec(ps, false)
-	assert.Equal(t, 1, len(ps.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
 }
 
 func TestPlacementMerge(t *testing.T) {

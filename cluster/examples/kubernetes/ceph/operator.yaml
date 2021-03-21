@@ -274,6 +274,13 @@ data:
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
 
+  # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
+  # in favor of the CSI driver.
+  ROOK_ENABLE_FLEX_DRIVER: "false"
+  # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
+  # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
+  ROOK_ENABLE_DISCOVERY_DAEMON: "false"
+
   # (Optional) Admission controller NodeAffinity.
   # ADMISSION_CONTROLLER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
   # (Optional) Admission controller tolerations list. Put here list of taints you want to tolerate in YAML format.
@@ -423,16 +430,6 @@ spec:
             # If value is empty, the default regex will be used.
             - name: DISCOVER_DAEMON_UDEV_BLACKLIST
               value: "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
-
-            # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
-            # in favor of the CSI driver.
-            - name: ROOK_ENABLE_FLEX_DRIVER
-              value: "false"
-
-            # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
-            # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
-            - name: ROOK_ENABLE_DISCOVERY_DAEMON
-              value: "false"
 
             # Time to wait until the node controller will move Rook pods to other
             # nodes after detecting an unreachable node.

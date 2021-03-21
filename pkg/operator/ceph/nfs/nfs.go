@@ -87,7 +87,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
 		// Set owner ref to cephNFS object
 		err = controllerutil.SetControllerReference(n, deployment, r.scheme)
 		if err != nil {
-			return errors.Wrapf(err, "failed to set owner reference for ceph nfs %q secret", deployment.Name)
+			return errors.Wrapf(err, "failed to set owner reference for ceph nfs deployment %q", deployment.Name)
 		}
 
 		// Set the deployment hash as an annotation
@@ -197,7 +197,7 @@ func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (stri
 	// Set owner reference
 	err := controllerutil.SetControllerReference(n, configMap, r.scheme)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to set owner reference for ceph nfs %q config map", configMap.Name)
+		return "", errors.Wrapf(err, "failed to set owner reference for ceph ganesha configmap %q", configMap.Name)
 	}
 
 	if _, err := r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {

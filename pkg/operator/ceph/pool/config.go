@@ -55,7 +55,7 @@ func (r *ReconcileCephBlockPool) createBootstrapPeerSecret(cephBlockPool *cephv1
 	// set ownerref to the Secret
 	err = controllerutil.SetControllerReference(cephBlockPool, s, r.scheme)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to set owner reference for rbd-mirror bootstrap peer %q secret", s.Name)
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to set owner reference for rbd-mirror bootstrap peer secret %q", s.Name)
 	}
 
 	// Create Secret

@@ -83,7 +83,7 @@ func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephclient.C
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephclient.ClusterInfo, int, *Mapping, error) {
+func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) (*cephclient.ClusterInfo, int, *Mapping, error) {
 	ctx := context.TODO()
 	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
@@ -96,7 +96,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 		if !kerrors.IsNotFound(err) {
 			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon secrets")
 		}
-		if ownerRef == nil {
+		if ownerInfo == nil {
 			return nil, maxMonID, monMapping, errors.New("not expected to create new cluster info and did not find existing secret")
 		}
 
@@ -105,7 +105,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create mon secrets")
 		}
 
-		err = createClusterAccessSecret(clusterdContext.Clientset, namespace, clusterInfo, ownerRef)
+		err = createClusterAccessSecret(clusterdContext.Clientset, namespace, clusterInfo, ownerInfo)
 		if err != nil {
 			return nil, maxMonID, monMapping, err
 		}
@@ -263,7 +263,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 
-func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephclient.ClusterInfo, ownerRef *metav1.OwnerReference) error {
+func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephclient.ClusterInfo, ownerInfo *k8sutil.OwnerInfo) error {
 	ctx := context.TODO()
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
@@ -283,7 +283,10 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 		Data: secrets,
 		Type: k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRef(&secret.ObjectMeta, ownerRef)
+	err = ownerInfo.SetControllerReference(secret)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to mon secret %q", secret.Name)
+	}
 	if _, err = clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return errors.Wrap(err, "failed to save mon secrets")
 	}
@@ -367,7 +370,7 @@ func ExtractKey(contents string) (string, error) {
 }
 
 // PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no OSDs keep waiting
-func PopulateExternalClusterInfo(context *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) *cephclient.ClusterInfo {
+func PopulateExternalClusterInfo(context *clusterd.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) *cephclient.ClusterInfo {
 	for {
 		clusterInfo, _, _, err := LoadClusterInfo(context, namespace)
 		if err != nil {
@@ -377,7 +380,7 @@ func PopulateExternalClusterInfo(context *clusterd.Context, namespace string, ow
 			continue
 		}
 		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.CephCred.Username, clusterInfo.Monitors)
-		clusterInfo.OwnerRef = ownerRef
+		clusterInfo.OwnerInfo = ownerInfo
 		return clusterInfo
 	}
 }

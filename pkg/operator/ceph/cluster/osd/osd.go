@@ -95,7 +95,7 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 		clusterInfo: clusterInfo,
 		spec:        spec,
 		rookVersion: rookVersion,
-		kv:          k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, clusterInfo.OwnerRef),
+		kv:          k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, clusterInfo.OwnerInfo),
 	}
 }
 

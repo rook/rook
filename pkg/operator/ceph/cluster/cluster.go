@@ -61,7 +61,7 @@ type cluster struct {
 	mons               *mon.Cluster
 	stopCh             chan struct{}
 	closedStopCh       bool
-	ownerRef           metav1.OwnerReference
+	ownerInfo          *k8sutil.OwnerInfo
 	isUpgrade          bool
 	watchersActivated  bool
 	monitoringChannels map[string]*clusterHealth
@@ -72,7 +72,7 @@ type clusterHealth struct {
 	monitoringRunning bool
 }
 
-func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex, ownerRef *metav1.OwnerReference) *cluster {
+func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex, ownerInfo *k8sutil.OwnerInfo) *cluster {
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
@@ -84,15 +84,15 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		namespacedName:     types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
 		monitoringChannels: make(map[string]*clusterHealth),
 		stopCh:             make(chan struct{}),
-		ownerRef:           *ownerRef,
-		mons:               mon.New(context, c.Namespace, c.Spec, *ownerRef, csiMutex),
+		ownerInfo:          ownerInfo,
+		mons:               mon.New(context, c.Namespace, c.Spec, ownerInfo, csiMutex),
 	}
 }
 
 func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
-	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerRef)
+	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to populate config override config map")
 	}
@@ -103,7 +103,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph monitors")
 	}
-	clusterInfo.OwnerRef = c.ownerRef
+	clusterInfo.OwnerInfo = c.ownerInfo
 	clusterInfo.SetName(c.namespacedName.Name)
 	c.ClusterInfo = clusterInfo
 
@@ -186,7 +186,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	if err != nil {
 		logger.Infof("clusterInfo not yet found, must be a new cluster")
 	} else {
-		clusterInfo.OwnerRef = cluster.ownerRef
+		clusterInfo.OwnerInfo = cluster.ownerInfo
 		clusterInfo.SetName(c.namespacedName.Name)
 		cluster.ClusterInfo = clusterInfo
 	}
@@ -360,9 +360,6 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 		if err == nil && len(nodes.Items) < cluster.Spec.Mon.Count {
 			return errors.Errorf("cannot start %d mons on %d node(s) when allowMultiplePerNode is false", cluster.Spec.Mon.Count, len(nodes.Items))
 		}
-	}
-	if len(cluster.Spec.Storage.Directories) != 0 {
-		logger.Warning("running osds on directory is not supported anymore, use devices instead.")
 	}
 	if err := validateStretchCluster(cluster); err != nil {
 		return err

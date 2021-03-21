@@ -57,7 +57,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 	}
 	err := controllerutil.SetControllerReference(&cephCluster, deploy, r.scheme)
 	if err != nil {
-		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of deployment %q", deploy.Name)
+		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of crashcollector deployment %q", deploy.Name)
 	}
 
 	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")

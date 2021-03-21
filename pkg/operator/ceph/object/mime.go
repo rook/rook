@@ -45,7 +45,7 @@ func mimeTypesMountPath() string {
 
 // store mime.types file in a config map
 func (c *clusterConfig) generateMimeTypes() error {
-	k := k8sutil.NewConfigMapKVStore(c.store.Namespace, c.context.Clientset, *c.ownerRef)
+	k := k8sutil.NewConfigMapKVStore(c.store.Namespace, c.context.Clientset, c.ownerInfo)
 	if _, err := k.GetValue(c.mimeTypesConfigMapName(), mimeTypesFileName); err == nil || !kerrors.IsNotFound(err) {
 		logger.Infof("config map for object pool %s already exists, not overwriting", c.store.Name)
 		return nil

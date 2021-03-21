@@ -119,7 +119,7 @@ func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion,
 func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Duration) (*cephver.CephVersion, error) {
 	logger.Infof("detecting the ceph image version for image %s...", cephImage)
 	versionReporter, err := cmdreporter.New(
-		c.context.Clientset, &c.ownerRef,
+		c.context.Clientset, c.ownerInfo,
 		detectVersionName, detectVersionName, c.Namespace,
 		[]string{"ceph"}, []string{"--version"},
 		rookImage, cephImage)
@@ -131,7 +131,7 @@ func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Du
 	job.Spec.Template.Spec.ServiceAccountName = "rook-ceph-cmd-reporter"
 
 	// Apply the same placement for the ceph version detection as the mon daemons except for PodAntiAffinity
-	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec, true)
+	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)
 	job.Spec.Template.Spec.Affinity.PodAntiAffinity = nil
 
 	stdout, stderr, retcode, err := versionReporter.Run(timeout)

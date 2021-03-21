@@ -13,7 +13,8 @@ spec:
     matchLabels:
       app: rook-ceph-mgr
       rook_cluster: rook-ceph
+      ceph_daemon_id: a
   endpoints:
-    - port: http-metrics
-      path: /metrics
-      interval: 5s
+  - port: http-metrics
+    path: /metrics
+    interval: 5s

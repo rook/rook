@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
-	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
+	"github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -80,7 +80,7 @@ func TestPodSpecs(t *testing.T) {
 		getLabels(c.store.Name, c.store.Namespace, false),
 		s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchLabels)
 
-	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
+	podTemplate := test.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
@@ -125,7 +125,7 @@ func TestSSLPodSpec(t *testing.T) {
 	s, err := c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
 
-	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
+	podTemplate := test.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")

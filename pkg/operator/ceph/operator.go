@@ -57,12 +57,6 @@ var provisionerConfigs = map[string]string{
 }
 
 var (
-	// EnableFlexDriver Whether to enable the flex driver. If true, the rook-ceph-agent daemonset will be started.
-	EnableFlexDriver = true
-
-	// EnableDiscoveryDaemon Whether to enable the daemon for device discovery. If true, the rook-ceph-discover daemonset will be started.
-	EnableDiscoveryDaemon = true
-
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
 )
@@ -119,7 +113,7 @@ func (o *Operator) Run() error {
 	defer stopFunc()
 
 	rookDiscover := discover.New(o.context.Clientset)
-	if EnableDiscoveryDaemon {
+	if opcontroller.DiscoveryDaemonEnabled(o.context) {
 		if err := rookDiscover.Start(o.operatorNamespace, o.rookImage, o.securityAccount, true); err != nil {
 			return errors.Wrap(err, "failed to start device discovery daemonset")
 		}
@@ -145,7 +139,7 @@ func (o *Operator) Run() error {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// For Flex Driver, run volume provisioner for each of the supported configurations
-	if EnableFlexDriver {
+	if opcontroller.FlexDriverEnabled(o.context) {
 		for name, vendor := range provisionerConfigs {
 			volumeProvisioner := provisioner.New(o.context, vendor)
 			pc := controller.NewProvisionController(
@@ -216,7 +210,7 @@ func (o *Operator) updateDrivers() error {
 		return errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
-	if EnableFlexDriver {
+	if opcontroller.FlexDriverEnabled(o.context) {
 		rookAgent := agent.New(o.context.Clientset)
 		if err := rookAgent.Start(o.operatorNamespace, o.rookImage, o.securityAccount); err != nil {
 			return errors.Wrap(err, "error starting agent daemonset")
@@ -249,9 +243,10 @@ func (o *Operator) updateDrivers() error {
 		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
 	}
 
+	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, o.operatorNamespace)
 	// create an empty config map. config map will be filled with data
 	// later when clusters have mons
-	err = csi.CreateCsiConfigMap(o.operatorNamespace, o.context.Clientset, ownerRef)
+	err = csi.CreateCsiConfigMap(o.operatorNamespace, o.context.Clientset, ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed creating csi config map")
 	}
@@ -260,7 +255,7 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "invalid csi params")
 	}
 
-	go csi.ValidateAndConfigureDrivers(o.context, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerRef)
+	go csi.ValidateAndConfigureDrivers(o.context, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerInfo)
 	return nil
 }
 

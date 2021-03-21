@@ -62,13 +62,14 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 
 	logger.Infof("configure rbd-mirroring with %d workers", cephRBDMirror.Spec.Count)
 
+	ownerInfo := k8sutil.NewOwnerInfo(cephRBDMirror, r.scheme)
 	daemonID := k8sutil.IndexToName(0)
 	resourceName := fmt.Sprintf("%s-%s", AppName, daemonID)
 	daemonConf := &daemonConfig{
 		DaemonID:     daemonID,
 		ResourceName: resourceName,
 		DataPathMap:  config.NewDatalessDaemonDataPathMap(cephRBDMirror.Namespace, r.cephClusterSpec.DataDirHostPath),
-		ownerRef:     *ref,
+		ownerInfo:    ownerInfo,
 	}
 
 	_, err = r.generateKeyring(r.clusterInfo, daemonConf)
@@ -85,7 +86,7 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 	// Set owner ref to cephRBDMirror object
 	err = controllerutil.SetControllerReference(cephRBDMirror, d, r.scheme)
 	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference for ceph rbd-mirror %q secret", d.Name)
+		return errors.Wrapf(err, "failed to set owner reference for ceph rbd-mirror deployment %q", d.Name)
 	}
 
 	// Set the deployment hash as an annotation

@@ -312,7 +312,7 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 
 	r.objContext = objContext
 	r.objContext.Endpoint = store.Status.Info["endpoint"]
-	if store.Status.Info["secureEndpoint"] != "" {
+	if store.Status != nil && store.Status.Info["secureEndpoint"] != "" {
 		r.objContext.Endpoint = store.Status.Info["secureEndpoint"]
 	}
 	if r.objContext.Endpoint == "" {
@@ -379,7 +379,7 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 	// Set owner ref to the object store user object
 	err := controllerutil.SetControllerReference(cephObjectStoreUser, secret, r.scheme)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference for ceph object user %q secret", secret.Name)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of ceph object user secret %q", secret.Name)
 	}
 
 	// Create Kubernetes Secret

@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -179,9 +180,8 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterInfo *ClusterInfo, 
 
 func checkForImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
 	var err error
-	var stats = new(PoolStatistics)
 	logger.Debugf("checking any images/snapshosts present in pool %q", name)
-	stats, err = GetPoolStatistics(context, clusterInfo, name)
+	stats, err := GetPoolStatistics(context, clusterInfo, name)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such file or directory") {
 			return nil
@@ -283,8 +283,22 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		}
 	}
 
-	// set max_bytes quota
-	if pool.Quotas.MaxBytes != nil {
+	// set maxSize quota
+	if pool.Quotas.MaxSize != nil {
+		// check for format errors
+		maxBytesQuota, err := resource.ParseQuantity(*pool.Quotas.MaxSize)
+		if err != nil {
+			if err == resource.ErrFormatWrong {
+				return errors.Wrapf(err, "maxSize quota incorrectly formatted for pool %q, valid units include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei", poolName)
+			}
+			return errors.Wrapf(err, "failed setting quota for pool %q, maxSize quota parse error", poolName)
+		}
+		// set max_bytes quota, 0 value disables quota
+		err = setPoolQuota(context, clusterInfo, poolName, "max_bytes", strconv.FormatInt(maxBytesQuota.Value(), 10))
+		if err != nil {
+			return errors.Wrapf(err, "failed to set max_bytes quota for pool %q", poolName)
+		}
+	} else if pool.Quotas.MaxBytes != nil {
 		// set max_bytes quota, 0 value disables quota
 		err := setPoolQuota(context, clusterInfo, poolName, "max_bytes", strconv.FormatUint(*pool.Quotas.MaxBytes, 10))
 		if err != nil {

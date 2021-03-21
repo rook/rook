@@ -154,6 +154,11 @@ func TestCephBlockPoolController(t *testing.T) {
 			Replicated: cephv1.ReplicatedSpec{
 				Size: replicas,
 			},
+			StatusCheck: cephv1.MirrorHealthCheckSpec{
+				Mirror: cephv1.HealthCheckSpec{
+					Disabled: true,
+				},
+			},
 		},
 		Status: &cephv1.CephBlockPoolStatus{
 			Phase: "",

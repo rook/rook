@@ -23,7 +23,8 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
+
+	"github.com/rook/rook/pkg/operator/ceph/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -91,18 +92,18 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, 4, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
 
 	// Deployment should have Ceph labels
-	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
+	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
 		config.RbdMirrorType, "a", AppName, "ns")
 
-	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
+	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.RbdMirrorType, "a", AppName, "ns", "ceph/ceph:myceph",
 		"200", "100", "600", "300", /* resources */
 		"my-priority-class")
 
 	// Test with peer
 	rbdMirror.Spec.Peers.SecretNames = append(rbdMirror.Spec.Peers.SecretNames, "foo")
-	p := cephclient.PeersSpec{UUID: "c9838c14-d9a1-4e69-b51e-09ff0a4d617c", SiteName: "foo", ClientName: "client.rbd-mirror-peer"}
-	r.peers["foo"] = &peerSpec{poolName: "foo", info: &cephclient.PoolMirroringInfo{Peers: []cephclient.PeersSpec{p}}}
+	p := cephv1.PeersSpec{UUID: "c9838c14-d9a1-4e69-b51e-09ff0a4d617c", SiteName: "foo", ClientName: "client.rbd-mirror-peer"}
+	r.peers["foo"] = &peerSpec{poolName: "foo", info: &cephv1.PoolMirroringInfo{Peers: []cephv1.PeersSpec{p}}}
 	d, err = r.makeDeployment(&daemonConf, rbdMirror)
 	assert.NoError(t, err)
 	// We now have the volume for the ConfigMap and the Secret

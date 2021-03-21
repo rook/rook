@@ -30,7 +30,7 @@ import (
 
 // populateConfigOverrideConfigMap creates the "rook-config-override" config map
 // Its content allows modifying Ceph configuration flags
-func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespace string, ownerRef metav1.OwnerReference) error {
+func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) error {
 	ctx := context.TODO()
 	placeholderConfig := map[string]string{
 		k8sutil.ConfigOverrideVal: "",
@@ -38,13 +38,17 @@ func populateConfigOverrideConfigMap(clusterdContext *clusterd.Context, namespac
 
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: k8sutil.ConfigOverrideName,
+			Name:      k8sutil.ConfigOverrideName,
+			Namespace: namespace,
 		},
 		Data: placeholderConfig,
 	}
 
-	k8sutil.SetOwnerRef(&cm.ObjectMeta, &ownerRef)
-	_, err := clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
+	err := ownerInfo.SetControllerReference(cm)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to override configmap %q", cm.Name)
+	}
+	_, err = clusterdContext.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create override configmap %s", namespace)
 	}

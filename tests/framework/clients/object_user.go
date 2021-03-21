@@ -68,7 +68,7 @@ func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, u
 func (o *ObjectUserOperation) Create(namespace string, userid string, displayName string, store string) error {
 
 	logger.Infof("creating the object store user via CRD")
-	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStoreUser(namespace, userid, displayName, store)); err != nil {
+	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStoreUser(userid, displayName, store)); err != nil {
 		return err
 	}
 	return nil

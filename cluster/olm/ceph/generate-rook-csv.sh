@@ -82,7 +82,6 @@ YQ_CMD_MERGE=($yq merge --inplace --append -P )
 YQ_CMD_WRITE=($yq write --inplace -P )
 OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
 OPERATOR_YAML_FILE_OCP="cluster/examples/kubernetes/ceph/operator-openshift.yaml"
-CRD_YAML_FILE="cluster/examples/kubernetes/ceph/crds.yaml"
 COMMON_YAML_FILE="cluster/examples/kubernetes/ceph/common.yaml"
 CSV_PATH="$OLM_CATALOG_DIR/deploy/olm-catalog/${PLATFORM}/${VERSION}"
 CSV_BUNDLE_PATH="${CSV_PATH}/manifests"
@@ -92,18 +91,6 @@ OLM_OPERATOR_YAML_FILE="$OLM_CATALOG_DIR/deploy/operator.yaml"
 OLM_ROLE_YAML_FILE="$OLM_CATALOG_DIR/deploy/role.yaml"
 OLM_ROLE_BINDING_YAML_FILE="$OLM_CATALOG_DIR/deploy/role_binding.yaml"
 OLM_SERVICE_ACCOUNT_YAML_FILE="$OLM_CATALOG_DIR/deploy/service_account.yaml"
-CEPH_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephclusters.ceph.rook.io.crds.yaml"
-CEPH_BLOCK_POOLS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephblockpools.ceph.rook.io.crds.yaml"
-CEPH_OBJECT_STORE_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephobjectstores.ceph.rook.io.crds.yaml"
-CEPH_OBJECT_STORE_USERS_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephobjectstoreusers.ceph.rook.io.crds.yaml"
-CEPH_OBJECT_REALM_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephobjectrealms.ceph.rook.io.crds.yaml"
-CEPH_OBJECT_ZONEGROUP_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephobjectzonegroups.ceph.rook.io.crds.yaml"
-CEPH_OBJECT_ZONE_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephobjectzones.ceph.rook.io.crds.yaml"
-CEPH_FILESYSTEMS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephfilesystems.ceph.rook.io.crds.yaml"
-CEPH_NFS_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephnfses.ceph.rook.io.crds.yaml"
-CEPH_CLIENT_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephclients.ceph.rook.io.crds.yaml"
-CEPH_RBD_MIRROR_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephrbdmirrors.ceph.rook.io.crds.yaml"
-CEPH_FS_MIRROR_CRD_YAML_FILE="$OLM_CATALOG_DIR/deploy/crds/cephfilesystemmirrors.ceph.rook.io.crds.yaml"
 CEPH_EXTERNAL_SCRIPT_FILE="cluster/examples/kubernetes/ceph/create-external-cluster-resources.py"
 
 if [[ -d "$CSV_BUNDLE_PATH" ]]; then
@@ -215,24 +202,6 @@ function generate_service_account_yaml() {
     fi
 }
 
-function generate_crds_yaml() {
-    sed -n '/^# OLM: BEGIN CEPH CRD$/,/# OLM: END CEPH CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_CRD_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH OBJECT STORE CRD$/,/# OLM: END CEPH OBJECT STORE CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_OBJECT_STORE_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH OBJECT STORE USERS CRD$/,/# OLM: END CEPH OBJECT STORE USERS CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_OBJECT_STORE_USERS_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH OBJECT REALM CRD$/,/# OLM: END CEPH OBJECT REALM CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_OBJECT_REALM_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH OBJECT ZONEGROUP CRD$/,/# OLM: END CEPH OBJECT ZONEGROUP CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_OBJECT_ZONEGROUP_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH OBJECT ZONE CRD$/,/# OLM: END CEPH OBJECT ZONE CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_OBJECT_ZONE_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH BLOCK POOL CRD$/,/# OLM: END CEPH BLOCK POOL CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_BLOCK_POOLS_CRD_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH NFS CRD$/,/# OLM: END CEPH NFS CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_NFS_CRD_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH CLIENT CRD$/,/# OLM: END CEPH CLIENT CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_CLIENT_CRD_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CEPH RBD MIRROR CRD$/,/# OLM: END CEPH RBD MIRROR CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_RBD_MIRROR_CRD_YAML_FILE"
-
-    if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
-        sed -n '/^# OLM: BEGIN CEPH FS CRD$/,/# OLM: END CEPH FS CRD/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_FILESYSTEMS_CRD_YAML_FILE"
-        sed -n '/^# OLM: BEGIN CEPH FS MIRROR CRD$/,/# OLM: END CEPH FS MIRROR CRD$/p' "$CRD_YAML_FILE" | grep -v '^#' > "$CEPH_FS_MIRROR_CRD_YAML_FILE"
-    fi
-}
-
 function hack_csv() {
     # Let's respect the following mapping
     # somehow the operator-sdk command generates serviceAccountNames suffixed with '-rules'
@@ -291,7 +260,6 @@ generate_operator_yaml "$@"
 generate_role_yaml
 generate_role_binding_yaml
 generate_service_account_yaml
-generate_crds_yaml
 generate_csv "$@"
 hack_csv
 if [ -z "${OLM_SKIP_PKG_FILE_GEN}" ]; then

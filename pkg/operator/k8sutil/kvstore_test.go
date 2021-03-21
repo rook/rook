@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -168,5 +168,6 @@ func newKVStore(stores ...*v1.ConfigMap) (*ConfigMapKVStore, string) {
 	}
 
 	clientset := fake.NewSimpleClientset(objects...)
-	return NewConfigMapKVStore(namespace, clientset, metav1.OwnerReference{}), storeName
+	ownerInfo := NewOwnerInfoWithOwnerRef(&metav1.OwnerReference{}, "")
+	return NewConfigMapKVStore(namespace, clientset, ownerInfo), storeName
 }

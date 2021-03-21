@@ -31,6 +31,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -51,7 +52,6 @@ import (
 
 const (
 	controllerName           = "ceph-cluster-controller"
-	enableFlexDriver         = "ROOK_ENABLE_FLEX_DRIVER"
 	detectCephVersionTimeout = 15 * time.Minute
 )
 
@@ -255,6 +255,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 	// DELETE: the CR was deleted
 	if !cephCluster.GetDeletionTimestamp().IsZero() {
+		doCleanup := true
 		logger.Infof("deleting ceph cluster %q", cephCluster.Name)
 
 		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
@@ -265,42 +266,43 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 			monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(cephCluster.Namespace)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to get mon secret, no cleanup")
+				logger.Warningf("failed to get mon secret. Skip cluster cleanup and remove finalizer. %v", err)
+				doCleanup = false
 			}
-			cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
+
+			if doCleanup {
+				cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
+				if err != nil {
+					return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
+				}
+				go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
 			}
-			go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
 		}
 
-		// Run delete sequence
-		response, ok := r.clusterController.requestClusterDelete(cephCluster)
-		if !ok {
-			// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
-			// will eventually be satisfied such as the volumes being removed
-			close(stopCleanupCh)
-			return response, nil
+		if doCleanup {
+			// Run delete sequence
+			response, ok := r.clusterController.requestClusterDelete(cephCluster)
+			if !ok {
+				// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
+				// will eventually be satisfied such as the volumes being removed
+				close(stopCleanupCh)
+				return response, nil
+			}
 		}
 
 		// Remove finalizer
 		err = removeFinalizer(r.client, request.NamespacedName)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalize")
+			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 		}
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, nil
 	}
 
-	// Create the controller owner ref
-	ref, err := opcontroller.GetControllerObjectOwnerReference(cephCluster, r.scheme)
-	if err != nil || ref == nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to get controller %q owner reference", cephCluster.Name)
-	}
-
 	// Do reconcile here!
-	if err := r.clusterController.onAdd(cephCluster, ref); err != nil {
+	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
+	if err := r.clusterController.onAdd(cephCluster, ownerInfo); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
 	}
 
@@ -321,7 +323,7 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 	}
 }
 
-func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.OwnerReference) error {
+func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ownerInfo *k8sutil.OwnerInfo) error {
 	if clusterObj.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
 		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
 		return nil
@@ -330,7 +332,7 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ref *metav1.Ow
 	cluster, ok := c.clusterMap[clusterObj.Namespace]
 	if !ok {
 		// It's a new cluster so let's populate the struct
-		cluster = newCluster(clusterObj, c.context, c.csiConfigMutex, ref)
+		cluster = newCluster(clusterObj, c.context, c.csiConfigMutex, ownerInfo)
 	}
 
 	// Note that this lock is held through the callback process, as this creates CSI resources, but we must lock in
@@ -419,8 +421,7 @@ func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) err
 			return err
 		}
 	}
-	flexDriverEnabled := os.Getenv(enableFlexDriver) != "false"
-	if !flexDriverEnabled {
+	if !controllerutil.FlexDriverEnabled(c.context) {
 		logger.Debugf("Flex driver disabled, skipping check for volume attachments for cluster %q", cluster.Namespace)
 		return nil
 	}

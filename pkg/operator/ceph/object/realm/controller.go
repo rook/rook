@@ -290,7 +290,7 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 	}
 	err = controllerutil.SetControllerReference(realm, secret, r.scheme)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of secret %q", secret.Name)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of rgw secret %q", secret.Name)
 	}
 
 	if _, err = r.context.Clientset.CoreV1().Secrets(realm.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {

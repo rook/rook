@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -37,7 +38,7 @@ import (
 func TestNodeAffinity(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 4)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	c.spec.Placement = map[rookv1.KeyType]rookv1.Placement{}
@@ -167,7 +168,7 @@ func TestPodMemory(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(t, 3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, metav1.OwnerReference{}, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	c.spec.Network.HostNetwork = true

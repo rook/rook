@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/util"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -64,7 +65,7 @@ type CmdReporter struct {
 
 type cmdReporterCfg struct {
 	clientset    kubernetes.Interface
-	ownerRef     *metav1.OwnerReference
+	ownerInfo    *k8sutil.OwnerInfo
 	appName      string
 	jobName      string
 	jobNamespace string
@@ -88,14 +89,14 @@ type cmdReporterCfg struct {
 // then the command will run without the binaries being copied from the same Rook image.
 func New(
 	clientset kubernetes.Interface,
-	ownerRef *metav1.OwnerReference,
+	ownerInfo *k8sutil.OwnerInfo,
 	appName, jobName, jobNamespace string,
 	cmd, args []string,
 	rookImage, runImage string,
 ) (*CmdReporter, error) {
 	cfg := &cmdReporterCfg{
 		clientset:    clientset,
-		ownerRef:     ownerRef,
+		ownerInfo:    ownerInfo,
 		appName:      appName,
 		jobName:      jobName,
 		jobNamespace: jobNamespace,
@@ -107,8 +108,8 @@ func New(
 
 	// Validate contents of config struct, not inputs to function to catch any developer errors
 	// mis-assigning config items to the struct.
-	if cfg.clientset == nil || cfg.ownerRef == nil {
-		return nil, fmt.Errorf("clientset [%+v] and owner reference [%+v] must be specified", cfg.clientset, cfg.ownerRef)
+	if cfg.clientset == nil || cfg.ownerInfo == nil {
+		return nil, fmt.Errorf("clientset [%+v] and owner info [%+v] must be specified", cfg.clientset, cfg.ownerInfo)
 	}
 	if cfg.appName == "" || cfg.jobName == "" || cfg.jobNamespace == "" {
 		return nil, fmt.Errorf("app name [%s], job name [%s], and job namespace [%s] must be specified", cfg.appName, cfg.jobName, cfg.jobNamespace)
@@ -315,7 +316,10 @@ func (cr *cmdReporterCfg) initJobSpec() (*batch.Job, error) {
 		},
 	}
 	k8sutil.AddRookVersionLabelToJob(job)
-	k8sutil.SetOwnerRef(&job.ObjectMeta, cr.ownerRef)
+	err = cr.ownerInfo.SetControllerReference(job)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to cmdreporter job %q", job.Name)
+	}
 
 	return job, nil
 }

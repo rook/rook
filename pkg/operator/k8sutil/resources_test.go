@@ -120,3 +120,43 @@ func TestYamlToContainerResource(t *testing.T) {
 	assert.Len(t, res, 0)
 	assert.Error(t, err)
 }
+
+func TestValidateOwner(t *testing.T) {
+	// global-scoped owner
+	ownerRef := &metav1.OwnerReference{}
+	ownerInfo := NewOwnerInfoWithOwnerRef(ownerRef, "")
+	object := &v1.ConfigMap{}
+	err := ownerInfo.validateOwner(object)
+	assert.NoError(t, err)
+
+	// namespaced owner
+	ownerInfo = NewOwnerInfoWithOwnerRef(ownerRef, "test-ns")
+	object = &v1.ConfigMap{}
+	err = ownerInfo.validateOwner(object)
+	assert.Error(t, err)
+	object = &v1.ConfigMap{}
+	object.Namespace = "test-ns"
+	err = ownerInfo.validateOwner(object)
+	assert.NoError(t, err)
+	object.Namespace = "different-ns"
+	err = ownerInfo.validateOwner(object)
+	assert.Error(t, err)
+}
+
+func TestValidateController(t *testing.T) {
+	controllerRef := &metav1.OwnerReference{UID: "test-id"}
+	ownerInfo := NewOwnerInfoWithOwnerRef(controllerRef, "")
+	object := &v1.ConfigMap{}
+	err := ownerInfo.validateController(object)
+	assert.NoError(t, err)
+	err = ownerInfo.SetControllerReference(object)
+	assert.NoError(t, err)
+	err = ownerInfo.validateController(object)
+	assert.NoError(t, err)
+	err = ownerInfo.SetControllerReference(object)
+	assert.NoError(t, err)
+	newControllerRef := &metav1.OwnerReference{UID: "different-id"}
+	newOwnerInfo := NewOwnerInfoWithOwnerRef(newControllerRef, "")
+	err = newOwnerInfo.validateController(object)
+	assert.Error(t, err)
+}

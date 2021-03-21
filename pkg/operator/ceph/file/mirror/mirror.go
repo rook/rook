@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -50,17 +50,11 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		return errors.Wrap(err, "error checking pod memory")
 	}
 
-	// Create the controller owner ref
-	// It will be associated to all resources of the CephRBDMirror
-	ref, err := opcontroller.GetControllerObjectOwnerReference(filesystemMirror, r.scheme)
-	if err != nil || ref == nil {
-		return errors.Wrapf(err, "failed to get controller %q owner reference", filesystemMirror.Name)
-	}
-
+	ownerInfo := k8sutil.NewOwnerInfo(filesystemMirror, r.scheme)
 	daemonConf := &daemonConfig{
 		ResourceName: AppName,
 		DataPathMap:  config.NewDatalessDaemonDataPathMap(filesystemMirror.Namespace, r.cephClusterSpec.DataDirHostPath),
-		ownerRef:     *ref,
+		ownerInfo:    ownerInfo,
 	}
 
 	_, err = r.generateKeyring(r.clusterInfo, daemonConf)
@@ -77,7 +71,7 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 	// Set owner ref to filesystemMirror object
 	err = controllerutil.SetControllerReference(filesystemMirror, d, r.scheme)
 	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference for ceph filesystem-mirror %q secret", d.Name)
+		return errors.Wrapf(err, "failed to set owner reference for ceph filesystem-mirror deployment %q", d.Name)
 	}
 
 	// Set the deployment hash as an annotation

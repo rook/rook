@@ -29,7 +29,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -325,7 +324,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		return nil, errors.New("empty volumes")
 	}
 
-	storeType := config.Bluestore
 	osdID := strconv.Itoa(osd.ID)
 	tiniEnvVar := v1.EnvVar{Name: "TINI_SUBREAPER", Value: ""}
 	envVars := append(c.getConfigEnvVars(osdProps, dataDir), []v1.EnvVar{
@@ -335,7 +333,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	envVars = append(envVars, []v1.EnvVar{
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
 		{Name: "ROOK_OSD_ID", Value: osdID},
-		{Name: "ROOK_OSD_STORE_TYPE", Value: storeType},
 		{Name: "ROOK_CEPH_MON_HOST",
 			ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{
@@ -653,14 +650,24 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	cephv1.GetOSDLabels(c.spec.Labels).ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	k8sutil.SetOwnerRef(&deployment.ObjectMeta, &c.clusterInfo.OwnerRef)
-
-	// we are passing false in case of osd and prepare pods because we don't want to overlap placement of osd on PVC's and non-PVC's.
-	p := cephv1.GetOSDPlacement(c.spec.Placement)
-	if osdProps.onPVC() {
-		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
+	err := c.clusterInfo.OwnerInfo.SetControllerReference(deployment)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set owner reference to osd deployment %q", deployment.Name)
 	}
-	p.ApplyToPodSpec(&deployment.Spec.Template.Spec, false)
+
+	if osdProps.onPVC() {
+		// the "all" placement is applied separately so it will have lower priority.
+		// We want placement from the storageClassDeviceSet to be applied and override
+		// the "all" placement if there are any overlapping placement settings.
+		c.spec.Placement.All().ApplyToPodSpec(&deployment.Spec.Template.Spec)
+		// apply storageClassDeviceSet Placement
+		// If nodeAffinity is specified both in the device set and "all" placement,
+		// they will be merged.
+		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	} else {
+		p := cephv1.GetOSDPlacement(c.spec.Placement)
+		p.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	}
 
 	// portable OSDs must have affinity to the topology where the osd prepare job was executed
 	if osdProps.portable {
@@ -691,7 +698,7 @@ func applyTopologyAffinity(spec *v1.PodSpec, osd OSDInfo) error {
 	}
 	// merge the node affinity for the topology with the existing affinity
 	p := rookv1.Placement{NodeAffinity: nodeAffinity}
-	p.ApplyToPodSpec(spec, true)
+	p.ApplyToPodSpec(spec)
 
 	return nil
 }

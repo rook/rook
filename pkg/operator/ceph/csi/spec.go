@@ -206,7 +206,7 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerRef *metav1.OwnerReference, v *CephCSIVersion) error {
+func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerInfo *k8sutil.OwnerInfo, v *CephCSIVersion) error {
 	ctx := context.TODO()
 	var (
 		err                                                   error
@@ -382,6 +382,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbd plugin service template")
 		}
+		rbdService.Namespace = namespace
 		logger.Info("successfully started CSI Ceph RBD")
 	}
 	if EnableCephFS {
@@ -399,6 +400,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		if err != nil {
 			return errors.Wrap(err, "failed to load cephfs plugin service template")
 		}
+		cephfsService.Namespace = namespace
 		logger.Info("successfully started CSI CephFS driver")
 	}
 
@@ -412,7 +414,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		// apply resource request and limit to rbdplugin containers
 		applyResourcesToContainers(clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&rbdPlugin.ObjectMeta, ownerRef)
+		err = ownerInfo.SetControllerReference(rbdPlugin)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to rbd plugin daemonset %q", rbdPlugin.Name)
+		}
 		multusApplied, err := applyCephClusterNetworkConfig(ctx, &rbdPlugin.Spec.Template.ObjectMeta, rookclientset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset: %+v", rbdPlugin)
@@ -431,7 +436,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&rbdProvisionerDeployment.ObjectMeta, ownerRef)
+		err = ownerInfo.SetControllerReference(rbdProvisionerDeployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to rbd provisioner deployment %q", rbdProvisionerDeployment.Name)
+		}
 		antiAffinity := GetPodAntiAffinity("app", csiRBDProvisioner)
 		rbdProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		rbdProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
@@ -450,7 +458,11 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 
 	if rbdService != nil {
-		k8sutil.SetOwnerRef(&rbdService.ObjectMeta, ownerRef)
+		rbdService.Namespace = namespace
+		err = ownerInfo.SetControllerReference(rbdService)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to rbd service %q", rbdService)
+		}
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, rbdService)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create rbd service: %+v", rbdService)
@@ -461,7 +473,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 		// apply resource request and limit to cephfs plugin containers
 		applyResourcesToContainers(clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&cephfsPlugin.ObjectMeta, ownerRef)
+		err = ownerInfo.SetControllerReference(cephfsPlugin)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to cephfs plugin daemonset %q", cephfsPlugin.Name)
+		}
 		multusApplied, err := applyCephClusterNetworkConfig(ctx, &cephfsPlugin.Spec.Template.ObjectMeta, rookclientset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin daemonset: %+v", cephfsPlugin)
@@ -481,7 +496,10 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		// get resource details for cephfs provisioner
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
-		k8sutil.SetOwnerRef(&cephfsProvisionerDeployment.ObjectMeta, ownerRef)
+		err = ownerInfo.SetControllerReference(cephfsProvisionerDeployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to cephfs provisioner deployment %q", cephfsProvisionerDeployment.Name)
+		}
 		antiAffinity := GetPodAntiAffinity("app", csiCephFSProvisioner)
 		cephfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
 		cephfsProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
@@ -499,10 +517,13 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		k8sutil.AddRookVersionLabelToDeployment(cephfsProvisionerDeployment)
 	}
 	if cephfsService != nil {
-		k8sutil.SetOwnerRef(&cephfsService.ObjectMeta, ownerRef)
+		err = ownerInfo.SetControllerReference(cephfsService)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to cephfs service %q", cephfsService)
+		}
 		_, err = k8sutil.CreateOrUpdateService(clientset, namespace, cephfsService)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create rbd service: %+v", cephfsService)
+			return errors.Wrapf(err, "failed to create cephfs service: %+v", cephfsService)
 		}
 	}
 
@@ -678,14 +699,14 @@ func deleteCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, na
 }
 
 // ValidateCSIVersion checks if the configured ceph-csi image is supported
-func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string, ownerRef *metav1.OwnerReference) (*CephCSIVersion, error) {
+func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string, ownerInfo *k8sutil.OwnerInfo) (*CephCSIVersion, error) {
 	timeout := 15 * time.Minute
 
 	logger.Infof("detecting the ceph csi image version for image %q", CSIParam.CSIPluginImage)
 
 	versionReporter, err := cmdreporter.New(
 		clientset,
-		ownerRef,
+		ownerInfo,
 		detectCSIVersionName, detectCSIVersionName, namespace,
 		[]string{"cephcsi"}, []string{"--version"},
 		rookImage, CSIParam.CSIPluginImage)

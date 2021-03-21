@@ -263,7 +263,7 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 	// Set CephClient owner ref to the Secret
 	err = controllerutil.SetControllerReference(cephClient, secret, r.scheme)
 	if err != nil {
-		return errors.Wrap(err, "failed to set owner reference to ceph client secret")
+		return errors.Wrapf(err, "failed to set owner reference to ceph client secret %q", secret.Name)
 	}
 
 	// Create or Update Kubernetes Secret

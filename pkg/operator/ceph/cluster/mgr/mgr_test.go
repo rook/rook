@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -63,7 +64,8 @@ func TestStartMgr(t *testing.T) {
 		ConfigDir:                  configDir,
 		Clientset:                  clientset,
 		RequestCancelOrchestration: abool.New()}
-	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid"}
+	ownerInfo := cephclient.NewMinimumOwnerInfo(t)
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo}
 	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
 		Annotations:        map[rookv1.KeyType]rookv1.Annotations{cephv1.KeyMgr: {"my": "annotation"}},
@@ -83,7 +85,7 @@ func TestStartMgr(t *testing.T) {
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
-	c.spec.Dashboard.UrlPrefix = "/test"
+	c.spec.Dashboard.URLPrefix = "/test"
 	c.spec.Dashboard.Port = 12345
 	err = c.Start()
 	assert.Nil(t, err)
@@ -195,7 +197,8 @@ func TestMgrSidecarReconcile(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset,
 	}
-	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	ownerInfo := cephclient.NewMinimumOwnerInfo(t)
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", OwnerInfo: ownerInfo}
 	clusterInfo.SetName("test")
 	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
 

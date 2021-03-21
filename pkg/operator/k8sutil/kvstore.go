@@ -30,14 +30,14 @@ import (
 type ConfigMapKVStore struct {
 	namespace string
 	clientset kubernetes.Interface
-	ownerRef  metav1.OwnerReference
+	ownerInfo *OwnerInfo
 }
 
-func NewConfigMapKVStore(namespace string, clientset kubernetes.Interface, ownerRef metav1.OwnerReference) *ConfigMapKVStore {
+func NewConfigMapKVStore(namespace string, clientset kubernetes.Interface, ownerInfo *OwnerInfo) *ConfigMapKVStore {
 	return &ConfigMapKVStore{
 		namespace: namespace,
 		clientset: clientset,
-		ownerRef:  ownerRef,
+		ownerInfo: ownerInfo,
 	}
 }
 
@@ -79,7 +79,10 @@ func (kv *ConfigMapKVStore) SetValueWithLabels(storeName, key, value string, lab
 		if labels != nil {
 			cm.Labels = labels
 		}
-		SetOwnerRef(&cm.ObjectMeta, &kv.ownerRef)
+		err = kv.ownerInfo.SetControllerReference(cm)
+		if err != nil {
+			return err
+		}
 
 		_, err = kv.clientset.CoreV1().ConfigMaps(kv.namespace).Create(ctx, cm, metav1.CreateOptions{})
 		return err

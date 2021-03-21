@@ -3,7 +3,12 @@ on: [pull_request]
 
 jobs:
   TestCephMultiClusterDeploySuite:
+    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' }}
     runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.20.2']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -14,10 +19,10 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
-        minikube version: 'v1.13.1'
-        kubernetes version: 'v1.19.2'
+        minikube version: 'v1.16.0'
+        kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
 
     - name: check k8s cluster status
@@ -52,3 +57,7 @@ jobs:
       with:
         name: ceph-multi-cluster-deploy-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-multi-cluster-suite')
+      uses: mxschmitt/action-tmate@v3

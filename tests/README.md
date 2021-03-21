@@ -128,6 +128,8 @@ To run all integration tests:
 go test -v -timeout 7200s github.com/rook/rook/tests/integration
 ```
 
+After running tests, you can get test logs under "tests/integration/_output".
+
 In addition, you can choose to test only one storage provider. For example, you can run Ceph tests as follows.
 
 ```console

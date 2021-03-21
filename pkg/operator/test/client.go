@@ -241,6 +241,7 @@ func pickNode(clientset *fake.Clientset) string {
 	if len(nodes.Items) == 0 {
 		panic(fmt.Errorf("pickNode: no nodes are available in the fake clientset to pick from"))
 	}
+	// #nosec G404 It's harmless since it's a test code
 	randIdx := rand.Intn(len(nodes.Items))
 	return nodes.Items[randIdx].GetName()
 }

@@ -23,14 +23,15 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	cephtest "github.com/rook/rook/pkg/operator/ceph/test"
+	"github.com/rook/rook/pkg/operator/ceph/test"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPodSpecs(t *testing.T) {
@@ -42,11 +43,12 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, monID string, pvc bool) {
 	clientset := testop.New(t, 1)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
 		cephv1.ClusterSpec{},
-		metav1.OwnerReference{},
+		ownerInfo,
 		&sync.Mutex{},
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
@@ -80,10 +82,10 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	}
 
 	// Deployment should have Ceph labels
-	cephtest.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
+	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
 		config.MonType, monID, AppName, "ns")
 
-	podTemplate := cephtest.NewPodTemplateSpecTester(t, &d.Spec.Template)
+	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.MonType, monID, AppName, "ns", "ceph/ceph:myceph",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
@@ -91,11 +93,12 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 
 func TestDeploymentPVCSpec(t *testing.T) {
 	clientset := testop.New(t, 1)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
 		cephv1.ClusterSpec{},
-		metav1.OwnerReference{},
+		ownerInfo,
 		&sync.Mutex{},
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
@@ -155,7 +158,7 @@ func testRequiredDuringScheduling(t *testing.T, hostNetwork, allowMultiplePerNod
 		&clusterd.Context{},
 		"ns",
 		cephv1.ClusterSpec{},
-		metav1.OwnerReference{},
+		&k8sutil.OwnerInfo{},
 		&sync.Mutex{},
 	)
 

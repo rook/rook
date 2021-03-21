@@ -232,6 +232,8 @@ def RunIntegrationTest(k, v) {
                         sh '''#!/bin/bash
                               set -o pipefail
                               export KUBECONFIG=$HOME/admin.conf \
+                                  SKIP_TEST_CLEANUP=false \
+                                  SKIP_CLEANUP_POLICY=false \
                                   TEST_ENV_NAME='''+"${k}"+''' \
                                   TEST_BASE_DIR="WORKING_DIR" \
                                   TEST_LOG_COLLECTION_LEVEL='''+"${env.getLogs}"+''' \

@@ -31,11 +31,11 @@ func TestGetContainerInPod(t *testing.T) {
 	imageName := "myimage"
 
 	// no container fails
-	container, err := GetMatchingContainer([]v1.Container{}, expectedName)
+	_, err := GetMatchingContainer([]v1.Container{}, expectedName)
 	assert.NotNil(t, err)
 
 	// one container will allow any name
-	container, err = GetMatchingContainer([]v1.Container{{Name: "foo", Image: imageName}}, expectedName)
+	container, err := GetMatchingContainer([]v1.Container{{Name: "foo", Image: imageName}}, expectedName)
 	assert.Nil(t, err)
 	assert.Equal(t, imageName, container.Image)
 
@@ -179,7 +179,7 @@ func testPodSpecPlacement(t *testing.T, requiredDuringScheduling bool, req, pref
 		RestartPolicy:  v1.RestartPolicyAlways,
 	}
 
-	placement.ApplyToPodSpec(&spec, true)
+	placement.ApplyToPodSpec(&spec)
 	SetNodeAntiAffinityForPod(&spec, requiredDuringScheduling, v1.LabelHostname, map[string]string{"app": "mon"}, nil)
 
 	// should have a required anti-affinity and no preferred anti-affinity

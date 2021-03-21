@@ -28,6 +28,7 @@ import (
 
 // +genclient
 // +genclient:noStatus
+// +kubebuilder:resource:shortName=rv
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type Volume struct {

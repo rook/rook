@@ -22,7 +22,6 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -56,7 +55,7 @@ func updateStatus(client client.Client, poolName types.NamespacedName, status ce
 }
 
 // updateStatusBucket updates an object with a given status
-func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephclient.PoolMirroringStatus, mirrorInfo *cephclient.PoolMirroringInfo, snapSchedStatus []cephclient.SnapshotScheduleStatus, details string) {
+func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.PoolMirroringStatusSummarySpec, mirrorInfo *cephv1.PoolMirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
 	blockPool := &cephv1.CephBlockPool{}
 	if err := c.client.Get(context.TODO(), c.namespacedName, blockPool); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -80,9 +79,9 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephclient.PoolMirro
 	logger.Debugf("ceph block pool %q mirroring status updated", c.namespacedName.Name)
 }
 
-func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroringStatus *cephclient.PoolMirroringStatus,
-	currentInfo *cephv1.MirroringInfoSpec, mirroringInfo *cephclient.PoolMirroringInfo,
-	currentSnapSchedStatus *cephv1.SnapshotScheduleStatusSpec, snapSchedStatus []cephclient.SnapshotScheduleStatus,
+func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroringStatus *cephv1.PoolMirroringStatusSummarySpec,
+	currentInfo *cephv1.MirroringInfoSpec, mirroringInfo *cephv1.PoolMirroringInfo,
+	currentSnapSchedStatus *cephv1.SnapshotScheduleStatusSpec, snapSchedStatus []cephv1.SnapshotSchedulesSpec,
 	details string) (*cephv1.MirroringStatusSpec, *cephv1.MirroringInfoSpec, *cephv1.SnapshotScheduleStatusSpec) {
 	mirroringStatusSpec := &cephv1.MirroringStatusSpec{}
 	mirroringInfoSpec := &cephv1.MirroringInfoSpec{}
@@ -90,11 +89,8 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 
 	// mirroringStatus will be nil in case of an error to fetch it
 	if mirroringStatus != nil {
-		if mirroringStatusSpec.Summary == nil {
-			mirroringStatusSpec.Summary = make(map[string]interface{})
-		}
 		mirroringStatusSpec.LastChecked = time.Now().UTC().Format(time.RFC3339)
-		mirroringStatusSpec.Summary["summary"] = mirroringStatus.Summary
+		mirroringStatusSpec.Summary = mirroringStatus
 	}
 
 	// Always display the details, typically an error
@@ -106,11 +102,8 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 
 	// mirroringInfo will be nil in case of an error to fetch it
 	if mirroringInfo != nil {
-		if mirroringInfoSpec.Summary == nil {
-			mirroringInfoSpec.Summary = make(map[string]interface{})
-		}
 		mirroringInfoSpec.LastChecked = time.Now().UTC().Format(time.RFC3339)
-		mirroringInfoSpec.Summary["summary"] = mirroringInfo
+		mirroringInfoSpec.PoolMirroringInfo = mirroringInfo
 	}
 	// Always display the details, typically an error
 	mirroringInfoSpec.Details = details
@@ -121,11 +114,8 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 
 	// snapSchedStatus will be nil in case of an error to fetch it
 	if len(snapSchedStatus) != 0 {
-		if snapshotScheduleStatusSpec.Summary == nil {
-			snapshotScheduleStatusSpec.Summary = make(map[string]interface{})
-		}
 		snapshotScheduleStatusSpec.LastChecked = time.Now().UTC().Format(time.RFC3339)
-		snapshotScheduleStatusSpec.Summary["summary"] = snapSchedStatus
+		snapshotScheduleStatusSpec.SnapshotSchedules = snapSchedStatus
 	}
 	// Always display the details, typically an error
 	snapshotScheduleStatusSpec.Details = details

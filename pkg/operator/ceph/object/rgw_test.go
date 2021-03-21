@@ -29,6 +29,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -65,7 +66,8 @@ func TestStartRGW(t *testing.T) {
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 
 	// start a basic cluster
-	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, r.client, s}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
 	err := c.startRGWPods(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 
@@ -111,7 +113,8 @@ func TestCreateObjectStore(t *testing.T) {
 	object := []runtime.Object{&cephv1.CephObjectStore{}}
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
-	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, &metav1.OwnerReference{}, data, r.client, s}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
 	err := c.createOrUpdateStore(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
 }
@@ -136,10 +139,9 @@ func TestGenerateSecretName(t *testing.T) {
 		&cephv1.CephObjectStore{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"}},
 		"v1.1.0",
 		&cephv1.ClusterSpec{},
-		&metav1.OwnerReference{},
+		&k8sutil.OwnerInfo{},
 		&config.DataPathMap{},
-		cl,
-		scheme.Scheme}
+		cl}
 	secret := c.generateSecretName("a")
 	assert.Equal(t, "rook-ceph-rgw-default-a-keyring", secret)
 }

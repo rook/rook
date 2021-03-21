@@ -30,8 +30,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -51,9 +49,8 @@ func createFilesystem(
 	clusterInfo *cephclient.ClusterInfo,
 	fs cephv1.CephFilesystem,
 	clusterSpec *cephv1.ClusterSpec,
-	ownerRefs metav1.OwnerReference,
+	ownerInfo *k8sutil.OwnerInfo,
 	dataDirHostPath string,
-	scheme *runtime.Scheme,
 ) error {
 	if len(fs.Spec.DataPools) != 0 {
 		f := newFS(fs.Name, fs.Namespace)
@@ -81,7 +78,7 @@ func createFilesystem(
 	}
 
 	logger.Infof("start running mdses for filesystem %q", fs.Name)
-	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerRefs, dataDirHostPath, scheme)
+	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerInfo, dataDirHostPath)
 	if err := c.Start(); err != nil {
 		return err
 	}
@@ -95,9 +92,8 @@ func deleteFilesystem(
 	clusterInfo *cephclient.ClusterInfo,
 	fs cephv1.CephFilesystem,
 	clusterSpec *cephv1.ClusterSpec,
-	ownerRefs metav1.OwnerReference,
+	ownerInfo *k8sutil.OwnerInfo,
 	dataDirHostPath string,
-	scheme *runtime.Scheme,
 ) error {
 	filesystem, err := client.GetFilesystem(context, clusterInfo, fs.Name)
 	if err != nil {
@@ -107,7 +103,7 @@ func deleteFilesystem(
 		}
 		return errors.Wrapf(err, "failed to get filesystem %q", fs.Name)
 	}
-	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerRefs, dataDirHostPath, scheme)
+	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerInfo, dataDirHostPath)
 
 	// Delete mds CephX keys and configuration in centralized mon database
 	replicas := fs.Spec.MetadataServer.ActiveCount * 2

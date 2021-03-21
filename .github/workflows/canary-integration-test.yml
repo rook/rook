@@ -23,7 +23,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -34,12 +34,17 @@ jobs:
         kubectl cluster-info
         kubectl get pods -n kube-system
 
-    - name: use local disk
+    - name: use local disk and create partitions for osds
       run: |
+        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        BLOCK_DATA_PART=${BLOCK}1
+        sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
         # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force /dev/$(lsblk|awk '/14G/ {print $1}'| head -1)1
+        sudo wipefs --all --force "$BLOCK_DATA_PART"
+        sudo lsblk
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
 
     - name: build rook
@@ -76,7 +81,7 @@ jobs:
     - name: wait for ceph to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh
+        tests/scripts/validate_cluster.sh all 2
         kubectl -n rook-ceph get pods
 
     - name: test external script create-external-cluster-resources.py
@@ -108,6 +113,10 @@ jobs:
         name: canary
         path: test
 
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary')
+      uses: mxschmitt/action-tmate@v3
+
 
   pvc:
     runs-on: ubuntu-18.04
@@ -126,20 +135,23 @@ jobs:
         sudo chmod +x /usr/bin/yq
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
 
-    - name: use local disk
+    - name: use local disk and create partitions for osds
       run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
+        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        BLOCK_DATA_PART=${BLOCK}1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
         # search for the device since it keeps changing between sda and sdb
         sudo wipefs --all --force "$BLOCK_DATA_PART"
+        sudo lsblk
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
 
     - name: check k8s cluster status
@@ -165,20 +177,26 @@ jobs:
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
+        timeout 180 sh -c '[ $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'|wc -l) -eq 2 ]; do sleep 5; done'||true
+        for prepare in $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do
+          kubectl -n rook-ceph logs -f $prepare
+          break
+        done
         timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
+        kubectl -n rook-ceph describe job/$prepare||true
         kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
 
     - name: wait for ceph to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh osd
+        tests/scripts/validate_cluster.sh osd 2
         kubectl -n rook-ceph get pods
 
     - name: run kubectl-check-ownerreferences
@@ -194,6 +212,10 @@ jobs:
       with:
         name:  pvc
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc')
+      uses: mxschmitt/action-tmate@v3
 
   pvc-db:
     runs-on: ubuntu-18.04
@@ -213,7 +235,7 @@ jobs:
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -234,7 +256,7 @@ jobs:
         BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
         BLOCK_PART="$BLOCK"2
         DB_PART="$BLOCK"1
-        tests/scripts/create-bluestore-partitions.sh "$BLOCK" block.db
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
         tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
 
     - name: check k8s cluster status
@@ -272,7 +294,7 @@ jobs:
     - name: wait for ceph to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh osd
+        tests/scripts/validate_cluster.sh osd 1
         kubectl -n rook-ceph get pods
 
     - name: Upload pvc-db test result
@@ -281,6 +303,10 @@ jobs:
       with:
         name: pvc-db
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc-db')
+      uses: mxschmitt/action-tmate@v3
 
   pvc-db-wal:
     runs-on: ubuntu-18.04
@@ -300,7 +326,7 @@ jobs:
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -322,7 +348,7 @@ jobs:
         BLOCK_PART="$BLOCK"3
         DB_PART="$BLOCK"1
         WAL_PART="$BLOCK"2
-        tests/scripts/create-bluestore-partitions.sh "$BLOCK" block.wal
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
         tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
 
     - name: check k8s cluster status
@@ -361,7 +387,7 @@ jobs:
     - name: wait for ceph to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh osd
+        tests/scripts/validate_cluster.sh osd 1
         kubectl -n rook-ceph get pods
 
     - name: Upload pvc-db-wal test result
@@ -370,6 +396,10 @@ jobs:
       with:
         name: pvc-db-wal
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc-db-wal')
+      uses: mxschmitt/action-tmate@v3
 
   encryption-pvc:
     runs-on: ubuntu-18.04
@@ -383,7 +413,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -399,13 +429,17 @@ jobs:
         sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
         sudo chmod +x /usr/bin/yq
 
-    - name: use local disk
+    - name: use local disk and create partitions for osds
       run: |
+        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        BLOCK_DATA_PART=${BLOCK}1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
         # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force /dev/$(lsblk|awk '/14G/ {print $1}'| head -1)1
+        sudo wipefs --all --force "$BLOCK_DATA_PART"
+        sudo lsblk
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
 
     - name: build rook
@@ -424,6 +458,8 @@ jobs:
     - name: deploy rook
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
@@ -436,7 +472,7 @@ jobs:
     - name: wait for ceph to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh osd
+        tests/scripts/validate_cluster.sh osd 2
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
         sudo lsblk
@@ -447,6 +483,10 @@ jobs:
       with:
         name: encryption-pvc
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc')
+      uses: mxschmitt/action-tmate@v3
 
   encryption-pvc-db:
     runs-on: ubuntu-18.04
@@ -466,7 +506,98 @@ jobs:
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
+      with:
+        minikube version: 'v1.13.1'
+        kubernetes version: 'v1.19.2'
+        start args: --memory 6g --cpus=2
+
+    - name: use local disk
+      run: |
+        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
+        sudo dmsetup version||true
+        sudo swapoff --all --verbose
+        sudo umount /mnt
+        # search for the device since it keeps changing between sda and sdb
+        sudo wipefs --all --force "$BLOCK_DATA_PART"
+        sudo lsblk
+
+    - name: create bluestore partitions and PVCs
+      run: |
+        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        BLOCK_PART="$BLOCK"2
+        DB_PART="$BLOCK"1
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
+        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
+
+    - name: check k8s cluster status
+      run: |
+        kubectl cluster-info
+        kubectl get pods -n kube-system
+
+    - name: build rook
+      run: |
+        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
+        docker images
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+
+    - name: rook prerequisites
+      run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+
+    - name: deploy rook
+      run: |
+        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+
+    - name: wait for prepare pod
+      run: |
+        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
+        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
+        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
+        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+
+    - name: wait for ceph to be ready
+      run: |
+        mkdir test
+        tests/scripts/validate_cluster.sh osd 1
+        kubectl -n rook-ceph get pods
+        kubectl -n rook-ceph get secrets
+
+    - name: Upload encryption-pvc-db-wal test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: encryption-pvc-db-wal
+        path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-db')
+      uses: mxschmitt/action-tmate@v3
+
+  encryption-pvc-db-wal:
+    runs-on: ubuntu-18.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.15
+
+    - name: install deps
+      run: |
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+        sudo apt-get install -y gdisk
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -488,7 +619,7 @@ jobs:
         BLOCK_PART="$BLOCK"3
         DB_PART="$BLOCK"1
         WAL_PART="$BLOCK"2
-        tests/scripts/create-bluestore-partitions.sh "$BLOCK" block.wal
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
         tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
 
     - name: check k8s cluster status
@@ -526,7 +657,7 @@ jobs:
     - name: wait for ceph to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh osd
+        tests/scripts/validate_cluster.sh osd 1
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
 
@@ -537,92 +668,9 @@ jobs:
         name: encryption-pvc-db
         path: test
 
-  encryption-pvc-db-wal:
-    runs-on: ubuntu-18.04
-    steps:
-    - name: checkout
-      uses: actions/checkout@v2
-
-    - name: setup golang
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.15
-
-    - name: install deps
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
-        sudo apt-get install -y gdisk
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
-      with:
-        minikube version: 'v1.13.1'
-        kubernetes version: 'v1.19.2'
-        start args: --memory 6g --cpus=2
-
-    - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
-
-    - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"2
-        DB_PART="$BLOCK"1
-        tests/scripts/create-bluestore-partitions.sh "$BLOCK" block.db
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
-
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
-
-    - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
-
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
-
-    - name: deploy rook
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
-        cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
-
-    - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
-
-    - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd
-        kubectl -n rook-ceph get pods
-        kubectl -n rook-ceph get secrets
-
-    - name: Upload encryption-pvc-db-wal test result
-      uses: actions/upload-artifact@v2
-      if: always()
-      with:
-        name: encryption-pvc-db-wal
-        path: test
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-db-wal')
+      uses: mxschmitt/action-tmate@v3
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-18.04
@@ -636,7 +684,7 @@ jobs:
         go-version: 1.15
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -652,13 +700,17 @@ jobs:
         sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
         sudo chmod +x /usr/bin/yq
 
-    - name: use local disk
+    - name: use local disk and create partitions for osds
       run: |
+        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        BLOCK_DATA_PART=${BLOCK}1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
         # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force /dev/$(lsblk|awk '/14G/ {print $1}'| head -1)1
+        sudo wipefs --all --force "$BLOCK_DATA_PART"
+        sudo lsblk
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
 
     - name: build rook
@@ -683,6 +735,8 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec.yaml
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/object-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
@@ -697,7 +751,7 @@ jobs:
     - name: wait for ceph to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh osd
+        tests/scripts/validate_cluster.sh osd 2
         tests/scripts/validate_cluster.sh rgw
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
@@ -713,6 +767,10 @@ jobs:
       with:
         name: encryption-pvc-kms-vault-token-auth
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-kms-vault-token-auth')
+      uses: mxschmitt/action-tmate@v3
 
   lvm-pvc:
     runs-on: ubuntu-18.04
@@ -731,7 +789,7 @@ jobs:
         sudo chmod +x /usr/bin/yq
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.2.0
+      uses: manusa/actions-setup-minikube@v2.3.1
       with:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
@@ -768,7 +826,6 @@ jobs:
         sudo pvcreate "$BLOCK"
         sudo vgcreate "$VG" "$BLOCK"
         sudo lvcreate -l 100%FREE -n "${LV}" "${VG}"
-
         tests/scripts/localPathPV.sh /dev/"${VG}"/${LV}
         kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
@@ -790,7 +847,7 @@ jobs:
     - name: wait for ceph to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh osd
+        tests/scripts/validate_cluster.sh osd 1
         kubectl -n rook-ceph get pods
 
     - name: run kubectl-check-ownerreferences
@@ -806,3 +863,7 @@ jobs:
       with:
         name:  lvm-pvc
         path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-lvm-pvc')
+      uses: mxschmitt/action-tmate@v3

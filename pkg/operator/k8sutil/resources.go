@@ -20,11 +20,107 @@ package k8sutil
 // MergeResourceRequirements merges two resource requirements together (first overrides second values)
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+// OwnerInfo is to set owner references. Only one of owner and ownerRef must be valid.
+type OwnerInfo struct {
+	owner             metav1.Object
+	scheme            *runtime.Scheme
+	ownerRef          *metav1.OwnerReference
+	ownerRefNamespace string
+}
+
+// NewOwnerInfo create a new ownerInfo to set ownerReference by controllerutil
+func NewOwnerInfo(owner metav1.Object, scheme *runtime.Scheme) *OwnerInfo {
+	return &OwnerInfo{owner: owner, scheme: scheme}
+}
+
+// NewOwnerInfoWithOwnerRef create a new ownerInfo to set ownerReference by rook itself
+func NewOwnerInfoWithOwnerRef(ownerRef *metav1.OwnerReference, namespace string) *OwnerInfo {
+	return &OwnerInfo{ownerRef: ownerRef, ownerRefNamespace: namespace}
+}
+
+func (info *OwnerInfo) validateOwner(object metav1.Object) error {
+	if info.ownerRefNamespace == "" {
+		return nil
+	}
+	objectNamespace := object.GetNamespace()
+	if objectNamespace == "" {
+		return fmt.Errorf("cluster-scoped resource %q must not have a namespaced resource %q in namespace %q",
+			object.GetName(), info.ownerRef.Name, info.ownerRefNamespace)
+
+	}
+	if info.ownerRefNamespace != objectNamespace {
+		return fmt.Errorf("cross-namespaced owner references are disallowed. resource %q is in namespace %q, owner %q is in %q",
+			object.GetName(), object.GetNamespace(), info.ownerRef.Name, info.ownerRefNamespace)
+	}
+	return nil
+}
+
+func (info *OwnerInfo) validateController(object metav1.Object) error {
+	existingController := metav1.GetControllerOf(object)
+	if existingController != nil && existingController.UID != info.ownerRef.UID {
+		return fmt.Errorf("%q already set its controller %q", object.GetName(), info.ownerRef.Name)
+	}
+	return nil
+}
+
+// SetOwnerReference set the owner reference of object
+func (info *OwnerInfo) SetOwnerReference(object metav1.Object) error {
+	if info.owner != nil {
+		return controllerutil.SetOwnerReference(info.owner, object, info.scheme)
+	}
+	err := info.validateOwner(object)
+	if err != nil {
+		return err
+	}
+	SetOwnerRef(object, info.ownerRef)
+	return nil
+}
+
+// SetControllerReference set the controller reference of object
+func (info *OwnerInfo) SetControllerReference(object metav1.Object) error {
+	if info.owner != nil {
+		return controllerutil.SetControllerReference(info.owner, object, info.scheme)
+	}
+	err := info.validateOwner(object)
+	if err != nil {
+		return err
+	}
+	err = info.validateController(object)
+	if err != nil {
+		return err
+	}
+
+	// Do not override the BlockOwnerDeletion is already set
+	if info.ownerRef.BlockOwnerDeletion == nil {
+		blockOwnerDeletion := true
+		info.ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
+	}
+
+	controller := true
+	info.ownerRef.Controller = &controller
+	SetOwnerRef(object, info.ownerRef)
+	return nil
+}
+
+// GetUID gets the UID of the owner
+func (info *OwnerInfo) GetUID() types.UID {
+	return info.owner.GetUID()
+}
+
+// GetUID gets the UID of the owner
+func (info *OwnerInfo) GetOwnerRef() *metav1.OwnerReference {
+	return info.ownerRef
+}
 
 func MergeResourceRequirements(first, second v1.ResourceRequirements) v1.ResourceRequirements {
 	// if the first has a value not set check if second has and set it in first
@@ -63,14 +159,14 @@ func MergeResourceRequirements(first, second v1.ResourceRequirements) v1.Resourc
 	return first
 }
 
-func SetOwnerRef(object *metav1.ObjectMeta, ownerRef *metav1.OwnerReference) {
+func SetOwnerRef(object metav1.Object, ownerRef *metav1.OwnerReference) {
 	if ownerRef == nil {
 		return
 	}
 	SetOwnerRefs(object, []metav1.OwnerReference{*ownerRef})
 }
 
-func SetOwnerRefsWithoutBlockOwner(object *metav1.ObjectMeta, ownerRefs []metav1.OwnerReference) {
+func SetOwnerRefsWithoutBlockOwner(object metav1.Object, ownerRefs []metav1.OwnerReference) {
 	if ownerRefs == nil {
 		return
 	}
@@ -89,7 +185,7 @@ func SetOwnerRefsWithoutBlockOwner(object *metav1.ObjectMeta, ownerRefs []metav1
 	SetOwnerRefs(object, newOwners)
 }
 
-func SetOwnerRefs(object *metav1.ObjectMeta, ownerRefs []metav1.OwnerReference) {
+func SetOwnerRefs(object metav1.Object, ownerRefs []metav1.OwnerReference) {
 	object.SetOwnerReferences(ownerRefs)
 }
 

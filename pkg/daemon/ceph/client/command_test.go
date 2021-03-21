@@ -23,7 +23,7 @@ import (
 )
 
 func TestFinalizeCephCommandArgs(t *testing.T) {
-	RunAllCephCommandsInToolbox = false
+	RunAllCephCommandsInToolboxPod = ""
 	configDir := "/var/lib/rook/rook-ceph"
 	expectedCommand := "ceph"
 	args := []string{"quorum_status"}
@@ -43,7 +43,7 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 }
 
 func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
-	RunAllCephCommandsInToolbox = false
+	RunAllCephCommandsInToolboxPod = ""
 	configDir := "/var/lib/rook/rook-ceph"
 	expectedCommand := "radosgw-admin"
 	args := []string{
@@ -73,7 +73,7 @@ func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
 }
 
 func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
-	RunAllCephCommandsInToolbox = true
+	RunAllCephCommandsInToolboxPod = "rook-ceph-tools"
 	configDir := "/var/lib/rook/rook-ceph"
 	expectedCommand := "ceph"
 	args := []string{"health"}
@@ -93,5 +93,5 @@ func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
 	assert.Exactly(t, "kubectl", cmd)
 	assert.Exactly(t, expectedArgs, args)
-	RunAllCephCommandsInToolbox = false
+	RunAllCephCommandsInToolboxPod = ""
 }
