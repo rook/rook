@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/vault/api"
+	"github.com/libopenstorage/secrets/vault"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	v1 "k8s.io/api/core/v1"
@@ -64,6 +65,11 @@ func vaultTLSEnvVarFromSecret(kmsConfig map[string]string) []v1.EnvVar {
 // VaultConfigToEnvVar populates the kms config as env variables
 func VaultConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 	envs := []v1.EnvVar{}
+	backendPath := GetParam(spec.Security.KeyManagementService.ConnectionDetails, vault.VaultBackendPathKey)
+	// Set BACKEND_PATH to the API's default if not passed
+	if backendPath == "" {
+		spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey] = vault.DefaultBackendPath
+	}
 	for k, v := range spec.Security.KeyManagementService.ConnectionDetails {
 		// Skip TLS and token env var to avoid env being set multiple times
 		toSkip := append(vaultTLSConnectionDetails, api.EnvVaultToken)
