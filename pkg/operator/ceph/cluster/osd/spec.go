@@ -133,6 +133,7 @@ dmsetup version
 function open_encrypted_block {
 	echo "Opening encrypted device $BLOCK_PATH at $DM_PATH"
 	cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
+	rm -f "$KEY_FILE_PATH"
 }
 
 if [ -b "$DM_PATH" ]; then
@@ -213,6 +214,9 @@ fi
 
 # Put the KEK in a file for cryptsetup to read
 python3 -c "import sys, json; print(json.load(sys.stdin)[\"data\"][\"$KEK_NAME\"], end='')" < "$CURL_PAYLOAD" > "$KEY_PATH"
+
+# purge payload file
+rm -f "$CURL_PAYLOAD"
 `
 
 	// If the disk identifier changes (different major and minor) we must force copy
