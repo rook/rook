@@ -8,24 +8,15 @@ jobs:
   yaml-linter:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - name: yaml-lint
-        uses: ibiqlik/action-yamllint@v3
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
         with:
-          config_data: |
-            extends: default
-            ignore: |
-              .mergify.yml
-              cluster/charts/
-              cluster/examples/kubernetes/ceph/csi/template
-              .github/workflows/
-              cluster/examples/kubernetes/ceph/crds.yaml
-              cluster/examples/kubernetes/ceph/pre-k8s-1.16/crds.yaml
-              cluster/examples/kubernetes/ceph/monitoring/
-              tests/
-            rules:
-              line-length: disable
-              new-lines: disable
-              document-start: disable
-              comments: disable
-              truthy: disable
+          python-version: 3.8
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML files
+        run: yamllint -c .github/workflows/.yamllint cluster/examples/kubernetes/ --no-warnings
