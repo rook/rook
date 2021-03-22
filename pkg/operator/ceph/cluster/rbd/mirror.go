@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,13 +50,6 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyRBDMirror, cephRBDMirror.Spec.Resources, cephRbdMirrorPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
-	}
-
-	// Create the controller owner ref
-	// It will be associated to all resources of the CephRBDMirror
-	ref, err := opcontroller.GetControllerObjectOwnerReference(cephRBDMirror, r.scheme)
-	if err != nil || ref == nil {
-		return errors.Wrapf(err, "failed to get controller %q owner reference", cephRBDMirror.Name)
 	}
 
 	logger.Infof("configure rbd-mirroring with %d workers", cephRBDMirror.Spec.Count)

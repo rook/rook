@@ -82,9 +82,6 @@ func (r *ReconcileClusterDisruption) createOverallPDBforOSD(namespace string) er
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      osdPDBAppName,
 			Namespace: namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				opcontroller.ClusterOwnerRef(cephCluster.GetName(), string(cephCluster.GetUID())),
-			},
 		},
 		Spec: policyv1beta1.PodDisruptionBudgetSpec{
 			MaxUnavailable: &intstr.IntOrString{IntVal: 1},
@@ -93,8 +90,13 @@ func (r *ReconcileClusterDisruption) createOverallPDBforOSD(namespace string) er
 			},
 		},
 	}
+	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
+	err := ownerInfo.SetControllerReference(pdb)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to pdb %q", pdb)
+	}
 
-	err := r.client.Get(context.TODO(), pdbRequest, &policyv1beta1.PodDisruptionBudget{})
+	err = r.client.Get(context.TODO(), pdbRequest, &policyv1beta1.PodDisruptionBudget{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("all osds are up. pg health is active+clean")
@@ -139,9 +141,6 @@ func (r *ReconcileClusterDisruption) createBlockingPDBForOSD(namespace, failureD
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pdbName,
 			Namespace: namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				opcontroller.ClusterOwnerRef(cephCluster.GetName(), string(cephCluster.GetUID())),
-			},
 		},
 		Spec: policyv1beta1.PodDisruptionBudgetSpec{
 			MaxUnavailable: &intstr.IntOrString{IntVal: 0},
@@ -150,7 +149,12 @@ func (r *ReconcileClusterDisruption) createBlockingPDBForOSD(namespace, failureD
 			},
 		},
 	}
-	err := r.client.Get(context.TODO(), pdbRequest, &policyv1beta1.PodDisruptionBudget{})
+	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
+	err := ownerInfo.SetControllerReference(pdb)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to pdb %q", pdb)
+	}
+	err = r.client.Get(context.TODO(), pdbRequest, &policyv1beta1.PodDisruptionBudget{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Infof("creating temporary blocking pdb %q with maxUnavailable=0 for %q failure domain %q", pdbName, failureDomainType, failureDomainName)
