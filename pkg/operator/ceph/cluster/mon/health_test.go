@@ -385,7 +385,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 func TestNewHealthChecker(t *testing.T) {
 	c := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{}}}
 	time10s, _ := time.ParseDuration("10s")
-	c10s := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Interval: "10s"}}}}}
+	c10s := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}}
 
 	type args struct {
 		monCluster *Cluster

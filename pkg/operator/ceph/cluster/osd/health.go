@@ -46,7 +46,7 @@ type OSDHealthMonitor struct {
 	context                        *clusterd.Context
 	clusterInfo                    *client.ClusterInfo
 	removeOSDsIfOUTAndSafeToRemove bool
-	interval                       time.Duration
+	interval                       *time.Duration
 }
 
 // NewOSDHealthMonitor instantiates OSD monitoring
@@ -55,16 +55,14 @@ func NewOSDHealthMonitor(context *clusterd.Context, clusterInfo *client.ClusterI
 		context:                        context,
 		clusterInfo:                    clusterInfo,
 		removeOSDsIfOUTAndSafeToRemove: removeOSDsIfOUTAndSafeToRemove,
-		interval:                       defaultHealthCheckInterval,
+		interval:                       &defaultHealthCheckInterval,
 	}
 
 	// allow overriding the check interval
 	checkInterval := healthCheck.DaemonHealth.ObjectStorageDaemon.Interval
-	if checkInterval != "" {
-		if duration, err := time.ParseDuration(checkInterval); err == nil {
-			logger.Infof("ceph osd status in namespace %q check interval %q", h.clusterInfo.Namespace, checkInterval)
-			h.interval = duration
-		}
+	if checkInterval != nil {
+		logger.Infof("ceph osd status in namespace %q check interval %q", h.clusterInfo.Namespace, checkInterval.Duration.String())
+		h.interval = &checkInterval.Duration
 	}
 
 	return h
@@ -75,7 +73,7 @@ func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
 
 	for {
 		select {
-		case <-time.After(m.interval):
+		case <-time.After(*m.interval):
 			logger.Debug("checking osd processes status.")
 			m.checkOSDHealth()
 

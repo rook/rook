@@ -128,8 +128,8 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 		args args
 		want *OSDHealthMonitor
 	}{
-		{"default-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{}}, &OSDHealthMonitor{c, clusterInfo, false, defaultHealthCheckInterval}},
-		{"10s-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: "10s"}}}}, &OSDHealthMonitor{c, clusterInfo, false, time10s}},
+		{"default-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{}}, &OSDHealthMonitor{c, clusterInfo, false, &defaultHealthCheckInterval}},
+		{"10s-interval", args{c, false, cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{ObjectStorageDaemon: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}, &OSDHealthMonitor{c, clusterInfo, false, &time10s}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
