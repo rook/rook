@@ -352,7 +352,7 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 		// so there is no need to create a new crush rule for the pools here.
 		crushRuleName = defaultStretchCrushRuleName
 	} else {
-		if pool.Replicated.ReplicasPerFailureDomain != 0 {
+		if pool.Replicated.ReplicasPerFailureDomain > 1 {
 			// Create a two-step CRUSH rule for pools other than stretch clusters
 			err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool)
 			if err != nil {
@@ -396,6 +396,11 @@ func createTwoStepCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo,
 	if pool.Replicated.SubFailureDomain == "" {
 		pool.Replicated.SubFailureDomain = cephv1.DefaultFailureDomain
 	}
+
+	if pool.FailureDomain == pool.Replicated.SubFailureDomain {
+		return errors.Errorf("failure and subfailure domains cannot be identical, current is %q", pool.FailureDomain)
+	}
+
 	// set the crush root to the default if not already specified
 	if pool.CrushRoot == "" {
 		pool.CrushRoot = GetCrushRootFromSpec(clusterSpec)
