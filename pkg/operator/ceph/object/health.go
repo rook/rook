@@ -47,11 +47,10 @@ type bucketChecker struct {
 	client          client.Client
 	namespacedName  types.NamespacedName
 	healthCheckSpec *cephv1.BucketHealthCheckSpec
-	isExternal      bool
 }
 
 // newbucketChecker creates a new HealthChecker object
-func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP, port string, client client.Client, namespacedName types.NamespacedName, healthCheckSpec *cephv1.BucketHealthCheckSpec, isExternal bool) *bucketChecker {
+func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP, port string, client client.Client, namespacedName types.NamespacedName, healthCheckSpec *cephv1.BucketHealthCheckSpec) *bucketChecker {
 	c := &bucketChecker{
 		context:         context,
 		objContext:      objContext,
@@ -61,7 +60,6 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP,
 		namespacedName:  namespacedName,
 		client:          client,
 		healthCheckSpec: healthCheckSpec,
-		isExternal:      isExternal,
 	}
 
 	// allow overriding the check interval
