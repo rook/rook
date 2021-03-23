@@ -1,7 +1,7 @@
 #!/bin/bash
 # this script creates all the users/keys on the external cluster
 # those keys will be injected via the import-external-cluster.sh once this one is done running
-# so you can run import-external-cluster.sh right after this script
+# so you can run import-external-cluster.sh right after this script 
 set -Eeuo pipefail
 
 #############
