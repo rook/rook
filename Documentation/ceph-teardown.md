@@ -90,8 +90,9 @@ blkdiscard $DISK
 # If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
 ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
 
-# ceph-volume setup can leave ceph-<UUID> directories in /dev (unnecessary clutter)
+# ceph-volume setup can leave ceph-<UUID> directories in /dev and /dev/mapper (unnecessary clutter)
 rm -rf /dev/ceph-*
+rm -rf /dev/mapper/ceph--*
 ```
 
 ## Troubleshooting
@@ -132,12 +133,12 @@ done
 
 This command will patch the following CRDs on v1.3:
 >```
->cephblockpools.ceph.rook.io
->cephclients.ceph.rook.io
->cephfilesystems.ceph.rook.io
->cephnfses.ceph.rook.io
->cephobjectstores.ceph.rook.io
->cephobjectstoreusers.ceph.rook.io
+> cephblockpools.ceph.rook.io
+> cephclients.ceph.rook.io
+> cephfilesystems.ceph.rook.io
+> cephnfses.ceph.rook.io
+> cephobjectstores.ceph.rook.io
+> cephobjectstoreusers.ceph.rook.io
 >```
 
 Within a few seconds you should see that the cluster CRD has been deleted and will no longer block other cleanup such as deleting the `rook-ceph` namespace.
