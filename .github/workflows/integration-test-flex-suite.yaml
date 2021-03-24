@@ -31,8 +31,10 @@ jobs:
         sudo swapoff --all --verbose
         sudo umount /mnt
         # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force /dev/$(lsblk|awk '/14G/ {print $1}'| head -1)1
-        sudo lsblk
+        DISK=$(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        sudo wipefs --all --force "$DISK"
+        lsblk
+        tests/scripts/bypass-device-flapping-problem.sh $DISK
 
     - name: build rook
       run: |
