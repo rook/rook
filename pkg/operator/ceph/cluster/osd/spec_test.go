@@ -228,6 +228,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "blkdevmapper-encryption", deployment.Spec.Template.Spec.InitContainers[2].Name)
 	assert.Equal(t, "encrypted-block-status", deployment.Spec.Template.Spec.InitContainers[3].Name)
 	assert.Equal(t, "expand-encrypted-bluefs", deployment.Spec.Template.Spec.InitContainers[4].Name)
+	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers[4].VolumeMounts), deployment.Spec.Template.Spec.InitContainers[4].VolumeMounts)
+	assert.Equal(t, "dev-mapper", deployment.Spec.Template.Spec.InitContainers[4].VolumeMounts[1].Name, deployment.Spec.Template.Spec.InitContainers[4].VolumeMounts)
 	assert.Equal(t, "activate", deployment.Spec.Template.Spec.InitContainers[5].Name)
 	assert.Equal(t, "expand-bluefs", deployment.Spec.Template.Spec.InitContainers[6].Name)
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[7].Name)
