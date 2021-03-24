@@ -1125,6 +1125,14 @@ func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps 
 	   Command successful.
 	*/
 
+	// Add /dev/mapper in the volume mount list
+	// This will fix issues when running on multi-path, where cryptsetup complains that the underlying device does not exist
+	// Essentially, the device cannot be found because it was not mounted in the container
+	// Typically, the device is mapped to the OSD data dir so it is mounted
+	volMount := []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)}
+	_, volMountMapper := getDeviceMapperVolume()
+	volMount = append(volMount, volMountMapper)
+
 	return v1.Container{
 		Name:  expandEncryptedPVCOSDInitContainer,
 		Image: c.spec.CephVersion.Image,
@@ -1132,7 +1140,7 @@ func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps 
 			"cryptsetup",
 		},
 		Args:            []string{"--verbose", "resize", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
-		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		VolumeMounts:    volMount,
 		SecurityContext: PrivilegedContext(),
 		Resources:       osdProps.resources,
 	}
