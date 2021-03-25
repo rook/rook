@@ -33,21 +33,31 @@ const (
 
 // NetworkAttachmentConfig represents the configuration of the NetworkAttachmentDefinitions object
 type NetworkAttachmentConfig struct {
-	CniVersion string `json:"cniVersion"`
-	Type       string `json:"type"`
-	Master     string `json:"master"`
-	Mode       string `json:"mode"`
+	CniVersion string `json:"cniVersion,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Master     string `json:"master,omitempty"`
+	Mode       string `json:"mode,omitempty"`
 	Ipam       struct {
-		Type       string `json:"type"`
-		Subnet     string `json:"subnet"`
-		Range      string `json:"range"`
-		RangeStart string `json:"rangeStart"`
-		RangeEnd   string `json:"rangeEnd"`
+		Type      string `json:"type,omitempty"`
+		Subnet    string `json:"subnet,omitempty"`
+		Addresses []struct {
+			Address string `json:"address,omitempty"`
+			Gateway string `json:"gateway,omitempty"`
+		} `json:"addresses,omitempty"`
+		Ranges [][]struct {
+			Subnet     string `json:"subnet,omitempty"`
+			RangeStart string `json:"rangeStart,omitempty"`
+			RangeEnd   string `json:"rangeEnd,omitempty"`
+			Gateway    string `json:"gateway,omitempty"`
+		} `json:"ranges,omitempty"`
+		Range      string `json:"range,omitempty"`
+		RangeStart string `json:"rangeStart,omitempty"`
+		RangeEnd   string `json:"rangeEnd,omitempty"`
 		Routes     []struct {
-			Dst string `json:"dst"`
-		} `json:"routes"`
-		Gateway string `json:"gateway"`
-	} `json:"ipam"`
+			Dst string `json:"dst,omitempty"`
+		} `json:"routes,omitempty"`
+		Gateway string `json:"gateway,omitempty"`
+	} `json:"ipam,omitempty"`
 }
 
 // ApplyMultus apply multus selector to Pods
