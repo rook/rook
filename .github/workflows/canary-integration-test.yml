@@ -15,6 +15,9 @@ jobs:
   canary:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK: /dev/disk/azure/resource
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -39,8 +42,6 @@ jobs:
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -68,7 +69,7 @@ jobs:
     - name: deploy rook
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
-        sed -i "s|#deviceFilter:|deviceFilter: $(lsblk|awk '/14G/ {print $1}'| head -1)|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
+        sed -i "s|#deviceFilter:|devicePathFilter: $BLOCK|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/cluster-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/object-test.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/pool-test.yaml
@@ -124,6 +125,9 @@ jobs:
   pvc:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK: /dev/disk/azure/resource
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -148,8 +152,6 @@ jobs:
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -173,7 +175,6 @@ jobs:
 
     - name: rook prerequisites
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
         tests/scripts/localPathPV.sh "$BLOCK"
         kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
@@ -225,6 +226,8 @@ jobs:
   pvc-db:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -250,7 +253,6 @@ jobs:
 
     - name: use local disk
       run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -318,6 +320,8 @@ jobs:
   pvc-db-wal:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -343,7 +347,6 @@ jobs:
 
     - name: use local disk
       run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -413,6 +416,9 @@ jobs:
   encryption-pvc:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK: /dev/disk/azure/resource
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -442,8 +448,6 @@ jobs:
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -462,7 +466,7 @@ jobs:
 
     - name: rook prerequisites
       run: |
-        tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/localPathPV.sh $BLOCK
         kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
@@ -502,6 +506,8 @@ jobs:
   encryption-pvc-db:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -527,7 +533,6 @@ jobs:
 
     - name: use local disk
       run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -595,6 +600,8 @@ jobs:
   encryption-pvc-db-wal:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -620,7 +627,6 @@ jobs:
 
     - name: use local disk
       run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -690,6 +696,9 @@ jobs:
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK: /dev/disk/azure/resource
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -719,8 +728,6 @@ jobs:
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -739,7 +746,7 @@ jobs:
 
     - name: rook prereq
       run: |
-        tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/localPathPV.sh $BLOCK
         kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 
@@ -792,6 +799,9 @@ jobs:
   lvm-pvc:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      BLOCK: /dev/disk/azure/resource
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -816,7 +826,6 @@ jobs:
 
     - name: use local disk
       run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
         sudo dmsetup version||true
         sudo swapoff --all --verbose
         sudo umount /mnt
@@ -838,7 +847,6 @@ jobs:
 
     - name: create LV on disk
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
         sudo sgdisk --zap-all "${BLOCK}"
         VG=test-rook-vg
         LV=test-rook-lv

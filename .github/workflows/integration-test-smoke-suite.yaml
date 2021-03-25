@@ -9,6 +9,9 @@ jobs:
   TestCephSmokeSuite:
     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     runs-on: ubuntu-18.04
+    env:
+      BLOCK: /dev/disk/azure/resource
+      BLOCK_DATA_PART: /dev/disk/azure/resource-part1
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +60,7 @@ jobs:
 
     - name: TestCephSmokeSuite
       run: |
-       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+       export DEVICE_FILTER=$BLOCK
        SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 
     - name: Artifact
