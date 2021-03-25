@@ -24,11 +24,11 @@ function checkEnv() {
     echo "'ceph' binary is expected'"
     exit 1
   fi
-
+  
   if ! ceph -s 1>/dev/null; then
     echo "cannot connect to the ceph cluster"
     exit 1
-fi
+  fi
 }
 
 function createCheckerKey() {
@@ -39,7 +39,7 @@ function createCheckerKey() {
 
 function createCephCSIKeyringRBDNode() {
   cephCSIKeyringRBDNodeKey=$(ceph auth get-or-create client.csi-rbd-node mon 'profile rbd' osd 'profile rbd'|awk '/key =/ { print $3}')
-  echo "export CSI_RBD_NODE_SECRET_SECRET=$cephCSIKeyringRBDNodeKey"
+  echo "export CSI_RBD_NODE_SECRET=$cephCSIKeyringRBDNodeKey"
 }
 
 function createCephCSIKeyringRBDProvisioner() {

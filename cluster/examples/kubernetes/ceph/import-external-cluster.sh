@@ -48,8 +48,8 @@ function checkEnvVars() {
       echo "Please populate the environment variable ROOK_EXTERNAL_USERNAME"
       exit 1
     fi
-    if [ -z "$CSI_RBD_NODE_SECRET_SECRET" ]; then
-      echo "Please populate the environment variable CSI_RBD_NODE_SECRET_SECRET"
+    if [ -z "$CSI_RBD_NODE_SECRET" ]; then
+      echo "Please populate the environment variable CSI_RBD_NODE_SECRET"
       exit 1
     fi
     if [ -z "$CSI_RBD_PROVISIONER_SECRET" ]; then
@@ -104,7 +104,7 @@ function importCsiRBDNodeSecret() {
   --type="kubernetes.io/rook" \
   "$CSI_RBD_NODE_SECRET_NAME" \
   --from-literal=userID=csi-rbd-node \
-  --from-literal=userKey="$CSI_RBD_NODE_SECRET_SECRET"
+  --from-literal=userKey="$CSI_RBD_NODE_SECRET"
 }
 
 function importCsiRBDProvisionerSecret() {
