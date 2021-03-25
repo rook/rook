@@ -42,15 +42,15 @@ func TestCephArgs(t *testing.T) {
 	args = []string{}
 	command, args = FinalizeCephCommandArgs(CephTool, clusterInfo, args, "/etc")
 	assert.Equal(t, Kubectl, command)
-	assert.Equal(t, 8, len(args), fmt.Sprintf("%+v", args))
+	assert.Equal(t, 10, len(args), fmt.Sprintf("%+v", args))
 	assert.Equal(t, "exec", args[0])
 	assert.Equal(t, "-i", args[1])
 	assert.Equal(t, "rook-ceph-tools", args[2])
 	assert.Equal(t, "-n", args[3])
 	assert.Equal(t, clusterInfo.Namespace, args[4])
 	assert.Equal(t, "--", args[5])
-	assert.Equal(t, CephTool, args[6])
-	assert.Equal(t, "--connect-timeout=15", args[7])
+	assert.Equal(t, CephTool, args[8])
+	assert.Equal(t, "--connect-timeout=15", args[9])
 	RunAllCephCommandsInToolboxPod = ""
 
 	// cluster under /var/lib/rook

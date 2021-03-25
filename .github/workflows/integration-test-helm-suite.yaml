@@ -35,8 +35,13 @@ jobs:
         sudo swapoff --all --verbose
         sudo umount /mnt
         # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force /dev/$(lsblk|awk '/14G/ {print $1}'| head -1)1
+        PARTITION="/dev/$(lsblk|awk '/14G/ {print $1}'| head -1)1"
+        sudo wipefs --all --force "$PARTITION"
         sudo lsblk
+        # add a udev rule to force the disk partitions to ceph
+        # we have observed that some runners keep detaching/re-attaching the additional disk overriding the permissions to the default root:disk
+        # for more details see: https://github.com/rook/rook/issues/7405
+        echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
 
     - name: build rook
       run: |
@@ -62,7 +67,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-helm-suite')
       uses: mxschmitt/action-tmate@v3
-  
+
   TestCephHelmSuite-Master:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
     runs-on: ubuntu-18.04

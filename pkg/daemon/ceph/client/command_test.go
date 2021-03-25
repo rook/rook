@@ -84,6 +84,8 @@ func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 		"-n",
 		"rook",
 		"--",
+		"timeout",
+		"15",
 		"ceph",
 		"health",
 		"--connect-timeout=15",
