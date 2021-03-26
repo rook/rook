@@ -18,6 +18,7 @@ package kms
 
 import (
 	"os"
+	"sort"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -29,6 +30,10 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 	// No TLS
 	spec := cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{TokenSecretName: "vault-token", ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200"}}}}
 	envVars := VaultConfigToEnvVar(spec)
+	areEnvVarsSorted := sort.SliceIsSorted(envVars, func(i, j int) bool {
+		return envVars[i].Name < envVars[j].Name
+	})
+	assert.True(t, areEnvVarsSorted)
 	assert.Equal(t, 4, len(envVars))
 	assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "vault"})
 	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_ADDR", Value: "http://1.1.1.1:8200"})
@@ -38,6 +43,10 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 	// TLS
 	spec = cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{TokenSecretName: "vault-token", ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200", "VAULT_CACERT": "vault-ca-cert-secret"}}}}
 	envVars = VaultConfigToEnvVar(spec)
+	areEnvVarsSorted = sort.SliceIsSorted(envVars, func(i, j int) bool {
+		return envVars[i].Name < envVars[j].Name
+	})
+	assert.True(t, areEnvVarsSorted)
 	assert.Equal(t, 5, len(envVars))
 	assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "vault"})
 	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_ADDR", Value: "http://1.1.1.1:8200"})

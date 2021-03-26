@@ -19,6 +19,7 @@ package kms
 import (
 	"os"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
@@ -87,7 +88,8 @@ func VaultConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 
 	logger.Debugf("kms envs are %v", envs)
 
-	return envs
+	// Sort env vars since the input is a map which by nature is unsorted...
+	return sortV1EnvVar(envs)
 }
 
 // ConfigEnvsToMapString returns all the env variables in map from a known KMS
@@ -101,6 +103,15 @@ func ConfigEnvsToMapString() map[string]string {
 			}
 		}
 	}
+
+	return envs
+}
+
+// sortV1EnvVar sorts a list of v1.EnvVar
+func sortV1EnvVar(envs []v1.EnvVar) []v1.EnvVar {
+	sort.SliceStable(envs, func(i, j int) bool {
+		return envs[i].Name < envs[j].Name
+	})
 
 	return envs
 }
