@@ -190,6 +190,9 @@ if [ -n "$VAULT_TLS_SERVER_NAME" ]; then
   ARGS+=(--connect-to ::"${VAULT_TLS_SERVER_NAME}":)
 fi
 
+# trim VAULT_BACKEND_PATH for last character '/' to avoid a redirect response from the server
+VAULT_BACKEND_PATH="${VAULT_BACKEND_PATH%%/}"
+
 # Check KV engine version
 if [[ "$VAULT_BACKEND" == "v2" ]]; then
   PYTHON_DATA_PARSE="['data']['data']"
