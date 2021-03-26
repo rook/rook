@@ -20,6 +20,7 @@ set -o pipefail
 
 SCRIPT_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd -P)
 CONTROLLER_GEN_BIN_PATH=$1
+YQ_BIN_PATH=$2
 # allowDangerousTypes is used to accept float64
 CRD_OPTIONS="crd:trivialVersions=true,allowDangerousTypes=true"
 OLM_CATALOG_DIR="${SCRIPT_ROOT}/cluster/olm/ceph/deploy/crds"
@@ -67,17 +68,17 @@ EOF
 
 build_helm_resources() {
   # Add helm annotations to all CRDS
-  yq w -i -d'*' "$HELM_CRDS_FILE_PATH" "metadata.annotations[helm.sh/resource-policy]" keep
-
+  "$YQ_BIN_PATH" w -i -d'*' "$HELM_CRDS_FILE_PATH" "metadata.annotations[helm.sh/resource-policy]" keep
+  
   # add header
   sed -i '1s/^/{{- if semverCompare ">=1.16.0" .Capabilities.KubeVersion.GitVersion }}\n/' "$HELM_CRDS_FILE_PATH"
   sed -i '1s/^/{{- if .Values.crds.enabled }}\n/' "$HELM_CRDS_FILE_PATH"
-
+  
   echo "Generating helm resources.yaml"
   {
     # add else
     echo "{{- else }}"
-
+    
     # add footer
     cat "$CRDS_BEFORE_1_16_FILE_PATH"
     # DO NOT REMOVE the empty line, it is necessary

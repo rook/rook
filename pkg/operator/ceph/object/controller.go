@@ -511,7 +511,7 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 		return
 	}
 
-	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck, r.clusterSpec.External.Enable)
+	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck)
 	logger.Info("starting rgw healthcheck")
 	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
 }

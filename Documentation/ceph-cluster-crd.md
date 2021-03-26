@@ -1266,6 +1266,29 @@ export ROOK_EXTERNAL_ADMIN_SECRET=AQC6Ylxdja+NDBAAB7qy9MEAr4VLLq4dCIvxtg==
 
 If the Ceph admin key is not provided, the following script needs to be executed on a machine that can connect to the Ceph cluster using the Ceph admin key.
 On that machine, run `cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh`.
+
+> **WARNING**: Since only Ceph admin key can create CRs in the external cluster, please make sure that rgw pools have been prepared. You can get existing pools by running `ceph osd pool ls`. 
+
+**Example**:
+
+```console
+ceph osd pool ls
+```
+>```
+>my-store.rgw.control
+>my-store.rgw.meta
+>my-store.rgw.log
+>my-store.rgw.buckets.index
+>my-store.rgw.buckets.non-ec
+>my-store.rgw.buckets.data
+>```
+
+In this example, you can simply export RGW_POOL_PREFIX before executing the script like this:
+
+```console
+export RGW_POOL_PREFIX=my-store
+```
+
 The script will automatically create users and keys with the lowest possible privileges and populate the necessary environment variables for `cluster/examples/kubernetes/ceph/import-external-cluster.sh` to work correctly.
 
 Finally, you can simply execute the script like this from a machine that has access to your Kubernetes cluster:

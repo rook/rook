@@ -509,6 +509,12 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 	// Gather logs after status checks
 	h.GatherAllRookLogs(h.T().Name(), append([]string{h.settings.OperatorNamespace}, clusterNamespaces...)...)
 
+	// If test failed do not teardown and leave the cluster in the state it is
+	if h.T().Failed() {
+		logger.Info("one of the tests failed, leaving the cluster in its bad shape for investigation")
+		return
+	}
+
 	logger.Infof("Uninstalling Rook")
 	var err error
 	skipOperatorCleanup := false
