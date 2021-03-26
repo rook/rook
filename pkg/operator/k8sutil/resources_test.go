@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,23 +68,6 @@ func TestMergeResourceRequirements(t *testing.T) {
 	assert.Equal(t, 2, len(result.Requests))
 	assert.Equal(t, "42", result.Limits.Cpu().String())
 	assert.Equal(t, "1337", result.Requests.Memory().String())
-}
-
-func TestOwnerRefCheck(t *testing.T) {
-	namespace := "ns"
-	resource := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "myresource",
-			Namespace: namespace,
-		},
-		Data: map[string]string{},
-	}
-	ownerRef := &metav1.OwnerReference{Name: "myref"}
-
-	// test that the ownerref is set
-	SetOwnerRef(&resource.ObjectMeta, ownerRef)
-	require.Equal(t, 1, len(resource.OwnerReferences))
-	assert.Equal(t, ownerRef.Name, resource.OwnerReferences[0].Name)
 }
 
 func TestYamlToContainerResource(t *testing.T) {

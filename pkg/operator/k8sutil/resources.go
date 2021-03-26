@@ -78,11 +78,15 @@ func (info *OwnerInfo) SetOwnerReference(object metav1.Object) error {
 	if info.owner != nil {
 		return controllerutil.SetOwnerReference(info.owner, object, info.scheme)
 	}
+	if info.ownerRef == nil {
+		return nil
+	}
 	err := info.validateOwner(object)
 	if err != nil {
 		return err
 	}
-	SetOwnerRef(object, info.ownerRef)
+	ownerRefs := append(object.GetOwnerReferences(), *info.ownerRef)
+	object.SetOwnerReferences(ownerRefs)
 	return nil
 }
 
@@ -90,6 +94,9 @@ func (info *OwnerInfo) SetOwnerReference(object metav1.Object) error {
 func (info *OwnerInfo) SetControllerReference(object metav1.Object) error {
 	if info.owner != nil {
 		return controllerutil.SetControllerReference(info.owner, object, info.scheme)
+	}
+	if info.ownerRef == nil {
+		return nil
 	}
 	err := info.validateOwner(object)
 	if err != nil {
@@ -108,18 +115,14 @@ func (info *OwnerInfo) SetControllerReference(object metav1.Object) error {
 
 	controller := true
 	info.ownerRef.Controller = &controller
-	SetOwnerRef(object, info.ownerRef)
+	ownerRefs := append(object.GetOwnerReferences(), *info.ownerRef)
+	object.SetOwnerReferences(ownerRefs)
 	return nil
 }
 
 // GetUID gets the UID of the owner
 func (info *OwnerInfo) GetUID() types.UID {
 	return info.owner.GetUID()
-}
-
-// GetUID gets the UID of the owner
-func (info *OwnerInfo) GetOwnerRef() *metav1.OwnerReference {
-	return info.ownerRef
 }
 
 func MergeResourceRequirements(first, second v1.ResourceRequirements) v1.ResourceRequirements {
@@ -159,34 +162,23 @@ func MergeResourceRequirements(first, second v1.ResourceRequirements) v1.Resourc
 	return first
 }
 
-func SetOwnerRef(object metav1.Object, ownerRef *metav1.OwnerReference) {
-	if ownerRef == nil {
-		return
-	}
-	SetOwnerRefs(object, []metav1.OwnerReference{*ownerRef})
-}
-
 func SetOwnerRefsWithoutBlockOwner(object metav1.Object, ownerRefs []metav1.OwnerReference) {
 	if ownerRefs == nil {
 		return
 	}
-	newOwners := []metav1.OwnerReference{}
+	newOwnerRefs := []metav1.OwnerReference{}
 	for _, ownerRef := range ownerRefs {
 		// Make a new copy of the owner ref so we don't impact existing references to it
 		// but don't add the Controller or BlockOwnerDeletion properties
-		newRef := metav1.OwnerReference{
+		newOwnerRef := metav1.OwnerReference{
 			APIVersion: ownerRef.APIVersion,
 			Kind:       ownerRef.Kind,
 			Name:       ownerRef.Name,
 			UID:        ownerRef.UID,
 		}
-		newOwners = append(newOwners, newRef)
+		newOwnerRefs = append(newOwnerRefs, newOwnerRef)
 	}
-	SetOwnerRefs(object, newOwners)
-}
-
-func SetOwnerRefs(object metav1.Object, ownerRefs []metav1.OwnerReference) {
-	object.SetOwnerReferences(ownerRefs)
+	object.SetOwnerReferences(newOwnerRefs)
 }
 
 type ContainerResource struct {

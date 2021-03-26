@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 // OwnerMatcher is a struct representing the controller owner reference
@@ -99,20 +98,4 @@ func (e *OwnerMatcher) setOwnerTypeGroupKind() error {
 
 	e.ownerTypeGroupKind = schema.GroupKind{Group: kinds[0].Group, Kind: kinds[0].Kind}
 	return nil
-}
-
-// GetControllerObjectOwnerReference returns the owner reference that should be used by all child objects of a given controller
-func GetControllerObjectOwnerReference(object metav1.Object, scheme *runtime.Scheme) (*metav1.OwnerReference, error) {
-	ro, ok := object.(runtime.Object)
-	if !ok {
-		return nil, errors.Errorf("%T is not a runtime.Object", object)
-	}
-
-	gvk, err := apiutil.GVKForObject(ro, scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a new ref
-	return metav1.NewControllerRef(object, schema.GroupVersionKind{Group: gvk.Group, Version: gvk.Version, Kind: gvk.Kind}), nil
 }

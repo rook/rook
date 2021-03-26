@@ -469,8 +469,10 @@ func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
 	}
 	prometheusRule.SetName(name)
 	prometheusRule.SetNamespace(namespace)
-	owners := append(prometheusRule.GetOwnerReferences(), *c.clusterInfo.OwnerInfo.GetOwnerRef())
-	k8sutil.SetOwnerRefs(&prometheusRule.ObjectMeta, owners)
+	err = c.clusterInfo.OwnerInfo.SetControllerReference(prometheusRule)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to prometheus rule %q", prometheusRule.Name)
+	}
 	if _, err := k8sutil.CreateOrUpdatePrometheusRule(prometheusRule); err != nil {
 		return errors.Wrap(err, "prometheus rule could not be deployed")
 	}

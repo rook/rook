@@ -23,7 +23,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
@@ -79,12 +78,6 @@ func (r *ReconcileCephNFS) generateKeyring(n *cephv1.CephNFS, name string) error
 
 	caps := []string{"mon", "allow r", "osd", osdCaps}
 	user := getNFSClientID(n, name)
-
-	// Get owner reference
-	ref, err := opcontroller.GetControllerObjectOwnerReference(n, r.scheme)
-	if err != nil || ref == nil {
-		return errors.Wrapf(err, "failed to get controller %q owner reference", n.Name)
-	}
 
 	ownerInfo := k8sutil.NewOwnerInfo(n, r.scheme)
 	s := keyring.GetSecretStore(r.context, r.clusterInfo, ownerInfo)
