@@ -37,7 +37,7 @@ func TestOnDeviceCMUpdate(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
-	dum := &corev1.Service{}
+	service := &corev1.Service{}
 	ns := "rook-ceph"
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
@@ -63,7 +63,7 @@ func TestOnDeviceCMUpdate(t *testing.T) {
 	clientCluster := newClientCluster(cl, ns, &clusterd.Context{})
 
 	// Dummy object
-	b := clientCluster.onDeviceCMUpdate(dum, dum)
+	b := clientCluster.onDeviceCMUpdate(service, service)
 	assert.False(t, b)
 
 	// No Data in the cm

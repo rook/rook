@@ -53,7 +53,7 @@ func Setup(ganeshaConfig string) error {
 
 	err := setRlimitNOFILE()
 	if err != nil {
-		logger.Warningf("Error setting RLIMIT_NOFILE, there may be 'Too many open files' errors later: %v", err)
+		logger.Warningf("Error setting RLIMIT_NOFILE, there may be \"Too many open files\" errors later: %v", err)
 	}
 	return nil
 }

@@ -19,7 +19,7 @@ package test
 import (
 	"testing"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestVolumeExists(t *testing.T) {
@@ -34,7 +34,7 @@ func TestVolumeExists(t *testing.T) {
 		wantErr bool
 	}{
 		{"exists", args{"d", vols}, false},
-		{"dne", args{"c", vols}, true},
+		{"does-not-exist", args{"c", vols}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestVolumeMountExists(t *testing.T) {
 		wantErr bool
 	}{
 		{"exists", args{"d", mounts}, false},
-		{"dne", args{"c", mounts}, true},
+		{"does-not-exist", args{"c", mounts}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

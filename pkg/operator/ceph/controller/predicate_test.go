@@ -138,81 +138,62 @@ func TestIsValidEvent(t *testing.T) {
 }
 
 func TestIsCanary(t *testing.T) {
-	dum := &cephv1.CephBlockPool{}
+	blockPool := &cephv1.CephBlockPool{}
 
-	b := isCanary(dum)
-	assert.False(t, b)
+	assert.False(t, isCanary(blockPool))
 
 	d := &appsv1.Deployment{}
-	b = isCanary(d)
-	assert.False(t, b)
+	assert.False(t, isCanary(d))
 
 	d.Labels = map[string]string{
 		"foo": "bar",
 	}
-	b = isCanary(d)
-	assert.False(t, b)
+	assert.False(t, isCanary(d))
 
 	d.Labels["mon_canary"] = "true"
-	b = isCanary(d)
-	assert.True(t, b)
+	assert.True(t, isCanary(d))
 }
 
 func TestIsCMToIgnoreOnUpdate(t *testing.T) {
-	dum := &cephv1.CephBlockPool{}
-
-	b := isCMTConfigOverride(dum)
-	assert.False(t, b)
+	blockPool := &cephv1.CephBlockPool{}
+	assert.False(t, isCMTConfigOverride(blockPool))
 
 	cm := &corev1.ConfigMap{}
-	b = isCMTConfigOverride(cm)
-	assert.False(t, b)
+	assert.False(t, isCMTConfigOverride(cm))
 
 	cm.Name = "rook-ceph-mon-endpoints"
-	b = isCMTConfigOverride(cm)
-	assert.False(t, b)
+	assert.False(t, isCMTConfigOverride(cm))
 
 	cm.Name = "rook-config-override"
-	b = isCMTConfigOverride(cm)
-	assert.True(t, b)
+	assert.True(t, isCMTConfigOverride(cm))
 }
 
 func TestIsCMToIgnoreOnDelete(t *testing.T) {
-	dum := &cephv1.CephBlockPool{}
-
-	b := isCMToIgnoreOnDelete(dum)
-	assert.False(t, b)
+	blockPool := &cephv1.CephBlockPool{}
+	assert.False(t, isCMToIgnoreOnDelete(blockPool))
 
 	cm := &corev1.ConfigMap{}
-	b = isCMToIgnoreOnDelete(cm)
-	assert.False(t, b)
+	assert.False(t, isCMToIgnoreOnDelete(cm))
 
 	cm.Name = "rook-ceph-mon-endpoints"
-	b = isCMToIgnoreOnDelete(cm)
-	assert.False(t, b)
+	assert.False(t, isCMToIgnoreOnDelete(cm))
 
 	cm.Name = "rook-ceph-osd-minikube-status"
-	b = isCMToIgnoreOnDelete(cm)
-	assert.True(t, b)
+	assert.True(t, isCMToIgnoreOnDelete(cm))
 }
 
 func TestIsSecretToIgnoreOnUpdate(t *testing.T) {
-	dum := &cephv1.CephBlockPool{}
-
-	b := isSecretToIgnoreOnUpdate(dum)
-	assert.False(t, b)
+	blockPool := &cephv1.CephBlockPool{}
+	assert.False(t, isSecretToIgnoreOnUpdate(blockPool))
 
 	s := &corev1.Secret{}
-	b = isSecretToIgnoreOnUpdate(s)
-	assert.False(t, b)
+	assert.False(t, isSecretToIgnoreOnUpdate(s))
 
 	s.Name = "foo"
-	b = isSecretToIgnoreOnUpdate(s)
-	assert.False(t, b)
+	assert.False(t, isSecretToIgnoreOnUpdate(s))
 
 	s.Name = config.StoreName
-	b = isSecretToIgnoreOnUpdate(s)
-	assert.True(t, b)
+	assert.True(t, isSecretToIgnoreOnUpdate(s))
 }
 
 func TestIsDoNotReconcile(t *testing.T) {

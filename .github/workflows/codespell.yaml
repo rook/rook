@@ -18,6 +18,15 @@ jobs:
         uses: codespell-project/actions-codespell@master
         with:
           skip: .git,*.png,*.jpg,*.svg,*.sum
-          ignore_words_list: aks,keyserver,atleast,dne,ser,ist,files',ba,dum,iam,te,parm,assigment
+          # aks: Amazon Kubernetes Service
+          # keyserver: flag to apt-key
+          # atleast: codespell wants to flag any 'AtLeast' method
+          # ser, ist: MIME types in pkg/operator/ceph/object/mime.go
+          # ba: daemon ID test in pkg/operator/k8sutil/name_test.go
+          # iam: Identity and Access Management, e.g., AWS IAM
+          # te: udev persistent naming test in pkg/daemon/ceph/osd/daemon_test.go
+          # parm: modinfo parameter
+          # assigment: inherited from K8s TopologySpreadConstraints dependency
+          ignore_words_list: aks,keyserver,atleast,ser,ist,ba,iam,te,parm,assigment
           check_filenames: true
           check_hidden: true
