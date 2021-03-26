@@ -57,11 +57,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	clusterInfo := client.AdminClusterInfo(namespace)
 
-	logger.Infof("Step 0 : Create Object Store User")
-	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
-	assert.Nil(s.T(), cosuErr)
-
-	logger.Infof("Step 1 : Create Object Store")
+	logger.Infof("Step 0 : Create Object Store")
 	cobsErr := helper.ObjectClient.Create(namespace, storeName, 3)
 	assert.Nil(s.T(), cobsErr)
 
@@ -76,6 +72,9 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Object store created successfully")
 
 	// check that ObjectUser is created
+	logger.Infof("Step 1 : Create Object Store User")
+	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
+	assert.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 5 seconds for the object user to be created")
 	time.Sleep(5 * time.Second)
 	logger.Infof("Checking to see if the user secret has been created")
