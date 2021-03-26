@@ -15,15 +15,12 @@ jobs:
     - name: checkout
       uses: actions/checkout@v2
 
-    - name: install yq
-      run: sudo snap install yq --channel=v3/stable
-
     - name: copy working directory to GOPATH
       run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
 
     - name: run crds-gen
       working-directory: /home/runner/go/src/github.com/rook/rook
-      run: GOPATH=$(go env GOPATH) make crds-gen
+      run: GOPATH=$(go env GOPATH) make crds
 
     - name: validate crds-gen
       working-directory: /home/runner/go/src/github.com/rook/rook

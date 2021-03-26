@@ -175,23 +175,21 @@ csv-clean: ## Remove existing OLM files.
 	@rm -fr cluster/olm/ceph/deploy/* cluster/olm/ceph/templates/*
 
 controller-gen:
-ifeq (, $(shell command -v controller-gen))
 	@{ \
 	set -e ;\
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp;\
 	go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION);\
+	go get github.com/mikefarah/yq/v3;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell command -v controller-gen)
-endif
+YQ=$(GOBIN)/yq
 
-crds-gen: controller-gen
+crds: controller-gen
 	@echo Updating CRD manifests
-	@build/crds/build-crds.sh $(CONTROLLER_GEN)
+	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
 
 .PHONY: all build.common cross.build.parallel
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
