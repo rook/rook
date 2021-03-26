@@ -196,6 +196,9 @@ if [ -z "$VAULT_BACKEND" ]; then
 	VAULT_BACKEND=$VAULT_DEFAULT_BACKEND
 fi
 
+# trim VAULT_BACKEND_PATH for last character '/' to avoid a redirect response from the server
+VAULT_BACKEND_PATH="${VAULT_BACKEND_PATH%%/}"
+
 # Get the Key Encryption Key
 curl "${ARGS[@]}" "$VAULT_ADDR"/"$VAULT_BACKEND"/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
 
