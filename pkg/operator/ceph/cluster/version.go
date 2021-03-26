@@ -72,7 +72,7 @@ func (c *cluster) printOverallCephVersion() {
 
 // This function compare the Ceph spec image and the cluster running version
 // It returns true if the image is different and false if identical
-func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion, runningVersions client.CephDaemonsVersions) (bool, error) {
+func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion, runningVersions cephv1.CephDaemonsVersions) (bool, error) {
 	numberOfCephVersions := len(runningVersions.Overall)
 	if numberOfCephVersions == 0 {
 		// let's return immediately

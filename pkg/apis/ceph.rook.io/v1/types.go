@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -299,6 +299,34 @@ type ClusterStatus struct {
 	CephVersion *ClusterVersion `json:"version,omitempty"`
 }
 
+// CephDaemonsVersions show the current ceph version for different ceph daemons
+type CephDaemonsVersions struct {
+	// Mon shows Mon Ceph version
+	// +optional
+	Mon map[string]int `json:"mon,omitempty"`
+	// Mgr shows Mgr Ceph version
+	// +optional
+	Mgr map[string]int `json:"mgr,omitempty"`
+	// Osd shows Osd Ceph version
+	// +optional
+	Osd map[string]int `json:"osd,omitempty"`
+	// Rgw shows Rgw Ceph version
+	// +optional
+	Rgw map[string]int `json:"rgw,omitempty"`
+	// Mds shows Mds Ceph version
+	// +optional
+	Mds map[string]int `json:"mds,omitempty"`
+	// RbdMirror shows RbdMirror Ceph version
+	// +optional
+	RbdMirror map[string]int `json:"rbd-mirror,omitempty"`
+	// CephFSMirror shows CephFSMirror Ceph version
+	// +optional
+	CephFSMirror map[string]int `json:"cephfs-mirror,omitempty"`
+	// Overall shows overall Ceph version
+	// +optional
+	Overall map[string]int `json:"overall,omitempty"`
+}
+
 // CephStatus is the details health of a Ceph Cluster
 type CephStatus struct {
 	Health         string                       `json:"health,omitempty"`
@@ -307,6 +335,8 @@ type CephStatus struct {
 	LastChanged    string                       `json:"lastChanged,omitempty"`
 	PreviousHealth string                       `json:"previousHealth,omitempty"`
 	Capacity       Capacity                     `json:"capacity,omitempty"`
+	// +optional
+	Versions *CephDaemonsVersions `json:"versions,omitempty"`
 }
 
 // Capacity is the capacity information of a Ceph Cluster

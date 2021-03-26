@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util"
@@ -32,17 +33,6 @@ const (
 	defaultRetryDelay    = 60 * time.Second
 	defaultOSDRetryDelay = 10 * time.Second
 )
-
-// CephDaemonsVersions is a structure that can be used to parsed the output of the 'ceph versions' command
-type CephDaemonsVersions struct {
-	Mon       map[string]int `json:"mon,omitempty"`
-	Mgr       map[string]int `json:"mgr,omitempty"`
-	Osd       map[string]int `json:"osd,omitempty"`
-	Rgw       map[string]int `json:"rgw,omitempty"`
-	Mds       map[string]int `json:"mds,omitempty"`
-	RbdMirror map[string]int `json:"rbd-mirror,omitempty"`
-	Overall   map[string]int `json:"overall,omitempty"`
-}
 
 var (
 	// we don't perform any checks on these daemons
@@ -91,14 +81,14 @@ func GetCephMonVersion(context *clusterd.Context, clusterInfo *ClusterInfo) (*ce
 }
 
 // GetAllCephDaemonVersions reports the Ceph version of each daemon in the cluster
-func GetAllCephDaemonVersions(context *clusterd.Context, clusterInfo *ClusterInfo) (*CephDaemonsVersions, error) {
+func GetAllCephDaemonVersions(context *clusterd.Context, clusterInfo *ClusterInfo) (*cephv1.CephDaemonsVersions, error) {
 	output, err := getAllCephDaemonVersionsString(context, clusterInfo)
 	if err != nil {
 		return nil, err
 	}
 	logger.Debug(output)
 
-	var cephVersionsResult CephDaemonsVersions
+	var cephVersionsResult cephv1.CephDaemonsVersions
 	err = json.Unmarshal([]byte(output), &cephVersionsResult)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to retrieve ceph versions results")
@@ -284,7 +274,7 @@ func findFSName(deployment string) string {
 	return strings.TrimPrefix(deployment, "rook-ceph-mds-")
 }
 
-func daemonMapEntry(versions *CephDaemonsVersions, daemonType string) (map[string]int, error) {
+func daemonMapEntry(versions *cephv1.CephDaemonsVersions, daemonType string) (map[string]int, error) {
 	switch daemonType {
 	case "mon":
 		return versions.Mon, nil

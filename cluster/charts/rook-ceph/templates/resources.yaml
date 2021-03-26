@@ -4044,6 +4044,50 @@ spec:
                       type: string
                     previousHealth:
                       type: string
+                    versions:
+                      description: CephDaemonsVersions show the current ceph version for different ceph daemons
+                      properties:
+                        cephfs-mirror:
+                          additionalProperties:
+                            type: integer
+                          description: CephFSMirror shows CephFSMirror Ceph version
+                          type: object
+                        mds:
+                          additionalProperties:
+                            type: integer
+                          description: Mds shows Mds Ceph version
+                          type: object
+                        mgr:
+                          additionalProperties:
+                            type: integer
+                          description: Mgr shows Mgr Ceph version
+                          type: object
+                        mon:
+                          additionalProperties:
+                            type: integer
+                          description: Mon shows Mon Ceph version
+                          type: object
+                        osd:
+                          additionalProperties:
+                            type: integer
+                          description: Osd shows Osd Ceph version
+                          type: object
+                        overall:
+                          additionalProperties:
+                            type: integer
+                          description: Overall shows overall Ceph version
+                          type: object
+                        rbd-mirror:
+                          additionalProperties:
+                            type: integer
+                          description: RbdMirror shows RbdMirror Ceph version
+                          type: object
+                        rgw:
+                          additionalProperties:
+                            type: integer
+                          description: Rgw shows Rgw Ceph version
+                          type: object
+                      type: object
                   type: object
                 conditions:
                   items:

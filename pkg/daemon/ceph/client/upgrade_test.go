@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -145,7 +146,7 @@ func TestDaemonMapEntry(t *testing.T) {
 		}
 	}`)
 
-	var dummyVersions CephDaemonsVersions
+	var dummyVersions cephv1.CephDaemonsVersions
 	err := json.Unmarshal([]byte(dummyVersionsRaw), &dummyVersions)
 	assert.NoError(t, err)
 
