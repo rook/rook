@@ -189,7 +189,7 @@ else
 CONTROLLER_GEN=$(shell command -v controller-gen)
 endif
 
-crds-gen: controller-gen
+crds: controller-gen
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN)
 

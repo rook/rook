@@ -23,7 +23,7 @@ jobs:
 
     - name: run crds-gen
       working-directory: /home/runner/go/src/github.com/rook/rook
-      run: GOPATH=$(go env GOPATH) make crds-gen
+      run: GOPATH=$(go env GOPATH) make crds
 
     - name: validate crds-gen
       working-directory: /home/runner/go/src/github.com/rook/rook
