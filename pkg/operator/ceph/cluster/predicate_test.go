@@ -25,22 +25,18 @@ import (
 )
 
 func TestIsHotPlugCM(t *testing.T) {
-	dum := &cephv1.CephBlockPool{}
+	blockPool := &cephv1.CephBlockPool{}
 
-	b := isHotPlugCM(dum)
-	assert.False(t, b)
+	assert.False(t, isHotPlugCM(blockPool))
 
 	cm := &corev1.ConfigMap{}
-	b = isHotPlugCM(cm)
-	assert.False(t, b)
+	assert.False(t, isHotPlugCM(cm))
 
 	cm.Labels = map[string]string{
 		"foo": "bar",
 	}
-	b = isHotPlugCM(cm)
-	assert.False(t, b)
+	assert.False(t, isHotPlugCM(cm))
 
 	cm.Labels["app"] = "rook-discover"
-	b = isHotPlugCM(cm)
-	assert.True(t, b)
+	assert.True(t, isHotPlugCM(cm))
 }
