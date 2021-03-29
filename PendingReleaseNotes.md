@@ -27,5 +27,8 @@ v1.6...
 * Enable disruption budgets (PDBs) by default for Mon, RGW, MDS, and OSD daemons
 * Add CephFilesystemMirror CRD to deploy cephfs-mirror daemon
 * Multiple Ceph mgr daemons are supported for stretch clusters and other clusters where HA of the mgr is more critical
-* Ceph OSD: as of Nautilus 14.2.14 and Octopus 15.2.9 if the OSD scenario is simple (one OSD per disk) we won't use LVM to prepare the disk anymore
+* OSDs: 
+  * as of Nautilus 14.2.14 and Octopus 15.2.9 if the OSD scenario is simple (one OSD per disk) we won't use LVM to prepare the disk anymore
+  * for Pacific (16.2.x), Rook is able to update multiple OSD Deployments at the same time to speed
+    up updates and upgrades for larger Ceph clusters
 * Disable CSI GRPC metrics by default

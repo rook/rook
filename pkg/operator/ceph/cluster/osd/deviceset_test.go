@@ -66,10 +66,10 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 		spec:        spec,
 	}
 
-	config := &provisionConfig{}
-	volumeSources := cluster.prepareStorageClassDeviceSets(config)
+	errs := newProvisionErrors()
+	volumeSources := cluster.prepareStorageClassDeviceSets(errs)
 	assert.Equal(t, 1, len(volumeSources))
-	assert.Equal(t, 0, len(config.errorMessages))
+	assert.Equal(t, 0, errs.len())
 	assert.Equal(t, "mydata", volumeSources[0].Name)
 	assert.True(t, volumeSources[0].Portable)
 	_, dataOK := volumeSources[0].PVCSources["data"]
@@ -141,10 +141,10 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 	clientset.PrependReactor("create", "persistentvolumeclaims", pvcReactor)
 
 	// Create 3 PVCs for two OSDs in the device set
-	config := &provisionConfig{}
+	config := newProvisionErrors()
 	volumeSources := cluster.prepareStorageClassDeviceSets(config)
 	assert.Equal(t, 1, len(volumeSources))
-	assert.Equal(t, 0, len(config.errorMessages))
+	assert.Equal(t, 0, config.len())
 	assert.Equal(t, "mydata", volumeSources[0].Name)
 	assert.True(t, volumeSources[0].Portable)
 	_, dataOK := volumeSources[0].PVCSources["data"]
@@ -162,7 +162,7 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 	cluster.spec.Storage.StorageClassDeviceSets[0].Count = 2
 	volumeSources = cluster.prepareStorageClassDeviceSets(config)
 	assert.Equal(t, 2, len(volumeSources))
-	assert.Equal(t, 0, len(config.errorMessages))
+	assert.Equal(t, 0, config.len())
 
 	// Verify the PVCs all exist
 	pvcs, err = clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})

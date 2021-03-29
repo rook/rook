@@ -385,7 +385,7 @@ func CheckPodMemory(name string, resources v1.ResourceRequirements, cephPodMinim
 		// This means LIMIT and REQUEST are either identical or different but still we use LIMIT as a reference
 		if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
 			// allow the configuration if less than the min, but print a warning
-			logger.Warningf("running the %q daemon(s) with %dmb of ram, but at least %dmb is recommended", name, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
+			logger.Warningf("running the %q daemon(s) with %dMB of ram, but at least %dMB is recommended", name, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
 		}
 
 		// This means LIMIT < REQUEST

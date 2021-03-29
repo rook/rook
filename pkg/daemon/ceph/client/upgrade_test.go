@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client/fake"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -296,4 +297,64 @@ func TestGetRetryConfig(t *testing.T) {
 		assert.Equal(t, tc.expectedRetries, actualRetries, "[%s] failed to get correct retry count", tc.label)
 		assert.Equalf(t, tc.expectedDelay, actualDelay, "[%s] failed to get correct delays between retries", tc.label)
 	}
+}
+
+func TestOSDUpdateShouldCheckOkToStop(t *testing.T) {
+	clusterInfo := &ClusterInfo{}
+	lsOutput := ""
+	treeOutput := ""
+	context := &clusterd.Context{
+		Executor: &exectest.MockExecutor{
+			MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+				t.Logf("command: %s %v", command, args)
+				if command != "ceph" || args[0] != "osd" {
+					panic("not a 'ceph osd' call")
+				}
+				if args[1] == "tree" {
+					if treeOutput == "" {
+						return "", errors.Errorf("induced error")
+					}
+					return treeOutput, nil
+				}
+				if args[1] == "ls" {
+					if lsOutput == "" {
+						return "", errors.Errorf("induced error")
+					}
+					return lsOutput, nil
+				}
+				panic("do not understand command")
+			},
+		},
+	}
+
+	t.Run("3 nodes with 1 OSD each", func(t *testing.T) {
+		lsOutput = fake.OsdLsOutput(3)
+		treeOutput = fake.OsdTreeOutput(3, 1)
+		assert.True(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
+	})
+
+	t.Run("1 node with 3 OSDs", func(t *testing.T) {
+		lsOutput = fake.OsdLsOutput(3)
+		treeOutput = fake.OsdTreeOutput(1, 3)
+		assert.False(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
+	})
+
+	t.Run("2 nodes with 1 OSD each", func(t *testing.T) {
+		lsOutput = fake.OsdLsOutput(2)
+		treeOutput = fake.OsdTreeOutput(2, 1)
+		assert.False(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
+	})
+
+	t.Run("3 nodes with 3 OSDs each", func(t *testing.T) {
+		lsOutput = fake.OsdLsOutput(9)
+		treeOutput = fake.OsdTreeOutput(3, 3)
+		assert.True(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
+	})
+
+	// degraded case but good to test just in case
+	t.Run("0 nodes", func(t *testing.T) {
+		lsOutput = fake.OsdLsOutput(0)
+		treeOutput = fake.OsdTreeOutput(0, 0)
+		assert.False(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
+	})
 }

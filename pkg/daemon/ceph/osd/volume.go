@@ -778,12 +778,12 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 			}
 
 			if len(strings.Split(conf["devices"], " ")) != len(cvReports) {
-				return fmt.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
+				return errors.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
 			}
 
 			for _, report := range cvReports {
 				if report.BlockDB != mdPath {
-					return fmt.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
+					return errors.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
 				}
 			}
 		}

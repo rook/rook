@@ -97,17 +97,20 @@ List all OSD Deployments belonging to the Rook cluster. Build a list of OSD IDs 
 Deployments. Record this in a data structure that allows O(1) lookup.
 
 ### How to build the update queue
-List all OSD Deployments belonging to the Rook cluster to use as the update queue. Ignore OSD
-Deployments which are already updated. OSD Deployments which need updated will have a
-`rook-version` label that does not match the current version of the Rook operator and a
-`ceph-version` label that does not match the current Ceph version being deployed.
-
-Go channels are likely not the best option for the update queue since it may be necessary to select
-individual items from the queue at any position and not merely grab the top/bottom item from the
-queue.
+List all OSD Deployments belonging to the Rook cluster to use as the update queue. All OSDs should
+be updated in case there are changes to the CephCluster resource that result in OSD deployments
+being updated.
 
 The minimal information each item in the queue needs is only the OSD ID. The OSD Deployment managed
 by Rook can easily be inferred from the OSD ID.
+
+Note: A previous version of this design planned to ignore OSD Deployments which are already updated.
+The plan was to identify OSD Deployments which need updated by looking at the OSD Deployments for:
+(1) a `rook-version` label that does not match the current version of the Rook operator AND/OR
+(2) a `ceph-version` label that does not match the current Ceph version being deployed. This is an
+invalid optimization that does not account for OSD Deployments changing due to CephCluster resource
+updates. Instead of trying to optimize, it is better to always update OSD Deplyments and rely on the
+lower level update calls to finish quickly when there is no update to apply.
 
 ### User configuration
 

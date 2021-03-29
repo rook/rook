@@ -75,7 +75,7 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 	}
 	for {
 		// wait for the node's orchestration status to change to "starting"
-		cmName := fmt.Sprintf(orchestrationStatusMapName, nodeName)
+		cmName := statusConfigMapName(nodeName)
 		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).Get(ctx, cmName, metav1.GetOptions{})
 		if err == nil {
 			status := parseOrchestrationStatus(cm.Data)
@@ -85,8 +85,11 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 				status = &OrchestrationStatus{
 					OSDs: []OSDInfo{
 						{
-							ID:      1,
-							Cluster: "rook",
+							ID:        1,
+							UUID:      "000000-0000-00000001",
+							Cluster:   "rook",
+							CVMode:    "raw",
+							BlockPath: "/dev/some/path",
 						},
 					},
 					Status: OrchestrationStatusCompleted,
@@ -114,7 +117,8 @@ func waitForOrchestrationCompletion(c *Cluster, nodeName string, startCompleted 
 		if *startCompleted {
 			break
 		}
-		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).Get(ctx, orchestrationStatusMapName, metav1.GetOptions{})
+		cmName := statusConfigMapName(nodeName)
+		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).Get(ctx, cmName, metav1.GetOptions{})
 		if err == nil {
 			status := parseOrchestrationStatus(cm.Data)
 			if status != nil {

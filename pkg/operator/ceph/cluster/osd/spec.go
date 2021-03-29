@@ -77,7 +77,7 @@ OSD_UUID=%s
 OSD_STORE_FLAG="%s"
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 CV_MODE=%s
-DEVICE=%s
+DEVICE="$%s"
 METADATA_DEVICE="$%s"
 WAL_DEVICE="$%s"
 
@@ -277,10 +277,14 @@ var defaultTuneSlowSettings = []string{
 	"--osd-delete-sleep=2",     // Time in seconds to sleep before next removal transaction
 }
 
+func deploymentName(osdID int) string {
+	return fmt.Sprintf(osdAppNameFmt, osdID)
+}
+
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
 	// If running on Octopus, we don't need to use the host PID namespace
 	var hostPID = !c.clusterInfo.CephVersion.IsAtLeastOctopus()
-	deploymentName := fmt.Sprintf(osdAppNameFmt, osd.ID)
+	deploymentName := deploymentName(osd.ID)
 	replicaCount := int32(1)
 	volumeMounts := controller.CephVolumeMounts(provisionConfig.DataPathMap, false)
 	configVolumeMounts := controller.RookVolumeMounts(provisionConfig.DataPathMap, false)
@@ -295,11 +299,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	doBinaryCopyInit := true   // copy tini and rook binaries in an init container?
 	doActivateOSDInit := false // run an init container to activate the osd?
 
-	// If CVMode is empty, this likely means we upgraded Rook
-	// This property did not exist before so we need to initialize it
 	// This property is used for both PVC and non-PVC use case
 	if osd.CVMode == "" {
-		osd.CVMode = "lvm"
+		return nil, errors.Errorf("failed to generate deployment for OSD %d. required CVMode is not specified for this OSD", osd.ID)
 	}
 
 	dataDir := k8sutil.DataDir
@@ -346,6 +348,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					Name: "rook-ceph-config"},
 					Key: "mon_host"}}},
 		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
+		blockPathEnvVariable(osd.BlockPath),
+		cvModeEnvVariable(osd.CVMode),
 	}...)
 	configEnvVars := append(c.getConfigEnvVars(osdProps, dataDir), []v1.EnvVar{
 		tiniEnvVar,
@@ -458,16 +462,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		// Let's use the old bridge for these lvm based pvc osds
 		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
-		envVars = append(envVars, blockPathEnvVariable(osd.BlockPath))
-		envVars = append(envVars, cvModeEnvVariable(osd.CVMode))
 		envVars = append(envVars, lvBackedPVEnvVar(strconv.FormatBool(osd.LVBackedPV)))
 	}
 
 	if osdProps.onPVC() && osd.CVMode == "raw" {
 		volumeMounts = append(volumeMounts, getPvcOSDBridgeMountActivate(osdDataDirPath, osdProps.pvc.ClaimName))
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
-		envVars = append(envVars, blockPathEnvVariable(osd.BlockPath))
-		envVars = append(envVars, cvModeEnvVariable(osd.CVMode))
 	}
 
 	// We cannot go un-privileged until we have a bindmount for logs and crash
@@ -745,7 +745,12 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		Name:         activateOSDVolumeName,
 		VolumeSource: source,
 	}
-	envVars := osdActivateEnvVar()
+	envVars := append(
+		osdActivateEnvVar(),
+		blockPathEnvVariable(osdInfo.BlockPath),
+		metadataDeviceEnvVar(osdInfo.MetadataPath),
+		walDeviceEnvVar(osdInfo.WalPath),
+	)
 	osdStore := "--bluestore"
 
 	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
@@ -765,7 +770,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDCode, osdID, osdInfo.UUID, osdStore, osdInfo.CVMode, osdInfo.BlockPath, osdMetadataDeviceEnvVarName, osdWalDeviceEnvVarName),
+			fmt.Sprintf(activateOSDCode, osdID, osdInfo.UUID, osdStore, osdInfo.CVMode, blockPathVarName, osdMetadataDeviceEnvVarName, osdWalDeviceEnvVarName),
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,

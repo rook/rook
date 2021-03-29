@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/base32"
 	"fmt"
-	"math/rand"
 	"strings"
 	"testing"
 
@@ -41,6 +40,7 @@ import (
 
 // New creates a fake K8s cluster with some nodes added.
 func New(t *testing.T, nodes int) *fake.Clientset {
+	t.Helper()
 	clientset := fake.NewSimpleClientset()
 	AddSomeReadyNodes(t, clientset, nodes)
 	return clientset
@@ -48,9 +48,13 @@ func New(t *testing.T, nodes int) *fake.Clientset {
 
 // AddReadyNode adds a new Node with status "Ready" and the given name and IP.
 func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
+	t.Helper()
 	ready := v1.NodeCondition{Type: v1.NodeReady, Status: v1.ConditionTrue}
 	n := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				corev1.LabelHostname: name,
+			},
 			Name: name,
 		},
 		Status: v1.NodeStatus{
@@ -78,6 +82,7 @@ func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
 //  - name from 0 to count-1
 //  - ip from 0.0.0.0 to <count-1>.<count-1>.<count-1>.<count-1>
 func AddSomeReadyNodes(t *testing.T, clientset *fake.Clientset, count int) {
+	t.Helper()
 	for i := 0; i < count; i++ {
 		name := fmt.Sprintf("node%d", i)
 		ip := fmt.Sprintf("%d.%d.%d.%d", i, i, i, i)
@@ -123,6 +128,7 @@ var (
 // to the clientset to mimic more of what K8s does in the real world.
 //  - Generate a name for resources that have 'generateName' set and 'name' unset.
 func NewComplexClientset(t *testing.T) *fake.Clientset {
+	t.Helper()
 	clientset := fake.NewSimpleClientset()
 
 	// Some resources are created with generateName used, and we need to capture the create
@@ -169,6 +175,7 @@ func NewComplexClientset(t *testing.T) *fake.Clientset {
 //  - Pod create/delete is done to the clientset tracker, so no Pod watch events will register.
 //  - Optionally look through the clientset Nodes to randomly assign created Pods to a node.
 func PrependComplexJobReactor(t *testing.T, clientset *fake.Clientset, assignPodToNode bool) {
+	t.Helper()
 	var jobReactor k8stesting.ReactionFunc = func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		switch action := action.(type) {
 
@@ -228,7 +235,18 @@ func PrependComplexJobReactor(t *testing.T, clientset *fake.Clientset, assignPod
 	clientset.PrependReactor("*", "jobs", jobReactor)
 }
 
-// Pick a random node name from the nodes present in the fake K8s clientset cluster.
+// PrependFailReactor adds a reactor with the desired verb and resource that will report a failure.
+func PrependFailReactor(t *testing.T, clientset *fake.Clientset, verb, resource string) {
+	t.Helper()
+	var failReactor k8stesting.ReactionFunc = func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("fail reactor: induced failure")
+	}
+	clientset.PrependReactor(verb, resource, failReactor)
+}
+
+var pickNodeIdx = 0 // global, used to allow round-robin node picking
+
+// Pick a node name from the nodes present in the fake K8s clientset cluster.
 func pickNode(clientset *fake.Clientset) string {
 	obj, err := clientset.Tracker().List(nodeGVR, nodeGVK, corev1.NamespaceAll)
 	if err != nil {
@@ -241,7 +259,8 @@ func pickNode(clientset *fake.Clientset) string {
 	if len(nodes.Items) == 0 {
 		panic(fmt.Errorf("pickNode: no nodes are available in the fake clientset to pick from"))
 	}
-	// #nosec G404 It's harmless since it's a test code
-	randIdx := rand.Intn(len(nodes.Items))
-	return nodes.Items[randIdx].GetName()
+	pickNodeIdx = pickNodeIdx % len(nodes.Items) // reset to 0 once idx is more than number of nodes
+	name := nodes.Items[pickNodeIdx].GetName()
+	pickNodeIdx++
+	return name
 }

@@ -127,6 +127,10 @@ func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
 	return v1.EnvVar{Name: osdMetadataDeviceEnvVarName, Value: metadataDevice}
 }
 
+func walDeviceEnvVar(walDevice string) v1.EnvVar {
+	return v1.EnvVar{Name: osdWalDeviceEnvVarName, Value: walDevice}
+}
+
 func pvcBackedOSDEnvVar(pvcBacked string) v1.EnvVar {
 	return v1.EnvVar{Name: PVCBackedOSDVarName, Value: pvcBacked}
 }

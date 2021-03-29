@@ -21,6 +21,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNodeExists(t *testing.T) {
+	t.Run("does not exist - no nodes specified", func(t *testing.T) {
+		spec := StorageScopeSpec{}
+		assert.False(t, spec.NodeExists("does-not-exist"))
+	})
+
+	t.Run("exists - single node specified", func(t *testing.T) {
+		spec := StorageScopeSpec{
+			Nodes: []Node{
+				{Name: "node1"}, // node gets nothing but its name set
+			},
+		}
+		assert.True(t, spec.NodeExists("node1"))
+	})
+
+	t.Run("exists and not exists - multiple nodes specified", func(t *testing.T) {
+		spec := StorageScopeSpec{
+			Nodes: []Node{
+				{Name: "node1"}, // node gets nothing but its name set
+				{Name: "node3"},
+				{Name: "node4"},
+			},
+		}
+		assert.True(t, spec.NodeExists("node1"))
+		assert.False(t, spec.NodeExists("node2"))
+		assert.True(t, spec.NodeExists("node3"))
+		assert.True(t, spec.NodeExists("node4"))
+		assert.False(t, spec.NodeExists("node5"))
+		assert.False(t, spec.NodeExists("does-not-exist"))
+	})
+}
+
 func TestResolveNodeNotExist(t *testing.T) {
 	// a non existing node should return nil
 	storageSpec := StorageScopeSpec{}

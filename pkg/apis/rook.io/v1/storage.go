@@ -39,6 +39,16 @@ func (s *StorageScopeSpec) ClearUseAllDevices() {
 	}
 }
 
+// NodeExists returns true if the node exists in the storage spec. False otherwise.
+func (s *StorageScopeSpec) NodeExists(nodeName string) bool {
+	for i := range s.Nodes {
+		if s.Nodes[i].Name == nodeName {
+			return true
+		}
+	}
+	return false
+}
+
 // Fully resolves the config of the given node name, taking into account cluster level and node level specified config.
 // In general, the more fine grained the configuration is specified, the more precedence it takes.  Fully resolved
 // configuration for the node has the following order of precedence.

@@ -20,15 +20,14 @@ import (
 	"context"
 	"fmt"
 
-	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // CreateDaemonSet creates
-func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *apps.DaemonSet) error {
+func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *appsv1.DaemonSet) error {
 	ctx := context.TODO()
 	_, err := clientset.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
 	if err != nil {
@@ -57,7 +56,7 @@ func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) err
 
 // AddRookVersionLabelToDaemonSet adds or updates a label reporting the Rook version which last
 // modified a DaemonSet.
-func AddRookVersionLabelToDaemonSet(d *v1.DaemonSet) {
+func AddRookVersionLabelToDaemonSet(d *appsv1.DaemonSet) {
 	if d == nil {
 		return
 	}
@@ -70,7 +69,7 @@ func AddRookVersionLabelToDaemonSet(d *v1.DaemonSet) {
 // GetDaemonsets returns a list of daemonsets names labels matching a given selector
 // example of a label selector might be "app=rook-ceph-mon, mon!=b"
 // more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-func GetDaemonsets(clientset kubernetes.Interface, namespace, labelSelector string) (*apps.DaemonSetList, error) {
+func GetDaemonsets(clientset kubernetes.Interface, namespace, labelSelector string) (*appsv1.DaemonSetList, error) {
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
 	ctx := context.TODO()
 	daemonsets, err := clientset.AppsV1().DaemonSets(namespace).List(ctx, listOptions)

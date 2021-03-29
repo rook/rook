@@ -17,6 +17,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -304,4 +305,53 @@ func OsdListNum(context *clusterd.Context, clusterInfo *ClusterInfo) (OsdList, e
 	}
 
 	return output, nil
+}
+
+// OSDOkToStopStats report detailed information about which OSDs are okay to stop
+type OSDOkToStopStats struct {
+	OkToStop          bool     `json:"ok_to_stop"`
+	OSDs              []int    `json:"osds"`
+	NumOkPGs          int      `json:"num_ok_pgs"`
+	NumNotOkPGs       int      `json:"num_not_ok_pgs"`
+	BadBecomeInactive []string `json:"bad_become_inactive"`
+	OkBecomeDegraded  []string `json:"ok_become_degraded"`
+}
+
+// OSDOkToStop returns a list of OSDs that can be stopped that includes the OSD ID given.
+// This is relevant, for example, when checking which OSDs can be updated.
+// The number of OSDs returned is limited by the value set in maxReturned.
+// maxReturned=0 is the same as maxReturned=1.
+func OSDOkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, osdID, maxReturned int) ([]int, error) {
+	args := []string{"osd", "ok-to-stop", strconv.Itoa(osdID)}
+	returnsList := false // does the ceph call return a list of OSD IDs?
+	if clusterInfo.CephVersion.IsAtLeastPacific() {
+		returnsList = true
+		// NOTE: if the number of OSD IDs given in the CLI arg query is Q and --max=N is given, if
+		// N < Q, Ceph treats the query as though max=Q instead, always returning at least Q OSDs.
+		args = append(args, fmt.Sprintf("--max=%d", maxReturned))
+	}
+
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		// is not ok to stop (or command error)
+		return []int{}, errors.Wrapf(err, "OSD %d is not ok to stop", osdID)
+	}
+
+	if !returnsList {
+		// If does not return list, just return a slice including only the OSD ID queried
+		return []int{osdID}, nil
+	}
+
+	var stats OSDOkToStopStats
+	err = json.Unmarshal(buf, &stats)
+	if err != nil {
+		// Since the command succeeded we still know that at least the given OSD ID is ok to
+		// stop, so we do not *have* to return an error. However, it is good to do it anyway so
+		// that we can catch breaking changes to JSON output in CI testing. As a middle ground
+		// here, return error but also return the given OSD ID in the output in case the calling
+		// function wants to recover from this case.
+		return []int{osdID}, errors.Wrapf(err, "failed to unmarshal 'osd ok-to-stop %d' response", osdID)
+	}
+
+	return stats.OSDs, nil
 }
