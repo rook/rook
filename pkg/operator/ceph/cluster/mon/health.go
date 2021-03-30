@@ -61,11 +61,9 @@ func NewHealthChecker(monCluster *Cluster) *HealthChecker {
 
 	checkInterval := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Interval
 	// allow overriding the check interval
-	if checkInterval != "" {
-		if duration, err := time.ParseDuration(checkInterval); err == nil {
-			logger.Infof("ceph mon status in namespace %q check interval %q", monCluster.Namespace, checkInterval)
-			h.interval = duration
-		}
+	if checkInterval != nil {
+		logger.Infof("ceph mon status in namespace %q check interval %q", monCluster.Namespace, checkInterval.Duration.String())
+		h.interval = checkInterval.Duration
 	}
 
 	return h

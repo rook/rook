@@ -988,8 +988,9 @@ type BucketHealthCheckSpec struct {
 type HealthCheckSpec struct {
 	// +optional
 	Disabled bool `json:"disabled,omitempty"`
+	// Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
 	// +optional
-	Interval string `json:"interval,omitempty"`
+	Interval *metav1.Duration `json:"interval,omitempty"`
 	// +optional
 	Timeout string `json:"timeout,omitempty"`
 }

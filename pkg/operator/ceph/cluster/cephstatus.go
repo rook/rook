@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
+var (
 	// defaultStatusCheckInterval is the interval to check the status of the ceph cluster
 	defaultStatusCheckInterval = 60 * time.Second
 )
@@ -46,7 +46,7 @@ const (
 type cephStatusChecker struct {
 	context     *clusterd.Context
 	clusterInfo *cephclient.ClusterInfo
-	interval    time.Duration
+	interval    *time.Duration
 	client      client.Client
 	isExternal  bool
 }
@@ -56,30 +56,26 @@ func newCephStatusChecker(context *clusterd.Context, clusterInfo *cephclient.Clu
 	c := &cephStatusChecker{
 		context:     context,
 		clusterInfo: clusterInfo,
-		interval:    defaultStatusCheckInterval,
+		interval:    &defaultStatusCheckInterval,
 		client:      context.Client,
 		isExternal:  clusterSpec.External.Enable,
 	}
 
 	// allow overriding the check interval with an env var on the operator
 	// Keep the existing behavior
-	var checkInterval string
+	var checkInterval *time.Duration
 	checkIntervalCRSetting := clusterSpec.HealthCheck.DaemonHealth.Status.Interval
 	checkIntervalEnv := os.Getenv("ROOK_CEPH_STATUS_CHECK_INTERVAL")
 	if checkIntervalEnv != "" {
-		checkInterval = checkIntervalEnv
-	}
-
-	if checkIntervalCRSetting != "" && checkIntervalEnv == "" {
-		checkInterval = checkIntervalCRSetting
-	}
-
-	// Set duration
-	if checkInterval != "" {
-		if duration, err := time.ParseDuration(checkInterval); err == nil {
-			logger.Infof("ceph status check interval is %s", checkInterval)
-			c.interval = duration
+		if duration, err := time.ParseDuration(checkIntervalEnv); err == nil {
+			checkInterval = &duration
 		}
+	} else if checkIntervalCRSetting != nil {
+		checkInterval = &checkIntervalCRSetting.Duration
+	}
+	if checkInterval != nil {
+		logger.Infof("ceph status check interval is %s", checkInterval.String())
+		c.interval = checkInterval
 	}
 
 	return c
@@ -96,7 +92,7 @@ func (c *cephStatusChecker) checkCephStatus(stopCh chan struct{}) {
 			logger.Infof("stopping monitoring of ceph status")
 			return
 
-		case <-time.After(c.interval):
+		case <-time.After(*c.interval):
 			c.checkStatus()
 		}
 	}

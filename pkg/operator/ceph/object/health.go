@@ -29,19 +29,22 @@ import (
 )
 
 const (
-	s3UserHealthCheckName      = "rook-ceph-internal-s3-user-checker"
-	s3HealthCheckBucketName    = "rook-ceph-bucket-checker"
+	s3UserHealthCheckName   = "rook-ceph-internal-s3-user-checker"
+	s3HealthCheckBucketName = "rook-ceph-bucket-checker"
+	s3HealthCheckObjectBody = "Test Rook Object Data"
+	s3HealthCheckObjectKey  = "rookHealthCheckTestObject"
+	contentType             = "plain/text"
+)
+
+var (
 	defaultHealthCheckInterval = 1 * time.Minute
-	s3HealthCheckObjectBody    = "Test Rook Object Data"
-	s3HealthCheckObjectKey     = "rookHealthCheckTestObject"
-	contentType                = "plain/text"
 )
 
 // bucketChecker aggregates the mon/cluster info needed to check the health of the monitors
 type bucketChecker struct {
 	context         *clusterd.Context
 	objContext      *Context
-	interval        time.Duration
+	interval        *time.Duration
 	serviceIP       string
 	port            string
 	client          client.Client
@@ -54,7 +57,7 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP,
 	c := &bucketChecker{
 		context:         context,
 		objContext:      objContext,
-		interval:        defaultHealthCheckInterval,
+		interval:        &defaultHealthCheckInterval,
 		serviceIP:       serviceIP,
 		port:            port,
 		namespacedName:  namespacedName,
@@ -64,11 +67,9 @@ func newBucketChecker(context *clusterd.Context, objContext *Context, serviceIP,
 
 	// allow overriding the check interval
 	checkInterval := healthCheckSpec.Bucket.Interval
-	if checkInterval != "" {
-		if duration, err := time.ParseDuration(checkInterval); err == nil {
-			logger.Infof("ceph rgw status check interval for object store %q is %q", namespacedName.Name, checkInterval)
-			c.interval = duration
-		}
+	if checkInterval != nil {
+		logger.Infof("ceph rgw status check interval for object store %q is %q", namespacedName.Name, checkInterval.Duration.String())
+		c.interval = &checkInterval.Duration
 	}
 
 	return c
@@ -92,7 +93,7 @@ func (c *bucketChecker) checkObjectStore(stopCh chan struct{}) {
 			logger.Infof("stopping monitoring of rgw endpoints for object store %q", c.namespacedName.Name)
 			return
 
-		case <-time.After(c.interval):
+		case <-time.After(*c.interval):
 			logger.Debugf("checking rgw health of object store %q", c.namespacedName.Name)
 			err := c.checkObjectStoreHealth()
 			if err != nil {

@@ -155,6 +155,7 @@ spec:
                         disabled:
                           type: boolean
                         interval:
+                          description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                           type: string
                         timeout:
                           type: string
@@ -557,6 +558,7 @@ spec:
                             disabled:
                               type: boolean
                             interval:
+                              description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                               type: string
                             timeout:
                               type: string
@@ -568,6 +570,7 @@ spec:
                             disabled:
                               type: boolean
                             interval:
+                              description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                               type: string
                             timeout:
                               type: string
@@ -579,6 +582,7 @@ spec:
                             disabled:
                               type: boolean
                             interval:
+                              description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                               type: string
                             timeout:
                               type: string
@@ -4777,6 +4781,7 @@ spec:
                               disabled:
                                 type: boolean
                               interval:
+                                description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                                 type: string
                               timeout:
                                 type: string
@@ -4910,6 +4915,7 @@ spec:
                             disabled:
                               type: boolean
                             interval:
+                              description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                               type: string
                             timeout:
                               type: string
@@ -6192,6 +6198,7 @@ spec:
                             disabled:
                               type: boolean
                             interval:
+                              description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                               type: string
                             timeout:
                               type: string
@@ -6734,6 +6741,7 @@ spec:
                         disabled:
                           type: boolean
                         interval:
+                          description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                           type: string
                         timeout:
                           type: string
@@ -6956,6 +6964,7 @@ spec:
                             disabled:
                               type: boolean
                             interval:
+                              description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                               type: string
                             timeout:
                               type: string
@@ -7303,6 +7312,7 @@ spec:
                             disabled:
                               type: boolean
                             interval:
+                              description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                               type: string
                             timeout:
                               type: string
@@ -7435,6 +7445,7 @@ spec:
                             disabled:
                               type: boolean
                             interval:
+                              description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
                               type: string
                             timeout:
                               type: string

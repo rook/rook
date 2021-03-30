@@ -142,9 +142,9 @@ func TestNewCephStatusChecker(t *testing.T) {
 		args args
 		want *cephStatusChecker
 	}{
-		{"default-interval", args{c, clusterInfo, &cephv1.ClusterSpec{}}, &cephStatusChecker{c, clusterInfo, defaultStatusCheckInterval, c.Client, false}},
-		{"10s-interval", args{c, clusterInfo, &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: "10s"}}}}}, &cephStatusChecker{c, clusterInfo, time10s, c.Client, false}},
-		{"10s-interval-external", args{c, clusterInfo, &cephv1.ClusterSpec{External: cephv1.ExternalSpec{Enable: true}, HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: "10s"}}}}}, &cephStatusChecker{c, clusterInfo, time10s, c.Client, true}},
+		{"default-interval", args{c, clusterInfo, &cephv1.ClusterSpec{}}, &cephStatusChecker{c, clusterInfo, &defaultStatusCheckInterval, c.Client, false}},
+		{"10s-interval", args{c, clusterInfo, &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}}, &cephStatusChecker{c, clusterInfo, &time10s, c.Client, false}},
+		{"10s-interval-external", args{c, clusterInfo, &cephv1.ClusterSpec{External: cephv1.ExternalSpec{Enable: true}, HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Status: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}}, &cephStatusChecker{c, clusterInfo, &time10s, c.Client, true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
