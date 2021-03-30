@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -67,4 +68,32 @@ func (c *Cluster) createOrUpdateMonPDB(maxUnavailable int32) (controllerutil.Ope
 		return nil
 	}
 	return controllerutil.CreateOrUpdate(context.TODO(), c.context.Client, pdb, mutateFunc)
+}
+
+// blockMonDrain makes MaxUnavailable in mon PDB to 0 to block any voluntary mon drains
+func (c *Cluster) blockMonDrain(request types.NamespacedName) error {
+	if !c.spec.DisruptionManagement.ManagePodBudgets {
+		return nil
+	}
+	logger.Info("prevent voluntary mon drain while failing over")
+	// change MaxUnavailable mon PDB to 0
+	_, err := c.createOrUpdateMonPDB(0)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update MaxUnavailable for mon PDB %q", request.Name)
+	}
+	return nil
+}
+
+// allowMonDrain updates the MaxUnavailable in mon PDB to 1 to allow voluntary mon drains
+func (c *Cluster) allowMonDrain(request types.NamespacedName) error {
+	if !c.spec.DisruptionManagement.ManagePodBudgets {
+		return nil
+	}
+	logger.Info("allow voluntary mon drain after failover")
+	// change MaxUnavailable mon PDB to 1
+	_, err := c.createOrUpdateMonPDB(1)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update MaxUnavailable for mon PDB %q", request.Name)
+	}
+	return nil
 }
