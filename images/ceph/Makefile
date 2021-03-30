@@ -67,6 +67,7 @@ do.build: generate-csv-ceph-templates
 
 generate-csv-ceph-templates: $(OPERATOR_SDK) $(YQ)
 	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
+		$(MAKE) -C ../.. crds;\
 		OPERATOR_SDK=$(OPERATOR_SDK) YQ_TOOL=$(YQ) ../../cluster/olm/ceph/generate-rook-csv-templates.sh;\
 	fi
 
