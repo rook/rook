@@ -44,12 +44,5 @@ func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.Namespaced
 		return errors.Wrapf(err, "failed to get pdb %q", pdb.Name)
 	}
 
-	if *existingPDB.Spec.MinAvailable != *pdb.Spec.MinAvailable {
-		err := r.client.Delete(context.TODO(), existingPDB)
-		if err != nil {
-			return errors.Wrapf(err, "failed to delete pdb %q", pdb.Name)
-		}
-		return r.createStaticPDB(pdb)
-	}
 	return nil
 }

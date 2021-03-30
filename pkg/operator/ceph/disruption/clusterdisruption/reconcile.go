@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/coreos/pkg/capnslog"
 	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -34,14 +35,15 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 )
 
 const (
 	controllerName = "clusterdisruption-controller"
 	// pdbStateMapName for the clusterdisruption pdb state map
-	pdbStateMapName = "rook-ceph-pdbstatemap"
+	pdbStateMapName        = "rook-ceph-pdbstatemap"
+	legacyOSDPDBLabel      = "rook-ceph-osd-pdb"
+	legacyDrainCanaryLabel = "rook-ceph-drain-canary"
 )
 
 var (
@@ -119,12 +121,12 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 
 	if deleteLegacyResources {
-		// delete any legacy blocking pdbs for osd
+		// delete any legacy blocking PDBs for osd
 		err := r.deleteLegacyPDBForOSD(clusterInfo.Namespace)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		logger.Info("deleted all legacy blocking pdbs for osds")
+		logger.Info("deleted all legacy blocking PDBs for osds")
 
 		// delete any legacy node drain canary pods
 		err = r.deleteDrainCanaryPods(clusterInfo.Namespace)
@@ -146,12 +148,6 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 
 	//  reconcile the pools and get the failure domain
 	cephObjectStoreList, cephFilesystemList, poolFailureDomain, poolCount, err := r.processPools(request)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// reconcile the static mon PDB
-	err = r.reconcileMonPDB(&cephCluster)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -267,18 +263,18 @@ func (c *ClusterMap) GetClusterNamespaces() []string {
 
 func (r *ReconcileClusterDisruption) deleteDrainCanaryPods(namespace string) error {
 	err := r.client.DeleteAllOf(context.TODO(), &appsv1.Deployment{}, client.InNamespace(namespace),
-		client.MatchingLabels{k8sutil.AppAttr: "rook-ceph-drain-canary"})
+		client.MatchingLabels{k8sutil.AppAttr: legacyDrainCanaryLabel})
 	if err != nil && !kerrors.IsNotFound(err) {
-		return errors.Wrap(err, "failed to delete all the legacy drain-canary pods")
+		return errors.Wrapf(err, "failed to delete all the legacy drain-canary pods with label %q", legacyDrainCanaryLabel)
 	}
 	return nil
 }
 
 func (r *ReconcileClusterDisruption) deleteLegacyPDBForOSD(namespace string) error {
 	err := r.client.DeleteAllOf(context.TODO(), &policyv1beta1.PodDisruptionBudget{}, client.InNamespace(namespace),
-		client.MatchingLabels{k8sutil.AppAttr: "rook-ceph-osd-pdb"})
+		client.MatchingLabels{k8sutil.AppAttr: legacyOSDPDBLabel})
 	if err != nil && !kerrors.IsNotFound(err) {
-		return errors.Wrap(err, "failed to delete all the legacy blocking podDisruptionBugets")
+		return errors.Wrapf(err, "failed to delete legacy OSD PDBs with label %q", legacyOSDPDBLabel)
 	}
 	return nil
 }
