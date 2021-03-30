@@ -28,6 +28,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: check k8s cluster status
       run: |
@@ -140,6 +141,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk and create partitions for osds
       run: |
@@ -240,6 +242,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: |
@@ -331,6 +334,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: |
@@ -418,6 +422,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: check k8s cluster status
       run: |
@@ -511,6 +516,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: |
@@ -602,6 +608,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: |
@@ -689,6 +696,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: check k8s cluster status
       run: |
@@ -794,6 +802,7 @@ jobs:
         minikube version: 'v1.13.1'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: |
