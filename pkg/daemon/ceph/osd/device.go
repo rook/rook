@@ -42,6 +42,7 @@ type DesiredDevice struct {
 	MetadataDevice     string
 	DatabaseSizeMB     int
 	DeviceClass        string
+	InitialWeight      string
 	IsFilter           bool
 	IsDevicePathFilter bool
 }

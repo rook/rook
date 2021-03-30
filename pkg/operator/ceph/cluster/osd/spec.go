@@ -404,6 +404,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		}
 	}
 
+	// Ceph expects initial weight as float value in tera-bytes units
+	if osdProps.storeConfig.InitialWeight != "" {
+		args = append(args, fmt.Sprintf("--osd-crush-initial-weight=%s", osdProps.storeConfig.InitialWeight))
+	}
+
 	// If the OSD runs on PVC
 	if osdProps.onPVC() {
 		// add the PVC size to the pod spec so that if the size changes the OSD will be restarted and pick up the change

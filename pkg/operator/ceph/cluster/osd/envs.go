@@ -45,6 +45,7 @@ const (
 	cvModeVarName                       = "ROOK_CV_MODE"
 	lvBackedPVVarName                   = "ROOK_LV_BACKED_PV"
 	CrushDeviceClassVarName             = "ROOK_OSD_CRUSH_DEVICE_CLASS"
+	CrushInitialWeightVarName           = "ROOK_OSD_CRUSH_INITIAL_WEIGHT"
 	CrushRootVarName                    = "ROOK_CRUSHMAP_ROOT"
 	tcmallocMaxTotalThreadCacheBytesEnv = "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES"
 )
@@ -157,6 +158,10 @@ func lvBackedPVEnvVar(lvBackedPV string) v1.EnvVar {
 
 func crushDeviceClassEnvVar(crushDeviceClass string) v1.EnvVar {
 	return v1.EnvVar{Name: CrushDeviceClassVarName, Value: crushDeviceClass}
+}
+
+func crushInitialWeightEnvVar(crushInitialWeight string) v1.EnvVar {
+	return v1.EnvVar{Name: CrushInitialWeightVarName, Value: crushInitialWeight}
 }
 
 func encryptedDeviceEnvVar(encryptedDevice bool) v1.EnvVar {
