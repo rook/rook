@@ -298,6 +298,11 @@ func (c *Cluster) startMons(targetCount int) error {
 
 	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.ClusterInfo.Monitors))
 
+	// reconcile mon PDB
+	if err := c.reconcileMonPDB(); err != nil {
+		return errors.Wrap(err, "failed to reconcile mon PDB")
+	}
+
 	// Check if there are orphaned mon resources that should be cleaned up at the end of a reconcile.
 	// There may be orphaned resources if a mon failover was aborted.
 	c.removeOrphanMonResources()
