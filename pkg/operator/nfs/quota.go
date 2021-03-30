@@ -152,7 +152,7 @@ func (q *Quota) CreateProjectQuota(projectsFile, directory, limit string) (strin
 	}
 
 	logger.Infof("set project to %s for directory %s with limit %s", projectsFile, directory, limit)
-	if err := q.setProject(projectID, projectsFile, directory, block); err != nil {
+	if err := q.setProject(projectID, projectsFile, directory); err != nil {
 		q.mutex.Unlock()
 		return "", err
 	}
@@ -203,8 +203,7 @@ func (q *Quota) RestoreProjectQuota() error {
 				continue
 			}
 
-			block := strconv.FormatUint(uint64(projectID), 10) + ":" + directory + ":" + bhard + "\n"
-			if err := q.setProject(uint16(projectID), projectsFile, directory, block); err != nil {
+			if err := q.setProject(uint16(projectID), projectsFile, directory); err != nil {
 				return err
 			}
 
@@ -218,7 +217,7 @@ func (q *Quota) RestoreProjectQuota() error {
 	return nil
 }
 
-func (q *Quota) setProject(projectID uint16, projectsFile, directory, block string) error {
+func (q *Quota) setProject(projectID uint16, projectsFile, directory string) error {
 	cmd := exec.Command("xfs_quota", "-x", "-c", fmt.Sprintf("project -s -p %s %s", directory, strconv.FormatUint(uint64(projectID), 10)), filepath.Dir(projectsFile)) // #nosec
 	out, err := cmd.CombinedOutput()
 	if err != nil {
