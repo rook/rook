@@ -161,6 +161,15 @@ func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, cond
 	// Update with Ceph Status
 	cephCluster.Status.CephStatus = toCustomResourceStatus(cephCluster.Status, status)
 
+	// versions store the ceph version of all the ceph daemons and overall cluster version
+	versions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
+	if err != nil {
+		logger.Errorf("failed to get ceph daemons versions. %v", err)
+	} else {
+		// Update status with Ceph versions
+		cephCluster.Status.CephStatus.Versions = versions
+	}
+
 	// Update condition
 	logger.Debugf("updating ceph cluster %q status and condition to %+v, %v, %s, %s", clusterName.Namespace, status, conditionStatus, reason, message)
 	opcontroller.UpdateClusterCondition(c.context, cephCluster, c.clusterInfo.NamespacedName(), condition, conditionStatus, reason, message, true)

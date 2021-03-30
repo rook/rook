@@ -97,7 +97,7 @@ func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, control
 	var allowedErrStatus = []string{"MDS_ALL_DOWN"}
 	var ignoreHealthErr = len(healthErrKeys) == 1 && contains(allowedErrStatus, healthErrKeys[0])
 	if ignoreHealthErr {
-		logger.Debugf("%q: ignoring ceph status %q because only cause is %q (full status is %q)", controllerName, cephCluster.Status.CephStatus.Health, healthErrKeys[0], cephCluster.Status.CephStatus)
+		logger.Debugf("%q: ignoring ceph status %q because only cause is %q (full status is %+v)", controllerName, cephCluster.Status.CephStatus.Health, healthErrKeys[0], cephCluster.Status.CephStatus)
 	}
 	return ignoreHealthErr
 }
@@ -138,7 +138,7 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 		if ok && len(details) == 1 && strings.Contains(message.Message, "Error initializing cluster client") {
 			logger.Infof("%s: skipping reconcile since operator is still initializing", controllerName)
 		} else {
-			logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %q", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
+			logger.Infof("%s: CephCluster %q found but skipping reconcile since ceph health is %+v", controllerName, cephCluster.Name, cephCluster.Status.CephStatus)
 		}
 	}
 
