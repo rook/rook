@@ -217,6 +217,10 @@ type VolumeSource struct {
 	// CrushDeviceClass represents the crush device class for an OSD
 	// +optional
 	CrushDeviceClass string `json:"crushDeviceClass,omitempty"`
+	// CrushInitialWeight represents initial OSD weight in TiB units
+	// +kubebuilder:validation:Pattern=`^([0-9]*[.])?[0-9]$`
+	// +optional
+	CrushInitialWeight string `json:"crushInitialWeight,omitempty"`
 	// Size represents the size requested for the PVC
 	Size string `json:"size"`
 	// Resources requests/limits for the devices

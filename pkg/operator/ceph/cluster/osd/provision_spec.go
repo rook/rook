@@ -229,6 +229,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	}
 	envVars = append(envVars, v1.EnvVar{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()})
 	envVars = append(envVars, crushDeviceClassEnvVar(osdProps.storeConfig.DeviceClass))
+	envVars = append(envVars, crushInitialWeightEnvVar(osdProps.storeConfig.InitialWeight))
 
 	if osdProps.metadataDevice != "" {
 		envVars = append(envVars, metadataDeviceEnvVar(osdProps.metadataDevice))

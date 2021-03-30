@@ -3160,6 +3160,10 @@ spec:
                           crushDeviceClass:
                             description: CrushDeviceClass represents the crush device class for an OSD
                             type: string
+                          crushInitialWeight:
+                            description: CrushInitialWeight represents initial OSD weight in TiB units
+                            pattern: ^([0-9]*[.])?[0-9]$
+                            type: string
                           encrypted:
                             description: Whether to encrypt the deviceSet
                             type: boolean

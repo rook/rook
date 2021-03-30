@@ -363,6 +363,8 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				encrypted:           volumeSource.Encrypted,
 				deviceSetName:       volumeSource.Name,
 			}
+			osdProps.storeConfig.InitialWeight = volumeSource.CrushInitialWeight
+
 			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
 			// or from the osd prepare job from initial creation.
 			if !volumeSource.Portable {
