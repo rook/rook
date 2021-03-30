@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var (
@@ -235,9 +236,19 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
 			logger.Errorf("failed to remove mon %q. %v", name, err)
 		}
 	} else {
+		//prevent any voluntary mon drain while failing over
+		if err := c.blockMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
+			logger.Errorf("failed to block mon drain. %v", err)
+		}
+
 		// bring up a new mon to replace the unhealthy mon
 		if err := c.failoverMon(name); err != nil {
 			logger.Errorf("failed to failover mon %q. %v", name, err)
+		}
+
+		// allow any voluntary mon drain after failover
+		if err := c.allowMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
+			logger.Errorf("failed to allow mon drain. %v", err)
 		}
 	}
 }
