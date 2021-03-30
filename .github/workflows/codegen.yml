@@ -10,11 +10,10 @@ jobs:
 
     - uses: actions/setup-go@v2
       with:
-        go-version: 1.13
+        go-version: 1.15
 
     - name: run codegen
       run: GOPATH=$(go env GOPATH) make codegen
 
     - name: validate codegen
       run: tests/scripts/validate_modified_files.sh codegen
-

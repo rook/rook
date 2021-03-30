@@ -10,11 +10,10 @@ jobs:
 
     - uses: actions/setup-go@v2
       with:
-        go-version: 1.13
+        go-version: 1.15
 
     - name: copy working directory to GOPATH
       run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
 
     - name: run unit tests
       run: cd /home/runner/go/src/github.com/rook/rook && GOPATH=$(go env GOPATH) make -j $(nproc) test
-
