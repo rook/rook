@@ -75,10 +75,14 @@ spec:
                   codingChunks:
                     description: Number of coding chunks per object in an erasure
                       coded storage pool (required for erasure-coded pool type)
+                    maximum: 9
+                    minimum: 0
                     type: integer
                   dataChunks:
                     description: Number of data chunks per object in an erasure coded
                       storage pool (required for erasure-coded pool type)
+                    maximum: 9
+                    minimum: 0
                     type: integer
                 required:
                 - codingChunks
@@ -95,7 +99,7 @@ spec:
                     description: Enabled whether this pool is mirrored or not
                     type: boolean
                   mode:
-                    description: 'Mode is the mirroring mode: either "pool" or "image"'
+                    description: 'Mode is the mirroring mode: either pool or image'
                     type: string
                   snapshotSchedules:
                     description: SnapshotSchedules is the scheduling of snapshot for
@@ -453,7 +457,34 @@ spec:
     singular: cephcluster
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - description: Directory used on the K8s nodes
+      jsonPath: .spec.dataDirHostPath
+      name: DataDirHostPath
+      type: string
+    - description: Number of MONs
+      jsonPath: .spec.mon.count
+      name: MonCount
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: Phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - description: Message
+      jsonPath: .status.message
+      name: Message
+      type: string
+    - description: Ceph Health
+      jsonPath: .status.ceph.health
+      name: Health
+      type: string
+    - jsonPath: .spec.external.enable
+      name: External
+      type: boolean
+    name: v1
     schema:
       openAPIV3Schema:
         description: CephCluster is a Ceph storage cluster
@@ -512,6 +543,7 @@ spec:
                   confirmation:
                     description: Confirmation represents the cleanup confirmation
                     nullable: true
+                    pattern: ^$|^yes-really-destroy-data$
                     type: string
                   sanitizeDisks:
                     description: SanitizeDisks represents way we sanitize disks
@@ -531,6 +563,9 @@ spec:
                         type: integer
                       method:
                         description: Method is the method we use to sanitize disks
+                        enum:
+                        - complete
+                        - quick
                         type: string
                     type: object
                 type: object
@@ -560,6 +595,8 @@ spec:
                     type: boolean
                   port:
                     description: Port is the dashboard webserver port
+                    maximum: 65535
+                    minimum: 0
                     type: integer
                   ssl:
                     description: SSL determines whether SSL should be used
@@ -571,6 +608,7 @@ spec:
                 type: object
               dataDirHostPath:
                 description: The path on the host where config and data can be persisted
+                pattern: ^/(\S+)
                 type: string
               disruptionManagement:
                 description: A spec for configuring disruption management.
@@ -829,6 +867,8 @@ spec:
                     type: boolean
                   count:
                     description: Count is the number of manager to run
+                    maximum: 2
+                    minimum: 0
                     type: integer
                   modules:
                     description: Modules is the list of ceph manager modules to enable/disable
@@ -1409,6 +1449,8 @@ spec:
                     type: array
                   externalMgrPrometheusPort:
                     description: ExternalMgrPrometheusPort Prometheus exporter port
+                    maximum: 65535
+                    minimum: 0
                     type: integer
                   rulesNamespace:
                     description: RulesNamespace is the namespace where the prometheus
@@ -6677,6 +6719,7 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
@@ -7542,7 +7585,15 @@ spec:
     singular: cephfilesystem
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - description: Number of desired active MDS daemons
+      jsonPath: .spec.metadataServer.activeCount
+      name: ActiveMDS
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: CephFilesystem represents a Ceph Filesystem
@@ -7603,10 +7654,14 @@ spec:
                         codingChunks:
                           description: Number of coding chunks per object in an erasure
                             coded storage pool (required for erasure-coded pool type)
+                          maximum: 9
+                          minimum: 0
                           type: integer
                         dataChunks:
                           description: Number of data chunks per object in an erasure
                             coded storage pool (required for erasure-coded pool type)
+                          maximum: 9
+                          minimum: 0
                           type: integer
                       required:
                       - codingChunks
@@ -7623,8 +7678,8 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either "pool"
-                            or "image"'
+                          description: 'Mode is the mirroring mode: either pool or
+                            image'
                           type: string
                         snapshotSchedules:
                           description: SnapshotSchedules is the scheduling of snapshot
@@ -7759,10 +7814,14 @@ spec:
                       codingChunks:
                         description: Number of coding chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                       dataChunks:
                         description: Number of data chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                     required:
                     - codingChunks
@@ -7779,8 +7838,7 @@ spec:
                         description: Enabled whether this pool is mirrored or not
                         type: boolean
                       mode:
-                        description: 'Mode is the mirroring mode: either "pool" or
-                          "image"'
+                        description: 'Mode is the mirroring mode: either pool or image'
                         type: string
                       snapshotSchedules:
                         description: SnapshotSchedules is the scheduling of snapshot
@@ -7881,6 +7939,7 @@ spec:
                     description: The number of metadata servers that are active. The
                       remaining servers in the cluster will be in standby mode.
                     format: int32
+                    maximum: 10
                     minimum: 1
                     type: integer
                   activeStandby:
@@ -8743,6 +8802,7 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
@@ -9801,10 +9861,14 @@ spec:
                       codingChunks:
                         description: Number of coding chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                       dataChunks:
                         description: Number of data chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                     required:
                     - codingChunks
@@ -9821,8 +9885,7 @@ spec:
                         description: Enabled whether this pool is mirrored or not
                         type: boolean
                       mode:
-                        description: 'Mode is the mirroring mode: either "pool" or
-                          "image"'
+                        description: 'Mode is the mirroring mode: either pool or image'
                         type: string
                       snapshotSchedules:
                         description: SnapshotSchedules is the scheduling of snapshot
@@ -10815,6 +10878,8 @@ spec:
                   securePort:
                     description: The port the rgw service will be listening on (https)
                     format: int32
+                    maximum: 65535
+                    minimum: 0
                     type: integer
                   sslCertificateRef:
                     description: The name of the secret that stores the ssl certificate
@@ -11005,10 +11070,14 @@ spec:
                       codingChunks:
                         description: Number of coding chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                       dataChunks:
                         description: Number of data chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                     required:
                     - codingChunks
@@ -11025,8 +11094,7 @@ spec:
                         description: Enabled whether this pool is mirrored or not
                         type: boolean
                       mode:
-                        description: 'Mode is the mirroring mode: either "pool" or
-                          "image"'
+                        description: 'Mode is the mirroring mode: either pool or image'
                         type: string
                       snapshotSchedules:
                         description: SnapshotSchedules is the scheduling of snapshot
@@ -11388,10 +11456,14 @@ spec:
                       codingChunks:
                         description: Number of coding chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                       dataChunks:
                         description: Number of data chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                     required:
                     - codingChunks
@@ -11408,8 +11480,7 @@ spec:
                         description: Enabled whether this pool is mirrored or not
                         type: boolean
                       mode:
-                        description: 'Mode is the mirroring mode: either "pool" or
-                          "image"'
+                        description: 'Mode is the mirroring mode: either pool or image'
                         type: string
                       snapshotSchedules:
                         description: SnapshotSchedules is the scheduling of snapshot
@@ -11541,10 +11612,14 @@ spec:
                       codingChunks:
                         description: Number of coding chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                       dataChunks:
                         description: Number of data chunks per object in an erasure
                           coded storage pool (required for erasure-coded pool type)
+                        maximum: 9
+                        minimum: 0
                         type: integer
                     required:
                     - codingChunks
@@ -11561,8 +11636,7 @@ spec:
                         description: Enabled whether this pool is mirrored or not
                         type: boolean
                       mode:
-                        description: 'Mode is the mirroring mode: either "pool" or
-                          "image"'
+                        description: 'Mode is the mirroring mode: either pool or image'
                         type: string
                       snapshotSchedules:
                         description: SnapshotSchedules is the scheduling of snapshot

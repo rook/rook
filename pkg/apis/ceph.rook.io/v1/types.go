@@ -35,6 +35,13 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephCluster is a Ceph storage cluster
+// +kubebuilder:printcolumn:name="DataDirHostPath",type=string,JSONPath=`.spec.dataDirHostPath`,description="Directory used on the K8s nodes"
+// +kubebuilder:printcolumn:name="MonCount",type=string,JSONPath=`.spec.mon.count`,description="Number of MONs"
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`,description="Phase"
+// +kubebuilder:printcolumn:name="Message",type=string,JSONPath=`.status.message`,description="Message"
+// +kubebuilder:printcolumn:name="Health",type=string,JSONPath=`.status.ceph.health`,description="Ceph Health"
+// +kubebuilder:printcolumn:name="External",type=boolean,JSONPath=`.spec.external.enable`
 type CephCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -129,6 +136,7 @@ type ClusterSpec struct {
 	PriorityClassNames rookv1.PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
 
 	// The path on the host where config and data can be persisted
+	// +kubebuilder:validation:Pattern=`^/(\S+)`
 	// +optional
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
@@ -259,6 +267,8 @@ type DashboardSpec struct {
 	// +optional
 	URLPrefix string `json:"urlPrefix,omitempty"`
 	// Port is the dashboard webserver port
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	Port int `json:"port,omitempty"`
 	// SSL determines whether SSL should be used
@@ -284,6 +294,8 @@ type MonitoringSpec struct {
 	ExternalMgrEndpoints []v1.EndpointAddress `json:"externalMgrEndpoints,omitempty"`
 
 	// ExternalMgrPrometheusPort Prometheus exporter port
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	ExternalMgrPrometheusPort uint16 `json:"externalMgrPrometheusPort,omitempty"`
 }
@@ -479,6 +491,8 @@ type StretchClusterZoneSpec struct {
 // MgrSpec represents options to configure a ceph mgr
 type MgrSpec struct {
 	// Count is the number of manager to run
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=2
 	// +optional
 	Count int `json:"count,omitempty"`
 	// AllowMultiplePerNode allows to run multiple managers on the same node (not recommended)
@@ -810,7 +824,7 @@ type MirroringSpec struct {
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
-	// Mode is the mirroring mode: either "pool" or "image"
+	// Mode is the mirroring mode: either pool or image
 	// +optional
 	Mode string `json:"mode,omitempty"`
 
@@ -850,9 +864,13 @@ type QuotaSpec struct {
 // ErasureCodedSpec represents the spec for erasure code in a pool
 type ErasureCodedSpec struct {
 	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=9
 	CodingChunks uint `json:"codingChunks"`
 
 	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=9
 	DataChunks uint `json:"dataChunks"`
 
 	// The algorithm for erasure coding
@@ -865,6 +883,8 @@ type ErasureCodedSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephFilesystem represents a Ceph Filesystem
+// +kubebuilder:printcolumn:name="ActiveMDS",type=string,JSONPath=`.spec.metadataServer.activeCount`,description="Number of desired active MDS daemons"
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type CephFilesystem struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -911,6 +931,7 @@ type FilesystemSpec struct {
 type MetadataServerSpec struct {
 	// The number of metadata servers that are active. The remaining servers in the cluster will be in standby mode.
 	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=10
 	ActiveCount int32 `json:"activeCount"`
 
 	// Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
@@ -1032,6 +1053,8 @@ type GatewaySpec struct {
 	Port int32 `json:"port,omitempty"`
 
 	// The port the rgw service will be listening on (https)
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	SecurePort int32 `json:"securePort,omitempty"`
 
@@ -1421,6 +1444,7 @@ type CleanupPolicySpec struct {
 }
 
 // CleanupConfirmationProperty represents the cleanup confirmation
+// +kubebuilder:validation:Pattern=`^$|^yes-really-destroy-data$`
 type CleanupConfirmationProperty string
 
 // SanitizeDataSourceProperty represents a sanitizing data source
@@ -1433,6 +1457,7 @@ type SanitizeMethodProperty string
 type SanitizeDisksSpec struct {
 	// Method is the method we use to sanitize disks
 	// +optional
+	// +kubebuilder:validation:Enum=complete;quick
 	Method SanitizeMethodProperty `json:"method,omitempty"`
 	// DataSource is the data source to use to sanitize the disk with
 	// +optional
