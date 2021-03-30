@@ -373,9 +373,17 @@ subjects:
 # namespace. If you want to create the cluster in a different namespace, you will need to modify these roles
 # and bindings accordingly.
 #################################################################################################################
-# Service account for the Ceph OSDs. Must exist and cannot be renamed.
+# OLM: BEGIN SERVICEACCOUNT DEFAULT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-default
+  namespace: rook-ceph # namespace:cluster
+# OLM: END SERVICEACCOUNT DEFAULT
 # OLM: BEGIN SERVICE ACCOUNT OSD
 ---
+# Service account for the Ceph OSDs. Must exist and cannot be renamed.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1137,3 +1145,4 @@ roleRef:
   name: rbd-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 # OLM: END CSI RBD CLUSTER ROLEBINDING
+---

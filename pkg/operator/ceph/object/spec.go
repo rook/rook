@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	cephcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -94,8 +95,9 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolume(),
 		),
-		HostNetwork:       c.clusterSpec.Network.IsHost(),
-		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
+		HostNetwork:        c.clusterSpec.Network.IsHost(),
+		PriorityClassName:  c.store.Spec.Gateway.PriorityClassName,
+		ServiceAccountName: cephcontroller.DefaultServiceAccount,
 	}
 
 	// If the log collector is enabled we add the side-car container

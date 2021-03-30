@@ -32,3 +32,5 @@ v1.6...
   * for Pacific (16.2.x), Rook is able to update multiple OSD Deployments at the same time to speed
     up updates and upgrades for larger Ceph clusters
 * Disable CSI GRPC metrics by default
+* Ceph daemon pods using the `default` service account now use a new `rook-ceph-default` service account.
+

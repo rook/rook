@@ -26,6 +26,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	cephcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/test"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -72,6 +73,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	d, err := c.makeDeployment(monConfig, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, d)
+	assert.Equal(t, cephcontroller.DefaultServiceAccount, d.Spec.Template.Spec.ServiceAccountName)
 
 	if pvc {
 		d.Spec.Template.Spec.Volumes = append(
