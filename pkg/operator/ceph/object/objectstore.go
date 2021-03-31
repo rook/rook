@@ -683,7 +683,7 @@ func createSimilarPools(context *Context, pools []string, clusterSpec *cephv1.Cl
 			}
 		} else {
 			// pools already exist
-			if !poolSpec.IsErasureCoded() {
+			if poolSpec.IsReplicated() {
 				// detect if the replication is different from the pool details
 				if poolDetails.Size != poolSpec.Replicated.Size {
 					logger.Infof("pool size is changed from %d to %d", poolDetails.Size, poolSpec.Replicated.Size)
