@@ -293,6 +293,8 @@ Configure the network that will be enabled for the cluster and services.
 
 * `provider`: Specifies the network provider that will be used to connect the network interface. You can choose between `host`, and `multus`.
 * `selectors`: List the network selector(s) that will be used associated by a key.
+* `ipFamily`: Specifies the network stack Ceph daemons should listen on.
+* `dualStack`: Specifies that Ceph daemon should listen on both IPv4 and IPv6 network stacks.
 
 > **NOTE:** Changing networking configuration after a Ceph cluster has been deployed is NOT
 > supported and will result in a non-functioning cluster.
@@ -366,7 +368,8 @@ This is required in order to use the NAD across namespaces.
 
 #### IPFamily
 
-Provide single-stack IPv4 or IPv6 protocol to assign corresponding addresses to pods and services. This field is optional. Possible inputs are IPv6 and IPv4. Empty value will be treated as IPv4. Kubernetes version should be at least v1.13 to run IPv6. Dual-stack is not supported by ceph.
+Provide single-stack IPv4 or IPv6 protocol to assign corresponding addresses to pods and services. This field is optional. Possible inputs are IPv6 and IPv4. Empty value will be treated as IPv4. Kubernetes version should be at least v1.13 to run IPv6. Dual-stack is supported as of ceph Pacific.
+To turn on dual stack see the [network configuration section](#network-configuration-settings).
 
 ### Node Settings
 
@@ -1267,7 +1270,7 @@ export ROOK_EXTERNAL_ADMIN_SECRET=AQC6Ylxdja+NDBAAB7qy9MEAr4VLLq4dCIvxtg==
 If the Ceph admin key is not provided, the following script needs to be executed on a machine that can connect to the Ceph cluster using the Ceph admin key.
 On that machine, run `cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh`.
 
-> **WARNING**: Since only Ceph admin key can create CRs in the external cluster, please make sure that rgw pools have been prepared. You can get existing pools by running `ceph osd pool ls`. 
+> **WARNING**: Since only Ceph admin key can create CRs in the external cluster, please make sure that rgw pools have been prepared. You can get existing pools by running `ceph osd pool ls`.
 
 **Example**:
 

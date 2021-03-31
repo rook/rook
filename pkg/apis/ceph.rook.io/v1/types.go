@@ -1353,9 +1353,15 @@ type NetworkSpec struct {
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 
 	// IPFamily is the single stack IPv6 or IPv4 protocol
+	// +kubebuilder:validation:Enum=IPv4;IPv6
+	// +kubebuilder:default=IPv4
 	// +nullable
 	// +optional
 	IPFamily IPFamilyType `json:"ipFamily,omitempty"`
+
+	// DualStack determines whether Ceph daemons should listen on both IPv4 and IPv6
+	// +optional
+	DualStack bool `json:"dualStack,omitempty"`
 }
 
 // DisruptionManagementSpec configures management of daemon disruptions

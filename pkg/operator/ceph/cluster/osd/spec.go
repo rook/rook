@@ -452,10 +452,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	args = append(args, opconfig.LoggingFlags()...)
 	args = append(args, osdOnSDNFlag(c.spec.Network)...)
-
-	if c.spec.Network.IPFamily == cephv1.IPv6 {
-		args = append(args, opconfig.NewFlag("ms-bind-ipv6", "true"))
-	}
+	args = append(args, controller.NetworkBindingFlags(c.clusterInfo, &c.spec)...)
 
 	osdDataDirPath := activateOSDMountPath + osdID
 	if osdProps.onPVC() && osd.CVMode == "lvm" {

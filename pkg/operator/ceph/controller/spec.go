@@ -314,10 +314,7 @@ func DaemonFlags(cluster *cephclient.ClusterInfo, spec *cephv1.ClusterSpec, daem
 		// run ceph daemon process under the 'ceph' group
 		config.NewFlag("setgroup", "ceph"),
 	)
-
-	if spec.Network.IPFamily == cephv1.IPv6 {
-		flags = append(flags, config.NewFlag("ms-bind-ipv6", "true"))
-	}
+	flags = append(flags, NetworkBindingFlags(cluster, spec)...)
 
 	return flags
 }
@@ -329,6 +326,37 @@ func AdminFlags(cluster *cephclient.ClusterInfo) []string {
 		config.NewFlag("setuser", "ceph"),
 		config.NewFlag("setgroup", "ceph"),
 	)
+}
+
+func NetworkBindingFlags(cluster *cephclient.ClusterInfo, spec *cephv1.ClusterSpec) []string {
+	var args []string
+
+	// As of Pacific, Ceph supports dual-stack, so setting IPv6 family without disabling IPv4 binding actually enables dual-stack
+	// This is likely not user's intent, so on Pacific let's make sure to disable IPv4 when IPv6 is selected
+	if !spec.Network.DualStack {
+		switch spec.Network.IPFamily {
+		case cephv1.IPv4:
+			args = append(args, config.NewFlag("ms-bind-ipv4", "true"))
+			args = append(args, config.NewFlag("ms-bind-ipv6", "false"))
+
+		case cephv1.IPv6:
+			args = append(args, config.NewFlag("ms-bind-ipv4", "false"))
+			args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
+		}
+	} else {
+		if cluster.CephVersion.IsAtLeastPacific() {
+			args = append(args, config.NewFlag("ms-bind-ipv4", "true"))
+			args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
+		} else {
+			logger.Info("dual-stack is only supported on ceph pacific")
+			// Still acknowledge IPv6, nothing to do for IPv4 since it will always be "on"
+			if spec.Network.IPFamily == cephv1.IPv6 {
+				args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
+			}
+		}
+	}
+
+	return args
 }
 
 // ContainerEnvVarReference returns a reference to a Kubernetes container env var of the given name
