@@ -67,18 +67,18 @@ EOF
 }
 
 build_helm_resources() {
-  # Add helm annotations to all CRDS
-  "$YQ_BIN_PATH" w -i -d'*' "$HELM_CRDS_FILE_PATH" "metadata.annotations[helm.sh/resource-policy]" keep
-  
-  # add header
-  sed -i '1s/^/{{- if semverCompare ">=1.16.0" .Capabilities.KubeVersion.GitVersion }}\n/' "$HELM_CRDS_FILE_PATH"
-  sed -i '1s/^/{{- if .Values.crds.enabled }}\n/' "$HELM_CRDS_FILE_PATH"
-  
   echo "Generating helm resources.yaml"
   {
+    # add header
+    echo "{{- if .Values.crds.enabled }}"
+    echo "{{- if semverCompare \">=1.16.0\" .Capabilities.KubeVersion.GitVersion }}"
+
+    # Add helm annotations to all CRDS and skip the first 4 lines of crds.yaml
+    "$YQ_BIN_PATH" w -d'*' "$CRDS_FILE_PATH" "metadata.annotations[helm.sh/resource-policy]" keep | tail -n +5
+
     # add else
     echo "{{- else }}"
-    
+
     # add footer
     cat "$CRDS_BEFORE_1_16_FILE_PATH"
     # DO NOT REMOVE the empty line, it is necessary
@@ -97,7 +97,6 @@ generating_main_crd
 
 for crd in "$OLM_CATALOG_DIR/"*.yaml; do
   cat "$crd" >> "$CRDS_FILE_PATH"
-  cat "$crd" >> "$HELM_CRDS_FILE_PATH"
 done
 
 build_helm_resources
