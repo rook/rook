@@ -95,6 +95,8 @@ spec:
       #cluster: cluster-conf --> NetworkAttachmentDefinition object name in Multus
     # Provide internet protocol version. IPv6, IPv4 or empty string are valid options. Empty string would mean IPv4
     #ipFamily: "IPv6"
+    # Ceph daemons to listen on both IPv4 and Ipv6 networks
+    #dualStack: false
   # enable the crash collector for ceph daemon crash collection
   crashCollector:
     disable: false

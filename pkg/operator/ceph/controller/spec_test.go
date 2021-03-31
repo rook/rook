@@ -18,12 +18,15 @@ package controller
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -179,7 +182,7 @@ func TestDaemonFlags(t *testing.T) {
 			expected: []string{"--fsid=id", "--keyring=/etc/ceph/keyring-store/keyring", "--log-to-stderr=true", "--err-to-stderr=true",
 				"--mon-cluster-log-to-stderr=true", "--log-stderr-prefix=debug ", "--default-log-to-file=false", "--default-mon-cluster-log-to-file=false",
 				"--mon-host=$(ROOK_CEPH_MON_HOST)", "--mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS)", "--id=daemon-id", "--setuser=ceph", "--setgroup=ceph",
-				"--ms-bind-ipv6=true"},
+				"--ms-bind-ipv4=false", "--ms-bind-ipv6=true"},
 		},
 		{
 			label: "case 2: IPv6 disabled",
@@ -197,5 +200,38 @@ func TestDaemonFlags(t *testing.T) {
 	for _, tc := range testcases {
 		actual := DaemonFlags(tc.clusterInfo, tc.clusterSpec, tc.daemonID)
 		assert.Equalf(t, tc.expected, actual, "[%s]: failed to get correct daemonset flags", tc.label)
+	}
+}
+
+func TestNetworkBindingFlags(t *testing.T) {
+	ipv4FlagTrue := "--ms-bind-ipv4=true"
+	ipv4FlagFalse := "--ms-bind-ipv4=false"
+	ipv6FlagTrue := "--ms-bind-ipv6=true"
+	ipv6FlagFalse := "--ms-bind-ipv6=false"
+	type args struct {
+		cluster *cephclient.ClusterInfo
+		spec    *cephv1.ClusterSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{"octopus-ipv4", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
+		{"octopus-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
+		{"octopus-dualstack-unsupported", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4, DualStack: true}}}, []string{}},
+		{"octopus-dualstack-unsupported-by-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv6FlagTrue}},
+		{"pacific-ipv4", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
+		{"pacific-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
+		{"pacific-dualstack-supported", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv4FlagTrue, ipv6FlagTrue}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NetworkBindingFlags(tt.args.cluster, tt.args.spec); !reflect.DeepEqual(got, tt.want) {
+				if len(got) != 0 && len(tt.want) != 0 {
+					t.Errorf("NetworkBindingFlags() = %+v, want %+v", got, tt.want)
+				}
+			}
+		})
 	}
 }
