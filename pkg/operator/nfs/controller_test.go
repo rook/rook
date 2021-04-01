@@ -18,13 +18,18 @@ package nfs
 
 import (
 	"context"
+	"os"
 	"path"
 	"reflect"
 	"testing"
 
 	nfsv1alpha1 "github.com/rook/rook/pkg/apis/nfs.rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/test"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -94,8 +99,40 @@ func (r *resource) Generate() *nfsv1alpha1.NFSServer {
 }
 
 func TestNFSServerReconciler_Reconcile(t *testing.T) {
+	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	os.Setenv(k8sutil.PodNameEnvVar, "rook-operator")
+	defer os.Unsetenv(k8sutil.PodNameEnvVar)
+
+	ctx := context.TODO()
+	clientset := test.New(t, 3)
+	pod := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-operator",
+			Namespace: "rook-system",
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:  "mypodContainer",
+					Image: "rook/test",
+				},
+			},
+		},
+	}
+	_, err := clientset.CoreV1().Pods(pod.Namespace).Create(ctx, &pod, metav1.CreateOptions{})
+	if err != nil {
+		t.Errorf("Error creating the rook-operator pod: %v", err)
+	}
+	clusterdContext := &clusterd.Context{Clientset: clientset}
+
 	expectedServerFunc := func(scheme *runtime.Scheme, cr *nfsv1alpha1.NFSServer) *appsv1.StatefulSet {
-		sts := newStatefulSetForNFSServer(cr)
+		sts, err := newStatefulSetForNFSServer(cr, clientset, ctx)
+		if err != nil {
+			t.Errorf("Error creating the expectedServerFunc: %v", err)
+			return nil
+		}
 		sts.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: newLabels(cr),
 		}
@@ -236,6 +273,7 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 			fr := record.NewFakeRecorder(2)
 
 			r := &NFSServerReconciler{
+				Context:  clusterdContext,
 				Client:   fc,
 				Scheme:   scheme,
 				Log:      logger,
