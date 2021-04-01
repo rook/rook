@@ -69,7 +69,7 @@ function test_demo_mds {
   # so we first check if the pools exit, from that we assume that
   # the process will start. We stop waiting after 10 seconds.
   # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND osd dump | grep -sq cephfs && $EXEC_COMMAND -s | grep -sq 'up:active'")
+  return $(wait_for_daemon "$EXEC_COMMAND osd dump | grep -sq cephfs && $EXEC_COMMAND -s | grep -sq up")
 }
 
 function test_demo_rbd_mirror {

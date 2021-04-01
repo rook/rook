@@ -46,6 +46,8 @@ const (
 	nautilusTestImage = "ceph/ceph:v14.2.12"
 	// test with the latest octopus build
 	octopusTestImage = "ceph/ceph:v15"
+	// test with the latest pacific build
+	pacificTestImage = "ceph/ceph:v16"
 	// test with the latest master image
 	masterTestImage    = "ceph/daemon-base:latest-master-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
@@ -55,6 +57,7 @@ const (
 var (
 	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage}
 	OctopusVersion  = cephv1.CephVersionSpec{Image: octopusTestImage}
+	PacificVersion  = cephv1.CephVersionSpec{Image: pacificTestImage}
 	MasterVersion   = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
 )
 

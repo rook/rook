@@ -53,7 +53,7 @@ var (
 	cephVolumeLVMDiskSortingCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 13}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Nautilus, Octopus}
+	supportedVersions = []CephVersion{Nautilus, Octopus, Pacific}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
 	unsupportedVersions = []CephVersion{cephVolumeLVMDiskSortingCephVersion}

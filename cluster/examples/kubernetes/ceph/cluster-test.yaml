@@ -26,7 +26,7 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: ceph/ceph:v15
+    image: ceph/ceph:v16
     allowUnsupported: true
   mon:
     count: 1

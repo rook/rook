@@ -202,6 +202,17 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	newFile = "post-octopus-upgrade-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from nautilus to octopus")
+
+	//
+	// Upgrade from octopus to pacific
+	//
+	logger.Infof("*** UPGRADING CEPH FROM OCTOPUS TO PACIFIC ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_pacific_upgrade")
+	s.upgradeCephVersion(installer.PacificVersion.Image, numOSDs)
+	// Verify reading and writing to the test clients
+	newFile = "post-pacific-upgrade-file"
+	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
+	logger.Infof("Verified upgrade from octopus to pacific")
 }
 
 func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {
