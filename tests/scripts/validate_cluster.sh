@@ -72,11 +72,6 @@ function test_demo_mds {
   return $(wait_for_daemon "$EXEC_COMMAND osd dump | grep -sq cephfs && $EXEC_COMMAND -s | grep -sq 'up:active'")
 }
 
-function test_demo_rgw {
-  # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'rgw:'")
-}
-
 function test_demo_rbd_mirror {
   # shellcheck disable=SC2046
   return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'rbd-mirror:'")
