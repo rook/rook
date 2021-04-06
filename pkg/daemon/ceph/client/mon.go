@@ -17,7 +17,6 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"syscall"
 
@@ -130,19 +129,6 @@ func CreateDefaultStretchCrushRule(context *clusterd.Context, clusterInfo *Clust
 		return errors.Wrap(err, "failed to create default stretch crush rule")
 	}
 	logger.Info("successfully created the default stretch crush rule")
-	return nil
-}
-
-// SetMonStretchZone sets the location of a mon in the stretch cluster
-func SetMonStretchZone(context *clusterd.Context, clusterInfo *ClusterInfo, monName, failureDomain, zone string) error {
-	args := []string{"mon", "set_location", monName, fmt.Sprintf("%s=%s", failureDomain, zone)}
-	buf, err := NewCephCommand(context, clusterInfo, args).Run()
-	if err != nil {
-		return errors.Wrap(err, "failed to set mon stretch zone")
-	}
-	output := string(buf)
-	logger.Debug(output)
-	logger.Infof("successfully set mon %q stretch zone to %q", monName, zone)
 	return nil
 }
 
