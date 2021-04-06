@@ -167,7 +167,6 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		hasCephPods := false
 		for _, cephPod := range cephPods {
 			if cephPod.Spec.NodeName == request.Name {
-				logger.Debugf("cephPod.Spec.NodeName is %q and request.Name is %q", cephPod.Spec.NodeName, request.Name)
 				hasCephPods = true
 				for _, podToleration := range cephPod.Spec.Tolerations {
 					// Add toleration to the map
