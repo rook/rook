@@ -326,3 +326,27 @@ spec:
       for: 0s
       labels:
         severity: critical
+  - name: pool-quota.rules
+    rules:
+    - alert: CephPoolQuotaBytesNearExhaustion
+      annotations:
+        description: Storage pool {{ $labels.name }} quota usage has crossed 70%.
+        message: Storage pool quota(bytes) is near exhaustion.
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        (ceph_pool_stored_raw * on (pool_id) group_left(name)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id) group_left(name)ceph_pool_metadata) > 0) > 0.70
+      for: 1m
+      labels:
+        severity: warning
+    - alert: CephPoolQuotaBytesCriticallyExhausted
+      annotations:
+        description: Storage pool {{ $labels.name }} quota usage has crossed 90%.
+        message: Storage pool quota(bytes) is critically exhausted.
+        severity_level: critical
+        storage_type: ceph
+      expr: |
+        (ceph_pool_stored_raw * on (pool_id) group_left(name)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id) group_left(name)ceph_pool_metadata) > 0) > 0.90
+      for: 1m
+      labels:
+        severity: critical
