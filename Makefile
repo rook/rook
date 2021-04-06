@@ -21,7 +21,7 @@ all: build
 # Build Options
 
 # Controller-gen version
-CONTROLLER_GEN_VERSION=v0.4.1
+CONTROLLER_GEN_VERSION=v0.5.0
 
 # Set GOBIN
 ifeq (,$(shell go env GOBIN))
