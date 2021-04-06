@@ -1,8 +1,6 @@
 name: CRDs gen
 on:
   pull_request:
-    paths:
-    - '**.go'
 
 jobs:
   crds-gen:
