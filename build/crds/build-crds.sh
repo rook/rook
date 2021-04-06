@@ -15,7 +15,6 @@
 # limitations under the License.
 
 set -o errexit
-set -o nounset
 set -o pipefail
 
 SCRIPT_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd -P)
@@ -45,9 +44,12 @@ copy_ob_obc_crds() {
   cp -f "${SCRIPT_ROOT}/cluster/olm/ceph/assemble/objectbucket.io_objectbuckets.yaml" "$OLM_CATALOG_DIR"
 }
 
-generating_crds() {
-  echo "Generating crds.yaml"
+generating_crds_v1() {
+  echo "Generating v1 in crds.yaml"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
+}
+
+generating_crds_v1alpha2() {
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/rook.io/v1alpha2" output:crd:artifacts:config="$OLM_CATALOG_DIR"
   # TODO: revisit later
   # * remove copy_ob_obc_crds()
@@ -92,8 +94,14 @@ build_helm_resources() {
 ########
 # MAIN #
 ########
-copy_ob_obc_crds
-generating_crds
+generating_crds_v1
+
+if [ -z "$NO_OB_OBC_VOL_GEN" ]; then
+  echo "Generating v1alpha2 in crds.yaml"
+  copy_ob_obc_crds
+  generating_crds_v1alpha2
+fi
+
 generating_main_crd
 
 for crd in "$OLM_CATALOG_DIR/"*.yaml; do
