@@ -19,18 +19,7 @@ package config
 
 import (
 	"strconv"
-
-	"github.com/rook/rook/pkg/operator/k8sutil"
 )
-
-const (
-	OSDFSStoreNameFmt  = "rook-ceph-osd-%d-fs-backup"
-	configStoreNameFmt = "rook-ceph-osd-%s-config"
-)
-
-func GetConfigStoreName(nodeName string) string {
-	return k8sutil.TruncateNodeName(configStoreNameFmt, nodeName)
-}
 
 const (
 	WalSizeMBKey       = "walSizeMB"
