@@ -50,10 +50,8 @@ func generateNetworkSettings(clusterdContext *clusterd.Context, namespace string
 	cephNetworks := []Option{}
 
 	for _, selectorKey := range NetworkSelectors {
-		// This means only "public" was specified and thus we use the same subnet for cluster too
+		// skip if selector is not specified
 		if _, ok := networkSelectors[selectorKey]; !ok {
-			cephNetworks = append(cephNetworks, cephNetworks[0])
-			cephNetworks[1].Option = fmt.Sprintf("%s_network", selectorKey)
 			continue
 		}
 
