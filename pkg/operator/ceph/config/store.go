@@ -100,7 +100,7 @@ func (s *Store) createOrUpdateMonHostSecrets(ctx context.Context, clusterInfo *c
 	_, err = clientset.CoreV1().Secrets(s.namespace).Get(ctx, StoreName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debugf("creating config secret %+v", secret)
+			logger.Debugf("creating config secret %q", secret.Name)
 			if _, err := clientset.CoreV1().Secrets(s.namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to create config secret %+v", secret)
 			}
@@ -109,7 +109,7 @@ func (s *Store) createOrUpdateMonHostSecrets(ctx context.Context, clusterInfo *c
 		}
 	}
 
-	logger.Debugf("updating config secret %+v", secret)
+	logger.Debugf("updating config secret %q", secret.Name)
 	if _, err := clientset.CoreV1().Secrets(s.namespace).Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to update config secret %+v", secret)
 	}
