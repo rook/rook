@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephblockpools.ceph.rook.io
@@ -331,7 +331,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephclients.ceph.rook.io
@@ -400,7 +400,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephclusters.ceph.rook.io
@@ -4212,7 +4212,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephfilesystemmirrors.ceph.rook.io
@@ -4719,7 +4719,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephfilesystems.ceph.rook.io
@@ -5550,7 +5550,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephnfses.ceph.rook.io
@@ -6092,7 +6092,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectrealms.ceph.rook.io
@@ -6156,7 +6156,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectstores.ceph.rook.io
@@ -7153,7 +7153,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectstoreusers.ceph.rook.io
@@ -7221,7 +7221,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectzonegroups.ceph.rook.io
@@ -7280,7 +7280,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectzones.ceph.rook.io
@@ -7615,7 +7615,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephrbdmirrors.ceph.rook.io
@@ -8260,7 +8260,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.5.0
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: volumes.rook.io
