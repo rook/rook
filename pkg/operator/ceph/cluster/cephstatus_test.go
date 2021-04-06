@@ -246,6 +246,7 @@ func TestGetRookPodsOnNode(t *testing.T) {
 		{"app": "rook-ceph-crashcollector"},
 		{"app": "rook-ceph-mgr"},
 		{"app": "rook-ceph-mds"},
+		{"app": "rook-ceph-rgw"},
 		{"app": "user-app"},
 		{"app": "rook-ceph-mon"},
 	}
@@ -275,7 +276,7 @@ func TestGetRookPodsOnNode(t *testing.T) {
 	pods, err := c.getRookPodsOnNode("node0")
 	assert.NoError(t, err)
 	// A pod is having two matching labels and its returned only once
-	assert.Equal(t, 10, len(pods))
+	assert.Equal(t, 11, len(pods))
 
 	podNames := []string{}
 	for _, pod := range pods {
