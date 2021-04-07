@@ -89,7 +89,7 @@ spec:
       ....
       containers:
       - name: rook-nfs-provisioner
-        image: rook/nfs:master
+        image: rook/nfs:v1.6.0-beta.0
         args: ["nfs", "provisioner","--provisioner=nfs.rook.io/nfs-server-provisioner"]
       volumes:
         - name: share1

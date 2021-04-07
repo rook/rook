@@ -20,7 +20,7 @@ The implementation of this proposal is to rewrite NFS Operator controller to use
 
 ### Controller & Reconciliation
 
-Operators are Kubernetes extensions that use custom resources to manage applications and their components using the Kubernetes APIs and kubectl tooling. Operators follow the Kubernetes controller principles. The process in which the actual state of the object (both cluster object and external object) will be matching the desired state which called *Reconciliation* process in the controller-runtime. 
+Operators are Kubernetes extensions that use custom resources to manage applications and their components using the Kubernetes APIs and kubectl tooling. Operators follow the Kubernetes controller principles. The process in which the actual state of the object (both cluster object and external object) will be matching the desired state which called *Reconciliation* process in the controller-runtime.
 
 The current implementation is the operator watch an event (create, update and delete) of CustomResource and will be handled by registered function in `ResourceEventHandlerFuncs` which every event has its own handler but only the create handler that implemented.
 
@@ -141,7 +141,7 @@ spec:
     spec:
       containers:
       - name: rook-nfs-webhook
-        image: rook/nfs:master
+        image: rook/nfs:v1.6.0-beta.0
         imagePullPolicy: IfNotPresent
         args: ["nfs", "webhook"]
         ports:
