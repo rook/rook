@@ -292,6 +292,7 @@ func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
 		"rook-ceph-crashcollector",
 		"rook-ceph-mgr",
 		"rook-ceph-mds",
+		"rook-ceph-rgw",
 	}
 	podsOnNode := []v1.Pod{}
 	listOpts := metav1.ListOptions{
