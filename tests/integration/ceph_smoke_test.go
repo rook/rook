@@ -100,7 +100,7 @@ func (s *SmokeSuite) SetupSuite() {
 		EnableAdmissionController: true,
 		UseCrashPruner:            true,
 		RookVersion:               installer.VersionMaster,
-		CephVersion:               installer.OctopusVersion,
+		CephVersion:               installer.PacificVersion,
 	}
 	s.settings.ApplyEnvVars()
 

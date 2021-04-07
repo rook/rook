@@ -134,11 +134,19 @@ func TestSupportedVersion(t *testing.T) {
 	c := testSpec(t)
 
 	// Supported versions are valid
-	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}
+	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 12}
+	assert.NoError(t, c.validateCephVersion(v))
+
+	// Supported versions are valid
+	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
+	assert.NoError(t, c.validateCephVersion(v))
+
+	// Supported versions are valid
+	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))
 
 	// Unsupported versions are not valid
-	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
+	v = &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
 	assert.Error(t, c.validateCephVersion(v))
 
 	// Unsupported versions are now valid
