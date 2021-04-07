@@ -38,6 +38,8 @@ var (
 	HealthCheckInterval = 45 * time.Second
 	// MonOutTimeout is the duration to wait before removing/failover to a new mon pod
 	MonOutTimeout = 10 * time.Minute
+
+	timeZero = time.Duration(0)
 )
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
@@ -56,6 +58,9 @@ func NewHealthChecker(monCluster *Cluster) *HealthChecker {
 	monCRDTimeoutSetting := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Timeout
 	if monCRDTimeoutSetting != "" {
 		if monTimeout, err := time.ParseDuration(monCRDTimeoutSetting); err == nil {
+			if monTimeout == timeZero {
+				logger.Warning("monitor failover is disabled")
+			}
 			MonOutTimeout = monTimeout
 		}
 	}
@@ -171,6 +176,13 @@ func (c *Cluster) checkHealth() error {
 		}
 
 		logger.Debugf("mon %q NOT found in quorum. Mon quorum status: %+v", mon.Name, quorumStatus)
+
+		// if the time out is set to 0 this indicate that we don't want to trigger mon failover
+		if MonOutTimeout == timeZero {
+			logger.Warningf("mon %q NOT found in quorum and health timeout is 0, mon will never fail over", mon.Name)
+			return nil
+		}
+
 		allMonsInQuorum = false
 
 		// If not yet set, add the current time, for the timeout
@@ -190,6 +202,7 @@ func (c *Cluster) checkHealth() error {
 
 		logger.Warningf("mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
 		c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name)
+
 		// only deal with one unhealthy mon per health check
 		return nil
 	}
@@ -236,7 +249,7 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
 			logger.Errorf("failed to remove mon %q. %v", name, err)
 		}
 	} else {
-		//prevent any voluntary mon drain while failing over
+		// prevent any voluntary mon drain while failing over
 		if err := c.blockMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
 			logger.Errorf("failed to block mon drain. %v", err)
 		}
