@@ -1,5 +1,12 @@
 name: Integration test CephHelmSuite
-on: [pull_request]
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
 
 jobs:
   TestCephHelmSuite:
