@@ -41,6 +41,7 @@ spec:
                     - passive
                     - aggressive
                     - force
+                    - ""
                   type: string
                 crushRoot:
                   description: The root of the crush hierarchy utilized by the pool
@@ -4769,6 +4770,7 @@ spec:
                           - passive
                           - aggressive
                           - force
+                          - ""
                         type: string
                       crushRoot:
                         description: The root of the crush hierarchy utilized by the pool
@@ -4907,6 +4909,7 @@ spec:
                         - passive
                         - aggressive
                         - force
+                        - ""
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
@@ -6196,6 +6199,7 @@ spec:
                         - passive
                         - aggressive
                         - force
+                        - ""
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
@@ -6968,6 +6972,7 @@ spec:
                         - passive
                         - aggressive
                         - force
+                        - ""
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
@@ -7320,6 +7325,7 @@ spec:
                         - passive
                         - aggressive
                         - force
+                        - ""
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
@@ -7457,6 +7463,7 @@ spec:
                         - passive
                         - aggressive
                         - force
+                        - ""
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool

@@ -578,7 +578,7 @@ type PoolSpec struct {
 	DeviceClass string `json:"deviceClass,omitempty"`
 
 	// The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)
-	// +kubebuilder:validation:Enum=none;passive;aggressive;force
+	// +kubebuilder:validation:Enum=none;passive;aggressive;force;""
 	// +kubebuilder:default=none
 	// +optional
 	CompressionMode string `json:"compressionMode,omitempty"`
