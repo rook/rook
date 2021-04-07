@@ -116,7 +116,7 @@ pull_request_rules:
   - actions:
       backport:
         branches:
-        - release-1.3
+          - release-1.3
     conditions:
       - label=backport-release-1.3
     name: backport release-1.3
@@ -125,15 +125,25 @@ pull_request_rules:
   - actions:
       backport:
         branches:
-        - release-1.4
+          - release-1.4
     conditions:
       - label=backport-release-1.4
     name: backport release-1.4
+
   # release-1.5 branch
   - actions:
       backport:
         branches:
-        - release-1.5
+          - release-1.5
     conditions:
       - label=backport-release-1.5
     name: backport release-1.5
+
+  # release-1.6 branch
+  - actions:
+      backport:
+        branches:
+          - release-1.6
+    conditions:
+      - label=backport-release-1.6
+    name: backport release-1.6
