@@ -80,7 +80,7 @@ users:
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
   - system:serviceaccount:rook-ceph:rook-ceph-system
-  - system:serviceaccount:rook-ceph:rook-ceph-default
+  - system:serviceaccount:rook-ceph:default
   - system:serviceaccount:rook-ceph:rook-ceph-mgr
   - system:serviceaccount:rook-ceph:rook-ceph-osd
 ```
