@@ -66,6 +66,19 @@ and it is safe to proceed. If an OSD is failing, the PGs will not be perfectly c
 Update your CephCluster CR. Depending on your CR settings, you may need to remove the device from the list or update the device filter.
 If you are using `useAllDevices: true`, no change to the CR is necessary.
 
+**IMPORTANT: On host-based clusters, you may need to stop the Rook Operator while performing OSD
+removal steps in order to prevent Rook from detecting the old OSD and trying to re-create it before
+the disk is wiped or removed.**
+
+To stop the Rook Operator, run 
+`kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas=0`.
+
+You must perform steps below to (1) purge the OSD and either (2.a) delete the underlying data or 
+(2.b)replace the disk before starting the Rook Operator again.
+
+Once you have done that, you can start the Rook operator again with
+`kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas=1`.
+
 ### PVC-based cluster
 
 To reduce the storage in your cluster or remove a failed OSD on a PVC:
