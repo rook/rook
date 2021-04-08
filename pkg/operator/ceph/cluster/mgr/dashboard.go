@@ -20,12 +20,15 @@ package mgr
 import (
 	"context"
 	"crypto/rand"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -210,19 +213,61 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 	return false, nil
 }
 
+// FileBasedPasswordSupported check if Ceph versions have the latest Ceph dashboard command
+func FileBasedPasswordSupported(c *client.ClusterInfo) bool {
+	if (c.CephVersion.IsNautilus() && c.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 17})) ||
+		(c.CephVersion.IsOctopus() && c.CephVersion.IsAtLeast(cephver.CephVersion{Major: 15, Minor: 2, Extra: 10})) ||
+		c.CephVersion.IsAtLeastPacific() {
+		return true
+	}
+	return false
+}
+
+func CreateTempPasswordFile(password string) (*os.File, error) {
+	// Generate a temp file
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate temp file")
+	}
+
+	// Write password into file
+	err = ioutil.WriteFile(file.Name(), []byte(password), 0440)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to write dashboard password into file")
+	}
+	return file, nil
+}
+
 func (c *Cluster) setLoginCredentials(password string) error {
 	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
 	logger.Infof("setting ceph dashboard %q login creds", dashboardUsername)
 
-	// retry a few times in the case that the mgr module is not ready to accept commands
+	var args []string
+	// for latest Ceph versions
+	if FileBasedPasswordSupported(c.clusterInfo) {
+		// Generate a temp file
+		file, err := CreateTempPasswordFile(password)
+		if err != nil {
+			return errors.Wrap(err, "failed to create a temporary dashboard password file")
+		}
+		args = []string{"dashboard", "ac-user-create", dashboardUsername, "-i", file.Name(), "administrator"}
+		defer func() {
+			if err := os.Remove(file.Name()); err != nil {
+				logger.Errorf("failed to clean up dashboard password file %q. %v", file.Name(), err)
+			}
+		}()
+	} else {
+		// for older Ceph versions
+		args = []string{"dashboard", "set-login-credentials", dashboardUsername, password}
+	}
+
 	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
-		args := []string{"dashboard", "set-login-credentials", dashboardUsername, password}
 		cmd := client.NewCephCommand(c.context, c.clusterInfo, args)
 		output, err := cmd.RunWithTimeout(client.CmdExecuteTimeout)
 		return "set dashboard creds", output, err
 	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
 	if err != nil {
-		return errors.Wrapf(err, "failed to set login creds on mgr")
+		return errors.Wrap(err, "failed to set login creds on mgr")
 	}
 
 	logger.Infof("successfully set ceph dashboard creds")
