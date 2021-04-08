@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -92,7 +91,6 @@ func TestPodSpecs(t *testing.T) {
 
 	assert.NotNil(t, d)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
-	assert.Equal(t, cephcontroller.DefaultServiceAccount, d.Spec.Template.Spec.ServiceAccountName)
 
 	// Deployment should have Ceph labels
 	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
