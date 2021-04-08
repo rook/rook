@@ -33,5 +33,4 @@ v1.6...
   * for Pacific (16.2.x), Rook is able to update multiple OSD Deployments at the same time to speed
     up updates and upgrades for larger Ceph clusters
 * Disable CSI GRPC metrics by default
-* Ceph daemon pods using the `default` service account now use a new `rook-ceph-default` service account.
 * Monitors failover can be [disabled](Documentation/ceph-mon-health.md#failing-over-a-monitor), this is useful for monitor going under planned maintenance where automatic failover is not desired
