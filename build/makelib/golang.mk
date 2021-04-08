@@ -195,3 +195,24 @@ $(GOJUNIT):
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/jstemmer/go-junit-report
 	@$(GOHOST) clean -modcache
+
+export CONTROLLER_GEN=$(TOOLS_HOST_DIR)/controller-gen-$(CONTROLLER_GEN_VERSION)
+export YQ=$(TOOLS_HOST_DIR)/yq-v3
+$(CONTROLLER_GEN) $(YQ):
+	{ \
+		set -ex ;\
+		mkdir -p $(TOOLS_HOST_DIR) ;\
+		CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+		cd $$CONTROLLER_GEN_TMP_DIR ;\
+		go mod init tmp;\
+		unset GOOS GOARCH  # avoid error: "cannot install cross-compiled binaries when GOBIN is set" ;\
+		export CGO_ENABLED=0  # do not need gcc nor the errors that come with not having it ;\
+		export GOBIN=$$CONTROLLER_GEN_TMP_DIR  # go get dependencies into the temp dir ;\
+		echo === installing controller-gen ;\
+		go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION);\
+		mv $$CONTROLLER_GEN_TMP_DIR/controller-gen $(CONTROLLER_GEN) ;\
+		echo === installing yq ;\
+		go get github.com/mikefarah/yq/v3;\
+		mv $$CONTROLLER_GEN_TMP_DIR/yq $(YQ) ;\
+		rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	}
