@@ -24,7 +24,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.18.1'
         kubernetes version: 'v1.15.12'
         start args: --memory 6g --cpus=2
 
@@ -88,7 +88,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.18.1'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
 
