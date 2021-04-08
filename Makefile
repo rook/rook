@@ -167,29 +167,16 @@ distclean: clean ## Remove all files that are created by building or configuring
 prune: ## Prune cached artifacts.
 	@$(MAKE) -C images prune
 
+# Change how CRDs are generated for CSVs
 csv-ceph: export MAX_DESC_LEN=0 # sets the description length to 0 since CSV cannot be bigger than 1MB
 csv-ceph: export NO_OB_OBC_VOL_GEN=true
 csv-ceph: csv-clean crds ## Generate a CSV file for OLM.
-	@echo Generating CSV manifests
-	@cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
+	$(MAKE) -C images/ceph csv
 
 csv-clean: ## Remove existing OLM files.
-	@rm -fr cluster/olm/ceph/deploy/* cluster/olm/ceph/templates/*
+	$(MAKE) -C images/ceph csv-clean
 
-controller-gen:
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION);\
-	go get github.com/mikefarah/yq/v3;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-YQ=$(GOBIN)/yq
-
-crds: controller-gen
+crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
 

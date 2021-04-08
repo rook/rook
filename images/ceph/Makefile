@@ -25,6 +25,8 @@ endif
 BASEIMAGE = ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 OPERATOR_SDK_VERSION = v0.17.1
+# TODO: update to yq v4 - v3 end of life in Aug 2021 ; v4 removes the 'yq delete' cmd and changes syntax
+YQ_VERSION = 3.3.0
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 
 TEMP := $(shell mktemp -d)
@@ -33,9 +35,19 @@ ifeq ($(HOST_PLATFORM),linux_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
 INCLUDE_CSV_TEMPLATES = true
 endif
+ifeq ($(HOST_PLATFORM),darwin_amd64)
+OPERATOR_SDK_PLATFORM = x86_64-apple-darwin
+INCLUDE_CSV_TEMPLATES = true
+endif
+ifneq ($(INCLUDE_CSV_TEMPLATES),true)
+$(info )
+$(info NOT INCLUDING OLM/CSV TEMPLATES!)
+$(info )
+endif
 
 OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
-YQ := $(TOOLS_HOST_DIR)/yq
+YQ := $(TOOLS_HOST_DIR)/yq-$(YQ_VERSION)
+export OPERATOR_SDK YQ
 
 # ====================================================================================
 # Build Rook
@@ -77,18 +89,28 @@ generate-csv-ceph-templates: $(OPERATOR_SDK) $(YQ)
 			echo "length after $$AFTER_GEN_CRD_SIZE";\
 			exit 1;\
 		fi;\
-		OPERATOR_SDK=$(OPERATOR_SDK) YQ_TOOL=$(YQ) ../../cluster/olm/ceph/generate-rook-csv-templates.sh;\
+		../../cluster/olm/ceph/generate-rook-csv-templates.sh;\
 	fi
 
 $(YQ):
 	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
 		echo === installing yq $(GOHOST);\
-		curl -JL https://github.com/mikefarah/yq/releases/download/3.3.0/yq_$(HOST_PLATFORM) -o $(YQ);\
+		mkdir -p $(TOOLS_HOST_DIR);\
+		curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(HOST_PLATFORM) -o $(YQ);\
 		chmod +x $(YQ);\
 	fi
 
 $(OPERATOR_SDK):
 	@if [ ! "$(INCLUDE_CSV_TEMPLATES)" = "" ]; then\
+		echo === installing operator-sdk $(GOHOST);\
+		mkdir -p $(TOOLS_HOST_DIR);\
 		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM) -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION);\
 		chmod +x $(OPERATOR_SDK);\
-        fi
+	fi
+
+csv: $(OPERATOR_SDK) $(YQ) ## Generate a CSV file for OLM.
+	@echo Generating CSV manifests
+	@cd ../.. && cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
+
+csv-clean: $(OPERATOR_SDK) $(YQ) ## Remove existing OLM files.
+	@rm -fr ../../cluster/olm/ceph/deploy/* ../../cluster/olm/ceph/templates/*
