@@ -101,5 +101,22 @@ spec:
     #    cpu: "500m"
     #    memory: "1024Mi"
     # priorityClassName: my-priority-class
-  mirroring:
-    enabled: false
+  # Filesystem mirroring settings
+  # mirroring:
+    # enabled: true
+    # list of Kubernetes Secrets containing the peer token
+    # for more details see: https://docs.ceph.com/en/latest/dev/cephfs-mirroring/#bootstrap-peers
+    # peers:
+      #secretNames:
+        #- secondary-cluster-peer
+    # specify the schedule(s) on which snapshots should be taken
+    # see the official syntax here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-schedules
+    # snapshotSchedules:
+    #   - path: /
+    #     interval: 24h # daily snapshots
+    #     startTime: 11:55
+    # manage retention policies
+    # see syntax duration here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-retention-policies
+    # snapshotRetention:
+    #   - path: /
+    #     duration: "h 24"

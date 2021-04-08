@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	oppool "github.com/rook/rook/pkg/operator/ceph/pool"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -265,30 +265,12 @@ func (s *SmokeSuite) TestPoolResize() {
 	pool, err := s.k8sh.RookClientset.CephV1().CephBlockPools(s.settings.Namespace).Get(ctx, poolName, metav1.GetOptions{})
 	assert.NoError(s.T(), err)
 	if pool.Spec.Mirroring.Enabled {
-		secretName := pool.Status.Info[oppool.RBDMirrorBootstrapPeerSecretName]
+		secretName := pool.Status.Info[opcontroller.RBDMirrorBootstrapPeerSecretName]
 		assert.NotEmpty(s.T(), secretName)
 		// now fetch the secret which contains the bootstrap peer token
 		secret, err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Get(ctx, secretName, metav1.GetOptions{})
 		require.NoError(s.T(), err)
 		assert.NotEmpty(s.T(), secret.Data["token"])
-
-		// Once we have a scenario with another Ceph cluster - needs to be added in the MultiCluster suite
-		// We would need to add a bootstrap peer token following the below procedure
-		// bootstrapSecretName := "bootstrap-peer-token"
-		// token := "eyJmc2lkIjoiYzZiMDg3ZjItNzgyOS00ZGJiLWJjZmMtNTNkYzM0ZTBiMzVkIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBV1lsWmZVQ1Q2RGhBQVBtVnAwbGtubDA5YVZWS3lyRVV1NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMTExLjEwOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTA6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjEyOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTI6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjExOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTE6Njc4OV0ifQ=="
-		// s = oppool.GenerateBootstrapPeerSecret(bootstrapSecretName, s.settings.Namespace, string(pool.GetUID()), []byte(token))
-		// s, err = s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Create(s)
-		// require.Nil(s.T(), err, err.Error())
-
-		// // update the ceph block pool cr
-		// pool.Spec.Mirrored.PeersSecretNames = append(pool.Spec.Mirrored.PeersSecretNames, bootstrapSecretName)
-		// _, err = s.k8sh.RookClientset.CephV1().CephBlockPools(s.settings.Namespace).Update(pool)
-		// require.Nil(s.T(), err, err.Error())
-
-		// mirrorInfo, err := client.PrintPoolMirroringInfo(s.k8sh.MakeContext(), clusterInfo, poolName)
-		// require.Nil(s.T(), err, err.Error())
-		// assert.Equal(s.T(), "image", mirrorInfo.Mode)
-		// assert.Equal(s.T(), 1, len(mirrorInfo.Peers))
 	}
 
 	// clean up the pool

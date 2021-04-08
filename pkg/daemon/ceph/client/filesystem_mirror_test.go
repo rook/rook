@@ -17,12 +17,23 @@ limitations under the License.
 package client
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	// response of "ceph fs snapshot mirror peer_bootstrap create myfs2 client.mirror test"
+	// #nosec G101 since this is not leaking any credentials
+	fsMirrorToken = `{"token": "eyJmc2lkIjogIjgyYjdlZDkyLTczYjAtNGIyMi1hOGI3LWVkOTQ4M2UyODc1NiIsICJmaWxlc3lzdGVtIjogIm15ZnMyIiwgInVzZXIiOiAiY2xpZW50Lm1pcnJvciIsICJzaXRlX25hbWUiOiAidGVzdCIsICJrZXkiOiAiQVFEVVAxSmdqM3RYQVJBQWs1cEU4cDI1ZUhld2lQK0ZXRm9uOVE9PSIsICJtb25faG9zdCI6ICJbdjI6MTAuOTYuMTQyLjIxMzozMzAwLHYxOjEwLjk2LjE0Mi4yMTM6Njc4OV0sW3YyOjEwLjk2LjIxNy4yMDc6MzMwMCx2MToxMC45Ni4yMTcuMjA3OjY3ODldLFt2MjoxMC45OS4xMC4xNTc6MzMwMCx2MToxMC45OS4xMC4xNTc6Njc4OV0ifQ=="}`
+
+	// response of "ceph fs snapshot mirror daemon status myfs"
+	// fsMirrorDaemonStatus    = `{ "daemon_id": "444607", "filesystems": [ { "filesystem_id": "1", "name": "myfs", "directory_count": 0, "peers": [ { "uuid": "4a6983c0-3c9d-40f5-b2a9-2334a4659827", "remote": { "client_name": "client.mirror_remote", "cluster_name": "site-remote", "fs_name": "backup_fs" }, "stats": { "failure_count": 0, "recovery_count": 0 } } ] } ] }`
+	fsMirrorDaemonStatusNew = `[{"daemon_id":25103, "filesystems": [{"filesystem_id": 1, "name": "myfs", "directory_count": 0, "peers": []}]}]`
 )
 
 func TestEnableFilesystemSnapshotMirror(t *testing.T) {
@@ -63,26 +74,49 @@ func TestDisableFilesystemSnapshotMirror(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestAddFilesystemMirrorPeer(t *testing.T) {
+func TestImportFilesystemMirrorPeer(t *testing.T) {
 	fs := "myfs"
-	peer := "my-peer"
-	remoteFS := "remoteFS"
+	token := "my-token"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(command string, outfileArg string, args ...string) (string, error) {
 		if args[0] == "fs" {
-			assert.Equal(t, "mirror", args[1])
-			assert.Equal(t, "peer_add", args[2])
-			assert.Equal(t, fs, args[3])
-			assert.Equal(t, peer, args[4])
-			assert.Equal(t, remoteFS, args[5])
+			assert.Equal(t, "snapshot", args[1])
+			assert.Equal(t, "mirror", args[2])
+			assert.Equal(t, "peer_bootstrap", args[3])
+			assert.Equal(t, "import", args[4])
+			assert.Equal(t, fs, args[5])
+			assert.Equal(t, token, args[6])
 			return "", nil
 		}
 		return "", errors.New("unknown command")
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := AddFilesystemMirrorPeer(context, AdminClusterInfo("mycluster"), fs, peer, remoteFS)
+	err := ImportFSMirrorBootstrapPeer(context, AdminClusterInfo("mycluster"), fs, token)
 	assert.NoError(t, err)
+}
+
+func TestCreateFSMirrorBootstrapPeer(t *testing.T) {
+	fs := "myfs"
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(command string, outfileArg string, args ...string) (string, error) {
+		if args[0] == "fs" {
+			assert.Equal(t, "snapshot", args[1])
+			assert.Equal(t, "mirror", args[2])
+			assert.Equal(t, "peer_bootstrap", args[3])
+			assert.Equal(t, "create", args[4])
+			assert.Equal(t, fs, args[5])
+			return fsMirrorToken, nil
+		}
+		return "", errors.New("unknown command")
+	}
+	context := &clusterd.Context{Executor: executor}
+
+	token, err := CreateFSMirrorBootstrapPeer(context, AdminClusterInfo("mycluster"), fs)
+	assert.NoError(t, err)
+	_, err = base64.StdEncoding.DecodeString(string(token))
+	assert.NoError(t, err)
+
 }
 
 func TestRemoveFilesystemMirrorPeer(t *testing.T) {
@@ -101,4 +135,25 @@ func TestRemoveFilesystemMirrorPeer(t *testing.T) {
 
 	err := RemoveFilesystemMirrorPeer(context, AdminClusterInfo("mycluster"), peerUUID)
 	assert.NoError(t, err)
+}
+
+func TestFSMirrorDaemonStatus(t *testing.T) {
+	fs := "myfs"
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if args[0] == "fs" {
+			assert.Equal(t, "snapshot", args[1])
+			assert.Equal(t, "mirror", args[2])
+			assert.Equal(t, "daemon", args[3])
+			assert.Equal(t, "status", args[4])
+			assert.Equal(t, fs, args[5])
+			return fsMirrorDaemonStatusNew, nil
+		}
+		return "", errors.New("unknown command")
+	}
+	context := &clusterd.Context{Executor: executor}
+
+	s, err := GetFSMirrorDaemonStatus(context, AdminClusterInfo("mycluster"), fs)
+	assert.NoError(t, err)
+	assert.Equal(t, "myfs", s[0].Filesystems[0].Name)
 }

@@ -30,3 +30,4 @@ v1.7...
   - See [the design](Documentation/ceph-pool-crd.md#hybrid-storage-pools) for more details.
   - Checkout the [ceph docs](https://docs.ceph.com/en/latest/rados/operations/crush-map/#custom-crush-rules)
     for detailed information.
+- Add support cephfs mirroring peer configuration, refer to the [configuration](Documentation/ceph-filesystem-crd.md#mirroring) for more details

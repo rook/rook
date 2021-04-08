@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_validateSpec(t *testing.T) {
+func TestValidateSpec(t *testing.T) {
 	// Invalid count
 	r := &cephv1.RBDMirroringSpec{Count: 0}
 	err := validateSpec(r)
@@ -43,31 +43,4 @@ func Test_validateSpec(t *testing.T) {
 	r.Peers.SecretNames = append(r.Peers.SecretNames, "bar")
 	err = validateSpec(r)
 	assert.NoError(t, err)
-}
-
-func Test_validatePeerToken(t *testing.T) {
-	// Error: map is empty
-	data := map[string][]byte{}
-	got, err := validatePeerToken(data)
-	assert.Nil(t, got)
-	assert.Error(t, err)
-
-	// Error: map is missing pool and site
-	data["token"] = []byte("foo")
-	got, err = validatePeerToken(data)
-	assert.Nil(t, got)
-	assert.Error(t, err)
-
-	// Error: map is missing pool
-	data["site"] = []byte("foo")
-	got, err = validatePeerToken(data)
-	assert.Nil(t, got)
-	assert.Error(t, err)
-
-	// Success
-	data["pool"] = []byte("foo")
-	got, err = validatePeerToken(data)
-	assert.NotNil(t, got)
-	assert.NoError(t, err)
-	assert.Equal(t, got.poolName, "foo")
 }

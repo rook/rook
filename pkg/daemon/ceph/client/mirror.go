@@ -73,7 +73,7 @@ func CreateRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	// Run command
 	output, err := cmd.Run()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create rbd-mirror peer token  for pool %q. %s", poolName, output)
+		return nil, errors.Wrapf(err, "failed to create rbd-mirror peer token for pool %q. %s", poolName, output)
 	}
 
 	logger.Infof("successfully created rbd-mirror bootstrap peer token for pool %q", poolName)

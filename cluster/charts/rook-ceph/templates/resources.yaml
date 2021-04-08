@@ -95,6 +95,9 @@ spec:
                           interval:
                             description: Interval represent the periodicity of the snapshot.
                             type: string
+                          path:
+                            description: Path is the path to snapshot, only valid for CephFS
+                            type: string
                           startTime:
                             description: StartTime indicates when to start the snapshot
                             type: string
@@ -188,7 +191,6 @@ spec:
                 info:
                   additionalProperties:
                     type: string
-                  description: Use only info and put mirroringStatus in it?
                   nullable: true
                   type: object
                 mirroringInfo:
@@ -4503,6 +4505,9 @@ spec:
                                 interval:
                                   description: Interval represent the periodicity of the snapshot.
                                   type: string
+                                path:
+                                  description: Path is the path to snapshot, only valid for CephFS
+                                  type: string
                                 startTime:
                                   description: StartTime indicates when to start the snapshot
                                   type: string
@@ -4657,6 +4662,9 @@ spec:
                             properties:
                               interval:
                                 description: Interval represent the periodicity of the snapshot.
+                                type: string
+                              path:
+                                description: Path is the path to snapshot, only valid for CephFS
                                 type: string
                               startTime:
                                 description: StartTime indicates when to start the snapshot
@@ -5345,6 +5353,45 @@ spec:
                     enabled:
                       description: Enabled whether this filesystem is mirrored or not
                       type: boolean
+                    peers:
+                      description: Peers represents the peers spec
+                      nullable: true
+                      properties:
+                        secretNames:
+                          description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    snapshotRetention:
+                      description: Retention is the retention policy for a snapshot schedule One path has exactly one retention policy. A policy can however contain multiple count-time period pairs in order to specify complex retention policies
+                      items:
+                        description: SnapshotScheduleRetentionSpec is a retention policy
+                        properties:
+                          duration:
+                            description: Duration represents the retention duration for a snapshot
+                            type: string
+                          path:
+                            description: Path is the path to snapshot
+                            type: string
+                        type: object
+                      type: array
+                    snapshotSchedules:
+                      description: SnapshotSchedules is the scheduling of snapshot for mirrored filesystems
+                      items:
+                        description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
+                        properties:
+                          interval:
+                            description: Interval represent the periodicity of the snapshot.
+                            type: string
+                          path:
+                            description: Path is the path to snapshot, only valid for CephFS
+                            type: string
+                          startTime:
+                            description: StartTime indicates when to start the snapshot
+                            type: string
+                        type: object
+                      type: array
                   type: object
                 preserveFilesystemOnDelete:
                   description: Preserve the fs in the cluster on CephFilesystem CR deletion. Setting this to true automatically implies PreservePoolsOnDelete is true.
@@ -5352,16 +5399,175 @@ spec:
                 preservePoolsOnDelete:
                   description: Preserve pools on filesystem deletion
                   type: boolean
+                statusCheck:
+                  description: The mirroring statusCheck
+                  properties:
+                    mirror:
+                      description: HealthCheckSpec represents the health check of an object store bucket
+                      nullable: true
+                      properties:
+                        disabled:
+                          type: boolean
+                        interval:
+                          description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
+                          type: string
+                        timeout:
+                          type: string
+                      type: object
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
               required:
                 - dataPools
                 - metadataPool
                 - metadataServer
               type: object
             status:
-              description: Status represents the status of an object
+              description: CephFilesystemStatus represents the status of a Ceph Filesystem
               properties:
+                info:
+                  additionalProperties:
+                    type: string
+                  description: Use only info and put mirroringStatus in it?
+                  nullable: true
+                  type: object
+                mirroringStatus:
+                  description: MirroringStatus is the filesystem mirroring status
+                  properties:
+                    daemonsStatus:
+                      description: PoolMirroringStatus is the mirroring status of a filesystem
+                      items:
+                        description: FilesystemMirrorInfoSpec is the filesystem mirror status of a given filesystem
+                        properties:
+                          daemon_id:
+                            description: DaemonID is the cephfs-mirror name
+                            type: integer
+                          filesystems:
+                            description: Filesystems is the list of filesystems managed by a given cephfs-mirror daemon
+                            items:
+                              description: FilesystemsSpec is spec for the mirrored filesystem
+                              properties:
+                                directory_count:
+                                  description: DirectoryCount is the number of directories in the filesystem
+                                  type: integer
+                                filesystem_id:
+                                  description: FilesystemID is the filesystem identifier
+                                  type: integer
+                                name:
+                                  description: Name is name of the filesystem
+                                  type: string
+                                peers:
+                                  description: Peers represents the mirroring peers
+                                  items:
+                                    description: FilesystemMirrorInfoPeerSpec is the specification of a filesystem peer mirror
+                                    properties:
+                                      remote:
+                                        description: Remote are the remote cluster information
+                                        properties:
+                                          client_name:
+                                            description: ClientName is cephx name
+                                            type: string
+                                          cluster_name:
+                                            description: ClusterName is the name of the cluster
+                                            type: string
+                                          fs_name:
+                                            description: FsName is the filesystem name
+                                            type: string
+                                        type: object
+                                      stats:
+                                        description: Stats are the stat a peer mirror
+                                        properties:
+                                          failure_count:
+                                            description: FailureCount is the number of mirroring failure
+                                            type: integer
+                                          recovery_count:
+                                            description: RecoveryCount is the number of recovery attempted after failures
+                                            type: integer
+                                        type: object
+                                      uuid:
+                                        description: UUID is the peer unique identifier
+                                        type: string
+                                    type: object
+                                  type: array
+                              type: object
+                            type: array
+                        type: object
+                      nullable: true
+                      type: array
+                    details:
+                      description: Details contains potential status errors
+                      type: string
+                    lastChanged:
+                      description: LastChanged is the last time time the status last changed
+                      type: string
+                    lastChecked:
+                      description: LastChecked is the last time time the status was checked
+                      type: string
+                  type: object
                 phase:
+                  description: ConditionType represent a resource's status
                   type: string
+                snapshotScheduleStatus:
+                  description: FilesystemSnapshotScheduleStatusSpec is the status of the snapshot schedule
+                  properties:
+                    details:
+                      description: Details contains potential status errors
+                      type: string
+                    lastChanged:
+                      description: LastChanged is the last time time the status last changed
+                      type: string
+                    lastChecked:
+                      description: LastChecked is the last time time the status was checked
+                      type: string
+                    snapshotSchedules:
+                      description: SnapshotSchedules is the list of snapshots scheduled
+                      items:
+                        description: FilesystemSnapshotSchedulesSpec is the list of snapshot scheduled for images in a pool
+                        properties:
+                          fs:
+                            description: Fs is the name of the Ceph Filesystem
+                            type: string
+                          path:
+                            description: Path is the path on the filesystem
+                            type: string
+                          rel_path:
+                            type: string
+                          retention:
+                            description: FilesystemSnapshotScheduleStatusRetention is the retention specification for a filesystem snapshot schedule
+                            properties:
+                              active:
+                                description: Active is whether the scheduled is active or not
+                                type: boolean
+                              created:
+                                description: Created is when the snapshot schedule was created
+                                type: string
+                              created_count:
+                                description: CreatedCount is total amount of snapshots
+                                type: integer
+                              first:
+                                description: First is when the first snapshot schedule was taken
+                                type: string
+                              last:
+                                description: Last is when the last snapshot schedule was taken
+                                type: string
+                              last_pruned:
+                                description: LastPruned is when the last snapshot schedule was pruned
+                                type: string
+                              pruned_count:
+                                description: PrunedCount is total amount of pruned snapshots
+                                type: integer
+                              start:
+                                description: Start is when the snapshot schedule starts
+                                type: string
+                            type: object
+                          schedule:
+                            type: string
+                          subvol:
+                            description: Subvol is the name of the sub volume
+                            type: string
+                        type: object
+                      nullable: true
+                      type: array
+                  type: object
               type: object
               x-kubernetes-preserve-unknown-fields: true
           required:
@@ -6207,6 +6413,9 @@ spec:
                             properties:
                               interval:
                                 description: Interval represent the periodicity of the snapshot.
+                                type: string
+                              path:
+                                description: Path is the path to snapshot, only valid for CephFS
                                 type: string
                               startTime:
                                 description: StartTime indicates when to start the snapshot
@@ -7130,6 +7339,9 @@ spec:
                               interval:
                                 description: Interval represent the periodicity of the snapshot.
                                 type: string
+                              path:
+                                description: Path is the path to snapshot, only valid for CephFS
+                                type: string
                               startTime:
                                 description: StartTime indicates when to start the snapshot
                                 type: string
@@ -7546,6 +7758,9 @@ spec:
                               interval:
                                 description: Interval represent the periodicity of the snapshot.
                                 type: string
+                              path:
+                                description: Path is the path to snapshot, only valid for CephFS
+                                type: string
                               startTime:
                                 description: StartTime indicates when to start the snapshot
                                 type: string
@@ -7698,6 +7913,9 @@ spec:
                             properties:
                               interval:
                                 description: Interval represent the periodicity of the snapshot.
+                                type: string
+                              path:
+                                description: Path is the path to snapshot, only valid for CephFS
                                 type: string
                               startTime:
                                 description: StartTime indicates when to start the snapshot
@@ -7868,11 +8086,11 @@ spec:
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
                 peers:
-                  description: RBDMirroringPeerSpec represents the peers spec
+                  description: Peers represents the peers spec
                   nullable: true
                   properties:
                     secretNames:
-                      description: SecretNames represents the Kubernetes Secret names to add rbd-mirror peers
+                      description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
                       items:
                         type: string
                       type: array

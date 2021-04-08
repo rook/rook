@@ -203,7 +203,7 @@ func TestCephFilesystemController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r := &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
+	r := &ReconcileCephFilesystem{client: cl, scheme: s, context: c, fsChannels: make(map[string]*fsHealth)}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -297,7 +297,7 @@ func TestCephFilesystemController(t *testing.T) {
 	c.Executor = executor
 
 	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
+	r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c, fsChannels: make(map[string]*fsHealth)}
 
 	logger.Info("STARTING PHASE 3")
 	res, err = r.Reconcile(ctx, req)
@@ -305,6 +305,6 @@ func TestCephFilesystemController(t *testing.T) {
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, fs)
 	assert.NoError(t, err)
-	assert.Equal(t, "Ready", fs.Status.Phase, fs)
+	assert.Equal(t, cephv1.ConditionType("Ready"), fs.Status.Phase, fs)
 	logger.Info("PHASE 3 DONE")
 }

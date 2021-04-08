@@ -79,11 +79,7 @@ function test_demo_rbd_mirror {
 
 function test_demo_fs_mirror {
   # shellcheck disable=SC2046
-  timeout 90 sh -c 'until [ $(kubectl -n rook-ceph get pods --field-selector=status.phase=Running -l app=rook-ceph-filesystem-mirror --no-headers=true|wc -l) -eq 1 ]; do sleep 1; done'
-  if [ $? -eq 0 ]; then
-    return 0
-  fi
-  return 1
+    return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'cephfs-mirror:'")
 }
 
 function test_demo_pool {
@@ -127,7 +123,7 @@ test_demo_mon
 test_demo_mgr
 
 if [[ "$DAEMON_TO_VALIDATE" == "all" ]]; then
-  daemons_list="osd mds rgw rbd_mirror"
+  daemons_list="osd mds rgw rbd_mirror fs_mirror"
 else
   # change commas to space
   comma_to_space=${DAEMON_TO_VALIDATE//,/ }
@@ -159,9 +155,12 @@ for daemon in $daemons_list; do
     rbd_mirror)
       test_demo_rbd_mirror
       ;;
+    fs_mirror)
+      test_demo_fs_mirror
+      ;;
     *)
       log "ERROR: unknown daemon to validate!"
-      log "Available daemon are: mon mgr osd mds rgw rbd_mirror"
+      log "Available daemon are: mon mgr osd mds rgw rbd_mirror fs_mirror"
       exit 1
       ;;
   esac
