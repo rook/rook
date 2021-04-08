@@ -19,8 +19,6 @@ package rbd
 import (
 	"testing"
 
-	cephcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -92,7 +90,6 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, 4, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, 1, len(d.Spec.Template.Spec.Volumes[0].Projected.Sources))
 	assert.Equal(t, 4, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, cephcontroller.DefaultServiceAccount, d.Spec.Template.Spec.ServiceAccountName)
 
 	// Deployment should have Ceph labels
 	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,

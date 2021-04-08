@@ -46,8 +46,6 @@ const (
 	logCollector                          = "log-collector"
 	DaemonIDLabel                         = "ceph_daemon_id"
 	daemonTypeLabel                       = "ceph_daemon_type"
-	// DefaultServiceAccount is a  service-account used for components that do not specify a dedicated service-account.
-	DefaultServiceAccount = "rook-ceph-default"
 )
 
 type daemonConfig struct {

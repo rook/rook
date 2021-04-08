@@ -25,7 +25,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	cephcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -58,11 +57,10 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.
 			Containers: []v1.Container{
 				mdsContainer,
 			},
-			RestartPolicy:      v1.RestartPolicyAlways,
-			Volumes:            controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
-			HostNetwork:        c.clusterSpec.Network.IsHost(),
-			PriorityClassName:  c.fs.Spec.MetadataServer.PriorityClassName,
-			ServiceAccountName: cephcontroller.DefaultServiceAccount,
+			RestartPolicy:     v1.RestartPolicyAlways,
+			Volumes:           controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+			HostNetwork:       c.clusterSpec.Network.IsHost(),
+			PriorityClassName: c.fs.Spec.MetadataServer.PriorityClassName,
 		},
 	}
 
