@@ -19,12 +19,14 @@ package object
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -124,7 +126,8 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	ctx := context.TODO()
 	var s3AccessKey string
 	var s3SecretKey string
-	var sslCert []byte
+	var tlsCert []byte
+	var tlsSecretCert *v1.Secret
 	s3endpoint := buildDNSEndpoint(BuildDomainName(c.objContext.Name, c.namespacedName.Namespace), c.port, c.objectStoreSpec.IsTLSEnabled())
 
 	// Generate unique user and bucket name
@@ -149,12 +152,23 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	s3SecretKey = *user.SecretKey
 
 	if c.objectStoreSpec.IsTLSEnabled() {
-		sslSecretCert, _ := c.context.Clientset.CoreV1().Secrets(c.namespacedName.Namespace).Get(ctx, c.objectStoreSpec.Gateway.SSLCertificateRef, metav1.GetOptions{})
-		sslCert = sslSecretCert.Data[certKeyName]
+		if c.objectStoreSpec.Gateway.SSLCertificateRef != "" {
+			tlsSecretCert, err = c.context.Clientset.CoreV1().Secrets(c.namespacedName.Namespace).Get(ctx, c.objectStoreSpec.Gateway.SSLCertificateRef, metav1.GetOptions{})
+			if err != nil {
+				return errors.Wrapf(err, "failed to get %q secret containing TLS certificate", c.objectStoreSpec.Gateway.SSLCertificateRef)
+			}
+			tlsCert = tlsSecretCert.Data[certKeyName]
+		} else if c.objectStoreSpec.GetServiceServingCert() != "" {
+			tlsCert, err = ioutil.ReadFile(ServiceServingCertCAFile)
+			if err != nil {
+				return errors.Wrapf(err, "failed to fetch TLS certificate from %q", ServiceServingCertCAFile)
+			}
+		}
 	}
+
 	// Initiate s3 agent
 	logger.Debugf("initializing s3 connection for object store %q", c.namespacedName.Name)
-	s3client, err := NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, false, sslCert)
+	s3client, err := NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, false, tlsCert)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize s3 connection")
 	}
