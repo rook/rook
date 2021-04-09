@@ -91,7 +91,7 @@ func (c *Cluster) configureDashboardService() error {
 func (c *Cluster) configureDashboardModules() error {
 	if c.spec.Dashboard.Enabled {
 		if err := client.MgrEnableModule(c.context, c.clusterInfo, dashboardModuleName, true); err != nil {
-			return errors.Wrapf(err, "failed to enable mgr dashboard module")
+			return errors.Wrap(err, "failed to enable mgr dashboard module")
 		}
 	} else {
 		if err := client.MgrDisableModule(c.context, c.clusterInfo, dashboardModuleName); err != nil {
@@ -115,7 +115,7 @@ func (c *Cluster) configureDashboardModules() error {
 		}
 	}
 	if hasChanged {
-		logger.Infof("dashboard config has changed. restarting the dashboard module.")
+		logger.Info("dashboard config has changed. restarting the dashboard module")
 		return c.restartDashboard()
 	}
 	return nil
@@ -190,18 +190,18 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 	for i := 0; i < 5; i++ {
 		_, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(client.CmdExecuteTimeout)
 		if err == context.DeadlineExceeded {
-			logger.Infof("cert creation timed out. trying again..")
+			logger.Warning("cert creation timed out. trying again")
 			continue
 		}
 		if err != nil {
 			exitCode, parsed := c.exitCode(err)
 			if parsed {
 				if exitCode == certAlreadyConfiguredErrorCode {
-					logger.Infof("dashboard is already initialized with a cert")
+					logger.Info("dashboard is already initialized with a cert")
 					return true, nil
 				}
 				if exitCode == invalidArgErrorCode {
-					logger.Infof("dashboard module is not ready yet. trying again...")
+					logger.Info("dashboard module is not ready yet. trying again")
 					time.Sleep(dashboardInitWaitTime)
 					continue
 				}
@@ -270,7 +270,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 		return errors.Wrap(err, "failed to set login creds on mgr")
 	}
 
-	logger.Infof("successfully set ceph dashboard creds")
+	logger.Info("successfully set ceph dashboard creds")
 	return nil
 }
 
@@ -278,7 +278,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 	ctx := context.TODO()
 	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(ctx, dashboardPasswordName, metav1.GetOptions{})
 	if err == nil {
-		logger.Infof("the dashboard secret was already generated")
+		logger.Info("the dashboard secret was already generated")
 		return decodeSecret(secret)
 	}
 	if !kerrors.IsNotFound(err) {
@@ -343,7 +343,7 @@ func decodeSecret(secret *v1.Secret) (string, error) {
 }
 
 func (c *Cluster) restartDashboard() error {
-	logger.Infof("restarting the mgr module")
+	logger.Info("restarting the mgr module")
 	if err := client.MgrDisableModule(c.context, c.clusterInfo, dashboardModuleName); err != nil {
 		return errors.Wrapf(err, "failed to disable mgr module %q.", dashboardModuleName)
 	}
