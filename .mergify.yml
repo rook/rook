@@ -41,6 +41,10 @@ pull_request_rules:
       - 'check-success=encryption-pvc-db'
       - 'check-success=encryption-pvc-db-wal'
       - 'check-success=encryption-pvc-kms-vault-token-auth'
+      - 'check-success=TestCephSmokeSuite'
+      - 'check-success=TestCephHelmSuite'
+      - 'check-success=TestCephMultiClusterDeploySuite'
+      - 'check-success=TestCephUpgradeSuite'
     actions:
       merge:
         method: merge
@@ -104,6 +108,36 @@ pull_request_rules:
       - label!=do-not-merge
       - 'status-success=DCO'
       - 'status-success=continuous-integration/jenkins/pr-head'
+    actions:
+      merge:
+        method: merge
+        strict: false
+      dismiss_reviews: {}
+      delete_head_branch: {}
+  # release-1.6 branch
+  - name: automerge backport release-1.6
+    conditions:
+      - author=mergify[bot]
+      - base=release-1.6
+      - label!=do-not-merge
+      - 'status-success=DCO'
+      - 'check-success=canary'
+      - 'check-success=unittests'
+      - 'check-success=golangci-lint'
+      - 'check-success=codegen'
+      - 'check-success=lint'
+      - 'check-success=modcheck'
+      - 'check-success=pvc'
+      - 'check-success=pvc-db'
+      - 'check-success=pvc-db-wal'
+      - 'check-success=encryption-pvc'
+      - 'check-success=encryption-pvc-db'
+      - 'check-success=encryption-pvc-db-wal'
+      - 'check-success=encryption-pvc-kms-vault-token-auth'
+      - 'check-success=TestCephSmokeSuite'
+      - 'check-success=TestCephHelmSuite'
+      - 'check-success=TestCephMultiClusterDeploySuite'
+      - 'check-success=TestCephUpgradeSuite'
     actions:
       merge:
         method: merge
