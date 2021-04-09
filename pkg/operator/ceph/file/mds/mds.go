@@ -29,7 +29,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -73,7 +72,7 @@ func NewCluster(
 	context *clusterd.Context,
 	clusterSpec *cephv1.ClusterSpec,
 	fs cephv1.CephFilesystem,
-	fsdetails *client.CephFilesystemDetails,
+	fsdetails *cephclient.CephFilesystemDetails,
 	ownerInfo *k8sutil.OwnerInfo,
 	dataDirHostPath string,
 ) *Cluster {
@@ -219,7 +218,7 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 			logger.Infof("Deleting extraneous mds deployment %s", d.GetName())
 			// if the extraneous mdses are the only ones active, Ceph may experience fs downtime
 			// if deleting them too quickly; therefore, wait until number of active mdses is desired
-			if err := client.WaitForActiveRanks(c.context, c.clusterInfo, c.fs.Name,
+			if err := cephclient.WaitForActiveRanks(c.context, c.clusterInfo, c.fs.Name,
 				c.fs.Spec.MetadataServer.ActiveCount, true, fsWaitForActiveTimeout); err != nil {
 				errCount++
 				logger.Errorf(
@@ -260,7 +259,7 @@ func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
 	}
 	logger.Infof("successfully deleted mds config for %q in mon configuration database", who)
 
-	err = client.AuthDelete(c.context, c.clusterInfo, who)
+	err = cephclient.AuthDelete(c.context, c.clusterInfo, who)
 	if err != nil {
 		return err
 	}
@@ -270,12 +269,12 @@ func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
 
 // finishedWithDaemonUpgrade performs all actions necessary to bring the filesystem back to its
 // ideal state following an upgrade of its daemon(s).
-func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *client.ClusterInfo, fsName string, activeMDSCount int32) error {
+func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, fsName string, activeMDSCount int32) error {
 	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
 	logger.Debugf("bringing num active MDS daemons for fs %s back to %d", fsName, activeMDSCount)
 	// TODO: Unknown (Apr 2020) if this can be removed once Rook no longer supports Nautilus.
 	// upgrade guide according to nautilus https://docs.ceph.com/docs/nautilus/cephfs/upgrading/#upgrading-the-mds-cluster
-	if err := client.SetNumMDSRanks(context, clusterInfo, fsName, activeMDSCount); err != nil {
+	if err := cephclient.SetNumMDSRanks(context, clusterInfo, fsName, activeMDSCount); err != nil {
 		return errors.Wrapf(err, "Failed to restore filesystem %s following daemon upgrade", fsName)
 	}
 	return nil
