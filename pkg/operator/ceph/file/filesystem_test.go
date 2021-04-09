@@ -29,7 +29,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
@@ -47,7 +46,7 @@ import (
 
 func TestValidateSpec(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
-	clusterInfo := &client.ClusterInfo{Namespace: "ns"}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
 	fs := &cephv1.CephFilesystem{}
 	clusterSpec := &cephv1.ClusterSpec{}
 
@@ -216,7 +215,7 @@ func TestCreateFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
-	clusterInfo := &client.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus}
 
 	// start a basic cluster
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -299,7 +298,7 @@ func TestCreateFilesystem(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("failed to create filesystem %q: multiple filesystems are only supported as of ceph pacific", fsName), err.Error())
 
 	// It works since the op env var is specified even if we don't run on pacific
-	os.Setenv(client.MultiFsEnv, "true")
+	os.Setenv(cephclient.MultiFsEnv, "true")
 	fsName = "myfs2"
 	fs = fsTest(fsName)
 	executor = fsExecutor(t, fsName, configDir, true)
@@ -311,7 +310,7 @@ func TestCreateFilesystem(t *testing.T) {
 	}
 	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.NoError(t, err)
-	os.Unsetenv(client.MultiFsEnv)
+	os.Unsetenv(cephclient.MultiFsEnv)
 
 	// It works since the Ceph version is Pacific
 	fsName = "myfs3"
@@ -357,7 +356,7 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 			},
 		},
 	}
-	clusterInfo := &client.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
 
 	// start a basic cluster
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
