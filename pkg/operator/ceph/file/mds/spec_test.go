@@ -26,7 +26,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 
@@ -73,7 +72,7 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 			Network:     network,
 		},
 		fs,
-		&client.CephFilesystemDetails{ID: 15},
+		&cephclient.CephFilesystemDetails{ID: 15},
 		&k8sutil.OwnerInfo{},
 		"/var/lib/rook/",
 	)
