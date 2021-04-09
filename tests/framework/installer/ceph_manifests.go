@@ -18,6 +18,7 @@ package installer
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -82,7 +83,11 @@ func (m *CephManifestsMaster) GetOperator() string {
 	} else {
 		manifest = m.settings.readManifest("operator.yaml")
 	}
-	return m.settings.replaceOperatorSettings(manifest)
+	manifest = m.settings.replaceOperatorSettings(manifest)
+
+	// In release branches replace the tag with a master build since the local build has the master tag
+	r, _ := regexp.Compile(`image: rook/ceph:v[a-z0-9.-]+`)
+	return r.ReplaceAllString(manifest, "image: rook/ceph:master")
 }
 
 func (m *CephManifestsMaster) GetCommonExternal() string {
