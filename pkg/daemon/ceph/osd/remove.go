@@ -140,13 +140,6 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	// call archiveCrash to silence crash warning in ceph health if any
 	archiveCrash(clusterdContext, clusterInfo, osdID)
 
-	// remove the auth for the osd. should be done by 'osd purge', but doesn't always seem to happen
-	err = client.AuthDelete(clusterdContext, clusterInfo, fmt.Sprintf("osd.%d", osdID))
-	if err != nil {
-		// 'ceph auth del' returns error code 0 (success) if auth doesn't exist
-		logger.Errorf("failed to delete auth for osd.%d. user may need to use 'ceph auth del' or 'ceph auth rm' manually. %v", osdID, err)
-	}
-
 	logger.Infof("completed removal of OSD %d", osdID)
 }
 
