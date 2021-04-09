@@ -6848,6 +6848,16 @@ spec:
                       maximum: 65535
                       minimum: 0
                       type: integer
+                    service:
+                      description: The configuration related to add/set on each rgw service.
+                      nullable: true
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          description: The annotations-related configuration to add/set on each rgw service. nullable optional
+                          type: object
+                      type: object
                     sslCertificateRef:
                       description: The name of the secret that stores the ssl certificate for secure rgw connections
                       type: string

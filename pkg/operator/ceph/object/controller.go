@@ -516,7 +516,6 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 		port = objectstore.Spec.Gateway.SecurePort
 	} else if objectstore.Spec.Gateway.Port != 0 {
 		port = objectstore.Spec.Gateway.Port
-
 	} else {
 		logger.Error("At least one of Port or SecurePort should be non-zero")
 		return
