@@ -64,7 +64,9 @@ CXX := $(CROSS_TRIPLE)-g++
 export CC CXX
 endif
 
-SED_CMD?=sed -i -e
+# sed -i'' -e works on both UNIX (MacOS) and GNU (Linux) versions of sed
+SED_CMD ?= sed -i'' -e
+export SED_CMD
 
 # set the version number. you should not need to do this
 # for the majority of scenarios.

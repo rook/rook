@@ -18,6 +18,8 @@ CRDS_DIR="$DEPLOY_DIR/crds"
 
 TEMPLATES_DIR="$OLM_CATALOG_DIR/templates"
 
+SED=${SED_CMD:-"sed -i'' -e"}
+
 function generate_template() {
     local provider=$1
     local csv_manifest_path="$DEPLOY_DIR/olm-catalog/${provider}/9999.9999.9999/manifests"
@@ -30,7 +32,7 @@ function generate_template() {
     mv $tmp_csv_gen_file $csv_template_file
 
     # replace the placeholder with the templated value
-    sed -i "s/9999.9999.9999/{{.RookOperatorCsvVersion}}/g" $csv_template_file
+    $SED "s/9999.9999.9999/{{.RookOperatorCsvVersion}}/g" $csv_template_file
 
     echo "Template stored at $csv_template_file"
 }
