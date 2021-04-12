@@ -4,12 +4,15 @@ on:
     tags:
       - v*
     branches:
+      - release-*
       - master
     paths:
       - '**.go'
   pull_request:
     branches:
-      - "master"
+      - master
+      - release-*
+
     paths:
       - '**.go'
 
