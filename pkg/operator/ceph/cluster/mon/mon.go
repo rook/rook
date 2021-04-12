@@ -753,6 +753,11 @@ func realWaitForMonitorScheduling(c *Cluster, d *apps.Deployment) (SchedulingRes
 
 	// wait for the scheduler to make a placement decision
 	for i := 0; i < canaryRetries; i++ {
+		// Check whether we need to cancel the orchestration
+		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+			return result, err
+		}
+
 		if i > 0 {
 			time.Sleep(time.Second * canaryRetryDelaySeconds)
 		}
