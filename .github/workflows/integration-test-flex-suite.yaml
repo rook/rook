@@ -27,6 +27,7 @@ jobs:
         minikube version: 'v1.18.1'
         kubernetes version: 'v1.15.12'
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: check k8s cluster status
       run: |
@@ -91,6 +92,7 @@ jobs:
         minikube version: 'v1.18.1'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: check k8s cluster status
       run: |
