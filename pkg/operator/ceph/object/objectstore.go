@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -604,7 +603,7 @@ func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) 
 		return errors.Wrapf(err, "failed to list erasure code profiles for cluster %s", context.clusterInfo.Namespace)
 	}
 	// cleans up the EC profile for the data pool only. Metadata pools don't support EC (only replication is supported).
-	ecProfileName := client.GetErasureCodeProfileForPool(context.Name)
+	ecProfileName := ceph.GetErasureCodeProfileForPool(context.Name)
 	for i := range erasureCodes {
 		if erasureCodes[i] == ecProfileName {
 			if err := ceph.DeleteErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName); err != nil {
@@ -649,7 +648,7 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 
 	ecProfileName := ""
 	if dataPool.IsErasureCoded() {
-		ecProfileName = client.GetErasureCodeProfileForPool(context.Name)
+		ecProfileName = ceph.GetErasureCodeProfileForPool(context.Name)
 		// create a new erasure code profile for the data pool
 		if err := ceph.CreateErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName, dataPool); err != nil {
 			return errors.Wrap(err, "failed to create erasure code profile")
