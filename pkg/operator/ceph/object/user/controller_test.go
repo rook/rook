@@ -32,7 +32,6 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -197,7 +196,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		"mon-secret":   []byte("monsecret"),
 		"admin-secret": []byte("adminsecret"),
 	}
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-ceph-mon",
 			Namespace: namespace,
