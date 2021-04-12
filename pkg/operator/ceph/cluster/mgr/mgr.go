@@ -442,6 +442,8 @@ func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 	}
 	serviceMonitor.SetName(AppName)
 	serviceMonitor.SetNamespace(c.clusterInfo.Namespace)
+	cephv1.GetMonitoringLabels(c.spec.Labels).ApplyToObjectMeta(&serviceMonitor.ObjectMeta)
+
 	if c.spec.External.Enable {
 		serviceMonitor.Spec.Endpoints[0].Port = ServiceExternalMetricName
 	}
@@ -473,6 +475,7 @@ func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference to prometheus rule %q", prometheusRule.Name)
 	}
+	cephv1.GetMonitoringLabels(c.spec.Labels).ApplyToObjectMeta(&prometheusRule.ObjectMeta)
 	if _, err := k8sutil.CreateOrUpdatePrometheusRule(prometheusRule); err != nil {
 		return errors.Wrap(err, "prometheus rule could not be deployed")
 	}
