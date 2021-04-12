@@ -41,7 +41,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -348,14 +347,14 @@ func generateStatusInfo(u *cephv1.CephObjectStoreUser) map[string]string {
 	return m
 }
 
-func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser) *v1.Secret {
+func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser) *corev1.Secret {
 	// Store the keys in a secret
 	secrets := map[string]string{
 		"AccessKey": *r.userConfig.AccessKey,
 		"SecretKey": *r.userConfig.SecretKey,
 		"Endpoint":  r.objContext.Endpoint,
 	}
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateCephUserSecretName(u),
 			Namespace: u.Namespace,
