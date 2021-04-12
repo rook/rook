@@ -209,6 +209,8 @@ rules:
     verbs:
       - get
       - list
+      - patch
+      - watch
   - apiGroups:
       - cassandra.rook.io
     resources:
