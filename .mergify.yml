@@ -138,9 +138,7 @@ pull_request_rules:
       - 'check-success=TestCephSmokeSuite (v1.20.2)'
       - 'check-success=TestCephHelmSuite (v1.15.12)'
       - 'check-success=TestCephHelmSuite (v1.20.2)'
-      - 'check-success=TestCephMultiClusterDeploySuite (v1.15.12)'
       - 'check-success=TestCephMultiClusterDeploySuite (v1.20.2)'
-      - 'check-success=TestCephUpgradeSuite (v1.15.12)'
       - 'check-success=TestCephUpgradeSuite (v1.20.2)'
     actions:
       merge:
