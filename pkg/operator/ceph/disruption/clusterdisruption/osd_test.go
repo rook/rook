@@ -32,7 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -64,7 +63,7 @@ func fakeOSDDeployment(id, readyReplicas int) appsv1.Deployment {
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"topology-location-zone": fmt.Sprintf("zone-%d", id),

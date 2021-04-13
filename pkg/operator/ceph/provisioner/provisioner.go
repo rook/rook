@@ -26,7 +26,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	v1 "k8s.io/api/core/v1"
@@ -97,7 +96,7 @@ func (p *RookVolumeProvisioner) Provision(_ context.Context, options controller.
 		return nil, controller.ProvisioningFinished, err
 	}
 
-	clusterInfo := client.AdminClusterInfo(cfg.clusterNamespace)
+	clusterInfo := ceph.AdminClusterInfo(cfg.clusterNamespace)
 	blockImage, err := p.createVolume(clusterInfo, imageName, cfg.blockPool, cfg.dataBlockPool, requestBytes)
 	if err != nil {
 		return nil, controller.ProvisioningFinished, err
@@ -159,7 +158,7 @@ func (p *RookVolumeProvisioner) Provision(_ context.Context, options controller.
 }
 
 // createVolume creates a rook block volume.
-func (p *RookVolumeProvisioner) createVolume(clusterInfo *client.ClusterInfo, image, pool, dataPool string, size int64) (*ceph.CephBlockImage, error) {
+func (p *RookVolumeProvisioner) createVolume(clusterInfo *ceph.ClusterInfo, image, pool, dataPool string, size int64) (*ceph.CephBlockImage, error) {
 	if image == "" || pool == "" || clusterInfo.Namespace == "" || size == 0 {
 		return nil, errors.Errorf("image missing required fields (image=%s, pool=%s, clusterNamespace=%s, size=%d)", image, pool, clusterInfo.Namespace, size)
 	}
@@ -196,7 +195,7 @@ func (p *RookVolumeProvisioner) Delete(_ context.Context, volume *v1.PersistentV
 	if clusterns == "" {
 		return errors.Errorf("failed to delete rook block image %s/%s: no clusterNamespace or (deprecated) clusterName option given", pool, volume.Name)
 	}
-	clusterInfo := client.AdminClusterInfo(clusterns)
+	clusterInfo := ceph.AdminClusterInfo(clusterns)
 	err := ceph.DeleteImage(p.context, clusterInfo, name, pool)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete rook block image %s/%s", pool, volume.Name)

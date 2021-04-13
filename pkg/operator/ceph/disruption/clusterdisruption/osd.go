@@ -23,13 +23,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	cephClient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -56,7 +54,7 @@ const (
 
 func (r *ReconcileClusterDisruption) createPDB(pdb *policyv1beta1.PodDisruptionBudget) error {
 	err := r.client.Create(context.TODO(), pdb)
-	if err != nil && !kerrors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create pdb %q", pdb.Name)
 	}
 	return nil
@@ -64,7 +62,7 @@ func (r *ReconcileClusterDisruption) createPDB(pdb *policyv1beta1.PodDisruptionB
 
 func (r *ReconcileClusterDisruption) deletePDB(pdb *policyv1beta1.PodDisruptionBudget) error {
 	err := r.client.Delete(context.TODO(), pdb)
-	if err != nil && !kerrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return errors.Wrapf(err, "failed to delete pdb %q", pdb.Name)
 	}
 	return nil
@@ -198,7 +196,7 @@ func (r *ReconcileClusterDisruption) initializePDBState(request reconcile.Reques
 	}
 	err := r.client.Get(context.TODO(), pdbStateMapRequest, pdbStateMap)
 
-	if kerrors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		// create configmap to track the draining failure domain
 		pdbStateMap.Data = map[string]string{drainingFailureDomainKey: ""}
 		err := r.client.Create(context.TODO(), pdbStateMap)
@@ -377,7 +375,7 @@ func (r *ReconcileClusterDisruption) updateNoout(clusterInfo *cephclient.Cluster
 	return nil
 }
 
-func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephClient.ClusterInfo, request reconcile.Request, poolFailureDomain string) ([]string, []string, error) {
+func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclient.ClusterInfo, request reconcile.Request, poolFailureDomain string) ([]string, []string, error) {
 	osdDeploymentList := &appsv1.DeploymentList{}
 	namespaceListOpts := client.InNamespace(request.Namespace)
 	topologyLocationLabel := fmt.Sprintf(osd.TopologyLocationLabel, poolFailureDomain)

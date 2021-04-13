@@ -26,7 +26,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/test"
 	optest "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -65,7 +64,7 @@ func TestDeploymentSpec(t *testing.T) {
 		},
 	}
 
-	clientset := test.New(t, 1)
+	clientset := optest.New(t, 1)
 	c := &clusterd.Context{
 		Executor:      &exectest.MockExecutor{},
 		RookClientset: rookclient.NewSimpleClientset(),
