@@ -352,7 +352,8 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		} else {
 			isAvailable, rejectedReason, err = sys.CheckIfDeviceAvailable(context.Executor, device.RealPath, agent.pvcBacked)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get device %q info", device.Name)
+				isAvailable = false
+				rejectedReason = fmt.Sprintf("failed to check if the device %q is available. %v", device.Name, err)
 			}
 		}
 
