@@ -28,4 +28,5 @@ const (
 	KeyOSDPrepare rook.KeyType = "prepareosd"
 	KeyOSD        rook.KeyType = "osd"
 	KeyCleanup    rook.KeyType = "cleanup"
+	KeyMonitoring rook.KeyType = "monitoring"
 )

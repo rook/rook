@@ -45,6 +45,11 @@ func GetCleanupLabels(a rook.LabelsSpec) rook.Labels {
 	return mergeAllLabelsWithKey(a, KeyCleanup)
 }
 
+// GetMonitoringLabels returns the Labels for monitoring resources
+func GetMonitoringLabels(a rook.LabelsSpec) rook.Labels {
+	return mergeAllLabelsWithKey(a, KeyMonitoring)
+}
+
 func mergeAllLabelsWithKey(a rook.LabelsSpec, name rook.KeyType) rook.Labels {
 	all := a.All()
 	if all != nil {
