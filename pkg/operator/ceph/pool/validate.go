@@ -18,7 +18,6 @@ limitations under the License.
 package pool
 
 import (
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 
 	"github.com/pkg/errors"
@@ -41,7 +40,7 @@ func ValidatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo
 }
 
 // ValidatePoolSpec validates the Ceph block pool spec CR
-func ValidatePoolSpec(context *clusterd.Context, clusterInfo *client.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.PoolSpec) error {
+func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.PoolSpec) error {
 	if p.IsReplicated() && p.IsErasureCoded() {
 		return errors.New("both replication and erasure code settings cannot be specified")
 	}
