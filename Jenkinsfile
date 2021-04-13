@@ -156,8 +156,8 @@ pipeline {
                         "aws_1.15.x": "v1.15.12",
                         "aws_1.16.x": "v1.16.15",
                         "aws_1.18.x": "v1.18.12",
-                        "aws_1.19.x": "v1.19.4",
-                        "aws_1.20.x": "v1.20.0"
+                        "aws_1.20.x": "v1.20.5",
+                        "aws_1.21.x": "v1.21.0"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
