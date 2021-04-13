@@ -22,9 +22,7 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -110,24 +108,24 @@ func TestCheckPodMemory(t *testing.T) {
 }
 
 func TestBuildAdminSocketCommand(t *testing.T) {
-	c := getDaemonConfig(config.OsdType, "")
+	c := getDaemonConfig(opconfig.OsdType, "")
 
 	command := c.buildAdminSocketCommand()
 	assert.Equal(t, "status", command)
 
-	c.daemonType = config.MonType
+	c.daemonType = opconfig.MonType
 	command = c.buildAdminSocketCommand()
 	assert.Equal(t, "mon_status", command)
 }
 
 func TestBuildSocketName(t *testing.T) {
 	daemonID := "0"
-	c := getDaemonConfig(config.OsdType, daemonID)
+	c := getDaemonConfig(opconfig.OsdType, daemonID)
 
 	socketName := c.buildSocketName()
 	assert.Equal(t, "ceph-osd.0.asok", socketName)
 
-	c.daemonType = config.MonType
+	c.daemonType = opconfig.MonType
 	c.daemonID = "a"
 	socketName = c.buildSocketName()
 	assert.Equal(t, "ceph-mon.a.asok", socketName)
@@ -135,7 +133,7 @@ func TestBuildSocketName(t *testing.T) {
 
 func TestBuildSocketPath(t *testing.T) {
 	daemonID := "0"
-	c := getDaemonConfig(config.OsdType, daemonID)
+	c := getDaemonConfig(opconfig.OsdType, daemonID)
 
 	socketPath := c.buildSocketPath()
 	assert.Equal(t, "/run/ceph/ceph-osd.0.asok", socketPath)
@@ -143,7 +141,7 @@ func TestBuildSocketPath(t *testing.T) {
 
 func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 	daemonID := "0"
-	probe := GenerateLivenessProbeExecDaemon(config.OsdType, daemonID)
+	probe := GenerateLivenessProbeExecDaemon(opconfig.OsdType, daemonID)
 	expectedCommand := []string{"env",
 		"-i",
 		"sh",
@@ -156,21 +154,21 @@ func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 	assert.Equal(t, initialDelaySecondsOSDDaemon, probe.InitialDelaySeconds)
 
 	// test with a mon so the delay should be 10
-	probe = GenerateLivenessProbeExecDaemon(config.MonType, "a")
+	probe = GenerateLivenessProbeExecDaemon(opconfig.MonType, "a")
 	assert.Equal(t, initialDelaySecondsNonOSDDaemon, probe.InitialDelaySeconds)
 }
 
 func TestDaemonFlags(t *testing.T) {
 	testcases := []struct {
 		label       string
-		clusterInfo *client.ClusterInfo
+		clusterInfo *cephclient.ClusterInfo
 		clusterSpec *cephv1.ClusterSpec
 		daemonID    string
 		expected    []string
 	}{
 		{
 			label: "case 1: IPv6 enabled",
-			clusterInfo: &client.ClusterInfo{
+			clusterInfo: &cephclient.ClusterInfo{
 				FSID: "id",
 			},
 			clusterSpec: &cephv1.ClusterSpec{
@@ -186,7 +184,7 @@ func TestDaemonFlags(t *testing.T) {
 		},
 		{
 			label: "case 2: IPv6 disabled",
-			clusterInfo: &client.ClusterInfo{
+			clusterInfo: &cephclient.ClusterInfo{
 				FSID: "id",
 			},
 			clusterSpec: &cephv1.ClusterSpec{},
