@@ -302,10 +302,9 @@ Configure the network that will be enabled for the cluster and services.
 
 To use host networking, set `provider: host`.
 
-#### Multus (EXPERIMENTAL)
+#### Multus
 
-Rook has experimental support for Multus.
-Currently there is an [open issue](https://github.com/ceph/ceph-csi/issues/1323) in ceph-csi which explains the csi-rbdPlugin issue while using multus network.
+Rook supports addition of public and cluster network for ceph using Multus
 
 The selector keys are required to be `public` and `cluster` where each represent:
 
@@ -356,6 +355,7 @@ spec:
 * Ensure that `master` matches the network interface of the host that you want to use.
 * The NAD should be referenced along with the namespace in which it is present like `public: <namespace>/<name of NAD>`.
   e.g., the network attachment definition are in `rook-multus` namespace:
+* Ipam type `whereabouts` is required because it makes sure that all the pods get a unique IP address from the multus network.
 
 ```yaml
   public: rook-multus/rook-public-nw
