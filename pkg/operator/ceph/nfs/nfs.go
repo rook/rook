@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -275,7 +274,7 @@ func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 	}
 
 	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
-	_, err := client.GetPoolDetails(context, clusterInfo, n.Spec.RADOS.Pool)
+	_, err := cephclient.GetPoolDetails(context, clusterInfo, n.Spec.RADOS.Pool)
 	if err != nil {
 		return errors.Wrapf(err, "pool %q not found", n.Spec.RADOS.Pool)
 	}

@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -51,7 +50,7 @@ func TestGenerateKey(t *testing.T) {
 	}
 	ns := "rook-ceph"
 	ownerInfo := k8sutil.OwnerInfo{}
-	s := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, &ownerInfo)
+	s := GetSecretStore(ctx, &cephclient.ClusterInfo{Namespace: ns}, &ownerInfo)
 
 	generateKey = "generatedsecretkey"
 	failGenerateKey = false
@@ -80,7 +79,7 @@ func TestKeyringStore(t *testing.T) {
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	ns := "rook-ceph"
-	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: ns}, ownerInfo)
+	k := GetSecretStore(ctx, &cephclient.ClusterInfo{Namespace: ns}, ownerInfo)
 
 	assertKeyringData := func(keyringName, expectedKeyring string) {
 		s, e := clientset.CoreV1().Secrets(ns).Get(ctxt, keyringName, metav1.GetOptions{})
@@ -125,7 +124,7 @@ func TestResourceVolumeAndMount(t *testing.T) {
 		Clientset: clientset,
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	k := GetSecretStore(ctx, &client.ClusterInfo{Namespace: "ns"}, ownerInfo)
+	k := GetSecretStore(ctx, &cephclient.ClusterInfo{Namespace: "ns"}, ownerInfo)
 	err := k.CreateOrUpdate("test-resource", "qwertyuiop")
 	assert.NoError(t, err)
 	err = k.CreateOrUpdate("second-resource", "asdfgyhujkl")
