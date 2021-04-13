@@ -20,7 +20,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -128,7 +128,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: install deps
       run: |
@@ -228,7 +228,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: install deps
       run: |
@@ -320,7 +320,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: install deps
       run: |
@@ -414,7 +414,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -502,7 +502,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: install deps
       run: |
@@ -594,7 +594,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: install deps
       run: |
@@ -688,7 +688,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -789,7 +789,7 @@ jobs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.16
 
     - name: install deps
       run: |
