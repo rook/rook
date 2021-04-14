@@ -38,7 +38,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -98,7 +97,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Start the mon pods
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mons")
+	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mons")
 	clusterInfo, err := c.mons.Start(c.ClusterInfo, rookImage, cephVersion, *c.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph monitors")
@@ -134,7 +133,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Start Ceph manager
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mgr(s)")
+	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mgr(s)")
 	mgrs := mgr.New(c.context, c.ClusterInfo, *spec, rookImage)
 	err = mgrs.Start()
 	if err != nil {
@@ -142,7 +141,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	}
 
 	// Start the OSDs
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph OSDs")
+	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph OSDs")
 	osds := osd.New(c.context, c.ClusterInfo, *spec, rookImage)
 	err = osds.Start()
 	if err != nil {
@@ -195,7 +194,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 	if cluster.Spec.External.Enable {
 		err := c.configureExternalCephCluster(cluster)
 		if err != nil {
-			opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
+			controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
 			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
 	} else {
@@ -210,7 +209,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 		err = c.configureLocalCephCluster(cluster)
 		if err != nil {
-			opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
+			controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
 			return errors.Wrap(err, "failed to configure local ceph cluster")
 		}
 	}
@@ -235,7 +234,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	cluster.context.Client = c.client
 
 	// Run image validation job
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Detecting Ceph version")
+	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Detecting Ceph version")
 	cephVersion, isUpgrade, err := c.detectAndValidateCephVersion(cluster)
 	if err != nil {
 		return errors.Wrap(err, "failed the ceph version check")
@@ -243,7 +242,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 
 	// Set the value of isUpgrade based on the image discovery done by detectAndValidateCephVersion()
 	cluster.isUpgrade = isUpgrade
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
+	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
 
 	// Run the orchestration
 	err = cluster.doOrchestration(c.rookImage, *cephVersion, cluster.Spec)
@@ -252,7 +251,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	}
 
 	// Set the condition to the cluster object
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionReady, v1.ConditionTrue, cephv1.ClusterCreatedReason, "Cluster created successfully")
+	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionReady, v1.ConditionTrue, cephv1.ClusterCreatedReason, "Cluster created successfully")
 	return nil
 }
 

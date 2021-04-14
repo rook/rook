@@ -31,13 +31,11 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
-	controllerutil "github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -354,7 +352,7 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ownerInfo *k8s
 }
 
 func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (reconcile.Result, bool) {
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionTrue, cephv1.ClusterDeletingReason, "Cluster is deleting")
+	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, corev1.ConditionTrue, cephv1.ClusterDeletingReason, "Cluster is deleting")
 
 	if existing, ok := c.clusterMap[cluster.Namespace]; ok && existing.namespacedName.Name != cluster.Name {
 		logger.Errorf("skipping deletion of cluster cr %q in namespace %q. cluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
@@ -385,7 +383,7 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 	} else {
 		err := c.checkIfVolumesExist(cluster)
 		if err != nil {
-			opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, v1.ConditionFalse, "ClusterDeleting", err.Error())
+			opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, corev1.ConditionFalse, "ClusterDeleting", err.Error())
 			logger.Errorf("failed to check if volumes exist. %v", err)
 			return opcontroller.WaitForRequeueIfFinalizerBlocked, false
 		}
@@ -421,7 +419,7 @@ func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) err
 			return err
 		}
 	}
-	if !controllerutil.FlexDriverEnabled(c.context) {
+	if !opcontroller.FlexDriverEnabled(c.context) {
 		logger.Debugf("Flex driver disabled, skipping check for volume attachments for cluster %q", cluster.Namespace)
 		return nil
 	}

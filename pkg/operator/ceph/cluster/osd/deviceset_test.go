@@ -27,7 +27,6 @@ import (
 	testexec "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -54,7 +53,7 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 		Name:                 "mydata",
 		Count:                1,
 		Portable:             true,
-		VolumeClaimTemplates: []v1.PersistentVolumeClaim{claim},
+		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{claim},
 		SchedulerName:        "custom-scheduler",
 	}
 	spec := cephv1.ClusterSpec{
@@ -99,7 +98,7 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 		Name:                 "mydata",
 		Count:                1,
 		Portable:             true,
-		VolumeClaimTemplates: []v1.PersistentVolumeClaim{testVolumeClaim("data"), testVolumeClaim("metadata"), testVolumeClaim("wal")},
+		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{testVolumeClaim("data"), testVolumeClaim("metadata"), testVolumeClaim("wal")},
 		SchedulerName:        "custom-scheduler",
 	}
 	spec := cephv1.ClusterSpec{
@@ -226,9 +225,9 @@ func assertPVCExists(t *testing.T, clientset kubernetes.Interface, namespace, na
 	assert.NotNil(t, pvc)
 }
 
-func testVolumeClaim(name string) v1.PersistentVolumeClaim {
+func testVolumeClaim(name string) corev1.PersistentVolumeClaim {
 	storageClass := "mysource"
-	claim := v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{
+	claim := corev1.PersistentVolumeClaim{Spec: corev1.PersistentVolumeClaimSpec{
 		StorageClassName: &storageClass,
 	}}
 	claim.Name = name
@@ -244,29 +243,29 @@ func TestUpdatePVCSize(t *testing.T) {
 		context:     context,
 		clusterInfo: client.AdminClusterInfo("testns"),
 	}
-	current := &v1.PersistentVolumeClaim{}
-	desired := &v1.PersistentVolumeClaim{}
-	current.Spec.Resources.Requests = v1.ResourceList{}
-	desired.Spec.Resources.Requests = v1.ResourceList{}
-	current.Spec.Resources.Requests[v1.ResourceStorage] = resource.MustParse("5Gi")
+	current := &corev1.PersistentVolumeClaim{}
+	desired := &corev1.PersistentVolumeClaim{}
+	current.Spec.Resources.Requests = corev1.ResourceList{}
+	desired.Spec.Resources.Requests = corev1.ResourceList{}
+	current.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("5Gi")
 
 	// Nothing happens if no size is set on the new PVC
 	cluster.updatePVCIfChanged(desired, current)
-	result, ok := current.Spec.Resources.Requests[v1.ResourceStorage]
+	result, ok := current.Spec.Resources.Requests[corev1.ResourceStorage]
 	assert.True(t, ok)
 	assert.Equal(t, "5Gi", result.String())
 
 	// Nothing happens if the size shrinks
-	desired.Spec.Resources.Requests[v1.ResourceStorage] = resource.MustParse("4Gi")
+	desired.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("4Gi")
 	cluster.updatePVCIfChanged(desired, current)
-	result, ok = current.Spec.Resources.Requests[v1.ResourceStorage]
+	result, ok = current.Spec.Resources.Requests[corev1.ResourceStorage]
 	assert.True(t, ok)
 	assert.Equal(t, "5Gi", result.String())
 
 	// The size is updated when it increases
-	desired.Spec.Resources.Requests[v1.ResourceStorage] = resource.MustParse("6Gi")
+	desired.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("6Gi")
 	cluster.updatePVCIfChanged(desired, current)
-	result, ok = current.Spec.Resources.Requests[v1.ResourceStorage]
+	result, ok = current.Spec.Resources.Requests[corev1.ResourceStorage]
 	assert.True(t, ok)
 	assert.Equal(t, "6Gi", result.String())
 }
