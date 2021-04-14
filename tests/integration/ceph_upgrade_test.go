@@ -133,6 +133,10 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	objectStoreName := "upgraded-object"
 	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.settings, objectStoreName, 1, false)
 
+	logger.Infof("Initializing object user before the upgrade")
+	objectUserID := "upgraded-user"
+	createCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, false)
+
 	logger.Info("Initializing object bucket claim before the upgrade")
 	bucketStorageClassName := "rook-smoke-delete-bucket"
 	bucketPrefix := "generate-me" // use generated bucket name for this test
@@ -141,6 +145,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	cobcErr := s.helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketPrefix, maxObject, false)
 	require.Nil(s.T(), cobcErr)
 	defer func() {
+		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
 		_ = s.helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketPrefix, maxObject, false)
 		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, objectStoreName, bucketStorageClassName, "Delete", region)
 		objectStoreCleanUp(s.Suite, s.helper, s.k8sh, s.settings.Namespace, objectStoreName)
@@ -186,6 +191,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
 
+	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true)
+
 	// should be Bound after upgrade to Rook v1.5+
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
 	require.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
@@ -203,6 +210,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from nautilus to octopus")
 
+	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true)
+
 	//
 	// Upgrade from octopus to pacific
 	//
@@ -213,6 +222,8 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	newFile = "post-pacific-upgrade-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from octopus to pacific")
+
+	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true)
 }
 
 func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {

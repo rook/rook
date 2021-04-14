@@ -23,6 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -73,21 +74,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	// check that ObjectUser is created
 	logger.Infof("Step 1 : Create Object Store User")
-	cosuErr := helper.ObjectUserClient.Create(namespace, userid, userdisplayname, storeName)
-	assert.Nil(s.T(), cosuErr)
-	logger.Infof("Waiting 5 seconds for the object user to be created")
-	time.Sleep(5 * time.Second)
-	logger.Infof("Checking to see if the user secret has been created")
-	for i := 0; i < 6 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) == false; i++ {
-		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
-		time.Sleep(5 * time.Second)
-	}
+	createCephObjectUser(s, helper, k8sh, namespace, storeName, userid, true)
 
-	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid))
-	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userid)
-	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), userid, userInfo.UserID)
-	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 	logger.Infof("Done creating object store user")
 
 	// Check object store status
@@ -249,4 +237,47 @@ func objectStoreCleanUp(s suite.Suite, helper *clients.TestClient, k8sh *utils.K
 	err := helper.ObjectClient.Delete(namespace, storeName)
 	assert.Nil(s.T(), err)
 	logger.Infof("Done deleting object store")
+}
+
+func createCephObjectUser(
+	s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
+	namespace, storeName, userID string,
+	checkPhase bool,
+) {
+	s.T().Helper()
+
+	cosuErr := helper.ObjectUserClient.Create(namespace, userID, userdisplayname, storeName)
+	assert.Nil(s.T(), cosuErr)
+	logger.Infof("Waiting 5 seconds for the object user to be created")
+	time.Sleep(5 * time.Second)
+	logger.Infof("Checking to see if the user secret has been created")
+	for i := 0; i < 6 && helper.ObjectUserClient.UserSecretExists(namespace, storeName, userID) == false; i++ {
+		logger.Infof("(%d) secret check sleeping for 5 seconds ...", i)
+		time.Sleep(5 * time.Second)
+	}
+
+	checkCephObjectUser(s, helper, k8sh, namespace, storeName, userID, checkPhase)
+}
+
+func checkCephObjectUser(
+	s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
+	namespace, storeName, userID string,
+	checkPhase bool,
+) {
+	s.T().Helper()
+
+	logger.Infof("checking object store \"%s/%s\" user %q", namespace, storeName, userID)
+	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userID))
+
+	userInfo, err := helper.ObjectUserClient.GetUser(namespace, storeName, userID)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), userID, userInfo.UserID)
+	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
+
+	if checkPhase {
+		// status.phase doesn't exist before Rook v1.6
+		phase, err := k8sh.GetResource("--namespace", namespace, "cephobjectstoreuser", userID, "--output", "jsonpath={.status.phase}")
+		assert.NoError(s.T(), err)
+		assert.Equal(s.T(), k8sutil.ReadyStatus, phase)
+	}
 }
