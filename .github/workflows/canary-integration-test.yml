@@ -13,6 +13,7 @@ on:
 jobs:
   canary:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -121,6 +122,7 @@ jobs:
 
   pvc:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -221,6 +223,7 @@ jobs:
 
   pvc-db:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -313,6 +316,7 @@ jobs:
 
   pvc-db-wal:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -407,6 +411,7 @@ jobs:
 
   encryption-pvc:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -495,6 +500,7 @@ jobs:
 
   encryption-pvc-db:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -587,6 +593,7 @@ jobs:
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -681,6 +688,7 @@ jobs:
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -782,6 +790,7 @@ jobs:
 
   lvm-pvc:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2

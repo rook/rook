@@ -10,7 +10,7 @@ on:
 
 jobs:
   TestCephMultiClusterDeploySuite:
-    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' }}
+    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
