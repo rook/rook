@@ -94,17 +94,14 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		osds, err := cephclient.GetOSDOnHost(c.context, clusterInfo, nodeName)
 		if err != nil {
 			// If it fails, this might be due to the the operator just starting and catching an add event for that node
-			logger.Debugf("failed to get osds on node %q", nodeName)
-			return false
+			logger.Debugf("failed to get osds on node %q, assume reconcile is necessary", nodeName)
+			return true
 		}
 
 		// If they are OSDs in the CRUSH map and if the host exists in the CRUSH map, don't reconcile
 		if osds != "" {
 			// This is Debug level because the node receives frequent updates and this will pollute the logs
 			logger.Debugf("node watcher: node %q is already an OSD node with %q", nodeName, osds)
-		} else {
-			logger.Infof("node watcher: adding node %q to cluster %q", node.Labels[v1.LabelHostname], cluster.Namespace)
-			return true
 		}
 	}
 
