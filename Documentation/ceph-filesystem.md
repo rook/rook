@@ -9,7 +9,7 @@ indent: true
 
 A shared filesystem can be mounted with read/write permission from multiple pods. This may be useful for applications which can be clustered using a shared filesystem.
 
-This example runs a shared filesystem for the [kube-registry](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry).
+This example runs a shared filesystem for the [kube-registry](https://github.com/kubernetes/kubernetes/tree/release-1.9/cluster/addons/registry).
 
 ## Prerequisites
 
