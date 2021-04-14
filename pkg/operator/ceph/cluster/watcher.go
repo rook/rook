@@ -25,6 +25,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,6 +39,8 @@ type clientCluster struct {
 	context   *clusterd.Context
 }
 
+var nodesCheckedForReconcile = util.NewSet()
+
 func newClientCluster(client client.Client, namespace string, context *clusterd.Context) *clientCluster {
 	return &clientCluster{
 		client:    client,
@@ -46,14 +49,24 @@ func newClientCluster(client client.Client, namespace string, context *clusterd.
 	}
 }
 
+func checkStorageForNode(cluster *cephv1.CephCluster) bool {
+	if !cluster.Spec.Storage.UseAllNodes && len(cluster.Spec.Storage.Nodes) == 0 && len(cluster.Spec.Storage.VolumeSources) == 0 && len(cluster.Spec.Storage.StorageClassDeviceSets) == 0 {
+		logger.Debugf("node watcher: useAllNodes is set to false and no nodes storageClassDevicesets or volumeSources are specified in cluster %q, skipping", cluster.Namespace)
+		return false
+	}
+	return true
+}
+
 // onK8sNodeAdd is triggered when a node is added in the Kubernetes cluster
-// func (c *clientCluster) onK8sNodeAdd(object runtime.Object) bool {
 func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 	node, ok := object.(*v1.Node)
 	if !ok {
 		return false
 	}
-
+	// skip reconcile if node is already checked in a previous reconcile
+	if nodesCheckedForReconcile.Contains(node.Name) {
+		return false
+	}
 	// Get CephCluster
 	cluster := c.getCephCluster()
 
@@ -67,8 +80,8 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		return false
 	}
 
-	if !cluster.Spec.Storage.UseAllNodes {
-		logger.Debugf("node watcher: do not use all Nodes in cluster %q, skipping", cluster.Namespace)
+	if !checkStorageForNode(cluster) {
+		nodesCheckedForReconcile.Add(node.Name)
 		return false
 	}
 
@@ -78,6 +91,8 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		return false
 	}
 
+	logger.Debugf("node %q is ready, checking if it can run OSDs", node.Name)
+	nodesCheckedForReconcile.Add(node.Name)
 	valid, _ := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement))
 	if valid {
 		nodeName := node.Name
@@ -85,7 +100,6 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		if ok && hostname != "" {
 			nodeName = hostname
 		}
-
 		// Make sure we can call Ceph properly
 		// Is the node in the CRUSH map already?
 		// If so we don't need to reconcile, this is done to avoid double reconcile on operator restart
@@ -98,13 +112,15 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 			return true
 		}
 
-		// If they are OSDs in the CRUSH map and if the host exists in the CRUSH map, don't reconcile
-		if osds != "" {
-			// This is Debug level because the node receives frequent updates and this will pollute the logs
-			logger.Debugf("node watcher: node %q is already an OSD node with %q", nodeName, osds)
+		// Reconcile if there are no OSDs in the CRUSH map and if the host does not exist in the CRUSH map.
+		if osds == "" {
+			logger.Infof("node watcher: adding node %q to cluster %q", node.Labels[v1.LabelHostname], cluster.Namespace)
+			return true
 		}
-	}
 
+		// This is Debug level because the node receives frequent updates and this will pollute the logs
+		logger.Debugf("node watcher: node %q is already an OSD node with %q", nodeName, osds)
+	}
 	return false
 }
 
