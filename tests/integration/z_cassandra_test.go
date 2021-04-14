@@ -18,6 +18,7 @@ package integration
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -53,6 +54,9 @@ type CassandraSuite struct {
 // TestCassandraSuite initiates the CassandraSuite
 func TestCassandraSuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CassandraTestSuite) {
+		t.Skip()
+	}
+	if os.Getenv("SKIP_CASSANDRA_TESTS") == "true" {
 		t.Skip()
 	}
 
