@@ -313,3 +313,12 @@ func assertErrorType(err error) string {
 
 	return ""
 }
+
+// ExtractExitCode attempts to get the exit code from the error returned by an Executor function.
+// This should also work for any errors returned by the golang os/exec package.
+func ExtractExitCode(err error) (int, error) {
+	if ee, ok := err.(*exec.ExitError); ok {
+		return ee.ExitCode(), nil
+	}
+	return 0, errors.Errorf("error %#v is not an ExitError", err)
+}
