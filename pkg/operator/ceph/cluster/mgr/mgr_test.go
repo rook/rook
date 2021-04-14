@@ -36,9 +36,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -51,7 +49,7 @@ func TestStartMgr(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
-	waitForDeploymentToStart = func(clusterdContext *clusterd.Context, deployment *v1.Deployment) error {
+	waitForDeploymentToStart = func(clusterdContext *clusterd.Context, deployment *apps.Deployment) error {
 		logger.Infof("simulated mgr deployment starting")
 		return nil
 	}
@@ -217,7 +215,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 	assert.True(t, calledMgrStat)
 	assert.False(t, calledMgrDump)
 	_, err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
-	assert.True(t, kerrors.IsNotFound(err))
+	assert.True(t, errors.IsNotFound(err))
 
 	// nothing is updated when the requested mgr is not the active mgr
 	activeMgr = "b"

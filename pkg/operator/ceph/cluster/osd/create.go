@@ -24,7 +24,6 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -158,7 +157,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 	awaitingStatusConfigMaps := util.NewSet()
 	for _, volume := range c.ValidStorage.VolumeSources {
 		// Check whether we need to cancel the orchestration
-		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+		if err := opcontroller.CheckForCancelledOrchestration(c.context); err != nil {
 			return awaitingStatusConfigMaps, err
 		}
 
@@ -315,7 +314,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 	awaitingStatusConfigMaps := util.NewSet()
 	for _, node := range c.ValidStorage.Nodes {
 		// Check whether we need to cancel the orchestration
-		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
+		if err := opcontroller.CheckForCancelledOrchestration(c.context); err != nil {
 			return awaitingStatusConfigMaps, err
 		}
 

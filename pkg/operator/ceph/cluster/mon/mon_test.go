@@ -33,7 +33,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -325,7 +324,7 @@ func TestMaxMonID(t *testing.T) {
 }
 
 func TestMonInQuorum(t *testing.T) {
-	entry := client.MonMapEntry{Name: "foo", Rank: 23}
+	entry := cephclient.MonMapEntry{Name: "foo", Rank: 23}
 	quorum := []int{}
 	// Nothing in quorum
 	assert.False(t, monInQuorum(entry, quorum))
@@ -366,7 +365,7 @@ func TestWaitForQuorum(t *testing.T) {
 	namespace := "ns"
 	quorumChecks := 0
 	quorumResponse := func() (string, error) {
-		mons := map[string]*client.MonInfo{
+		mons := map[string]*cephclient.MonInfo{
 			"a": {},
 		}
 		quorumChecks++
@@ -381,17 +380,17 @@ func TestWaitForQuorum(t *testing.T) {
 	assert.NoError(t, err)
 	requireAllInQuorum := false
 	expectedMons := []string{"a"}
-	clusterInfo := &client.ClusterInfo{Namespace: namespace}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: namespace}
 	err = waitForQuorumWithMons(context, clusterInfo, expectedMons, 0, requireAllInQuorum)
 	assert.NoError(t, err)
 }
 
 func TestMonFoundInQuorum(t *testing.T) {
-	response := client.MonStatusResponse{}
+	response := cephclient.MonStatusResponse{}
 
 	// "a" is in quorum
 	response.Quorum = []int{0}
-	response.MonMap.Mons = []client.MonMapEntry{
+	response.MonMap.Mons = []cephclient.MonMapEntry{
 		{Name: "a", Rank: 0},
 		{Name: "b", Rank: 1},
 		{Name: "c", Rank: 2},
