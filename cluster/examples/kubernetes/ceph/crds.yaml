@@ -6397,7 +6397,7 @@ spec:
                     nullable: true
                     type: array
                   instances:
-                    description: The number of pods in the rgw replicaset. If "allNodes" is specified, a daemonset is created.
+                    description: The number of pods in the rgw replicaset.
                     format: int32
                     minimum: 1
                     type: integer
