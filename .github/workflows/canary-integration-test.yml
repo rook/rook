@@ -866,13 +866,136 @@ jobs:
         chmod +x kubectl-check-ownerreferences
         ./kubectl-check-ownerreferences -n rook-ceph
 
-    - name: Upload  pvc test result
+    - name: Upload pvc test result
       uses: actions/upload-artifact@v2
       if: always()
       with:
-        name:  lvm-pvc
+        name: lvm-pvc
         path: test
 
     - name: setup tmate session for debugging
       if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-lvm-pvc')
+      uses: mxschmitt/action-tmate@v3
+
+  multi-cluster-mirroring:
+    runs-on: ubuntu-18.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: install deps
+      run: |
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.3.1
+      with:
+        minikube version: 'v1.18.1'
+        kubernetes version: 'v1.19.2'
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: use local disk into two partitions
+      run: |
+        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        BLOCK_DATA_PART=${BLOCK}1
+        sudo dmsetup version||true
+        sudo swapoff --all --verbose
+        sudo umount /mnt
+        # search for the device since it keeps changing between sda and sdb
+        sudo wipefs --all --force "$BLOCK_DATA_PART"
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
+        sudo lsblk
+
+    - name: build rook
+      run: |
+        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
+        docker images
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+
+    - name: deploy first cluster rook
+      run: |
+        BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+        cd cluster/examples/kubernetes/ceph/
+        kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+        yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
+        yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
+        yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}1
+        kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f filesystem-mirror.yaml -f toolbox.yaml
+
+    - name: deploy second cluster rook
+      run: |
+        BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+        cd cluster/examples/kubernetes/ceph/
+        NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
+        sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml rbdmirror.yaml filesystem-mirror.yaml
+        yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}2
+        yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
+        yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
+        kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f filesystem-mirror.yaml -f toolbox.yaml
+
+    - name: wait for ceph cluster 1 to be ready
+      run: |
+        mkdir test
+        tests/scripts/validate_cluster.sh osd 1
+        kubectl -n rook-ceph get pods
+
+    - name: create replicated mirrored pool on cluster 1
+      run: |
+        cd cluster/examples/kubernetes/ceph/
+        yq w -i pool-test.yaml spec.mirroring.enabled true
+        yq w -i pool-test.yaml spec.mirroring.mode image
+        kubectl create -f pool-test.yaml
+        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool to created" && sleep 1; done'
+
+    - name: create replicated mirrored pool on cluster 2
+      run: |
+        cd cluster/examples/kubernetes/ceph/
+        yq w -i pool-test.yaml metadata.namespace rook-ceph-secondary
+        kubectl create -f pool-test.yaml
+        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool to created" && sleep 1; done'
+
+    - name: create image in the pool
+      run: |
+        kubectl exec -n rook-ceph deploy/rook-ceph-tools -ti -- rbd -p replicapool create test -s 1G
+        kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool/test snapshot
+        kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
+
+    - name: copy peer secret into the other cluster
+      run: |
+        kubectl -n rook-ceph get secret pool-peer-token-replicapool -o yaml |\
+        sed 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g; s/name: pool-peer-token-replicapool/name: pool-peer-token-replicapool-config/g' |\
+        kubectl create --namespace=rook-ceph-secondary -f -
+
+    - name: add peer secret to the other cluster
+      run: |
+        kubectl -n rook-ceph-secondary patch cephrbdmirror my-rbd-mirror --type merge -p '{"spec":{"peers": {"secretNames": ["pool-peer-token-replicapool-config"]}}}'
+
+    - name: verify image has been mirrored
+      run: |
+        # let's wait a bit for the image to be present
+        timeout 30 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored" && sleep 1; done'
+
+    - name: display cephblockpool and image status
+      run: |
+        timeout 80 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.mirroringStatus.summary.daemon_health}'|grep -c OK)" -eq 1 ]; do echo "waiting for mirroring status to be updated" && sleep 1; done'
+        kubectl -n rook-ceph-secondary get cephblockpool -o yaml
+        kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
+
+    - name: upload test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: multi-cluster-mirroring
+        path: test
+
+    - name: setup tmate session for debugging
+      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-multi-cluster-mirroring')
       uses: mxschmitt/action-tmate@v3

@@ -62,6 +62,19 @@ sed -i.bak \
 kubectl apply -f common.yaml -f operator.yaml -f cluster.yaml # add other files as desired for yourconfig
 ```
 
+## Deploying a second cluster
+
+If you wish to create a new CephCluster in a different namespace than `rook-ceph` while using a single operator to manage both clusters execute the following:
+
+```sh
+cd cluster/examples/kubernetes/ceph
+
+NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
+```
+
+This will create all the necessary RBACs as well as the new namespace. The script assumes that `common.yaml` was already created.
+When you create the second CephCluster CR, use the same `NAMESPACE` and the operator will configure the second cluster.
+
 ## Use custom Ceph user and secret for mounting
 
 > **NOTE**: For extensive info about creating Ceph users, consult the Ceph documentation: http://docs.ceph.com/docs/mimic/rados/operations/user-management/#add-a-user.
