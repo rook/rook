@@ -34,3 +34,4 @@ v1.6...
     up updates and upgrades for larger Ceph clusters
 * Disable CSI GRPC metrics by default
 * Monitors failover can be [disabled](Documentation/ceph-mon-health.md#failing-over-a-monitor), this is useful for monitor going under planned maintenance where automatic failover is not desired
+* RGW: Rook has started using deployment's replicatset functionality instead of deploying multiple deployments for each rgw

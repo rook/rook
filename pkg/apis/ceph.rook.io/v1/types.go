@@ -1062,7 +1062,7 @@ type GatewaySpec struct {
 	// +optional
 	SecurePort int32 `json:"securePort,omitempty"`
 
-	// The number of pods in the rgw replicaset. If "allNodes" is specified, a daemonset is created.
+	// The number of pods in the rgw replicaset.
 	// +kubebuilder:validation:Minimum=1
 	Instances int32 `json:"instances"`
 
