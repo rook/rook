@@ -31,12 +31,11 @@ CRDS_BEFORE_1_16_FILE_PATH="${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/pre-
 #############
 # FUNCTIONS #
 #############
-# TODO: revisit later
-# ensures the vendor dir has the right deps, e,g. code-generator
-# if [ ! -d vendor/github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1/ ];then
-#   echo "Vendoring project"
-#   go mod vendor
-# fi
+# ensures the vendor dir has the right deps, e,g. volume replication controller
+if [ ! -d vendor/github.com/csi-addons/volume-replication-operator/api/v1alpha1 ];then
+  echo "Vendoring project"
+  go mod vendor
+fi
 
 copy_ob_obc_crds() {
   mkdir -p "$OLM_CATALOG_DIR"
@@ -56,6 +55,11 @@ generating_crds_v1alpha2() {
   # * remove files cluster/olm/ceph/assemble/{objectbucket.io_objectbucketclaims.yaml,objectbucket.io_objectbuckets.yaml}
   # Activate code below
   # "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./vendor/github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
+}
+
+generate_vol_rep_crds() {
+  echo "Generating volume replication crds in crds.yaml"
+  "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./vendor/github.com/csi-addons/volume-replication-operator/api/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
 }
 
 generating_main_crd() {
@@ -101,6 +105,8 @@ if [ -z "$NO_OB_OBC_VOL_GEN" ]; then
   copy_ob_obc_crds
   generating_crds_v1alpha2
 fi
+
+generate_vol_rep_crds
 
 generating_main_crd
 
