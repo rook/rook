@@ -28,7 +28,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -325,9 +324,9 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	var err error
 
 	// populate fake monmap
-	fakeResp := client.MonStatusResponse{Quorum: []int{0}}
+	fakeResp := cephclient.MonStatusResponse{Quorum: []int{0}}
 
-	fakeResp.MonMap.Mons = []client.MonMapEntry{
+	fakeResp.MonMap.Mons = []cephclient.MonMapEntry{
 		{
 			Name: "a",
 		},
@@ -335,7 +334,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	fakeResp.MonMap.Mons[0].PublicAddr = "172.17.0.4:3300"
 
 	// populate fake ClusterInfo
-	c := &Cluster{ClusterInfo: &client.ClusterInfo{}}
+	c := &Cluster{ClusterInfo: &cephclient.ClusterInfo{}}
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	//
@@ -365,7 +364,7 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 	//
 	// Now let's add a new mon in the external cluster
 	// ClusterInfo should be updated with this new monitor
-	fakeResp.MonMap.Mons = []client.MonMapEntry{
+	fakeResp.MonMap.Mons = []cephclient.MonMapEntry{
 		{
 			Name: "a",
 		},

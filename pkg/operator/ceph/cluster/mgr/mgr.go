@@ -29,7 +29,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -325,7 +324,7 @@ func startModuleConfiguration(description string, configureModules func() error)
 
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
 func (c *Cluster) enablePrometheusModule() error {
-	if err := client.MgrEnableModule(c.context, c.clusterInfo, PrometheusModuleName, true); err != nil {
+	if err := cephclient.MgrEnableModule(c.context, c.clusterInfo, PrometheusModuleName, true); err != nil {
 		return errors.Wrap(err, "failed to enable mgr prometheus module")
 	}
 	return nil
@@ -333,7 +332,7 @@ func (c *Cluster) enablePrometheusModule() error {
 
 // Ceph docs about the crash module: https://docs.ceph.com/docs/master/mgr/crash/
 func (c *Cluster) enableCrashModule() error {
-	if err := client.MgrEnableModule(c.context, c.clusterInfo, crashModuleName, true); err != nil {
+	if err := cephclient.MgrEnableModule(c.context, c.clusterInfo, crashModuleName, true); err != nil {
 		return errors.Wrap(err, "failed to enable mgr crash module")
 	}
 	return nil
@@ -343,13 +342,13 @@ func (c *Cluster) enableBalancerModule() error {
 	// The order MATTERS, always configure this module first, then turn it on
 
 	// This sets min compat client to luminous and the balancer module mode
-	err := client.ConfigureBalancerModule(c.context, c.clusterInfo, balancerModuleMode)
+	err := cephclient.ConfigureBalancerModule(c.context, c.clusterInfo, balancerModuleMode)
 	if err != nil {
 		return errors.Wrapf(err, "failed to configure module %q", balancerModuleName)
 	}
 
 	// This turns "on" the balancer
-	err = client.MgrEnableModule(c.context, c.clusterInfo, balancerModuleName, false)
+	err = cephclient.MgrEnableModule(c.context, c.clusterInfo, balancerModuleName, false)
 	if err != nil {
 		return errors.Wrapf(err, "failed to turn on mgr %q module", balancerModuleName)
 	}
@@ -374,13 +373,13 @@ func (c *Cluster) configureMgrModules() error {
 		if module.Enabled {
 			if module.Name == balancerModuleName {
 				// Configure balancer module mode
-				err := client.ConfigureBalancerModule(c.context, c.clusterInfo, balancerModuleMode)
+				err := cephclient.ConfigureBalancerModule(c.context, c.clusterInfo, balancerModuleMode)
 				if err != nil {
 					return errors.Wrapf(err, "failed to configure module %q", module.Name)
 				}
 			}
 
-			if err := client.MgrEnableModule(c.context, c.clusterInfo, module.Name, false); err != nil {
+			if err := cephclient.MgrEnableModule(c.context, c.clusterInfo, module.Name, false); err != nil {
 				return errors.Wrapf(err, "failed to enable mgr module %q", module.Name)
 			}
 
@@ -402,7 +401,7 @@ func (c *Cluster) configureMgrModules() error {
 			}
 
 		} else {
-			if err := client.MgrDisableModule(c.context, c.clusterInfo, module.Name); err != nil {
+			if err := cephclient.MgrDisableModule(c.context, c.clusterInfo, module.Name); err != nil {
 				return errors.Wrapf(err, "failed to disable mgr module %q", module.Name)
 			}
 		}

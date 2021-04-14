@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	daemonclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -207,7 +206,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	}
 
 	// Get cluster running versions
-	versions, err := client.GetAllCephDaemonVersions(c.context, c.ClusterInfo)
+	versions, err := daemonclient.GetAllCephDaemonVersions(c.context, c.ClusterInfo)
 	if err != nil {
 		logger.Errorf("failed to get ceph daemons versions, this typically happens during the first cluster initialization. %v", err)
 		return nil
@@ -226,7 +225,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	if differentImages {
 		// If the image version changed let's make sure we can safely upgrade
 		// check ceph's status, if not healthy we fail
-		cephHealthy := client.IsCephHealthy(c.context, c.ClusterInfo)
+		cephHealthy := daemonclient.IsCephHealthy(c.context, c.ClusterInfo)
 		if !cephHealthy {
 			if c.Spec.SkipUpgradeChecks {
 				logger.Warning("ceph is not healthy but SkipUpgradeChecks is set, forcing upgrade.")

@@ -26,7 +26,6 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	fakeclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclientfake "github.com/rook/rook/pkg/daemon/ceph/client/fake"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
@@ -296,7 +295,7 @@ func TestAddRemoveNode(t *testing.T) {
 	assert.NoError(t, err)
 
 	removeIfOutAndSafeToRemove := true
-	healthMon := NewOSDHealthMonitor(context, client.AdminClusterInfo(namespace), removeIfOutAndSafeToRemove, cephv1.CephClusterHealthCheckSpec{})
+	healthMon := NewOSDHealthMonitor(context, cephclient.AdminClusterInfo(namespace), removeIfOutAndSafeToRemove, cephv1.CephClusterHealthCheckSpec{})
 	healthMon.checkOSDHealth()
 	_, err = clientset.AppsV1().Deployments(namespace).Get(ctx, deploymentName(1), metav1.GetOptions{})
 	assert.True(t, k8serrors.IsNotFound(err))
