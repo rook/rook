@@ -17,7 +17,9 @@ limitations under the License.
 package integration
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -52,6 +54,9 @@ type CassandraSuite struct {
 // TestCassandraSuite initiates the CassandraSuite
 func TestCassandraSuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CassandraTestSuite) {
+		t.Skip()
+	}
+	if os.Getenv("SKIP_CASSANDRA_TESTS") == "true" {
 		t.Skip()
 	}
 
