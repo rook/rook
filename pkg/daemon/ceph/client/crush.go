@@ -199,6 +199,7 @@ func formatProperty(name, value string) string {
 
 // GetOSDOnHost returns the list of osds running on a given host
 func GetOSDOnHost(context *clusterd.Context, clusterInfo *ClusterInfo, node string) (string, error) {
+	node = NormalizeCrushName(node)
 	args := []string{"osd", "crush", "ls", node}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
