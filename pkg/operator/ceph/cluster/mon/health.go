@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -111,7 +110,7 @@ func (c *Cluster) checkHealth() error {
 
 	// For an external connection we use a special function to get the status
 	if c.spec.External.Enable {
-		quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo)
+		quorumStatus, err := cephclient.GetMonQuorumStatus(c.context, c.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to get external mon quorum status")
 		}
@@ -121,7 +120,7 @@ func (c *Cluster) checkHealth() error {
 
 	// connect to the mons
 	// get the status and check for quorum
-	quorumStatus, err := client.GetMonQuorumStatus(c.context, c.ClusterInfo)
+	quorumStatus, err := cephclient.GetMonQuorumStatus(c.context, c.ClusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get mon quorum status")
 	}
@@ -469,7 +468,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 func (c *Cluster) removeMonitorFromQuorum(name string) error {
 	logger.Debugf("removing monitor %s", name)
 	args := []string{"mon", "remove", name}
-	if _, err := client.NewCephCommand(c.context, c.ClusterInfo, args).Run(); err != nil {
+	if _, err := cephclient.NewCephCommand(c.context, c.ClusterInfo, args).Run(); err != nil {
 		return errors.Wrapf(err, "mon %s remove failed", name)
 	}
 
@@ -477,7 +476,7 @@ func (c *Cluster) removeMonitorFromQuorum(name string) error {
 	return nil
 }
 
-func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error {
+func (c *Cluster) handleExternalMonStatus(status cephclient.MonStatusResponse) error {
 	// We don't need to validate Ceph version if no image is present
 	if c.spec.CephVersion.Image != "" {
 		_, err := controller.ValidateCephVersionsBetweenLocalAndExternalClusters(c.context, c.ClusterInfo)
@@ -501,7 +500,7 @@ func (c *Cluster) handleExternalMonStatus(status client.MonStatusResponse) error
 	return nil
 }
 
-func (c *Cluster) addOrRemoveExternalMonitor(status client.MonStatusResponse) (bool, error) {
+func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse) (bool, error) {
 	var changed bool
 	oldClusterInfoMonitors := map[string]*cephclient.MonInfo{}
 	// clearing the content of clusterinfo monitors

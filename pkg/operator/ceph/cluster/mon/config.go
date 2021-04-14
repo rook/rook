@@ -31,7 +31,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -119,10 +118,10 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 			clusterInfo.CephCred.Username = string(cephUsername)
 			clusterInfo.CephCred.Secret = string(secrets.Data[cephUserSecretKey])
 		} else if adminSecretKey, ok := secrets.Data[adminSecretNameKey]; ok {
-			clusterInfo.CephCred.Username = client.AdminUsername
+			clusterInfo.CephCred.Username = cephclient.AdminUsername
 			clusterInfo.CephCred.Secret = string(adminSecretKey)
 
-			secrets.Data[cephUsernameKey] = []byte(client.AdminUsername)
+			secrets.Data[cephUsernameKey] = []byte(cephclient.AdminUsername)
 			secrets.Data[cephUserSecretKey] = adminSecretKey
 			if _, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Update(ctx, secrets, metav1.UpdateOptions{}); err != nil {
 				return nil, maxMonID, monMapping, errors.Wrap(err, "failed to update mon secrets")
@@ -143,7 +142,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 	// Some people might want to give the admin key
 	// The necessary users/keys/secrets will be created by Rook
 	// This is also done to allow backward compatibility
-	if clusterInfo.CephCred.Username == client.AdminUsername && clusterInfo.CephCred.Secret != adminSecretNameKey {
+	if clusterInfo.CephCred.Username == cephclient.AdminUsername && clusterInfo.CephCred.Secret != adminSecretNameKey {
 		return clusterInfo, maxMonID, monMapping, nil
 	}
 
@@ -318,7 +317,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 		"--cap", "osd", "'allow *'",
 		"--cap", "mgr", "'allow *'",
 		"--cap", "mds", "'allow'"}
-	adminSecret, err := genSecret(context.Executor, dir, client.AdminUsername, args)
+	adminSecret, err := genSecret(context.Executor, dir, cephclient.AdminUsername, args)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +327,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 		MonitorSecret: monSecret,
 		Namespace:     namespace,
 		CephCred: cephclient.CephCred{
-			Username: client.AdminUsername,
+			Username: cephclient.AdminUsername,
 			Secret:   adminSecret,
 		},
 	}, nil

@@ -27,7 +27,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -127,7 +126,7 @@ func TestCephStatus(t *testing.T) {
 }
 
 func TestNewCephStatusChecker(t *testing.T) {
-	clusterInfo := client.AdminClusterInfo("ns")
+	clusterInfo := cephclient.AdminClusterInfo("ns")
 	c := &clusterd.Context{}
 	time10s, err := time.ParseDuration("10s")
 	assert.NoError(t, err)
@@ -158,7 +157,7 @@ func TestNewCephStatusChecker(t *testing.T) {
 func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 	ctx := context.TODO()
 	clientset := optest.New(t, 1)
-	clusterInfo := client.NewClusterInfo("test", "test")
+	clusterInfo := cephclient.NewClusterInfo("test", "test")
 	clusterName := clusterInfo.NamespacedName()
 
 	context := &clusterd.Context{
@@ -229,7 +228,7 @@ func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 func TestGetRookPodsOnNode(t *testing.T) {
 	ctx := context.TODO()
 	clientset := optest.New(t, 1)
-	clusterInfo := client.NewClusterInfo("test", "test")
+	clusterInfo := cephclient.NewClusterInfo("test", "test")
 	clusterName := clusterInfo.NamespacedName()
 	context := &clusterd.Context{
 		Clientset: clientset,

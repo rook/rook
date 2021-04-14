@@ -35,7 +35,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -316,12 +315,12 @@ func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
 	}
 
 	// Enable the mon connectivity strategy
-	if err := client.EnableStretchElectionStrategy(c.context, c.ClusterInfo); err != nil {
+	if err := cephclient.EnableStretchElectionStrategy(c.context, c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to enable stretch cluster")
 	}
 
 	// Create the default crush rule for stretch clusters, that by default will also apply to all pools
-	if err := client.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, &c.spec, c.stretchFailureDomainName()); err != nil {
+	if err := cephclient.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, &c.spec, c.stretchFailureDomainName()); err != nil {
 		return errors.Wrap(err, "failed to create default stretch rule")
 	}
 
@@ -348,7 +347,7 @@ func (c *Cluster) assignStretchMonsToZones(mons []*monConfig) error {
 	arbiterZone := c.getArbiterZone()
 
 	// Get the mon dump to see if the zones are already applied to the mons
-	monDump, err := client.GetMonDump(c.context, c.ClusterInfo)
+	monDump, err := cephclient.GetMonDump(c.context, c.ClusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to detect if stretch mons are already assigned to zones")
 	}
@@ -376,7 +375,7 @@ func (c *Cluster) assignStretchMonsToZones(mons []*monConfig) error {
 			continue
 		}
 		logger.Infof("setting mon %q to stretch %s=%s", mon.DaemonName, domainName, mon.Zone)
-		if err := client.SetMonStretchZone(c.context, c.ClusterInfo, mon.DaemonName, domainName, mon.Zone); err != nil {
+		if err := cephclient.SetMonStretchZone(c.context, c.ClusterInfo, mon.DaemonName, domainName, mon.Zone); err != nil {
 			return errors.Wrapf(err, "failed to set mon %q zone", mon.DaemonName)
 		}
 	}
@@ -388,7 +387,7 @@ func (c *Cluster) ConfigureArbiter() error {
 		return errors.New("arbiter not specified for the stretch cluster")
 	}
 
-	monDump, err := client.GetMonDump(c.context, c.ClusterInfo)
+	monDump, err := cephclient.GetMonDump(c.context, c.ClusterInfo)
 	if err != nil {
 		logger.Warningf("attempting to enable arbiter after failed to detect if already enabled. %v", err)
 	} else if monDump.StretchMode {
@@ -411,7 +410,7 @@ func (c *Cluster) ConfigureArbiter() error {
 	}
 
 	// Set the mon tiebreaker
-	if err := client.SetMonStretchTiebreaker(c.context, c.ClusterInfo, c.arbiterMon, failureDomain); err != nil {
+	if err := cephclient.SetMonStretchTiebreaker(c.context, c.ClusterInfo, c.arbiterMon, failureDomain); err != nil {
 		return errors.Wrap(err, "failed to set mon tiebreaker")
 	}
 
@@ -434,7 +433,7 @@ func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
 		}
 	}
 
-	crushMap, err := client.GetCrushMap(c.context, c.ClusterInfo)
+	crushMap, err := cephclient.GetCrushMap(c.context, c.ClusterInfo)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get crush map")
 	}
@@ -1025,7 +1024,7 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 	// Final verification that **all** mons are in quorum
 	// Do not proceed if one monitor is still syncing
 	// Only do this when monitors versions are different so we don't block the orchestration if a mon is down.
-	versions, err := client.GetAllCephDaemonVersions(c.context, c.ClusterInfo)
+	versions, err := cephclient.GetAllCephDaemonVersions(c.context, c.ClusterInfo)
 	if err != nil {
 		logger.Warningf("failed to get ceph daemons versions; this likely means there is no cluster yet. %v", err)
 	} else {
@@ -1368,7 +1367,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.Cl
 
 		// get the quorum_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monQuorumStatusResp, err := client.GetMonQuorumStatus(context, clusterInfo)
+		monQuorumStatusResp, err := cephclient.GetMonQuorumStatus(context, clusterInfo)
 		if err != nil {
 			logger.Debugf("failed to get quorum_status. %v", err)
 			continue
@@ -1399,7 +1398,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.Cl
 	return nil
 }
 
-func logQuorumMembers(monQuorumStatusResp client.MonStatusResponse) {
+func logQuorumMembers(monQuorumStatusResp cephclient.MonStatusResponse) {
 	var monsInQuorum []string
 	for _, m := range monQuorumStatusResp.MonMap.Mons {
 		if monFoundInQuorum(m.Name, monQuorumStatusResp) {
@@ -1409,9 +1408,9 @@ func logQuorumMembers(monQuorumStatusResp client.MonStatusResponse) {
 	logger.Infof("Monitors in quorum: %v", monsInQuorum)
 }
 
-func monFoundInQuorum(name string, monQuorumStatusResp client.MonStatusResponse) bool {
+func monFoundInQuorum(name string, monQuorumStatusResp cephclient.MonStatusResponse) bool {
 	// first get the initial monitors corresponding mon map entry
-	var monMapEntry *client.MonMapEntry
+	var monMapEntry *cephclient.MonMapEntry
 	for i := range monQuorumStatusResp.MonMap.Mons {
 		if name == monQuorumStatusResp.MonMap.Mons[i].Name {
 			monMapEntry = &monQuorumStatusResp.MonMap.Mons[i]

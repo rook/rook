@@ -23,10 +23,8 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookcephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
-	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -185,7 +183,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	}
 
 	// If the liveness probe is enabled
-	container = config.ConfigureLivenessProbe(rookcephv1.KeyMgr, container, c.spec.HealthCheck)
+	container = config.ConfigureLivenessProbe(cephv1.KeyMgr, container, c.spec.HealthCheck)
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
 	if !c.spec.Network.IsHost() {
@@ -204,11 +202,11 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 		{Name: "ROOK_CLUSTER_NAME", Value: string(c.clusterInfo.NamespacedName().Name)},
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-		opmon.PodNamespaceEnvVar(c.clusterInfo.Namespace),
-		opmon.EndpointEnvVar(),
-		opmon.SecretEnvVar(),
-		opmon.CephUsernameEnvVar(),
-		opmon.CephSecretEnvVar(),
+		mon.PodNamespaceEnvVar(c.clusterInfo.Namespace),
+		mon.EndpointEnvVar(),
+		mon.SecretEnvVar(),
+		mon.CephUsernameEnvVar(),
+		mon.CephSecretEnvVar(),
 		k8sutil.ConfigOverrideEnvVar(),
 		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
@@ -332,7 +330,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	envVars := []v1.EnvVar{
 		{Name: "ROOK_OPERATOR_NAMESPACE", Value: operatorNamespace},
-		{Name: "ROOK_CEPH_CLUSTER_CRD_VERSION", Value: rookcephv1.Version},
+		{Name: "ROOK_CEPH_CLUSTER_CRD_VERSION", Value: cephv1.Version},
 		{Name: "ROOK_CEPH_CLUSTER_CRD_NAME", Value: c.clusterInfo.NamespacedName().Name},
 		k8sutil.PodIPEnvVar(podIPEnvVar),
 	}
