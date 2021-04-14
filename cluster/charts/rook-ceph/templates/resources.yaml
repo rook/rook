@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephblockpools.ceph.rook.io
@@ -329,7 +329,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephclients.ceph.rook.io
@@ -400,7 +400,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephclusters.ceph.rook.io
@@ -812,8 +812,24 @@ spec:
                                     type: string
                                   metadata:
                                     description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                    properties:
+                                      annotations:
+                                        additionalProperties:
+                                          type: string
+                                        type: object
+                                      finalizers:
+                                        items:
+                                          type: string
+                                        type: array
+                                      labels:
+                                        additionalProperties:
+                                          type: string
+                                        type: object
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
                                     type: object
-                                    x-kubernetes-preserve-unknown-fields: true
                                   spec:
                                     description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                                     properties:
@@ -967,8 +983,24 @@ spec:
                           type: string
                         metadata:
                           description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                          properties:
+                            annotations:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            finalizers:
+                              items:
+                                type: string
+                              type: array
+                            labels:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            name:
+                              type: string
+                            namespace:
+                              type: string
                           type: object
-                          x-kubernetes-preserve-unknown-fields: true
                         spec:
                           description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                           properties:
@@ -1789,8 +1821,24 @@ spec:
                                   type: string
                                 metadata:
                                   description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    finalizers:
+                                      items:
+                                        type: string
+                                      type: array
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
                                   type: object
-                                  x-kubernetes-preserve-unknown-fields: true
                                 spec:
                                   description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                                   properties:
@@ -2836,8 +2884,24 @@ spec:
                                   type: string
                                 metadata:
                                   description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    finalizers:
+                                      items:
+                                        type: string
+                                      type: array
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
                                   type: object
-                                  x-kubernetes-preserve-unknown-fields: true
                                 spec:
                                   description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                                   properties:
@@ -2976,7 +3040,6 @@ spec:
                                   type: object
                               type: object
                             type: array
-                            x-kubernetes-preserve-unknown-fields: true
                         required:
                           - count
                           - name
@@ -3002,8 +3065,24 @@ spec:
                             type: string
                           metadata:
                             description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              finalizers:
+                                items:
+                                  type: string
+                                type: array
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              name:
+                                type: string
+                              namespace:
+                                type: string
                             type: object
-                            x-kubernetes-preserve-unknown-fields: true
                           spec:
                             description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
                             properties:
@@ -4222,7 +4301,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephfilesystemmirrors.ceph.rook.io
@@ -4731,7 +4810,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephfilesystems.ceph.rook.io
@@ -5555,7 +5634,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephnfses.ceph.rook.io
@@ -6099,7 +6178,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectrealms.ceph.rook.io
@@ -6165,7 +6244,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectstores.ceph.rook.io
@@ -7186,7 +7265,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectstoreusers.ceph.rook.io
@@ -7256,7 +7335,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectzonegroups.ceph.rook.io
@@ -7317,7 +7396,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephobjectzones.ceph.rook.io
@@ -7646,7 +7725,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: cephrbdmirrors.ceph.rook.io
@@ -8293,7 +8372,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: volumereplicationclasses.replication.storage.openshift.io
@@ -8352,7 +8431,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: volumereplications.replication.storage.openshift.io
@@ -8487,7 +8566,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
     helm.sh/resource-policy: keep
   creationTimestamp: null
   name: volumes.rook.io
