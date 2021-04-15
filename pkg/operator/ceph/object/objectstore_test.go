@@ -27,6 +27,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -259,10 +260,32 @@ func TestDashboard(t *testing.T) {
 		},
 	}
 	context := &clusterd.Context{Executor: executor}
-	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster"}, storeName)
+	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster",
+		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}},
+		storeName)
 	checkdashboard, err := checkDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.False(t, checkdashboard)
+	err = enableRGWDashboard(objContext)
+	assert.Nil(t, err)
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+			if args[0] == "dashboard" && args[1] == "get-rgw-api-access-key" {
+				return access_key, nil
+			}
+			return "", nil
+		},
+	}
+	objContext.Context.Executor = executor
+	checkdashboard, err = checkDashboardUser(objContext)
+	assert.NoError(t, err)
+	assert.True(t, checkdashboard)
+	disableRGWDashboard(objContext)
+
+	context = &clusterd.Context{Executor: executor}
+	objContext = NewContext(context, &client.ClusterInfo{Namespace: "mycluster",
+		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10}},
+		storeName)
 	err = enableRGWDashboard(objContext)
 	assert.Nil(t, err)
 	executor = &exectest.MockExecutor{
