@@ -58,6 +58,10 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 		return nil, err
 	}
 	replicas := int32(1)
+	// On Pacific, we can use the same keyring and have dedicated rgw instances reflected in the service map
+	if c.clusterInfo.CephVersion.IsAtLeastPacific() {
+		replicas = c.store.Spec.Gateway.Instances
+	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rgwConfig.ResourceName,

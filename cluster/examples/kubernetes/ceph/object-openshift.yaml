@@ -54,16 +54,22 @@ spec:
     # securePort: 443
     # The number of pods in the rgw deployment
     instances: 1
-    # The affinity rules to apply to the rgw deployment or daemonset.
+    # The affinity rules to apply to the rgw deployment
     placement:
-    #  nodeAffinity:
-    #    requiredDuringSchedulingIgnoredDuringExecution:
-    #      nodeSelectorTerms:
-    #      - matchExpressions:
-    #        - key: role
-    #          operator: In
-    #          values:
-    #          - rgw-node
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - rook-ceph-rgw
+              # topologyKey: */zone can be used to spread RGW across different AZ
+              # Use <topologyKey: failure-domain.beta.kubernetes.io/zone> in k8s cluster if your cluster is v1.16 or lower
+              # Use <topologyKey: topology.kubernetes.io/zone>  in k8s cluster is v1.17 or upper
+              topologyKey: kubernetes.io/hostname
     #  topologySpreadConstraints:
     #  tolerations:
     #  - key: rgw-node
