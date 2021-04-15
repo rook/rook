@@ -817,6 +817,7 @@ spec:
                                     type: string
                                   metadata:
                                     description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                    x-kubernetes-preserve-unknown-fields: true
                                     type: object
                                   spec:
                                     description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
@@ -971,6 +972,7 @@ spec:
                           type: string
                         metadata:
                           description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                          x-kubernetes-preserve-unknown-fields: true
                           type: object
                         spec:
                           description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
@@ -1792,6 +1794,7 @@ spec:
                                   type: string
                                 metadata:
                                   description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                  x-kubernetes-preserve-unknown-fields: true
                                   type: object
                                 spec:
                                   description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
@@ -2838,6 +2841,7 @@ spec:
                                   type: string
                                 metadata:
                                   description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                                  x-kubernetes-preserve-unknown-fields: true
                                   type: object
                                 spec:
                                   description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
@@ -3003,6 +3007,7 @@ spec:
                             type: string
                           metadata:
                             description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                            x-kubernetes-preserve-unknown-fields: true
                             type: object
                           spec:
                             description: 'Spec defines the desired characteristics of a volume requested by a pod author. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
