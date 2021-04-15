@@ -234,6 +234,7 @@ def RunIntegrationTest(k, v) {
                               export KUBECONFIG=$HOME/admin.conf \
                                   SKIP_TEST_CLEANUP=false \
                                   SKIP_CLEANUP_POLICY=false \
+                                  SKIP_CASSANDRA_TESTS=true \
                                   TEST_ENV_NAME='''+"${k}"+''' \
                                   TEST_BASE_DIR="WORKING_DIR" \
                                   TEST_LOG_COLLECTION_LEVEL='''+"${env.getLogs}"+''' \

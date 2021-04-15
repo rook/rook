@@ -17,7 +17,8 @@ limitations under the License.
 package integration
 
 import (
-	"fmt"
+	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ************************************************
@@ -52,6 +54,9 @@ type CassandraSuite struct {
 // TestCassandraSuite initiates the CassandraSuite
 func TestCassandraSuite(t *testing.T) {
 	if installer.SkipTestSuite(installer.CassandraTestSuite) {
+		t.Skip()
+	}
+	if os.Getenv("SKIP_CASSANDRA_TESTS") == "true" {
 		t.Skip()
 	}
 
@@ -127,14 +132,58 @@ func (s *CassandraSuite) Teardown() {
 // and CQL is working.
 func (s *CassandraSuite) CheckClusterHealth() {
 	// Verify that cassandra-operator is running
-	logger.Infof("Verifying that all expected pods in cassandra cluster %s are running", s.namespace)
-	assert.True(s.T(), s.k8sHelper.CheckPodCountAndState("rook-cassandra-operator", s.systemNamespace, 1, "Running"), "rook-cassandra-operator must be in Running state")
+	operatorName := "rook-cassandra-operator"
+	logger.Infof("Verifying that all expected pods of cassandra operator are ready")
+	ready := utils.Retry(10, 30*time.Second,
+		"Waiting for Cassandra operator to be ready", func() bool {
+			sts, err := s.k8sHelper.Clientset.AppsV1().StatefulSets(s.systemNamespace).Get(context.TODO(), operatorName, v1.GetOptions{})
+			if err != nil {
+				logger.Errorf("Error getting Cassandra operator `%s`", operatorName)
+				return false
+			}
+			if sts.Generation != sts.Status.ObservedGeneration {
+				logger.Infof("Operator Statefulset has not converged yet")
+				return false
+			}
+			if sts.Status.UpdatedReplicas != *sts.Spec.Replicas {
+				logger.Error("Operator StatefulSet is rolling updating")
+				return false
+			}
+			if sts.Status.ReadyReplicas != *sts.Spec.Replicas {
+				logger.Infof("Statefulset not ready. Got: %v, Want: %v",
+					sts.Status.ReadyReplicas, sts.Spec.Replicas)
+				return false
+			}
+			return true
+		})
+	assert.True(s.T(), ready, "Timed out waiting for Cassandra operator to become ready")
 
-	// Give the StatefulSet a head start
-	// CheckPodCountAndState timeout might be too fast and the test may fail
-	time.Sleep(30 * time.Second)
 	// Verify cassandra cluster instances are running OK
-	assert.True(s.T(), s.k8sHelper.CheckPodCountAndState("rook-cassandra", s.namespace, s.instanceCount, "Running"), fmt.Sprintf("%d rook-cassandra pods must be in running state", s.instanceCount))
+	clusterName := "cassandra-ns"
+	clusterNamespace := "cassandra-ns"
+	ready = utils.Retry(10, 30*time.Second,
+		"Waiting for Cassandra cluster to be ready", func() bool {
+			c, err := s.k8sHelper.RookClientset.CassandraV1alpha1().Clusters(clusterNamespace).Get(context.TODO(), clusterName, v1.GetOptions{})
+			if err != nil {
+				logger.Errorf("Error getting Cassandra cluster `%s`", clusterName)
+				return false
+			}
+			for rackName, rack := range c.Status.Racks {
+				var desiredMembers int32
+				for _, r := range c.Spec.Datacenter.Racks {
+					if r.Name == rackName {
+						desiredMembers = r.Members
+						break
+					}
+				}
+				if !(desiredMembers == rack.Members && rack.Members == rack.ReadyMembers) {
+					logger.Infof("Rack `%s` is not ready yet", rackName)
+					return false
+				}
+			}
+			return true
+		})
+	assert.True(s.T(), ready, "Timed out waiting for Cassandra cluster to become ready")
 
 	// Determine a pod name for the cluster
 	podName := "cassandra-ns-us-east-1-us-east-1a-0"
