@@ -114,7 +114,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'build/run make -j\$(nproc) test'
+                sh 'build/run make test'
             }
         }
 
