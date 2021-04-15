@@ -1,0 +1,38 @@
+name: Publish master images
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  publish-master-images:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: build rook images
+      run: |
+        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
+        # We need to fix this when publishing though
+        make -j$nproc mod.check
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
+
+    - name: publish rook images
+      env:
+        DOCKER_USR: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PSW: ${{ secrets.DOCKER_PASSWORD }}
+        GIT_PSW: ${{ secrets.GIT_API_TOKEN }}
+        BRANCH_NAME: ${{ github.base_ref }}
+      run: |
+        docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"
+        make -j$nproc -C build/release build BRANCH_NAME=${BRANCH_NAME} GIT_API_TOKEN=${GIT_PSW}
+        git status
+        git diff
+        make -j$nproc -C build/release publish BRANCH_NAME=${BRANCH_NAME} GIT_API_TOKEN=${GIT_PSW}
+        make -j$nproc -C build/release promote BRANCH_NAME=master CHANNEL=master
