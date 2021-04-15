@@ -96,11 +96,17 @@ func (c *Cluster) createDeviceSetPVCsForIndex(deviceSet rookv1.StorageClassDevic
 
 	var dataSize string
 	var crushDeviceClass string
+	typesFound := util.NewSet()
 	for _, pvcTemplate := range deviceSet.VolumeClaimTemplates {
 		if pvcTemplate.Name == "" {
 			// For backward compatibility a blank name must be treated as a data volume
 			pvcTemplate.Name = bluestorePVCData
 		}
+		if typesFound.Contains(pvcTemplate.Name) {
+			errs.addError("found duplicate volume claim template %q for device set %q", pvcTemplate.Name, deviceSet.Name)
+			continue
+		}
+		typesFound.Add(pvcTemplate.Name)
 
 		pvc, err := c.createDeviceSetPVC(existingPVCs, deviceSet.Name, pvcTemplate, setIndex)
 		if err != nil {
