@@ -7,6 +7,7 @@ require (
 	github.com/banzaicloud/k8s-objectmatcher v1.1.0
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/corpix/uarand v0.1.1 // indirect
+	github.com/csi-addons/volume-replication-operator v0.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-ini/ini v1.51.1
