@@ -122,18 +122,18 @@ func TestIsValidEvent(t *testing.T) {
 		}
 	  }`)
 
-	b := isValidEvent(valid, obj)
+	b := isValidEvent(valid, obj, false)
 	assert.True(t, b)
 
 	valid = []byte(`{"foo": "bar"}`)
-	b = isValidEvent(valid, obj)
+	b = isValidEvent(valid, obj, false)
 	assert.True(t, b)
 
 	invalid := []byte(`{
 		"metadata": {},
 		"status": {},
 	  }`)
-	b = isValidEvent(invalid, obj)
+	b = isValidEvent(invalid, obj, false)
 	assert.False(t, b)
 }
 
