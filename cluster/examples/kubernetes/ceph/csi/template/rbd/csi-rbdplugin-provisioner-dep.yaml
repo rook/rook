@@ -108,6 +108,25 @@ spec:
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
         {{ end }}
+        {{ if .EnableVolumeReplicationSideCar }}
+        - name: volume-replication
+          image: {{ .VolumeReplicationImage }}
+          args :
+            - "--metrics-bind-address=0"
+            - "--leader-election-namespace={{ .Namespace }}"
+            - "--driver-name={{ .DriverNamePrefix }}rbd.csi.ceph.com"
+            - "--csi-address=$(ADDRESS)"
+            - "--rpc-timeout=150s"
+            - "--health-probe-bind-address=:9998"
+            - "--leader-elect=true"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        {{ end }}
         - name: csi-rbdplugin
           image: {{ .CSIPluginImage }}
           args :

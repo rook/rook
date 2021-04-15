@@ -40,31 +40,33 @@ import (
 )
 
 type Param struct {
-	CSIPluginImage               string
-	RegistrarImage               string
-	ProvisionerImage             string
-	AttacherImage                string
-	SnapshotterImage             string
-	ResizerImage                 string
-	DriverNamePrefix             string
-	EnableCSIGRPCMetrics         string
-	KubeletDirPath               string
-	ForceCephFSKernelClient      string
-	CephFSPluginUpdateStrategy   string
-	RBDPluginUpdateStrategy      string
-	PluginPriorityClassName      string
-	ProvisionerPriorityClassName string
-	EnableOMAPGenerator          bool
-	EnableRBDSnapshotter         bool
-	EnableCephFSSnapshotter      bool
-	LogLevel                     uint8
-	CephFSGRPCMetricsPort        uint16
-	CephFSLivenessMetricsPort    uint16
-	RBDGRPCMetricsPort           uint16
-	RBDLivenessMetricsPort       uint16
-	ProvisionerReplicas          uint8
-	CSICephFSPodLabels           map[string]string
-	CSIRBDPodLabels              map[string]string
+	CSIPluginImage                 string
+	RegistrarImage                 string
+	ProvisionerImage               string
+	AttacherImage                  string
+	SnapshotterImage               string
+	ResizerImage                   string
+	DriverNamePrefix               string
+	EnableCSIGRPCMetrics           string
+	KubeletDirPath                 string
+	ForceCephFSKernelClient        string
+	CephFSPluginUpdateStrategy     string
+	RBDPluginUpdateStrategy        string
+	PluginPriorityClassName        string
+	ProvisionerPriorityClassName   string
+	VolumeReplicationImage         string
+	EnableOMAPGenerator            bool
+	EnableRBDSnapshotter           bool
+	EnableCephFSSnapshotter        bool
+	EnableVolumeReplicationSideCar bool
+	LogLevel                       uint8
+	CephFSGRPCMetricsPort          uint16
+	CephFSLivenessMetricsPort      uint16
+	RBDGRPCMetricsPort             uint16
+	RBDLivenessMetricsPort         uint16
+	ProvisionerReplicas            uint8
+	CSICephFSPodLabels             map[string]string
+	CSIRBDPodLabels                map[string]string
 }
 
 type templateParam struct {
@@ -105,12 +107,13 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.3.0"
-	DefaultRegistrarImage   = "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
-	DefaultProvisionerImage = "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4"
-	DefaultAttacherImage    = "k8s.gcr.io/sig-storage/csi-attacher:v3.0.2"
-	DefaultSnapshotterImage = "k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.2"
-	DefaultResizerImage     = "k8s.gcr.io/sig-storage/csi-resizer:v1.0.1"
+	DefaultCSIPluginImage         = "quay.io/cephcsi/cephcsi:v3.3.0"
+	DefaultRegistrarImage         = "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
+	DefaultProvisionerImage       = "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4"
+	DefaultAttacherImage          = "k8s.gcr.io/sig-storage/csi-attacher:v3.0.2"
+	DefaultSnapshotterImage       = "k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.2"
+	DefaultResizerImage           = "k8s.gcr.io/sig-storage/csi-resizer:v1.0.1"
+	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.1.0"
 )
 
 const (
@@ -303,6 +306,15 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 	if strings.EqualFold(enableCephFSSnapshotter, "false") {
 		tp.EnableCephFSSnapshotter = false
+	}
+
+	tp.EnableVolumeReplicationSideCar = false
+	enableVolumeReplicationSideCar, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_VOLUME_REPLICATION", "false")
+	if err != nil {
+		return errors.Wrap(err, "failed to load CSI_ENABLE_VOLUME_REPLICATION setting")
+	}
+	if strings.EqualFold(enableVolumeReplicationSideCar, "true") {
+		tp.EnableVolumeReplicationSideCar = true
 	}
 
 	updateStrategy, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate)

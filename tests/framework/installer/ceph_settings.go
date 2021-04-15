@@ -49,6 +49,7 @@ type TestCephSettings struct {
 	SkipClusterCleanup        bool
 	SkipCleanupPolicy         bool
 	DirectMountToolbox        bool
+	EnableVolumeReplication   bool
 	RookVersion               string
 	CephVersion               cephv1.CephVersionSpec
 }
@@ -106,6 +107,7 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `ROOK_ENABLE_FLEX_DRIVER: "false"`, fmt.Sprintf(`ROOK_ENABLE_FLEX_DRIVER: "%t"`, !s.UseCSI))
 	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_CEPHFS: "true"`, fmt.Sprintf(`ROOK_CSI_ENABLE_CEPHFS: "%t"`, s.UseCSI))
 	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_RBD: "true"`, fmt.Sprintf(`ROOK_CSI_ENABLE_RBD: "%t"`, s.UseCSI))
+	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))
 	return manifest
 }
 

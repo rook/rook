@@ -280,6 +280,9 @@ data:
   # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
   # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
   ROOK_ENABLE_DISCOVERY_DAEMON: "false"
+  # Enable volume replication controller
+  CSI_ENABLE_VOLUME_REPLICATION: "false"
+  # CSI_VOLUME_REPLICATION_IMAGE: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
 
   # (Optional) Admission controller NodeAffinity.
   # ADMISSION_CONTROLLER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
