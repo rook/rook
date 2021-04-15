@@ -77,6 +77,11 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testReleaseV300.isAtLeast(&testReleaseV300)
 	assert.Equal(t, true, ret)
 
+	// Test for 3.3.0
+	// Test version which is lesser
+	ret = testReleaseV330.isAtLeast(&testReleaseV300)
+	assert.Equal(t, true, ret)
+
 	// Test version which is greater (minor)
 	version = CephCSIVersion{3, 1, 1}
 	ret = testReleaseV300.isAtLeast(&version)
