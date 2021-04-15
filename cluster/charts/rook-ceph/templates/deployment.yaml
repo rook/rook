@@ -120,6 +120,8 @@ spec:
           value: {{ .Values.csi.provisionerPriorityClassName | quote }}
         - name: CSI_ENABLE_OMAP_GENERATOR
           value: {{ .Values.csi.enableOMAPGenerator | quote }}
+        - name: CSI_ENABLE_VOLUME_REPLICATION
+          value: {{ .Values.csi.volumeReplication.enabled | quote }}
 {{- if .Values.csi.cephFSPluginUpdateStrategy }}
         - name: CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY
           value: {{ .Values.csi.cephFSPluginUpdateStrategy | quote }}
@@ -176,6 +178,12 @@ spec:
 {{- if .Values.csi.resizer.image }}
         - name: ROOK_CSI_RESIZER_IMAGE
           value: {{ .Values.csi.resizer.image | quote }}
+{{- end }}
+{{- end }}
+{{- if .Values.csi.volumeReplication }}
+{{- if .Values.csi.volumeReplication.image }}
+        - name: CSI_VOLUME_REPLICATION_IMAGE
+          value: {{ .Values.csi.volumeReplication.image | quote }}
 {{- end }}
 {{- end }}
 {{- if .Values.csi.cephfsPodLabels }}

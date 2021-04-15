@@ -404,6 +404,18 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplications", "volumereplicationclasses"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplications/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplications/status"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplicationclasses/status"]
+    verbs: ["get"]
 {{- end }}
 {{- if .Values.pspEnable }}
 ---
