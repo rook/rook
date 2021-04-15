@@ -154,3 +154,30 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.True(t, kerrors.IsNotFound(err))
 	assert.Nil(t, svc)
 }
+
+func TestFileBasedPasswordSupported(t *testing.T) {
+	// for Ceph version Nautilus 14.2.17
+	clusterInfo := &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 17}}
+	value := FileBasedPasswordSupported(clusterInfo)
+	assert.True(t, value)
+
+	// for Ceph version Octopus 15.2.10
+	clusterInfo = &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10}}
+	value = FileBasedPasswordSupported(clusterInfo)
+	assert.True(t, value)
+
+	// for Ceph version Pacific
+	clusterInfo = &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 0, Extra: 0}}
+	value = FileBasedPasswordSupported(clusterInfo)
+	assert.True(t, value)
+
+	// for Ceph version Quincy
+	clusterInfo = &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}}
+	value = FileBasedPasswordSupported(clusterInfo)
+	assert.True(t, value)
+
+	// for other Ceph Versions
+	clusterInfo = &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 15}}
+	value = FileBasedPasswordSupported(clusterInfo)
+	assert.False(t, value)
+}
