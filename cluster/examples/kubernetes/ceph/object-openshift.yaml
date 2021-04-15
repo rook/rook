@@ -91,8 +91,13 @@ spec:
     #    cpu: "500m"
     #    memory: "1024Mi"
     # priorityClassName: my-priority-class
-   #zone:
-    #name: zone-a
+    #zone:
+    #  name: zone-a
+    #  # Configuration for the Kubernetes Service created for the RGW cluster
+    #service:
+    #  # A key-value list of annotations to apply to the RGW service
+    #  annotations:
+    #    service.beta.openshift.io/serving-cert-secret-name: <name of TLS secret automatic generation>
   # service endpoint healthcheck
   healthCheck:
     bucket:
