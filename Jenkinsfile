@@ -234,6 +234,7 @@ def RunIntegrationTest(k, v) {
                         sh '''#!/bin/bash
                               set -o pipefail
                               export KUBECONFIG=$HOME/admin.conf \
+                                  SKIP_CASSANDRA_TESTS=true \
                                   TEST_ENV_NAME='''+"${k}"+''' \
                                   TEST_BASE_DIR="WORKING_DIR" \
                                   TEST_LOG_COLLECTION_LEVEL='''+"${env.getLogs}"+''' \
