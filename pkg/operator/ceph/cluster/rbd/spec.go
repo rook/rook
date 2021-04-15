@@ -69,16 +69,6 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	}
 	rbdMirror.Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
-	// If the rbd mirror has a peer we must add the relevant ceph config file and key to connect to it
-	// Both cm and secret have been created already, so it's fine to just reference them
-	if rbdMirror.Spec.Peers.HasPeers() {
-		// Add the config map and secret
-		// We only use the first peer in the list because peers are all the same, just the pool differs
-		firstPeer := rbdMirror.Spec.Peers.SecretNames[0]
-		volProjection := peerConfigMapAndSecretVolumeAndMount(r.peers[firstPeer].info.Peers[0].SiteName, r.peers[firstPeer].info.Peers[0].ClientName, r.peers[firstPeer].info.Peers[0].UUID)
-		podSpec.Spec.Volumes[0].VolumeSource.Projected.Sources = append(podSpec.Spec.Volumes[0].VolumeSource.Projected.Sources, volProjection...)
-	}
-
 	replicas := int32(rbdMirror.Spec.Count)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -138,34 +128,4 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 	}
 
 	return container
-}
-
-// return the volume and matching volume mount for mounting the config map into /etc/ceph/
-func peerConfigMapAndSecretVolumeAndMount(siteName, clientName, peerSiteUUID string) []v1.VolumeProjection {
-	// Projection list
-	secretAndConfigMapVolumeProjections := []v1.VolumeProjection{}
-
-	// CM
-	configMapName := generatePeerCephConfigFileConfigMapName(peerSiteUUID) // configmap name and name of volume
-	configMapFile := fmt.Sprintf("%s.conf", siteName)
-	mode := int32(0444)
-	projectionConfigMap := &v1.ConfigMapProjection{Items: []v1.KeyToPath{{Key: peerCephConfigKey, Path: configMapFile, Mode: &mode}}}
-	projectionConfigMap.Name = configMapName
-
-	// Secret
-	secretName := generatePeerKeyringSecretName(peerSiteUUID) // secret name and name of volume
-	secretFile := fmt.Sprintf("%s.%s.keyring", siteName, clientName)
-	projectionSecret := &v1.SecretProjection{Items: []v1.KeyToPath{{Key: peerCephKeyringKey, Path: secretFile, Mode: &mode}}}
-	projectionSecret.Name = secretName
-
-	configMapProjection := v1.VolumeProjection{
-		ConfigMap: projectionConfigMap,
-	}
-	secretAndConfigMapVolumeProjections = append(secretAndConfigMapVolumeProjections, configMapProjection)
-	secretProjection := v1.VolumeProjection{
-		Secret: projectionSecret,
-	}
-	secretAndConfigMapVolumeProjections = append(secretAndConfigMapVolumeProjections, secretProjection)
-
-	return secretAndConfigMapVolumeProjections
 }

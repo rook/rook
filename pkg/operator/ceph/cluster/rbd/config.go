@@ -18,8 +18,6 @@ package rbd
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -29,7 +27,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -43,20 +40,6 @@ const (
 	caps mon = "profile rbd-mirror"
 	caps osd = "profile rbd"
 `
-	keyringPeerTemplate = `
-[client.%s]
-	key = %s
-`
-	cephConfPeerTemplate = `
-[global]
-	fsid = %s
-	mon_host = %s
-`
-	peerCephConfigKey               = "peerCephConfig"
-	peerCephKeyringKey              = "peerCephKeyring"
-	peerCephConfigFileConfigMapName = "rbd-mirror-peer-config"
-	// #nosec G101 since this is not leaking any hardcoded credentials, it's just the secret name
-	peerCephKeyringSecretName = "rbd-mirror-peer-keyring"
 )
 
 // daemonConfig for a single rbd-mirror
@@ -108,7 +91,7 @@ func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.
 	ctx := context.TODO()
 	// List all the peers secret, we can have more than one peer we might want to configure
 	// For each, get the Kubernetes Secret and import the "peer token" so that we can configure the mirroring
-	for k, peerSecret := range cephRBDMirror.Spec.Peers.SecretNames {
+	for _, peerSecret := range cephRBDMirror.Spec.Peers.SecretNames {
 		logger.Debugf("fetching bootstrap peer kubernetes secret %q", peerSecret)
 		s, err := r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Get(ctx, peerSecret, metav1.GetOptions{})
 		// We don't care about IsNotFound here, we still need to fail
@@ -125,23 +108,10 @@ func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.
 		// Add Peer detail to the Struct
 		r.peers[peerSecret] = peerSpec
 
-		// Get controller owner ref
-		ownerInfo := k8sutil.NewOwnerInfo(cephRBDMirror, r.scheme)
-
 		// Add rbd-mirror peer
 		err = r.addPeer(peerSecret, s.Data)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add rbd-mirror bootstrap peer")
-		}
-
-		// Only create the config and key Secret and ConfigMap for the first peer
-		// Peers are always identical, at least this is the supported way today (Ceph Octopus), only the pool name differs
-		if k == 0 {
-			// Create the token ceph config file and key
-			err = r.createBootstrapPeerConfigAndKey(peerSecret, string(s.Data["token"]), ownerInfo)
-			if err != nil {
-				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create bootstrap peer config and key")
-			}
 		}
 	}
 
@@ -188,92 +158,4 @@ func validateSpec(r *cephv1.RBDMirroringSpec) error {
 	}
 
 	return nil
-}
-
-func (r *ReconcileCephRBDMirror) createBootstrapPeerConfigAndKey(peerSecret string, tokenBase64 string, ownerInfo *k8sutil.OwnerInfo) error {
-	ctx := context.TODO()
-	// Decode the base64 token
-	decodeToken, err := base64.StdEncoding.DecodeString(tokenBase64)
-	if err != nil {
-		return errors.Wrap(err, "failed to decode bootstrap peer token")
-	}
-
-	// Unmarshal JSON into PeerToken struct
-	var token PeerToken
-	if err := json.Unmarshal([]byte(decodeToken), &token); err != nil {
-		return errors.Wrap(err, "failed to unmarshal bootstrap peer token")
-	}
-
-	// Build peer ceph conf
-	cephPeerConfig := fmt.Sprintf(cephConfPeerTemplate, token.ClusterFSID, token.MonHost)
-
-	// Put it in a ConfigMap
-	cm, err := generatePeerCephConfigFileConfigMap(r.peers[peerSecret].info.Peers[0].UUID, cephPeerConfig, r.clusterInfo.Namespace, ownerInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate peer ceph config file configmap")
-	}
-
-	_, err = r.context.Clientset.CoreV1().ConfigMaps(r.clusterInfo.Namespace).Create(ctx, cm, metav1.CreateOptions{})
-	if err != nil && !kerrors.IsNotFound(err) && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrapf(err, "failed to create kubernetes config map %q bootstrap peer config", cm.Name)
-	}
-
-	// Build the key file
-	cephPeerKey := fmt.Sprintf(keyringPeerTemplate, token.ClientID, token.Key)
-
-	// Put it in a Secret
-	s, err := generatePeerKeyringSecret(r.peers[peerSecret].info.Peers[0].UUID, cephPeerKey, r.clusterInfo.Namespace, ownerInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate peer keyring secret")
-	}
-	_, err = r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Create(ctx, s, metav1.CreateOptions{})
-	if err != nil && !kerrors.IsNotFound(err) && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrapf(err, "failed to create kubernetes secret %q bootstrap peer key", s.Name)
-	}
-
-	return nil
-}
-
-func generatePeerCephConfigFileConfigMapName(siteName string) string {
-	return fmt.Sprintf("%s-%s", peerCephConfigFileConfigMapName, siteName)
-}
-
-func generatePeerKeyringSecretName(siteName string) string {
-	return fmt.Sprintf("%s-%s", peerCephKeyringSecretName, siteName)
-}
-
-func generatePeerCephConfigFileConfigMap(peerSiteUUID, peerCephConfig string, namespace string, ownerInfo *k8sutil.OwnerInfo) (*v1.ConfigMap, error) {
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      generatePeerCephConfigFileConfigMapName(peerSiteUUID),
-			Namespace: namespace,
-		},
-		Data: map[string]string{
-			peerCephConfigKey: peerCephConfig,
-		},
-	}
-	err := ownerInfo.SetControllerReference(cm)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to set owner reference to configmap %q", cm.Name)
-	}
-
-	return cm, nil
-}
-
-func generatePeerKeyringSecret(peerSiteUUID, peerCephKey string, namespace string, ownerInfo *k8sutil.OwnerInfo) (*v1.Secret, error) {
-	s := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      generatePeerKeyringSecretName(peerSiteUUID),
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			peerCephKeyringKey: []byte(peerCephKey),
-		},
-		Type: k8sutil.RookType,
-	}
-	err := ownerInfo.SetControllerReference(s)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to set owner reference to secret %q", s.Name)
-	}
-	return s, nil
 }
