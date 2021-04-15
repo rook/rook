@@ -44,8 +44,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	storagev1util "k8s.io/kubernetes/pkg/apis/storage/v1/util"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 // K8sHelper is a helper for common kubectl commands
@@ -79,7 +79,7 @@ func getCmd() string {
 // CreateK8sHelper creates a instance of k8sHelper
 func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 	executor := &exec.CommandExecutor{}
-	config, err := getKubeConfig(executor)
+	config, err := config.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kube client. %+v", err)
 	}
@@ -193,108 +193,6 @@ func getManifestFromURL(url string) (string, error) {
 		return "", errors.Wrapf(err, "failed to read manifest from url %s", url)
 	}
 	return string(body), nil
-}
-
-func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
-	context, err := executor.ExecuteCommandWithOutput("kubectl", "config", "view", "-o", "json")
-	if err != nil {
-		k8slogger.Errorf("failed to execute kubectl command. %v", err)
-	}
-
-	// Parse the kubectl context to get the settings for client connections
-	var kc kubectlContext
-	if err := json.Unmarshal([]byte(context), &kc); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal %s config: %+v", cmd, err)
-	}
-
-	// find the current context
-	var currentContext kContext
-	found := false
-	for _, c := range kc.Contexts {
-		if kc.Current == c.Name {
-			currentContext = c
-			found = true
-		}
-	}
-	if !found {
-		return nil, fmt.Errorf("failed to find current context %s in %+v", kc.Current, kc.Contexts)
-	}
-
-	// find the current cluster
-	var currentCluster kclusterContext
-	found = false
-	for _, c := range kc.Clusters {
-		if currentContext.Cluster.Cluster == c.Name {
-			currentCluster = c
-			found = true
-		}
-	}
-	if !found {
-		return nil, fmt.Errorf("failed to find cluster %s in %+v", kc.Current, kc.Clusters)
-	}
-	config := &rest.Config{Host: currentCluster.Cluster.Server}
-
-	if currentContext.Cluster.User == "" {
-		config.Insecure = true
-	} else {
-		config.Insecure = false
-
-		// find the current user
-		var currentUser kuserContext
-		found = false
-		for _, u := range kc.Users {
-			if currentContext.Cluster.User == u.Name {
-				currentUser = u
-				found = true
-			}
-		}
-		if !found {
-			return nil, fmt.Errorf("failed to find kube user %s in %+v", kc.Current, kc.Users)
-		}
-
-		config.TLSClientConfig = rest.TLSClientConfig{
-			CAFile:   currentCluster.Cluster.CertAuthority,
-			KeyFile:  currentUser.Cluster.ClientKey,
-			CertFile: currentUser.Cluster.ClientCert,
-		}
-		// Set Insecure to true if cert information is missing
-		if currentUser.Cluster.ClientCert == "" {
-			config.Insecure = true
-		}
-	}
-
-	logger.Infof("Loaded kubectl context %s at %s. secure=%t",
-		currentCluster.Name, config.Host, !config.Insecure)
-	return config, nil
-}
-
-type kubectlContext struct {
-	Contexts []kContext        `json:"contexts"`
-	Users    []kuserContext    `json:"users"`
-	Clusters []kclusterContext `json:"clusters"`
-	Current  string            `json:"current-context"`
-}
-type kContext struct {
-	Name    string `json:"name"`
-	Cluster struct {
-		Cluster string `json:"cluster"`
-		User    string `json:"user"`
-	} `json:"context"`
-}
-type kclusterContext struct {
-	Name    string `json:"name"`
-	Cluster struct {
-		Server        string `json:"server"`
-		Insecure      bool   `json:"insecure-skip-tls-verify"`
-		CertAuthority string `json:"certificate-authority"`
-	} `json:"cluster"`
-}
-type kuserContext struct {
-	Name    string `json:"name"`
-	Cluster struct {
-		ClientCert string `json:"client-certificate"`
-		ClientKey  string `json:"client-key"`
-	} `json:"user"`
 }
 
 func (k8sh *K8sHelper) Exec(namespace, podName, command string, commandArgs []string) (string, error) {
