@@ -128,7 +128,7 @@ go.install:
 	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) install -v $(GO_STATIC_FLAGS) $(p)${\n})
 
 .PHONY: go.test.unit
-go.test.unit: $(GOJUNIT)
+go.test.unit: $(GOJUNIT) go.mod.vendor
 	@echo === go test unit-tests
 	@mkdir -p $(GO_TEST_OUTPUT)
 	CGO_ENABLED=0 $(GOHOST) test -v -cover $(GO_STATIC_FLAGS) $(GO_PACKAGES)
@@ -164,6 +164,11 @@ go.mod.update:
 	@echo === updating modules
 	@$(GOHOST) get -u ./...
 
+.PHONY: go.mod.vendor
+go.mod.vendor:
+	@echo === ensuring vendor modules are installed
+	@$(GOHOST) mod vendor
+
 .PHONY: go.mod.check
 go.mod.check:
 	@echo === ensuring modules are tidied
@@ -198,7 +203,7 @@ export CONTROLLER_GEN=$(TOOLS_HOST_DIR)/controller-gen-$(CONTROLLER_GEN_VERSION)
 export YQ=$(TOOLS_HOST_DIR)/yq-v3
 $(CONTROLLER_GEN) $(YQ):
 	{ \
-		set -ex ;\
+		set -e ;\
 		mkdir -p $(TOOLS_HOST_DIR) ;\
 		CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 		cd $$CONTROLLER_GEN_TMP_DIR ;\
