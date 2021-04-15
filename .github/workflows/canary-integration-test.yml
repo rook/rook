@@ -1,14 +1,15 @@
 name: Canary integration tests
 on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
   pull_request:
-    paths:
-    - '**.go'
-    - '**.sh'
-    - '**.py'
-    - 'build/**'
-    - 'tests/**'
-    - 'images/**'
-    - '.github/workflows/**'
+    branches:
+      - master
+      - release-*
 
 jobs:
   canary:

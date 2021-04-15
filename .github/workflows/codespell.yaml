@@ -5,9 +5,12 @@ on:
       - v*
     branches:
       - master
+      - release-*
   pull_request:
     branches:
-      - "master"
+      - master
+      - release-*
+
 jobs:
   codespell:
     name: codespell
