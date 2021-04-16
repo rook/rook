@@ -799,7 +799,7 @@ type Status struct {
 // ReplicatedSpec represents the spec for replication in a pool
 type ReplicatedSpec struct {
 	// Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	Size uint `json:"size"`
 
 	// TargetSizeRatio gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity
