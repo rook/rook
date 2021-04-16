@@ -139,7 +139,7 @@ spec:
                       type: boolean
                     size:
                       description: Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-                      minimum: 1
+                      minimum: 0
                       type: integer
                     subFailureDomain:
                       description: SubFailureDomain the name of the sub-failure domain
@@ -4880,7 +4880,7 @@ spec:
                             type: boolean
                           size:
                             description: Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-                            minimum: 1
+                            minimum: 0
                             type: integer
                           subFailureDomain:
                             description: SubFailureDomain the name of the sub-failure domain
@@ -5019,7 +5019,7 @@ spec:
                           type: boolean
                         size:
                           description: Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-                          minimum: 1
+                          minimum: 0
                           type: integer
                         subFailureDomain:
                           description: SubFailureDomain the name of the sub-failure domain
@@ -6314,7 +6314,7 @@ spec:
                           type: boolean
                         size:
                           description: Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-                          minimum: 1
+                          minimum: 0
                           type: integer
                         subFailureDomain:
                           description: SubFailureDomain the name of the sub-failure domain
@@ -7087,7 +7087,7 @@ spec:
                           type: boolean
                         size:
                           description: Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-                          minimum: 1
+                          minimum: 0
                           type: integer
                         subFailureDomain:
                           description: SubFailureDomain the name of the sub-failure domain
@@ -7446,7 +7446,7 @@ spec:
                           type: boolean
                         size:
                           description: Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-                          minimum: 1
+                          minimum: 0
                           type: integer
                         subFailureDomain:
                           description: SubFailureDomain the name of the sub-failure domain
@@ -7584,7 +7584,7 @@ spec:
                           type: boolean
                         size:
                           description: Size - Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-                          minimum: 1
+                          minimum: 0
                           type: integer
                         subFailureDomain:
                           description: SubFailureDomain the name of the sub-failure domain
