@@ -127,8 +127,11 @@ go.install:
 	@echo === go install $(PLATFORM)
 	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) install -v $(GO_STATIC_FLAGS) $(p)${\n})
 
+# GOJUNIT and go.mod.vendor need to happen in order and NOT in parallel, so call them explicitly
 .PHONY: go.test.unit
-go.test.unit: $(GOJUNIT) go.mod.vendor
+go.test.unit: 
+	@$(MAKE) $(GOJUNIT) 
+	@$(MAKE) go.mod.vendor
 	@echo === go test unit-tests
 	@mkdir -p $(GO_TEST_OUTPUT)
 	CGO_ENABLED=0 $(GOHOST) test -v -cover $(GO_STATIC_FLAGS) $(GO_PACKAGES)
