@@ -118,7 +118,7 @@ func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error
 	// installed in Rook operator and RGW version in Ceph cluster (#7573)
 	result, err := RunAdminCommandNoMultisite(c, expectJSON, args...)
 	if err != nil && isFifoFileIOError(err) {
-		logger.Info("retrying 'radosgw-admin' command with OMAP backend to work around FIFO file I/O issue")
+		logger.Debug("retrying 'radosgw-admin' command with OMAP backend to work around FIFO file I/O issue")
 
 		// We can either run 'ceph --version' to determine the Ceph version running in the operator
 		// and then pick a flag to use, or we can just try to use both flags and return the one that
