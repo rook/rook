@@ -582,7 +582,7 @@ func getObjectStores(context *Context) ([]string, error) {
 }
 
 func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) error {
-	if emptyPool(spec.DataPool) && emptyPool(spec.MetadataPool) {
+	if spec.DataPool.IsEmpty() && spec.MetadataPool.IsEmpty() {
 		logger.Info("skipping removal of pools since not specified in the object store")
 		return nil
 	}
@@ -619,7 +619,7 @@ func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) 
 }
 
 func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool, dataPool cephv1.PoolSpec) error {
-	if emptyPool(dataPool) && emptyPool(metadataPool) {
+	if dataPool.IsEmpty() && metadataPool.IsEmpty() {
 		logger.Info("no pools specified for the CR, checking for their existence...")
 		pools := append(metadataPools, dataPoolName)
 		pools = append(pools, rootPool)

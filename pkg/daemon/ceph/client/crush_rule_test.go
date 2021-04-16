@@ -35,7 +35,7 @@ func TestBuildStretchClusterCrushRule(t *testing.T) {
 	pool := &cephv1.PoolSpec{
 		FailureDomain: "datacenter",
 		CrushRoot:     cephv1.DefaultCRUSHRoot,
-		Replicated: cephv1.ReplicatedSpec{
+		Replicated: &cephv1.ReplicatedSpec{
 			ReplicasPerFailureDomain: 2,
 		},
 	}
@@ -48,7 +48,7 @@ func TestBuildCrushSteps(t *testing.T) {
 	pool := &cephv1.PoolSpec{
 		FailureDomain: "datacenter",
 		CrushRoot:     cephv1.DefaultCRUSHRoot,
-		Replicated: cephv1.ReplicatedSpec{
+		Replicated: &cephv1.ReplicatedSpec{
 			ReplicasPerFailureDomain: 2,
 		},
 	}

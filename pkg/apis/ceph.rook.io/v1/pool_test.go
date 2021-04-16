@@ -17,11 +17,29 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestIsEmpty(t *testing.T) {
+	p := PoolSpec{}
+	fmt.Println(p)
+	assert.True(t, p.IsEmpty())
+
+	p = PoolSpec{FailureDomain: "foo"}
+	assert.False(t, p.IsEmpty())
+
+	// if the user puts ANYTHING here, even an empty struct, it should report non-empty
+	p = PoolSpec{Replicated: &ReplicatedSpec{}}
+	assert.False(t, p.IsEmpty())
+
+	// if the user puts ANYTHING here, even an empty struct, it should report non-empty
+	p = PoolSpec{ErasureCoded: &ErasureCodedSpec{}}
+	assert.False(t, p.IsEmpty())
+}
 
 func TestValidatePoolSpec(t *testing.T) {
 	p := &CephBlockPool{
@@ -29,7 +47,7 @@ func TestValidatePoolSpec(t *testing.T) {
 			Name: "ec-pool",
 		},
 		Spec: PoolSpec{
-			ErasureCoded: ErasureCodedSpec{
+			ErasureCoded: &ErasureCodedSpec{
 				CodingChunks: 1,
 				DataChunks:   2,
 			},
@@ -49,12 +67,14 @@ func TestCephBlockPoolValidateUpdate(t *testing.T) {
 			Name: "ec-pool",
 		},
 		Spec: PoolSpec{
-			Replicated: ReplicatedSpec{RequireSafeReplicaSize: true, Size: 3},
+			Replicated: &ReplicatedSpec{RequireSafeReplicaSize: true, Size: 3},
 		},
 	}
 	up := p.DeepCopy()
-	up.Spec.ErasureCoded.DataChunks = 2
-	up.Spec.ErasureCoded.CodingChunks = 1
+	up.Spec.ErasureCoded = &ErasureCodedSpec{
+		DataChunks:   2,
+		CodingChunks: 1,
+	}
 	err := up.ValidateUpdate(p)
 	assert.Error(t, err)
 }

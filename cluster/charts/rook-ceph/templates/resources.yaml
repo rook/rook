@@ -59,6 +59,7 @@ spec:
                   type: boolean
                 erasureCoded:
                   description: The erasure code settings
+                  nullable: true
                   properties:
                     algorithm:
                       description: The algorithm for erasure coding
@@ -66,12 +67,12 @@ spec:
                     codingChunks:
                       description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                       maximum: 9
-                      minimum: 0
+                      minimum: 1
                       type: integer
                     dataChunks:
                       description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                       maximum: 9
-                      minimum: 0
+                      minimum: 2
                       type: integer
                   required:
                     - codingChunks
@@ -129,6 +130,7 @@ spec:
                   type: object
                 replicated:
                   description: The replication settings
+                  nullable: true
                   properties:
                     replicasPerFailureDomain:
                       description: ReplicasPerFailureDomain the number of replica in the specified failure domain
@@ -4804,6 +4806,7 @@ spec:
                         type: boolean
                       erasureCoded:
                         description: The erasure code settings
+                        nullable: true
                         properties:
                           algorithm:
                             description: The algorithm for erasure coding
@@ -4811,12 +4814,12 @@ spec:
                           codingChunks:
                             description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                             maximum: 9
-                            minimum: 0
+                            minimum: 1
                             type: integer
                           dataChunks:
                             description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                             maximum: 9
-                            minimum: 0
+                            minimum: 2
                             type: integer
                         required:
                           - codingChunks
@@ -4874,6 +4877,7 @@ spec:
                         type: object
                       replicated:
                         description: The replication settings
+                        nullable: true
                         properties:
                           replicasPerFailureDomain:
                             description: ReplicasPerFailureDomain the number of replica in the specified failure domain
@@ -4943,6 +4947,7 @@ spec:
                       type: boolean
                     erasureCoded:
                       description: The erasure code settings
+                      nullable: true
                       properties:
                         algorithm:
                           description: The algorithm for erasure coding
@@ -4950,12 +4955,12 @@ spec:
                         codingChunks:
                           description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 1
                           type: integer
                         dataChunks:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 2
                           type: integer
                       required:
                         - codingChunks
@@ -5013,6 +5018,7 @@ spec:
                       type: object
                     replicated:
                       description: The replication settings
+                      nullable: true
                       properties:
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
@@ -6238,6 +6244,7 @@ spec:
                       type: boolean
                     erasureCoded:
                       description: The erasure code settings
+                      nullable: true
                       properties:
                         algorithm:
                           description: The algorithm for erasure coding
@@ -6245,12 +6252,12 @@ spec:
                         codingChunks:
                           description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 1
                           type: integer
                         dataChunks:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 2
                           type: integer
                       required:
                         - codingChunks
@@ -6308,6 +6315,7 @@ spec:
                       type: object
                     replicated:
                       description: The replication settings
+                      nullable: true
                       properties:
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
@@ -7011,6 +7019,7 @@ spec:
                       type: boolean
                     erasureCoded:
                       description: The erasure code settings
+                      nullable: true
                       properties:
                         algorithm:
                           description: The algorithm for erasure coding
@@ -7018,12 +7027,12 @@ spec:
                         codingChunks:
                           description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 1
                           type: integer
                         dataChunks:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 2
                           type: integer
                       required:
                         - codingChunks
@@ -7081,6 +7090,7 @@ spec:
                       type: object
                     replicated:
                       description: The replication settings
+                      nullable: true
                       properties:
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
@@ -7370,6 +7380,7 @@ spec:
                       type: boolean
                     erasureCoded:
                       description: The erasure code settings
+                      nullable: true
                       properties:
                         algorithm:
                           description: The algorithm for erasure coding
@@ -7377,12 +7388,12 @@ spec:
                         codingChunks:
                           description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 1
                           type: integer
                         dataChunks:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 2
                           type: integer
                       required:
                         - codingChunks
@@ -7440,6 +7451,7 @@ spec:
                       type: object
                     replicated:
                       description: The replication settings
+                      nullable: true
                       properties:
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
@@ -7508,6 +7520,7 @@ spec:
                       type: boolean
                     erasureCoded:
                       description: The erasure code settings
+                      nullable: true
                       properties:
                         algorithm:
                           description: The algorithm for erasure coding
@@ -7515,12 +7528,12 @@ spec:
                         codingChunks:
                           description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 1
                           type: integer
                         dataChunks:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
                           maximum: 9
-                          minimum: 0
+                          minimum: 2
                           type: integer
                       required:
                         - codingChunks
@@ -7578,6 +7591,7 @@ spec:
                       type: object
                     replicated:
                       description: The replication settings
+                      nullable: true
                       properties:
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain

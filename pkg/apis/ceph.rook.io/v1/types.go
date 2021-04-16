@@ -587,11 +587,13 @@ type PoolSpec struct {
 
 	// The replication settings
 	// +optional
-	Replicated ReplicatedSpec `json:"replicated,omitempty"`
+	// +nullable
+	Replicated *ReplicatedSpec `json:"replicated,omitempty"`
 
 	// The erasure code settings
 	// +optional
-	ErasureCoded ErasureCodedSpec `json:"erasureCoded,omitempty"`
+	// +nullable
+	ErasureCoded *ErasureCodedSpec `json:"erasureCoded,omitempty"`
 
 	// Parameters is a list of properties to enable on a given pool
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -866,12 +868,12 @@ type QuotaSpec struct {
 // ErasureCodedSpec represents the spec for erasure code in a pool
 type ErasureCodedSpec struct {
 	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=9
 	CodingChunks uint `json:"codingChunks"`
 
 	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum=2
 	// +kubebuilder:validation:Maximum=9
 	DataChunks uint `json:"dataChunks"`
 

@@ -136,8 +136,17 @@ func TestCephObjectZoneController(t *testing.T) {
 	// FAILURE: because no CephCluster
 	//
 	// A Pool resource with metadata and spec.
-	metadataPool := cephv1.PoolSpec{}
-	dataPool := cephv1.PoolSpec{}
+	metadataPool := cephv1.PoolSpec{
+		Replicated: &cephv1.ReplicatedSpec{
+			Size: 3,
+		},
+	}
+	dataPool := cephv1.PoolSpec{
+		ErasureCoded: &cephv1.ErasureCodedSpec{
+			DataChunks:   2,
+			CodingChunks: 1,
+		},
+	}
 	objectZone := &cephv1.CephObjectZone{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,

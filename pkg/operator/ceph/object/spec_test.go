@@ -160,43 +160,66 @@ func TestValidateSpec(t *testing.T) {
 		},
 	}
 
-	// valid store
-	s := simpleStore()
-	err := r.validateStore(s)
-	assert.Nil(t, err)
+	t.Run("simple store", func(t *testing.T) {
+		s := simpleStore()
+		err := r.validateStore(s)
+		assert.NoError(t, err)
+	})
 
-	// no name
-	s.Name = ""
-	err = r.validateStore(s)
-	assert.NotNil(t, err)
-	s.Name = "default"
-	err = r.validateStore(s)
-	assert.Nil(t, err)
+	t.Run("fail if no name", func(t *testing.T) {
+		s := simpleStore()
+		s.Name = ""
+		err := r.validateStore(s)
+		assert.Error(t, err)
+	})
 
-	// no namespace
-	s.Namespace = ""
-	err = r.validateStore(s)
-	assert.NotNil(t, err)
-	s.Namespace = "mycluster"
-	err = r.validateStore(s)
-	assert.Nil(t, err)
+	t.Run("fail if no namespace", func(t *testing.T) {
+		s := simpleStore()
+		s.Namespace = ""
+		err := r.validateStore(s)
+		assert.Error(t, err)
+	})
 
-	// no replication or EC is valid
-	s.Spec.MetadataPool.Replicated.Size = 0
-	err = r.validateStore(s)
-	assert.Nil(t, err)
-	s.Spec.MetadataPool.Replicated.Size = 1
-	err = r.validateStore(s)
-	assert.Nil(t, err)
+	// TODO: is this right? it seems to me that both can be unspecified, but if either is specified,
+	// they both must be specified.
+	t.Run("no data pool spec is valid", func(t *testing.T) {
+		s := simpleStore()
+		s.Spec.DataPool.Replicated = nil
+		s.Spec.DataPool.ErasureCoded = nil
+		err := r.validateStore(s)
+		assert.NoError(t, err)
+	})
 
-	// external with endpoints, success
-	s.Spec.Gateway.ExternalRgwEndpoints = []v1.EndpointAddress{
-		{
-			IP: "192.168.0.1",
-		},
-	}
-	err = r.validateStore(s)
-	assert.Nil(t, err)
+	// TODO: is this right? it seems to me that both can be unspecified, but if either is specified,
+	// they both must be specified.
+	t.Run("no metadata pool spec is valid", func(t *testing.T) {
+		s := simpleStore()
+		s.Spec.MetadataPool.Replicated = nil
+		s.Spec.MetadataPool.ErasureCoded = nil
+		err := r.validateStore(s)
+		assert.NoError(t, err)
+	})
+
+	t.Run("no data or metadata pool spec is valid", func(t *testing.T) {
+		s := simpleStore()
+		s.Spec.DataPool.Replicated = nil
+		s.Spec.DataPool.ErasureCoded = nil
+		s.Spec.MetadataPool.Replicated = nil
+		s.Spec.MetadataPool.ErasureCoded = nil
+		err := r.validateStore(s)
+		assert.NoError(t, err)
+	})
+
+	t.Run("external RGW endpoints", func(t *testing.T) {
+		s := simpleStore()
+		s.Spec.Gateway.ExternalRgwEndpoints = []v1.EndpointAddress{
+			{
+				IP: "192.168.0.1",
+			},
+		}
+		err := r.validateStore(s)
+		assert.NoError(t, err)
+	})
 }
 
 func TestGenerateLiveProbe(t *testing.T) {
