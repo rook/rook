@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"context"
+	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -86,6 +87,7 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 			nodeName = hostname
 		}
 
+		nodeName = strings.Replace(nodeName, ".", "-", -1)
 		// Make sure we can call Ceph properly
 		// Is the node in the CRUSH map already?
 		// If so we don't need to reconcile, this is done to avoid double reconcile on operator restart
