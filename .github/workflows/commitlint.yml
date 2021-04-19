@@ -1,5 +1,15 @@
 name: Commitlint
-on: [push, pull_request]
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
 
 jobs:
   lint:

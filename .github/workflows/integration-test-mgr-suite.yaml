@@ -1,5 +1,6 @@
 name: Integration test CephMgrSuite
-on: [pull_request]
+on:
+  pull_request:
 
 jobs:
   TestCephMgrSuite:

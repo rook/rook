@@ -1,8 +1,15 @@
 name: Yaml Lint
 on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
   pull_request:
-    paths:
-      - "**.yaml"
+    branches:
+      - master
+      - release-*
 
 jobs:
   yaml-linter:

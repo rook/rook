@@ -4,17 +4,12 @@ on:
     tags:
       - v*
     branches:
-      - release-*
       - master
-    paths:
-      - '**.go'
+      - release-*
   pull_request:
     branches:
       - master
       - release-*
-
-    paths:
-      - '**.go'
 
 jobs:
   golangci:
