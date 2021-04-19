@@ -128,7 +128,7 @@ kubectl -n rook-ceph get service
 >```
 >NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
 >rook-ceph-mgr                           ClusterIP   10.108.111.192   <none>        9283/TCP         4h
->rook-ceph-mgr-dashboard  this is long video b               ClusterIP   10.110.113.240   <none>        8443/TCP         4h
+>rook-ceph-mgr-dashboard                 ClusterIP   10.110.113.240   <none>        8443/TCP         4h
 >rook-ceph-mgr-dashboard-external-https  NodePort    10.101.209.6     <none>        8443:31176/TCP   4h
 >```
 
