@@ -46,7 +46,13 @@ copy_ob_obc_crds() {
 generating_crds_v1() {
   echo "Generating v1 in crds.yaml"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
-  sed -i'' -e "s/\( *\)\(description: 'Standard object''s metadata. More info: https:\/\/git.k8s.io\/community\/contributors\/devel\/sig-architecture\/api-conventions.md#metadata'\)/\1\2\n\1x-kubernetes-preserve-unknown-fields: true/" cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml
+  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.mon.properties.stretchCluster.properties.zones.items.properties.volumeClaimTemplate.properties.metadata.x-kubernetes-preserve-unknown-fields true
+  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.mon.properties.volumeClaimTemplate.properties.metadata.x-kubernetes-preserve-unknown-fields true
+  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.volumeClaimTemplates.items.properties.metadata.x-kubernetes-preserve-unknown-fields true
+  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.nodes.items.properties.volumeClaimTemplates.items.properties.metadata.x-kubernetes-preserve-unknown-fields true
+  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.x-kubernetes-preserve-unknown-fields true
+  # fixes a bug in yq: https://github.com/mikefarah/yq/issues/351 where the '---' gets removed
+  sed -i '1i ---' cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml
 }
 
 generating_crds_v1alpha2() {
@@ -80,13 +86,13 @@ build_helm_resources() {
     # add header
     echo "{{- if .Values.crds.enabled }}"
     echo "{{- if semverCompare \">=1.16.0\" .Capabilities.KubeVersion.GitVersion }}"
-
+    
     # Add helm annotations to all CRDS and skip the first 4 lines of crds.yaml
     "$YQ_BIN_PATH" w -d'*' "$CRDS_FILE_PATH" "metadata.annotations[helm.sh/resource-policy]" keep | tail -n +5
-
+    
     # add else
     echo "{{- else }}"
-
+    
     # add footer
     cat "$CRDS_BEFORE_1_16_FILE_PATH"
     # DO NOT REMOVE the empty line, it is necessary
