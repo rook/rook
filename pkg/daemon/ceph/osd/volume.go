@@ -31,7 +31,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/display"
@@ -61,7 +60,7 @@ var (
 	// The Ceph Octopus to include a retry to acquire device lock
 	cephFlockFixOctopusMinCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}
 	isEncrypted                       = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
-	isOnPVC                           = os.Getenv(osd.PVCBackedOSDVarName) == "true"
+	isOnPVC                           = os.Getenv(oposd.PVCBackedOSDVarName) == "true"
 )
 
 type osdInfoBlock struct {
