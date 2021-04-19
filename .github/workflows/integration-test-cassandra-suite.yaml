@@ -29,10 +29,8 @@ jobs:
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       run: |

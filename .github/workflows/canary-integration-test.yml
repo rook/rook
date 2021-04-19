@@ -32,62 +32,29 @@ jobs:
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run:  tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
-        sudo lsblk
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
-
+      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: validate-yaml
-      run: |
-        cd cluster/examples/kubernetes/ceph/
-        kubectl create -f crds.yaml -f common.yaml
-        # skipping folders and some yamls that are only for openshift.
-        kubectl create  $(ls -I scc.yaml -I "*-openshift.yaml"  -I "*.sh" -I "*.py" -p | grep -v / | awk ' { print " -f " $1 } ') --dry-run
+      run: tests/scripts/github-action-helper.sh validate_yaml
 
-    - name: deploy rook
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
-        sed -i "s|#deviceFilter:|deviceFilter: $(lsblk|awk '/14G/ {print $1}'| head -1)|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/cluster-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/object-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/pool-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/filesystem-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/rbdmirror.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/nfs-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+    - name: deploy cluster
+      run: tests/scripts/github-action-helper.sh deploy_cluster
 
     - name: wait for prepare pod
-      run: |
-        timeout 300 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'
+      run: timeout 300 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'
 
     - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh all 2
-        kubectl -n rook-ceph get pods
-
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
+        
     - name: test external script create-external-cluster-resources.py
       run: |
         kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- /bin/bash -c "echo \"$(kubectl get pods -o wide -n rook-ceph -l app=rook-ceph-mgr --no-headers=true|head -n1|awk '{print $6"\t"$1}')\" >>/etc/hosts"
@@ -103,12 +70,8 @@ jobs:
         # copy the test file
         # execute the test file
 
-    - name: run kubectl-check-ownerreferences
-      run: |
-        curl -L https://github.com/kubernetes-sigs/kubectl-check-ownerreferences/releases/download/v0.2.0/kubectl-check-ownerreferences-linux-amd64.tar.gz -o kubectl-check-ownerreferences-linux-amd64.tar.gz
-        tar xzvf kubectl-check-ownerreferences-linux-amd64.tar.gz
-        chmod +x kubectl-check-ownerreferences
-        ./kubectl-check-ownerreferences -n rook-ceph
+    - name: check-ownerreferences
+      run: tests/scripts/github-action-helper.sh check_ownerreferences
 
     - name: Upload canary test result
       uses: actions/upload-artifact@v2
@@ -120,7 +83,6 @@ jobs:
     - name: setup tmate session for debugging
       if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary')
       uses: mxschmitt/action-tmate@v3
-
 
   pvc:
     runs-on: ubuntu-18.04
@@ -135,9 +97,7 @@ jobs:
         go-version: 1.16
 
     - name: install deps
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -149,38 +109,22 @@ jobs:
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
-        sudo lsblk
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
-    - name: rook prerequisites
+    - name: create cluster prerequisites
       run: |
         BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
         tests/scripts/localPathPV.sh "$BLOCK"
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites 
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
@@ -201,17 +145,10 @@ jobs:
         kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
 
     - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 2
-        kubectl -n rook-ceph get pods
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
-    - name: run kubectl-check-ownerreferences
-      run: |
-        curl -L https://github.com/kubernetes-sigs/kubectl-check-ownerreferences/releases/download/v0.2.0/kubectl-check-ownerreferences-linux-amd64.tar.gz -o kubectl-check-ownerreferences-linux-amd64.tar.gz
-        tar xzvf kubectl-check-ownerreferences-linux-amd64.tar.gz
-        chmod +x kubectl-check-ownerreferences
-        ./kubectl-check-ownerreferences -n rook-ceph
+    - name: check-ownerreferences
+      run: tests/scripts/github-action-helper.sh check_ownerreferences
 
     - name: Upload  pvc test result
       uses: actions/upload-artifact@v2
@@ -237,10 +174,7 @@ jobs:
         go-version: 1.16
 
     - name: install deps
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
-        sudo apt-get install -y gdisk
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -251,42 +185,22 @@ jobs:
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
     - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"2
-        DB_PART="$BLOCK"1
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
+        
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites 
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
@@ -295,18 +209,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
-
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        
     - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
-        kubectl -n rook-ceph get pods
-
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+        
     - name: Upload pvc-db test result
       uses: actions/upload-artifact@v2
       if: always()
@@ -332,8 +239,7 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        tests/scripts/github-action-helper.sh install_deps
         sudo apt-get install -y gdisk
 
     - name: setup minikube
@@ -345,41 +251,19 @@ jobs:
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
+        
+    - name: create bluestore partitions and PVCs for wal
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
 
-    - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"3
-        DB_PART="$BLOCK"1
-        WAL_PART="$BLOCK"2
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
-
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy rook
       run: |
@@ -391,16 +275,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
         kubectl -n rook-ceph get pods
 
     - name: Upload pvc-db-wal test result
@@ -434,44 +313,26 @@ jobs:
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
-    - name: install yq
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+    - name: install deps
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
-        sudo lsblk
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
-    - name: rook prerequisites
+    - name: create cluster prerequisites
       run: |
         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites 
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
@@ -480,16 +341,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 2
-        kubectl -n rook-ceph get pods
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
         kubectl -n rook-ceph get secrets
         sudo lsblk
 
@@ -518,8 +374,7 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        tests/scripts/github-action-helper.sh install_deps
         sudo apt-get install -y gdisk
 
     - name: setup minikube
@@ -531,42 +386,21 @@ jobs:
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
     - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"2
-        DB_PART="$BLOCK"1
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites 
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
@@ -574,16 +408,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
 
@@ -612,8 +441,7 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        tests/scripts/github-action-helper.sh install_deps
         sudo apt-get install -y gdisk
 
     - name: setup minikube
@@ -625,41 +453,19 @@ jobs:
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
-    - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"3
-        DB_PART="$BLOCK"1
-        WAL_PART="$BLOCK"2
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
-
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: create bluestore partitions and PVCs for wal
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
+        
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy rook
       run: |
@@ -670,16 +476,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
 
@@ -693,6 +494,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-db-wal')
       uses: mxschmitt/action-tmate@v3
+
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-18.04
@@ -714,48 +516,29 @@ jobs:
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
-    - name: install yq
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+    - name: install deps
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
-        sudo lsblk
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
-    - name: rook prereq
+    - name: create cluster prerequisites
       run: |
         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites 
 
     - name: deploy vault
-      run: |
-        tests/scripts/deploy-validate-vault.sh deploy
+      run: tests/scripts/deploy-validate-vault.sh deploy
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
@@ -767,16 +550,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 2
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
         tests/scripts/validate_cluster.sh rgw
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
@@ -810,9 +588,7 @@ jobs:
         go-version: 1.16
 
     - name: install deps
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -823,42 +599,18 @@ jobs:
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        tests/scripts/validate_modified_files.sh build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create LV on disk
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        sudo sgdisk --zap-all "${BLOCK}"
-        VG=test-rook-vg
-        LV=test-rook-lv
-        sudo pvcreate "$BLOCK"
-        sudo vgcreate "$VG" "$BLOCK"
-        sudo lvcreate -l 100%FREE -n "${LV}" "${VG}"
-        tests/scripts/localPathPV.sh /dev/"${VG}"/${LV}
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
-
-    - name: deploy rook
+      run: tests/scripts/github-action-helper.sh create_LV_on_disk
+        
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
@@ -866,24 +618,13 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
-        kubectl -n rook-ceph get pods
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
 
-    - name: run kubectl-check-ownerreferences
-      run: |
-        curl -L https://github.com/kubernetes-sigs/kubectl-check-ownerreferences/releases/download/v0.2.0/kubectl-check-ownerreferences-linux-amd64.tar.gz -o kubectl-check-ownerreferences-linux-amd64.tar.gz
-        tar xzvf kubectl-check-ownerreferences-linux-amd64.tar.gz
-        chmod +x kubectl-check-ownerreferences
-        ./kubectl-check-ownerreferences -n rook-ceph
+    - name: check-ownerreferences
+      run: tests/scripts/github-action-helper.sh check_ownerreferences
 
     - name: Upload pvc test result
       uses: actions/upload-artifact@v2
@@ -909,9 +650,7 @@ jobs:
         go-version: 1.16
 
     - name: install deps
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -934,11 +673,7 @@ jobs:
         sudo lsblk
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: deploy first cluster rook
       run: |
