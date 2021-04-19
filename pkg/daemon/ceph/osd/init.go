@@ -22,7 +22,6 @@ import (
 	"path"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
@@ -31,7 +30,7 @@ const (
 )
 
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
-func createOSDBootstrapKeyring(context *clusterd.Context, clusterInfo *client.ClusterInfo, rootDir string) error {
+func createOSDBootstrapKeyring(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, rootDir string) error {
 	username := "client.bootstrap-osd"
 	keyringPath := path.Join(rootDir, bootstrapOsdKeyring)
 	access := []string{"mon", "allow profile bootstrap-osd"}
