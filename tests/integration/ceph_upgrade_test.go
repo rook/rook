@@ -85,7 +85,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		UseCSI:            true,
 		SkipOSDCreation:   false,
 		RookVersion:       installer.Version1_5,
-		CephVersion:       installer.NautilusVersion,
+		CephVersion:       installer.NautilusPartitionVersion,
 	}
 
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, upgradeMinimalTestVersion)
