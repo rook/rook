@@ -215,7 +215,6 @@ function dind::run-build-command {
         # We are looking to copy out all of the built binaries along with various
         # generated files.
         kube::build::rsync \
-            --filter='- /vendor/' \
             --filter='- /_temp/' \
             --filter='+ zz_generated.*' \
             --filter='+ generated.proto' \
@@ -830,7 +829,7 @@ function dind::do-run-e2e {
     test_args="--report-dir=/report ${test_args}"
     e2e_volume_opts=(-v "${E2E_REPORT_DIR}:/report")
   fi
-  dind::make-for-linux n cmd/kubectl test/e2e/e2e.test vendor/github.com/onsi/ginkgo/ginkgo
+  dind::make-for-linux n cmd/kubectl test/e2e/e2e.test
   dind::step "Running e2e tests with args:" "${test_args}"
   dind::set-build-volume-args
   if [ -t 1 ] ; then

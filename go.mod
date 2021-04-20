@@ -37,7 +37,6 @@ require (
 	k8s.io/apiserver v0.20.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/cloud-provider v0.20.0
-	k8s.io/code-generator v0.20.1
 	k8s.io/kube-controller-manager v0.20.0
 	k8s.io/kubernetes v1.20.0
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
