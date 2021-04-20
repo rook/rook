@@ -1468,10 +1468,6 @@ By default, the Key Encryption Keys (also known as Data Encryption Keys) are sto
 However, if a Key Management System exists Rook is capable of using it. HashiCorp Vault is the only KMS currently supported by Rook.
 Please refer to the next section.
 
-Ceph RGW supports encryption via KMS using HashiCorp Vault. If the below settings are defined, then RGW establish a connection between Vault
-and whenever S3 client sends a request with Server Side Encryption, it encrypts that using the key specified by the client.
-For more details w.r.t RGW, please refer [Ceph Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/)
-
 The `security` section contains settings related to encryption of the cluster.
 
 * `security`:
@@ -1588,16 +1584,3 @@ data:
 
 Note: if you are using self-signed certificates (not known/approved by a proper CA) you must pass `VAULT_SKIP_VERIFY: true`.
 Communications will remain encrypted but the validity of the certificate will not be verified.
-
-For RGW, please note the following:
-
-* `VAULT_SECRET_ENGINE` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit).
-* The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption
-```console
-# kv engine
-vault kv put rook/mybucketkey key=$(openssl rand -base64 32)
-
-# transit engine
-vault write -f transit/keys/mybucketkey exportable=true
-```
-* TLS authentication with custom certs between Vault and RGW are yet to support.
