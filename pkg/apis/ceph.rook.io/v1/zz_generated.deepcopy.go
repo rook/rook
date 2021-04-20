@@ -1896,6 +1896,11 @@ func (in *ObjectStoreSpec) DeepCopyInto(out *ObjectStoreSpec) {
 	in.Gateway.DeepCopyInto(&out.Gateway)
 	out.Zone = in.Zone
 	in.HealthCheck.DeepCopyInto(&out.HealthCheck)
+	if in.Security != nil {
+		in, out := &in.Security, &out.Security
+		*out = new(SecuritySpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
