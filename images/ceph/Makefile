@@ -70,11 +70,13 @@ do.build: generate-csv-ceph-templates
 		mkdir $(TEMP)/ceph-csv-templates;\
 	fi
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
-	@$(DOCKERCMD) build $(BUILD_ARGS) \
+	@if [ -z "$(BUILD_CONTAINER_IMAGE)" ]; then\
+		$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
 		--build-arg TINI_VERSION=$(TINI_VERSION) \
 		-t $(CEPH_IMAGE) \
-		$(TEMP)
+		$(TEMP);\
+	fi
 	@rm -fr $(TEMP)
 	@$(MAKE) -C ../.. crds # revert changes made to the crds.yaml file during the csv-gen sequence
 

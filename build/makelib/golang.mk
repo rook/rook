@@ -129,8 +129,8 @@ go.install:
 
 # GOJUNIT and go.mod.vendor need to happen in order and NOT in parallel, so call them explicitly
 .PHONY: go.test.unit
-go.test.unit: 
-	@$(MAKE) $(GOJUNIT) 
+go.test.unit:
+	@$(MAKE) $(GOJUNIT)
 	@$(MAKE) go.mod.vendor
 	@echo === go test unit-tests
 	@mkdir -p $(GO_TEST_OUTPUT)
@@ -211,9 +211,9 @@ $(CONTROLLER_GEN) $(YQ):
 		CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 		cd $$CONTROLLER_GEN_TMP_DIR ;\
 		go mod init tmp;\
-		unset GOOS GOARCH  # avoid error: "cannot install cross-compiled binaries when GOBIN is set" ;\
-		export CGO_ENABLED=0  # do not need gcc nor the errors that come with not having it ;\
-		export GOBIN=$$CONTROLLER_GEN_TMP_DIR  # go get dependencies into the temp dir ;\
+		unset GOOS GOARCH ;\
+		export CGO_ENABLED=0 ;\
+		export GOBIN=$$CONTROLLER_GEN_TMP_DIR ;\
 		echo === installing controller-gen ;\
 		go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION);\
 		mv $$CONTROLLER_GEN_TMP_DIR/controller-gen $(CONTROLLER_GEN) ;\
