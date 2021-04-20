@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -107,13 +106,13 @@ func TestNFSServerReconciler_Reconcile(t *testing.T) {
 
 	ctx := context.TODO()
 	clientset := test.New(t, 3)
-	pod := v1.Pod{
+	pod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-operator",
 			Namespace: "rook-system",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
 				{
 					Name:  "mypodContainer",
 					Image: "rook/test",
