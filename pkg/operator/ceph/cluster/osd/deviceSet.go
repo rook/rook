@@ -96,6 +96,7 @@ func (c *Cluster) createDeviceSetPVCsForIndex(deviceSet rookv1.StorageClassDevic
 
 	var dataSize string
 	var crushDeviceClass string
+	var crushInitialWeight string
 	typesFound := util.NewSet()
 	for _, pvcTemplate := range deviceSet.VolumeClaimTemplates {
 		if pvcTemplate.Name == "" {
@@ -126,6 +127,8 @@ func (c *Cluster) createDeviceSetPVCsForIndex(deviceSet rookv1.StorageClassDevic
 			dataSize = pvcSize.String()
 			crushDeviceClass = pvcTemplate.Annotations["crushDeviceClass"]
 		}
+		crushInitialWeight = pvcTemplate.Annotations["crushInitialWeight"]
+
 		pvcSources[pvcType] = v1.PersistentVolumeClaimVolumeSource{
 			ClaimName: pvc.GetName(),
 			ReadOnly:  false,
@@ -145,6 +148,7 @@ func (c *Cluster) createDeviceSetPVCsForIndex(deviceSet rookv1.StorageClassDevic
 		TuneFastDeviceClass: deviceSet.TuneFastDeviceClass,
 		SchedulerName:       deviceSet.SchedulerName,
 		CrushDeviceClass:    crushDeviceClass,
+		CrushInitialWeight:  crushInitialWeight,
 		Encrypted:           deviceSet.Encrypted,
 	}
 }
