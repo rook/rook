@@ -43,7 +43,10 @@ import (
 
 const (
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/ceph:v14.2.12"
+	nautilusTestImage = "ceph/ceph:v14"
+	// nautilusTestImagePartition is the image that contains working ceph-volume code to deploy OSDs on partitions
+	// currently only used for the upgrade test from 1.5 to 1.6, this cannot be changed to v14 since ceph-volume will fail to deploy OSD on partition on Rook 1.5
+	nautilusTestImagePartition = "ceph/ceph:v14.2.12"
 	// test with the latest octopus build
 	octopusTestImage = "ceph/ceph:v15"
 	// test with the latest pacific build
@@ -55,10 +58,11 @@ const (
 )
 
 var (
-	NautilusVersion = cephv1.CephVersionSpec{Image: nautilusTestImage}
-	OctopusVersion  = cephv1.CephVersionSpec{Image: octopusTestImage}
-	PacificVersion  = cephv1.CephVersionSpec{Image: pacificTestImage}
-	MasterVersion   = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
+	NautilusVersion          = cephv1.CephVersionSpec{Image: nautilusTestImage}
+	NautilusPartitionVersion = cephv1.CephVersionSpec{Image: nautilusTestImagePartition}
+	OctopusVersion           = cephv1.CephVersionSpec{Image: octopusTestImage}
+	PacificVersion           = cephv1.CephVersionSpec{Image: pacificTestImage}
+	MasterVersion            = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform
