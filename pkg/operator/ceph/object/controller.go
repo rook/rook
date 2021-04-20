@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -339,7 +338,6 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	objContext := NewContext(r.context, r.clusterInfo, cephObjectStore.Name)
 	objContext.UID = string(cephObjectStore.UID)
 
-	var serviceIP string
 	var err error
 
 	if cephObjectStore.Spec.IsExternal() {
@@ -347,7 +345,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// RECONCILE SERVICE
 		logger.Info("reconciling object store service")
-		serviceIP, err = cfg.reconcileService(cephObjectStore)
+		_, err = cfg.reconcileService(cephObjectStore)
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
 		}
@@ -384,7 +382,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// RECONCILE SERVICE
 		logger.Debug("reconciling object store service")
-		serviceIP, err = cfg.reconcileService(cephObjectStore)
+		serviceIP, err := cfg.reconcileService(cephObjectStore)
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
 		}
@@ -414,7 +412,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 	// Start monitoring
 	if !cephObjectStore.Spec.HealthCheck.Bucket.Disabled {
-		r.startMonitoring(cephObjectStore, objContext, serviceIP, namespacedName)
+		r.startMonitoring(cephObjectStore, objContext, namespacedName)
 	}
 
 	return reconcile.Result{}, nil
@@ -502,7 +500,7 @@ func (r *ReconcileCephObjectStore) verifyObjectBucketCleanup(objectstore *cephv1
 	return opcontroller.WaitForRequeueIfFinalizerBlocked, false
 }
 
-func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, serviceIP string, namespacedName types.NamespacedName) {
+func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, namespacedName types.NamespacedName) {
 	// Start monitoring object store
 	if r.objectStoreChannels[objectstore.Name].monitoringRunning {
 		logger.Debug("external rgw endpoint monitoring go routine already running!")
@@ -512,18 +510,19 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 	// Set the monitoring flag so we don't start more than one go routine
 	r.objectStoreChannels[objectstore.Name].monitoringRunning = true
 
-	var port string
+	var port int32
 
-	if objectstore.Spec.Gateway.SecurePort != 0 && objectstore.Spec.Gateway.SSLCertificateRef != "" {
-		port = strconv.Itoa(int(objectstore.Spec.Gateway.SecurePort))
+	if objectstore.Spec.IsTLSEnabled() {
+		port = objectstore.Spec.Gateway.SecurePort
 	} else if objectstore.Spec.Gateway.Port != 0 {
-		port = strconv.Itoa(int(objectstore.Spec.Gateway.Port))
+		port = objectstore.Spec.Gateway.Port
+
 	} else {
 		logger.Error("At least one of Port or SecurePort should be non-zero")
 		return
 	}
 
-	rgwChecker := newBucketChecker(r.context, objContext, serviceIP, port, r.client, namespacedName, &objectstore.Spec.HealthCheck)
+	rgwChecker := newBucketChecker(r.context, objContext, port, r.client, namespacedName, &objectstore.Spec)
 	logger.Info("starting rgw healthcheck")
 	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
 }
