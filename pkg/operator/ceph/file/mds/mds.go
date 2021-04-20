@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -34,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -136,17 +138,19 @@ func (c *Cluster) Start() error {
 			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 		}
 
-		// Check for existing deployment and set the daemon config flags
-		_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(ctx, mdsConfig.ResourceName, metav1.GetOptions{})
-		// We don't need to handle any error here
+		// Set the mds config flags
+		// Previously we were checking if the deployment was present, if not we would set the config flags
+		// Which means that we would only set the flag on newly created CephFilesystem CR
+		// Unfortunately, on upgrade we would not set the flags which is not ideal for old clusters where we were no setting those flags
+		// The KV supports setting those flags even if the MDS is running
+		logger.Info("setting mds config flags")
+		err = c.setDefaultFlagsMonConfigStore(mdsConfig.DaemonID)
 		if err != nil {
-			// Apply the flag only when the deployment is not found
-			if kerrors.IsNotFound(err) {
-				logger.Info("setting mds config flags")
-				err = c.setDefaultFlagsMonConfigStore(mdsConfig.DaemonID)
-				if err != nil {
-					return errors.Wrap(err, "failed to set default mds config options")
-				}
+			// Getting EPERM typically happens when the flag may not be modified at runtime
+			// This is fine to ignore
+			code, ok := exec.ExitStatus(err)
+			if ok && code != int(syscall.EPERM) {
+				return errors.Wrap(err, "failed to set default rgw config options")
 			}
 		}
 
