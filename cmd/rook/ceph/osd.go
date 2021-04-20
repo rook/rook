@@ -118,6 +118,7 @@ func addOSDConfigFlags(command *cobra.Command) {
 	command.Flags().IntVar(&cfg.storeConfig.OSDsPerDevice, "osds-per-device", 1, "the number of OSDs per device")
 	command.Flags().BoolVar(&cfg.storeConfig.EncryptedDevice, "encrypted-device", false, "whether to encrypt the OSD with dmcrypt")
 	command.Flags().StringVar(&cfg.storeConfig.DeviceClass, "osd-crush-device-class", "", "The device class for all OSDs configured on this node")
+	command.Flags().StringVar(&cfg.storeConfig.InitialWeight, "osd-crush-initial-weight", "", "The initial weight of OSD in TiB units")
 }
 
 func init() {
@@ -303,6 +304,7 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 		d.OSDsPerDevice = cd.StoreConfig.OSDsPerDevice
 		d.DatabaseSizeMB = cd.StoreConfig.DatabaseSizeMB
 		d.DeviceClass = cd.StoreConfig.DeviceClass
+		d.InitialWeight = cd.StoreConfig.InitialWeight
 		d.MetadataDevice = cd.StoreConfig.MetadataDevice
 
 		if d.OSDsPerDevice < 1 {

@@ -269,3 +269,37 @@ func TestUpdatePVCSize(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "6Gi", result.String())
 }
+
+func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
+	ctx := context.TODO()
+	clientset := testexec.New(t, 1)
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+	deviceSet := rookv1.StorageClassDeviceSet{
+		Name:                 "datawithcrushparams1",
+		Count:                1,
+		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{testVolumeClaim("testwithcrushparams1")},
+		SchedulerName:        "custom-scheduler",
+	}
+	deviceSet.VolumeClaimTemplates[0].Annotations = map[string]string{"crushDeviceClass": "ssd", "crushInitialWeight": "0.75"}
+
+	spec := cephv1.ClusterSpec{
+		Storage: rookv1.StorageScopeSpec{StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{deviceSet}},
+	}
+	cluster := &Cluster{
+		context:     context,
+		clusterInfo: client.AdminClusterInfo("testns"),
+		spec:        spec,
+	}
+
+	config := newProvisionErrors()
+	volumeSources := cluster.prepareStorageClassDeviceSets(config)
+	assert.Equal(t, 1, len(volumeSources))
+	assert.Equal(t, volumeSources[0].CrushDeviceClass, "ssd")
+	assert.Equal(t, volumeSources[0].CrushInitialWeight, "0.75")
+
+	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(pvcs.Items))
+}
