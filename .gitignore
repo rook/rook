@@ -4,8 +4,6 @@
 /.idea
 
 /_output
-/vendor/
-/vendor.orig/
 
 /tests/integration/rook-test/
 

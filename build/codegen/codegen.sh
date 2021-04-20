@@ -17,17 +17,13 @@
 GROUP_VERSIONS="rook.io:v1 rook.io:v1alpha2 ceph.rook.io:v1 nfs.rook.io:v1alpha1 cassandra.rook.io:v1alpha1"
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-codegendir="${scriptdir}/../../vendor/k8s.io/code-generator"
-
-# ensures the vendor dir has the right deps, e,g. code-generator
-go mod vendor
 
 # CODE GENERATION
 # we run deepcopy and client,lister,informer generations separately so we can use the flag "--plural-exceptions"
 # which is only known by client,lister,informer binary and not the deepcopy binary
 
 # run code deepcopy generation
-bash ${codegendir}/generate-groups.sh \
+bash ${CODE_GENERATOR}/generate-groups.sh \
     deepcopy \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
@@ -36,7 +32,7 @@ bash ${codegendir}/generate-groups.sh \
     --go-header-file "${scriptdir}/boilerplate.go.txt"
 
 # run code client,lister,informer generation
-bash ${codegendir}/generate-groups.sh \
+bash ${CODE_GENERATOR}/generate-groups.sh \
     client,lister,informer \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \

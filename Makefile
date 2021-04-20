@@ -150,7 +150,7 @@ fmt: ## Check formatting of go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.fmt
 
-codegen: ## Run code generators.
+codegen: ${CODE_GENERATOR} ## Run code generators.
 	@build/codegen/codegen.sh
 
 mod.check: go.mod.check ## Check if any go modules changed.
