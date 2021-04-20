@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include build/makelib/macos.mk
 include build/makelib/common.mk
 
 .PHONY: all

@@ -15,7 +15,7 @@
 # remove default suffixes as we dont use them
 .SUFFIXES:
 
-SHELL := /bin/bash
+SHELL := /usr/bin/env bash
 ifneq (, $(shell command -v shasum))
 SHA256CMD := shasum -a 256
 else ifneq (, $(shell command -v sha256sum))
@@ -63,10 +63,6 @@ CC := $(CROSS_TRIPLE)-gcc
 CXX := $(CROSS_TRIPLE)-g++
 export CC CXX
 endif
-
-# sed -i'' -e works on both UNIX (MacOS) and GNU (Linux) versions of sed
-SED_CMD ?= sed -i'' -e
-export SED_CMD
 
 # set the version number. you should not need to do this
 # for the majority of scenarios.

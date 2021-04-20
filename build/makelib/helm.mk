@@ -39,7 +39,7 @@ define helm.chart
 $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz: $(HELM) $(HELM_OUTPUT_DIR) $(shell find $(HELM_CHARTS_DIR)/$(1) -type f)
 	@echo === helm package $(1)
 	@cp -r $(HELM_CHARTS_DIR)/$(1) $(OUTPUT_DIR)
-	@$(SED_CMD) 's|VERSION|$(VERSION)|g' $(OUTPUT_DIR)/$(1)/values.yaml
+	@sed -i -e 's|VERSION|$(VERSION)|g' $(OUTPUT_DIR)/$(1)/values.yaml
 	@$(HELM) lint $(abspath $(OUTPUT_DIR)/$(1)) --set image.tag=$(VERSION)
 	@$(HELM) package --version $(VERSION) -d $(HELM_OUTPUT_DIR) $(abspath $(OUTPUT_DIR)/$(1))
 $(HELM_INDEX): $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz

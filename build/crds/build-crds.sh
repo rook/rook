@@ -52,7 +52,7 @@ generating_crds_v1() {
   $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.nodes.items.properties.volumeClaimTemplates.items.properties.metadata.x-kubernetes-preserve-unknown-fields true
   $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.x-kubernetes-preserve-unknown-fields true
   # fixes a bug in yq: https://github.com/mikefarah/yq/issues/351 where the '---' gets removed
-  sed -i '1i ---' cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml
+  sed -i -e '1i ---' cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml
 }
 
 generating_crds_v1alpha2() {
