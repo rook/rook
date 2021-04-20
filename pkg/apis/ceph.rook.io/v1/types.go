@@ -1028,6 +1028,11 @@ type ObjectStoreSpec struct {
 	// +optional
 	// +nullable
 	HealthCheck BucketHealthCheckSpec `json:"healthCheck,omitempty"`
+
+	// Security represents security settings
+	// +optional
+	// +nullable
+	Security *SecuritySpec `json:"security,omitempty"`
 }
 
 // BucketHealthCheckSpec represents the health check of an object store
