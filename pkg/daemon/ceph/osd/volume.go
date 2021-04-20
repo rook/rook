@@ -111,6 +111,10 @@ func isNewStyledLvmBatch(version cephver.CephVersion) bool {
 		return true
 	}
 
+	if version.IsAtLeastPacific() {
+		return true
+	}
+
 	return false
 }
 
