@@ -69,7 +69,7 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-flex-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
 
   TestCephHelmSuite:
@@ -135,7 +135,7 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-helm-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
 
   TestCephMultiClusterDeploySuite:
@@ -200,7 +200,7 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-multi-cluster-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
 
   TestCephSmokeSuite:
@@ -264,7 +264,7 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-smoke-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
 
   TestCephUpgradeSuite:
@@ -328,7 +328,7 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-upgrade-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
 
   TestCassandraSuite:
@@ -380,5 +380,5 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'cassandra-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
