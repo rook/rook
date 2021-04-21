@@ -303,7 +303,7 @@ kubectl apply -f common.yaml -f crds.yaml
 > The error will contain text similar to `... spec.preserveUnknownFields: Invalid value...`.
 
 If you experience this error applying the latest changes to CRDs, use `kubectl`'s `replace` command
-to replace the resources followed by `apply` to verify that the resources are updated without other 
+to replace the resources followed by `apply` to verify that the resources are updated without other
 errors.
 ```sh
 kubectl replace -f crds.yaml
@@ -317,6 +317,8 @@ kubectl apply -f crds.yaml
 If you have specified custom CSI images in the Rook-Ceph Operator deployment, we recommended you
 update to use the latest Ceph-CSI drivers. See the [CSI Version](#csi-version) section for more
 details.
+
+> Note: If using snapshots, refer to the [Upgrade Snapshot API guide](ceph-csi-snapshot.md#upgrade-snapshot-api).
 
 ## 3. Update the Rook Operator
 
@@ -463,9 +465,9 @@ The default upstream images are included below, which you can change to your des
 ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.3.1"
 ROOK_CSI_REGISTRAR_IMAGE: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
 ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4"
-ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.2"
 ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.0.2"
 ROOK_CSI_RESIZER_IMAGE: "k8s.gcr.io/sig-storage/csi-resizer:v1.0.1"
+ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v4.0.0"
 ```
 
 ### Use default images
@@ -487,7 +489,7 @@ k8s.gcr.io/sig-storage/csi-attacher:v3.0.2
 k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1
 k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4
 k8s.gcr.io/sig-storage/csi-resizer:v1.0.1
-k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.2
+k8s.gcr.io/sig-storage/csi-snapshotter:v4.0.0
 ```
 
 ## Replace lvm mode OSDs with raw mode (if you use LV-backed PVC)
