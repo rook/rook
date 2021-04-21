@@ -54,7 +54,7 @@ RUN curl -sSL --fail -o /tini https://github.com/krallin/tini/releases/download/
 
 # precompile the go standard library for all supported platforms and configurations
 # the install suffixes match those in golang.mk so please keep them in sync
-RUN platforms="darwin_amd64 windows_amd64 linux_amd64 linux_arm64" && \
+RUN platforms="linux_amd64 linux_arm64" && \
     for p in $platforms; do CGO_ENABLED=0 GOOS=${p%_*} GOARCH=${p##*_} GOARM=7 go install -installsuffix static -a std; done
 
 COPY run.sh rsyncd.sh /build/
