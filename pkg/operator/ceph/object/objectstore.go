@@ -24,11 +24,11 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -48,9 +48,6 @@ const (
 	AccessKeyName         = "access-key"
 	SecretKeyName         = "secret-key"
 	svcDNSSuffix          = "svc"
-
-	// Timeout for setting the dashboard access key
-	applyDashboardKeyTimeout = 15 * time.Second
 )
 
 var (
@@ -801,7 +798,7 @@ func enableRGWDashboard(context *Context) error {
 		// starting in ceph v15.2.8. We run it in a goroutine until the fix
 		// is found. We expect the ceph command to timeout so at least the goroutine exits.
 		logger.Info("setting the dashboard api secret key")
-		_, err = cephCmd.RunWithTimeout(applyDashboardKeyTimeout)
+		_, err = cephCmd.RunWithTimeout(client.CephCommandTimeout)
 		if err != nil {
 			logger.Errorf("failed to set user %q secretkey. %v", DashboardUser, err)
 		}
@@ -833,14 +830,14 @@ func disableRGWDashboard(context *Context) {
 
 	args := []string{"dashboard", "reset-rgw-api-access-key"}
 	cephCmd := ceph.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.RunWithTimeout(applyDashboardKeyTimeout)
+	_, err = cephCmd.RunWithTimeout(client.CephCommandTimeout)
 	if err != nil {
 		logger.Warningf("failed to reset user accesskey for user %q. %v", DashboardUser, err)
 	}
 
 	args = []string{"dashboard", "reset-rgw-api-secret-key"}
 	cephCmd = ceph.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.RunWithTimeout(applyDashboardKeyTimeout)
+	_, err = cephCmd.RunWithTimeout(client.CephCommandTimeout)
 	if err != nil {
 		logger.Warningf("failed to reset user secretkey for user %q. %v", DashboardUser, err)
 	}
