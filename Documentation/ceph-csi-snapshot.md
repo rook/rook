@@ -6,15 +6,11 @@ indent: true
 
 ## Prerequisites
 
-* Requires Kubernetes v1.17+ which supports snapshot beta.
+- Rook officially supports v1/v1beta1 snapshots for kubernetes v1.17+.
 
-* Install the new snapshot controller and snapshot beta CRD. More info can be found
-[here](https://github.com/kubernetes-csi/external-snapshotter/tree/master#usage)
+- Install the snapshot controller and snapshot v1/v1beta1 CRD as required. More info can be found [here](https://github.com/kubernetes-csi/external-snapshotter/tree/v4.0.0#usage).
 
-Note: If the Kubernetes distributor you are using does not supports the snapshot beta,
-still you can use the Alpha snapshots. refer to
-[snapshot](https://github.com/rook/rook/blob/release-1.3/Documentation/ceph-csi-drivers.md#rbd-snapshots)
-on how to use snapshots.
+Note: If only Alpha snapshots are available, enable snapshotter in `rook-ceph-operator-config` or helm chart `values.yaml`, change the external-snapshotter image to `k8s.gcr.io/sig-storage/csi-snapshotter:v1.2.2` and refer to the [alpha snapshots documentation](https://github.com/rook/rook/blob/release-1.3/Documentation/ceph-csi-drivers.md#rbd-snapshots)
 
 * We also need a `VolumeSnapshotClass` for volume snapshot to work. The purpose of a `VolumeSnapshotClass` is
 defined in [the kubernetes
@@ -25,6 +21,10 @@ In short, as the documentation describes it:
 > “classes” of storage they offer when provisioning a volume,
 > VolumeSnapshotClass provides a way to describe the “classes” of storage when
 > provisioning a volume snapshot.
+
+## Upgrade Snapshot API
+
+If your Kubernetes version is updated to a newer version of the snapshot API, follow the upgrade guide [here](https://github.com/kubernetes-csi/external-snapshotter/tree/v4.0.0#upgrade) to upgrade from v1alpha1 to v1beta1, or v1beta1 to v1.
 
 
 ## RBD Snapshots
