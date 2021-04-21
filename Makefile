@@ -114,7 +114,7 @@ do.build.platform.%:
 
 do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
-build: build.common ## Build source code for host platform.
+build: csv-clean build.common ## Build source code for host platform.
 	@$(MAKE) go.build
 # if building on non-linux platforms, also build the linux container
 ifneq ($(GOOS),linux)
