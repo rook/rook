@@ -31,11 +31,6 @@ CRDS_BEFORE_1_16_FILE_PATH="${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/pre-
 #############
 # FUNCTIONS #
 #############
-# ensures the vendor dir has the right deps, e,g. volume replication controller
-if [ ! -d vendor/github.com/csi-addons/volume-replication-operator/api/v1alpha1 ];then
-  echo "Vendoring project"
-  go mod vendor
-fi
 
 copy_ob_obc_crds() {
   mkdir -p "$OLM_CATALOG_DIR"
@@ -68,7 +63,7 @@ generating_crds_v1alpha2() {
 
 generate_vol_rep_crds() {
   echo "Generating volume replication crds in crds.yaml"
-  "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./vendor/github.com/csi-addons/volume-replication-operator/api/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
+  "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="github.com/csi-addons/volume-replication-operator/api/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
 }
 
 generating_main_crd() {
