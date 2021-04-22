@@ -15,7 +15,7 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   cephVersion:
-      image: ceph/ceph:v15.2.9
+      image: ceph/ceph:v15.2.11
       allowUnsupported: false
   skipUpgradeChecks: false
   dataDirHostPath: /var/lib/rook
