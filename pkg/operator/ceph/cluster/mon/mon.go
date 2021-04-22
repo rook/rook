@@ -1179,6 +1179,20 @@ func (c *Cluster) commitMaxMonID(monName string) error {
 var updateDeploymentAndWait = UpdateCephDeploymentAndWait
 
 func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
+	// Expand mon PVC if storage request for mon has increased in cephcluster crd
+	if c.monVolumeClaimTemplate(m) != nil {
+		desiredPvc, err := c.makeDeploymentPVC(m, false)
+		if err != nil {
+			return errors.Wrapf(err, "failed to make mon %q pvc", d.Name)
+		}
+
+		existingPvc, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Get(context.TODO(), m.ResourceName, metav1.GetOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "failed to fetch pvc for mon %q", m.ResourceName)
+		}
+		k8sutil.ExpandPVCIfRequired(c.context.Client, desiredPvc, existingPvc)
+	}
+
 	logger.Infof("deployment for mon %s already exists. updating if needed",
 		d.Name)
 
