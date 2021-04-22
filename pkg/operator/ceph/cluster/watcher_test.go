@@ -21,28 +21,30 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestOnDeviceCMUpdate(t *testing.T) {
-	// Set DEBUG logging
-	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
-
-	service := &corev1.Service{}
-	ns := "rook-ceph"
+func getFakeClient(obj ...runtime.Object) client.Client {
 	// Register operator types with the runtime scheme.
-	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	scheme := scheme.Scheme
+	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
+	return client
+}
 
+func fakeCluster(ns string) *cephv1.CephCluster {
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ns,
@@ -51,16 +53,132 @@ func TestOnDeviceCMUpdate(t *testing.T) {
 		Status: cephv1.ClusterStatus{
 			Phase: "",
 		},
+		Spec: cephv1.ClusterSpec{
+			Storage: rookv1.StorageScopeSpec{
+				UseAllNodes:            false,
+				Nodes:                  nil,
+				VolumeSources:          nil,
+				StorageClassDeviceSets: nil,
+			},
+		},
+	}
+	return cephCluster
+}
+
+func TestCheckStorageForNode(t *testing.T) {
+	ns := "rook-ceph"
+	cephCluster := fakeCluster(ns)
+
+	assert.False(t, checkStorageForNode(cephCluster))
+
+	cephCluster.Spec.Storage.UseAllNodes = true
+	assert.True(t, checkStorageForNode(cephCluster))
+
+	fakeNodes := []rookv1.Node{
+		{
+			Name: "nodeA",
+		},
+	}
+	cephCluster.Spec.Storage.Nodes = fakeNodes
+	assert.True(t, checkStorageForNode(cephCluster))
+
+	fakeVolumes := []rookv1.VolumeSource{
+		{
+			Name: "volumeA",
+		},
+	}
+	cephCluster.Spec.Storage.VolumeSources = fakeVolumes
+	assert.True(t, checkStorageForNode(cephCluster))
+
+	fakeDeviceSets := []rookv1.StorageClassDeviceSet{
+		{
+			Name: "DeviceSet1",
+		},
+	}
+	cephCluster.Spec.Storage.StorageClassDeviceSets = fakeDeviceSets
+	assert.True(t, checkStorageForNode(cephCluster))
+}
+
+func TestOnK8sNode(t *testing.T) {
+	ns := "rook-ceph"
+	cephCluster := fakeCluster(ns)
+	objects := []runtime.Object{
+		cephCluster,
+	}
+	// Create a fake client to mock API calls.
+	client := getFakeClient(objects...)
+
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		return "", errors.New("failed to get osd list on host")
+	}
+	clientCluster := newClientCluster(client, ns, &clusterd.Context{
+		Executor: executor,
+	})
+
+	node := &corev1.Node{
+		Spec: corev1.NodeSpec{
+			Unschedulable: false,
+		},
+		Status: corev1.NodeStatus{
+			Conditions: []corev1.NodeCondition{
+				{
+					Status: corev1.ConditionStatus(corev1.ConditionTrue),
+					Type:   corev1.NodeConditionType(corev1.NodeReady),
+				},
+			},
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "fakenode",
+		},
 	}
 
-	object := []runtime.Object{
+	// node will reconcile
+	fakeNodes := []rookv1.Node{
+		{
+			Name: "nodeA",
+		},
+	}
+	fakeVolumes := []rookv1.VolumeSource{
+		{
+			Name: "volumeA",
+		},
+	}
+	fakeDeviceSets := []rookv1.StorageClassDeviceSet{
+		{
+			Name: "DeviceSet1",
+		},
+	}
+	cephCluster.Spec.Storage.Nodes = fakeNodes
+	cephCluster.Spec.Storage.VolumeSources = fakeVolumes
+	cephCluster.Spec.Storage.StorageClassDeviceSets = fakeDeviceSets
+	cephCluster.Spec.Storage.UseAllNodes = true
+	cephCluster.Status.Phase = k8sutil.ReadyStatus
+	client = getFakeClient(objects...)
+	clientCluster.client = client
+	b := clientCluster.onK8sNode(node)
+	assert.True(t, b)
+
+	// node will not reconcile
+	b = clientCluster.onK8sNode(node)
+	assert.False(t, b)
+}
+
+func TestOnDeviceCMUpdate(t *testing.T) {
+	// Set DEBUG logging
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+
+	service := &corev1.Service{}
+	ns := "rook-ceph"
+	cephCluster := fakeCluster(ns)
+	objects := []runtime.Object{
 		cephCluster,
 	}
 
 	// Create a fake client to mock API calls.
-	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-
-	clientCluster := newClientCluster(cl, ns, &clusterd.Context{})
+	client := getFakeClient(objects...)
+	clientCluster := newClientCluster(client, ns, &clusterd.Context{})
 
 	// Dummy object
 	b := clientCluster.onDeviceCMUpdate(service, service)
@@ -118,8 +236,8 @@ func TestOnDeviceCMUpdate(t *testing.T) {
 	// finally the cluster is ready and we can reconcile
 	// Add ready status to the CephCluster
 	cephCluster.Status.Phase = k8sutil.ReadyStatus
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	clientCluster.client = cl
+	client = getFakeClient(objects...)
+	clientCluster.client = client
 	b = clientCluster.onDeviceCMUpdate(oldCM, newCM)
 	assert.True(t, b)
 }
