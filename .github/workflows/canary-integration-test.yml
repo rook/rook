@@ -1001,7 +1001,7 @@ jobs:
     - name: verify image has been mirrored
       run: |
         # let's wait a bit for the image to be present
-        timeout 30 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored" && sleep 1; done'
+        timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored" && sleep 1; done'
 
     - name: display cephblockpool and image status
       run: |

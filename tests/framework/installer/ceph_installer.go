@@ -229,6 +229,7 @@ func (h *CephInstaller) CreateCephCluster() error {
 		"config": `
 [global]
 osd_pool_default_size = 1
+bdev_flock_retry = 20
 `}
 	customCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

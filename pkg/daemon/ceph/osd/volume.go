@@ -570,7 +570,7 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 				}
 
 				// Return failure
-				return errors.Wrap(err, "failed to run ceph-volume raw command") // fail return here as validation provided by ceph-volume
+				return errors.Wrapf(err, "failed to run ceph-volume raw command. %s", op) // fail return here as validation provided by ceph-volume
 			}
 			logger.Infof("%v", op)
 		} else {
