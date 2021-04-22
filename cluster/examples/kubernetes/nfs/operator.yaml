@@ -117,7 +117,7 @@ spec:
       serviceAccountName: rook-nfs-operator
       containers:
         - name: rook-nfs-operator
-          image: rook/nfs:v1.6.0
+          image: rook/nfs:v1.6.1
           imagePullPolicy: IfNotPresent
           args: ["nfs", "operator"]
           env:
