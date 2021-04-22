@@ -474,7 +474,7 @@ spec:
                       description: Whether to allow unsupported versions (do not set to true in production)
                       type: boolean
                     image:
-                      description: Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.9
+                      description: Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.11
                       type: string
                   required:
                     - image
