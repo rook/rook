@@ -26,7 +26,7 @@ import (
 // will be registered for the validating webhook.
 var _ webhook.Validator = &CephObjectStore{}
 
-const serviceServingCertKey = "service.beta.openshift.io/serving-cert-secret-name"
+const ServiceServingCertKey = "service.beta.openshift.io/serving-cert-secret-name"
 
 func (s *ObjectStoreSpec) IsMultisite() bool {
 	return s.Zone.Name != ""
@@ -85,7 +85,7 @@ func (o *CephObjectStore) ValidateDelete() error {
 
 func (s *ObjectStoreSpec) GetServiceServingCert() string {
 	if s.Gateway.Service != nil {
-		return s.Gateway.Service.Annotations[serviceServingCertKey]
+		return s.Gateway.Service.Annotations[ServiceServingCertKey]
 	}
 	return ""
 }
