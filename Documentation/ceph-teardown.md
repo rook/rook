@@ -142,3 +142,11 @@ This command will patch the following CRDs on v1.3:
 >```
 
 Within a few seconds you should see that the cluster CRD has been deleted and will no longer block other cleanup such as deleting the `rook-ceph` namespace.
+
+If the namespace is still stuck in Terminating state, you can check which resources are holding up the deletion and remove the finalizers and delete those
+
+```console
+kubectl api-resources --verbs=list --namespaced -o name \
+  | xargs -n 1 kubectl get --show-kind --ignore-not-found -n rook-ceph
+```
+
