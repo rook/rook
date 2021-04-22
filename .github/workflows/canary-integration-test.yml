@@ -929,6 +929,7 @@ jobs:
         yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
         yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
         yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}1
+        yq w -i -d1 cluster-test.yaml spec.cephVersion.image ceph/daemon-base:latest-pacific-devel
         kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f filesystem-mirror.yaml -f toolbox.yaml
 
     - name: deploy second cluster rook
