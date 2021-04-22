@@ -102,24 +102,26 @@ func (c *Cluster) Start() error {
 		return errors.Wrap(err, "error checking pod memory")
 	}
 
+	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to
+	// bring fs state back to desired when this method returns with any error or success.
+	var fsPreparedForUpgrade = false
+
 	// upgrading MDS cluster needs to set max_mds to 1 and stop all stand-by MDSes first
 	isUpgrade, err := c.isCephUpgrade()
 	if err != nil {
 		return errors.Wrapf(err, "failed to determine if MDS cluster for filesystem %s needs upgraded", c.fs.Name)
 	}
 	if isUpgrade {
+		fsPreparedForUpgrade = true
 		if err := c.upgradeMDS(); err != nil {
 			return errors.Wrapf(err, "failed to upgrade MDS cluster for filesystem %s", c.fs.Name)
 		}
-		logger.Infof("successfully upgraded primary MDS cluster for filesystem %q", c.fs.Name)
+		logger.Infof("successfully upgraded MDS cluster for filesystem %q", c.fs.Name)
 	}
 
-	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to
-	// bring fs state back to desired when this method returns with any error or success.
-	var fsPreparedForUpgrade = false
 	defer func() {
 		if fsPreparedForUpgrade {
-			if err := finishedWithDaemonUpgrade(c.context, c.clusterInfo, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
+			if err := finishedWithDaemonUpgrade(c.context, c.clusterInfo, c.fs); err != nil {
 				logger.Errorf("for filesystem %q, USER should make sure the Ceph fs max_mds property is set to %d. %v",
 					c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount, err)
 			}
@@ -242,6 +244,8 @@ func (c *Cluster) isCephUpgrade() (bool, error) {
 
 func (c *Cluster) upgradeMDS() error {
 
+	logger.Info("upgrading MDS cluster for filesystem %q", c.fs.Name)
+
 	// 1. set allow_standby_replay to false
 	if err := cephclient.AllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, false); err != nil {
 		return errors.Wrapf(err, "failed to setting allow_standby_replay to false")
@@ -264,7 +268,7 @@ func (c *Cluster) upgradeMDS() error {
 		return errors.Wrapf(err, "failed waiting for active ranks to be 1")
 	}
 
-	// 4. stop standby nodes
+	// 4. stop standby daemons
 	daemonName, err := cephclient.GetMdsIdByRank(c.context, c.clusterInfo, c.fs.Name, 0)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get mds id from rank 0")
@@ -287,15 +291,9 @@ func (c *Cluster) upgradeMDS() error {
 	}
 	logger.Debugf("successfully started daemon %s", daemonName)
 
-	// 6. set max_mds back to what it should be for user config
-	if err := cephclient.AllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, true); err != nil {
-		return errors.Wrapf(err, "failed to setting allow_standby_replay to true")
-	}
-	if err := cephclient.SetNumMDSRanks(c.context, c.clusterInfo, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
-		return errors.Wrapf(err, "failed to set max_mds to %d", c.fs.Spec.MetadataServer.ActiveCount)
-	}
+	// 6. all other MDS daemons will be updated and restarted by main MDS code path
 
-	// 7. all other MDS daemons will be updated and restarted by main MDS code path
+	// 7. max_mds & allow_standby_replay will be reset in deferred function finishedWithDaemonUpgrade
 
 	return nil
 }
@@ -384,7 +382,9 @@ func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
 
 // finishedWithDaemonUpgrade performs all actions necessary to bring the filesystem back to its
 // ideal state following an upgrade of its daemon(s).
-func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, fsName string, activeMDSCount int32) error {
+func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, fs cephv1.CephFilesystem) error {
+	fsName := fs.Name
+	activeMDSCount := fs.Spec.MetadataServer.ActiveCount
 	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
 	logger.Debugf("bringing num active MDS daemons for fs %s back to %d", fsName, activeMDSCount)
 	// TODO: Unknown (Apr 2020) if this can be removed once Rook no longer supports Nautilus.
@@ -392,5 +392,11 @@ func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclien
 	if err := cephclient.SetNumMDSRanks(context, clusterInfo, fsName, activeMDSCount); err != nil {
 		return errors.Wrapf(err, "Failed to restore filesystem %s following daemon upgrade", fsName)
 	}
+
+	// set allow_standby_replay back
+	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fsName, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+		return errors.Wrapf(err, "failed to setting allow_standby_replay to true")
+	}
+
 	return nil
 }
