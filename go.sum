@@ -2237,7 +2237,6 @@ k8s.io/client-go v0.20.0/go.mod h1:4KWh/g+Ocd8KkCwKF8vUNnmqgv+EVnQDK4MBF4oB5tY=
 k8s.io/cloud-provider v0.20.0 h1:CVPQ66iyfNgeGomUq2jE/TWrfzE77bdCpemhFS8955U=
 k8s.io/cloud-provider v0.20.0/go.mod h1:Lz/luSVD5BrHDDhtVdjFh0C2qQCRYdf0b9BHQ9L+bXc=
 k8s.io/cluster-bootstrap v0.20.0/go.mod h1:6WZaNIBvcvL7MkPzSRKrZDIr4u+ePW2oIWoRsEFMjmE=
-k8s.io/code-generator v0.20.0 h1:c8JaABvEEZPDE8MICTOtveHX2axchl+EptM+o4OGvbg=
 k8s.io/code-generator v0.20.0/go.mod h1:UsqdF+VX4PU2g46NC2JRs4gc+IfrctnwHb76RNbWHJg=
 k8s.io/component-base v0.20.0 h1:BXGL8iitIQD+0NgW49UsM7MraNUUGDU3FBmrfUAtmVQ=
 k8s.io/component-base v0.20.0/go.mod h1:wKPj+RHnAr8LW2EIBIK7AxOHPde4gme2lzXwVSoRXeA=
@@ -2247,7 +2246,6 @@ k8s.io/controller-manager v0.20.0 h1:OwUoxVhRMp3kDHjEOJ48alqBVZPlFikAZeFCqI4zyss
 k8s.io/controller-manager v0.20.0/go.mod h1:nD4qym/pmCz2v1tpqvlEBVlHW9CAZwedloM8GrJTLpg=
 k8s.io/cri-api v0.20.0/go.mod h1:2JRbKt+BFLTjtrILYVqQK5jqhI+XNdF6UiGMgczeBCI=
 k8s.io/csi-translation-lib v0.20.0/go.mod h1:M4CdD66GxEI6ev8aTtsA2NkK9kIF9K5VZQMcw/SsoLs=
-k8s.io/gengo v0.0.0-20201113003025-83324d819ded h1:JApXBKYyB7l9xx+DK7/+mFjC7A9Bt5A93FPvFD0HIFE=
 k8s.io/gengo v0.0.0-20201113003025-83324d819ded/go.mod h1:FiNAH4ZV3gBg2Kwh89tzAEV2be7d5xI0vBa/VySYy3E=
 k8s.io/heapster v1.2.0-beta.1/go.mod h1:h1uhptVXMwC8xtZBYsPXKVi8fpdlYkTs6k949KozGrM=
 k8s.io/klog v0.4.0/go.mod h1:4Bi6QPql/J/LkTDqv7R/cd3hPo4k2DG6Ptcz060Ez5I=

@@ -149,7 +149,6 @@ rsync_back() {
         # since the host's version might have changed.
         rsync_container_to_host \
             --filter="+ /_output/" \
-            --filter="+ /vendor/" \
             --filter="- /*"
     fi
 }
