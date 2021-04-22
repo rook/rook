@@ -366,9 +366,9 @@ Verify the Ceph cluster's health using the [health verification section](#health
 
 ## Ceph Version Upgrades
 
-Rook v1.6 now supports Ceph Pacific 16.2.0 or newer. Support remains for Ceph Nautilus 14.2.5 or 
+Rook v1.6 now supports Ceph Pacific 16.2.0 or newer. Support remains for Ceph Nautilus 14.2.5 or
 newer and Ceph Octopus v15.2.0 or newer. These are the only supported major versions of Ceph. Rook
-v1.7 will no longer support Ceph Nautilus (14.2.x), and users will have to upgrade Ceph to 
+v1.7 will no longer support Ceph Nautilus (14.2.x), and users will have to upgrade Ceph to
 Octopus (15.2.x) or Pacific (16.2.x) before the next upgrade.
 
 > **IMPORTANT: When an update is requested, the operator will check Ceph's status, if it is in `HEALTH_ERR` it will refuse to do the upgrade.**
@@ -386,7 +386,7 @@ until all the daemons have been updated.
 Official Ceph container images can be found on [Docker Hub](https://hub.docker.com/r/ceph/ceph/tags/).
 These images are tagged in a few ways:
 
-* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v15.2.9-20210224`).
+* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v15.2.11-20210224`).
   These tags are recommended for production clusters, as there is no possibility for the cluster to
   be heterogeneous with respect to the version of Ceph running in containers.
 * Ceph major version tags (e.g., `v15`) are useful for development and test clusters so that the
@@ -402,7 +402,7 @@ The majority of the upgrade will be handled by the Rook operator. Begin the upgr
 Ceph image field in the cluster CRD (`spec.cephVersion.image`).
 
 ```sh
-NEW_CEPH_IMAGE='ceph/ceph:v15.2.9-20210224'
+NEW_CEPH_IMAGE='ceph/ceph:v15.2.11-20210224'
 CLUSTER_NAME="$ROOK_CLUSTER_NAMESPACE"  # change if your cluster name is not the Rook namespace
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
