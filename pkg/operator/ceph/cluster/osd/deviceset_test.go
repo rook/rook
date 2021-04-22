@@ -27,7 +27,6 @@ import (
 	testexec "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -232,42 +231,6 @@ func testVolumeClaim(name string) corev1.PersistentVolumeClaim {
 	}}
 	claim.Name = name
 	return claim
-}
-
-func TestUpdatePVCSize(t *testing.T) {
-	clientset := testexec.New(t, 1)
-	context := &clusterd.Context{
-		Clientset: clientset,
-	}
-	cluster := &Cluster{
-		context:     context,
-		clusterInfo: client.AdminClusterInfo("testns"),
-	}
-	current := &corev1.PersistentVolumeClaim{}
-	desired := &corev1.PersistentVolumeClaim{}
-	current.Spec.Resources.Requests = corev1.ResourceList{}
-	desired.Spec.Resources.Requests = corev1.ResourceList{}
-	current.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("5Gi")
-
-	// Nothing happens if no size is set on the new PVC
-	cluster.updatePVCIfChanged(desired, current)
-	result, ok := current.Spec.Resources.Requests[corev1.ResourceStorage]
-	assert.True(t, ok)
-	assert.Equal(t, "5Gi", result.String())
-
-	// Nothing happens if the size shrinks
-	desired.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("4Gi")
-	cluster.updatePVCIfChanged(desired, current)
-	result, ok = current.Spec.Resources.Requests[corev1.ResourceStorage]
-	assert.True(t, ok)
-	assert.Equal(t, "5Gi", result.String())
-
-	// The size is updated when it increases
-	desired.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("6Gi")
-	cluster.updatePVCIfChanged(desired, current)
-	result, ok = current.Spec.Resources.Requests[corev1.ResourceStorage]
-	assert.True(t, ok)
-	assert.Equal(t, "6Gi", result.String())
 }
 
 func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
