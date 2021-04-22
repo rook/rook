@@ -45,13 +45,26 @@ const (
 	unHealthyCephStatus = `{"fsid":"613975f3-3025-4802-9de1-a2280b950e75","health":{"checks":{"OSD_DOWN":{"severity":"HEALTH_WARN","summary":{"message":"1 osds down"}},"OSD_HOST_DOWN":{"severity":"HEALTH_WARN","summary":{"message":"1 host (1 osds) down"}},"PG_AVAILABILITY":{"severity":"HEALTH_WARN","summary":{"message":"Reduced data availability: 101 pgs stale"}},"POOL_APP_NOT_ENABLED":{"severity":"HEALTH_WARN","summary":{"message":"application not enabled on 1 pool(s)"}}},"status":"HEALTH_WARN","overall_status":"HEALTH_WARN"},"election_epoch":12,"quorum":[0,1,2],"quorum_names":["rook-ceph-mon0","rook-ceph-mon2","rook-ceph-mon1"],"monmap":{"epoch":3,"fsid":"613975f3-3025-4802-9de1-a2280b950e75","modified":"2017-08-11 20:13:02.075679","created":"2017-08-11 20:12:35.314510","features":{"persistent":["kraken","luminous"],"optional":[]},"mons":[{"rank":0,"name":"rook-ceph-mon0","addr":"10.3.0.45:6789/0","public_addr":"10.3.0.45:6789/0"},{"rank":1,"name":"rook-ceph-mon2","addr":"10.3.0.249:6789/0","public_addr":"10.3.0.249:6789/0"},{"rank":2,"name":"rook-ceph-mon1","addr":"10.3.0.252:6789/0","public_addr":"10.3.0.252:6789/0"}]},"osdmap":{"osdmap":{"epoch":17,"num_osds":2,"num_up_osds":1,"num_in_osds":2,"full":false,"nearfull":true,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"stale+active+clean","count":101},{"state_name":"active+clean","count":99}],"num_pgs":200,"num_pools":2,"num_objects":243,"data_bytes":976793635,"bytes_used":13611479040,"bytes_avail":19825307648,"bytes_total":33436786688},"fsmap":{"epoch":1,"by_rank":[]},"mgrmap":{"epoch":3,"active_gid":14111,"active_name":"rook-ceph-mgr0","active_addr":"10.2.73.6:6800/9","available":true,"standbys":[],"modules":["restful","status"],"available_modules":["dashboard","prometheus","restful","status","zabbix"]},"servicemap":{"epoch":1,"modified":"0.000000","services":{}}}`
 )
 
+var nodeName = "node01"
 var namespace = "rook-ceph"
 
 var cephCluster = &cephv1.CephCluster{
-	ObjectMeta: metav1.ObjectMeta{Name: "ceph-cluster"}}
+	ObjectMeta: metav1.ObjectMeta{Name: "ceph-cluster"},
+}
 
-var pdbConfigMap = &corev1.ConfigMap{
-	ObjectMeta: metav1.ObjectMeta{Name: pdbStateMapName, Namespace: namespace}}
+var nodeObj = &corev1.Node{
+	ObjectMeta: metav1.ObjectMeta{Name: nodeName},
+	Spec: corev1.NodeSpec{
+		Unschedulable: false,
+	},
+}
+
+var unschedulableNodeObj = &corev1.Node{
+	ObjectMeta: metav1.ObjectMeta{Name: nodeName},
+	Spec: corev1.NodeSpec{
+		Unschedulable: true,
+	},
+}
 
 func fakeOSDDeployment(id, readyReplicas int) appsv1.Deployment {
 	osd := appsv1.Deployment{
@@ -67,6 +80,7 @@ func fakeOSDDeployment(id, readyReplicas int) appsv1.Deployment {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"topology-location-zone": fmt.Sprintf("zone-%d", id),
+						"ceph-osd-id":            fmt.Sprintf("%d", id),
 					},
 				},
 			},
@@ -76,6 +90,30 @@ func fakeOSDDeployment(id, readyReplicas int) appsv1.Deployment {
 		},
 	}
 	return osd
+}
+
+func fakeOSDPod(id int, nodeName string) corev1.Pod {
+	osdPod := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("osd-%d", id),
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":         "rook-ceph-osd",
+				"ceph-osd-id": fmt.Sprintf("%d", id),
+			},
+		},
+		Spec: corev1.PodSpec{
+			NodeName: nodeName,
+		},
+	}
+	return osdPod
+}
+
+func fakePDBConfigMap(drainingFailureDomain string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: pdbStateMapName, Namespace: namespace},
+		Data:       map[string]string{drainingFailureDomainKey: drainingFailureDomain, setNoOut: ""},
+	}
 }
 
 func getFakeReconciler(t *testing.T, obj ...runtime.Object) *ReconcileClusterDisruption {
@@ -110,128 +148,193 @@ func getFakeClusterInfo() *client.ClusterInfo {
 
 func TestGetOSDFailureDomains(t *testing.T) {
 	testcases := []struct {
-		label                          string
+		name                           string
 		osds                           []appsv1.Deployment
+		osdPods                        []corev1.Pod
+		node                           *corev1.Node
 		expectedAllFailureDomains      []string
 		expectedDrainingFailureDomains []string
+		expectedOsdDownFailureDomains  []string
 	}{
 		{
-			label: "case 1: all osds are running",
+			name: "case 1: all osds are running",
 			osds: []appsv1.Deployment{fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
 				fakeOSDDeployment(3, 1)},
+			osdPods: []corev1.Pod{fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
+				fakeOSDPod(3, nodeName)},
+			node:                           nodeObj,
 			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
+			expectedOsdDownFailureDomains:  []string{},
 			expectedDrainingFailureDomains: []string{},
 		},
 		{
-			label: "case 1: osd in zone-1 is pending",
+			name: "case 2: osd in zone-1 is pending and node is unscheduable",
 			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
 				fakeOSDDeployment(3, 1)},
-			expectedAllFailureDomains:      []string{"zone-2", "zone-3"},
+			osdPods: []corev1.Pod{fakeOSDPod(1, ""), fakeOSDPod(2, nodeName),
+				fakeOSDPod(3, nodeName)},
+			node:                           nodeObj,
+			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
+			expectedOsdDownFailureDomains:  []string{"zone-1"},
 			expectedDrainingFailureDomains: []string{"zone-1"},
 		},
 		{
-			label: "case 1: osds in zone-1 and zone-2 are pending",
+			name: "case 3: osd in zone-1 and zone-2 are pending and node is unscheduable",
 			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 0),
 				fakeOSDDeployment(3, 1)},
-			expectedAllFailureDomains:      []string{"zone-3"},
+			osdPods: []corev1.Pod{fakeOSDPod(1, ""), fakeOSDPod(2, ""),
+				fakeOSDPod(3, nodeName)},
+			node:                           nodeObj,
+			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
+			expectedOsdDownFailureDomains:  []string{"zone-1", "zone-2"},
 			expectedDrainingFailureDomains: []string{"zone-1", "zone-2"},
+		},
+		{
+			name: "case 4: osd in zone-1 is pending but osd node is scheduable",
+			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1)},
+			osdPods: []corev1.Pod{fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
+				fakeOSDPod(3, nodeName)},
+			node:                           nodeObj,
+			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
+			expectedOsdDownFailureDomains:  []string{"zone-1"},
+			expectedDrainingFailureDomains: []string{},
+		},
+		{
+			name: "case 5: osd in zone-1 is pending but osd node is not scheduable",
+			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
+				fakeOSDDeployment(3, 1)},
+			osdPods: []corev1.Pod{fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
+				fakeOSDPod(3, nodeName)},
+			node:                           unschedulableNodeObj,
+			expectedAllFailureDomains:      []string{"zone-1", "zone-2", "zone-3"},
+			expectedOsdDownFailureDomains:  []string{"zone-1"},
+			expectedDrainingFailureDomains: []string{"zone-1"},
 		},
 	}
 
 	for _, tc := range testcases {
-		r := getFakeReconciler(t, cephCluster, &corev1.ConfigMap{}, tc.osds[0].DeepCopy(),
-			tc.osds[1].DeepCopy(), tc.osds[2].DeepCopy())
-		clusterInfo := getFakeClusterInfo()
-		request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
-		allfailureDomains, drainingFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
-		assert.NoError(t, err)
-		assert.Equal(t, tc.expectedAllFailureDomains, allfailureDomains)
-		assert.Equal(t, tc.expectedDrainingFailureDomains, drainingFailureDomains)
+		t.Run(tc.name, func(t *testing.T) {
+			objs := []runtime.Object{
+				cephCluster,
+				&corev1.ConfigMap{},
+				tc.node,
+			}
+			for _, osdDeployment := range tc.osds {
+				objs = append(objs, osdDeployment.DeepCopy())
+			}
+			for _, osdPod := range tc.osdPods {
+				objs = append(objs, osdPod.DeepCopy())
+			}
+			r := getFakeReconciler(t, objs...)
+			clusterInfo := getFakeClusterInfo()
+			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+			allfailureDomains, nodeDrainFailureDomains, osdDownFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedAllFailureDomains, allfailureDomains)
+			assert.Equal(t, tc.expectedDrainingFailureDomains, nodeDrainFailureDomains)
+			assert.Equal(t, tc.expectedOsdDownFailureDomains, osdDownFailureDomains)
+		})
 	}
 }
 
 func TestGetOSDFailureDomainsError(t *testing.T) {
 	testcases := []struct {
-		label                          string
+		name                           string
 		osds                           []appsv1.Deployment
 		expectedAllFailureDomains      []string
 		expectedDrainingFailureDomains []string
+		expectedOsdDownFailureDomains  []string
 	}{
 		{
-			label: "case 1: one or more OSD deployment is missing crush location label",
+			name: "case 1: one or more OSD deployment is missing crush location label",
 			osds: []appsv1.Deployment{fakeOSDDeployment(1, 1), fakeOSDDeployment(2, 1),
 				fakeOSDDeployment(3, 1)},
-			expectedAllFailureDomains:      []string{},
-			expectedDrainingFailureDomains: []string{},
+			expectedAllFailureDomains:      nil,
+			expectedDrainingFailureDomains: nil,
+			expectedOsdDownFailureDomains:  nil,
 		},
 	}
 
 	for _, tc := range testcases {
-		osd := tc.osds[0].DeepCopy()
-		osd.Spec.Template.ObjectMeta.Labels["topology-location-zone"] = ""
-		r := getFakeReconciler(t, cephCluster, &corev1.ConfigMap{},
-			tc.osds[1].DeepCopy(), tc.osds[2].DeepCopy(), osd)
-		clusterInfo := getFakeClusterInfo()
-		request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
-		allfailureDomains, drainingFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
-		assert.Error(t, err)
-		assert.Equal(t, tc.expectedAllFailureDomains, allfailureDomains)
-		assert.Equal(t, tc.expectedDrainingFailureDomains, drainingFailureDomains)
+		t.Run(tc.name, func(t *testing.T) {
+			osd := tc.osds[0].DeepCopy()
+			osd.Spec.Template.ObjectMeta.Labels["topology-location-zone"] = ""
+			r := getFakeReconciler(t, cephCluster, &corev1.ConfigMap{},
+				tc.osds[1].DeepCopy(), tc.osds[2].DeepCopy(), osd)
+			clusterInfo := getFakeClusterInfo()
+			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+			allfailureDomains, nodeDrainFailureDomains, osdDownFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
+			assert.Error(t, err)
+			assert.Equal(t, tc.expectedAllFailureDomains, allfailureDomains)
+			assert.Equal(t, tc.expectedDrainingFailureDomains, nodeDrainFailureDomains)
+			assert.Equal(t, tc.expectedOsdDownFailureDomains, osdDownFailureDomains)
+		})
 	}
 }
 
 func TestReconcilePDBForOSD(t *testing.T) {
-	pdbConfig := pdbConfigMap.DeepCopy()
-	r := getFakeReconciler(t, cephCluster, pdbConfig)
-	clusterInfo := getFakeClusterInfo()
-	request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
-
 	testcases := []struct {
-		label                             string
+		name                              string
 		fakeCephStatus                    string
 		fakeOSDDump                       string
+		configMap                         *corev1.ConfigMap
 		allFailureDomains                 []string
-		drainingFailureDomains            []string
+		osdDownFailureDomains             []string
+		activeNodeDrains                  bool
+		expectedSetNoOutValue             string
 		expectedOSDPDBCount               int
 		expectedMaxUnavailableCount       int
 		expectedDrainingFailureDomainName string
 	}{
 		{
-			label:                             "case 1: no draining failure domain and all pgs are healthy",
+			name:                              "case 1: no draining failure domain and all pgs are healthy",
 			fakeCephStatus:                    healthyCephStatus,
 			fakeOSDDump:                       `{"OSDs": [{"OSD": 3, "Up": 3, "In": 3}]}`,
 			allFailureDomains:                 []string{"zone-1", "zone-2", "zone-3"},
-			drainingFailureDomains:            []string{},
+			osdDownFailureDomains:             []string{},
+			configMap:                         fakePDBConfigMap(""),
+			activeNodeDrains:                  false,
+			expectedSetNoOutValue:             "",
 			expectedOSDPDBCount:               1,
 			expectedMaxUnavailableCount:       1,
 			expectedDrainingFailureDomainName: "",
 		},
 		{
-			label:                             "case 2: zone-1 failure domain is draining and pgs are unhealthy",
+			name:                              "case 2: zone-1 failure domain is draining and pgs are unhealthy",
 			fakeCephStatus:                    unHealthyCephStatus,
 			fakeOSDDump:                       `{"OSDs": [{"OSD": 3, "Up": 3, "In": 2}]}`,
 			allFailureDomains:                 []string{"zone-1", "zone-2", "zone-3"},
-			drainingFailureDomains:            []string{"zone-1"},
+			osdDownFailureDomains:             []string{"zone-1"},
+			configMap:                         fakePDBConfigMap(""),
+			activeNodeDrains:                  true,
+			expectedSetNoOutValue:             "true",
 			expectedOSDPDBCount:               2,
 			expectedMaxUnavailableCount:       0,
 			expectedDrainingFailureDomainName: "zone-1",
 		},
 		{
-			label:                             "case 3: zone-1 is back online. But pgs are still unhealthy from zone-1 drain",
+			name:                              "case 3: zone-1 is back online. But pgs are still unhealthy from zone-1 drain",
 			fakeCephStatus:                    unHealthyCephStatus,
 			fakeOSDDump:                       `{"OSDs": [{"OSD": 3, "Up": 3, "In": 3}]}`,
 			allFailureDomains:                 []string{"zone-1", "zone-2", "zone-3"},
-			drainingFailureDomains:            []string{},
+			osdDownFailureDomains:             []string{},
+			configMap:                         fakePDBConfigMap("zone-1"),
+			activeNodeDrains:                  true,
+			expectedSetNoOutValue:             "",
 			expectedOSDPDBCount:               2,
 			expectedMaxUnavailableCount:       0,
 			expectedDrainingFailureDomainName: "zone-1",
 		},
 		{
-			label:                             "case 4: zone-1 is back online and pgs are also healthy",
+			name:                              "case 4: zone-1 is back online and pgs are also healthy",
 			fakeCephStatus:                    healthyCephStatus,
 			fakeOSDDump:                       `{"OSDs": [{"OSD": 3, "Up": 3, "In": 3}]}`,
 			allFailureDomains:                 []string{"zone-1", "zone-2", "zone-3"},
-			drainingFailureDomains:            []string{},
+			osdDownFailureDomains:             []string{},
+			configMap:                         fakePDBConfigMap(""),
+			activeNodeDrains:                  true,
+			expectedSetNoOutValue:             "",
 			expectedOSDPDBCount:               1,
 			expectedMaxUnavailableCount:       1,
 			expectedDrainingFailureDomainName: "",
@@ -239,40 +342,47 @@ func TestReconcilePDBForOSD(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
-			logger.Infof("Command: %s %v", command, args)
-			if args[0] == "status" {
-				return tc.fakeCephStatus, nil
+		t.Run(tc.name, func(t *testing.T) {
+			r := getFakeReconciler(t, cephCluster, tc.configMap)
+			clusterInfo := getFakeClusterInfo()
+			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+			executor := &exectest.MockExecutor{}
+			executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+				logger.Infof("Command: %s %v", command, args)
+				if args[0] == "status" {
+					return tc.fakeCephStatus, nil
+				}
+				if args[0] == "osd" && args[1] == "dump" {
+					return tc.fakeOSDDump, nil
+				}
+				return "", errors.Errorf("unexpected ceph command '%v'", args)
 			}
-			if args[0] == "osd" && args[1] == "dump" {
-				return tc.fakeOSDDump, nil
+			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor}}
+			_, err := r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone", tc.allFailureDomains, tc.osdDownFailureDomains, tc.activeNodeDrains)
+			assert.NoError(t, err)
+
+			// assert that pdb for osd are created correctly
+			existingPDBs := &policyv1beta1.PodDisruptionBudgetList{}
+			err = r.client.List(context.TODO(), existingPDBs)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBs.Items))
+			for _, pdb := range existingPDBs.Items {
+				assert.Equal(t, tc.expectedMaxUnavailableCount, pdb.Spec.MaxUnavailable.IntValue())
 			}
-			return "", errors.Errorf("unexpected ceph command '%v'", args)
-		}
-		r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor}}
-		err := r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", tc.allFailureDomains, tc.drainingFailureDomains)
-		assert.NoError(t, err)
 
-		// assert that pdb for osd are created correctly
-		existingPDBs := &policyv1beta1.PodDisruptionBudgetList{}
-		err = r.client.List(context.TODO(), existingPDBs)
-		assert.NoError(t, err)
-		assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBs.Items))
-		for _, pdb := range existingPDBs.Items {
-			assert.Equal(t, tc.expectedMaxUnavailableCount, pdb.Spec.MaxUnavailable.IntValue())
-		}
+			// assert that config map is updated with correct failure domain
+			existingConfigMaps := &corev1.ConfigMapList{}
+			err = r.client.List(context.TODO(), existingConfigMaps)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedDrainingFailureDomainName, existingConfigMaps.Items[0].Data[drainingFailureDomainKey])
+			assert.Equal(t, tc.expectedSetNoOutValue, existingConfigMaps.Items[0].Data[setNoOut])
+		})
 
-		// assert that config map is updated with correct failure domain
-		existingConfigMaps := &corev1.ConfigMapList{}
-		err = r.client.List(context.TODO(), existingConfigMaps)
-		assert.NoError(t, err)
-		assert.Equal(t, tc.expectedDrainingFailureDomainName, existingConfigMaps.Items[0].Data[drainingFailureDomainKey])
 	}
 }
 
 func TestPGHealthcheckTimeout(t *testing.T) {
-	pdbConfig := pdbConfigMap.DeepCopy()
+	pdbConfig := fakePDBConfigMap("")
 	r := getFakeReconciler(t, cephCluster, pdbConfig)
 	clusterInfo := getFakeClusterInfo()
 	request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
@@ -292,23 +402,49 @@ func TestPGHealthcheckTimeout(t *testing.T) {
 	r.pgHealthCheckTimeout = time.Duration(time.Minute * 10)
 
 	// reconcile OSD PDB with active drains (on zone-1) and unhealthy PGs
-	err := r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{"zone-1"})
+	_, err := r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{"zone-1"}, true)
 	assert.NoError(t, err)
 	assert.Equal(t, "zone-1", pdbConfig.Data[drainingFailureDomainKey])
+	assert.Equal(t, "true", pdbConfig.Data[setNoOut])
 
 	// update the pgHealthCheckDuration time by -9 minutes
 	pdbConfig.Data[pgHealthCheckDurationKey] = time.Now().Add(time.Duration(-7) * time.Minute).Format(time.RFC3339)
 	// reconcile OSD PDB with no active drains and unhealthy PGs
-	err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{})
+	_, err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{}, true)
 	assert.NoError(t, err)
 	// assert that pdb config map was not reset as the PG health check was not timed out
 	assert.Equal(t, "zone-1", pdbConfig.Data[drainingFailureDomainKey])
+	assert.Equal(t, "true", pdbConfig.Data[setNoOut])
 
 	// update the drainingFailureDomain time by -9 minutes
 	pdbConfig.Data[pgHealthCheckDurationKey] = time.Now().Add(time.Duration(-11) * time.Minute).Format(time.RFC3339)
 	// reconcile OSD PDB with no active drains and unhealthy PGs
-	err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{})
+	_, err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{}, false)
 	assert.NoError(t, err)
 	// assert that pdb config map was reset as the PG health check was timed out
 	assert.Equal(t, "", pdbConfig.Data[drainingFailureDomainKey])
+	assert.Equal(t, "", pdbConfig.Data[setNoOut])
+}
+
+func TestHasNodeDrained(t *testing.T) {
+	osdPOD := fakeOSDPod(0, nodeName)
+	// Not expecting node drain because OSD pod is assigned to a schedulable node
+	r := getFakeReconciler(t, nodeObj, osdPOD.DeepCopy(), &corev1.ConfigMap{})
+	expected, err := hasOSDNodeDrained(r.client, namespace, "0")
+	assert.NoError(t, err)
+	assert.False(t, expected)
+
+	// Expecting node drain because OSD pod is assigned to an unschedulable node
+	r = getFakeReconciler(t, unschedulableNodeObj, osdPOD.DeepCopy(), &corev1.ConfigMap{})
+	expected, err = hasOSDNodeDrained(r.client, namespace, "0")
+	assert.NoError(t, err)
+	assert.True(t, expected)
+
+	// Expecting node drain because OSD pod is not assigned to any node
+	osdPodObj := osdPOD.DeepCopy()
+	osdPodObj.Spec.NodeName = ""
+	r = getFakeReconciler(t, nodeObj, osdPodObj, &corev1.ConfigMap{})
+	expected, err = hasOSDNodeDrained(r.client, namespace, "0")
+	assert.NoError(t, err)
+	assert.True(t, expected)
 }
