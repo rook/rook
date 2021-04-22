@@ -574,8 +574,7 @@ type PoolSpec struct {
 	// +optional
 	CrushRoot string `json:"crushRoot,omitempty"`
 
-	// The device class the OSD should set to (options are: hdd, ssd, or nvme)
-	// +kubebuilder:validation:Enum=ssd;hdd;nvme;""
+	// The device class the OSD should set to for use in the pool
 	// +optional
 	DeviceClass string `json:"deviceClass,omitempty"`
 
