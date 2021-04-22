@@ -47,12 +47,7 @@ spec:
                   description: The root of the crush hierarchy utilized by the pool
                   type: string
                 deviceClass:
-                  description: 'The device class the OSD should set to (options are: hdd, ssd, or nvme)'
-                  enum:
-                    - ssd
-                    - hdd
-                    - nvme
-                    - ""
+                  description: The device class the OSD should set to for use in the pool
                   type: string
                 enableRBDStats:
                   description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -4792,12 +4787,7 @@ spec:
                         description: The root of the crush hierarchy utilized by the pool
                         type: string
                       deviceClass:
-                        description: 'The device class the OSD should set to (options are: hdd, ssd, or nvme)'
-                        enum:
-                          - ssd
-                          - hdd
-                          - nvme
-                          - ""
+                        description: The device class the OSD should set to for use in the pool
                         type: string
                       enableRBDStats:
                         description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -4931,12 +4921,7 @@ spec:
                       description: The root of the crush hierarchy utilized by the pool
                       type: string
                     deviceClass:
-                      description: 'The device class the OSD should set to (options are: hdd, ssd, or nvme)'
-                      enum:
-                        - ssd
-                        - hdd
-                        - nvme
-                        - ""
+                      description: The device class the OSD should set to for use in the pool
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -6226,12 +6211,7 @@ spec:
                       description: The root of the crush hierarchy utilized by the pool
                       type: string
                     deviceClass:
-                      description: 'The device class the OSD should set to (options are: hdd, ssd, or nvme)'
-                      enum:
-                        - ssd
-                        - hdd
-                        - nvme
-                        - ""
+                      description: The device class the OSD should set to for use in the pool
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -6999,12 +6979,7 @@ spec:
                       description: The root of the crush hierarchy utilized by the pool
                       type: string
                     deviceClass:
-                      description: 'The device class the OSD should set to (options are: hdd, ssd, or nvme)'
-                      enum:
-                        - ssd
-                        - hdd
-                        - nvme
-                        - ""
+                      description: The device class the OSD should set to for use in the pool
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -7358,12 +7333,7 @@ spec:
                       description: The root of the crush hierarchy utilized by the pool
                       type: string
                     deviceClass:
-                      description: 'The device class the OSD should set to (options are: hdd, ssd, or nvme)'
-                      enum:
-                        - ssd
-                        - hdd
-                        - nvme
-                        - ""
+                      description: The device class the OSD should set to for use in the pool
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -7496,12 +7466,7 @@ spec:
                       description: The root of the crush hierarchy utilized by the pool
                       type: string
                     deviceClass:
-                      description: 'The device class the OSD should set to (options are: hdd, ssd, or nvme)'
-                      enum:
-                        - ssd
-                        - hdd
-                        - nvme
-                        - ""
+                      description: The device class the OSD should set to for use in the pool
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
