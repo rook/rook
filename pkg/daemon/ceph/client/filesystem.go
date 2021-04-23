@@ -34,6 +34,16 @@ const (
 	MultiFsEnv = "ROOK_ALLOW_MULTIPLE_FILESYSTEMS"
 )
 
+type MDSDump struct {
+	Standbys    []MDSStandBy `json:"standbys"`
+	FileSystems []MDSMap     `json:"filesystems"`
+}
+
+type MDSStandBy struct {
+	Name string `json:"name"`
+	Rank int    `json:"rank"`
+}
+
 // CephFilesystem is a representation of the json structure returned by 'ceph fs ls'
 type CephFilesystem struct {
 	Name           string   `json:"name"`
@@ -358,4 +368,35 @@ func deleteFSPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolNames
 		return errors.Errorf("pool %d not found", id)
 	}
 	return DeletePool(context, clusterInfo, name)
+}
+
+// WaitForNoStandbys waits for all standbys go away
+func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, timeout time.Duration) error {
+	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
+		mdsDump, err := GetMDSDump(context, clusterInfo)
+		if err != nil {
+			logger.Errorf("failed to get fs dump, %v", err)
+			return false, nil
+		}
+		return len(mdsDump.Standbys) == 0, nil
+	})
+
+	if err != nil {
+		return errors.Wrapf(err, "timeout waiting for no standbys")
+	}
+	return nil
+}
+
+func GetMDSDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*MDSDump, error) {
+	args := []string{"fs", "dump"}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	buf, err := cmd.Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to dump fs info")
+	}
+	var dump MDSDump
+	if err := json.Unmarshal(buf, &dump); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal fs dump")
+	}
+	return &dump, nil
 }
