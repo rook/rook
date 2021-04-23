@@ -134,6 +134,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool) *exectest.
 					return string(createdFsResponse), nil
 				} else if contains(args, "fs") && contains(args, "ls") {
 					return `[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":4,"data_pool_ids":[5],"data_pools":["myfs-data0"]},{"name":"myfs2","metadata_pool":"myfs2-metadata","metadata_pool_id":6,"data_pool_ids":[7],"data_pools":["myfs2-data0"]},{"name":"leseb","metadata_pool":"cephfs.leseb.meta","metadata_pool_id":8,"data_pool_ids":[9],"data_pools":["cephfs.leseb.data"]}]`, nil
+				} else if contains(args, "fs") && contains(args, "dump") {
+					return `{"standbys":[], "filesystems":[]}`, nil
 				} else if contains(args, "osd") && contains(args, "lspools") {
 					return "[]", nil
 				} else if contains(args, "mds") && contains(args, "fail") {
@@ -191,6 +193,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool) *exectest.
 				return string(createdFsResponse), nil
 			} else if contains(args, "fs") && contains(args, "ls") {
 				return "[]", nil
+			} else if contains(args, "fs") && contains(args, "dump") {
+				return `{"standbys":[], "filesystems":[]}`, nil
 			} else if contains(args, "osd") && contains(args, "lspools") {
 				return "[]", nil
 			} else if contains(args, "mds") && contains(args, "fail") {
@@ -472,6 +476,8 @@ func TestUpgradeFilesystem(t *testing.T) {
 			return string(createdFsResponse), nil
 		} else if contains(args, "fs") && contains(args, "ls") {
 			return "[]", nil
+		} else if contains(args, "fs") && contains(args, "dump") {
+			return `{"standbys":[], "filesystems":[]}`, nil
 		} else if contains(args, "osd") && contains(args, "lspools") {
 			return "[]", nil
 		} else if contains(args, "mds") && contains(args, "fail") {

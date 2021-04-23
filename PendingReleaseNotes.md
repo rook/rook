@@ -19,6 +19,7 @@ v1.6...
 ### Core
 
 ### Ceph
+<<<<<<< HEAD
 
 <<<<<<< HEAD
 * Ceph Pacific support and along with it:
@@ -41,3 +42,5 @@ v1.6...
 =======
 * Stop standby mds agents before upgrading ceph filesystem
 >>>>>>> 58f6b495a... ceph: complete missing steps of upgrading mds
+=======
+>>>>>>> 41f775ec1... ceph: make sure standbys are stopped

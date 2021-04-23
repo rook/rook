@@ -283,6 +283,10 @@ func (c *Cluster) upgradeMDS() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to scale down deployments during upgrade")
 	}
+	logger.Debugf("waiting for all standbys gone")
+	if err := cephclient.WaitForNoStandbys(c.context, c.clusterInfo, 120*time.Second); err != nil {
+		return errors.Wrapf(err, "failed to wait for stopping all standbys")
+	}
 
 	// 5. upgrade current active deployment and wait for it come back
 	_, err = c.startDeployment(context.TODO(), daemonLetterID)
