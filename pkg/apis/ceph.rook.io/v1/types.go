@@ -886,6 +886,7 @@ type ErasureCodedSpec struct {
 // CephFilesystem represents a Ceph Filesystem
 // +kubebuilder:printcolumn:name="ActiveMDS",type=string,JSONPath=`.spec.metadataServer.activeCount`,description="Number of desired active MDS daemons"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephFilesystem struct {
 	metav1.TypeMeta   `json:",inline"`
