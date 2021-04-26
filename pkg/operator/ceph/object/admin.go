@@ -19,7 +19,6 @@ package object
 import (
 	"fmt"
 	"regexp"
-	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -74,13 +73,8 @@ func extractJSON(output string) (string, error) {
 func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (string, error) {
 	command, args := client.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
 
-	timeout, err := time.ParseDuration(fmt.Sprintf("%ss", client.CephConnectionTimeout))
-	if err != nil {
-		return "", errors.Wrap(err, "failed to parse CephConnectionTimeout")
-	}
-
 	// start the rgw admin command
-	output, err := c.Context.Executor.ExecuteCommandWithTimeout(timeout, command, args...)
+	output, err := c.Context.Executor.ExecuteCommandWithTimeout(client.CephCommandTimeout, command, args...)
 	if err != nil {
 		return output, err
 	}

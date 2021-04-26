@@ -19,6 +19,7 @@ package client
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -40,9 +41,8 @@ const (
 	// Kubectl is the name of the CLI tool for 'kubectl'
 	Kubectl = "kubectl"
 	// CrushTool is the name of the CLI tool for 'crushtool'
-	CrushTool             = "crushtool"
-	CmdExecuteTimeout     = 1 * time.Minute
-	CephConnectionTimeout = "15" // in seconds
+	CrushTool          = "crushtool"
+	CephCommandTimeout = 15 * time.Second
 	// DefaultPGCount will cause Ceph to use the internal default PG count
 	DefaultPGCount = "0"
 )
@@ -62,13 +62,15 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 
 	// we could use a slice and iterate over it but since we have only 3 elements
 	// I don't think this is worth a loop
+	timeout := strconv.Itoa(int(CephCommandTimeout.Seconds()))
 	if command != "rbd" && command != "crushtool" && command != "radosgw-admin" {
-		args = append(args, "--connect-timeout="+CephConnectionTimeout)
+		args = append(args, "--connect-timeout="+timeout)
 	}
 
 	// If the command should be run inside the toolbox pod, include the kubectl args to call the toolbox
 	if RunAllCephCommandsInToolboxPod != "" {
-		toolArgs := []string{"exec", "-i", RunAllCephCommandsInToolboxPod, "-n", clusterInfo.Namespace, "--", "timeout", "15", command}
+		toolArgs := []string{"exec", "-i", RunAllCephCommandsInToolboxPod, "-n", clusterInfo.Namespace,
+			"--", "timeout", timeout, command}
 		return Kubectl, append(toolArgs, args...)
 	}
 
@@ -172,7 +174,7 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 // configured its arguments. It is future work to integrate this case into the
 // generalization.
 func ExecuteRBDCommandWithTimeout(context *clusterd.Context, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(CmdExecuteTimeout, RBDTool, args...)
+	output, err := context.Executor.ExecuteCommandWithTimeout(CephCommandTimeout, RBDTool, args...)
 	return output, err
 }
 
