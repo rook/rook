@@ -113,20 +113,16 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
 
 	// Set the ssl cert if specified
-	if c.store.Spec.Gateway.SSLCertificateRef != "" {
-		// Keep the SSL secret as secure as possible in the container. Give only user read perms.
-		// Because the Secret mount is owned by "root" and fsGroup breaks on OCP since we cannot predict it
-		// Also, we don't want to change the SCC for fsGroup to RunAsAny since it has a major broader impact
-		// Let's open the permissions a bit more so that everyone can read the cert.
-		userReadOnly := int32(0444)
+	if c.store.Spec.Gateway.SecurePort != 0 {
+		secretVolSrc, err := generateVolumeSourceWithTLSSecret(c.store.Spec)
+		if err != nil {
+			return v1.PodTemplateSpec{}, err
+		}
 		certVol := v1.Volume{
 			Name: certVolumeName,
 			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: c.store.Spec.Gateway.SSLCertificateRef,
-					Items: []v1.KeyToPath{
-						{Key: certKeyName, Path: certFilename, Mode: &userReadOnly},
-					}}}}
+				Secret: secretVolSrc,
+			}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
 	if c.clusterSpec.Security.KeyManagementService.IsEnabled() {
@@ -231,7 +227,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 
 	// If the liveness probe is enabled
 	configureLivenessProbe(&container, c.store.Spec.HealthCheck)
-	if c.store.Spec.Gateway.SSLCertificateRef != "" {
+	if c.store.Spec.IsTLSEnabled() {
 		// Add a volume mount for the ssl certificate
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
@@ -292,7 +288,7 @@ func (c *clusterConfig) generateLiveProbeScheme() v1.URIScheme {
 
 	// If rgw is configured to use a secured port we need get on https://
 	// Only do this when the Non-SSL port is not used
-	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
+	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.IsTLSEnabled() {
 		uriScheme = v1.URISchemeHTTPS
 	}
 
@@ -309,7 +305,7 @@ func (c *clusterConfig) generateLiveProbePort() intstr.IntOrString {
 		port = intstr.FromInt(int(c.store.Spec.Gateway.Port))
 	}
 
-	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
+	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.IsTLSEnabled() {
 		port = intstr.FromInt(int(c.store.Spec.Gateway.SecurePort))
 	}
 	return port
@@ -324,6 +320,9 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 		},
 	}
 
+	if c.store.Spec.Gateway.Service != nil {
+		c.store.Spec.Gateway.Service.Annotations.ApplyToObjectMeta(&svc.ObjectMeta)
+	}
 	if c.clusterSpec.Network.IsHost() {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
@@ -339,6 +338,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 			Selector: getLabels(cephObjectStore.Name, cephObjectStore.Namespace, false),
 		}
 	}
+
 	addPort(svc, "http", cephObjectStore.Spec.Gateway.Port, destPort.IntVal)
 	addPort(svc, "https", cephObjectStore.Spec.Gateway.SecurePort, cephObjectStore.Spec.Gateway.SecurePort)
 
@@ -446,4 +446,31 @@ func getLabels(name, namespace string, includeNewLabels bool) map[string]string 
 	labels := controller.CephDaemonAppLabels(AppName, namespace, "rgw", name, includeNewLabels)
 	labels["rook_object_store"] = name
 	return labels
+}
+
+func generateVolumeSourceWithTLSSecret(objSpec cephv1.ObjectStoreSpec) (*v1.SecretVolumeSource, error) {
+	// Keep the TLS secret as secure as possible in the container. Give only user read perms.
+	// Because the Secret mount is owned by "root" and fsGroup breaks on OCP since we cannot predict it
+	// Also, we don't want to change the SCC for fsGroup to RunAsAny since it has a major broader impact
+	// Let's open the permissions a bit more so that everyone can read the cert.
+	userReadOnly := int32(0444)
+	var secretVolSrc *v1.SecretVolumeSource
+	if objSpec.Gateway.SSLCertificateRef != "" {
+		secretVolSrc = &v1.SecretVolumeSource{
+			SecretName: objSpec.Gateway.SSLCertificateRef,
+			Items: []v1.KeyToPath{
+				{Key: certKeyName, Path: certFilename, Mode: &userReadOnly},
+			}}
+	} else if objSpec.GetServiceServingCert() != "" {
+		secretVolSrc = &v1.SecretVolumeSource{
+			SecretName: objSpec.GetServiceServingCert(),
+			Items: []v1.KeyToPath{
+				{Key: "tls.crt", Path: certFilename, Mode: &userReadOnly},
+				{Key: "tls.key", Path: certKeyFileName, Mode: &userReadOnly},
+			}}
+	} else {
+		return nil, errors.New("no TLS certificates found")
+	}
+
+	return secretVolSrc, nil
 }

@@ -1101,6 +1101,11 @@ type GatewaySpec struct {
 	// +nullable
 	// +optional
 	ExternalRgwEndpoints []v1.EndpointAddress `json:"externalRgwEndpoints,omitempty"`
+
+	// The configuration related to add/set on each rgw service.
+	// +optional
+	// +nullable
+	Service *RGWServiceSpec `json:"service,omitempty"`
 }
 
 // ZoneSpec represents a Ceph Object Store Gateway Zone specification
@@ -1271,6 +1276,14 @@ type ObjectZoneSpec struct {
 
 	// The data pool settings
 	DataPool PoolSpec `json:"dataPool"`
+}
+
+// RGWServiceSpec represent the spec for RGW service
+type RGWServiceSpec struct {
+	// The annotations-related configuration to add/set on each rgw service.
+	// nullable
+	// optional
+	Annotations rookv1.Annotations `json:"annotations,omitempty"`
 }
 
 // CephNFS represents a Ceph NFS

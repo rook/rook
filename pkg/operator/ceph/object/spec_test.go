@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -102,7 +103,6 @@ func TestSSLPodSpec(t *testing.T) {
 	info := clienttest.CreateTestClusterInfo(1)
 	info.CephVersion = cephver.Nautilus
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
-	store.Spec.Gateway.SSLCertificateRef = "mycert"
 	store.Spec.Gateway.SecurePort = 443
 
 	c := &clusterConfig{
@@ -122,10 +122,29 @@ func TestSSLPodSpec(t *testing.T) {
 	rgwConfig := &rgwConfig{
 		ResourceName: resourceName,
 	}
+	_, err := c.makeRGWPodSpec(rgwConfig)
+	// No TLS certs specified, will return error
+	assert.Error(t, err)
+
+	// Using SSLCertificateRef
+	c.store.Spec.Gateway.SSLCertificateRef = "mycert"
+	secretVolSrc, _ := generateVolumeSourceWithTLSSecret(c.store.Spec)
+	assert.Equal(t, secretVolSrc.SecretName, "mycert")
 	s, err := c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
-
 	podTemplate := test.NewPodTemplateSpecTester(t, &s)
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
+		"200", "100", "1337", "500", /* resources */
+		"my-priority-class")
+
+	// Using service serving cert
+	c.store.Spec.Gateway.SSLCertificateRef = ""
+	c.store.Spec.Gateway.Service = &(cephv1.RGWServiceSpec{Annotations: rookv1.Annotations{cephv1.ServiceServingCertKey: "rgw-cert"}})
+	secretVolSrc, _ = generateVolumeSourceWithTLSSecret(c.store.Spec)
+	assert.Equal(t, secretVolSrc.SecretName, "rgw-cert")
+	s, err = c.makeRGWPodSpec(rgwConfig)
+	assert.NoError(t, err)
+	podTemplate = test.NewPodTemplateSpecTester(t, &s)
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")

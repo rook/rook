@@ -19,6 +19,7 @@ package v1
 import (
 	"testing"
 
+	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -58,4 +59,41 @@ func TestValidateObjectStoreSpec(t *testing.T) {
 	o.ObjectMeta.Namespace = ""
 	err = ValidateObjectSpec(o)
 	assert.Error(t, err)
+}
+func TestIsTLSEnabled(t *testing.T) {
+	objStore := &CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-store",
+			Namespace: "rook-ceph",
+		},
+		Spec: ObjectStoreSpec{
+			Gateway: GatewaySpec{
+				Port:       1,
+				SecurePort: 0,
+			},
+		},
+	}
+	IsTLS := objStore.Spec.IsTLSEnabled()
+	assert.False(t, IsTLS)
+
+	// only securePort is set without certs
+	objStore.Spec.Gateway.SecurePort = 443
+	IsTLS = objStore.Spec.IsTLSEnabled()
+	assert.False(t, IsTLS)
+
+	// when SSLCertificateRef is set with securePort
+	objStore.Spec.Gateway.SSLCertificateRef = "my-tls-cert"
+	IsTLS = objStore.Spec.IsTLSEnabled()
+	assert.True(t, IsTLS)
+
+	// when service serving cert is used
+	objStore.Spec.Gateway.SSLCertificateRef = ""
+	objStore.Spec.Gateway.Service = &(RGWServiceSpec{Annotations: rookv1.Annotations{ServiceServingCertKey: "rgw-cert"}})
+	IsTLS = objStore.Spec.IsTLSEnabled()
+	assert.True(t, IsTLS)
+
+	// when cert are set but securePort unset
+	objStore.Spec.Gateway.SecurePort = 0
+	IsTLS = objStore.Spec.IsTLSEnabled()
+	assert.False(t, IsTLS)
 }

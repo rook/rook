@@ -35,11 +35,13 @@ caps mon = "allow rw"
 caps osd = "allow rwx"
 `
 
-	certVolumeName            = "rook-ceph-rgw-cert"
-	certDir                   = "/etc/ceph/private"
-	certKeyName               = "cert"
-	certFilename              = "rgw-cert.pem"
-	rgwPortInternalPort int32 = 8080
+	certVolumeName                 = "rook-ceph-rgw-cert"
+	certDir                        = "/etc/ceph/private"
+	certKeyName                    = "cert"
+	certFilename                   = "rgw-cert.pem"
+	certKeyFileName                = "rgw-key.pem"
+	rgwPortInternalPort      int32 = 8080
+	ServiceServingCertCAFile       = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
 )
 
 var (
@@ -56,7 +58,7 @@ func (c *clusterConfig) portString() string {
 		}
 		portString = fmt.Sprintf("port=%s", strconv.Itoa(int(port)))
 	}
-	if c.store.Spec.Gateway.SecurePort != 0 && c.store.Spec.Gateway.SSLCertificateRef != "" {
+	if c.store.Spec.IsTLSEnabled() {
 		certPath := path.Join(certDir, certFilename)
 		// This is the beast backend
 		// Config is: http://docs.ceph.com/docs/master/radosgw/frontends/#id3
@@ -66,6 +68,10 @@ func (c *clusterConfig) portString() string {
 		} else {
 			portString = fmt.Sprintf("ssl_port=%d ssl_certificate=%s",
 				c.store.Spec.Gateway.SecurePort, certPath)
+		}
+		if c.store.Spec.GetServiceServingCert() != "" {
+			privateKey := path.Join(certDir, certKeyFileName)
+			portString = fmt.Sprintf("%s ssl_private_key=%s", portString, privateKey)
 		}
 	}
 	return portString
