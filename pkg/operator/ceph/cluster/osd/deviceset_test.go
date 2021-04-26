@@ -245,7 +245,11 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{testVolumeClaim("testwithcrushparams1")},
 		SchedulerName:        "custom-scheduler",
 	}
-	deviceSet.VolumeClaimTemplates[0].Annotations = map[string]string{"crushDeviceClass": "ssd", "crushInitialWeight": "0.75"}
+	deviceSet.VolumeClaimTemplates[0].Annotations = map[string]string{
+		"crushDeviceClass":     "ssd",
+		"crushInitialWeight":   "0.75",
+		"crushPrimaryAffinity": "0.666",
+	}
 
 	spec := cephv1.ClusterSpec{
 		Storage: rookv1.StorageScopeSpec{StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{deviceSet}},
@@ -261,6 +265,7 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 	assert.Equal(t, 1, len(cluster.deviceSets))
 	assert.Equal(t, cluster.deviceSets[0].CrushDeviceClass, "ssd")
 	assert.Equal(t, cluster.deviceSets[0].CrushInitialWeight, "0.75")
+	assert.Equal(t, cluster.deviceSets[0].CrushPrimaryAffinity, "0.666")
 
 	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
