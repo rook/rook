@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -49,8 +50,11 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 		labels["mon_canary"] = "true"
 	}
 	if includeNewLabels {
-		if c.monVolumeClaimTemplate(monConfig) != nil {
+		monVolumeClaimTemplate := c.monVolumeClaimTemplate(monConfig)
+		if monVolumeClaimTemplate != nil {
+			size := monVolumeClaimTemplate.Spec.Resources.Requests[v1.ResourceStorage]
 			labels["pvc_name"] = monConfig.ResourceName
+			labels["pvc_size"] = size.String()
 		}
 		if monConfig.Zone != "" {
 			labels["stretch-zone"] = monConfig.Zone

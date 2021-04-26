@@ -27,6 +27,7 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -175,7 +176,7 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 		logger.Infof("OSD PVC %q already exists", existingPVC.Name)
 
 		// Update the PVC in case the size changed
-		c.updatePVCIfChanged(pvc, existingPVC)
+		k8sutil.ExpandPVCIfRequired(c.context.Client, pvc, existingPVC)
 		return existingPVC, nil
 	}
 
@@ -187,28 +188,6 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 	logger.Infof("successfully provisioned PVC %q", deployedPVC.Name)
 
 	return deployedPVC, nil
-}
-
-func (c *Cluster) updatePVCIfChanged(desiredPVC *v1.PersistentVolumeClaim, currentPVC *v1.PersistentVolumeClaim) {
-	ctx := context.TODO()
-	desiredSize, desiredOK := desiredPVC.Spec.Resources.Requests[v1.ResourceStorage]
-	currentSize, currentOK := currentPVC.Spec.Resources.Requests[v1.ResourceStorage]
-	if !desiredOK || !currentOK {
-		logger.Debugf("desired or current size are not specified for PVC %q", currentPVC.Name)
-		return
-	}
-	if desiredSize.Value() > currentSize.Value() {
-		currentPVC.Spec.Resources.Requests[v1.ResourceStorage] = desiredSize
-		logger.Infof("updating PVC %q size from %s to %s", currentPVC.Name, currentSize.String(), desiredSize.String())
-		if _, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Update(ctx, currentPVC, metav1.UpdateOptions{}); err != nil {
-			// log the error, but don't fail the reconcile
-			logger.Errorf("failed to update PVC size. %v", err)
-			return
-		}
-		logger.Infof("successfully updated PVC %q size", currentPVC.Name)
-	} else if desiredSize.Value() < currentSize.Value() {
-		logger.Warningf("ignoring request to shrink osd PVC %q size from %s to %s, only expansion is allowed", currentPVC.Name, currentSize.String(), desiredSize.String())
-	}
 }
 
 func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.PersistentVolumeClaim, namespace string) *v1.PersistentVolumeClaim {
