@@ -421,7 +421,7 @@ func TestGetOSDInfo(t *testing.T) {
 
 	node := "n1"
 	location := "root=default host=myhost zone=myzone"
-	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
+	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location, TopologyAffinity: "topology.rook.io/rack=rack0"}
 	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}
 	osd3 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "raw"}
 	osdProp := osdProperties{
@@ -430,6 +430,7 @@ func TestGetOSDInfo(t *testing.T) {
 		selection:     rookv1.Selection{},
 		resources:     corev1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
+		portable:      true,
 	}
 	dataPathMap := &provisionConfig{
 		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, c.spec.DataDirHostPath),
@@ -442,6 +443,8 @@ func TestGetOSDInfo(t *testing.T) {
 		assert.Equal(t, osd1.BlockPath, osdInfo1.BlockPath)
 		assert.Equal(t, osd1.CVMode, osdInfo1.CVMode)
 		assert.Equal(t, location, osdInfo1.Location)
+		assert.Equal(t, osd1.TopologyAffinity, osdInfo1.TopologyAffinity)
+		osdProp.portable = false
 
 		d2, _ := c.makeDeployment(osdProp, osd2, dataPathMap)
 		osdInfo2, _ := c.getOSDInfo(d2)
