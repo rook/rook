@@ -43,7 +43,7 @@ func TestObjectChanged(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: cephv1.PoolSpec{
-			Replicated: cephv1.ReplicatedSpec{
+			Replicated: &cephv1.ReplicatedSpec{
 				Size: oldReplicas,
 			},
 		},
@@ -58,7 +58,7 @@ func TestObjectChanged(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: cephv1.PoolSpec{
-			Replicated: cephv1.ReplicatedSpec{
+			Replicated: &cephv1.ReplicatedSpec{
 				Size: oldReplicas,
 			},
 		},

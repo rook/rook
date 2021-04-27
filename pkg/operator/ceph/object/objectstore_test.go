@@ -200,8 +200,8 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 
 	// Delete an object store with the pools
 	spec = cephv1.ObjectStoreSpec{
-		MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
-		DataPool:     cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}},
+		MetadataPool: cephv1.PoolSpec{Replicated: &cephv1.ReplicatedSpec{Size: 1}},
+		DataPool:     cephv1.PoolSpec{Replicated: &cephv1.ReplicatedSpec{Size: 1}},
 	}
 	err = deleteRealmAndPools(context, spec)
 	assert.Nil(t, err)

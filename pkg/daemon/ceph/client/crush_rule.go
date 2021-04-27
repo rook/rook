@@ -49,6 +49,10 @@ func buildTwoStepPlainCrushRule(crushMap CrushMap, ruleName string, pool cephv1.
 	if pool.DeviceClass != "" {
 		crushRuleInsert = fmt.Sprintf("class %s", pool.DeviceClass)
 	}
+	subFailureDomain := ""
+	if pool.IsReplicated() {
+		subFailureDomain = pool.Replicated.SubFailureDomain
+	}
 	return fmt.Sprintf(
 		twoStepCRUSHRuleTemplate,
 		ruleName,
@@ -58,7 +62,7 @@ func buildTwoStepPlainCrushRule(crushMap CrushMap, ruleName string, pool cephv1.
 		pool.CrushRoot,
 		crushRuleInsert,
 		pool.FailureDomain,
-		pool.Replicated.SubFailureDomain,
+		subFailureDomain,
 	)
 }
 

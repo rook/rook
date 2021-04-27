@@ -124,7 +124,7 @@ func EnableStretchElectionStrategy(context *clusterd.Context, clusterInfo *Clust
 func CreateDefaultStretchCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, failureDomain string) error {
 	pool := cephv1.PoolSpec{
 		FailureDomain: failureDomain,
-		Replicated:    cephv1.ReplicatedSpec{SubFailureDomain: clusterSpec.Mon.StretchCluster.SubFailureDomain},
+		Replicated:    &cephv1.ReplicatedSpec{SubFailureDomain: clusterSpec.Mon.StretchCluster.SubFailureDomain},
 	}
 	if err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, defaultStretchCrushRuleName, pool); err != nil {
 		return errors.Wrap(err, "failed to create default stretch crush rule")

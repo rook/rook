@@ -45,12 +45,6 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 		return errors.New("both replication and erasure code settings cannot be specified")
 	}
 
-	if p.FailureDomain != "" && p.Replicated.SubFailureDomain != "" {
-		if p.FailureDomain == p.Replicated.SubFailureDomain {
-			return errors.New("failure and subfailure domain cannot be identical")
-		}
-	}
-
 	// validate pools for stretch clusters
 	if clusterSpec.IsStretchCluster() {
 		if p.IsReplicated() {
@@ -60,6 +54,13 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 		}
 		if p.IsErasureCoded() {
 			return errors.New("erasure coded pools are not supported in stretch clusters")
+		}
+	}
+
+	// check before getting crush map for easier unit testing
+	if p.IsReplicated() && p.FailureDomain != "" && p.Replicated.SubFailureDomain != "" {
+		if p.FailureDomain == p.Replicated.SubFailureDomain {
+			return errors.New("failure and subfailure domain cannot be identical")
 		}
 	}
 
@@ -100,20 +101,6 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 		}
 	}
 
-	// validate the crush subdomain if specified
-	if p.Replicated.SubFailureDomain != "" {
-		found := false
-		for _, t := range crush.Types {
-			if t.Name == p.Replicated.SubFailureDomain {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return errors.Errorf("unrecognized crush sub domain %s", p.Replicated.SubFailureDomain)
-		}
-	}
-
 	// validate pool replica size
 	if p.IsReplicated() {
 		if p.Replicated.Size == 1 && p.Replicated.RequireSafeReplicaSize {
@@ -126,6 +113,20 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 
 		if p.Replicated.ReplicasPerFailureDomain != 0 && p.Replicated.Size%p.Replicated.ReplicasPerFailureDomain != 0 {
 			return errors.Errorf("error replicasPerFailureDomain is %d must be a factor of the replica count %d", p.Replicated.ReplicasPerFailureDomain, p.Replicated.Size)
+		}
+
+		// validate the crush subdomain if specified
+		if p.Replicated.SubFailureDomain != "" {
+			found := false
+			for _, t := range crush.Types {
+				if t.Name == p.Replicated.SubFailureDomain {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return errors.Errorf("unrecognized crush sub domain %s", p.Replicated.SubFailureDomain)
+			}
 		}
 	}
 

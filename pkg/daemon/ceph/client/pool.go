@@ -242,7 +242,7 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		pool.Parameters = make(map[string]string)
 	}
 
-	if pool.Replicated.IsTargetRatioEnabled() {
+	if pool.IsReplicated() && pool.Replicated.IsTargetRatioEnabled() {
 		pool.Parameters[targetSizeRatioProperty] = strconv.FormatFloat(pool.Replicated.TargetSizeRatio, 'f', -1, 32)
 	}
 
@@ -343,6 +343,10 @@ func CreateECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, poo
 }
 
 func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, poolName string, pool cephv1.PoolSpec, pgCount, appName string) error {
+	if !pool.IsReplicated() {
+		return errors.Errorf("pool is not replicated")
+	}
+
 	// The crush rule name is the same as the pool unless we have a stretch cluster.
 	crushRuleName := poolName
 	if clusterSpec.IsStretchCluster() {
@@ -387,6 +391,10 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 }
 
 func createTwoStepCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, ruleName string, pool cephv1.PoolSpec) error {
+	if !pool.IsReplicated() {
+		return errors.Errorf("pool is not replicated")
+	}
+
 	// set the crush failure domain to the "host" if not already specified
 	if pool.FailureDomain == "" {
 		pool.FailureDomain = cephv1.DefaultFailureDomain

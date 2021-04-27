@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -48,7 +49,7 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 	compressionModeCreated := false
 	p := cephv1.PoolSpec{
 		FailureDomain: "host",
-		ErasureCoded:  cephv1.ErasureCodedSpec{},
+		ErasureCoded:  &cephv1.ErasureCodedSpec{},
 	}
 	if compressionMode != "" {
 		p.CompressionMode = compressionMode
@@ -169,7 +170,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 
 	p := cephv1.PoolSpec{
 		FailureDomain: failureDomain, CrushRoot: crushRoot, DeviceClass: deviceClass,
-		Replicated: cephv1.ReplicatedSpec{Size: 12345},
+		Replicated: &cephv1.ReplicatedSpec{Size: 12345},
 	}
 	if compressionMode != "" {
 		p.CompressionMode = compressionMode
@@ -310,7 +311,13 @@ func testCreateStretchCrushRule(t *testing.T, alreadyExists bool) {
 	}
 	clusterInfo := AdminClusterInfo("mycluster")
 	clusterSpec := &cephv1.ClusterSpec{}
-	poolSpec := cephv1.PoolSpec{FailureDomain: "rack"}
+	poolSpec := cephv1.PoolSpec{
+		FailureDomain: "rack",
+		Replicated: &v1.ReplicatedSpec{
+			Size:                   1,
+			RequireSafeReplicaSize: false,
+		},
+	}
 	ruleName := "testrule"
 	if alreadyExists {
 		ruleName = "replicated_ruleset"
@@ -338,7 +345,7 @@ func testCreatePoolWithReplicasPerFailureDomain(t *testing.T, failureDomain, cru
 		FailureDomain: failureDomain,
 		CrushRoot:     crushRoot,
 		DeviceClass:   deviceClass,
-		Replicated: cephv1.ReplicatedSpec{
+		Replicated: &cephv1.ReplicatedSpec{
 			Size:                     12345678,
 			ReplicasPerFailureDomain: 2,
 		},

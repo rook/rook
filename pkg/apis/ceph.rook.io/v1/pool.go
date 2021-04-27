@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"reflect"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,12 +32,16 @@ var (
 
 var _ webhook.Validator = &CephBlockPool{}
 
+func (p *PoolSpec) IsEmpty() bool {
+	return reflect.DeepEqual(*p, PoolSpec{})
+}
+
 func (p *PoolSpec) IsReplicated() bool {
-	return p.Replicated.Size > 0
+	return p.Replicated != nil && p.Replicated.Size > 0
 }
 
 func (p *PoolSpec) IsErasureCoded() bool {
-	return p.ErasureCoded.CodingChunks > 0 || p.ErasureCoded.DataChunks > 0
+	return p.ErasureCoded != nil && (p.ErasureCoded.CodingChunks > 0 || p.ErasureCoded.DataChunks > 0)
 }
 
 func (p *PoolSpec) IsCompressionEnabled() bool {
@@ -57,28 +63,23 @@ func (p *CephBlockPool) ValidateCreate() error {
 }
 
 func validatePoolSpec(ps PoolSpec) error {
-	// Checks if either ErasureCoded or Replicated fields are set
-	if ps.ErasureCoded.CodingChunks <= 0 && ps.ErasureCoded.DataChunks <= 0 && ps.Replicated.TargetSizeRatio <= 0 && ps.Replicated.Size <= 0 {
-		return errors.New("invalid create: either of erasurecoded or replicated fields should be set")
-	}
-	// Check if any of the ErasureCoded fields are populated. Then check if replicated is populated. Both can't be populated at same time.
-	if ps.ErasureCoded.CodingChunks > 0 || ps.ErasureCoded.DataChunks > 0 || ps.ErasureCoded.Algorithm != "" {
-		if ps.Replicated.Size > 0 || ps.Replicated.TargetSizeRatio > 0 {
-			return errors.New("invalid create: both erasurecoded and replicated fields cannot be set at the same time")
-		}
+	if !ps.IsErasureCoded() && !ps.IsReplicated() {
+		return errors.New("invalid create: either of erasureCoded or replicated fields should be set")
 	}
 
-	if ps.Replicated.Size == 0 && ps.Replicated.TargetSizeRatio == 0 {
-		// Check if datachunks is set and has value less than 2.
-		if ps.ErasureCoded.DataChunks < 2 && ps.ErasureCoded.DataChunks != 0 {
+	if ps.IsErasureCoded() && ps.IsReplicated() {
+		return errors.New("invalid create: both erasureCoded and replicated fields cannot be set at the same time")
+	}
+
+	if ps.IsErasureCoded() {
+		if ps.ErasureCoded.DataChunks < 2 {
 			return errors.New("invalid create: erasurecoded.datachunks needs minimum value of 2")
 		}
-
-		// Check if codingchunks is set and has value less than 1.
-		if ps.ErasureCoded.CodingChunks < 1 && ps.ErasureCoded.CodingChunks != 0 {
+		if ps.ErasureCoded.CodingChunks < 1 {
 			return errors.New("invalid create: erasurecoded.codingchunks needs minimum value of 1")
 		}
 	}
+
 	return nil
 }
 
@@ -89,17 +90,15 @@ func (p *CephBlockPool) ValidateUpdate(old runtime.Object) error {
 	if err != nil {
 		return err
 	}
-	if p.Spec.ErasureCoded.CodingChunks > 0 || p.Spec.ErasureCoded.DataChunks > 0 || p.Spec.ErasureCoded.Algorithm != "" {
-		if ocbp.Spec.Replicated.Size > 0 || ocbp.Spec.Replicated.TargetSizeRatio > 0 {
-			return errors.New("invalid update: replicated field is set already in previous object. cannot be changed to use erasurecoded")
-		}
+
+	if ocbp.Spec.IsErasureCoded() && !p.Spec.IsErasureCoded() {
+		return errors.New("invalid update: erasureCoded field is set already in previous object. erasureCoded cannot be disabled in an update")
 	}
 
-	if p.Spec.Replicated.Size > 0 || p.Spec.Replicated.TargetSizeRatio > 0 {
-		if ocbp.Spec.ErasureCoded.CodingChunks > 0 || ocbp.Spec.ErasureCoded.DataChunks > 0 || ocbp.Spec.ErasureCoded.Algorithm != "" {
-			return errors.New("invalid update: erasurecoded field is set already in previous object. cannot be changed to use replicated")
-		}
+	if ocbp.Spec.IsReplicated() && !p.Spec.IsReplicated() {
+		return errors.New("invalid update: replicated field is set already in previous object. replicated cannot be disabled in an update")
 	}
+
 	return nil
 }
 

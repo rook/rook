@@ -55,20 +55,43 @@ func TestCreatePool(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.Replicated.RequireSafeReplicaSize = false
-
 	clusterSpec := &cephv1.ClusterSpec{Storage: rookv1.StorageScopeSpec{Config: map[string]string{cephclient.CrushRootConfigKey: "cluster-crush-root"}}}
-	err := createPool(context, clusterInfo, clusterSpec, p)
-	assert.Nil(t, err)
 
-	// succeed with EC
-	p.Spec.Replicated.Size = 0
-	p.Spec.ErasureCoded.CodingChunks = 1
-	p.Spec.ErasureCoded.DataChunks = 2
-	err = createPool(context, clusterInfo, clusterSpec, p)
-	assert.Nil(t, err)
+	t.Run("replicated", func(t *testing.T) {
+		p := &cephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "mypool",
+				Namespace: clusterInfo.Namespace,
+			},
+			Spec: cephv1.PoolSpec{
+				Replicated: &cephv1.ReplicatedSpec{
+					Size:                   1,
+					RequireSafeReplicaSize: false,
+				},
+			},
+		}
+
+		err := createPool(context, clusterInfo, clusterSpec, p)
+		assert.NoError(t, err)
+	})
+
+	t.Run("erasure coded", func(t *testing.T) {
+		p := &cephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "mypool",
+				Namespace: clusterInfo.Namespace,
+			},
+			Spec: cephv1.PoolSpec{
+				ErasureCoded: &cephv1.ErasureCodedSpec{
+					CodingChunks: 1,
+					DataChunks:   2,
+				},
+			},
+		}
+
+		err := createPool(context, clusterInfo, clusterSpec, p)
+		assert.NoError(t, err)
+	})
 }
 
 func TestDeletePool(t *testing.T) {
@@ -151,7 +174,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			UID:       types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
 		},
 		Spec: cephv1.PoolSpec{
-			Replicated: cephv1.ReplicatedSpec{
+			Replicated: &cephv1.ReplicatedSpec{
 				Size: replicas,
 			},
 			StatusCheck: cephv1.MirrorHealthCheckSpec{
@@ -423,7 +446,7 @@ func TestConfigureRBDStats(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: cephv1.PoolSpec{
-			Replicated: cephv1.ReplicatedSpec{
+			Replicated: &cephv1.ReplicatedSpec{
 				Size: 3,
 			},
 		},

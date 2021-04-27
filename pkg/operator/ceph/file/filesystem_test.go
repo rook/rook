@@ -60,7 +60,7 @@ func TestValidateSpec(t *testing.T) {
 
 	// missing data pools
 	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
-	p := cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}}
+	p := cephv1.PoolSpec{Replicated: &cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, p)
 
 	// missing metadata pool
@@ -183,8 +183,8 @@ func fsTest(fsName string) cephv1.CephFilesystem {
 	return cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
-			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
-			DataPools:    []cephv1.PoolSpec{{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}}},
+			MetadataPool: cephv1.PoolSpec{Replicated: &cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+			DataPools:    []cephv1.PoolSpec{{Replicated: &cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}}},
 			MetadataServer: cephv1.MetadataServerSpec{
 				ActiveCount: 1,
 				Resources: v1.ResourceRequirements{
@@ -267,7 +267,7 @@ func TestCreateFilesystem(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: clientset}
-	fs.Spec.DataPools = append(fs.Spec.DataPools, cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}})
+	fs.Spec.DataPools = append(fs.Spec.DataPools, cephv1.PoolSpec{Replicated: &cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}})
 
 	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 	assert.Nil(t, err)

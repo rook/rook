@@ -44,7 +44,7 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 		FailureDomain: failureDomain,
 		CrushRoot:     crushRoot,
 		DeviceClass:   deviceClass,
-		ErasureCoded: cephv1.ErasureCodedSpec{
+		ErasureCoded: &cephv1.ErasureCodedSpec{
 			DataChunks:   2,
 			CodingChunks: 3,
 		},
