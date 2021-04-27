@@ -30,30 +30,14 @@ jobs:
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: use local disk
-      run: |
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        PARTITION="/dev/$(lsblk|awk '/14G/ {print $1}'| head -1)1"
-        sudo wipefs --all --force "$PARTITION"
-        sudo lsblk
-        # add a udev rule to force the disk partitions to ceph
-        # we have observed that some runners keep detaching/re-attaching the additional disk overriding the permissions to the default root:disk
-        # for more details see: https://github.com/rook/rook/issues/7405
-        echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
+      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
 
     - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: TestCephSmokeSuite
       run: |
