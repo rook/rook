@@ -298,6 +298,18 @@ Then apply the latest changes from v1.6.
 kubectl apply -f common.yaml -f crds.yaml
 ```
 
+> **NOTE:** If your Rook-Ceph cluster was initially installed with rook v1.4 or lower, the above
+> command will return errors due to updates from Kubernetes' v1beta1 Custom Resource Definitions.
+> The error will contain text similar to `... spec.preserveUnknownFields: Invalid value...`.
+
+If you experience this error applying the latest changes to CRDs, use `kubectl`'s `replace` command
+to replace the resources followed by `apply` to verify that the resources are updated without other 
+errors.
+```sh
+kubectl replace -f crds.yaml
+kubectl apply -f crds.yaml
+```
+
 ## 2. Update Ceph CSI versions
 
 > Automatically updated if you are upgrading via the helm chart
