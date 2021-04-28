@@ -44,12 +44,15 @@ spec:
                     - aggressive
                     - force
                     - ""
+                  nullable: true
                   type: string
                 crushRoot:
                   description: The root of the crush hierarchy utilized by the pool
+                  nullable: true
                   type: string
                 deviceClass:
                   description: The device class the OSD should set to for use in the pool
+                  nullable: true
                   type: string
                 enableRBDStats:
                   description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -1222,6 +1225,7 @@ spec:
                       type: string
                     provider:
                       description: Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+                      nullable: true
                       type: string
                     selectors:
                       additionalProperties:
@@ -4862,12 +4866,15 @@ spec:
                           - aggressive
                           - force
                           - ""
+                        nullable: true
                         type: string
                       crushRoot:
                         description: The root of the crush hierarchy utilized by the pool
+                        nullable: true
                         type: string
                       deviceClass:
                         description: The device class the OSD should set to for use in the pool
+                        nullable: true
                         type: string
                       enableRBDStats:
                         description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -4983,9 +4990,11 @@ spec:
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
                     type: object
+                  nullable: true
                   type: array
                 metadataPool:
                   description: The metadata pool settings
+                  nullable: true
                   properties:
                     compressionMode:
                       default: none
@@ -4996,12 +5005,15 @@ spec:
                         - aggressive
                         - force
                         - ""
+                      nullable: true
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
+                      nullable: true
                       type: string
                     deviceClass:
                       description: The device class the OSD should set to for use in the pool
+                      nullable: true
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -6273,6 +6285,7 @@ spec:
               properties:
                 dataPool:
                   description: The data pool settings
+                  nullable: true
                   properties:
                     compressionMode:
                       default: none
@@ -6283,12 +6296,15 @@ spec:
                         - aggressive
                         - force
                         - ""
+                      nullable: true
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
+                      nullable: true
                       type: string
                     deviceClass:
                       description: The device class the OSD should set to for use in the pool
+                      nullable: true
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -7051,6 +7067,7 @@ spec:
                   type: object
                 metadataPool:
                   description: The metadata pool settings
+                  nullable: true
                   properties:
                     compressionMode:
                       default: none
@@ -7061,12 +7078,15 @@ spec:
                         - aggressive
                         - force
                         - ""
+                      nullable: true
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
+                      nullable: true
                       type: string
                     deviceClass:
                       description: The device class the OSD should set to for use in the pool
+                      nullable: true
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -7422,6 +7442,7 @@ spec:
               properties:
                 dataPool:
                   description: The data pool settings
+                  nullable: true
                   properties:
                     compressionMode:
                       default: none
@@ -7432,12 +7453,15 @@ spec:
                         - aggressive
                         - force
                         - ""
+                      nullable: true
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
+                      nullable: true
                       type: string
                     deviceClass:
                       description: The device class the OSD should set to for use in the pool
+                      nullable: true
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
@@ -7555,6 +7579,7 @@ spec:
                   type: object
                 metadataPool:
                   description: The metadata pool settings
+                  nullable: true
                   properties:
                     compressionMode:
                       default: none
@@ -7565,12 +7590,15 @@ spec:
                         - aggressive
                         - force
                         - ""
+                      nullable: true
                       type: string
                     crushRoot:
                       description: The root of the crush hierarchy utilized by the pool
+                      nullable: true
                       type: string
                     deviceClass:
                       description: The device class the OSD should set to for use in the pool
+                      nullable: true
                       type: string
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool

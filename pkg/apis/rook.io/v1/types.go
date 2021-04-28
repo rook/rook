@@ -135,6 +135,7 @@ type PriorityClassNamesSpec map[KeyType]string
 // NetworkSpec represents cluster network settings
 type NetworkSpec struct {
 	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+	// +nullable
 	// +optional
 	Provider string `json:"provider,omitempty"`
 
