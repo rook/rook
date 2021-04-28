@@ -546,7 +546,10 @@ jobs:
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/object-test.yaml
+        yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec.yaml
+        sed -i 's/ver1/ver2/g' tests/manifests/test-object.yaml
+        sed -i 's/VAULT_BACKEND: v1/VAULT_BACKEND: v2/g' tests/manifests/test-object.yaml
+        kubectl create -f tests/manifests/test-object.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
@@ -559,10 +562,14 @@ jobs:
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
 
-    - name: validate vault
+    - name: validate osd vault
       run: |
-        tests/scripts/deploy-validate-vault.sh validate
+        tests/scripts/deploy-validate-vault.sh validate_osd
         sudo lsblk
+
+    - name: validate rgw vault
+      run: |
+        tests/scripts/deploy-validate-vault.sh validate_rgw
 
     - name: Upload encryption-pvc-kms-vault-token-auth test result
       uses: actions/upload-artifact@v2

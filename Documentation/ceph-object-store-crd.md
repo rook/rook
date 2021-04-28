@@ -37,7 +37,7 @@ spec:
   preservePoolsOnDelete: true
   gateway:
     type: s3
-    sslCertificateRef:
+    # sslCertificateRef:
     port: 80
     # securePort: 443
     instances: 1
@@ -169,3 +169,33 @@ The endpoint health check procedure is the following:
 6. Update CR health status check
 
 Rook-Ceph always keeps the bucket and the user for the health check, it just does a PUT and GET of an s3 object since creating a bucket is an expensive operation.
+
+## Security settings
+
+Ceph RGW supports encryption via Key Management System (KMS) using HashiCorp Vault. Refer to the [vault kms section](ceph-cluster-crd.md#vault-kms) for detailed explanation.
+If these settings are defined, then RGW establish a connection between Vault and whenever S3 client sends a request with Server Side Encryption,
+it encrypts that using the key specified by the client. For more details w.r.t RGW, please refer [Ceph Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/)
+
+The `security` section contains settings related to KMS encryption of the RGW.
+
+```yaml
+security:
+  kms:
+    connectionDetails:
+      KMS_PROVIDER: vault
+      VAULT_ADDR: http://vault.default.svc.cluster.local:8200
+      VAULT_BACKEND_PATH: rgw
+      VAULT_SECRET_ENGINE: kv
+      VAULT_BACKEND: v2
+    # name of the k8s secret containing the kms authentication token
+    tokenSecretName: rgw-vault-token
+```
+
+For RGW, please note the following:
+
+* `VAULT_SECRET_ENGINE` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit). And for kv engine only version 2 is supported.
+* The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption
+$ vault kv put rook/<mybucketkey> key=$(openssl rand -base64 32) # kv engine
+$ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
+
+* TLS authentication with custom certs between Vault and RGW are yet to be supported.

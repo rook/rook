@@ -144,40 +144,40 @@ func GetParam(kmsConfig map[string]string, param string) string {
 }
 
 // ValidateConnectionDetails validates mandatory KMS connection details
-func ValidateConnectionDetails(clusterdContext *clusterd.Context, clusterSpec *cephv1.ClusterSpec, ns string) error {
+func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec cephv1.SecuritySpec, ns string) error {
 	ctx := context.TODO()
 	// A token must be specified
-	if !clusterSpec.Security.KeyManagementService.IsTokenAuthEnabled() {
+	if !securitySpec.KeyManagementService.IsTokenAuthEnabled() {
 		return errors.New("failed to validate kms configuration (missing token in spec)")
 	}
 
 	// Lookup mandatory connection details
 	for _, config := range kmsMandatoryConnectionDetails {
-		if GetParam(clusterSpec.Security.KeyManagementService.ConnectionDetails, config) == "" {
+		if GetParam(securitySpec.KeyManagementService.ConnectionDetails, config) == "" {
 			return errors.Errorf("failed to validate kms config %q. cannot be empty", config)
 		}
 	}
 
 	// Validate KMS provider connection details
-	switch GetParam(clusterSpec.Security.KeyManagementService.ConnectionDetails, Provider) {
+	switch GetParam(securitySpec.KeyManagementService.ConnectionDetails, Provider) {
 	case "vault":
-		err := validateVaultConnectionDetails(clusterdContext, ns, clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		err := validateVaultConnectionDetails(clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate vault connection details")
 		}
 	}
 
 	// Validate potential token Secret presence
-	if clusterSpec.Security.KeyManagementService.IsTokenAuthEnabled() {
-		kmsToken, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Get(ctx, clusterSpec.Security.KeyManagementService.TokenSecretName, metav1.GetOptions{})
+	if securitySpec.KeyManagementService.IsTokenAuthEnabled() {
+		kmsToken, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Get(ctx, securitySpec.KeyManagementService.TokenSecretName, metav1.GetOptions{})
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch kms token secret %q", clusterSpec.Security.KeyManagementService.TokenSecretName)
+			return errors.Wrapf(err, "failed to fetch kms token secret %q", securitySpec.KeyManagementService.TokenSecretName)
 		}
 
 		// Check for empty token
 		token, ok := kmsToken.Data[KMSTokenSecretNameKey]
 		if !ok || len(token) == 0 {
-			return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", KMSTokenSecretNameKey, clusterSpec.Security.KeyManagementService.TokenSecretName)
+			return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", KMSTokenSecretNameKey, securitySpec.KeyManagementService.TokenSecretName)
 		}
 	}
 
