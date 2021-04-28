@@ -189,7 +189,6 @@ type StorageClassDeviceSet struct {
 	// +optional
 	Config map[string]string `json:"config,omitempty"`
 	// VolumeClaimTemplates is a list of PVC templates for the underlying storage devices
-	// +kubebuilder:pruning:PreserveUnknownFields
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
 	// Portable represents OSD portability across the hosts
 	// +optional
