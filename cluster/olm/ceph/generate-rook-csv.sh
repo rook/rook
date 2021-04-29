@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 ##################
@@ -76,7 +76,8 @@ ROOK_OP_VERSION=$3
 #############
 # VARIABLES #
 #############
-SED_I=${SED_CMD:-"sed -i'' -e"}
+SED_I=(sed -i'' -e)
+[ -n "$SED_CMD" ] || read -ra SED_CMD <<< "${SED_I[@]}"
 YQ_CMD_DELETE=($yq delete -i)
 YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --prettyPrint)
 YQ_CMD_MERGE=($yq merge --inplace --append -P )
@@ -222,26 +223,26 @@ function hack_csv() {
     # rook-ceph-osd --> serviceAccountName
     #     rook-ceph-osd --> rule
 
-    $SED_I 's/rook-ceph-global/rook-ceph-system/' "$CSV_FILE_NAME"
-    $SED_I 's/rook-ceph-object-bucket/rook-ceph-system/' "$CSV_FILE_NAME"
-    $SED_I 's/rook-ceph-cluster-mgmt/rook-ceph-system/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/rook-ceph-global/rook-ceph-system/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/rook-ceph-object-bucket/rook-ceph-system/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/rook-ceph-cluster-mgmt/rook-ceph-system/' "$CSV_FILE_NAME"
 
-    $SED_I 's/rook-ceph-mgr-cluster/rook-ceph-mgr/' "$CSV_FILE_NAME"
-    $SED_I 's/rook-ceph-mgr-system/rook-ceph-mgr/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/rook-ceph-mgr-cluster/rook-ceph-mgr/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/rook-ceph-mgr-system/rook-ceph-mgr/' "$CSV_FILE_NAME"
 
-    $SED_I 's/cephfs-csi-nodeplugin/rook-csi-cephfs-plugin-sa/' "$CSV_FILE_NAME"
-    $SED_I 's/cephfs-external-provisioner-runner/rook-csi-cephfs-provisioner-sa/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/cephfs-csi-nodeplugin/rook-csi-cephfs-plugin-sa/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/cephfs-external-provisioner-runner/rook-csi-cephfs-provisioner-sa/' "$CSV_FILE_NAME"
 
-    $SED_I 's/rbd-csi-nodeplugin/rook-csi-rbd-plugin-sa/' "$CSV_FILE_NAME"
-    $SED_I 's/rbd-external-provisioner-runner/rook-csi-rbd-provisioner-sa/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/rbd-csi-nodeplugin/rook-csi-rbd-plugin-sa/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/rbd-external-provisioner-runner/rook-csi-rbd-provisioner-sa/' "$CSV_FILE_NAME"
     # The operator-sdk also does not properly respect when
     # Roles differ from the Service Account name
     # The operator-sdk instead assumes the Role/ClusterRole is the ServiceAccount name
     #
     # To account for these mappings, we have to replace Role/ClusterRole names with
     # the corresponding ServiceAccount.
-    $SED_I 's/cephfs-external-provisioner-cfg/rook-csi-cephfs-provisioner-sa/' "$CSV_FILE_NAME"
-    $SED_I 's/rbd-external-provisioner-cfg/rook-csi-rbd-provisioner-sa/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/cephfs-external-provisioner-cfg/rook-csi-cephfs-provisioner-sa/' "$CSV_FILE_NAME"
+    "${SED_I[@]}" 's/rbd-external-provisioner-cfg/rook-csi-rbd-provisioner-sa/' "$CSV_FILE_NAME"
 }
 
 function generate_package() {
