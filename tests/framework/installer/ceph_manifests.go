@@ -42,7 +42,7 @@ type CephManifests interface {
 	GetFilesystem(name string, activeCount int) string
 	GetNFS(name, pool string, daemonCount int) string
 	GetRBDMirror(name string, daemonCount int) string
-	GetObjectStore(name string, replicaCount, port int) string
+	GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string
 	GetObjectStoreUser(name, displayName, store string) string
 	GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region string) string
 	GetOBC(obcName, storageClassName, bucketName string, maxObject string, createBucket bool) string
@@ -385,7 +385,34 @@ spec:
     active: ` + strconv.Itoa(count)
 }
 
-func (m *CephManifestsMaster) GetObjectStore(name string, replicaCount, port int) string {
+func (m *CephManifestsMaster) GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string {
+	if tlsEnable {
+		return `apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: ` + name + `
+  namespace: ` + m.settings.Namespace + `
+spec:
+  metadataPool:
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+    compressionMode: passive
+  dataPool:
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+  gateway:
+    type: s3
+    securePort: ` + strconv.Itoa(port) + `
+    instances: ` + strconv.Itoa(replicaCount) + `
+    sslCertificateRef: ` + name + `
+  healthCheck:
+    bucket:
+      disabled: false
+      interval: 10s
+`
+	}
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:

@@ -17,6 +17,7 @@ limitations under the License.
 package clients
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ObjectUserOperation is wrapper for k8s rook object user operations
@@ -39,9 +41,16 @@ func CreateObjectUserOperation(k8sh *utils.K8sHelper, manifests installer.CephMa
 
 // ObjectUserGet Function to get the details of an object user from radosgw
 func (o *ObjectUserOperation) GetUser(namespace string, store string, userid string) (*rgw.ObjectUser, error) {
-	context := o.k8sh.MakeContext()
+	ctx := o.k8sh.MakeContext()
 	clusterInfo := client.AdminClusterInfo(namespace)
-	rgwcontext := rgw.NewContext(context, clusterInfo, store)
+	objectStore, err := o.k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(context.TODO(), store, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get objectstore info: %+v", err)
+	}
+	rgwcontext, err := rgw.NewMultisiteContext(ctx, clusterInfo, objectStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get RGW context: %+v", err)
+	}
 	userinfo, _, err := rgw.GetUser(rgwcontext, userid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %+v", err)
