@@ -79,13 +79,23 @@ function create_bluestore_partitions_and_pvcs_for_wal(){
 }
 
 function build_rook() {
+    build_type=build
+    if [ -n "$1" ]; then
+        build_type=$1
+    fi
     GOPATH=$(go env GOPATH) make clean
     # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-    make -j$nproc IMAGES='ceph' VERSION=0 build
+    make -j$nproc IMAGES='ceph' VERSION=0 "$build_type"
     # validate build
     tests/scripts/validate_modified_files.sh build
     docker images
-    docker tag $(docker images | awk '/build-/ {print $1}') rook/ceph:master
+    if [[ "$build_type" == "build" ]]; then
+        docker tag $(docker images | awk '/build-/ {print $1}') rook/ceph:master
+    fi
+}
+
+function build_rook_all() {
+    build_rook build.all
 }
 
 function validate_yaml() {

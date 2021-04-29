@@ -1,4 +1,4 @@
-name: MacOS build
+name: Builds
 on:
   pull_request:
 
@@ -43,6 +43,29 @@ jobs:
     - name: validate crds-gen
       working-directory: /Users/runner/go/src/github.com/rook/rook
       run: tests/scripts/validate_modified_files.sh crd
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+
+  linux-build-all:
+    runs-on: ubuntu-18.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: set up QEMU
+      uses: docker/setup-qemu-action@master
+      with:
+        platforms: all
+
+    - name: build.all rook
+      run: tests/scripts/github-action-helper.sh build_rook_all
 
     - name: setup tmate session for debugging
       if: failure()
