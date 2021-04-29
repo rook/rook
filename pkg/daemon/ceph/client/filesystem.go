@@ -205,12 +205,12 @@ func SetNumMDSRanks(context *clusterd.Context, clusterInfo *ClusterInfo, fsName 
 func FailAllStandbyReplayMDS(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) error {
 	fs, err := GetFilesystem(context, clusterInfo, fsName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to fail standby-replay MDSes for fs %s", fsName)
+		return errors.Wrapf(err, "failed to fail standby-replay MDSes for fs %q", fsName)
 	}
 	for _, info := range fs.MDSMap.Info {
 		if info.State == "up:standby-replay" {
 			if err := FailMDS(context, clusterInfo, info.GID); err != nil {
-				return errors.Wrapf(err, "failed to fail MDS %s for filesystem %s in up:standby-replay state", info.Name, fsName)
+				return errors.Wrapf(err, "failed to fail MDS %q for filesystem %q in up:standby-replay state", info.Name, fsName)
 			}
 		}
 	}
@@ -221,7 +221,7 @@ func FailAllStandbyReplayMDS(context *clusterd.Context, clusterInfo *ClusterInfo
 func GetMdsIdByRank(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, rank int32) (string, error) {
 	fs, err := GetFilesystem(context, clusterInfo, fsName)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get ceph fs dump")
+		return "", errors.Wrap(err, "failed to get ceph fs dump")
 	}
 	gid, ok := fs.MDSMap.Up[fmt.Sprintf("mds_%d", rank)]
 	if !ok {
@@ -375,14 +375,14 @@ func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, time
 	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
 		mdsDump, err := GetMDSDump(context, clusterInfo)
 		if err != nil {
-			logger.Errorf("failed to get fs dump, %v", err)
+			logger.Errorf("failed to get fs dump. %v", err)
 			return false, nil
 		}
 		return len(mdsDump.Standbys) == 0, nil
 	})
 
 	if err != nil {
-		return errors.Wrapf(err, "timeout waiting for no standbys")
+		return errors.Wrap(err, "timeout waiting for no standbys")
 	}
 	return nil
 }
@@ -396,7 +396,7 @@ func GetMDSDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*MDSDump, 
 	}
 	var dump MDSDump
 	if err := json.Unmarshal(buf, &dump); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal fs dump")
+		return nil, errors.Wrapf(err, "failed to unmarshal fs dump. %s", buf)
 	}
 	return &dump, nil
 }

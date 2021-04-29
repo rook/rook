@@ -184,7 +184,7 @@ func deleteMdsDeployment(clusterdContext *clusterd.Context, namespace string, de
 func scaleMdsDeployment(clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment, replicas int32) error {
 	ctx := context.TODO()
 	// scale mds deployment
-	logger.Infof("scaling mds deployment %s to %d replicas", deployment.Name, replicas)
+	logger.Infof("scaling mds deployment %q to %d replicas", deployment.Name, replicas)
 	d, err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Get(ctx, deployment.GetName(), metav1.GetOptions{})
 	if err != nil {
 		if replicas != 0 && kerrors.IsNotFound(err) {
