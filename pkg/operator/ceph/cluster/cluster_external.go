@@ -143,6 +143,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		}
 	}
 
+	// We don't update the connection status since it is done by the health go routine
 	return nil
 }
 
