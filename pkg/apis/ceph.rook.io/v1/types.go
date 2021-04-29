@@ -447,7 +447,7 @@ const (
 // MonSpec represents the specification of the monitor
 type MonSpec struct {
 	// Count is the number of Ceph monitors
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	Count int `json:"count"`
 	// AllowMultiplePerNode determines if we can run multiple monitors on the same node (not recommended)
 	// +optional

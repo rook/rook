@@ -322,8 +322,29 @@ func (h *CephInstaller) CreateRookExternalCluster(externalManifests CephManifest
 		return errors.Wrap(err, "failed to start toolbox on external cluster")
 	}
 
-	logger.Info("Rook external cluster started")
-	return err
+	var clusterStatus cephv1.ClusterStatus
+	for i := 0; i < 8; i++ {
+		ctx := context.TODO()
+		clusterResource, err := h.k8shelper.RookClientset.CephV1().CephClusters(externalSettings.Namespace).Get(ctx, externalSettings.ClusterName, metav1.GetOptions{})
+		if err != nil {
+			logger.Warningf("failed to get external cluster CR, retrying. %v", err)
+			time.Sleep(time.Second * 5)
+			continue
+		}
+
+		clusterStatus = clusterResource.Status
+		clusterPhase := string(clusterResource.Status.Phase)
+		if clusterPhase != "Connected" {
+			logger.Warningf("failed to start external cluster, retrying, state: %v", clusterResource.Status)
+			time.Sleep(time.Second * 5)
+		} else if clusterPhase == "Connected" {
+			logger.Info("Rook external cluster connected")
+			return nil
+		}
+
+	}
+
+	return errors.Errorf("failed to start external cluster, state: %v", clusterStatus)
 }
 
 // InjectRookExternalClusterInfo inject connection information for an external cluster
