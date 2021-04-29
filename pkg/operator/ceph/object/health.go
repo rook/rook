@@ -17,17 +17,13 @@ limitations under the License.
 package object
 
 import (
-	"context"
 	"fmt"
-	"io/ioutil"
 	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -123,11 +119,9 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 
 		Always keep the bucket and the user for the health check, just do PUT and GET because bucket creation is expensive
 	*/
-	ctx := context.TODO()
 	var s3AccessKey string
 	var s3SecretKey string
 	var tlsCert []byte
-	var tlsSecretCert *v1.Secret
 	s3endpoint := buildDNSEndpoint(BuildDomainName(c.objContext.Name, c.namespacedName.Namespace), c.port, c.objectStoreSpec.IsTLSEnabled())
 
 	// Generate unique user and bucket name
@@ -152,17 +146,9 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	s3SecretKey = *user.SecretKey
 
 	if c.objectStoreSpec.IsTLSEnabled() {
-		if c.objectStoreSpec.Gateway.SSLCertificateRef != "" {
-			tlsSecretCert, err = c.context.Clientset.CoreV1().Secrets(c.namespacedName.Namespace).Get(ctx, c.objectStoreSpec.Gateway.SSLCertificateRef, metav1.GetOptions{})
-			if err != nil {
-				return errors.Wrapf(err, "failed to get %q secret containing TLS certificate", c.objectStoreSpec.Gateway.SSLCertificateRef)
-			}
-			tlsCert = tlsSecretCert.Data[certKeyName]
-		} else if c.objectStoreSpec.GetServiceServingCert() != "" {
-			tlsCert, err = ioutil.ReadFile(ServiceServingCertCAFile)
-			if err != nil {
-				return errors.Wrapf(err, "failed to fetch TLS certificate from %q", ServiceServingCertCAFile)
-			}
+		tlsCert, err = GetTlsCaCert(c.objContext, c.objectStoreSpec)
+		if err != nil {
+			return errors.Wrapf(err, "failed to fetch CA cert for the user %q to establish TLS connection with the object store %q", userConfig.UserID, c.namespacedName.Name)
 		}
 	}
 
