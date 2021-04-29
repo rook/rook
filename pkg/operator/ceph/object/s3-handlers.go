@@ -37,6 +37,14 @@ type S3Agent struct {
 }
 
 func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte) (*S3Agent, error) {
+	return newS3Agent(accessKey, secretKey, endpoint, debug, tlsCert, false)
+}
+
+func NewTestOnlyS3Agent(accessKey, secretKey, endpoint string, debug bool) (*S3Agent, error) {
+	return newS3Agent(accessKey, secretKey, endpoint, debug, nil, true)
+}
+
+func newS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool) (*S3Agent, error) {
 	const cephRegion = "us-east-1"
 
 	logLevel := aws.LogOff
@@ -47,9 +55,16 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 		Timeout: HttpTimeOut,
 	}
 	tlsEnabled := false
-	if len(tlsCert) > 0 {
-		client.Transport = BuildTransportTLS(tlsCert)
+	if len(tlsCert) > 0 || insecure {
 		tlsEnabled = true
+		if len(tlsCert) > 0 {
+			client.Transport = BuildTransportTLS(tlsCert)
+		} else if insecure {
+			client.Transport = &http.Transport{
+				// #nosec G402 is enabled only for testing
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}
+		}
 	}
 	sess, err := session.NewSession(
 		aws.NewConfig().

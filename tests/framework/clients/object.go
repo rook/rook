@@ -40,10 +40,10 @@ func CreateObjectOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 }
 
 // ObjectCreate Function to create a object store in rook
-func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32) error {
+func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32, tlsEnable bool) error {
 
-	logger.Infof("creating the object store via CRD")
-	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStore(storeName, int(replicaCount), rgwPort)); err != nil {
+	logger.Info("creating the object store via CRD")
+	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStore(storeName, int(replicaCount), rgwPort, tlsEnable)); err != nil {
 		return err
 	}
 
