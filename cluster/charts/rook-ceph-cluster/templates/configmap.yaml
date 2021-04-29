@@ -1,0 +1,9 @@
+{{- if .Values.configOverride }}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: rook-config-override
+data:
+  config: |
+{{ .Values.configOverride | nindent 4 }}
+{{- end }}
