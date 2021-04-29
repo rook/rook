@@ -140,7 +140,7 @@ function create_LV_on_disk() {
     VG=test-rook-vg
     LV=test-rook-lv
     sudo pvcreate "$BLOCK"
-    sudo vgcreate "$VG" "$BLOCK"
+    sudo vgcreate "$VG" "$BLOCK" || sudo vgcreate "$VG" "$BLOCK" || sudo vgcreate "$VG" "$BLOCK"
     sudo lvcreate -l 100%FREE -n "${LV}" "${VG}"
     tests/scripts/localPathPV.sh /dev/"${VG}"/${LV}
     kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
