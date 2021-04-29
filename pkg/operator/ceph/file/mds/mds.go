@@ -109,12 +109,12 @@ func (c *Cluster) Start() error {
 	// upgrading MDS cluster needs to set max_mds to 1 and stop all stand-by MDSes first
 	isUpgrade, err := c.isCephUpgrade()
 	if err != nil {
-		return errors.Wrapf(err, "failed to determine if MDS cluster for filesystem %s needs upgraded", c.fs.Name)
+		return errors.Wrapf(err, "failed to determine if MDS cluster for filesystem %q needs upgraded", c.fs.Name)
 	}
 	if isUpgrade {
 		fsPreparedForUpgrade = true
 		if err := c.upgradeMDS(); err != nil {
-			return errors.Wrapf(err, "failed to upgrade MDS cluster for filesystem %s", c.fs.Name)
+			return errors.Wrapf(err, "failed to upgrade MDS cluster for filesystem %q", c.fs.Name)
 		}
 		logger.Infof("successfully upgraded MDS cluster for filesystem %q", c.fs.Name)
 	}
@@ -137,7 +137,7 @@ func (c *Cluster) Start() error {
 	for i := 0; i < int(replicas); i++ {
 		deployment, err := c.startDeployment(ctx, k8sutil.IndexToName(i))
 		if err != nil {
-			return errors.Wrapf(err, "failed to start deployment for MDS %s for filesystem %s", k8sutil.IndexToName(i), c.fs.Name)
+			return errors.Wrapf(err, "failed to start deployment for MDS %q for filesystem %q", k8sutil.IndexToName(i), c.fs.Name)
 		}
 		desiredDeployments[deployment] = true
 	}
@@ -186,7 +186,7 @@ func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (s
 	// start the deployment
 	d, err := c.makeDeployment(mdsConfig, c.fs.Namespace)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to create deployment")
+		return "", errors.Wrap(err, "failed to create deployment")
 	}
 	// Set owner ref to cephFilesystem object
 	err = c.ownerInfo.SetControllerReference(d)
@@ -205,16 +205,16 @@ func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (s
 		if !kerrors.IsAlreadyExists(createErr) {
 			return "", errors.Wrapf(createErr, "failed to create mds deployment %s", mdsConfig.ResourceName)
 		}
-		logger.Infof("deployment for mds %s already exists. updating if needed", mdsConfig.ResourceName)
+		logger.Infof("deployment for mds %q already exists. updating if needed", mdsConfig.ResourceName)
 		_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(ctx, d.Name, metav1.GetOptions{})
 		if err != nil {
-			return "", errors.Wrapf(err, "failed to get existing mds deployment %s for update", d.Name)
+			return "", errors.Wrapf(err, "failed to get existing mds deployment %q for update", d.Name)
 		}
 	}
 
 	if createErr != nil && kerrors.IsAlreadyExists(createErr) {
 		if err = UpdateDeploymentAndWait(c.context, c.clusterInfo, d, config.MdsType, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-			return "", errors.Wrapf(err, "failed to update mds deployment %s", d.Name)
+			return "", errors.Wrapf(err, "failed to update mds deployment %q", d.Name)
 		}
 	}
 	return d.GetName(), nil
@@ -224,7 +224,6 @@ func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (s
 func (c *Cluster) isCephUpgrade() (bool, error) {
 
 	allVersions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
-
 	if err != nil {
 		return false, err
 	}
@@ -234,7 +233,7 @@ func (c *Cluster) isCephUpgrade() (bool, error) {
 			return false, err
 		}
 		if cephver.IsSuperior(c.clusterInfo.CephVersion, *currentVersion) {
-			logger.Debugf("ceph version for MDS %q is %q and mon version is %q", key, currentVersion, c.clusterInfo.CephVersion)
+			logger.Debugf("ceph version for MDS %q is %q and target version is %q", key, currentVersion, c.clusterInfo.CephVersion)
 			return true, err
 		}
 	}
@@ -248,30 +247,29 @@ func (c *Cluster) upgradeMDS() error {
 
 	// 1. set allow_standby_replay to false
 	if err := cephclient.AllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, false); err != nil {
-		return errors.Wrapf(err, "failed to setting allow_standby_replay to false")
+		return errors.Wrap(err, "failed to setting allow_standby_replay to false")
 	}
 
 	// In Pacific, standby-replay daemons are stopped automatically. Older versions of Ceph require us to stop these daemons manually.
 	if err := cephclient.FailAllStandbyReplayMDS(c.context, c.clusterInfo, c.fs.Name); err != nil {
-		return errors.Wrapf(err, "failed to fail mds agent in up:standby-replay state")
+		return errors.Wrap(err, "failed to fail mds agent in up:standby-replay state")
 	}
 
 	// 2. set max_mds to 1
 	logger.Debug("start setting active mds count to 1")
 	if err := cephclient.SetNumMDSRanks(c.context, c.clusterInfo, c.fs.Name, 1); err != nil {
-		logger.Warningf("failed setting active mds count to %d. %v", 1, err)
-		return err
+		return errors.Wrapf(err, "failed setting active mds count to %d", 1)
 	}
 
 	// 3. wait for ranks to be 0
 	if err := cephclient.WaitForActiveRanks(c.context, c.clusterInfo, c.fs.Name, 1, false, fsWaitForActiveTimeout); err != nil {
-		return errors.Wrapf(err, "failed waiting for active ranks to be 1")
+		return errors.Wrap(err, "failed waiting for active ranks to be 1")
 	}
 
 	// 4. stop standby daemons
 	daemonName, err := cephclient.GetMdsIdByRank(c.context, c.clusterInfo, c.fs.Name, 0)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get mds id from rank 0")
+		return errors.Wrap(err, "failed to get mds id from rank 0")
 	}
 	daemonNameTokens := strings.Split(daemonName, "-")
 	daemonLetterID := daemonNameTokens[len(daemonNameTokens)-1]
@@ -281,19 +279,19 @@ func (c *Cluster) upgradeMDS() error {
 	logger.Debugf("stop mds other than %s", daemonName)
 	err = c.scaleDownDeployments(1, 1, desiredDeployments, false)
 	if err != nil {
-		return errors.Wrapf(err, "failed to scale down deployments during upgrade")
+		return errors.Wrap(err, "failed to scale down deployments during upgrade")
 	}
 	logger.Debugf("waiting for all standbys gone")
 	if err := cephclient.WaitForNoStandbys(c.context, c.clusterInfo, 120*time.Second); err != nil {
-		return errors.Wrapf(err, "failed to wait for stopping all standbys")
+		return errors.Wrap(err, "failed to wait for stopping all standbys")
 	}
 
 	// 5. upgrade current active deployment and wait for it come back
 	_, err = c.startDeployment(context.TODO(), daemonLetterID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to upgrade mds %s", daemonName)
+		return errors.Wrapf(err, "failed to upgrade mds %q", daemonName)
 	}
-	logger.Debugf("successfully started daemon %s", daemonName)
+	logger.Debugf("successfully started daemon %q", daemonName)
 
 	// 6. all other MDS daemons will be updated and restarted by main MDS code path
 
@@ -339,13 +337,13 @@ func (c *Cluster) scaleDownDeployments(replicas int32, activeCount int32, desire
 				// stop mds daemon only by scaling deployment replicas to 0
 				if err := scaleMdsDeployment(c.context, c.fs.Namespace, &localdeployment, 0); err != nil {
 					errCount++
-					logger.Errorf("error scaling mds deployment %s, error %v", localdeployment.GetName(), err)
+					logger.Errorf("failed to scale mds deployment %q. %v", localdeployment.GetName(), err)
 				}
 				continue
 			}
 			if err := deleteMdsDeployment(c.context, c.fs.Namespace, &localdeployment); err != nil {
 				errCount++
-				logger.Errorf("error during deletion of mds deployments. %v", err)
+				logger.Errorf("failed to delete mds deployment. %v", err)
 			}
 
 			daemonName := strings.Replace(d.GetName(), fmt.Sprintf("%s-", AppName), "", -1)
@@ -399,7 +397,7 @@ func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclien
 
 	// set allow_standby_replay back
 	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fsName, fs.Spec.MetadataServer.ActiveStandby); err != nil {
-		return errors.Wrapf(err, "failed to setting allow_standby_replay to true")
+		return errors.Wrap(err, "failed to set allow_standby_replay to true")
 	}
 
 	return nil
