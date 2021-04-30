@@ -19,6 +19,10 @@ For documentation on consuming the storage:
 * RBD: See the [Block Storage](ceph-block.md) topic
 * CephFS: See the [Shared Filesystem](ceph-filesystem.md) topic
 
+## Static Provisioning
+
+Both drivers also support the creation of static PV and static PVC from existing RBD image/CephFS volume. Refer to [static PVC](https://github.com/ceph/ceph-csi/blob/devel/docs/static-pvc.md) for more information.
+
 ## Configure CSI Drivers in non-default namespace
 
 If you've deployed the Rook operator in a namespace other than "rook-ceph",
