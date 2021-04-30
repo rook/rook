@@ -22,7 +22,7 @@ CONTROLLER_GEN_BIN_PATH=$1
 YQ_BIN_PATH=$2
 : "${MAX_DESC_LEN:=-1}"
 # allowDangerousTypes is used to accept float64
-CRD_OPTIONS="crd:maxDescLen=$MAX_DESC_LEN,trivialVersions=true,allowDangerousTypes=true"
+CRD_OPTIONS="crd:maxDescLen=$MAX_DESC_LEN,trivialVersions=true,generateEmbeddedObjectMeta=true,allowDangerousTypes=true"
 OLM_CATALOG_DIR="${SCRIPT_ROOT}/cluster/olm/ceph/deploy/crds"
 CRDS_FILE_PATH="${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/crds.yaml"
 HELM_CRDS_FILE_PATH="${SCRIPT_ROOT}/cluster/charts/rook-ceph/templates/resources.yaml"
@@ -41,15 +41,6 @@ copy_ob_obc_crds() {
 generating_crds_v1() {
   echo "Generating v1 in crds.yaml"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
-  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.mon.properties.stretchCluster.properties.zones.items.properties.volumeClaimTemplate.properties.metadata.x-kubernetes-preserve-unknown-fields true
-  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.mon.properties.volumeClaimTemplate.properties.metadata.x-kubernetes-preserve-unknown-fields true
-  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.volumeClaimTemplates.items.properties.metadata.x-kubernetes-preserve-unknown-fields true
-  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.nodes.items.properties.volumeClaimTemplates.items.properties.metadata.x-kubernetes-preserve-unknown-fields true
-  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.x-kubernetes-preserve-unknown-fields true
-  # fixes a bug in yq: https://github.com/mikefarah/yq/issues/351 where the '---' gets removed
-  sed -i'' -e '1i\
----
-' cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml
 }
 
 generating_crds_v1alpha2() {
@@ -115,7 +106,10 @@ generate_vol_rep_crds
 generating_main_crd
 
 for crd in "$OLM_CATALOG_DIR/"*.yaml; do
-  cat "$crd" >> "$CRDS_FILE_PATH"
+  echo "---" >> "$CRDS_FILE_PATH" # yq doesn't output doc separators
+  # Process each intermediate CRD file with yq to enforce consistent formatting in the final product
+  # regardless of whether yq was used in previous steps to alter CRD intermediate files.
+  $YQ_BIN_PATH read "$crd" >> "$CRDS_FILE_PATH"
 done
 
 build_helm_resources
