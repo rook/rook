@@ -20,6 +20,10 @@ func (s *ObjectStoreSpec) IsMultisite() bool {
 	return s.Zone.Name != ""
 }
 
+func (s *ObjectStoreSpec) IsTLSEnabled() bool {
+	return s.Gateway.SecurePort != 0 && s.Gateway.SSLCertificateRef != ""
+}
+
 func (s *ObjectStoreSpec) IsExternal() bool {
 	return len(s.Gateway.ExternalRgwEndpoints) != 0
 }

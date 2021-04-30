@@ -160,7 +160,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
 	s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 	s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
-	s3client, err := rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
+	s3client, err := rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
 	require.Nil(s.T(), err)
 	logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 
