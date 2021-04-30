@@ -78,6 +78,11 @@ If you want to force a mon to failover for testing or other purposes, you can sc
 for the timeout. Note that the operator may scale up the mon again automatically if the operator is restarted or if a full
 reconcile is triggered, such as when the CephCluster CR is updated.
 
+If the mon pod is in pending state and couldn't be assigned to a node (say, due to node drain), then the operator will wait for the timeout again before the mon failover. So the timeout waiting for the mon failover will be doubled in this case.
+
+To disable monitor automatic failover, the `timeout` can be set to `0`, if the monitor goes out of quorum Rook will never fail it over onto another node.
+This is especially useful for planned maintenance.
+
 ### Example Failover
 
 Rook will create mons with pod names such as mon-a, mon-b, and mon-c. Let's say mon-b had an issue and the pod failed.
