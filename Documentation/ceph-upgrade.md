@@ -493,7 +493,7 @@ k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.2
 ## Replace lvm mode OSDs with raw mode (if you use LV-backed PVC)
 
 For LV-backed PVC, we recommend replacing lvm mode OSDs with raw mode OSDs. See
-[common issue](Documentation/ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc).
+[common issue](ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc).
 
 
 ## Migrate the Drive Group spec
