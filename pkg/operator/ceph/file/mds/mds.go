@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -104,9 +105,23 @@ func (c *Cluster) Start() error {
 	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to
 	// bring fs state back to desired when this method returns with any error or success.
 	var fsPreparedForUpgrade = false
+
+	// upgrading MDS cluster needs to set max_mds to 1 and stop all stand-by MDSes first
+	isUpgrade, err := c.isCephUpgrade()
+	if err != nil {
+		return errors.Wrapf(err, "failed to determine if MDS cluster for filesystem %q needs upgraded", c.fs.Name)
+	}
+	if isUpgrade {
+		fsPreparedForUpgrade = true
+		if err := c.upgradeMDS(); err != nil {
+			return errors.Wrapf(err, "failed to upgrade MDS cluster for filesystem %q", c.fs.Name)
+		}
+		logger.Infof("successfully upgraded MDS cluster for filesystem %q", c.fs.Name)
+	}
+
 	defer func() {
 		if fsPreparedForUpgrade {
-			if err := finishedWithDaemonUpgrade(c.context, c.clusterInfo, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
+			if err := finishedWithDaemonUpgrade(c.context, c.clusterInfo, c.fs); err != nil {
 				logger.Errorf("for filesystem %q, USER should make sure the Ceph fs max_mds property is set to %d. %v",
 					c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount, err)
 			}
@@ -120,86 +135,172 @@ func (c *Cluster) Start() error {
 	desiredDeployments := map[string]bool{} // improvised set
 	// Create/update deployments
 	for i := 0; i < int(replicas); i++ {
-		daemonLetterID := k8sutil.IndexToName(i)
-		// Each mds is id'ed by <fsname>-<letterID>
-		daemonName := fmt.Sprintf("%s-%s", c.fs.Name, daemonLetterID)
-		// resource name is rook-ceph-mds-<fs_name>-<daemon_name>
-		resourceName := fmt.Sprintf("%s-%s-%s", AppName, c.fs.Name, daemonLetterID)
-
-		mdsConfig := &mdsConfig{
-			ResourceName: resourceName,
-			DaemonID:     daemonName,
-			DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, daemonName, c.fs.Namespace, c.dataDirHostPath),
-		}
-
-		// create unique key for each mds saved to k8s secret
-		_, err := c.generateKeyring(mdsConfig)
+		deployment, err := c.startDeployment(ctx, k8sutil.IndexToName(i))
 		if err != nil {
-			return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
+			return errors.Wrapf(err, "failed to start deployment for MDS %q for filesystem %q", k8sutil.IndexToName(i), c.fs.Name)
 		}
-
-		// Set the mds config flags
-		// Previously we were checking if the deployment was present, if not we would set the config flags
-		// Which means that we would only set the flag on newly created CephFilesystem CR
-		// Unfortunately, on upgrade we would not set the flags which is not ideal for old clusters where we were no setting those flags
-		// The KV supports setting those flags even if the MDS is running
-		logger.Info("setting mds config flags")
-		err = c.setDefaultFlagsMonConfigStore(mdsConfig.DaemonID)
-		if err != nil {
-			// Getting EPERM typically happens when the flag may not be modified at runtime
-			// This is fine to ignore
-			code, ok := exec.ExitStatus(err)
-			if ok && code != int(syscall.EPERM) {
-				return errors.Wrap(err, "failed to set default rgw config options")
-			}
-		}
-
-		// start the deployment
-		d, err := c.makeDeployment(mdsConfig, c.fs.Namespace)
-		if err != nil {
-			return errors.Wrapf(err, "failed to create deployment")
-		}
-		// Set owner ref to cephFilesystem object
-		err = c.ownerInfo.SetControllerReference(d)
-		if err != nil {
-			return errors.Wrapf(err, "failed to set owner reference for mds deployment %q", d.Name)
-		}
-
-		// Set the deployment hash as an annotation
-		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
-		if err != nil {
-			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
-		}
-
-		_, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(ctx, d, metav1.CreateOptions{})
-		if createErr != nil {
-			if !kerrors.IsAlreadyExists(createErr) {
-				return errors.Wrapf(createErr, "failed to create mds deployment %s", mdsConfig.ResourceName)
-			}
-			logger.Infof("deployment for mds %s already exists. updating if needed", mdsConfig.ResourceName)
-			_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(ctx, d.Name, metav1.GetOptions{})
-			if err != nil {
-				return errors.Wrapf(err, "failed to get existing mds deployment %s for update", d.Name)
-			}
-		}
-
-		if createErr != nil && kerrors.IsAlreadyExists(createErr) {
-			if err = UpdateDeploymentAndWait(c.context, c.clusterInfo, d, config.MdsType, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
-				return errors.Wrapf(err, "failed to update mds deployment %s", d.Name)
-			}
-		}
-		desiredDeployments[d.GetName()] = true // add deployment name to improvised set
-
+		desiredDeployments[deployment] = true
 	}
 
-	if err := c.scaleDownDeployments(replicas, desiredDeployments); err != nil {
+	if err := c.scaleDownDeployments(replicas, c.fs.Spec.MetadataServer.ActiveCount, desiredDeployments, true); err != nil {
 		return errors.Wrap(err, "failed to scale down mds deployments")
 	}
 
 	return nil
 }
 
-func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[string]bool) error {
+func (c *Cluster) startDeployment(ctx context.Context, daemonLetterID string) (string, error) {
+	// Each mds is id'ed by <fsname>-<letterID>
+	daemonName := fmt.Sprintf("%s-%s", c.fs.Name, daemonLetterID)
+	// resource name is rook-ceph-mds-<fs_name>-<daemon_name>
+	resourceName := fmt.Sprintf("%s-%s-%s", AppName, c.fs.Name, daemonLetterID)
+
+	mdsConfig := &mdsConfig{
+		ResourceName: resourceName,
+		DaemonID:     daemonName,
+		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, daemonName, c.fs.Namespace, c.dataDirHostPath),
+	}
+
+	// create unique key for each mds saved to k8s secret
+	_, err := c.generateKeyring(mdsConfig)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
+	}
+
+	// Set the mds config flags
+	// Previously we were checking if the deployment was present, if not we would set the config flags
+	// Which means that we would only set the flag on newly created CephFilesystem CR
+	// Unfortunately, on upgrade we would not set the flags which is not ideal for old clusters where we were no setting those flags
+	// The KV supports setting those flags even if the MDS is running
+	logger.Info("setting mds config flags")
+	err = c.setDefaultFlagsMonConfigStore(mdsConfig.DaemonID)
+	if err != nil {
+		// Getting EPERM typically happens when the flag may not be modified at runtime
+		// This is fine to ignore
+		code, ok := exec.ExitStatus(err)
+		if ok && code != int(syscall.EPERM) {
+			return "", errors.Wrap(err, "failed to set default rgw config options")
+		}
+	}
+
+	// start the deployment
+	d, err := c.makeDeployment(mdsConfig, c.fs.Namespace)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create deployment")
+	}
+	// Set owner ref to cephFilesystem object
+	err = c.ownerInfo.SetControllerReference(d)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to set owner reference for ceph filesystem %q secret", d.Name)
+	}
+
+	// Set the deployment hash as an annotation
+	err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
+	}
+
+	_, createErr := c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Create(ctx, d, metav1.CreateOptions{})
+	if createErr != nil {
+		if !kerrors.IsAlreadyExists(createErr) {
+			return "", errors.Wrapf(createErr, "failed to create mds deployment %s", mdsConfig.ResourceName)
+		}
+		logger.Infof("deployment for mds %q already exists. updating if needed", mdsConfig.ResourceName)
+		_, err = c.context.Clientset.AppsV1().Deployments(c.fs.Namespace).Get(ctx, d.Name, metav1.GetOptions{})
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to get existing mds deployment %q for update", d.Name)
+		}
+	}
+
+	if createErr != nil && kerrors.IsAlreadyExists(createErr) {
+		if err = UpdateDeploymentAndWait(c.context, c.clusterInfo, d, config.MdsType, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+			return "", errors.Wrapf(err, "failed to update mds deployment %q", d.Name)
+		}
+	}
+	return d.GetName(), nil
+}
+
+// isCephUpgrade determine if mds version inferior than image
+func (c *Cluster) isCephUpgrade() (bool, error) {
+
+	allVersions, err := cephclient.GetAllCephDaemonVersions(c.context, c.clusterInfo)
+	if err != nil {
+		return false, err
+	}
+	for key := range allVersions.Mds {
+		currentVersion, err := cephver.ExtractCephVersion(key)
+		if err != nil {
+			return false, err
+		}
+		if cephver.IsSuperior(c.clusterInfo.CephVersion, *currentVersion) {
+			logger.Debugf("ceph version for MDS %q is %q and target version is %q", key, currentVersion, c.clusterInfo.CephVersion)
+			return true, err
+		}
+	}
+
+	return false, nil
+}
+
+func (c *Cluster) upgradeMDS() error {
+
+	logger.Info("upgrading MDS cluster for filesystem %q", c.fs.Name)
+
+	// 1. set allow_standby_replay to false
+	if err := cephclient.AllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, false); err != nil {
+		return errors.Wrap(err, "failed to setting allow_standby_replay to false")
+	}
+
+	// In Pacific, standby-replay daemons are stopped automatically. Older versions of Ceph require us to stop these daemons manually.
+	if err := cephclient.FailAllStandbyReplayMDS(c.context, c.clusterInfo, c.fs.Name); err != nil {
+		return errors.Wrap(err, "failed to fail mds agent in up:standby-replay state")
+	}
+
+	// 2. set max_mds to 1
+	logger.Debug("start setting active mds count to 1")
+	if err := cephclient.SetNumMDSRanks(c.context, c.clusterInfo, c.fs.Name, 1); err != nil {
+		return errors.Wrapf(err, "failed setting active mds count to %d", 1)
+	}
+
+	// 3. wait for ranks to be 0
+	if err := cephclient.WaitForActiveRanks(c.context, c.clusterInfo, c.fs.Name, 1, false, fsWaitForActiveTimeout); err != nil {
+		return errors.Wrap(err, "failed waiting for active ranks to be 1")
+	}
+
+	// 4. stop standby daemons
+	daemonName, err := cephclient.GetMdsIdByRank(c.context, c.clusterInfo, c.fs.Name, 0)
+	if err != nil {
+		return errors.Wrap(err, "failed to get mds id from rank 0")
+	}
+	daemonNameTokens := strings.Split(daemonName, "-")
+	daemonLetterID := daemonNameTokens[len(daemonNameTokens)-1]
+	desiredDeployments := map[string]bool{
+		fmt.Sprintf("%s-%s-%s", AppName, c.fs.Name, daemonLetterID): true,
+	}
+	logger.Debugf("stop mds other than %s", daemonName)
+	err = c.scaleDownDeployments(1, 1, desiredDeployments, false)
+	if err != nil {
+		return errors.Wrap(err, "failed to scale down deployments during upgrade")
+	}
+	logger.Debugf("waiting for all standbys gone")
+	if err := cephclient.WaitForNoStandbys(c.context, c.clusterInfo, 120*time.Second); err != nil {
+		return errors.Wrap(err, "failed to wait for stopping all standbys")
+	}
+
+	// 5. upgrade current active deployment and wait for it come back
+	_, err = c.startDeployment(context.TODO(), daemonLetterID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to upgrade mds %q", daemonName)
+	}
+	logger.Debugf("successfully started daemon %q", daemonName)
+
+	// 6. all other MDS daemons will be updated and restarted by main MDS code path
+
+	// 7. max_mds & allow_standby_replay will be reset in deferred function finishedWithDaemonUpgrade
+
+	return nil
+}
+
+func (c *Cluster) scaleDownDeployments(replicas int32, activeCount int32, desiredDeployments map[string]bool, delete bool) error {
 	// Remove extraneous mds deployments if they exist
 	deps, err := getMdsDeployments(c.context, c.fs.Namespace, c.fs.Name)
 	if err != nil {
@@ -218,12 +319,9 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 	errCount := 0
 	for _, d := range deps.Items {
 		if _, ok := desiredDeployments[d.GetName()]; !ok {
-			// if deployment name is NOT in improvised set, delete it
-			logger.Infof("Deleting extraneous mds deployment %s", d.GetName())
 			// if the extraneous mdses are the only ones active, Ceph may experience fs downtime
 			// if deleting them too quickly; therefore, wait until number of active mdses is desired
-			if err := cephclient.WaitForActiveRanks(c.context, c.clusterInfo, c.fs.Name,
-				c.fs.Spec.MetadataServer.ActiveCount, true, fsWaitForActiveTimeout); err != nil {
+			if err := cephclient.WaitForActiveRanks(c.context, c.clusterInfo, c.fs.Name, activeCount, true, fsWaitForActiveTimeout); err != nil {
 				errCount++
 				logger.Errorf(
 					"number of active mds ranks is not as desired. it is potentially unsafe to continue with extraneous mds deletion, so stopping. " +
@@ -233,10 +331,19 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 				)
 				break // stop trying to delete daemons, but continue to reporting any errors below
 			}
+
 			localdeployment := d
+			if !delete {
+				// stop mds daemon only by scaling deployment replicas to 0
+				if err := scaleMdsDeployment(c.context, c.fs.Namespace, &localdeployment, 0); err != nil {
+					errCount++
+					logger.Errorf("failed to scale mds deployment %q. %v", localdeployment.GetName(), err)
+				}
+				continue
+			}
 			if err := deleteMdsDeployment(c.context, c.fs.Namespace, &localdeployment); err != nil {
 				errCount++
-				logger.Errorf("error during deletion of extraneous mds deployments. %v", err)
+				logger.Errorf("failed to delete mds deployment. %v", err)
 			}
 
 			daemonName := strings.Replace(d.GetName(), fmt.Sprintf("%s-", AppName), "", -1)
@@ -249,7 +356,11 @@ func (c *Cluster) scaleDownDeployments(replicas int32, desiredDeployments map[st
 	if errCount > 0 {
 		return errors.Wrapf(err, "%d error(s) during deletion of extraneous mds deployments, see logs above", errCount)
 	}
-	logger.Infof("successfully deleted extraneous mds deployments")
+	deletedOrStopped := "deleted"
+	if !delete {
+		deletedOrStopped = "stopped"
+	}
+	logger.Infof("successfully %s unwanted MDS deployments", deletedOrStopped)
 
 	return nil
 }
@@ -273,7 +384,9 @@ func (c *Cluster) DeleteMdsCephObjects(mdsID string) error {
 
 // finishedWithDaemonUpgrade performs all actions necessary to bring the filesystem back to its
 // ideal state following an upgrade of its daemon(s).
-func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, fsName string, activeMDSCount int32) error {
+func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, fs cephv1.CephFilesystem) error {
+	fsName := fs.Name
+	activeMDSCount := fs.Spec.MetadataServer.ActiveCount
 	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
 	logger.Debugf("bringing num active MDS daemons for fs %s back to %d", fsName, activeMDSCount)
 	// TODO: Unknown (Apr 2020) if this can be removed once Rook no longer supports Nautilus.
@@ -281,5 +394,11 @@ func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclien
 	if err := cephclient.SetNumMDSRanks(context, clusterInfo, fsName, activeMDSCount); err != nil {
 		return errors.Wrapf(err, "Failed to restore filesystem %s following daemon upgrade", fsName)
 	}
+
+	// set allow_standby_replay back
+	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fsName, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+		return errors.Wrap(err, "failed to set allow_standby_replay to true")
+	}
+
 	return nil
 }

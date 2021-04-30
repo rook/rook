@@ -18,7 +18,9 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -165,4 +167,427 @@ func TestFilesystemRemove(t *testing.T) {
 	assert.True(t, metadataDeleted)
 	assert.True(t, dataDeleted)
 	assert.True(t, crushDeleted)
+}
+
+func TestFailAllStandbyReplayMDS(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	failedGids := make([]string, 0)
+	fs := CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				failedGids = append(failedGids, args[2])
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	err := FailAllStandbyReplayMDS(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, failedGids, []string{"124"})
+
+	fs = CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", errors.Errorf("unexpected execution of mds fail")
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	err = FailAllStandbyReplayMDS(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName)
+	assert.NoError(t, err)
+
+	fs = CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", errors.Errorf("expected execution of mds fail")
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	err = FailAllStandbyReplayMDS(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "expected execution of mds fail")
+}
+
+func TestGetMdsIdByRank(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	fs := CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	name, err := GetMdsIdByRank(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, 0)
+	assert.Equal(t, name, "myfs1-a")
+	assert.NoError(t, err)
+
+	// test errors
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				return "", errors.Errorf("test ceph fs get error")
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	name, err = GetMdsIdByRank(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, 0)
+	assert.Equal(t, "", name)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "test ceph fs get error")
+
+	fs = CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_1": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_123": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	// test get mds by id failed error
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	name, err = GetMdsIdByRank(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, 0)
+	assert.Equal(t, "", name)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get mds gid from rank 0")
+
+	fs = CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			Up: map[string]int{
+				"mds_0": 123,
+			},
+			DataPools: []int{3},
+			Info: map[string]MDSInfo{
+				"gid_122": {
+					GID:   123,
+					State: "up:active",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "a"),
+				},
+				"gid_124": {
+					GID:   124,
+					State: "up:standby-replay",
+					Name:  fmt.Sprintf("%s-%s", "myfs1", "b"),
+				},
+			},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "mds" {
+			if args[1] == "fail" {
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	name, err = GetMdsIdByRank(context, AdminClusterInfo("mycluster"), fs.MDSMap.FilesystemName, 0)
+	assert.Equal(t, "", name)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get mds info for rank 0")
+}
+
+func TestGetMDSDump(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "dump" {
+				output := `{"epoch":12,"default_fscid":1,"compat":{"compat":{},"ro_compat":{},"incompat":
+				{"feature_1":"base v0.20","feature_2":"client writeable ranges","feature_3":"default file layouts on dirs",
+				"feature_4":"dir inode in separate object","feature_5":"mds uses versioned encoding","feature_6":"dirfrag is stored in omap",
+				"feature_8":"no anchor table","feature_9":"file layout v2","feature_10":"snaprealm v2"}},"feature_flags":
+				{"enable_multiple":false,"ever_enabled_multiple":false},"standbys":[{"gid":26829,"name":"rook-ceph-filesystem-b","rank":-1,"incarnation":0,"state":"up:standby",
+				"state_seq":1,"addr":"10.110.29.245:6805/3170687682","addrs":{"addrvec":[{"type":"v2","addr":"10.110.29.245:6804","nonce":3170687682},{"type":"v1","addr":"10.110.29.245:6805","nonce":3170687682}]},"export_targets":[],"features":4611087854035861503,"flags":0,"epoch":12}],"filesystems":[{"mdsmap":{"epoch":11,"flags":18,"ever_allowed_features":32,"explicitly_allowed_features":32,"created":"2021-04-23 01:52:33.467863",
+				"modified":"2021-04-23 08:31:03.019621","tableserver":0,"root":0,"session_timeout":60,"session_autoclose":300,"min_compat_client":"-1 (unspecified)","max_file_size":1099511627776,"last_failure":0,"last_failure_osd_epoch":0,"compat":{"compat":{},"ro_compat":{},"incompat":{"feature_1":"base v0.20","feature_2":"client writeable ranges","feature_3":"default file layouts on dirs","feature_4":"dir inode in separate object","feature_5":"mds uses versioned encoding","feature_6":"dirfrag is stored in omap","feature_8":"no anchor table","feature_9":"file layout v2",
+				"feature_10":"snaprealm v2"}},"max_mds":1,"in":[0],"up":{"mds_0":14707},"failed":[],"damaged":[],"stopped":[],"info":{"gid_14707":{"gid":14707,"name":"rook-ceph-filesystem-a","rank":0,"incarnation":5,"state":"up:active","state_seq":2,"addr":"10.110.29.236:6807/1996297745","addrs":{"addrvec":[{"type":"v2","addr":"10.110.29.236:6806","nonce":1996297745},
+				{"type":"v1","addr":"10.110.29.236:6807","nonce":1996297745}]},"export_targets":[],"features":4611087854035861503,"flags":0}},"data_pools":[3],"metadata_pool":2,"enabled":true,"fs_name":"rook-ceph-filesystem","balancer":"","standby_count_wanted":1},"id":1}]}`
+				return output, nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	mdsDump, err := GetMDSDump(context, AdminClusterInfo("mycluster"))
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, mdsDump.Standbys, []MDSStandBy{{Name: "rook-ceph-filesystem-b", Rank: -1}})
+
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "dump" {
+				return "", errors.Errorf("dump fs failed")
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	_, err = GetMDSDump(context, AdminClusterInfo("mycluster"))
+	assert.Error(t, err)
+}
+
+func TestWaitForNoStandbys(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "dump" {
+				output := `{"epoch":12,"default_fscid":1,"compat":{"compat":{},"ro_compat":{},"incompat":
+				{"feature_1":"base v0.20","feature_2":"client writeable ranges","feature_3":"default file layouts on dirs",
+				"feature_4":"dir inode in separate object","feature_5":"mds uses versioned encoding","feature_6":"dirfrag is stored in omap",
+				"feature_8":"no anchor table","feature_9":"file layout v2","feature_10":"snaprealm v2"}},"feature_flags":
+				{"enable_multiple":false,"ever_enabled_multiple":false},"standbys":[{"gid":26829,"name":"rook-ceph-filesystem-b","rank":-1,"incarnation":0,"state":"up:standby",
+				"state_seq":1,"addr":"10.110.29.245:6805/3170687682","addrs":{"addrvec":[{"type":"v2","addr":"10.110.29.245:6804","nonce":3170687682},{"type":"v1","addr":"10.110.29.245:6805","nonce":3170687682}]},"export_targets":[],"features":4611087854035861503,"flags":0,"epoch":12}],"filesystems":[{"mdsmap":{"epoch":11,"flags":18,"ever_allowed_features":32,"explicitly_allowed_features":32,"created":"2021-04-23 01:52:33.467863",
+				"modified":"2021-04-23 08:31:03.019621","tableserver":0,"root":0,"session_timeout":60,"session_autoclose":300,"min_compat_client":"-1 (unspecified)","max_file_size":1099511627776,"last_failure":0,"last_failure_osd_epoch":0,"compat":{"compat":{},"ro_compat":{},"incompat":{"feature_1":"base v0.20","feature_2":"client writeable ranges","feature_3":"default file layouts on dirs","feature_4":"dir inode in separate object","feature_5":"mds uses versioned encoding","feature_6":"dirfrag is stored in omap","feature_8":"no anchor table","feature_9":"file layout v2",
+				"feature_10":"snaprealm v2"}},"max_mds":1,"in":[0],"up":{"mds_0":14707},"failed":[],"damaged":[],"stopped":[],"info":{"gid_14707":{"gid":14707,"name":"rook-ceph-filesystem-a","rank":0,"incarnation":5,"state":"up:active","state_seq":2,"addr":"10.110.29.236:6807/1996297745","addrs":{"addrvec":[{"type":"v2","addr":"10.110.29.236:6806","nonce":1996297745},
+				{"type":"v1","addr":"10.110.29.236:6807","nonce":1996297745}]},"export_targets":[],"features":4611087854035861503,"flags":0}},"data_pools":[3],"metadata_pool":2,"enabled":true,"fs_name":"rook-ceph-filesystem","balancer":"","standby_count_wanted":1},"id":1}]}`
+				return output, nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	err := WaitForNoStandbys(context, AdminClusterInfo("mycluster"), 6*time.Second)
+	assert.Error(t, err)
+
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "dump" {
+				return "", errors.Errorf("failed to dump fs info")
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	err = WaitForNoStandbys(context, AdminClusterInfo("mycluster"), 6*time.Second)
+	assert.Error(t, err)
+
+	firstCall := true
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "dump" {
+				if firstCall {
+					firstCall = false
+					output := `{"epoch":12,"default_fscid":1,"compat":{"compat":{},"ro_compat":{},"incompat":
+				{"feature_1":"base v0.20","feature_2":"client writeable ranges","feature_3":"default file layouts on dirs",
+				"feature_4":"dir inode in separate object","feature_5":"mds uses versioned encoding","feature_6":"dirfrag is stored in omap",
+				"feature_8":"no anchor table","feature_9":"file layout v2","feature_10":"snaprealm v2"}},"feature_flags":
+				{"enable_multiple":false,"ever_enabled_multiple":false},"standbys":[{"gid":26829,"name":"rook-ceph-filesystem-b","rank":-1,"incarnation":0,"state":"up:standby",
+				"state_seq":1,"addr":"10.110.29.245:6805/3170687682","addrs":{"addrvec":[{"type":"v2","addr":"10.110.29.245:6804","nonce":3170687682},{"type":"v1","addr":"10.110.29.245:6805","nonce":3170687682}]},"export_targets":[],"features":4611087854035861503,"flags":0,"epoch":12}],"filesystems":[{"mdsmap":{"epoch":11,"flags":18,"ever_allowed_features":32,"explicitly_allowed_features":32,"created":"2021-04-23 01:52:33.467863",
+				"modified":"2021-04-23 08:31:03.019621","tableserver":0,"root":0,"session_timeout":60,"session_autoclose":300,"min_compat_client":"-1 (unspecified)","max_file_size":1099511627776,"last_failure":0,"last_failure_osd_epoch":0,"compat":{"compat":{},"ro_compat":{},"incompat":{"feature_1":"base v0.20","feature_2":"client writeable ranges","feature_3":"default file layouts on dirs","feature_4":"dir inode in separate object","feature_5":"mds uses versioned encoding","feature_6":"dirfrag is stored in omap","feature_8":"no anchor table","feature_9":"file layout v2",
+				"feature_10":"snaprealm v2"}},"max_mds":1,"in":[0],"up":{"mds_0":14707},"failed":[],"damaged":[],"stopped":[],"info":{"gid_14707":{"gid":14707,"name":"rook-ceph-filesystem-a","rank":0,"incarnation":5,"state":"up:active","state_seq":2,"addr":"10.110.29.236:6807/1996297745","addrs":{"addrvec":[{"type":"v2","addr":"10.110.29.236:6806","nonce":1996297745},
+				{"type":"v1","addr":"10.110.29.236:6807","nonce":1996297745}]},"export_targets":[],"features":4611087854035861503,"flags":0}},"data_pools":[3],"metadata_pool":2,"enabled":true,"fs_name":"rook-ceph-filesystem","balancer":"","standby_count_wanted":1},"id":1}]}`
+					return output, nil
+				}
+
+				return `{"standbys":[],"filesystemds":[]}`, nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	err = WaitForNoStandbys(context, AdminClusterInfo("mycluster"), 6*time.Second)
+	assert.NoError(t, err)
+
 }

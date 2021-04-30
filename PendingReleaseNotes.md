@@ -37,3 +37,4 @@ v1.6...
 * Monitors failover can be [disabled](Documentation/ceph-mon-health.md#failing-over-a-monitor), this is useful for monitor going under planned maintenance where automatic failover is not desired
 * RGW: Rook has started using deployment's replicatset functionality instead of deploying multiple deployments for each rgw
 * Support running Volume Replication Controller on the RBD provisioner pod. Depends on Cephcsi v3.3.0
+* Stop standby mds agents before upgrading ceph filesystem
