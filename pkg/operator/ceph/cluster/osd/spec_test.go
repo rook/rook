@@ -669,7 +669,7 @@ func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
 	assert.Equal(t, 3, len(containers))
 }
 
-// WARNING! modifies c.ValidStorage
+// WARNING! modifies c.deviceSets
 func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName string, osdID int) *appsv1.Deployment {
 	osd := OSDInfo{
 		ID:        osdID,
@@ -677,7 +677,7 @@ func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName stri
 		BlockPath: "/some/path",
 		CVMode:    "raw",
 	}
-	c.ValidStorage.VolumeSources = append(c.ValidStorage.VolumeSources, rookv1.VolumeSource{
+	c.deviceSets = append(c.deviceSets, deviceSet{
 		Name: pvcName,
 		PVCSources: map[string]v1.PersistentVolumeClaimVolumeSource{
 			bluestorePVCData: {ClaimName: pvcName},

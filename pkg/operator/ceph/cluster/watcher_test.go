@@ -54,12 +54,7 @@ func fakeCluster(ns string) *cephv1.CephCluster {
 			Phase: "",
 		},
 		Spec: cephv1.ClusterSpec{
-			Storage: rookv1.StorageScopeSpec{
-				UseAllNodes:            false,
-				Nodes:                  nil,
-				VolumeSources:          nil,
-				StorageClassDeviceSets: nil,
-			},
+			Storage: rookv1.StorageScopeSpec{},
 		},
 	}
 	return cephCluster
@@ -80,14 +75,6 @@ func TestCheckStorageForNode(t *testing.T) {
 		},
 	}
 	cephCluster.Spec.Storage.Nodes = fakeNodes
-	assert.True(t, checkStorageForNode(cephCluster))
-
-	fakeVolumes := []rookv1.VolumeSource{
-		{
-			Name: "volumeA",
-		},
-	}
-	cephCluster.Spec.Storage.VolumeSources = fakeVolumes
 	assert.True(t, checkStorageForNode(cephCluster))
 
 	fakeDeviceSets := []rookv1.StorageClassDeviceSet{
@@ -139,18 +126,12 @@ func TestOnK8sNode(t *testing.T) {
 			Name: "nodeA",
 		},
 	}
-	fakeVolumes := []rookv1.VolumeSource{
-		{
-			Name: "volumeA",
-		},
-	}
 	fakeDeviceSets := []rookv1.StorageClassDeviceSet{
 		{
 			Name: "DeviceSet1",
 		},
 	}
 	cephCluster.Spec.Storage.Nodes = fakeNodes
-	cephCluster.Spec.Storage.VolumeSources = fakeVolumes
 	cephCluster.Spec.Storage.StorageClassDeviceSets = fakeDeviceSets
 	cephCluster.Spec.Storage.UseAllNodes = true
 	cephCluster.Status.Phase = k8sutil.ReadyStatus
