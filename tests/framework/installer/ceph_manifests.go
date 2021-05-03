@@ -478,7 +478,11 @@ metadata:
 spec:
   external:
     enable: true
-  dataDirHostPath: ` + m.settings.DataDirHostPath + ``
+  dataDirHostPath: ` + m.settings.DataDirHostPath + `
+  healthCheck:
+    daemonHealth:
+      status:
+        interval: 5s`
 }
 
 // GetRBDMirror returns the manifest to create a Rook Ceph RBD Mirror resource with the given config.

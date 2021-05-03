@@ -782,7 +782,7 @@ spec:
                       type: boolean
                     count:
                       description: Count is the number of Ceph monitors
-                      minimum: 1
+                      minimum: 0
                       type: integer
                     stretchCluster:
                       description: StretchCluster is the stretch cluster specification
