@@ -78,6 +78,7 @@ type Cluster struct {
 	spec         cephv1.ClusterSpec
 	ValidStorage rookv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
 	kv           *k8sutil.ConfigMapKVStore
+	deviceSets   []deviceSet
 }
 
 // New creates an instance of the OSD manager
@@ -174,7 +175,7 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("start running osds in namespace %q", namespace)
 
-	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 && len(c.spec.Storage.VolumeSources) == 0 && len(c.spec.Storage.StorageClassDeviceSets) == 0 {
+	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 && len(c.spec.Storage.StorageClassDeviceSets) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes, storageClassDevicesets or volumeSources are specified, no OSD pods are going to be created")
 	}
 
@@ -232,10 +233,6 @@ func (c *Cluster) Start() error {
 
 	logger.Infof("finished running OSDs in namespace %q", namespace)
 	return nil
-}
-
-func (c *Cluster) shouldProvisionOverPVCs() bool {
-	return len(c.spec.Storage.VolumeSources) > 0 || len(c.spec.Storage.StorageClassDeviceSets) > 0
 }
 
 func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (*util.Set, error) {
@@ -322,29 +319,29 @@ func (c *Cluster) getOSDPropsForNode(nodeName string) (osdProperties, error) {
 }
 
 func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
-	for _, volumeSource := range c.ValidStorage.VolumeSources {
+	for _, deviceSet := range c.deviceSets {
 		// The data PVC template is required.
-		dataSource, dataOK := volumeSource.PVCSources[bluestorePVCData]
+		dataSource, dataOK := deviceSet.PVCSources[bluestorePVCData]
 		if !dataOK {
-			logger.Warningf("failed to find data source daemon for device set %q, missing the data template", volumeSource.Name)
+			logger.Warningf("failed to find data source daemon for device set %q, missing the data template", deviceSet.Name)
 			continue
 		}
 
 		if pvcName == dataSource.ClaimName {
-			metadataSource, metadataOK := volumeSource.PVCSources[bluestorePVCMetadata]
+			metadataSource, metadataOK := deviceSet.PVCSources[bluestorePVCMetadata]
 			if metadataOK {
 				logger.Infof("OSD will have its main bluestore block on %q and its metadata device on %q", dataSource.ClaimName, metadataSource.ClaimName)
 			} else {
 				logger.Infof("OSD will have its main bluestore block on %q", dataSource.ClaimName)
 			}
 
-			walSource, walOK := volumeSource.PVCSources[bluestorePVCWal]
+			walSource, walOK := deviceSet.PVCSources[bluestorePVCWal]
 			if walOK {
 				logger.Infof("OSD will have its wal device on %q", walSource.ClaimName)
 			}
 
-			if volumeSource.Resources.Limits == nil && volumeSource.Resources.Requests == nil {
-				volumeSource.Resources = cephv1.GetOSDResources(c.spec.Resources)
+			if deviceSet.Resources.Limits == nil && deviceSet.Resources.Requests == nil {
+				deviceSet.Resources = cephv1.GetOSDResources(c.spec.Resources)
 			}
 
 			osdProps := osdProperties{
@@ -352,22 +349,22 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				pvc:                 dataSource,
 				metadataPVC:         metadataSource,
 				walPVC:              walSource,
-				resources:           volumeSource.Resources,
-				placement:           volumeSource.Placement,
-				preparePlacement:    volumeSource.PreparePlacement,
-				portable:            volumeSource.Portable,
-				tuneSlowDeviceClass: volumeSource.TuneSlowDeviceClass,
-				tuneFastDeviceClass: volumeSource.TuneFastDeviceClass,
-				pvcSize:             volumeSource.Size,
-				schedulerName:       volumeSource.SchedulerName,
-				encrypted:           volumeSource.Encrypted,
-				deviceSetName:       volumeSource.Name,
+				resources:           deviceSet.Resources,
+				placement:           deviceSet.Placement,
+				preparePlacement:    deviceSet.PreparePlacement,
+				portable:            deviceSet.Portable,
+				tuneSlowDeviceClass: deviceSet.TuneSlowDeviceClass,
+				tuneFastDeviceClass: deviceSet.TuneFastDeviceClass,
+				pvcSize:             deviceSet.Size,
+				schedulerName:       deviceSet.SchedulerName,
+				encrypted:           deviceSet.Encrypted,
+				deviceSetName:       deviceSet.Name,
 			}
-			osdProps.storeConfig.InitialWeight = volumeSource.CrushInitialWeight
+			osdProps.storeConfig.InitialWeight = deviceSet.CrushInitialWeight
 
 			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
 			// or from the osd prepare job from initial creation.
-			if !volumeSource.Portable {
+			if !deviceSet.Portable {
 				var err error
 				osdProps.crushHostname, err = c.getPVCHostName(pvcName)
 				if err != nil {

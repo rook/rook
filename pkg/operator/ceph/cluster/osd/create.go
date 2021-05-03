@@ -127,13 +127,11 @@ func (c *createConfig) doneWithStatus(nodeOrPVCName string) {
 // usage of awaitingStatusConfigMaps in this file.
 func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provisionErrors) (*util.Set, error) {
 	// Parsing storageClassDeviceSets and parsing it to volume sources
-	c.spec.Storage.VolumeSources = append(c.spec.Storage.VolumeSources, c.prepareStorageClassDeviceSets(errs)...)
-
-	c.ValidStorage.VolumeSources = c.spec.Storage.VolumeSources
+	c.prepareStorageClassDeviceSets(errs)
 
 	// no valid VolumeSource is ready to run an osd
-	if !c.shouldProvisionOverPVCs() {
-		logger.Info("no storageClassDeviceSets or volumeSources are defined to configure OSDs on PVCs")
+	if len(c.deviceSets) == 0 {
+		logger.Info("no storageClassDeviceSets defined to configure OSDs on PVCs")
 		return util.NewSet(), nil
 	}
 
@@ -155,7 +153,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 	}
 
 	awaitingStatusConfigMaps := util.NewSet()
-	for _, volume := range c.ValidStorage.VolumeSources {
+	for _, volume := range c.deviceSets {
 		// Check whether we need to cancel the orchestration
 		if err := opcontroller.CheckForCancelledOrchestration(c.context); err != nil {
 			return awaitingStatusConfigMaps, err

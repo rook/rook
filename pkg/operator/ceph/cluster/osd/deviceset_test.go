@@ -65,14 +65,14 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 	}
 
 	errs := newProvisionErrors()
-	volumeSources := cluster.prepareStorageClassDeviceSets(errs)
-	assert.Equal(t, 1, len(volumeSources))
+	cluster.prepareStorageClassDeviceSets(errs)
+	assert.Equal(t, 1, len(cluster.deviceSets))
 	assert.Equal(t, 0, errs.len())
-	assert.Equal(t, "mydata", volumeSources[0].Name)
-	assert.True(t, volumeSources[0].Portable)
-	_, dataOK := volumeSources[0].PVCSources["data"]
+	assert.Equal(t, "mydata", cluster.deviceSets[0].Name)
+	assert.True(t, cluster.deviceSets[0].Portable)
+	_, dataOK := cluster.deviceSets[0].PVCSources["data"]
 	assert.True(t, dataOK)
-	assert.Equal(t, "custom-scheduler", volumeSources[0].SchedulerName)
+	assert.Equal(t, "custom-scheduler", cluster.deviceSets[0].SchedulerName)
 
 	// Verify that the PVC has the expected generated name with the default of "data" in the name
 	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
@@ -140,12 +140,12 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 
 	// Create 3 PVCs for two OSDs in the device set
 	config := newProvisionErrors()
-	volumeSources := cluster.prepareStorageClassDeviceSets(config)
-	assert.Equal(t, 1, len(volumeSources))
+	cluster.prepareStorageClassDeviceSets(config)
+	assert.Equal(t, 1, len(cluster.deviceSets))
 	assert.Equal(t, 0, config.len())
-	assert.Equal(t, "mydata", volumeSources[0].Name)
-	assert.True(t, volumeSources[0].Portable)
-	_, dataOK := volumeSources[0].PVCSources["data"]
+	assert.Equal(t, "mydata", cluster.deviceSets[0].Name)
+	assert.True(t, cluster.deviceSets[0].Portable)
+	_, dataOK := cluster.deviceSets[0].PVCSources["data"]
 	assert.True(t, dataOK)
 
 	// Verify the PVCs all exist
@@ -158,8 +158,8 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 
 	// Create 3 more PVCs (6 total) for two OSDs in the device set
 	cluster.spec.Storage.StorageClassDeviceSets[0].Count = 2
-	volumeSources = cluster.prepareStorageClassDeviceSets(config)
-	assert.Equal(t, 2, len(volumeSources))
+	cluster.prepareStorageClassDeviceSets(config)
+	assert.Equal(t, 2, len(cluster.deviceSets))
 	assert.Equal(t, 0, config.len())
 
 	// Verify the PVCs all exist
@@ -174,8 +174,8 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 	assertPVCExists(t, clientset, ns, "mydata-wal-1-5")
 
 	// Verify the same number of PVCs exist after calling the reconcile again on the PVCs
-	volumeSources = cluster.prepareStorageClassDeviceSets(config)
-	assert.Equal(t, 2, len(volumeSources))
+	cluster.prepareStorageClassDeviceSets(config)
+	assert.Equal(t, 2, len(cluster.deviceSets))
 	pvcs, err = clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(pvcs.Items))
@@ -183,8 +183,8 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 	// Delete a single PVC and verify it will be re-created
 	err = clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).Delete(ctx, "mydata-wal-0-2", metav1.DeleteOptions{})
 	assert.NoError(t, err)
-	volumeSources = cluster.prepareStorageClassDeviceSets(config)
-	assert.Equal(t, 2, len(volumeSources))
+	cluster.prepareStorageClassDeviceSets(config)
+	assert.Equal(t, 2, len(cluster.deviceSets))
 	pvcs, err = clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(pvcs.Items))
@@ -197,16 +197,16 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 	assert.NoError(t, err)
 	err = clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).Delete(ctx, "mydata-wal-0-6", metav1.DeleteOptions{})
 	assert.NoError(t, err)
-	volumeSources = cluster.prepareStorageClassDeviceSets(config)
-	assert.Equal(t, 1, len(volumeSources))
+	cluster.prepareStorageClassDeviceSets(config)
+	assert.Equal(t, 1, len(cluster.deviceSets))
 	pvcs, err = clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(pvcs.Items))
 
 	// Scale back up to a count of two and confirm that a new index is used for the PVCs
 	cluster.spec.Storage.StorageClassDeviceSets[0].Count = 2
-	volumeSources = cluster.prepareStorageClassDeviceSets(config)
-	assert.Equal(t, 2, len(volumeSources))
+	cluster.prepareStorageClassDeviceSets(config)
+	assert.Equal(t, 2, len(cluster.deviceSets))
 	pvcs, err = clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(pvcs.Items))
@@ -257,10 +257,10 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 	}
 
 	config := newProvisionErrors()
-	volumeSources := cluster.prepareStorageClassDeviceSets(config)
-	assert.Equal(t, 1, len(volumeSources))
-	assert.Equal(t, volumeSources[0].CrushDeviceClass, "ssd")
-	assert.Equal(t, volumeSources[0].CrushInitialWeight, "0.75")
+	cluster.prepareStorageClassDeviceSets(config)
+	assert.Equal(t, 1, len(cluster.deviceSets))
+	assert.Equal(t, cluster.deviceSets[0].CrushDeviceClass, "ssd")
+	assert.Equal(t, cluster.deviceSets[0].CrushInitialWeight, "0.75")
 
 	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(cluster.clusterInfo.Namespace).List(ctx, metav1.ListOptions{})
 	assert.NoError(t, err)
