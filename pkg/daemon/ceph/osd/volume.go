@@ -558,6 +558,9 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 				deviceArg,
 			}...)
 
+			// assign the device class specific to the device
+			immediateExecuteArgs = a.appendDeviceClassArg(device, immediateExecuteArgs)
+
 			// execute ceph-volume with the device
 			op, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, immediateExecuteArgs...)
 			if err != nil {
@@ -668,17 +671,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				}...)
 
 				// assign the device class specific to the device
-				deviceClass := device.Config.DeviceClass
-				if deviceClass == "" {
-					// fall back to the device class for all devices on the node
-					deviceClass = a.storeConfig.DeviceClass
-				}
-				if deviceClass != "" {
-					immediateExecuteArgs = append(immediateExecuteArgs, []string{
-						crushDeviceClassFlag,
-						deviceClass,
-					}...)
-				}
+				immediateExecuteArgs = a.appendDeviceClassArg(device, immediateExecuteArgs)
 
 				// Reporting
 				immediateReportArgs := append(immediateExecuteArgs, []string{
@@ -798,6 +791,21 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 	}
 
 	return nil
+}
+
+func (a *OsdAgent) appendDeviceClassArg(device *DeviceOsdIDEntry, args []string) []string {
+	deviceClass := device.Config.DeviceClass
+	if deviceClass == "" {
+		// fall back to the device class for all devices on the node
+		deviceClass = a.storeConfig.DeviceClass
+	}
+	if deviceClass != "" {
+		args = append(args, []string{
+			crushDeviceClassFlag,
+			deviceClass,
+		}...)
+	}
+	return args
 }
 
 func lvmPreReq(context *clusterd.Context, pvcBacked, lvBackedPV bool) error {
