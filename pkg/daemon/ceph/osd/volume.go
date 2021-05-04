@@ -75,7 +75,7 @@ type osdInfo struct {
 	Name string  `json:"name"`
 	Path string  `json:"path"`
 	Tags osdTags `json:"tags"`
-	// "data" or "journal" for filestore and "block" for bluestore
+	// "block" for bluestore
 	Type string `json:"type"`
 }
 
@@ -858,16 +858,12 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			continue
 		}
 		var osdFSID string
-		store := "bluestore"
 		for _, osd := range osdInfo {
 			if osd.Tags.ClusterFSID != cephfsid {
 				logger.Infof("skipping osd%d: %q running on a different ceph cluster %q", id, osd.Tags.OSDFSID, osd.Tags.ClusterFSID)
 				continue
 			}
 			osdFSID = osd.Tags.OSDFSID
-			if osd.Type == "journal" {
-				store = "filestore"
-			}
 
 			// If no lv is specified let's take the one we discovered
 			if lv == "" {
@@ -895,7 +891,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			SkipLVRelease: skipLVRelease,
 			LVBackedPV:    lvBackedPV,
 			CVMode:        cvMode,
-			Store:         store,
+			Store:         "bluestore",
 		}
 		osds = append(osds, osd)
 	}
