@@ -33,13 +33,45 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) []rookv1.VolumeSource {
-	volumeSources := []rookv1.VolumeSource{}
+// deviceSet is the processed version of the StorageClassDeviceSet
+type deviceSet struct {
+	// Name is the name of the volume source
+	Name string
+	// PVCSources
+	PVCSources map[string]v1.PersistentVolumeClaimVolumeSource
+	// CrushDeviceClass represents the crush device class for an OSD
+	CrushDeviceClass string
+	// CrushInitialWeight represents initial OSD weight in TiB units
+	CrushInitialWeight string
+	// Size represents the size requested for the PVC
+	Size string
+	// Resources requests/limits for the devices
+	Resources v1.ResourceRequirements
+	// Placement constraints for the device daemons
+	Placement rookv1.Placement
+	// Placement constraints for the device preparation
+	PreparePlacement *rookv1.Placement
+	// Provider-specific device configuration
+	Config map[string]string
+	// Portable represents OSD portability across the hosts
+	Portable bool
+	// TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	TuneSlowDeviceClass bool
+	// TuneFastDeviceClass Tune the OSD when running on a fast Device Class
+	TuneFastDeviceClass bool
+	// Scheduler name for OSD pod placement
+	SchedulerName string
+	// Whether to encrypt the deviceSet
+	Encrypted bool
+}
+
+func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) {
+	c.deviceSets = []deviceSet{}
 
 	existingPVCs, uniqueOSDsPerDeviceSet, err := GetExistingPVCs(c.context, c.clusterInfo.Namespace)
 	if err != nil {
 		errs.addError("failed to detect existing OSD PVCs. %v", err)
-		return volumeSources
+		return
 	}
 
 	// Iterate over deviceSet
@@ -69,8 +101,8 @@ func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) []rookv1.
 				if pvcID > highestExistingID {
 					highestExistingID = pvcID
 				}
-				volumeSource := c.createDeviceSetPVCsForIndex(deviceSet, existingPVCs, pvcID, errs)
-				volumeSources = append(volumeSources, volumeSource)
+				deviceSet := c.createDeviceSetPVCsForIndex(deviceSet, existingPVCs, pvcID, errs)
+				c.deviceSets = append(c.deviceSets, deviceSet)
 			}
 			countInDeviceSet = existingIDs.Count()
 		}
@@ -82,16 +114,14 @@ func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) []rookv1.
 		}
 		for i := 0; i < pvcsToCreate; i++ {
 			pvcID := highestExistingID + i + 1
-			volumeSource := c.createDeviceSetPVCsForIndex(deviceSet, existingPVCs, pvcID, errs)
-			volumeSources = append(volumeSources, volumeSource)
+			deviceSet := c.createDeviceSetPVCsForIndex(deviceSet, existingPVCs, pvcID, errs)
+			c.deviceSets = append(c.deviceSets, deviceSet)
 			countInDeviceSet++
 		}
 	}
-
-	return volumeSources
 }
 
-func (c *Cluster) createDeviceSetPVCsForIndex(deviceSet rookv1.StorageClassDeviceSet, existingPVCs map[string]*v1.PersistentVolumeClaim, setIndex int, errs *provisionErrors) rookv1.VolumeSource {
+func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet rookv1.StorageClassDeviceSet, existingPVCs map[string]*v1.PersistentVolumeClaim, setIndex int, errs *provisionErrors) deviceSet {
 	// Create the PVC source for each of the data, metadata, and other types of templates if defined.
 	pvcSources := map[string]v1.PersistentVolumeClaimVolumeSource{}
 
@@ -99,27 +129,27 @@ func (c *Cluster) createDeviceSetPVCsForIndex(deviceSet rookv1.StorageClassDevic
 	var crushDeviceClass string
 	var crushInitialWeight string
 	typesFound := util.NewSet()
-	for _, pvcTemplate := range deviceSet.VolumeClaimTemplates {
+	for _, pvcTemplate := range newDeviceSet.VolumeClaimTemplates {
 		if pvcTemplate.Name == "" {
 			// For backward compatibility a blank name must be treated as a data volume
 			pvcTemplate.Name = bluestorePVCData
 		}
 		if typesFound.Contains(pvcTemplate.Name) {
-			errs.addError("found duplicate volume claim template %q for device set %q", pvcTemplate.Name, deviceSet.Name)
+			errs.addError("found duplicate volume claim template %q for device set %q", pvcTemplate.Name, newDeviceSet.Name)
 			continue
 		}
 		typesFound.Add(pvcTemplate.Name)
 
-		pvc, err := c.createDeviceSetPVC(existingPVCs, deviceSet.Name, pvcTemplate, setIndex)
+		pvc, err := c.createDeviceSetPVC(existingPVCs, newDeviceSet.Name, pvcTemplate, setIndex)
 		if err != nil {
-			errs.addError("failed to provision PVC for device set %q index %d. %v", deviceSet.Name, setIndex, err)
+			errs.addError("failed to provision PVC for device set %q index %d. %v", newDeviceSet.Name, setIndex, err)
 			continue
 		}
 
 		// The PVC type must be from a predefined set such as "data", "metadata", and "wal". These names must be enforced if the wal/db are specified
 		// with a separate device, but if there is a single volume template we can assume it is always the data template.
 		pvcType := pvcTemplate.Name
-		if len(deviceSet.VolumeClaimTemplates) == 1 {
+		if len(newDeviceSet.VolumeClaimTemplates) == 1 {
 			pvcType = bluestorePVCData
 		}
 
@@ -136,21 +166,21 @@ func (c *Cluster) createDeviceSetPVCsForIndex(deviceSet rookv1.StorageClassDevic
 		}
 	}
 
-	return rookv1.VolumeSource{
-		Name:                deviceSet.Name,
-		Resources:           deviceSet.Resources,
-		Placement:           deviceSet.Placement,
-		PreparePlacement:    deviceSet.PreparePlacement,
-		Config:              deviceSet.Config,
+	return deviceSet{
+		Name:                newDeviceSet.Name,
+		Resources:           newDeviceSet.Resources,
+		Placement:           newDeviceSet.Placement,
+		PreparePlacement:    newDeviceSet.PreparePlacement,
+		Config:              newDeviceSet.Config,
 		Size:                dataSize,
 		PVCSources:          pvcSources,
-		Portable:            deviceSet.Portable,
-		TuneSlowDeviceClass: deviceSet.TuneSlowDeviceClass,
-		TuneFastDeviceClass: deviceSet.TuneFastDeviceClass,
-		SchedulerName:       deviceSet.SchedulerName,
+		Portable:            newDeviceSet.Portable,
+		TuneSlowDeviceClass: newDeviceSet.TuneSlowDeviceClass,
+		TuneFastDeviceClass: newDeviceSet.TuneFastDeviceClass,
+		SchedulerName:       newDeviceSet.SchedulerName,
 		CrushDeviceClass:    crushDeviceClass,
 		CrushInitialWeight:  crushInitialWeight,
-		Encrypted:           deviceSet.Encrypted,
+		Encrypted:           newDeviceSet.Encrypted,
 	}
 }
 
