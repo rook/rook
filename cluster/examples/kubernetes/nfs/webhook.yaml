@@ -111,7 +111,7 @@ spec:
     spec:
       containers:
       - name: rook-nfs-webhook
-        image: rook/nfs:v1.5.10
+        image: rook/nfs:v1.5.11
         imagePullPolicy: IfNotPresent
         args: ["nfs", "webhook"]
         ports:

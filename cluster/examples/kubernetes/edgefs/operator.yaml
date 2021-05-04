@@ -414,7 +414,7 @@ spec:
       serviceAccountName: rook-edgefs-system
       containers:
       - name: rook-edgefs-operator
-        image: rook/edgefs:v1.5.10
+        image: rook/edgefs:v1.5.11
         imagePullPolicy: "Always"
         args: ["edgefs", "operator"]
         env:
