@@ -70,20 +70,6 @@ spec:
     priorityClassName:
 ```
 
- Enable the creation of NFS exports in the dashboard for a given cephfs or object gateway pool by running the following command in the toolbox container:
-
-[For single NFS-GANESHA cluster](https://docs.ceph.com/en/latest/mgr/dashboard/#configuring-nfs-ganesha-in-the-dashboard)  
-
-```console 
-ceph dashboard set-ganesha-clusters-rados-pool-namespace <ganesha_pool_name>[/<ganesha_namespace>]
-```
-
-[For multiple NFS-GANESHA cluster](https://docs.ceph.com/en/latest/mgr/dashboard/#support-for-multiple-nfs-ganesha-clusters)
-
-```console
-ceph dashboard set-ganesha-clusters-rados-pool-namespace <cluster_id>:<pool_name>[/<namespace>](,<cluster_id>:<pool_name>[/<namespace>])*
-```
-
 ## NFS Settings
 
 ### RADOS Settings
