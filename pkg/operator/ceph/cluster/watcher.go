@@ -50,7 +50,7 @@ func newClientCluster(client client.Client, namespace string, context *clusterd.
 }
 
 func checkStorageForNode(cluster *cephv1.CephCluster) bool {
-	if !cluster.Spec.Storage.UseAllNodes && len(cluster.Spec.Storage.Nodes) == 0 && len(cluster.Spec.Storage.VolumeSources) == 0 && len(cluster.Spec.Storage.StorageClassDeviceSets) == 0 {
+	if !cluster.Spec.Storage.UseAllNodes && len(cluster.Spec.Storage.Nodes) == 0 && len(cluster.Spec.Storage.StorageClassDeviceSets) == 0 {
 		logger.Debugf("node watcher: useAllNodes is set to false and no nodes storageClassDevicesets or volumeSources are specified in cluster %q, skipping", cluster.Namespace)
 		return false
 	}
