@@ -127,7 +127,7 @@ func watchControllerPredicate(rookContext *clusterd.Context) predicate.Funcs {
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
 				isDoNotReconcile := controller.IsDoNotReconcile(objNew.GetLabels())
 				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", controller.DoNotReconcileLabelName, objNew.Name)
+					logger.Debugf("CephCluster %q matched on update but %q label is set, doing nothing", controller.DoNotReconcileLabelName, objNew.Name)
 					return false
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
@@ -135,18 +135,15 @@ func watchControllerPredicate(rookContext *clusterd.Context) predicate.Funcs {
 					// Set the cancellation flag to stop any ongoing orchestration
 					rookContext.RequestCancelOrchestration.Set()
 
-					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					logger.Infof("CephCluster %q has changed. diff=%s", objNew.Name, diff)
 					return true
 
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					// Set the cancellation flag to stop any ongoing orchestration
-					rookContext.RequestCancelOrchestration.Set()
-
-					logger.Infof("CR %q is going be deleted, cancelling any ongoing orchestration", objNew.Name)
+					logger.Infof("CephCluster %q is going to be deleted", objNew.Name)
 					return true
 
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
-					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+					logger.Debugf("skipping CephCluster %q update with unchanged spec", objNew.Name)
 				}
 			}
 

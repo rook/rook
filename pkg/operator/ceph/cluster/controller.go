@@ -246,62 +246,37 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephCluster)
+	err = opcontroller.AddSelfFinalizerIfNotPresent(r.client, cephCluster)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
 
 	// DELETE: the CR was deleted
+	deleteRequeue := reconcile.Result{}
 	if !cephCluster.GetDeletionTimestamp().IsZero() {
-		doCleanup := true
-		logger.Infof("deleting ceph cluster %q", cephCluster.Name)
-
-		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
-		stopCleanupCh := make(chan struct{})
-		if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
-			// Set the deleting status
-			updateStatus(r.client, request.NamespacedName, cephv1.ConditionDeleting)
-
-			monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(cephCluster.Namespace)
-			if err != nil {
-				logger.Warningf("failed to get mon secret. Skip cluster cleanup and remove finalizer. %v", err)
-				doCleanup = false
-			}
-
-			if doCleanup {
-				cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
-				if err != nil {
-					return reconcile.Result{}, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
-				}
-				go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
-			}
-		}
-
-		if doCleanup {
-			// Run delete sequence
-			response, ok := r.clusterController.requestClusterDelete(cephCluster)
-			if !ok {
-				// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
-				// will eventually be satisfied such as the volumes being removed
-				close(stopCleanupCh)
-				return response, nil
-			}
-		}
-
-		// Remove finalizer
-		err = removeFinalizer(r.client, request.NamespacedName)
+		deleteRequeue, err = needReconcileBeforeDelete(cephCluster)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			return reconcile.Result{}, errors.Wrapf(err, "failed to determine if it is safe to delete CephCluster %q", request.NamespacedName)
 		}
 
-		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, nil
+		if deleteRequeue.IsZero() {
+			result, err := r.clusterController.onDelete(cephCluster)
+			if err != nil {
+				err = errors.Wrapf(err, "failed to delete ceph cluster %q", request.NamespacedName)
+			}
+			return result, err
+		}
 	}
 
 	// Do reconcile here!
 	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
 	if err := r.clusterController.onAdd(cephCluster, ownerInfo); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", request.NamespacedName)
+	}
+
+	// we are trying to delete but need to requeue after starting cluster reconciliation
+	if !deleteRequeue.IsZero() {
+		return deleteRequeue, nil
 	}
 
 	// Return and do not requeue
@@ -349,6 +324,80 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ownerInfo *k8s
 
 	// Start the main ceph cluster orchestration
 	return c.initializeCluster(cluster, clusterObj)
+}
+
+// Return nonzero reconcile.Result if deletion needs reconcile to proceed before it can complete.
+// The reconcile.Result should be returned after a successful reconcile if nonzero.
+func needReconcileBeforeDelete(cephCluster *cephv1.CephCluster) (reconcile.Result, error) {
+	nonSelfFinalizers, err := opcontroller.GetNonSelfFinalizers(cephCluster)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get finalizers on CephCluster %q", cephCluster.Name)
+	}
+
+	// the cleanup policy forcing uninstall when volumes exist (force delete) implies that we should
+	// ignore finalizers when deleting also
+	if cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes {
+		// TODO: forcefully remove finalizers here
+		logger.Infof("TODO")
+	}
+
+	if len(nonSelfFinalizers) > 0 {
+		// we need to wait for subresources to be deleted, but we need to keep reconciling the
+		// ceph cluster to keep it healthy while subresources are deleted. use a warning to
+		// indicate importance to the user.
+		// TODO: should this be indicated with a status?
+		logger.Warningf("waiting to delete CephCluster %q until subresources are all removed: %v", cephCluster.Name, nonSelfFinalizers)
+		return opcontroller.WaitForRequeueIfFinalizerBlocked, nil
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (c *ClusterController) onDelete(cephCluster *cephv1.CephCluster) (reconcile.Result, error) {
+	doCleanup := true
+	logger.Infof("deleting ceph cluster %q, cancelling any ongoing orchestration", cephCluster.Name)
+	c.context.RequestCancelOrchestration.Set()
+
+	// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
+	stopCleanupCh := make(chan struct{})
+	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
+		// Set the deleting status
+		updateStatus(c.client, c.namespacedName, cephv1.ConditionDeleting)
+
+		monSecret, clusterFSID, err := c.getCleanUpDetails(cephCluster.Namespace)
+		if err != nil {
+			logger.Warningf("failed to delete CephCluster %q. failed to get mon secret. Skip cluster cleanup and remove finalizer. %v", c.namespacedName, err)
+			doCleanup = false
+		}
+
+		if doCleanup {
+			cephHosts, err := c.getCephHosts(cephCluster.Namespace)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to delete CephCluster %q. failed to find valid ceph hosts in the cluster", c.namespacedName)
+			}
+			go c.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
+		}
+	}
+
+	if doCleanup {
+		// Run delete sequence
+		response, ok := c.requestClusterDelete(cephCluster)
+		if !ok {
+			// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
+			// will eventually be satisfied such as the volumes being removed
+			close(stopCleanupCh)
+			return response, nil
+		}
+	}
+
+	// Remove finalizer
+	err := removeFinalizer(c.client, c.namespacedName)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to delete CephCluster %q. failed to remove finalizer", c.namespacedName)
+	}
+
+	// delete successful
+	return reconcile.Result{}, nil
 }
 
 func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (reconcile.Result, bool) {
@@ -512,7 +561,7 @@ func updateStatus(client client.Client, name types.NamespacedName, status cephv1
 
 	cephCluster.Status.Phase = status
 	if err := opcontroller.UpdateStatus(client, cephCluster); err != nil {
-		logger.Errorf("failed to set ceph cluster %q status to %q. %v", cephCluster.Name, status, err)
+		logger.Errorf("failed to set ceph cluster %q status to %q. %v", name, status, err)
 		return
 	}
 	logger.Debugf("ceph cluster %q status updated to %q", name, status)
@@ -527,10 +576,10 @@ func removeFinalizer(client client.Client, name types.NamespacedName) error {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
 			return nil
 		}
-		return errors.Wrapf(err, "failed to retrieve ceph cluster %q to remove finalizer", name.Name)
+		return errors.Wrapf(err, "failed to retrieve ceph cluster %q to remove finalizer", name)
 	}
 
-	err = opcontroller.RemoveFinalizer(client, cephCluster)
+	err = opcontroller.RemoveSelfFinalizer(client, cephCluster)
 	if err != nil {
 		return errors.Wrap(err, "failed to remove finalizer")
 	}

@@ -140,7 +140,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephBlockPool)
+	err = opcontroller.AddSelfFinalizerIfNotPresent(r.client, cephBlockPool)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add finalizer")
 	}
@@ -151,7 +151,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, _, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deletePool() function since everything is gone already
@@ -161,7 +161,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephBlockPool.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// Remove finalizer
-			err = opcontroller.RemoveFinalizer(r.client, cephBlockPool)
+			err = opcontroller.RemoveSelfFinalizer(r.client, cephBlockPool)
 			if err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to remove finalizer")
 			}
@@ -213,7 +213,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 
 		// Remove finalizer
-		err = opcontroller.RemoveFinalizer(r.client, cephBlockPool)
+		err = opcontroller.RemoveSelfFinalizer(r.client, cephBlockPool)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to remove finalizer")
 		}

@@ -170,19 +170,13 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, errors.Wrap(err, "failed to get cephFilesystem")
 	}
 
-	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephFilesystem)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
-	}
-
 	// The CR was just created, initializing status fields
 	if cephFilesystem.Status == nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, cephClusterIsDeleting, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteFilesystem() function since everything is gone already
@@ -192,7 +186,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephFilesystem.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// Remove finalizer
-			err := opcontroller.RemoveFinalizer(r.client, cephFilesystem)
+			err := opcontroller.RemoveSelfFinalizer(r.client, cephFilesystem)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 			}
@@ -231,14 +225,24 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete filesystem %q. ", cephFilesystem.Name)
 		}
 
-		// Remove finalizer
-		err = opcontroller.RemoveFinalizer(r.client, cephFilesystem)
+		// Remove finalizers
+		err = opcontroller.RemoveNamedSubresourceFinalizer(r.client, &cephCluster, cephFilesystem, cephFilesystem.Name)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			return reconcile.Result{}, errors.Wrapf(err, "failed to remove CephFilesystem %q finalizer from CephCluster %q", cephFilesystem.Name, cephCluster.Name)
+		}
+		err = opcontroller.RemoveSelfFinalizer(r.client, cephFilesystem)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to remove finalizer from CephFilesystem %q", cephFilesystem.Name)
 		}
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, nil
+	}
+
+	// do not allow cephfs to be upated/added if cephcluster has a deletion timestamp
+	if cephClusterIsDeleting {
+		logger.Warningf("not allowing CephFilesystem create or update operations since CephCluster %q is being deleted. please delete this CephFilesystem", cephCluster.Name)
+		return opcontroller.WaitForRequeueIfFinalizerBlocked, nil
 	}
 
 	// validate the filesystem settings
@@ -251,6 +255,17 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	// RECONCILE
+	// Set a finalizer on the CephFilesystem so we can do cleanup before the object goes away.
+	err = opcontroller.AddSelfFinalizerIfNotPresent(r.client, cephFilesystem)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to add finalizer to CephFilesystem %q", cephFilesystem.Name)
+	}
+	// Also set a finalizer on the CephCluster so it can't be deleted before the CephFilesystem.
+	err = opcontroller.AddNamedSubresourceFinalizerIfNotPresent(r.client, &cephCluster, cephFilesystem, cephFilesystem.Name)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to add finalizer for CephFilesystem %q to CephCluster %q", cephFilesystem.Name, cephCluster.Name)
+	}
+
 	logger.Debug("reconciling ceph filesystem store deployments")
 	reconcileResponse, err = r.reconcileCreateFilesystem(cephFilesystem)
 	if err != nil {

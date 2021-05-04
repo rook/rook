@@ -75,7 +75,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -100,7 +100,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -120,7 +120,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -140,7 +140,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -160,7 +160,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -180,7 +180,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -200,7 +200,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -225,7 +225,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -250,7 +250,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -275,7 +275,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
@@ -300,7 +300,7 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
-					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					logger.Debugf("CR %q is going to be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
 					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)

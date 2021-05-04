@@ -49,49 +49,102 @@ func remove(list []string, s string) []string {
 	return list
 }
 
-// AddFinalizerIfNotPresent adds a finalizer an object to avoid instant deletion
-// of the object without finalizing it.
-func AddFinalizerIfNotPresent(client client.Client, obj client.Object) error {
-	objectFinalizer := buildFinalizerName(obj.GetObjectKind().GroupVersionKind().Kind)
+// AddSelfFinalizerIfNotPresent adds a self-referencing finalizer to an object to avoid instant
+// deletion of the object without finalizing it: "<object-kind>.ceph.rook.io"
+func AddSelfFinalizerIfNotPresent(client client.Client, obj client.Object) error {
+	objectFinalizer := buildFinalizerBaseName(obj)
 
+	return addFinalizerIfNotPresent(client, obj, objectFinalizer)
+}
+
+// AddNamedSubresourceFinalizerIfNotPresent adds a finalizer for the named Ceph subresource to the
+// CephCluster with the subresource's name: "<subresource-kind>.ceph.rook.io/<subresourceName>"
+func AddNamedSubresourceFinalizerIfNotPresent(client client.Client, cephClusterObj, subresourceObj client.Object, subresourceName string) error {
+	namedFinalizer := buildNamedFinalizer(subresourceObj, subresourceName)
+
+	return addFinalizerIfNotPresent(client, cephClusterObj, namedFinalizer)
+}
+
+func addFinalizerIfNotPresent(client client.Client, obj client.Object, finalizer string) error {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
-		return errors.Wrap(err, "failed to get meta information of object")
+		return errors.Wrapf(err, "failed to add finalizer %q. failed to get meta information of object", finalizer)
 	}
 
-	if !contains(accessor.GetFinalizers(), objectFinalizer) {
-		logger.Infof("adding finalizer %q on %q", objectFinalizer, accessor.GetName())
-		accessor.SetFinalizers(append(accessor.GetFinalizers(), objectFinalizer))
+	if !contains(accessor.GetFinalizers(), finalizer) {
+		logger.Infof("adding finalizer %q on %q", finalizer, accessor.GetName())
+		accessor.SetFinalizers(append(accessor.GetFinalizers(), finalizer))
 
 		// Update CR with finalizer
 		if err := client.Update(context.TODO(), obj); err != nil {
-			return errors.Wrapf(err, "failed to add finalizer %q on %q", objectFinalizer, accessor.GetName())
+			return errors.Wrapf(err, "failed to add finalizer %q on %q", finalizer, accessor.GetName())
 		}
 	}
 
 	return nil
 }
 
-// RemoveFinalizer removes a finalizer from an object
-func RemoveFinalizer(client client.Client, obj client.Object) error {
-	objectFinalizer := buildFinalizerName(obj.GetObjectKind().GroupVersionKind().Kind)
+// RemoveSelfFinalizer removes a self-referencing finalizer from an object.
+func RemoveSelfFinalizer(client client.Client, obj client.Object) error {
+	objectFinalizer := buildFinalizerBaseName(obj)
+
+	return removeFinalizer(client, obj, objectFinalizer)
+}
+
+// RemoveNamedSubresourceFinalizer removes a finalizer for the named Ceph subresource.
+func RemoveNamedSubresourceFinalizer(client client.Client, cephClusterObj, subresourceObj client.Object, subresourceName string) error {
+	namedFinalizer := buildNamedFinalizer(subresourceObj, subresourceName)
+
+	return removeFinalizer(client, cephClusterObj, namedFinalizer)
+}
+
+func removeFinalizer(client client.Client, obj client.Object, finalizer string) error {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
-		return errors.Wrap(err, "failed to get meta information of object")
+		return errors.Wrapf(err, "failed to remove finalizer %q. failed to get meta information of object", finalizer)
 	}
 
-	if contains(accessor.GetFinalizers(), objectFinalizer) {
-		logger.Infof("removing finalizer %q on %q", objectFinalizer, accessor.GetName())
-		accessor.SetFinalizers(remove(accessor.GetFinalizers(), objectFinalizer))
+	if contains(accessor.GetFinalizers(), finalizer) {
+		logger.Infof("removing finalizer %q on %q", finalizer, accessor.GetName())
+		accessor.SetFinalizers(remove(accessor.GetFinalizers(), finalizer))
 		if err := client.Update(context.TODO(), obj); err != nil {
-			return errors.Wrapf(err, "failed to remove finalizer %q on %q", objectFinalizer, accessor.GetName())
+			return errors.Wrapf(err, "failed to remove finalizer %q on %q", finalizer, accessor.GetName())
 		}
 	}
 
 	return nil
 }
 
-// buildFinalizerName returns the finalizer name
-func buildFinalizerName(kind string) string {
+// FinalizersExist returns a list of non-self-referencing finalizers present on the object.
+// TODO: TEST
+func GetNonSelfFinalizers(obj client.Object) ([]string, error) {
+	objectFinalizer := buildFinalizerBaseName(obj)
+
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return []string{}, errors.Wrap(err, "failed check finalizers. failed to get meta information of object")
+	}
+
+	finalizers := accessor.GetFinalizers()
+	nonSelfFinalizers := make([]string, 0, len(finalizers))
+	for _, f := range finalizers {
+		if f == objectFinalizer {
+			continue
+		}
+		nonSelfFinalizers = append(nonSelfFinalizers, f)
+	}
+
+	return nonSelfFinalizers, nil
+}
+
+// buildFinalizerBaseName returns the finalizer name: "<object-kind>.ceph.rook.io".
+func buildFinalizerBaseName(obj client.Object) string {
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	return fmt.Sprintf("%s.%s", strings.ToLower(kind), cephv1.CustomResourceGroup)
+}
+
+// buildNamedFinalizer returns the finalizer name with a name added:
+// "<object-kind>.ceph.rook.io/<finalizerName>"
+func buildNamedFinalizer(obj client.Object, finalizerName string) string {
+	return fmt.Sprintf("%s/%s", buildFinalizerBaseName(obj), finalizerName)
 }

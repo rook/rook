@@ -103,26 +103,41 @@ func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, control
 }
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
-func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.CephCluster, bool, bool, reconcile.Result) {
-	cephClusterExists := false
+func IsReadyToReconcile(
+	c client.Client,
+	clustercontext *clusterd.Context,
+	namespacedName types.NamespacedName,
+	controllerName string,
+) (
+	cephCluster cephv1.CephCluster,
+	isReadyToReconcile bool,
+	cephClusterExists bool,
+	cephClusterIsDeleting bool,
+	reconcileResult reconcile.Result,
+) {
+	cephClusterExists = false
+	cephClusterIsDeleting = false
 
 	// Running ceph commands won't work and the controller will keep re-queuing so I believe it's fine not to check
 	// Make sure a CephCluster exists before doing anything
-	var cephCluster cephv1.CephCluster
 	clusterList := &cephv1.CephClusterList{}
 	err := c.List(context.TODO(), clusterList, client.InNamespace(namespacedName.Namespace))
 	if err != nil {
 		logger.Errorf("%q: failed to fetch CephCluster %v", controllerName, err)
-		return cephCluster, false, cephClusterExists, ImmediateRetryResult
+		return cephCluster, false, cephClusterExists, cephClusterIsDeleting, ImmediateRetryResult
 	}
 	if len(clusterList.Items) == 0 {
 		logger.Debugf("%q: no CephCluster resource found in namespace %q", controllerName, namespacedName.Namespace)
-		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+		return cephCluster, false, cephClusterExists, cephClusterIsDeleting, WaitForRequeueIfCephClusterNotReady
 	}
 	cephClusterExists = true
 	cephCluster = clusterList.Items[0]
 
 	logger.Debugf("%q: CephCluster resource %q found in namespace %q", controllerName, cephCluster.Name, namespacedName.Namespace)
+
+	if !cephCluster.DeletionTimestamp.IsZero() {
+		cephClusterIsDeleting = true
+	}
 
 	// read the CR status of the cluster
 	if cephCluster.Status.CephStatus != nil {
@@ -130,7 +145,7 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 
 		if operatorDeploymentOk || canIgnoreHealthErrStatusInReconcile(cephCluster, controllerName) {
 			logger.Debugf("%q: ceph status is %q, operator is ready to run ceph command, reconciling", controllerName, cephCluster.Status.CephStatus.Health)
-			return cephCluster, true, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+			return cephCluster, true, cephClusterExists, cephClusterIsDeleting, WaitForRequeueIfCephClusterNotReady
 		}
 
 		details := cephCluster.Status.CephStatus.Details
@@ -143,7 +158,7 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 	}
 
 	logger.Debugf("%q: CephCluster %q initial reconcile is not complete yet...", controllerName, namespacedName.Namespace)
-	return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+	return cephCluster, false, cephClusterExists, cephClusterIsDeleting, WaitForRequeueIfCephClusterNotReady
 }
 
 // ClusterOwnerRef represents the owner reference of the CephCluster CR

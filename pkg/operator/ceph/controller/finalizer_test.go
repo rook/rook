@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestAddFinalizerIfNotPresent(t *testing.T) {
+func TestAddSelfFinalizerIfNotPresent(t *testing.T) {
 	fakeObject := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "test",
@@ -45,12 +45,12 @@ func TestAddFinalizerIfNotPresent(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	assert.Empty(t, fakeObject.Finalizers)
-	err := AddFinalizerIfNotPresent(cl, fakeObject)
+	err := AddSelfFinalizerIfNotPresent(cl, fakeObject)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, fakeObject.Finalizers)
 }
 
-func TestRemoveFinalizer(t *testing.T) {
+func TestRemoveSelfFinalizer(t *testing.T) {
 	fakeObject := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -72,7 +72,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	assert.NotEmpty(t, fakeObject.Finalizers)
-	err := RemoveFinalizer(cl, fakeObject)
+	err := RemoveSelfFinalizer(cl, fakeObject)
 	assert.NoError(t, err)
 	assert.Empty(t, fakeObject.Finalizers)
 }
