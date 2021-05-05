@@ -397,3 +397,21 @@ func removeDuplicateEnvVarsFromContainer(container *v1.Container) {
 	}
 	container.Env = vars
 }
+
+func IsPodScheduled(clientSet kubernetes.Interface, namespace, selector string) (bool, error) {
+	listOpts := metav1.ListOptions{LabelSelector: selector}
+	podList, err := clientSet.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to list pods with label selector %q in namespace %q", selector, namespace)
+	}
+
+	if len(podList.Items) == 0 {
+		return false, errors.Errorf("no pods found with label selector %q in namespace %q", selector, namespace)
+	}
+
+	if podList.Items[0].Spec.NodeName == "" {
+		return false, nil
+	}
+
+	return true, nil
+}
