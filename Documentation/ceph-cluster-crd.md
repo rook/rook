@@ -129,7 +129,7 @@ spec:
       - name: c
   cephVersion:
     # Stretch cluster is supported in Ceph Pacific or newer.
-    image: ceph/ceph:v16.2.1
+    image: ceph/ceph:v16.2.2
     allowUnsupported: true
   # Either storageClassDeviceSets or the storage section can be specified for creating OSDs.
   # This example uses all devices for simplicity.
