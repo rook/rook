@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/subresource"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -256,6 +257,19 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		doCleanup := true
 		logger.Infof("deleting ceph cluster %q", cephCluster.Name)
 
+		// TODO: more work to check if data exists in the cluster
+		subresources := subresource.CephClusterRegistry.List()
+		for _, sr := range subresources {
+			instances, err := sr.DependentsOf(r.context, cephCluster)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to determine if instances of subresource %s exist", sr.Kind())
+			}
+			if len(instances) > 0 {
+				logger.Warningf("remove all %s resources to allow CephCluster deletion to proceed. instance names: %v", sr.Kind(), instances)
+				return reconcile.Result{}, errors.Errorf("%d %s resources exist and will block cluster deletion: %v", len(instances), sr.Kind(), instances)
+			}
+		}
+
 		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
 		stopCleanupCh := make(chan struct{})
 		if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
@@ -381,6 +395,7 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 	if cluster.Spec.CleanupPolicy.AllowUninstallWithVolumes {
 		logger.Info("skipping check for existing PVs as allowUninstallWithVolumes is set to true")
 	} else {
+		// Check for PVs
 		err := c.checkIfVolumesExist(cluster)
 		if err != nil {
 			opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, corev1.ConditionFalse, "ClusterDeleting", err.Error())
