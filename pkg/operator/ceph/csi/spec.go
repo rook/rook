@@ -112,7 +112,7 @@ var (
 	DefaultRegistrarImage         = "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
 	DefaultProvisionerImage       = "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4"
 	DefaultAttacherImage          = "k8s.gcr.io/sig-storage/csi-attacher:v3.0.2"
-	DefaultSnapshotterImage       = "k8s.gcr.io/sig-storage/csi-snapshotter:v3.0.2"
+	DefaultSnapshotterImage       = "k8s.gcr.io/sig-storage/csi-snapshotter:v4.0.0"
 	DefaultResizerImage           = "k8s.gcr.io/sig-storage/csi-resizer:v1.0.1"
 	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.1.0"
 )
@@ -122,6 +122,7 @@ const (
 	ProvDeploymentSuppVersion      = "14"
 	kubeMinVerForFilesystemRestore = "15"
 	kubeMinVerForBlockRestore      = "16"
+	kubeMinVerForSnapshot          = "17"
 
 	// toleration and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
@@ -290,8 +291,12 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	if strings.EqualFold(enableOMAPGenerator, "true") {
 		tp.EnableOMAPGenerator = true
 	}
-	// enable RBD snapshotter by default
-	tp.EnableRBDSnapshotter = true
+
+	// if k8s >= v1.17 enable RBD and CephFS snapshotter by default
+	if ver.Major == KubeMinMajor && ver.Minor >= kubeMinVerForSnapshot {
+		tp.EnableRBDSnapshotter = true
+		tp.EnableCephFSSnapshotter = true
+	}
 	enableRBDSnapshotter, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_RBD_SNAPSHOTTER", "true")
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_ENABLE_RBD_SNAPSHOTTER setting")
@@ -299,8 +304,6 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	if strings.EqualFold(enableRBDSnapshotter, "false") {
 		tp.EnableRBDSnapshotter = false
 	}
-	// enable CephFS snapshotter by default
-	tp.EnableCephFSSnapshotter = true
 	enableCephFSSnapshotter, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_ENABLE_CEPHFS_SNAPSHOTTER", "true")
 	if err != nil {
 		return errors.Wrap(err, "failed to load CSI_ENABLE_CEPHFS_SNAPSHOTTER setting")
