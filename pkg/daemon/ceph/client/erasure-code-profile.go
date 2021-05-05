@@ -89,7 +89,7 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 		profilePairs = append(profilePairs, fmt.Sprintf("crush-device-class=%s", pool.DeviceClass))
 	}
 
-	args := []string{"osd", "erasure-code-profile", "set", profileName}
+	args := []string{"osd", "erasure-code-profile", "set", profileName, "--force"}
 	args = append(args, profilePairs...)
 	_, err = NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {

@@ -61,11 +61,12 @@ func testCreateProfile(t *testing.T, failureDomain, crushRoot, deviceClass strin
 			}
 			if args[2] == "set" {
 				assert.Equal(t, "myapp", args[3])
-				assert.Equal(t, fmt.Sprintf("k=%d", spec.ErasureCoded.DataChunks), args[4])
-				assert.Equal(t, fmt.Sprintf("m=%d", spec.ErasureCoded.CodingChunks), args[5])
-				assert.Equal(t, "plugin=myplugin", args[6])
-				assert.Equal(t, "technique=t", args[7])
-				nextArg := 8
+				assert.Equal(t, "--force", args[4])
+				assert.Equal(t, fmt.Sprintf("k=%d", spec.ErasureCoded.DataChunks), args[5])
+				assert.Equal(t, fmt.Sprintf("m=%d", spec.ErasureCoded.CodingChunks), args[6])
+				assert.Equal(t, "plugin=myplugin", args[7])
+				assert.Equal(t, "technique=t", args[8])
+				nextArg := 9
 				if failureDomain != "" {
 					assert.Equal(t, fmt.Sprintf("crush-failure-domain=%s", failureDomain), args[nextArg])
 					nextArg++
