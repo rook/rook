@@ -47,8 +47,6 @@ CEPH_DEBUG_FLAG=(
   osd
   optracker
   objclass
-  filestore
-  journal
   ms
   mon
   monc
@@ -102,7 +100,7 @@ exec_ceph_command() {
   if [[ "$debug_level" == "default" ]]; then
     action="rm"
   fi
-  
+
   # exec command
   for flag in "${CEPH_DEBUG_FLAG[@]}"; do
     ARGS=("$action" global debug_"$flag")
@@ -112,7 +110,7 @@ exec_ceph_command() {
     # put stdout in /dev/null since increase debug log will overflow the terminal
     echo "ceph config ${ARGS[*]}"
     ceph config "${ARGS[@]}" &> /dev/null & pids+=($!)
-    
+
   done
   echo "waiting for all the new logging configuration to be applied, this can take a few seconds"
   wait "${pids[@]}"

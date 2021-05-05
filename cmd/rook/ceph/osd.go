@@ -91,7 +91,7 @@ func addOSDFlags(command *cobra.Command) {
 	// flags for running osds that were provisioned by ceph-volume
 	osdStartCmd.Flags().StringVar(&osdStringID, "osd-id", "", "the osd ID")
 	osdStartCmd.Flags().StringVar(&osdUUID, "osd-uuid", "", "the osd UUID")
-	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "whether the osd is bluestore or filestore")
+	osdStartCmd.Flags().StringVar(&osdStoreType, "osd-store-type", "", "the osd store type such as bluestore")
 	osdStartCmd.Flags().BoolVar(&pvcBackedOSD, "pvc-backed-osd", false, "Whether the OSD backing store in PVC or not")
 	osdStartCmd.Flags().StringVar(&blockPath, "block-path", "", "Block path for the OSD created by ceph-volume")
 	osdStartCmd.Flags().BoolVar(&lvBackedPV, "lv-backed-pv", false, "Whether the PV located on LV")
