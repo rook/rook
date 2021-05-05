@@ -46,6 +46,7 @@ type Provisioner struct {
 	objectStoreName      string
 	endpoint             string
 	additionalConfigData map[string]string
+	tlsCert              []byte
 }
 
 var _ apibkt.Provisioner = &Provisioner{}
@@ -73,7 +74,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), true, nil)
+	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), true, p.tlsCert)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -147,7 +148,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrapf(err, "could not get user (user: %s)", stats.Owner)
 	}
 
-	s3svc, err := cephObject.NewS3Agent(*objectUser.AccessKey, *objectUser.SecretKey, p.getObjectStoreEndpoint(), true, nil)
+	s3svc, err := cephObject.NewS3Agent(*objectUser.AccessKey, *objectUser.SecretKey, p.getObjectStoreEndpoint(), true, p.tlsCert)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -242,7 +243,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return nil
 		}
 
-		s3svc, err := cephObject.NewS3Agent(*user.AccessKey, *user.SecretKey, p.getObjectStoreEndpoint(), true, nil)
+		s3svc, err := cephObject.NewS3Agent(*user.AccessKey, *user.SecretKey, p.getObjectStoreEndpoint(), true, p.tlsCert)
 		if err != nil {
 			return err
 		}
@@ -337,6 +338,10 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 	if err != nil {
 		return errors.Wrap(err, "failed to set domain and port")
 	}
+	err = p.setTlsCaCert()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set CA cert for the OBC %q to connect with object store %q via TLS", obc.Name, p.objectStoreName)
+	}
 
 	return nil
 }
@@ -363,6 +368,10 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 		return err
 	}
 
+	err = p.setTlsCaCert()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set CA cert for the OB %q to connect with object store %q via TLS", ob.Name, p.objectStoreName)
+	}
 	return nil
 }
 
@@ -535,6 +544,22 @@ func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error 
 	if _, err = cephObject.EnableUserQuota(p.objectContext, p.cephUserName); err != nil {
 		logger.Errorf("Enabling user quota for obc failed %v", err)
 		return err
+	}
+
+	return nil
+}
+
+func (p *Provisioner) setTlsCaCert() error {
+	objStore, err := p.getObjectStore()
+	if err != nil {
+		return err
+	}
+	p.tlsCert = make([]byte, 0)
+	if objStore.Spec.Gateway.SecurePort == p.storePort {
+		p.tlsCert, err = cephObject.GetTlsCaCert(p.objectContext, &objStore.Spec)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

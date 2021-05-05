@@ -376,3 +376,19 @@ func buildDNSEndpoint(domainName string, port int32, secure bool) string {
 	}
 	return fmt.Sprintf("%s://%s:%d", httpPrefix, domainName, port)
 }
+
+// GetTLSCACert fetch cacert for internal RGW requests
+func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) ([]byte, error) {
+	ctx := context.TODO()
+	var tlsCert []byte
+
+	if objectStoreSpec.Gateway.SSLCertificateRef != "" {
+		tlsSecretCert, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Get(ctx, objectStoreSpec.Gateway.SSLCertificateRef, metav1.GetOptions{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get secret %s containing TLS certificate defined in %s", objectStoreSpec.Gateway.SSLCertificateRef, objContext.Name)
+		}
+		tlsCert = tlsSecretCert.Data[certKeyName]
+	}
+
+	return tlsCert, nil
+}
