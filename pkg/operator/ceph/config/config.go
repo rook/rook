@@ -101,9 +101,10 @@ func NewFlag(key, value string) string {
 	return fmt.Sprintf("--%s=%s", f, value)
 }
 
-// SetDefaultConfigs sets Rook's desired default configs in the centralized monitor database. This
+// SetOrRemoveDefaultConfigs sets Rook's desired default configs in the centralized monitor database. This
 // cannot be called before at least one monitor is established.
-func SetDefaultConfigs(
+// Also, legacy options will be removed
+func SetOrRemoveDefaultConfigs(
 	context *clusterd.Context,
 	clusterInfo *cephclient.ClusterInfo,
 	clusterSpec cephv1.ClusterSpec,
@@ -120,7 +121,6 @@ func SetDefaultConfigs(
 	if clusterSpec.LogCollector.Enabled {
 		// Override "log file" for existing clusters since it is empty
 		logOptions := []Option{
-			configOverride("global", "log file", "/var/log/ceph/$cluster-$name.log"),
 			configOverride("global", "log to file", "true"),
 		}
 
@@ -130,7 +130,6 @@ func SetDefaultConfigs(
 		// If the log collector is disabled we do not log to file since we collect nothing
 	} else {
 		logOptions := []Option{
-			configOverride("global", "log file", ""),
 			configOverride("global", "log to file", "false"),
 		}
 
@@ -155,6 +154,13 @@ func SetDefaultConfigs(
 		if err := monStore.SetAll(cephNetworks...); err != nil {
 			return errors.Wrap(err, "failed to network config overrides")
 		}
+	}
+
+	// This section will remove any previously configured option(s) from the mon centralized store
+	// This is useful for scenarios where options are not needed anymore and we just want to reset to internal's default
+	// On upgrade, the flag will be removed
+	if err := monStore.DeleteAll(LegacyConfigs()...); err != nil {
+		return errors.Wrap(err, "failed to remove legacy options")
 	}
 
 	return nil
