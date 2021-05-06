@@ -142,7 +142,7 @@ func (s *MultiClusterDeploySuite) deletePools() {
 
 func (s *MultiClusterDeploySuite) TearDownSuite() {
 	s.deletePools()
-	s.installer.UninstallRookFromMultipleNS(s.installer.Manifests, s.externalManifests)
+	s.installer.UninstallRookFromMultipleNS(s.externalManifests, s.installer.Manifests)
 }
 
 // Test to make sure all rook components are installed and Running
