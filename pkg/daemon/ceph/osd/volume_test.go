@@ -560,10 +560,12 @@ func TestConfigureCVDevices(t *testing.T) {
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
+		deviceClassSet := false
 		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithCombinedOutput] %s %v", command, args)
 			if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" {
 				assert.Equal(t, "myclass", args[8])
+				deviceClassSet = true
 				return "", nil
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
@@ -580,17 +582,9 @@ func TestConfigureCVDevices(t *testing.T) {
 				"vdb": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/vdb"}},
 			},
 		}
-		deviceOSDs, err := agent.configureCVDevices(context, devices)
-
+		_, err := agent.configureCVDevices(context, devices)
 		assert.Nil(t, err)
-		deviceOSD := deviceOSDs[0]
-		logger.Infof("deviceOSDs: %+v", deviceOSDs)
-		assert.Equal(t, osdUUID, deviceOSD.UUID)
-		assert.Equal(t, "/dev/vdb", deviceOSD.BlockPath)
-		assert.Equal(t, true, deviceOSD.SkipLVRelease)
-		assert.Equal(t, false, deviceOSD.LVBackedPV)
-		assert.Equal(t, "raw", deviceOSD.CVMode)
-		assert.Equal(t, "bluestore", deviceOSD.Store)
+		assert.True(t, deviceClassSet)
 	}
 }
 
