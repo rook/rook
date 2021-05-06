@@ -19,14 +19,19 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -192,4 +197,90 @@ func (c *clientCluster) getCephCluster() *cephv1.CephCluster {
 	}
 
 	return &clusterList.Items[0]
+}
+
+// each OSD nearfull status is checked
+// OSD capacity is increased if we get nearfull warning
+func increaseOSDsCapacity(cephStatusChecker *cephStatusChecker) {
+	osdUsage, err := cephclient.GetOSDUsage(cephStatusChecker.context, cephStatusChecker.clusterInfo)
+	if err != nil {
+		logger.Debugf("failed to get osd usage.%v", err)
+		return
+	}
+	// by default nearfull_ratio is set to 85%
+	osdNearfullRatio := 85
+
+	var osdsNearfullList []int
+	for _, osdStatus := range osdUsage.OSDNodes {
+		osdId := osdStatus.ID
+		storageUtilization, err := osdStatus.Utilization.Int64()
+		if err == nil {
+			if storageUtilization > int64(osdNearfullRatio) {
+				osdsNearfullList = append(osdsNearfullList, osdId)
+			}
+		}
+	}
+	increaseDeviceSetCapacity(cephStatusChecker, osdsNearfullList)
+}
+
+// list the storageClassDeviceSets that are linked to OSDs, and increase there storageSize
+func increaseDeviceSetCapacity(cephStatusChecker *cephStatusChecker, osdsNearfullList []int) {
+	var storageClassDeviceSetsList = util.NewSet()
+	for _, osdID := range osdsNearfullList {
+		storageClassDeviceSetName, err := getDeviceSetName(cephStatusChecker, osdID)
+		if err != nil {
+			logger.Debugf("failed to fetch deviceSet name %v", err)
+		}
+		storageClassDeviceSetsList.Add(storageClassDeviceSetName)
+	}
+
+	clusterName := cephStatusChecker.clusterInfo.NamespacedName()
+	cephCluster, err := cephStatusChecker.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(context.TODO(), clusterName.Name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("failed to retrieve ceph cluster %q in namespace %q", clusterName.Name, clusterName.Namespace)
+		return
+	}
+	for deviceSet := range storageClassDeviceSetsList.Iter() {
+		for _, deviceSetProp := range cephCluster.Spec.Storage.StorageClassDeviceSets {
+			if deviceSetProp.Name != deviceSet {
+				continue
+			}
+			var defaultDeviceStorage int
+			for _, volumes := range deviceSetProp.VolumeClaimTemplates {
+				if volumes.Name == "data" || volumes.Name == "" {
+					defaultDeviceStorage = volumes.Spec.Resources.Requests.Storage().Size()
+					break
+				}
+			}
+			growthRatePercent := deviceSetProp.GrowthPolicy.GrowthRatePercent
+			maxSize := deviceSetProp.GrowthPolicy.MaxSize
+			increaseStorageValue := getIncreaseStorageValue(defaultDeviceStorage, growthRatePercent, maxSize)
+			logger.Debugf("update StorageClassDeviceSet %q size to %q", deviceSet, increaseStorageValue)
+		}
+	}
+}
+
+func getDeviceSetName(cephStatusChecker *cephStatusChecker, osdID int) (string, error) {
+	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdID)
+	deployment, err := cephStatusChecker.context.Clientset.AppsV1().Deployments(cephStatusChecker.clusterInfo.Namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	} else {
+		if deviceSetName, ok := deployment.GetLabels()[osd.CephDeviceSetLabelKey]; ok {
+			return deviceSetName, nil
+		}
+		return "", errors.Wrap(err, "failed to get deviceSetName")
+	}
+}
+
+func getIncreaseStorageValue(defaultDeviceStorage int, growthRatePercent int, maxSize string) int {
+	storageIncreaseCapacity := defaultDeviceStorage * (1 + (growthRatePercent)/100)
+	storageMaxCapacity := resource.MustParse(maxSize)
+	var increaseStorageValue int
+	if storageMaxCapacity.Size() > storageIncreaseCapacity {
+		increaseStorageValue = storageIncreaseCapacity
+	} else {
+		increaseStorageValue = storageMaxCapacity.Size()
+	}
+	return increaseStorageValue
 }

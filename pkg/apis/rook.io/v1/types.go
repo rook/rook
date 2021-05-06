@@ -161,6 +161,16 @@ type LabelsSpec map[KeyType]Labels
 // Labels are label for a given daemons
 type Labels map[string]string
 
+// GrowthPolicy for OSD auto provisioning
+type GrowthPolicy struct {
+	// MaxSize defines the maximum size a Volume Claim is allowed to grow
+	// Optional
+	MaxSize string `json:"maxSize,omitempty"`
+	// GrowthRatePercent Increases the Volume Claim by the percentage set
+	// Optional
+	GrowthRatePercent int `json:"growthRatePercent,omitempty"`
+}
+
 // StorageClassDeviceSet is a storage class device set
 // +nullable
 type StorageClassDeviceSet struct {
@@ -203,4 +213,7 @@ type StorageClassDeviceSet struct {
 	// Whether to encrypt the deviceSet
 	// +optional
 	Encrypted bool `json:"encrypted,omitempty"`
+	// GrowthPolicy for OSD auto provisioning
+	// +optional
+	GrowthPolicy *GrowthPolicy `json:"growthPolicy,omitempty"`
 }
