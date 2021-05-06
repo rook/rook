@@ -57,13 +57,12 @@ pipeline {
                     // extract which specific storage provider to test
                     if (body.contains("[test cassandra]") || title.contains("cassandra:")) {
                         env.testProvider = "cassandra"
-                    } else if (body.contains("[test ceph]") || title.contains("ceph:")) {
-                        // For Ceph storage provider we are using GitHub actions to run test
-                        if (body.contains("[test full]")) {
-                          env.testProvider = "ceph"
-                        } else {
-                          env.shouldBuild = "false"
-                        }
+                    } else if (body.contains("[test ceph]")) {
+                        // Run the Ceph tests in Jenkins if specifically requested
+                        env.testProvider = "ceph"
+                    } else if (title.contains("ceph:")) {
+                        // Don't run Jenkins for ceph PRs by default since they are covered by github actions
+                        env.shouldBuild = "false"
                     } else if (body.contains("[test nfs]") || title.contains("nfs:")) {
                         env.testProvider = "nfs"
                     } else if (body.contains("[test]")) {
