@@ -558,7 +558,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 		testCleanupPolicy := !manifest.Settings().IsExternal && !manifest.Settings().SkipCleanupPolicy
 		if testCleanupPolicy {
 			// Add cleanup policy to the core ceph cluster
-			err = h.addCleanupPolicy(namespace)
+			err = h.addCleanupPolicy(namespace, clusterName)
 			if err != nil {
 				assert.NoError(h.T(), err)
 				// no need to check for cleanup policy later if it already failed
@@ -592,7 +592,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 			clusterDeleteRetries++
 			if clusterDeleteRetries > 10 {
 				// If the operator really isn't going to remove the finalizer, just force remove it
-				h.removeClusterFinalizers(namespace)
+				h.removeClusterFinalizers(namespace, clusterName)
 			}
 			return err
 		}
@@ -628,7 +628,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 		// non-helm cleanup
 		if manifest.Settings().IsExternal {
 			logger.Infof("Deleting all the resources in the common external manifest")
-			_, err = h.k8shelper.KubectlWithStdin(h.Manifests.GetCommonExternal(), deleteFromStdinArgs...)
+			_, err = h.k8shelper.KubectlWithStdin(manifest.GetCommonExternal(), deleteFromStdinArgs...)
 			if err != nil {
 				logger.Errorf("failed to remove common external resources. %v", err)
 			} else {
@@ -721,10 +721,10 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 	}
 }
 
-func (h *CephInstaller) removeClusterFinalizers(namespace string) {
+func (h *CephInstaller) removeClusterFinalizers(namespace, clusterName string) {
 	ctx := context.TODO()
 	// Get the latest cluster instead of using the same instance in case it has been changed
-	cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, h.settings.ClusterName, metav1.GetOptions{})
+	cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, clusterName, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to remove finalizer. failed to get cluster. %+v", err)
 		return
@@ -899,12 +899,12 @@ spec:
                    path:  ` + hostPathDir
 }
 
-func (h *CephInstaller) addCleanupPolicy(namespace string) error {
+func (h *CephInstaller) addCleanupPolicy(namespace, clusterName string) error {
 	// Retry updating the CR a few times in case of random failure
 	var returnErr error
 	for i := 0; i < 3; i++ {
 		ctx := context.TODO()
-		cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, h.settings.ClusterName, metav1.GetOptions{})
+		cluster, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, clusterName, metav1.GetOptions{})
 		if err != nil {
 			return errors.Errorf("failed to get ceph cluster. %+v", err)
 		}
