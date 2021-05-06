@@ -267,6 +267,11 @@ func deploymentOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provisio
 		return nil, errors.Wrapf(err, "failed to generate deployment for %s", osdLongName)
 	}
 
+	err = setOSDProperties(c, osdProps, osd)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to prepare deployment for %s", osdLongName)
+	}
+
 	return d, nil
 }
 
@@ -283,7 +288,22 @@ func deploymentOnPVC(c *Cluster, osd OSDInfo, pvcName string, config *provisionC
 		return nil, errors.Wrapf(err, "failed to generate deployment for %s", osdLongName)
 	}
 
+	err = setOSDProperties(c, osdProps, osd)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to prepare deployment for %s", osdLongName)
+	}
+
 	return d, nil
+}
+
+// setOSDProperties is used to configure an OSD with parameters which can not be set via explicit
+// command-line arguments.
+func setOSDProperties(c *Cluster, osdProps osdProperties, osd OSDInfo) error {
+	// OSD's 'primary-affinity' has to be configured via command which goes through mons
+	if osdProps.storeConfig.PrimaryAffinity != "" {
+		return cephclient.SetPrimaryAffinity(c.context, c.clusterInfo, osd.ID, osdProps.storeConfig.PrimaryAffinity)
+	}
+	return nil
 }
 
 func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {
@@ -361,6 +381,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 				deviceSetName:       deviceSet.Name,
 			}
 			osdProps.storeConfig.InitialWeight = deviceSet.CrushInitialWeight
+			osdProps.storeConfig.PrimaryAffinity = deviceSet.CrushPrimaryAffinity
 
 			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
 			// or from the osd prepare job from initial creation.

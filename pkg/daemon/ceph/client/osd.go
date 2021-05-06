@@ -355,3 +355,15 @@ func OSDOkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, osdID, max
 
 	return stats.OSDs, nil
 }
+
+// SetPrimaryAffinity assigns primary-affinity (within range [0.0, 1.0]) to a specific OSD.
+func SetPrimaryAffinity(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int, affinity string) error {
+	logger.Infof("setting osd.%d with primary-affinity %q", osdID, affinity)
+	args := []string{"osd", "primary-affinity", fmt.Sprintf("osd.%d", osdID), affinity}
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set osd.%d with primary-affinity %q", osdID, affinity)
+	}
+	logger.Infof("successfully applied osd.%d primary-affinity %q", osdID, affinity)
+	return nil
+}
