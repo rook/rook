@@ -10,7 +10,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
-       # docker/setup-qemu action installs QEMU static binaries, which are used to run builders for architectures other than the host. 
+       # docker/setup-qemu action installs QEMU static binaries, which are used to run builders for architectures other than the host.
       - name: set up QEMU
         uses: docker/setup-qemu-action@master
         with:
@@ -27,7 +27,8 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_USR }}
           aws-secret-access-key: ${{ secrets.AWS_PSW }}
-      
+          aws-region: us-east-1
+
       # creating custom env var
       - name: set env
         run: echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
