@@ -43,6 +43,8 @@ type deviceSet struct {
 	CrushDeviceClass string
 	// CrushInitialWeight represents initial OSD weight in TiB units
 	CrushInitialWeight string
+	// CrushPrimaryAffinity represents initial OSD primary-affinity within range [0, 1]
+	CrushPrimaryAffinity string
 	// Size represents the size requested for the PVC
 	Size string
 	// Resources requests/limits for the devices
@@ -128,6 +130,7 @@ func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet rookv1.StorageClassDe
 	var dataSize string
 	var crushDeviceClass string
 	var crushInitialWeight string
+	var crushPrimaryAffinity string
 	typesFound := util.NewSet()
 	for _, pvcTemplate := range newDeviceSet.VolumeClaimTemplates {
 		if pvcTemplate.Name == "" {
@@ -159,6 +162,7 @@ func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet rookv1.StorageClassDe
 			crushDeviceClass = pvcTemplate.Annotations["crushDeviceClass"]
 		}
 		crushInitialWeight = pvcTemplate.Annotations["crushInitialWeight"]
+		crushPrimaryAffinity = pvcTemplate.Annotations["crushPrimaryAffinity"]
 
 		pvcSources[pvcType] = v1.PersistentVolumeClaimVolumeSource{
 			ClaimName: pvc.GetName(),
@@ -167,20 +171,21 @@ func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet rookv1.StorageClassDe
 	}
 
 	return deviceSet{
-		Name:                newDeviceSet.Name,
-		Resources:           newDeviceSet.Resources,
-		Placement:           newDeviceSet.Placement,
-		PreparePlacement:    newDeviceSet.PreparePlacement,
-		Config:              newDeviceSet.Config,
-		Size:                dataSize,
-		PVCSources:          pvcSources,
-		Portable:            newDeviceSet.Portable,
-		TuneSlowDeviceClass: newDeviceSet.TuneSlowDeviceClass,
-		TuneFastDeviceClass: newDeviceSet.TuneFastDeviceClass,
-		SchedulerName:       newDeviceSet.SchedulerName,
-		CrushDeviceClass:    crushDeviceClass,
-		CrushInitialWeight:  crushInitialWeight,
-		Encrypted:           newDeviceSet.Encrypted,
+		Name:                 newDeviceSet.Name,
+		Resources:            newDeviceSet.Resources,
+		Placement:            newDeviceSet.Placement,
+		PreparePlacement:     newDeviceSet.PreparePlacement,
+		Config:               newDeviceSet.Config,
+		Size:                 dataSize,
+		PVCSources:           pvcSources,
+		Portable:             newDeviceSet.Portable,
+		TuneSlowDeviceClass:  newDeviceSet.TuneSlowDeviceClass,
+		TuneFastDeviceClass:  newDeviceSet.TuneFastDeviceClass,
+		SchedulerName:        newDeviceSet.SchedulerName,
+		CrushDeviceClass:     crushDeviceClass,
+		CrushInitialWeight:   crushInitialWeight,
+		CrushPrimaryAffinity: crushPrimaryAffinity,
+		Encrypted:            newDeviceSet.Encrypted,
 	}
 }
 
