@@ -1071,6 +1071,7 @@ type GatewaySpec struct {
 	// The port the rgw service will be listening on (https)
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=65535
+	// +nullable
 	// +optional
 	SecurePort int32 `json:"securePort,omitempty"`
 
@@ -1079,6 +1080,7 @@ type GatewaySpec struct {
 	Instances int32 `json:"instances"`
 
 	// The name of the secret that stores the ssl certificate for secure rgw connections
+	// +nullable
 	// +optional
 	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
 

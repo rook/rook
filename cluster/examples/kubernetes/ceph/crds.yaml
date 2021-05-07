@@ -6026,6 +6026,7 @@ spec:
                       format: int32
                       maximum: 65535
                       minimum: 0
+                      nullable: true
                       type: integer
                     service:
                       description: The configuration related to add/set on each rgw service.
@@ -6039,6 +6040,7 @@ spec:
                       type: object
                     sslCertificateRef:
                       description: The name of the secret that stores the ssl certificate for secure rgw connections
+                      nullable: true
                       type: string
                   required:
                     - instances
