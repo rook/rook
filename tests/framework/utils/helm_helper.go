@@ -18,16 +18,13 @@ package utils
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"os"
 	"path"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/util/exec"
-)
-
-const (
-	HelmDeployName = "rook-ceph"
 )
 
 // HelmHelper is wrapper for running helm commands
@@ -55,28 +52,66 @@ func (h *HelmHelper) Execute(args ...string) (string, error) {
 
 }
 
+func createValuesFile(path string, values map[string]interface{}) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("could not create values file: %v", err)
+	}
+	defer func() {
+		closeErr := f.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+
+	output, err := yaml.Marshal(values)
+	if err != nil {
+		return fmt.Errorf("could not serialize values file: %v", err)
+	}
+
+	logger.Debugf("Writing values file %v: \n%v", path, string(output))
+	if _, err := f.Write(output); err != nil {
+		return fmt.Errorf("could not write values file: %v", err)
+	}
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("could not flush values file")
+	}
+
+	return nil
+}
+
 // InstallLocalRookHelmChart installs a give helm chart
-func (h *HelmHelper) InstallLocalRookHelmChart(namespace, chartSettings string) error {
+func (h *HelmHelper) InstallLocalRookHelmChart(namespace, chart string, values map[string]interface{}) error {
 	rootDir, err := FindRookRoot()
 	if err != nil {
 		return errors.Wrap(err, "failed to find rook root")
 	}
-	chartDir := path.Join(rootDir, "cluster/charts/rook-ceph/")
-	cmdArgs := []string{"install", "--create-namespace", HelmDeployName, chartDir, "-f", path.Join(chartDir, "values.yaml")}
+	chartDir := path.Join(rootDir, fmt.Sprintf("cluster/charts/%s/", chart))
+	cmdArgs := []string{"install", "--create-namespace", chart, chartDir}
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, "--namespace", namespace)
 	}
-	if chartSettings != "" {
-		cmdArgs = append(cmdArgs, "--set", chartSettings)
+
+	if values != nil {
+		testValuesPath := path.Join(chartDir, "values-test.yaml")
+		if err := createValuesFile(testValuesPath, values); err != nil {
+			return fmt.Errorf("error creating values file: %v", err)
+		}
+		defer func() {
+			_ = os.Remove(testValuesPath)
+		}()
+
+		cmdArgs = append(cmdArgs, "-f", testValuesPath)
 	}
+
 	var result string
 	result, err = h.Execute(cmdArgs...)
 	if err == nil {
 		return nil
 	}
 
-	logger.Errorf("cannot install helm chart with name : %v, namespace: %v  - %v , err: %v", HelmDeployName, namespace, result, err)
-	return fmt.Errorf("cannot install helm chart with name : %v, namespace: %v - %v, err: %v", HelmDeployName, namespace, result, err)
+	logger.Errorf("could not install helm chart with name : %v, namespace: %v  - %v , err: %v", chart, namespace, result, err)
+	return fmt.Errorf("could not install helm chart with name : %v, namespace: %v - %v, err: %v", chart, namespace, result, err)
 }
 
 // DeleteLocalRookHelmChart uninstalls a give helm deploy
@@ -84,7 +119,7 @@ func (h *HelmHelper) DeleteLocalRookHelmChart(namespace, deployName string) erro
 	cmdArgs := []string{"delete", "-n", namespace, deployName}
 	_, err := h.Execute(cmdArgs...)
 	if err != nil {
-		logger.Errorf("cannot delete helm chart with name  %v : %v", deployName, err)
+		logger.Errorf("could not delete helm chart with name  %v : %v", deployName, err)
 		return fmt.Errorf("Failed to delete helm chart with name  %v : %v", deployName, err)
 	}
 

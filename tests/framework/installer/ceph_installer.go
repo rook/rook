@@ -55,6 +55,12 @@ const (
 	masterTestImage    = "ceph/daemon-base:latest-master-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
 	defaultclusterName = "test-cluster"
+
+	clusterCustomSettings = `
+[global]
+osd_pool_default_size = 1
+bdev_flock_retry = 20
+`
 )
 
 var (
@@ -79,10 +85,6 @@ type CephInstaller struct {
 
 // CreateCephOperator creates rook-operator via kubectl
 func (h *CephInstaller) CreateCephOperator() (err error) {
-	logger.Infof("Starting Rook Operator")
-	// creating clusterrolebinding for kubeadm env.
-	h.k8shelper.CreateAnonSystemClusterBinding()
-
 	// creating rook resources
 	logger.Info("Creating Rook CRDs")
 	resources := h.Manifests.GetCRDs(h.k8shelper)
@@ -152,27 +154,21 @@ func (h *CephInstaller) startAdmissionController() error {
 	return nil
 }
 
-// CreateRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
-func (h *CephInstaller) CreateRookOperatorViaHelm(chartSettings string) error {
-	// creating clusterrolebinding for kubeadm env.
-	h.k8shelper.CreateAnonSystemClusterBinding()
+func (h *CephInstaller) waitForToolboxPod(namespace string) (string, error) {
+	if err := h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-tools", namespace); err != nil {
+		return "", errors.Wrap(err, "Rook Toolbox couldn't start")
+	}
+	logger.Infof("Rook Toolbox started")
 
-	// create the operator namespace before the admission controller is created
-	if err := h.k8shelper.CreateNamespace(h.settings.OperatorNamespace); err != nil {
-		return errors.Errorf("failed to create namespace %s. %v", h.settings.Namespace, err)
-	}
-	if err := h.startAdmissionController(); err != nil {
-		return errors.Errorf("failed to start admission controllers: %v", err)
-	}
-	if err := h.helmHelper.InstallLocalRookHelmChart(h.settings.Namespace, chartSettings); err != nil {
-		return errors.Errorf("failed to install rook operator via helm, err : %v", err)
-	}
-	// create the cluster namespace since it wasn't created by common.yaml
-	if err := h.k8shelper.CreateNamespace(h.settings.Namespace); err != nil {
-		return errors.Errorf("failed to create namespace %s. %v", h.settings.Namespace, err)
+	podNames, err := h.k8shelper.GetPodNamesForApp("rook-ceph-tools", namespace)
+	assert.NoError(h.T(), err)
+	for _, podName := range podNames {
+		// All e2e tests should run ceph commands in the toolbox since we are not inside a container
+		logger.Infof("found active toolbox pod: %q", podName)
+		return podName, nil
 	}
 
-	return nil
+	return "", errors.Errorf("could not find toolbox pod")
 }
 
 // CreateRookToolbox creates rook-ceph-tools via kubectl
@@ -184,19 +180,11 @@ func (h *CephInstaller) CreateRookToolbox(manifests CephManifests) (err error) {
 		return errors.Wrap(err, "failed to create rook-toolbox pod")
 	}
 
-	if err := h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-tools", h.settings.Namespace); err != nil {
-		return errors.Wrap(err, "Rook Toolbox couldn't start")
+	podName, err := h.waitForToolboxPod(manifests.Settings().Namespace)
+	if err != nil {
+		return err
 	}
-	logger.Infof("Rook Toolbox started")
-
-	podNames, err := h.k8shelper.GetPodNamesForApp("rook-ceph-tools", manifests.Settings().Namespace)
-	assert.NoError(h.T(), err)
-	for _, podName := range podNames {
-		// All e2e tests should run ceph commands in the toolbox since we are not inside a container
-		logger.Infof("setting active toolbox pod to %q", podName)
-		client.RunAllCephCommandsInToolboxPod = podName
-		break
-	}
+	client.RunAllCephCommandsInToolboxPod = podName
 
 	return nil
 }
@@ -225,12 +213,7 @@ func (h *CephInstaller) CreateCephCluster() error {
 	logger.Infof("Creating cluster with settings: %+v", h.settings)
 
 	logger.Infof("Creating custom ceph.conf settings")
-	customSettings := map[string]string{
-		"config": `
-[global]
-osd_pool_default_size = 1
-bdev_flock_retry = 20
-`}
+	customSettings := map[string]string{"config": clusterCustomSettings}
 	customCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-config-override",
@@ -258,6 +241,10 @@ bdev_flock_retry = 20
 		time.Sleep(5 * time.Second)
 	}
 
+	return nil
+}
+
+func (h *CephInstaller) waitForCluster() error {
 	if err := h.k8shelper.WaitForPodCount("app=rook-ceph-mon", h.settings.Namespace, h.settings.Mons); err != nil {
 		return err
 	}
@@ -280,8 +267,7 @@ bdev_flock_retry = 20
 
 	logger.Infof("Rook Cluster started")
 	if !h.settings.SkipOSDCreation {
-		err = h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-osd", h.settings.Namespace)
-		return err
+		return h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-osd", h.settings.Namespace)
 	}
 
 	return nil
@@ -452,27 +438,23 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 	return names, nil
 }
 
-func (h *CephInstaller) InstallRook() (bool, error) {
-
-	if h.settings.RookVersion != VersionMaster {
-		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
-		assert.NoError(h.T(), h.k8shelper.GetDockerImage("rook/ceph:"+h.settings.RookVersion))
-	}
-
-	assert.NoError(h.T(), h.k8shelper.GetDockerImage(h.settings.CephVersion.Image))
-
+func (h *CephInstaller) installRookOperator() (bool, error) {
 	ctx := context.TODO()
 	var err error
-	k8sversion := h.k8shelper.GetK8sServerVersion()
-
-	logger.Infof("Installing rook on K8s %s", k8sversion)
 
 	startDiscovery := false
+
+	h.k8shelper.CreateAnonSystemClusterBinding()
+
 	// Create rook operator
+	logger.Infof("Starting Rook Operator")
 	if h.settings.UseHelm {
-		// disable the discovery daemonset with the helm chart
+		// enable the discovery daemonset with the helm chart
 		startDiscovery = true
-		err = h.CreateRookOperatorViaHelm("enableDiscoveryDaemon=true,image.tag=master")
+		err := h.CreateRookOperatorViaHelm(map[string]interface{}{
+			"enableDiscoveryDaemon": true,
+			"image":                 map[string]interface{}{"tag": "master"},
+		})
 		if err != nil {
 			return false, errors.Wrap(err, "failed to configure helm")
 		}
@@ -489,11 +471,12 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 		return false, err
 	}
 
-	// Create rook cluster
-	err = h.CreateCephCluster()
-	if err != nil {
-		logger.Errorf("Cluster %q install failed. %v", h.settings.Namespace, err)
-		return false, err
+	// disable admission controller test for Kubernetes version older than v1.16.0
+	if h.settings.EnableAdmissionController && !utils.IsPlatformOpenShift() && h.k8shelper.VersionAtLeast("v1.16.0") {
+		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", h.settings.OperatorNamespace, "Running") {
+			assert.Fail(h.T(), "admission controller is not running")
+			return false, errors.Errorf("admission controller is not running")
+		}
 	}
 
 	discovery, err := h.k8shelper.Clientset.AppsV1().DaemonSets(h.settings.OperatorNamespace).Get(ctx, "rook-discover", metav1.GetOptions{})
@@ -505,19 +488,78 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 		assert.True(h.T(), kerrors.IsNotFound(err))
 	}
 
-	// Create rook client
-	err = h.CreateRookToolbox(h.Manifests)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to install toolbox in cluster %s", h.settings.Namespace)
-	}
-	logger.Infof("installed rook operator and cluster %s on k8s %s", h.settings.Namespace, h.k8sVersion)
+	return true, nil
+}
 
-	// disable admission controller test for Kubernetes version older than v1.16.0
-	if h.settings.EnableAdmissionController && !utils.IsPlatformOpenShift() && h.k8shelper.VersionAtLeast("v1.16.0") {
-		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", h.settings.OperatorNamespace, "Running") {
-			assert.Fail(h.T(), "admission controller is not running")
+func (h *CephInstaller) InstallRook() (bool, error) {
+	if h.settings.RookVersion != VersionMaster {
+		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
+		assert.NoError(h.T(), h.k8shelper.GetDockerImage("rook/ceph:"+h.settings.RookVersion))
+	}
+
+	assert.NoError(h.T(), h.k8shelper.GetDockerImage(h.settings.CephVersion.Image))
+
+	k8sversion := h.k8shelper.GetK8sServerVersion()
+
+	logger.Infof("Installing rook on K8s %s", k8sversion)
+	success, err := h.installRookOperator()
+	if err != nil {
+		return false, err
+	}
+	if !success {
+		return false, nil
+	}
+
+	if h.settings.UseHelm {
+		err = h.CreateRookCephClusterViaHelm(map[string]interface{}{
+			"image": "rook/ceph:master",
+		})
+		if err != nil {
+			return false, errors.Wrap(err, "failed to install ceph cluster using Helm")
+		}
+	} else {
+		// Create rook cluster
+		err = h.CreateCephCluster()
+		if err != nil {
+			logger.Errorf("Cluster %q install failed. %v", h.settings.Namespace, err)
+			return false, err
 		}
 	}
+
+	logger.Info("Waiting for Rook Cluster")
+	if err := h.waitForCluster(); err != nil {
+		return false, err
+	}
+
+	if h.settings.UseHelm {
+		podName, err := h.waitForToolboxPod(h.settings.Namespace)
+		if err != nil {
+			return false, err
+		}
+		client.RunAllCephCommandsInToolboxPod = podName
+	} else {
+		err = h.CreateRookToolbox(h.Manifests)
+		if err != nil {
+			return false, errors.Wrapf(err, "failed to install toolbox in cluster %s", h.settings.Namespace)
+		}
+	}
+
+	const loopCount = 20
+	for i := 0; i < loopCount; i++ {
+		_, err = client.Status(h.k8shelper.MakeContext(), client.AdminClusterInfo(h.settings.Namespace))
+		if err == nil {
+			logger.Infof("toolbox ready")
+			break
+		}
+		logger.Infof("toolbox is not ready")
+		if i == loopCount-1 {
+			return false, errors.Errorf("toolbox cannot connect to cluster")
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+
+	logger.Infof("installed rook operator and cluster %s on k8s %s", h.settings.Namespace, h.k8sVersion)
 
 	return true, nil
 }
@@ -556,7 +598,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 			continue
 		}
 
-		testCleanupPolicy := !manifest.Settings().IsExternal && !manifest.Settings().SkipCleanupPolicy
+		testCleanupPolicy := !h.settings.UseHelm && !manifest.Settings().IsExternal && !manifest.Settings().SkipCleanupPolicy
 		if testCleanupPolicy {
 			// Add cleanup policy to the core ceph cluster
 			err = h.addCleanupPolicy(namespace, clusterName)
@@ -584,21 +626,27 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 			h.GatherAllRookLogs(h.T().Name()+"poolcheck", h.settings.OperatorNamespace)
 		}
 
-		err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", clusterName)
-		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
+		if h.settings.UseHelm {
+			err = h.helmHelper.DeleteLocalRookHelmChart(namespace, CephClusterChartName)
+			checkError(h.T(), err, fmt.Sprintf("cannot uninstall helm chart %s", CephClusterChartName))
+		} else {
+			err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", clusterName)
+			checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
-		clusterDeleteRetries := 0
-		crdCheckerFunc := func() error {
-			_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, clusterName, metav1.GetOptions{})
-			clusterDeleteRetries++
-			if clusterDeleteRetries > 10 {
-				// If the operator really isn't going to remove the finalizer, just force remove it
-				h.removeClusterFinalizers(namespace, clusterName)
+			clusterDeleteRetries := 0
+			crdCheckerFunc := func() error {
+				_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, clusterName, metav1.GetOptions{})
+				clusterDeleteRetries++
+				if clusterDeleteRetries > 10 {
+					// If the operator really isn't going to remove the finalizer, just force remove it
+					h.removeClusterFinalizers(namespace, clusterName)
+				}
+
+				return err
 			}
-			return err
+			err = h.k8shelper.WaitForCustomResourceDeletion(namespace, clusterName, crdCheckerFunc)
+			checkError(h.T(), err, fmt.Sprintf("failed to wait for cluster crd %s deletion", namespace))
 		}
-		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, clusterName, crdCheckerFunc)
-		checkError(h.T(), err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
 
 		if testCleanupPolicy {
 			err = h.waitForCleanupJobs(namespace)
@@ -610,8 +658,8 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 
 		// helm cleanup
 		if h.settings.UseHelm {
-			err = h.helmHelper.DeleteLocalRookHelmChart(namespace, utils.HelmDeployName)
-			checkError(h.T(), err, "cannot uninstall helm chart")
+			err = h.helmHelper.DeleteLocalRookHelmChart(namespace, OperatorChartName)
+			checkError(h.T(), err, fmt.Sprintf("cannot uninstall helm chart %s", OperatorChartName))
 
 			// delete the entire namespace (in non-helm installs it's removed with the common.yaml)
 			err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)

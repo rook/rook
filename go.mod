@@ -31,6 +31,7 @@ require (
 	github.com/tevino/abool v1.2.0
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	gopkg.in/ini.v1 v1.57.0
+	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.20.1
 	k8s.io/apiextensions-apiserver v0.20.1
 	k8s.io/apimachinery v0.20.1
