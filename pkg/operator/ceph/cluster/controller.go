@@ -251,8 +251,29 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
 
-	// DELETE: the CR was deleted
+	// Block deletion if there are subresources that reference the Ceph cluster. When we block
+	// deletion, we still want the cluster to continue reconciling because the Ceph cluster will
+	// need to be healthy for dependent resources to properly clean themselves up.
+	blockDeletion := false
 	if !cephCluster.GetDeletionTimestamp().IsZero() {
+		var err error
+		blockDeletion, err = r.clusterController.dependentsBlockDeletion(cephCluster.Namespace)
+		if err != nil {
+			logger.Error(err)
+			return reconcile.Result{}, err
+		}
+		// TODO: if cephCluster.Spec.CleanupPolicy.AllowUninstallWithDependentResources {
+		//
+		//}
+		if blockDeletion {
+			// TODO: should we report all the dependent kinds and names here?
+			logger.Errorf("CephCluster in namespace %q cannot be deleted because dependent resources exist. User must delete all dependent resources (see errors above in logs) or force CephCluster deletion by setting cleanupPolicy.AllowUninstallWithDependentResources", cephCluster.Namespace)
+			// TODO: write status to CephCluster?
+		}
+	}
+
+	// DELETE: the CR was deleted
+	if !cephCluster.GetDeletionTimestamp().IsZero() && !blockDeletion {
 		doCleanup := true
 		logger.Infof("deleting ceph cluster %q", cephCluster.Name)
 
@@ -302,6 +323,11 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
 	if err := r.clusterController.onAdd(cephCluster, ownerInfo); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
+	}
+
+	// If we have blocked deletion, we need to periodically retry reconcile until deletion succeeds.
+	if blockDeletion {
+		return opcontroller.WaitForRequeueIfFinalizerBlocked, nil
 	}
 
 	// Return and do not requeue

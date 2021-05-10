@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -37,6 +38,8 @@ import (
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -250,4 +253,119 @@ func (c *ClusterController) getCleanUpDetails(namespace string) (string, string,
 	}
 
 	return clusterInfo.MonitorSecret, clusterInfo.FSID, nil
+}
+
+func checkBlockingDependent(typeName, namespace string, instances ...client.Object) (blockDeletion bool) {
+	if len(instances) == 0 {
+		return false
+	}
+	msg := fmt.Sprintf("%s resources exist which should be deleted before the CephCluster in namespace %q:", typeName, namespace)
+	for _, o := range instances {
+		msg = msg + " " + o.GetName()
+	}
+	logger.Errorf(msg)
+	return true
+}
+
+func (c *ClusterController) dependentsBlockDeletion(namespace string) (bool, error) {
+	// TODO: write unit tests
+
+	blockDeletion := false
+	ctx := context.TODO()
+	listOps := metav1.ListOptions{}
+	baseErr := fmt.Sprintf("failed to determine if there are dependent resources for CephCluster in namespace %q", namespace)
+
+	blockingSubresources := []string{
+		// Rook CRs that create Ceph pools
+		"CephBlockPools",
+		"CephFilesystems",
+		"CephObjectStores",
+		// Rook CRs that can use user-created Ceph pools
+		"CephNFSes",
+		"CephClients",
+	}
+
+	// Using a dynamic client is a little more abstract than using the static clients, but we avoid
+	// a lot of copy-pasted code and the human errors that often happen with copy-pasting.
+	dynamicClient, err := dynamic.NewForConfig(c.context.KubeConfig)
+	if err != nil {
+		return true, errors.Wrapf(err, "%s. failed to create new dynamic client for listing subresources", baseErr)
+	}
+
+	for _, sr := range blockingSubresources {
+		lcsr := strings.ToLower(sr)
+		srList, err := dynamicClient.Resource(cephv1.SchemeGroupVersion.WithResource(lcsr)).List(ctx, listOps)
+		if err != nil {
+			return true, errors.Wrapf(err, "%s. failed to list %s resources", baseErr, sr)
+		}
+		if len(srList.Items) > 0 {
+			blockDeletion = true
+			msg := fmt.Sprintf("%s resources exist which should be deleted before the CephCluster in namespace %q:", sr, namespace)
+			for _, inst := range srList.Items {
+				msg = msg + " " + inst.GetName()
+			}
+			logger.Error(msg)
+			// TODO: should we write a status to the CephCluster about this?
+		}
+	}
+
+	// // CephBlockPool
+	// bps, err := c.context.RookClientset.CephV1().CephBlockPools(namespace).List(ctx, listOps)
+	// if err != nil {
+	// 	return true, errors.Wrapf(err, errFmt, namespace, "CephBlockPools")
+	// }
+	// if len(bps.Items) > 0 {
+	// 	blockDeletion = true
+	// 	msg := fmt.Sprintf("CephBlockPool resources exist which should be deleted before the CephCluster in namespace %q:", namespace)
+	// 	for _, bp := range bps.Items {
+	// 		msg = msg + " " + bp.Name
+	// 	}
+	// 	logger.Errorf(msg)
+	// }
+
+	// // CephFileystem
+	// fses, err := c.context.RookClientset.CephV1().CephFilesystems(namespace).List(ctx, listOps)
+	// if err != nil {
+	// 	return true, errors.Wrapf(err, errFmt, namespace, "CephFilesystems")
+	// }
+	// if len(fses.Items) > 0 {
+	// 	blockDeletion = true
+	// 	msg := fmt.Sprintf("CephFilesystem resources exist which should be deleted before the CephCluster in namespace %q:", namespace)
+	// 	for _, fs := range fses.Items {
+	// 		msg = msg + " " + fs.Name
+	// 	}
+	// 	logger.Errorf(msg)
+	// }
+
+	// // CephObjectStore
+	// oss, err := c.context.RookClientset.CephV1().CephObjectStores(namespace).List(ctx, listOps)
+	// if err != nil {
+	// 	return true, errors.Wrapf(err, errFmt, namespace, "CephObjectStores")
+	// }
+	// if len(oss.Items) > 0 {
+	// 	blockDeletion = true
+	// 	msg := fmt.Sprintf("CephObjectStore resources exist which should be deleted before the CephCluster in namespace %q:", namespace)
+	// 	for _, os := range oss.Items {
+	// 		msg = msg + " " + os.Name
+	// 	}
+	// 	logger.Errorf(msg)
+	// }
+
+	// // CephNFS - can reference manually-created pools, so we have to assume it *could* be a
+	// // dependent of the CephCluster. But usually, CephNFS uses a pool created by CephFilesystem or
+	// // CephObjectStore (or less likely, CephBlockPool).
+	// nfses, err := c.context.RookClientset.CephV1().CephNFSes(namespace).List(ctx, listOps)
+	// if err != nil {
+	// 	return true, errors.Wrapf(err, errFmt, namespace, "CephNFSes")
+	// }
+	// if len(nfses.Items) > 0 {
+	// 	blockDeletion = true
+	// 	msg := fmt.Sprintf("CephNFS resources exist which should be deleted before the CephCluster in namespace %q:", namespace)
+	// 	for _, nfs := range nfses.Items {
+	// 		msg = msg + " " + nfs.Name
+	// 	}
+	// 	logger.Errorf(msg)
+	// }
+
+	return blockDeletion, nil
 }

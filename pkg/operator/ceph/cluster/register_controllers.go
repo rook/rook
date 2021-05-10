@@ -35,7 +35,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object/zone"
 	"github.com/rook/rook/pkg/operator/ceph/object/zonegroup"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
-
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 

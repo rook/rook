@@ -1484,6 +1484,7 @@ type CleanupPolicySpec struct {
 	// AllowUninstallWithVolumes defines whether we can proceed with the uninstall if they are RBD images still present
 	// +optional
 	AllowUninstallWithVolumes bool `json:"allowUninstallWithVolumes,omitempty"`
+	// TODO: add uninstall option AllowUninstallWithDependentResources
 }
 
 // CleanupConfirmationProperty represents the cleanup confirmation
