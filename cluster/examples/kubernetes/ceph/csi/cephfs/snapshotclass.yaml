@@ -1,5 +1,4 @@
 ---
-# apiVersion: snapshot.storage.k8s.io/v1alpha1
 # 1.17 <= K8s <= v1.19
 # apiVersion: snapshot.storage.k8s.io/v1beta1
 # K8s >= v1.20
