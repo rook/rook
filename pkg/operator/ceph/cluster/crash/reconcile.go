@@ -18,6 +18,7 @@ package crash
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
@@ -25,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	appsv1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
@@ -52,6 +54,9 @@ var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 	// Implement reconcile.Reconciler so the controller can reconcile objects
 	_ reconcile.Reconciler = &ReconcileNode{}
+
+	// wait for secret "rook-ceph-crash-collector-keyring" to be created
+	waitForRequeueIfSecretNotCreated = reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}
 )
 
 // ReconcileNode reconciles ReplicaSets
@@ -154,6 +159,18 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 
 			return reconcile.Result{}, nil
+		}
+
+		// checking if secret "rook-ceph-crash-collector-keyring" is present which is required to create crashcollector pods
+		secret := &corev1.Secret{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: crashCollectorKeyName, Namespace: namespace}, secret)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("secret %q not found. retrying in %q. %v", crashCollectorKeyName, waitForRequeueIfSecretNotCreated.RequeueAfter.String(), err)
+				return waitForRequeueIfSecretNotCreated, nil
+			}
+
+			return reconcile.Result{}, errors.Wrapf(err, "failed to list the %q secret.", crashCollectorKeyName)
 		}
 
 		clusterImage := cephCluster.Spec.CephVersion.Image
