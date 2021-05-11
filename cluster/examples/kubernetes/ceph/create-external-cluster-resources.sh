@@ -2,7 +2,8 @@
 # this script creates all the users/keys on the external cluster
 # those keys will be injected via the import-external-cluster.sh once this one is done running
 # so you can run import-external-cluster.sh right after this script
-set -Eeuo pipefail
+# run me like: . cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh
+set -e
 
 #############
 # VARIABLES #
@@ -10,6 +11,7 @@ set -Eeuo pipefail
 
 : "${CLIENT_CHECKER_NAME:=client.healthchecker}"
 : "${RGW_POOL_PREFIX:=default}"
+: "${ns:=rook-ceph-external}"
 
 #############
 # FUNCTIONS #
@@ -22,41 +24,59 @@ function is_available {
 function checkEnv() {
   if ! is_available ceph; then
     echo "'ceph' binary is expected'"
-    exit 1
+    return 1
+  fi
+  
+  if ! is_available jq; then
+    echo "'jq' binary is expected'"
+    return 1
   fi
   
   if ! ceph -s 1>/dev/null; then
     echo "cannot connect to the ceph cluster"
-    exit 1
+    return 1
   fi
 }
 
 function createCheckerKey() {
-  checkerKey=$(ceph auth get-or-create "$CLIENT_CHECKER_NAME" mon 'allow r, allow command quorum_status' mgr 'allow command config' osd 'allow rwx pool='"$RGW_POOL_PREFIX"'.rgw.meta, allow r pool=.rgw.root, allow rw pool='"$RGW_POOL_PREFIX"'.rgw.control, allow x pool='"$RGW_POOL_PREFIX"'.rgw.buckets.index, allow x pool='"$RGW_POOL_PREFIX"'.rgw.log'|awk '/key =/ { print $3}')
-  echo "export ROOK_EXTERNAL_USER_SECRET=$checkerKey"
-  echo "export ROOK_EXTERNAL_USERNAME=$CLIENT_CHECKER_NAME"
+  ROOK_EXTERNAL_USER_SECRET=$(ceph auth get-or-create "$CLIENT_CHECKER_NAME" mon 'allow r, allow command quorum_status' mgr 'allow command config' osd 'allow rwx pool='"$RGW_POOL_PREFIX"'.rgw.meta, allow r pool=.rgw.root, allow rw pool='"$RGW_POOL_PREFIX"'.rgw.control, allow x pool='"$RGW_POOL_PREFIX"'.rgw.buckets.index, allow x pool='"$RGW_POOL_PREFIX"'.rgw.log'|awk '/key =/ { print $3}')
+  export ROOK_EXTERNAL_USER_SECRET
+  export ROOK_EXTERNAL_USERNAME=$CLIENT_CHECKER_NAME
 }
 
 function createCephCSIKeyringRBDNode() {
-  cephCSIKeyringRBDNodeKey=$(ceph auth get-or-create client.csi-rbd-node mon 'profile rbd' osd 'profile rbd'|awk '/key =/ { print $3}')
-  echo "export CSI_RBD_NODE_SECRET=$cephCSIKeyringRBDNodeKey"
+  CSI_RBD_NODE_SECRET=$(ceph auth get-or-create client.csi-rbd-node mon 'profile rbd' osd 'profile rbd'|awk '/key =/ { print $3}')
+  export CSI_RBD_NODE_SECRET
 }
 
 function createCephCSIKeyringRBDProvisioner() {
-  cephCSIKeyringRBDProvisionerKey=$(ceph auth get-or-create client.csi-rbd-provisioner mon 'profile rbd' mgr 'allow rw' osd 'profile rbd'|awk '/key =/ { print $3}')
-  echo "export CSI_RBD_PROVISIONER_SECRET=$cephCSIKeyringRBDProvisionerKey"
+  CSI_RBD_PROVISIONER_SECRET=$(ceph auth get-or-create client.csi-rbd-provisioner mon 'profile rbd' mgr 'allow rw' osd 'profile rbd'|awk '/key =/ { print $3}')
+  export CSI_RBD_PROVISIONER_SECRET
 }
 
 function createCephCSIKeyringCephFSNode() {
-  cephCSIKeyringCephFSNodeKey=$(ceph auth get-or-create client.csi-cephfs-node mon 'allow r' mgr 'allow rw' osd 'allow rw tag cephfs *=*' mds 'allow rw'|awk '/key =/ { print $3}')
-  echo "export CSI_CEPHFS_NODE_SECRET=$cephCSIKeyringCephFSNodeKey"
+  CSI_CEPHFS_NODE_SECRET=$(ceph auth get-or-create client.csi-cephfs-node mon 'allow r' mgr 'allow rw' osd 'allow rw tag cephfs *=*' mds 'allow rw'|awk '/key =/ { print $3}')
+  export CSI_CEPHFS_NODE_SECRET
 }
 
 function createCephCSIKeyringCephFSProvisioner() {
-  cephCSIKeyringCephFSProvisionerKey=$(ceph auth get-or-create client.csi-cephfs-provisioner mon 'allow r' mgr 'allow rw' osd 'allow rw tag cephfs metadata=*'|awk '/key =/ { print $3}')
-  echo "export CSI_CEPHFS_PROVISIONER_SECRET=$cephCSIKeyringCephFSProvisionerKey"
+  CSI_CEPHFS_PROVISIONER_SECRET=$(ceph auth get-or-create client.csi-cephfs-provisioner mon 'allow r' mgr 'allow rw' osd 'allow rw tag cephfs metadata=*'|awk '/key =/ { print $3}')
+  export CSI_CEPHFS_PROVISIONER_SECRET
 }
 
+function getFSID() {
+  ROOK_EXTERNAL_FSID=$(ceph fsid)
+  export ROOK_EXTERNAL_FSID
+}
+
+function externalMonData() {
+  ROOK_EXTERNAL_CEPH_MON_DATA=$(ceph mon dump -f json 2>/dev/null|jq --raw-output .mons[0].name)=$(ceph mon dump -f json 2>/dev/null|jq --raw-output .mons[0].public_addrs.addrvec[0].addr)
+  export ROOK_EXTERNAL_CEPH_MON_DATA
+}
+
+function namespace() {
+  export NAMESPACE=$ns
+}
 
 ########
 # MAIN #
@@ -67,5 +87,6 @@ createCephCSIKeyringRBDNode
 createCephCSIKeyringRBDProvisioner
 createCephCSIKeyringCephFSNode
 createCephCSIKeyringCephFSProvisioner
-
-echo -e "successfully created users and keys, execute the above commands and run import-external-cluster.sh to inject them in your Kubernetes cluster."
+getFSID
+externalMonData
+namespace
