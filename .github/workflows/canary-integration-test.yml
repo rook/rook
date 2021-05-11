@@ -720,26 +720,18 @@ jobs:
 
     - name: deploy first cluster rook
       run: |
-        BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/github-action-helper.sh deploy_first_rook_cluster
         cd cluster/examples/kubernetes/ceph/
-        kubectl create -f crds.yaml -f common.yaml -f operator.yaml
-        yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
-        yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
-        yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}1
-        kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f filesystem-mirror.yaml -f toolbox.yaml
+        kubectl create -f rbdmirror.yaml -f filesystem-mirror.yaml
 
     # cephfs-mirroring is a push operation
     # running bootstrap create on secondary and bootstrap import on primary. mirror daemons on primary.
     - name: deploy second cluster rook
       run: |
-        BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/github-action-helper.sh deploy_second_rook_cluster
         cd cluster/examples/kubernetes/ceph/
-        NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
-        sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml rbdmirror.yaml
-        yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}2
-        yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-secondary"
-        yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
-        kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f toolbox.yaml
+        sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' rbdmirror.yaml
+        kubectl create -f rbdmirror.yaml
 
     - name: wait for ceph cluster 1 to be ready
       run: |
@@ -870,6 +862,88 @@ jobs:
       if: always()
       with:
         name: multi-cluster-mirroring
+        path: test
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60
+
+  rgw-multisite-testing:
+    runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: install deps
+      run: |
+        tests/scripts/github-action-helper.sh install_deps
+        sudo apt-get install -y s3cmd
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.3.1
+      with:
+        minikube version: 'v1.18.1'
+        kubernetes version: 'v1.19.2'
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: use local disk into two partitions
+      run: |
+        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
+        sudo lsblk
+
+    - name: build rook
+      run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: deploy first cluster rook
+      run: |
+        tests/scripts/github-action-helper.sh deploy_first_rook_cluster
+        kubectl create -f cluster/examples/kubernetes/ceph/object-multisite-test.yaml
+        # wait for multisite store to be created
+        tests/scripts/github-action-helper.sh wait_for_rgw_pods rook-ceph
+
+    - name: prep second cluster pull realm config
+      run: |
+        cd cluster/examples/kubernetes/ceph/
+        IP_ADDR=$(kubectl -n rook-ceph get svc rook-ceph-rgw-multisite-store -o jsonpath="{.spec.clusterIP}")
+        yq w -i -d1 object-multisite-pull-realm-test.yaml spec.pull.endpoint http://${IP_ADDR}:80
+        BASE64_ACCESS_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.access-key}")
+        BASE64_SECRET_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.secret-key}")
+        sed -i 's/VzFjNFltMVdWRTFJWWxZelZWQT0=/'"$BASE64_ACCESS_KEY"'/g' object-multisite-pull-realm-test.yaml
+        sed -i 's/WVY1MFIxeExkbG84U3pKdlRseEZXVGR3T3k1U1dUSS9KaTFoUVE9PQ==/'"$BASE64_SECRET_KEY"'/g' object-multisite-pull-realm-test.yaml
+
+    - name: deploy second cluster rook
+      run: |
+        tests/scripts/github-action-helper.sh deploy_second_rook_cluster
+        kubectl create -f cluster/examples/kubernetes/ceph/object-multisite-pull-realm-test.yaml
+        # wait for realms to be pulled and zone-b-multisite-store to be created
+        tests/scripts/github-action-helper.sh wait_for_rgw_pods rook-ceph-secondary
+
+    - name: wait for ceph cluster 1 to be ready
+      run: |
+        mkdir test
+        tests/scripts/validate_cluster.sh osd 1
+        kubectl -n rook-ceph get pods
+
+    - name: write an object to one cluster, read from the other
+      run: tests/scripts/github-action-helper.sh write_object_to_cluster1_read_from_cluster2
+
+    - name: upload test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: rgw-multisite-testing
         path: test
 
     - name: setup tmate session for debugging

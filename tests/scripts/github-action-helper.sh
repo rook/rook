@@ -246,11 +246,57 @@ EOF
   kubectl config view --raw --minify --flatten -o jsonpath='{.clusters[].cluster.certificate-authority-data}' | base64 -d > "${DIR}"/"${SERVICE}".ca
 }
 
+function deploy_first_rook_cluster() {
+  BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+  cd cluster/examples/kubernetes/ceph/
+  kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+  yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
+  yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
+  yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}1
+  kubectl create -f cluster-test.yaml -f toolbox.yaml
+}
+
+function wait_for_rgw_pods() {
+  for i in {1..120}; do kubectl -n $1 get pod -l app=rook-ceph-rgw -o jsonpath='{.items[0].metadata.name}' && echo -e "\nrgw pods found" && break || echo -e "\nwaiting for rgw pods"; sleep 5; done
+}
+
+function deploy_second_rook_cluster() {
+  BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+  cd cluster/examples/kubernetes/ceph/
+  NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
+  sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
+  yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}2
+  yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
+  yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
+  kubectl create -f cluster-test.yaml -f toolbox.yaml
+}
+
+function write_object_to_cluster1_read_from_cluster2() {
+  cd cluster/examples/kubernetes/ceph/
+  echo "[default]" > s3cfg
+  echo "host_bucket = no.way.in.hell" >> ./s3cfg
+  echo "use_https = False" >> ./s3cfg
+  fallocate -l 1M ./1M.dat
+  echo "hello world" >> ./1M.dat
+  CLUSTER_1_IP_ADDR=$(kubectl -n rook-ceph get svc rook-ceph-rgw-multisite-store -o jsonpath="{.spec.clusterIP}")
+  BASE64_ACCESS_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.access-key}")
+  BASE64_SECRET_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.secret-key}")
+  ACCESS_KEY=$(echo ${BASE64_ACCESS_KEY} | base64 --decode)
+  SECRET_KEY=$(echo ${BASE64_SECRET_KEY} | base64 --decode)
+  s3cmd --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_1_IP_ADDR} mb s3://bkt
+  s3cmd --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_1_IP_ADDR} put ./1M.dat s3://bkt
+  CLUSTER_2_IP_ADDR=$(kubectl -n rook-ceph-secondary get svc rook-ceph-rgw-zone-b-multisite-store -o jsonpath="{.spec.clusterIP}")
+  s3cmd --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_2_IP_ADDR} get s3://bkt/1M.dat 1M-get.dat --force
+  diff 1M.dat 1M-get.dat
+}
+
 selected_function="$1"
 if [ "$selected_function" = "generate_tls_config" ]; then
     $selected_function $2 $3 $4 $5
 elif [ "$selected_function" = "wait_for_ceph_to_be_ready" ]; then
      $selected_function $2 $3
+elif [ "$selected_function" = "wait_for_rgw_pods" ]; then
+     $selected_function $2
 else
   $selected_function
 fi
