@@ -17,19 +17,26 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPodVolumes(t *testing.T) {
@@ -232,4 +239,154 @@ func TestNetworkBindingFlags(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExtractMgrIP(t *testing.T) {
+	activeMgrRaw := "172.17.0.12:6801/2535462469"
+	ip := extractMgrIP(activeMgrRaw)
+	assert.Equal(t, "172.17.0.12", ip)
+}
+
+func TestConfigureExternalMetricsEndpoint(t *testing.T) {
+	t.Run("spec and current active mgr endpoint identical with no existing endpoint object", func(t *testing.T) {
+		monitoringSpec := cephv1.MonitoringSpec{
+			Enabled:              true,
+			RulesNamespace:       "rook-ceph",
+			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
+		}
+		clusterInfo := &cephclient.ClusterInfo{
+			FSID:      "id",
+			Namespace: "rook-ceph",
+		}
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutputFile: func(command, outFile string, args ...string) (string, error) {
+				logger.Infof("Command: %s %v", command, args)
+				if args[1] == "dump" {
+					return fmt.Sprintf(`{"active_addr":"%s"}`, "192.168.0.1:6801/2535462469"), nil
+				}
+				return "", errors.New("unknown command")
+			},
+		}
+		ctx := &clusterd.Context{
+			Clientset:     test.New(t, 3),
+			RookClientset: rookclient.NewSimpleClientset(),
+			Executor:      executor,
+		}
+
+		err := ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, cephclient.NewMinimumOwnerInfo(t))
+		assert.NoError(t, err)
+
+		currentEndpoints, err := ctx.Clientset.CoreV1().Endpoints(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "192.168.0.1", currentEndpoints.Subsets[0].Addresses[0].IP, currentEndpoints)
+	})
+
+	t.Run("spec and current active mgr endpoint different with no existing endpoint object", func(t *testing.T) {
+		monitoringSpec := cephv1.MonitoringSpec{
+			Enabled:              true,
+			RulesNamespace:       "rook-ceph",
+			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
+		}
+		clusterInfo := &cephclient.ClusterInfo{
+			FSID:      "id",
+			Namespace: "rook-ceph",
+		}
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutputFile: func(command, outFile string, args ...string) (string, error) {
+				logger.Infof("Command: %s %v", command, args)
+				if args[1] == "dump" {
+					return fmt.Sprintf(`{"active_addr":"%s"}`, "172.17.0.12:6801/2535462469"), nil
+				}
+				return "", errors.New("unknown command")
+			},
+		}
+		ctx := &clusterd.Context{
+			Clientset:     test.New(t, 3),
+			RookClientset: rookclient.NewSimpleClientset(),
+			Executor:      executor,
+		}
+
+		err := ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, cephclient.NewMinimumOwnerInfo(t))
+		assert.NoError(t, err)
+
+		currentEndpoints, err := ctx.Clientset.CoreV1().Endpoints(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "172.17.0.12", currentEndpoints.Subsets[0].Addresses[0].IP, currentEndpoints)
+	})
+
+	t.Run("spec and current active mgr endpoint different with existing endpoint object", func(t *testing.T) {
+		monitoringSpec := cephv1.MonitoringSpec{
+			Enabled:              true,
+			RulesNamespace:       "rook-ceph",
+			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
+		}
+		clusterInfo := &cephclient.ClusterInfo{
+			FSID:      "id",
+			Namespace: "rook-ceph",
+		}
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutputFile: func(command, outFile string, args ...string) (string, error) {
+				logger.Infof("Command: %s %v", command, args)
+				if args[1] == "dump" {
+					return fmt.Sprintf(`{"active_addr":"%s"}`, "172.17.0.12:6801/2535462469"), nil
+				}
+				return "", errors.New("unknown command")
+			},
+		}
+		ctx := &clusterd.Context{
+			Clientset:     test.New(t, 3),
+			RookClientset: rookclient.NewSimpleClientset(),
+			Executor:      executor,
+		}
+		ownerInfo := cephclient.NewMinimumOwnerInfo(t)
+		ep, err := createExternalMetricsEndpoints(clusterInfo.Namespace, monitoringSpec, ownerInfo)
+		assert.NoError(t, err)
+		_, err = ctx.Clientset.CoreV1().Endpoints(namespace).Create(context.TODO(), ep, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		err = ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, ownerInfo)
+		assert.NoError(t, err)
+
+		currentEndpoints, err := ctx.Clientset.CoreV1().Endpoints(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "172.17.0.12", currentEndpoints.Subsets[0].Addresses[0].IP, currentEndpoints)
+	})
+
+	t.Run("spec and current active mgr endpoint identical with existing endpoint object", func(t *testing.T) {
+		monitoringSpec := cephv1.MonitoringSpec{
+			Enabled:              true,
+			RulesNamespace:       "rook-ceph",
+			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
+		}
+		clusterInfo := &cephclient.ClusterInfo{
+			FSID:      "id",
+			Namespace: "rook-ceph",
+		}
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutputFile: func(command, outFile string, args ...string) (string, error) {
+				logger.Infof("Command: %s %v", command, args)
+				if args[1] == "dump" {
+					return fmt.Sprintf(`{"active_addr":"%s"}`, "192.168.0.1:6801/2535462469"), nil
+				}
+				return "", errors.New("unknown command")
+			},
+		}
+		ctx := &clusterd.Context{
+			Clientset:     test.New(t, 3),
+			RookClientset: rookclient.NewSimpleClientset(),
+			Executor:      executor,
+		}
+		ownerInfo := cephclient.NewMinimumOwnerInfo(t)
+		ep, err := createExternalMetricsEndpoints(clusterInfo.Namespace, monitoringSpec, ownerInfo)
+		assert.NoError(t, err)
+		_, err = ctx.Clientset.CoreV1().Endpoints(namespace).Create(context.TODO(), ep, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		err = ConfigureExternalMetricsEndpoint(ctx, monitoringSpec, clusterInfo, ownerInfo)
+		assert.NoError(t, err)
+
+		currentEndpoints, err := ctx.Clientset.CoreV1().Endpoints(namespace).Get(context.TODO(), "rook-ceph-mgr-external", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "192.168.0.1", currentEndpoints.Subsets[0].Addresses[0].IP, currentEndpoints)
+	})
 }

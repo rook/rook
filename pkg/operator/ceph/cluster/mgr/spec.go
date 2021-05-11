@@ -35,10 +35,8 @@ import (
 )
 
 const (
-	podIPEnvVar               = "ROOK_POD_IP"
-	serviceMetricName         = "http-metrics"
-	ExternalMgrAppName        = "rook-ceph-mgr-external"
-	ServiceExternalMetricName = "http-external-metrics"
+	podIPEnvVar       = "ROOK_POD_IP"
+	serviceMetricName = "http-metrics"
 )
 
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error) {
@@ -265,7 +263,7 @@ func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName s
 	}
 
 	// If the cluster is external we don't need to add the selector
-	if name != ExternalMgrAppName {
+	if name != controller.ExternalMgrAppName {
 		svc.Spec.Selector = labels
 	}
 
@@ -335,37 +333,6 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 		k8sutil.PodIPEnvVar(podIPEnvVar),
 	}
 	return envVars
-}
-
-// CreateExternalMetricsEndpoints creates external metric endpoint
-func CreateExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*v1.Endpoints, error) {
-	labels := controller.AppLabels(AppName, namespace)
-
-	endpoints := &v1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ExternalMgrAppName,
-			Namespace: namespace,
-			Labels:    labels,
-		},
-		Subsets: []v1.EndpointSubset{
-			{
-				Addresses: monitoringSpec.ExternalMgrEndpoints,
-				Ports: []v1.EndpointPort{
-					{
-						Name:     ServiceExternalMetricName,
-						Port:     int32(monitoringSpec.ExternalMgrPrometheusPort),
-						Protocol: v1.ProtocolTCP,
-					},
-				},
-			},
-		},
-	}
-
-	err := ownerInfo.SetControllerReference(endpoints)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to set owner reference to metric endpoints %q", endpoints.Name)
-	}
-	return endpoints, nil
 }
 
 func (c *Cluster) selectorLabels(activeDaemon string) map[string]string {
