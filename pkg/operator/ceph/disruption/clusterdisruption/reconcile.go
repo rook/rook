@@ -169,8 +169,8 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, nil
 	}
 
-	// get all failure domains and the draining failure domains list
-	allFailureDomains, drainingFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, poolFailureDomain)
+	// get a list of all the failure domains, failure domains with failed OSDs and failure domains with drained nodes
+	allFailureDomains, nodeDrainFailureDomains, osdDownFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, poolFailureDomain)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -181,17 +181,8 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
-	err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomains, drainingFailureDomains)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	disabledPDB, ok := pdbStateMap.Data[drainingFailureDomainKey]
-	if ok && len(disabledPDB) > 0 {
-		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
-	}
-
-	return reconcile.Result{}, nil
+	activeNodeDrains := len(nodeDrainFailureDomains) > 0
+	return r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomains, osdDownFailureDomains, activeNodeDrains)
 }
 
 // ClusterMap maintains the association between namespace and clusername
