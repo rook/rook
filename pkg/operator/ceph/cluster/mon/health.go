@@ -116,7 +116,18 @@ func (c *Cluster) checkHealth() error {
 			return errors.Wrap(err, "failed to get external mon quorum status")
 		}
 
-		return c.handleExternalMonStatus(quorumStatus)
+		err = c.handleExternalMonStatus(quorumStatus)
+		if err != nil {
+			return errors.Wrap(err, "failed to get external mon quorum status")
+		}
+
+		// handle active manager
+		err = controller.ConfigureExternalMetricsEndpoint(c.context, c.spec.Monitoring, c.ClusterInfo, c.ownerInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to configure external metrics endpoint")
+		}
+
+		return nil
 	}
 
 	// connect to the mons
