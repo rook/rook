@@ -90,11 +90,9 @@ var (
 
 	// template paths
 	RBDPluginTemplatePath         string
-	RBDProvisionerSTSTemplatePath string
 	RBDProvisionerDepTemplatePath string
 
 	CephFSPluginTemplatePath         string
-	CephFSProvisionerSTSTemplatePath string
 	CephFSProvisionerDepTemplatePath string
 
 	// configuration map for csi
@@ -195,7 +193,7 @@ func ValidateCSIParam() error {
 		if len(RBDPluginTemplatePath) == 0 {
 			return errors.New("missing rbd plugin template path")
 		}
-		if len(RBDProvisionerSTSTemplatePath) == 0 && len(RBDProvisionerDepTemplatePath) == 0 {
+		if len(RBDProvisionerDepTemplatePath) == 0 {
 			return errors.New("missing rbd provisioner template path")
 		}
 	}
@@ -204,7 +202,7 @@ func ValidateCSIParam() error {
 		if len(CephFSPluginTemplatePath) == 0 {
 			return errors.New("missing cephfs plugin template path")
 		}
-		if len(CephFSProvisionerSTSTemplatePath) == 0 && len(CephFSProvisionerDepTemplatePath) == 0 {
+		if len(CephFSProvisionerDepTemplatePath) == 0 {
 			return errors.New("missing ceph provisioner template path")
 		}
 	}
