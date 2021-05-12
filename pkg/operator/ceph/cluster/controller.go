@@ -258,7 +258,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
 		stopCleanupCh := make(chan struct{})
-		if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
+		if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.Spec.External.Enable {
 			// Set the deleting status
 			updateStatus(r.client, request.NamespacedName, cephv1.ConditionDeleting)
 

@@ -1248,7 +1248,7 @@ The script will look for the following populated environment variables:
 
 * `NAMESPACE`: the namespace where the configmap and secrets should be injected
 * `ROOK_EXTERNAL_FSID`: the fsid of the external Ceph cluster, it can be retrieved via the `ceph fsid` command
-* `ROOK_EXTERNAL_CEPH_MON_DATA`: is a common-separated list of running monitors IP address along with their ports, e.g: `a=172.17.0.4:6789,b=172.17.0.5:6789,c=172.17.0.6:6789`. You don't need to specify all the monitors, you can simply pass one and the Operator will discover the rest. The name of the monitor is the name that appears in the `ceph status` output.
+* `ROOK_EXTERNAL_CEPH_MON_DATA`: is a common-separated list of running monitors IP address along with their ports, e.g: `a=172.17.0.4:3300,b=172.17.0.5:3300,c=172.17.0.6:3300`. You don't need to specify all the monitors, you can simply pass one and the Operator will discover the rest. The name of the monitor is the name that appears in the `ceph status` output.
 
 Now, we need to give Rook a key to connect to the cluster in order to perform various operations such as health cluster check, CSI keys management etc...
 It is recommended to generate keys with minimal access so the admin key does not need to be used by the external cluster.
@@ -1264,12 +1264,25 @@ But if the admin key is to be used by the external cluster, set the following va
 ```console
 export NAMESPACE=rook-ceph-external
 export ROOK_EXTERNAL_FSID=3240b4aa-ddbc-42ee-98ba-4ea7b2a61514
-export ROOK_EXTERNAL_CEPH_MON_DATA=a=172.17.0.4:6789
+export ROOK_EXTERNAL_CEPH_MON_DATA=a=172.17.0.4:3300
 export ROOK_EXTERNAL_ADMIN_SECRET=AQC6Ylxdja+NDBAAB7qy9MEAr4VLLq4dCIvxtg==
 ```
 
 If the Ceph admin key is not provided, the following script needs to be executed on a machine that can connect to the Ceph cluster using the Ceph admin key.
-On that machine, run `cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh`.
+On that machine, run:
+
+```sh
+. cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh
+```
+
+The script will source all the necessary environment variables for you. It assumes the namespace name is `rook-ceph-external`.
+This can be changed by running the script like (assuming namespace name is `foo` this time):
+
+```sh
+ns=foo . cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh
+```
+
+When done you can execute: `import-external-cluster.sh` to inject them in your Kubernetes cluster.
 
 > **WARNING**: Since only Ceph admin key can create CRs in the external cluster, please make sure that rgw pools have been prepared. You can get existing pools by running `ceph osd pool ls`.
 
