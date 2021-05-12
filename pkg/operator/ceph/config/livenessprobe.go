@@ -37,42 +37,49 @@ func ConfigureLivenessProbe(daemon rookv1.KeyType, container v1.Container, healt
 	}
 
 	if _, ok := healthCheck.LivenessProbe[daemon]; ok {
-		if !healthCheck.LivenessProbe[daemon].Disabled {
+		if healthCheck.LivenessProbe[daemon].Disabled {
+			container.LivenessProbe = nil
+		} else {
 			probe := probeFnMap[daemon](healthCheck)
-			// If the spec value is empty, let's use a default
+			// If the spec value is not empty, let's apply it along with default when some fields are not specified
 			if probe != nil {
 				// Set the liveness probe on the container to overwrite the default probe created by Rook
 				container.LivenessProbe = GetLivenessProbeWithDefaults(probe, container.LivenessProbe)
 			}
-		} else {
-			container.LivenessProbe = nil
 		}
 	}
 
 	return container
 }
 
-func GetLivenessProbeWithDefaults(desiredProbe, defaultProbe *v1.Probe) *v1.Probe {
-	if desiredProbe.Handler == (v1.Handler{}) {
-		desiredProbe.Handler = defaultProbe.Handler
-	}
+func GetLivenessProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
+	// Do not replace the handler with the previous one!
+	// On the first iteration, the handler appears empty and is then replaced by whatever first daemon value comes in
+	// e.g: [env -i sh -c ceph --admin-daemon /run/ceph/ceph-mon.b.asok mon_status] - meaning mon b was the first picked in the list of mons
+	// On the second iteration the value of mon b remains, since the pointer has been allocated
+	// This means the handler is not empty anymore and not replaced by the current one which it should
+	//
+	// Let's always force the default handler, there is no reason to change it anyway since the underlying content is generated based on the daemon's name
+	// so we can not make it generic via the spec
+	desiredProbe.Handler = currentProbe.Handler
 
 	// If the user has not specified thresholds and timeouts, set them to the same values as
 	// in the default liveness probe created by Rook.
 	if desiredProbe.FailureThreshold == 0 {
-		desiredProbe.FailureThreshold = defaultProbe.FailureThreshold
+		desiredProbe.FailureThreshold = currentProbe.FailureThreshold
 	}
 	if desiredProbe.PeriodSeconds == 0 {
-		desiredProbe.PeriodSeconds = defaultProbe.PeriodSeconds
+		desiredProbe.PeriodSeconds = currentProbe.PeriodSeconds
 	}
 	if desiredProbe.SuccessThreshold == 0 {
-		desiredProbe.SuccessThreshold = defaultProbe.SuccessThreshold
+		desiredProbe.SuccessThreshold = currentProbe.SuccessThreshold
 	}
 	if desiredProbe.TimeoutSeconds == 0 {
-		desiredProbe.TimeoutSeconds = defaultProbe.TimeoutSeconds
+		desiredProbe.TimeoutSeconds = currentProbe.TimeoutSeconds
 	}
 	if desiredProbe.InitialDelaySeconds == 0 {
-		desiredProbe.InitialDelaySeconds = defaultProbe.InitialDelaySeconds
+		desiredProbe.InitialDelaySeconds = currentProbe.InitialDelaySeconds
 	}
+
 	return desiredProbe
 }
