@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
@@ -137,7 +138,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		// Populate ceph version
 		c.updateClusterCephVersion("", *externalVersion)
 
-		err = c.configureExternalClusterMonitoring(cluster)
+		err = c.configureExternalClusterMonitoring(c.context, cluster)
 		if err != nil {
 			return errors.Wrap(err, "failed to configure external cluster monitoring")
 		}
@@ -196,36 +197,31 @@ func validateExternalClusterSpec(cluster *cluster) error {
 	return nil
 }
 
-func (c *ClusterController) configureExternalClusterMonitoring(cluster *cluster) error {
+func (c *ClusterController) configureExternalClusterMonitoring(context *clusterd.Context, cluster *cluster) error {
 	// Initialize manager object
 	manager := mgr.New(
-		c.context,
+		context,
 		cluster.ClusterInfo,
 		*cluster.Spec,
-		c.rookImage,
+		"", // We don't need the image since we are not running any mgr deployment
 	)
 
 	// Create external monitoring Service
-	service, err := manager.MakeMetricsService(mgr.ExternalMgrAppName, "", mgr.ServiceExternalMetricName)
+	service, err := manager.MakeMetricsService(opcontroller.ExternalMgrAppName, "", opcontroller.ServiceExternalMetricName)
 	if err != nil {
 		return err
 	}
 	logger.Info("creating mgr external monitoring service")
-	_, err = k8sutil.CreateOrUpdateService(c.context.Clientset, cluster.Namespace, service)
+	_, err = k8sutil.CreateOrUpdateService(context.Clientset, cluster.Namespace, service)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create or update mgr service")
 	}
 	logger.Info("mgr external metrics service created")
 
-	// Create external monitoring Endpoints
-	endpoint, err := mgr.CreateExternalMetricsEndpoints(cluster.Namespace, cluster.Spec.Monitoring, cluster.ownerInfo)
+	// Configure external metrics endpoint
+	err = opcontroller.ConfigureExternalMetricsEndpoint(context, cluster.Spec.Monitoring, cluster.ClusterInfo, cluster.ownerInfo)
 	if err != nil {
-		return err
-	}
-	logger.Info("creating mgr external monitoring endpoints")
-	_, err = k8sutil.CreateOrUpdateEndpoint(c.context.Clientset, c.namespacedName.Namespace, endpoint)
-	if err != nil {
-		return errors.Wrap(err, "failed to create or update mgr endpoint")
+		return errors.Wrap(err, "failed to configure external metrics endpoint")
 	}
 
 	// Deploy external ServiceMonittor

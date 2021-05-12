@@ -444,7 +444,7 @@ func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 	cephv1.GetMonitoringLabels(c.spec.Labels).ApplyToObjectMeta(&serviceMonitor.ObjectMeta)
 
 	if c.spec.External.Enable {
-		serviceMonitor.Spec.Endpoints[0].Port = ServiceExternalMetricName
+		serviceMonitor.Spec.Endpoints[0].Port = controller.ServiceExternalMetricName
 	}
 	err = c.clusterInfo.OwnerInfo.SetControllerReference(serviceMonitor)
 	if err != nil {
