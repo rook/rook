@@ -16,10 +16,13 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"testing"
 
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -223,4 +226,47 @@ func TestPodSpecPlacement(t *testing.T) {
 	testPodSpecPlacement(t, true, 2, 1, &p)
 	p = makePlacement()
 	testPodSpecPlacement(t, false, 1, 2, &p)
+}
+
+func TestIsMonScheduled(t *testing.T) {
+	ctx := context.TODO()
+	clientset := test.New(t, 1)
+	pod := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mon-pod",
+			Namespace: "ns",
+			Labels: map[string]string{
+				"app":            "rook-ceph-mon",
+				"ceph_daemon_id": "a",
+			},
+		},
+	}
+
+	// no pods running
+	isScheduled, err := IsPodScheduled(clientset, "ns", "a")
+	assert.Error(t, err)
+	assert.False(t, isScheduled)
+
+	selector := fmt.Sprintf("%s=%s,%s=%s", AppAttr, "rook-ceph-mon", "ceph_daemon_id", "a")
+
+	// unscheduled pod
+	_, err = clientset.CoreV1().Pods("ns").Create(ctx, &pod, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	isScheduled, err = IsPodScheduled(clientset, "ns", selector)
+	assert.NoError(t, err)
+	assert.False(t, isScheduled)
+
+	// scheduled pod
+	pod.Spec.NodeName = "node0"
+	_, err = clientset.CoreV1().Pods("ns").Update(ctx, &pod, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+	isScheduled, err = IsPodScheduled(clientset, "ns", selector)
+	assert.NoError(t, err)
+	assert.True(t, isScheduled)
+
+	// no pods found
+	assert.NoError(t, err)
+	isScheduled, err = IsPodScheduled(clientset, "ns", "b")
+	assert.Error(t, err)
+	assert.False(t, isScheduled)
 }

@@ -37,7 +37,10 @@ var (
 	// HealthCheckInterval is the interval to check if the mons are in quorum
 	HealthCheckInterval = 45 * time.Second
 	// MonOutTimeout is the duration to wait before removing/failover to a new mon pod
-	MonOutTimeout = 600 * time.Second
+	MonOutTimeout = 10 * time.Minute
+
+	retriesBeforeNodeDrainFailover = 1
+	timeZero                       = time.Duration(0)
 )
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
@@ -189,6 +192,19 @@ func (c *Cluster) checkHealth() error {
 
 			continue
 		}
+
+		// retry only once before the mon failover if the mon pod is not scheduled
+		monLabelSelector := fmt.Sprintf("%s=%s,%s=%s", k8sutil.AppAttr, AppName, "ceph_daemon_id", mon.Name)
+		isScheduled, err := k8sutil.IsPodScheduled(c.context.Clientset, c.Namespace, monLabelSelector)
+		if err != nil {
+			logger.Warningf("failed to check if mon %q is assigned to a node, continuing with mon failover. %v", mon.Name, err)
+		} else if !isScheduled && retriesBeforeNodeDrainFailover > 0 {
+			logger.Warningf("mon %q NOT found in quorum after timeout. Mon pod is not scheduled. Retrying with a timeout of %.2f seconds before failover", mon.Name, MonOutTimeout.Seconds())
+			delete(c.monTimeoutList, mon.Name)
+			retriesBeforeNodeDrainFailover = retriesBeforeNodeDrainFailover - 1
+			return nil
+		}
+		retriesBeforeNodeDrainFailover = 1
 
 		logger.Warningf("mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
 		c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name)
