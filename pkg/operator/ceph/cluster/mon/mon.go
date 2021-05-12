@@ -503,11 +503,6 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 		return errors.Wrap(err, "failed to save mons")
 	}
 
-	// make sure we have the connection info generated so connections can happen
-	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
-		return err
-	}
-
 	// Start the deployment
 	if err := c.startDeployments(mons[0:expectedMonCount], requireAllInQuorum); err != nil {
 		return errors.Wrap(err, "failed to start mon pods")
@@ -1051,6 +1046,29 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) 
 }
 
 func (c *Cluster) saveMonConfig() error {
+	if err := c.persistExpectedMonDaemons(); err != nil {
+		return errors.Wrap(err, "failed to persist expected mons")
+	}
+
+	// Every time the mon config is updated, must also update the global config so that all daemons
+	// have the most updated version if they restart.
+	if err := config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.ClusterInfo); err != nil {
+		return errors.Wrap(err, "failed to update the global config")
+	}
+
+	// write the latest config to the config dir
+	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
+		return errors.Wrap(err, "failed to write connection config for new mons")
+	}
+
+	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, c.csiConfigMutex); err != nil {
+		return errors.Wrap(err, "failed to update csi cluster config")
+	}
+
+	return nil
+}
+
+func (c *Cluster) persistExpectedMonDaemons() error {
 	ctx := context.TODO()
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1059,7 +1077,6 @@ func (c *Cluster) saveMonConfig() error {
 		},
 	}
 	k8sutil.SetOwnerRef(&configMap.ObjectMeta, &c.ownerRef)
-
 	monMapping, err := json.Marshal(c.mapping)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal mon mapping")
@@ -1098,24 +1115,7 @@ func (c *Cluster) saveMonConfig() error {
 			return errors.Wrap(err, "failed to update mon endpoint config map")
 		}
 	}
-
 	logger.Infof("saved mon endpoints to config map %+v", configMap.Data)
-
-	// Every time the mon config is updated, must also update the global config so that all daemons
-	// have the most updated version if they restart.
-	if err := config.GetStore(c.context, c.Namespace, &c.ownerRef).CreateOrUpdate(c.ClusterInfo); err != nil {
-		return errors.Wrap(err, "failed to update the global config")
-	}
-
-	// write the latest config to the config dir
-	if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
-		return errors.Wrap(err, "failed to write connection config for new mons")
-	}
-
-	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, c.csiConfigMutex); err != nil {
-		return errors.Wrap(err, "failed to update csi cluster config")
-	}
-
 	return nil
 }
 
@@ -1312,6 +1312,12 @@ func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 	// Commit the maxMonID after a mon deployment has been started (and not just scheduled)
 	if err := c.commitMaxMonID(m.DaemonName); err != nil {
 		return errors.Wrapf(err, "failed to commit maxMonId after starting mon %q", m.DaemonName)
+	}
+
+	// Persist the expected list of mons to the configmap in case the operator is interrupted before the mon failover is completed
+	// The config on disk won't be updated until the mon failover is completed
+	if err := c.persistExpectedMonDaemons(); err != nil {
+		return errors.Wrap(err, "failed to persist expected mon daemons")
 	}
 
 	return nil
