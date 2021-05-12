@@ -231,6 +231,31 @@ func validateStart(ctx context.Context, t *testing.T, c *Cluster) {
 	assert.NoError(t, err)
 }
 
+func TestPersistMons(t *testing.T) {
+	clientset := test.New(t, 1)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
+
+	// Persist mon a
+	err := c.persistExpectedMonDaemons()
+	assert.NoError(t, err)
+
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "a=1.2.3.1:6789", cm.Data[EndpointDataKey])
+
+	// Persist mon b, and remove mon a for simply testing the configmap is updated
+	c.ClusterInfo.Monitors["b"] = &cephclient.MonInfo{Name: "b", Endpoint: "4.5.6.7:3300"}
+	delete(c.ClusterInfo.Monitors, "a")
+	err = c.persistExpectedMonDaemons()
+	assert.NoError(t, err)
+
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "b=4.5.6.7:3300", cm.Data[EndpointDataKey])
+}
+
 func TestSaveMonEndpoints(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 1)
