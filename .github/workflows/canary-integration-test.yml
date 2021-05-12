@@ -87,11 +87,14 @@ jobs:
 
     - name: test external script create-external-cluster-resources.py
       run: |
-        kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- /bin/bash -c "echo \"$(kubectl get pods -o wide -n rook-ceph -l app=rook-ceph-mgr --no-headers=true|head -n1|awk '{print $6"\t"$1}')\" >>/etc/hosts"
-        kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- mkdir -p /etc/ceph/test-data
-        kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/test-data/ceph-status-out $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}'):/etc/ceph/test-data/
-        kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/create-external-cluster-resources.py $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}'):/etc/ceph
-        kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}')
+        mgr_raw=$(kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr)
+        timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
+        kubectl -n rook-ceph exec $toolbox -- /bin/bash -c "echo \"$(kubectl get pods -o wide -n rook-ceph -l app=rook-ceph-mgr --no-headers=true|head -n1|awk '{print $6"\t"$1}')\" >>/etc/hosts"
+        kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
+        kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/test-data/ceph-status-out $toolbox:/etc/ceph/test-data/
+        kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/create-external-cluster-resources.py $toolbox:/etc/ceph
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
 
     - name: run external script create-external-cluster-resources.py unit tests
       run: |
