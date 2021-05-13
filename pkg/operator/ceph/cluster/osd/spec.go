@@ -22,7 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
@@ -733,7 +732,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 			Path: filepath.Join(
 				configDir,
 				namespace,
-				strings.ReplaceAll(osdInfo.BlockPath, "/", "_"),
+				c.clusterInfo.FSID+"_"+osdInfo.UUID,
 			),
 			Type: &hostPathType,
 		},
