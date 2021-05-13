@@ -152,6 +152,9 @@ function generate_operator_yaml() {
     if [[ "$platform" == "ocp" ]]; then
         operator_file=$OPERATOR_YAML_FILE_OCP
     fi
+    if [[ "$platform" == "okd" ]]; then
+        operator_file=$OPERATOR_YAML_FILE_OCP
+    fi
 
     sed -n '/^# OLM: BEGIN OPERATOR DEPLOYMENT$/,/# OLM: END OPERATOR DEPLOYMENT$/p' "$operator_file" > "$OLM_OPERATOR_YAML_FILE"
 }
