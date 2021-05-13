@@ -54,8 +54,9 @@ func Add(mgr manager.Manager, context *clusterd.Context) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
 	return &ReconcileNode{
-		client: mgr.GetClient(),
-		scheme: mgr.GetScheme(),
+		client:  mgr.GetClient(),
+		scheme:  mgr.GetScheme(),
+		context: context,
 	}
 }
 
