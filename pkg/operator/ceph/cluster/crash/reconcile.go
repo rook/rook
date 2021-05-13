@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/batch/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -45,7 +46,6 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -274,7 +274,7 @@ func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error
 func (r *ReconcileNode) reconcileCrashRetention(namespace string, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) error {
 	if cephCluster.Spec.CrashCollector.DaysToRetain == 0 {
 		logger.Debug("deleting cronjob if it exists...")
-		cronJob := &v1beta1.CronJob{
+		cronJob := &v1.CronJob{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      prunerName,
 				Namespace: namespace,
