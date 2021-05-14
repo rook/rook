@@ -410,9 +410,6 @@ spec:
           env:
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
-            # To disable RBAC, uncomment the following:
-            # - name: RBAC_ENABLED
-            #  value: "false"
             # Rook Agent toleration. Will tolerate all taints with all keys.
             # Choose between NoSchedule, PreferNoSchedule and NoExecute:
             # - name: AGENT_TOLERATION
