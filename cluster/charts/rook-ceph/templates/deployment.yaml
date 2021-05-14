@@ -29,10 +29,6 @@ spec:
         env:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: {{ .Values.currentNamespaceOnly | quote }}
-{{- if not .Values.rbacEnable }}
-        - name: RBAC_ENABLED
-          value: "false"
-{{- end }}
 {{- if .Values.agent }}
 {{- if .Values.agent.toleration }}
         - name: AGENT_TOLERATION
