@@ -14,44 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package rook
 
 import (
-	"encoding/json"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func TestLabelsSpec(t *testing.T) {
-	specYaml := []byte(`
-mgr:
-  foo: bar
-  hello: world
-mon:
-`)
-
-	// convert the raw spec yaml into JSON
-	rawJSON, err := yaml.YAMLToJSON(specYaml)
-	assert.Nil(t, err)
-
-	// unmarshal the JSON into a strongly typed Labels spec object
-	var Labels LabelsSpec
-	err = json.Unmarshal(rawJSON, &Labels)
-	assert.Nil(t, err)
-
-	// the unmarshalled Labels spec should equal the expected spec below
-	expected := LabelsSpec{
-		"mgr": map[string]string{
-			"foo":   "bar",
-			"hello": "world",
-		},
-		"mon": nil,
-	}
-	assert.Equal(t, expected, Labels)
-}
 
 func TestLabelsApply(t *testing.T) {
 	tcs := []struct {
@@ -103,7 +73,7 @@ func TestLabelsApply(t *testing.T) {
 
 	for _, tc := range tcs {
 		tc.input.ApplyToObjectMeta(tc.target)
-		assert.Equal(t, tc.expected.getMapStringString(), tc.target.Labels)
+		assert.Equal(t, map[string]string(tc.expected), tc.target.Labels)
 	}
 }
 
@@ -121,21 +91,12 @@ func TestLabelsMerge(t *testing.T) {
 		"bar":   "foo",
 		"hello": "world",
 	}
-	assert.Equal(t, expected, testLabelsPart1.Merge(testLabelsPart2).getMapStringString())
+	assert.Equal(t, expected, map[string]string(testLabelsPart1.Merge(testLabelsPart2)))
 
 	// Test that nil Labels can still be appended to
 	testLabelsPart3 := Labels{
 		"hello": "world",
 	}
 	var empty Labels
-	assert.Equal(t, map[string]string(testLabelsPart3), empty.Merge(testLabelsPart3).getMapStringString())
-}
-
-// getMapStringString return the Labels as a
-func (a Labels) getMapStringString() map[string]string {
-	res := map[string]string{}
-	for k, v := range a {
-		res[k] = v
-	}
-	return res
+	assert.Equal(t, map[string]string(testLabelsPart3), map[string]string(empty.Merge(testLabelsPart3)))
 }

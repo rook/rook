@@ -17,40 +17,47 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io"
 )
 
+// LabelsSpec is the main spec label for all daemons
+type LabelsSpec map[rook.KeyType]rook.Labels
+
+func (a LabelsSpec) All() rook.Labels {
+	return a[KeyAll]
+}
+
 // GetMgrLabels returns the Labels for the MGR service
-func GetMgrLabels(a rook.LabelsSpec) rook.Labels {
+func GetMgrLabels(a LabelsSpec) rook.Labels {
 	return mergeAllLabelsWithKey(a, KeyMgr)
 }
 
 // GetMonLabels returns the Labels for the MON service
-func GetMonLabels(a rook.LabelsSpec) rook.Labels {
+func GetMonLabels(a LabelsSpec) rook.Labels {
 	return mergeAllLabelsWithKey(a, KeyMon)
 }
 
 // GetOSDPrepareLabels returns the Labels for the OSD prepare job
-func GetOSDPrepareLabels(a rook.LabelsSpec) rook.Labels {
+func GetOSDPrepareLabels(a LabelsSpec) rook.Labels {
 	return mergeAllLabelsWithKey(a, KeyOSDPrepare)
 }
 
 // GetOSDLabels returns the Labels for the OSD service
-func GetOSDLabels(a rook.LabelsSpec) rook.Labels {
+func GetOSDLabels(a LabelsSpec) rook.Labels {
 	return mergeAllLabelsWithKey(a, KeyOSD)
 }
 
 // GetCleanupLabels returns the Labels for the cleanup job
-func GetCleanupLabels(a rook.LabelsSpec) rook.Labels {
+func GetCleanupLabels(a LabelsSpec) rook.Labels {
 	return mergeAllLabelsWithKey(a, KeyCleanup)
 }
 
 // GetMonitoringLabels returns the Labels for monitoring resources
-func GetMonitoringLabels(a rook.LabelsSpec) rook.Labels {
+func GetMonitoringLabels(a LabelsSpec) rook.Labels {
 	return mergeAllLabelsWithKey(a, KeyMonitoring)
 }
 
-func mergeAllLabelsWithKey(a rook.LabelsSpec, name rook.KeyType) rook.Labels {
+func mergeAllLabelsWithKey(a LabelsSpec, name rook.KeyType) rook.Labels {
 	all := a.All()
 	if all != nil {
 		return all.Merge(a[name])

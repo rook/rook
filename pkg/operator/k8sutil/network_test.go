@@ -21,13 +21,13 @@ import (
 	"testing"
 
 	netapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestNetwork_ApplyMultusShort(t *testing.T) {
-	net := rookv1.NetworkSpec{
+	net := cephv1.NetworkSpec{
 		Provider: "multus",
 		Selectors: map[string]string{
 			publicNetworkSelectorKeyName:  "macvlan@net1",
@@ -64,7 +64,7 @@ func TestNetwork_ApplyMultusShort(t *testing.T) {
 }
 
 func TestNetwork_ApplyMultusJSON(t *testing.T) {
-	net := rookv1.NetworkSpec{
+	net := cephv1.NetworkSpec{
 		Provider: "multus",
 		Selectors: map[string]string{
 			"server": `{"name": "macvlan", "interface": "net1"}`,
@@ -85,7 +85,7 @@ func TestNetwork_ApplyMultusJSON(t *testing.T) {
 }
 
 func TestNetwork_ApplyMultusMixedError(t *testing.T) {
-	net := rookv1.NetworkSpec{
+	net := cephv1.NetworkSpec{
 		Provider: "multus",
 		Selectors: map[string]string{
 			"server": `{"name": "macvlan", "interface": "net1"}`,

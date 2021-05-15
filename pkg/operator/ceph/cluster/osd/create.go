@@ -21,7 +21,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -283,7 +282,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 		}
 		c.spec.Storage.Nodes = nil
 		for _, hostname := range hostnameMap {
-			storageNode := rookv1.Node{
+			storageNode := cephv1.Node{
 				Name: hostname,
 			}
 			c.spec.Storage.Nodes = append(c.spec.Storage.Nodes, storageNode)

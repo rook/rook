@@ -24,7 +24,6 @@ import (
 	cassandrav1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cassandra.rook.io/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
 	nfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1"
-	rookv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1"
 	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -36,7 +35,6 @@ type Interface interface {
 	CassandraV1alpha1() cassandrav1alpha1.CassandraV1alpha1Interface
 	CephV1() cephv1.CephV1Interface
 	NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface
-	RookV1() rookv1.RookV1Interface
 	RookV1alpha2() rookv1alpha2.RookV1alpha2Interface
 }
 
@@ -47,7 +45,6 @@ type Clientset struct {
 	cassandraV1alpha1 *cassandrav1alpha1.CassandraV1alpha1Client
 	cephV1            *cephv1.CephV1Client
 	nfsV1alpha1       *nfsv1alpha1.NfsV1alpha1Client
-	rookV1            *rookv1.RookV1Client
 	rookV1alpha2      *rookv1alpha2.RookV1alpha2Client
 }
 
@@ -64,11 +61,6 @@ func (c *Clientset) CephV1() cephv1.CephV1Interface {
 // NfsV1alpha1 retrieves the NfsV1alpha1Client
 func (c *Clientset) NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface {
 	return c.nfsV1alpha1
-}
-
-// RookV1 retrieves the RookV1Client
-func (c *Clientset) RookV1() rookv1.RookV1Interface {
-	return c.rookV1
 }
 
 // RookV1alpha2 retrieves the RookV1alpha2Client
@@ -109,10 +101,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
-	cs.rookV1, err = rookv1.NewForConfig(&configShallowCopy)
-	if err != nil {
-		return nil, err
-	}
 	cs.rookV1alpha2, err = rookv1alpha2.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -132,7 +120,6 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.cassandraV1alpha1 = cassandrav1alpha1.NewForConfigOrDie(c)
 	cs.cephV1 = cephv1.NewForConfigOrDie(c)
 	cs.nfsV1alpha1 = nfsv1alpha1.NewForConfigOrDie(c)
-	cs.rookV1 = rookv1.NewForConfigOrDie(c)
 	cs.rookV1alpha2 = rookv1alpha2.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
@@ -145,7 +132,6 @@ func New(c rest.Interface) *Clientset {
 	cs.cassandraV1alpha1 = cassandrav1alpha1.New(c)
 	cs.cephV1 = cephv1.New(c)
 	cs.nfsV1alpha1 = nfsv1alpha1.New(c)
-	cs.rookV1 = rookv1.New(c)
 	cs.rookV1alpha2 = rookv1alpha2.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)

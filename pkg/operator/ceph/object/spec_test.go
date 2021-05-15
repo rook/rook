@@ -23,7 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -142,7 +142,7 @@ func TestSSLPodSpec(t *testing.T) {
 
 	// Using service serving cert
 	c.store.Spec.Gateway.SSLCertificateRef = ""
-	c.store.Spec.Gateway.Service = &(cephv1.RGWServiceSpec{Annotations: rookv1.Annotations{cephv1.ServiceServingCertKey: "rgw-cert"}})
+	c.store.Spec.Gateway.Service = &(cephv1.RGWServiceSpec{Annotations: rook.Annotations{cephv1.ServiceServingCertKey: "rgw-cert"}})
 	secretVolSrc, _ = generateVolumeSourceWithTLSSecret(c.store.Spec)
 	assert.Equal(t, secretVolSrc.SecretName, "rgw-cert")
 	s, err = c.makeRGWPodSpec(rgwConfig)

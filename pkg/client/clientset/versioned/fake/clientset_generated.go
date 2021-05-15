@@ -26,8 +26,6 @@ import (
 	fakecephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1/fake"
 	nfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1"
 	fakenfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs.rook.io/v1alpha1/fake"
-	rookv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1"
-	fakerookv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1/fake"
 	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2"
 	fakerookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -97,11 +95,6 @@ func (c *Clientset) CephV1() cephv1.CephV1Interface {
 // NfsV1alpha1 retrieves the NfsV1alpha1Client
 func (c *Clientset) NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface {
 	return &fakenfsv1alpha1.FakeNfsV1alpha1{Fake: &c.Fake}
-}
-
-// RookV1 retrieves the RookV1Client
-func (c *Clientset) RookV1() rookv1.RookV1Interface {
-	return &fakerookv1.FakeRookV1{Fake: &c.Fake}
 }
 
 // RookV1alpha2 retrieves the RookV1alpha2Client

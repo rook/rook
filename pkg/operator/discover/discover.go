@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
@@ -366,9 +366,9 @@ func matchDeviceFullPath(devLinks, fullpath string) bool {
 }
 
 // GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.
-func GetAvailableDevices(clusterdContext *clusterd.Context, nodeName, clusterName string, devices []rookv1.Device, filter string, useAllDevices bool) ([]rookv1.Device, error) {
+func GetAvailableDevices(clusterdContext *clusterd.Context, nodeName, clusterName string, devices []cephv1.Device, filter string, useAllDevices bool) ([]cephv1.Device, error) {
 	ctx := context.TODO()
-	results := []rookv1.Device{}
+	results := []cephv1.Device{}
 	if len(devices) == 0 && len(filter) == 0 && !useAllDevices {
 		return results, nil
 	}
@@ -422,7 +422,7 @@ func GetAvailableDevices(clusterdContext *clusterd.Context, nodeName, clusterNam
 			//TODO support filter based on other keys
 			matched, err := regexp.Match(filter, []byte(nodeDevices[i].Name))
 			if err == nil && matched {
-				d := rookv1.Device{
+				d := cephv1.Device{
 					Name: nodeDevices[i].Name,
 				}
 				claimedDevices = append(claimedDevices, nodeDevices[i])
@@ -431,7 +431,7 @@ func GetAvailableDevices(clusterdContext *clusterd.Context, nodeName, clusterNam
 		}
 	} else if useAllDevices {
 		for i := range nodeDevices {
-			d := rookv1.Device{
+			d := cephv1.Device{
 				Name: nodeDevices[i].Name,
 			}
 			results = append(results, d)

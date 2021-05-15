@@ -19,16 +19,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	rookio "github.com/rook/rook/pkg/apis/rook.io"
 )
 
 const (
-	Version = "v1alpha2"
+	Version                 = "v1alpha2"
+	CustomResourceGroupName = "rook.io"
 )
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: rookio.CustomResourceGroupName, Version: Version}
+var SchemeGroupVersion = schema.GroupVersion{Group: CustomResourceGroupName, Version: Version}
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {

@@ -628,7 +628,7 @@ func applyCephClusterNetworkConfig(ctx context.Context, objectMeta *metav1.Objec
 	}
 	for _, cephCluster := range cephClusters.Items {
 		if cephCluster.Spec.Network.IsMultus() {
-			err = k8sutil.ApplyMultus(cephCluster.Spec.Network.NetworkSpec, objectMeta)
+			err = k8sutil.ApplyMultus(cephCluster.Spec.Network, objectMeta)
 			if err != nil {
 				return false, errors.Wrapf(err, "failed to apply multus configuration to CephCluster %q", cephCluster.Name)
 			}

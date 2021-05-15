@@ -17,20 +17,21 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
 	"testing"
 
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAnnotationsMerge(t *testing.T) {
+func TestCephAnnotationsMerge(t *testing.T) {
 	// No annotations defined
-	testAnnotations := rook.AnnotationsSpec{}
+	testAnnotations := AnnotationsSpec{}
 	a := GetOSDAnnotations(testAnnotations)
 	assert.Nil(t, a)
 
 	// Only a specific component annotations without "all"
-	testAnnotations = rook.AnnotationsSpec{
+	testAnnotations = AnnotationsSpec{
 		"mgr":       {"mgrkey": "mgrval"},
 		"mon":       {"monkey": "monval"},
 		"osd":       {"osdkey": "osdval"},
@@ -48,14 +49,14 @@ func TestAnnotationsMerge(t *testing.T) {
 	assert.Equal(t, 1, len(a))
 
 	// No annotations matching the component
-	testAnnotations = rook.AnnotationsSpec{
+	testAnnotations = AnnotationsSpec{
 		"mgr": {"mgrkey": "mgrval"},
 	}
 	a = GetMonAnnotations(testAnnotations)
 	assert.Nil(t, a)
 
 	// Merge with "all"
-	testAnnotations = rook.AnnotationsSpec{
+	testAnnotations = AnnotationsSpec{
 		"all": {"allkey1": "allval1", "allkey2": "allval2"},
 		"mgr": {"mgrkey": "mgrval"},
 	}
@@ -68,4 +69,32 @@ func TestAnnotationsMerge(t *testing.T) {
 	assert.Equal(t, "allval1", a["allkey1"])
 	assert.Equal(t, "allval2", a["allkey2"])
 	assert.Equal(t, 3, len(a))
+}
+
+func TestAnnotationsSpec(t *testing.T) {
+	specYaml := []byte(`
+mgr:
+  foo: bar
+  hello: world
+mon:
+`)
+
+	// convert the raw spec yaml into JSON
+	rawJSON, err := yaml.YAMLToJSON(specYaml)
+	assert.Nil(t, err)
+
+	// unmarshal the JSON into a strongly typed annotations spec object
+	var annotations AnnotationsSpec
+	err = json.Unmarshal(rawJSON, &annotations)
+	assert.Nil(t, err)
+
+	// the unmarshalled annotations spec should equal the expected spec below
+	expected := AnnotationsSpec{
+		"mgr": map[string]string{
+			"foo":   "bar",
+			"hello": "world",
+		},
+		"mon": nil,
+	}
+	assert.Equal(t, expected, annotations)
 }

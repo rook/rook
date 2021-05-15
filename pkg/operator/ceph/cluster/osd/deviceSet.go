@@ -24,7 +24,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -50,9 +49,9 @@ type deviceSet struct {
 	// Resources requests/limits for the devices
 	Resources v1.ResourceRequirements
 	// Placement constraints for the device daemons
-	Placement rookv1.Placement
+	Placement cephv1.Placement
 	// Placement constraints for the device preparation
-	PreparePlacement *rookv1.Placement
+	PreparePlacement *cephv1.Placement
 	// Provider-specific device configuration
 	Config map[string]string
 	// Portable represents OSD portability across the hosts
@@ -123,7 +122,7 @@ func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) {
 	}
 }
 
-func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet rookv1.StorageClassDeviceSet, existingPVCs map[string]*v1.PersistentVolumeClaim, setIndex int, errs *provisionErrors) deviceSet {
+func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet cephv1.StorageClassDeviceSet, existingPVCs map[string]*v1.PersistentVolumeClaim, setIndex int, errs *provisionErrors) deviceSet {
 	// Create the PVC source for each of the data, metadata, and other types of templates if defined.
 	pvcSources := map[string]v1.PersistentVolumeClaimVolumeSource{}
 

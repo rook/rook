@@ -22,7 +22,8 @@ import (
 	"strings"
 
 	netapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/apis/rook.io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -64,7 +65,7 @@ type NetworkAttachmentConfig struct {
 
 // ApplyMultus apply multus selector to Pods
 // Multus supports short and json syntax, use only one kind at a time.
-func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
+func ApplyMultus(net cephv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 	v := make([]string, 0, 2)
 	shortSyntax := false
 	jsonSyntax := false
@@ -101,7 +102,7 @@ func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 		networks = "[" + networks + "]"
 	}
 
-	t := rookv1.Annotations{
+	t := rook.Annotations{
 		"k8s.v1.cni.cncf.io/networks": networks,
 	}
 	t.ApplyToObjectMeta(objectMeta)

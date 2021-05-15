@@ -21,7 +21,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -130,7 +129,7 @@ func (in *NFSServerSpec) DeepCopyInto(out *NFSServerSpec) {
 	*out = *in
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(v1.Annotations, len(*in))
+		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}

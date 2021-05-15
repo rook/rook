@@ -19,7 +19,7 @@ package v1
 import (
 	"time"
 
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -61,7 +61,7 @@ type CephClusterHealthCheckSpec struct {
 	DaemonHealth DaemonHealthSpec `json:"daemonHealth,omitempty"`
 	// LivenessProbe allows to change the livenessprobe configuration for a given daemon
 	// +optional
-	LivenessProbe map[rookv1.KeyType]*rookv1.ProbeSpec `json:"livenessProbe,omitempty"`
+	LivenessProbe map[rook.KeyType]*ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
 // DaemonHealthSpec is a daemon health check
@@ -99,24 +99,24 @@ type ClusterSpec struct {
 	// A spec for available storage in the cluster and how it should be used
 	// +optional
 	// +nullable
-	Storage rookv1.StorageScopeSpec `json:"storage,omitempty"`
+	Storage StorageScopeSpec `json:"storage,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +nullable
 	// +optional
-	Annotations rookv1.AnnotationsSpec `json:"annotations,omitempty"`
+	Annotations AnnotationsSpec `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.LabelsSpec `json:"labels,omitempty"`
+	Labels LabelsSpec `json:"labels,omitempty"`
 
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.PlacementSpec `json:"placement,omitempty"`
+	Placement PlacementSpec `json:"placement,omitempty"`
 
 	// Network related configuration
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -128,13 +128,13 @@ type ClusterSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Resources rookv1.ResourceSpec `json:"resources,omitempty"`
+	Resources ResourceSpec `json:"resources,omitempty"`
 
 	// PriorityClassNames sets priority classes on components
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	PriorityClassNames rookv1.PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
+	PriorityClassNames PriorityClassNamesSpec `json:"priorityClassNames,omitempty"`
 
 	// The path on the host where config and data can be persisted
 	// +kubebuilder:validation:Pattern=`^/(\S+)`
@@ -951,19 +951,19 @@ type MetadataServerSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rgw pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1048,7 +1048,7 @@ type BucketHealthCheckSpec struct {
 	// +optional
 	Bucket HealthCheckSpec `json:"bucket,omitempty"`
 	// +optional
-	LivenessProbe *rookv1.ProbeSpec `json:"livenessProbe,omitempty"`
+	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
 // HealthCheckSpec represents the health check of an object store bucket
@@ -1088,19 +1088,19 @@ type GatewaySpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rgw pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1300,7 +1300,7 @@ type RGWServiceSpec struct {
 	// The annotations-related configuration to add/set on each rgw service.
 	// nullable
 	// optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 }
 
 // CephNFS represents a Ceph NFS
@@ -1353,19 +1353,19 @@ type GaneshaServerSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// Resources set resource requests and limits
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1384,7 +1384,17 @@ type GaneshaServerSpec struct {
 
 // NetworkSpec for Ceph includes backward compatibility code
 type NetworkSpec struct {
-	rookv1.NetworkSpec `json:",inline"`
+	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+	// +nullable
+	// +optional
+	Provider string `json:"provider,omitempty"`
+
+	// Selectors string values describe what networks will be used to connect the cluster.
+	// Meanwhile the keys describe each network respective responsibilities or any metadata
+	// storage provider decide.
+	// +nullable
+	// +optional
+	Selectors map[string]string `json:"selectors,omitempty"`
 
 	// HostNetwork to enable host network
 	// +optional
@@ -1551,19 +1561,19 @@ type RBDMirroringSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rbd mirror pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1611,17 +1621,17 @@ type FilesystemMirroringSpec struct {
 	// The affinity to place the rgw pods (default is to place on any available node)
 	// +nullable
 	// +optional
-	Placement rookv1.Placement `json:"placement,omitempty"`
+	Placement Placement `json:"placement,omitempty"`
 
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +nullable
 	// +optional
-	Annotations rookv1.Annotations `json:"annotations,omitempty"`
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +nullable
 	// +optional
-	Labels rookv1.Labels `json:"labels,omitempty"`
+	Labels rook.Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the cephfs-mirror pods
 	// +nullable
@@ -1642,3 +1652,150 @@ const (
 	// IPv4 internet protocol version
 	IPv4 IPFamilyType = "IPv4"
 )
+
+type StorageScopeSpec struct {
+	// +nullable
+	// +optional
+	Nodes []Node `json:"nodes,omitempty"`
+	// +optional
+	UseAllNodes bool `json:"useAllNodes,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config    map[string]string `json:"config,omitempty"`
+	Selection `json:",inline"`
+	// +nullable
+	// +optional
+	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
+}
+
+// Node is a storage nodes
+// +nullable
+type Node struct {
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config    map[string]string `json:"config,omitempty"`
+	Selection `json:",inline"`
+}
+
+// Device represents a disk to use in the cluster
+type Device struct {
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +optional
+	FullPath string `json:"fullpath,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Config map[string]string `json:"config,omitempty"`
+}
+
+type Selection struct {
+	// Whether to consume all the storage devices found on a machine
+	// +optional
+	UseAllDevices *bool `json:"useAllDevices,omitempty"`
+	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
+	// +optional
+	DeviceFilter string `json:"deviceFilter,omitempty"`
+	// A regular expression to allow more fine-grained selection of devices with path names
+	// +optional
+	DevicePathFilter string `json:"devicePathFilter,omitempty"`
+	// List of devices to use as storage devices
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Devices []Device `json:"devices,omitempty"`
+	// PersistentVolumeClaims to use as storage
+	// +optional
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
+}
+
+// PlacementSpec is the placement for core ceph daemons part of the CephCluster CRD
+type PlacementSpec map[rook.KeyType]Placement
+
+// Placement is the placement for an object
+type Placement struct {
+	// NodeAffinity is a group of node affinity scheduling rules
+	// +optional
+	NodeAffinity *v1.NodeAffinity `json:"nodeAffinity,omitempty"`
+	// PodAffinity is a group of inter pod affinity scheduling rules
+	// +optional
+	PodAffinity *v1.PodAffinity `json:"podAffinity,omitempty"`
+	// PodAntiAffinity is a group of inter pod anti affinity scheduling rules
+	// +optional
+	PodAntiAffinity *v1.PodAntiAffinity `json:"podAntiAffinity,omitempty"`
+	// The pod this Toleration is attached to tolerates any taint that matches
+	// the triple <key,value,effect> using the matching operator <operator>
+	// +optional
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+	// TopologySpreadConstraint specifies how to spread matching pods among the given topology
+	// +optional
+	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+}
+
+// ResourceSpec is a collection of ResourceRequirements that describes the compute resource requirements
+type ResourceSpec map[string]v1.ResourceRequirements
+
+// ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon
+type ProbeSpec struct {
+	// Disabled determines whether probe is disable or not
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
+	// Probe describes a health check to be performed against a container to determine whether it is
+	// alive or ready to receive traffic.
+	// +optional
+	Probe *v1.Probe `json:"probe,omitempty"`
+}
+
+// PriorityClassNamesSpec is a map of priority class names to be assigned to components
+type PriorityClassNamesSpec map[rook.KeyType]string
+
+// StorageClassDeviceSet is a storage class device set
+// +nullable
+type StorageClassDeviceSet struct {
+	// Name is a unique identifier for the set
+	Name string `json:"name"`
+	// Count is the number of devices in this set
+	// +kubebuilder:validation:Minimum=1
+	Count int `json:"count"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"` // Requests/limits for the devices
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Placement Placement `json:"placement,omitempty"` // Placement constraints for the device daemons
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	PreparePlacement *Placement `json:"preparePlacement,omitempty"` // Placement constraints for the device preparation
+	// Provider-specific device configuration
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Config map[string]string `json:"config,omitempty"`
+	// VolumeClaimTemplates is a list of PVC templates for the underlying storage devices
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
+	// Portable represents OSD portability across the hosts
+	// +optional
+	Portable bool `json:"portable,omitempty"`
+	// TuneSlowDeviceClass Tune the OSD when running on a slow Device Class
+	// +optional
+	TuneSlowDeviceClass bool `json:"tuneDeviceClass,omitempty"`
+	// TuneFastDeviceClass Tune the OSD when running on a fast Device Class
+	// +optional
+	TuneFastDeviceClass bool `json:"tuneFastDeviceClass,omitempty"`
+	// Scheduler name for OSD pod placement
+	// +optional
+	SchedulerName string `json:"schedulerName,omitempty"`
+	// Whether to encrypt the deviceSet
+	// +optional
+	Encrypted bool `json:"encrypted,omitempty"`
+}

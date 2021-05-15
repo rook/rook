@@ -243,7 +243,7 @@ func (c *Cluster) isCephUpgrade() (bool, error) {
 
 func (c *Cluster) upgradeMDS() error {
 
-	logger.Info("upgrading MDS cluster for filesystem %q", c.fs.Name)
+	logger.Infof("upgrading MDS cluster for filesystem %q", c.fs.Name)
 
 	// 1. set allow_standby_replay to false
 	if err := cephclient.AllowStandbyReplay(c.context, c.clusterInfo, c.fs.Name, false); err != nil {
