@@ -43,7 +43,6 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   gateway:
-    type: s3
     port: 80
     # securePort: 443
     instances: 1
