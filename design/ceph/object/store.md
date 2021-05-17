@@ -30,7 +30,6 @@ spec:
       dataChunks: 6
       codingChunks: 2
   gateway:
-    type: s3
     port: 80
     securePort: 443
     instances: 3
@@ -90,9 +89,7 @@ The RGW service can be configured to listen on both http and https by specifying
 
 ```yaml
  gateway:
-    type: s3
     sslCertificateRef: my-ssl-cert-secret
-    port: 80
     securePort: 443
     instances: 1
 ```

@@ -36,7 +36,6 @@ spec:
       codingChunks: 1
   preservePoolsOnDelete: true
   gateway:
-    type: s3
     # sslCertificateRef:
     port: 80
     # securePort: 443
