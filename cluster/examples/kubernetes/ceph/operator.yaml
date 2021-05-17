@@ -100,9 +100,10 @@ data:
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
   # ROOK_CSI_RBD_POD_LABELS: "key1=value1,key2=value2"
 
-  # (Optional) Ceph Provisioner NodeAffinity.
+  # (Optional) CephCSI provisioner NodeAffinity(applied to both CephFS and RBD provisioner).
   # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
-  # (Optional) CEPH CSI provisioner tolerations list. Put here list of taints you want to tolerate in YAML format.
+  # (Optional) CephCSI provisioner tolerations list(applied to both CephFS and RBD provisioner).
+  # Put here list of taints you want to tolerate in YAML format.
   # CSI provisioner would be best to start on the same nodes as other ceph daemons.
   # CSI_PROVISIONER_TOLERATIONS: |
   #   - effect: NoSchedule
@@ -111,9 +112,10 @@ data:
   #   - effect: NoExecute
   #     key: node-role.kubernetes.io/etcd
   #     operator: Exists
-  # (Optional) Ceph CSI plugin NodeAffinity.
+  # (Optional) CephCSI plugin NodeAffinity(applied to both CephFS and RBD plugin).
   # CSI_PLUGIN_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
-  # (Optional) CEPH CSI plugin tolerations list. Put here list of taints you want to tolerate in YAML format.
+  # (Optional) CephCSI plugin tolerations list(applied to both CephFS and RBD plugin).
+  # Put here list of taints you want to tolerate in YAML format.
   # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
   # CSI_PLUGIN_TOLERATIONS: |
   #   - effect: NoSchedule
@@ -121,6 +123,40 @@ data:
   #     operator: Exists
   #   - effect: NoExecute
   #     key: node-role.kubernetes.io/etcd
+  #     operator: Exists
+
+  # (Optional) CephCSI RBD provisioner NodeAffinity(if specified, overrides CSI_PROVISIONER_NODE_AFFINITY).
+  # CSI_RBD_PROVISIONER_NODE_AFFINITY: "role=rbd-node"
+  # (Optional) CephCSI RBD provisioner tolerations list(if specified, overrides CSI_PROVISIONER_TOLERATIONS).
+  # Put here list of taints you want to tolerate in YAML format.
+  # CSI provisioner would be best to start on the same nodes as other ceph daemons.
+  # CSI_RBD_PROVISIONER_TOLERATIONS: |
+  #   - key: node.rook.io/rbd
+  #     operator: Exists
+  # (Optional) CephCSI RBD plugin NodeAffinity(if specified, overrides CSI_PLUGIN_NODE_AFFINITY).
+  # CSI_RBD_PLUGIN_NODE_AFFINITY: "role=rbd-node"
+  # (Optional) CephCSI RBD plugin tolerations list(if specified, overrides CSI_PLUGIN_TOLERATIONS).
+  # Put here list of taints you want to tolerate in YAML format.
+  # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
+  # CSI_RBD_PLUGIN_TOLERATIONS: |
+  #   - key: node.rook.io/rbd
+  #     operator: Exists
+
+  # (Optional) CephCSI CephFS provisioner NodeAffinity(if specified, overrides CSI_PROVISIONER_NODE_AFFINITY).
+  # CSI_CEPHFS_PROVISIONER_NODE_AFFINITY: "role=cephfs-node"
+  # (Optional) CephCSI CephFS provisioner tolerations list(if specified, overrides CSI_PROVISIONER_TOLERATIONS).
+  # Put here list of taints you want to tolerate in YAML format.
+  # CSI provisioner would be best to start on the same nodes as other ceph daemons.
+  # CSI_CEPHFS_PROVISIONER_TOLERATIONS: |
+  #   - key: node.rook.io/cephfs
+  #     operator: Exists
+  # (Optional) CephCSI CephFS plugin NodeAffinity(if specified, overrides CSI_PLUGIN_NODE_AFFINITY).
+  # CSI_CEPHFS_PLUGIN_NODE_AFFINITY: "role=cephfs-node"
+  # (Optional) CephCSI CephFS plugin tolerations list(if specified, overrides CSI_PLUGIN_TOLERATIONS).
+  # Put here list of taints you want to tolerate in YAML format.
+  # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
+  # CSI_CEPHFS_PLUGIN_TOLERATIONS: |
+  #   - key: node.rook.io/cephfs
   #     operator: Exists
 
   # (Optional) CEPH CSI RBD provisioner resource requirement list, Put here list of resource
