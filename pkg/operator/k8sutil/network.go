@@ -29,6 +29,8 @@ import (
 const (
 	// publicNetworkSelectorKeyName is the network selector key for the ceph public network
 	publicNetworkSelectorKeyName = "public"
+	// clusterNetworkSelectorKeyName is the network selector key for the ceph cluster network
+	clusterNetworkSelectorKeyName = "cluster"
 )
 
 // NetworkAttachmentConfig represents the configuration of the NetworkAttachmentDefinitions object
@@ -77,13 +79,16 @@ func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 			shortSyntax = true
 		}
 
-		isCsi := strings.Contains(objectMeta.Labels["app"], "csi-")
-		if isCsi {
+		var isExcluded bool
+		for _, clusterNetworkApps := range getClusterNetworkApps() {
+			isExcluded = strings.Contains(objectMeta.Labels["app"], clusterNetworkApps)
+		}
+		if isExcluded {
+			v = append(v, string(ns))
+		} else {
 			if k == publicNetworkSelectorKeyName {
 				v = append(v, string(ns))
 			}
-		} else {
-			v = append(v, string(ns))
 		}
 	}
 
@@ -102,6 +107,11 @@ func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 	t.ApplyToObjectMeta(objectMeta)
 
 	return nil
+}
+
+// getClusterNetworkApps returns the list of ceph apps that utilize cluster network
+func getClusterNetworkApps() []string {
+	return []string{"osd"}
 }
 
 // GetNetworkAttachmentConfig returns the NetworkAttachmentDefinitions configuration
