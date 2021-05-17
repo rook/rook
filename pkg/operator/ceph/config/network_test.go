@@ -31,45 +31,113 @@ import (
 )
 
 func TestGenerateNetworkSettings(t *testing.T) {
-	ctxt := context.TODO()
-	ns := "rook-ceph"
-	clientset := testop.New(t, 1)
-	ctx := &clusterd.Context{
-		Clientset:     clientset,
-		NetworkClient: fakenetclient.NewSimpleClientset().K8sCniCncfIoV1(),
-	}
+	t.Run("no network definition exists", func(*testing.T) {
+		ns := "rook-ceph"
+		clientset := testop.New(t, 1)
+		ctx := &clusterd.Context{
+			Clientset:     clientset,
+			NetworkClient: fakenetclient.NewSimpleClientset().K8sCniCncfIoV1(),
+		}
+		netSelector := map[string]string{"public": "public-network-attach-def"}
+		_, err := generateNetworkSettings(ctx, ns, netSelector)
+		assert.Error(t, err)
 
-	//
-	// TEST 1: network definition does not exist
-	//
-	netSelector := map[string]string{
-		"public": "public-network-attach-def",
-	}
+	})
 
-	_, err := generateNetworkSettings(ctx, ns, netSelector)
-	assert.Error(t, err)
+	t.Run("only cluster network", func(*testing.T) {
+		netSelector := map[string]string{"cluster": "cluster-network-attach-def"}
+		networks := []networkv1.NetworkAttachmentDefinition{getClusterNetwork()}
+		expectedNetworks := []Option{
+			{
+				Who:    "global",
+				Option: "cluster_network",
+				Value:  "172.18.0.0/16",
+			},
+		}
+		ctxt := context.TODO()
+		ns := "rook-ceph"
+		clientset := testop.New(t, 1)
+		ctx := &clusterd.Context{
+			Clientset:     clientset,
+			NetworkClient: fakenetclient.NewSimpleClientset().K8sCniCncfIoV1(),
+		}
 
-	//
-	// TEST 2: single dedicated networks
-	//
-	expectedNetworks := []Option{
-		{
-			Who:    "global",
-			Option: "public_network",
-			Value:  "192.168.0.0/24",
-		},
-		{
-			Who:    "global",
-			Option: "cluster_network",
-			Value:  "192.168.0.0/24",
-		},
-	}
+		for i := range networks {
+			_, err := ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctxt, &networks[i], metav1.CreateOptions{})
+			assert.NoError(t, err)
+		}
+		cephNetwork, err := generateNetworkSettings(ctx, ns, netSelector)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
+	})
 
-	// this nad uses whereabouts cni
-	network := &networkv1.NetworkAttachmentDefinition{
+	t.Run("only public network", func(*testing.T) {
+		ctxt := context.TODO()
+		ns := "rook-ceph"
+		clientset := testop.New(t, 1)
+		ctx := &clusterd.Context{
+			Clientset:     clientset,
+			NetworkClient: fakenetclient.NewSimpleClientset().K8sCniCncfIoV1(),
+		}
+		netSelector := map[string]string{"public": "public-network-attach-def"}
+		networks := []networkv1.NetworkAttachmentDefinition{getPublicNetwork()}
+		expectedNetworks := []Option{
+			{
+				Who:    "global",
+				Option: "public_network",
+				Value:  "192.168.0.0/24",
+			},
+		}
+		for i := range networks {
+			_, err := ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctxt, &networks[i], metav1.CreateOptions{})
+			assert.NoError(t, err)
+		}
+		cephNetwork, err := generateNetworkSettings(ctx, ns, netSelector)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
+
+	})
+
+	t.Run("public and cluster network", func(*testing.T) {
+		ctxt := context.TODO()
+		ns := "rook-ceph"
+		clientset := testop.New(t, 1)
+		ctx := &clusterd.Context{
+			Clientset:     clientset,
+			NetworkClient: fakenetclient.NewSimpleClientset().K8sCniCncfIoV1(),
+		}
+		netSelector := map[string]string{
+			"public":  "public-network-attach-def",
+			"cluster": "cluster-network-attach-def",
+		}
+		networks := []networkv1.NetworkAttachmentDefinition{getPublicNetwork(), getClusterNetwork()}
+		expectedNetworks := []Option{
+			{
+				Who:    "global",
+				Option: "public_network",
+				Value:  "192.168.0.0/24",
+			},
+			{
+				Who:    "global",
+				Option: "cluster_network",
+				Value:  "172.18.0.0/16",
+			},
+		}
+		for i := range networks {
+			_, err := ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctxt, &networks[i], metav1.CreateOptions{})
+			assert.NoError(t, err)
+		}
+		cephNetwork, err := generateNetworkSettings(ctx, ns, netSelector)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
+
+	})
+}
+
+func getPublicNetwork() networkv1.NetworkAttachmentDefinition {
+	return networkv1.NetworkAttachmentDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "public-network-attach-def",
-			Namespace: ns,
+			Name: "public-network-attach-def",
 		},
 		Spec: networkv1.NetworkAttachmentDefinitionSpec{
 			Config: `{
@@ -85,39 +153,12 @@ func TestGenerateNetworkSettings(t *testing.T) {
 			  }`,
 		},
 	}
+}
 
-	// Create public network definition
-	_, err = ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctxt, network, metav1.CreateOptions{})
-	assert.NoError(t, err)
-
-	cephNetwork, err := generateNetworkSettings(ctx, ns, netSelector)
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
-
-	//
-	// TEST 3: two dedicated networks
-	//
-	expectedNetworks = []Option{
-		{
-			Who:    "global",
-			Option: "public_network",
-			Value:  "192.168.0.0/24",
-		},
-		{
-			Who:    "global",
-			Option: "cluster_network",
-			Value:  "172.18.0.0/16",
-		},
-	}
-
-	netSelector = map[string]string{
-		"public":  "public-network-attach-def",
-		"cluster": "cluster-network-attach-def",
-	}
-	network2 := &networkv1.NetworkAttachmentDefinition{
+func getClusterNetwork() networkv1.NetworkAttachmentDefinition {
+	return networkv1.NetworkAttachmentDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster-network-attach-def",
-			Namespace: ns,
+			Name: "cluster-network-attach-def",
 		},
 		Spec: networkv1.NetworkAttachmentDefinitionSpec{
 			Config: `{
@@ -133,14 +174,6 @@ func TestGenerateNetworkSettings(t *testing.T) {
 			  }`,
 		},
 	}
-
-	// Create cluster network definition
-	_, err = ctx.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctxt, network2, metav1.CreateOptions{})
-	assert.NoError(t, err)
-
-	cephNetwork, err = generateNetworkSettings(ctx, ns, netSelector)
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
 }
 
 func TestGetNetworkRange(t *testing.T) {
