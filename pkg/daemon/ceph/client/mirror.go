@@ -67,7 +67,7 @@ func CreateRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	logger.Infof("create rbd-mirror bootstrap peer token for pool %q", poolName)
 
 	// Build command
-	args := []string{"mirror", "pool", "peer", "bootstrap", "create", poolName, "--site-name", fmt.Sprintf("%s-%s", clusterInfo.FSID, clusterInfo.Namespace)}
+	args := []string{"mirror", "pool", "peer", "bootstrap", "create", poolName, "--site-name", clusterInfo.FSID}
 	cmd := NewRBDCommand(context, clusterInfo, args)
 
 	// Run command
@@ -76,6 +76,7 @@ func CreateRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 		return nil, errors.Wrapf(err, "failed to create rbd-mirror peer token  for pool %q. %s", poolName, output)
 	}
 
+	logger.Infof("successfully created rbd-mirror bootstrap peer token for pool %q", poolName)
 	return output, nil
 }
 
