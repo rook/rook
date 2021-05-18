@@ -56,7 +56,6 @@ metadata:
   namespace: new-rook-ceph-namespace
 spec:
   gateway:
-    type: s3
     port: 80
     # securePort: 443
     instances: 1

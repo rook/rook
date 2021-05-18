@@ -42,8 +42,6 @@ spec:
   preservePoolsOnDelete: true
   # The gateway service configuration
   gateway:
-    # type of the gateway (s3)
-    type: s3
     # A reference to the secret in the rook namespace where the ssl certificate is stored
     sslCertificateRef:
     # The port that RGW pods will listen on (http)
