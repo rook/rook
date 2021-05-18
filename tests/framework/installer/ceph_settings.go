@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -87,10 +88,20 @@ func (s *TestCephSettings) readManifestFromGithub(filename string) string {
 func (s *TestCephSettings) readManifestFromGithubWithClusterNamespace(filename, clusterNamespace string) string {
 	url := fmt.Sprintf("https://raw.githubusercontent.com/rook/rook/%s/cluster/examples/kubernetes/ceph/%s", s.RookVersion, filename)
 	logger.Infof("Retrieving manifest: %s", url)
-	// #nosec G107 This is only test code and is expected to read from a url
-	response, err := http.Get(url)
-	if err != nil {
-		panic(errors.Wrapf(err, "failed to read manifest from %s", url))
+	var response *http.Response
+	var err error
+	for i := 1; i <= 3; i++ {
+		// #nosec G107 This is only test code and is expected to read from a url
+		response, err = http.Get(url)
+		if err != nil {
+			if i == 3 {
+				panic(errors.Wrapf(err, "failed to read manifest from %s", url))
+			}
+			logger.Warningf("failed to read manifest from %s. retrying in 1sec. %v", url, err)
+			time.Sleep(time.Second)
+			continue
+		}
+		break
 	}
 	defer response.Body.Close()
 
