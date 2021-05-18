@@ -181,7 +181,7 @@ Ingress like the one below. This example achieves four things:
 4. Tells the reverse proxy that the dashboard itself does not have a valid certificate (it is self-signed)
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rook-ceph-mgr-dashboard
@@ -202,9 +202,12 @@ spec:
     http:
       paths:
       - path: /
+        pathType: Prefix
         backend:
-          serviceName: rook-ceph-mgr-dashboard
-          servicePort: https-dashboard
+          service:
+            name: rook-ceph-mgr-dashboard
+            port:
+              name: https-dashboard
 ```
 
 Customise the Ingress resource to match your cluster. Replace the example domain name `rook-ceph.example.com`
