@@ -131,8 +131,11 @@ func watchControllerPredicate(rookContext *clusterd.Context) predicate.Funcs {
 				}
 				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
 				if diff != "" {
-					// Set the cancellation flag to stop any ongoing orchestration
-					rookContext.RequestCancelOrchestration.Set()
+					// Set the cancellation flag to stop any ongoing orchestration only if ceph version is updated
+					if objOld.Spec.CephVersion.Image != objNew.Spec.CephVersion.Image {
+						logger.Infof("ceph image is updated in the CR %q, cancelling any ongoing orchestration", objNew.Name)
+						rookContext.RequestCancelOrchestration.Set()
+					}
 
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
