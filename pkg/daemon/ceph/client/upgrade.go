@@ -147,7 +147,7 @@ func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, d
 			// now looping over a single element since we can't address the key directly (we don't know its name)
 			for _, monCount := range versions.Mon {
 				if monCount < 3 {
-					logger.Infof("the cluster has less than 3 monitors, not performing upgrade check, running in best-effort")
+					logger.Infof("the cluster has fewer than 3 monitors, not performing upgrade check, running in best-effort")
 					return nil
 				}
 			}
@@ -394,7 +394,7 @@ func osdDoNothing(context *clusterd.Context, clusterInfo *ClusterInfo) bool {
 		return false
 	}
 	if len(osds) < 3 {
-		logger.Warningf("the cluster has less than 3 osds, not performing upgrade check, running in best-effort")
+		logger.Warningf("the cluster has fewer than 3 osds, not performing upgrade check, running in best-effort")
 		return true
 	}
 

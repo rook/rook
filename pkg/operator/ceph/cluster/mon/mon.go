@@ -33,7 +33,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
@@ -725,12 +724,12 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 }
 
 // GetMonPlacement returns the placement for the MON service
-func (c *Cluster) getMonPlacement(zone string) rookv1.Placement {
+func (c *Cluster) getMonPlacement(zone string) cephv1.Placement {
 	// If the mon is the arbiter in a stretch cluster and its placement is specified, return it
 	// without merging with the "all" placement so it can be handled separately from all other daemons
 	if c.isArbiterZone(zone) {
 		p := cephv1.GetArbiterPlacement(c.spec.Placement)
-		noPlacement := rookv1.Placement{}
+		noPlacement := cephv1.Placement{}
 		if !reflect.DeepEqual(p, noPlacement) {
 			// If the arbiter placement was specified, go ahead and use it.
 			return p

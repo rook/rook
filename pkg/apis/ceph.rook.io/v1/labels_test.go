@@ -17,20 +17,21 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
 	"testing"
 
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLabelsMerge(t *testing.T) {
+func TestCephLabelsMerge(t *testing.T) {
 	// No Labels defined
-	testLabels := rook.LabelsSpec{}
+	testLabels := LabelsSpec{}
 	a := GetOSDLabels(testLabels)
 	assert.Nil(t, a)
 
 	// Only a specific component labels without "all"
-	testLabels = rook.LabelsSpec{
+	testLabels = LabelsSpec{
 		"mgr":       {"mgrkey": "mgrval"},
 		"mon":       {"monkey": "monval"},
 		"osd":       {"osdkey": "osdval"},
@@ -48,14 +49,14 @@ func TestLabelsMerge(t *testing.T) {
 	assert.Equal(t, 1, len(a))
 
 	// No Labels matching the component
-	testLabels = rook.LabelsSpec{
+	testLabels = LabelsSpec{
 		"mgr": {"mgrkey": "mgrval"},
 	}
 	a = GetMonLabels(testLabels)
 	assert.Nil(t, a)
 
 	// Merge with "all"
-	testLabels = rook.LabelsSpec{
+	testLabels = LabelsSpec{
 		"all": {"allkey1": "allval1", "allkey2": "allval2"},
 		"mgr": {"mgrkey": "mgrval"},
 	}
@@ -68,4 +69,32 @@ func TestLabelsMerge(t *testing.T) {
 	assert.Equal(t, "allval1", a["allkey1"])
 	assert.Equal(t, "allval2", a["allkey2"])
 	assert.Equal(t, 3, len(a))
+}
+
+func TestLabelsSpec(t *testing.T) {
+	specYaml := []byte(`
+mgr:
+  foo: bar
+  hello: world
+mon:
+`)
+
+	// convert the raw spec yaml into JSON
+	rawJSON, err := yaml.YAMLToJSON(specYaml)
+	assert.Nil(t, err)
+
+	// unmarshal the JSON into a strongly typed Labels spec object
+	var Labels LabelsSpec
+	err = json.Unmarshal(rawJSON, &Labels)
+	assert.Nil(t, err)
+
+	// the unmarshalled Labels spec should equal the expected spec below
+	expected := LabelsSpec{
+		"mgr": map[string]string{
+			"foo":   "bar",
+			"hello": "world",
+		},
+		"mon": nil,
+	}
+	assert.Equal(t, expected, Labels)
 }

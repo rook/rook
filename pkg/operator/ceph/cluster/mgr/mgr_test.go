@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -66,11 +66,11 @@ func TestStartMgr(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo}
 	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
-		Annotations:        map[rookv1.KeyType]rookv1.Annotations{cephv1.KeyMgr: {"my": "annotation"}},
-		Labels:             map[rookv1.KeyType]rookv1.Labels{cephv1.KeyMgr: {"my-label-key": "value"}},
+		Annotations:        map[rook.KeyType]rook.Annotations{cephv1.KeyMgr: {"my": "annotation"}},
+		Labels:             map[rook.KeyType]rook.Labels{cephv1.KeyMgr: {"my-label-key": "value"}},
 		Dashboard:          cephv1.DashboardSpec{Enabled: true, SSL: true},
 		Mgr:                cephv1.MgrSpec{Count: 1},
-		PriorityClassNames: map[rookv1.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
+		PriorityClassNames: map[rook.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
 		DataDirHostPath:    "/var/lib/rook/",
 	}
 	c := New(ctx, clusterInfo, clusterSpec, "myversion")

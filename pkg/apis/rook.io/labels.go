@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,15 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package rook
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (a LabelsSpec) All() Labels {
-	return a[KeyAll]
-}
+// ***************************************************************************
+// IMPORTANT FOR CODE GENERATION
+// If the types in this file are updated, you will need to run
+// `make codegen` to generate the new types under the client/clientset folder.
+// ***************************************************************************
+
+// KeyType type safety
+type KeyType string
+
+// Labels are label for a given daemons
+type Labels map[string]string
 
 // ApplyToObjectMeta adds labels to object meta unless the keys are already defined.
 func (a Labels) ApplyToObjectMeta(t *metav1.ObjectMeta) {

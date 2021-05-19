@@ -17,13 +17,21 @@ limitations under the License.
 package v1alpha1
 
 import (
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	"github.com/rook/rook/pkg/apis/rook.io"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	APIVersion = CustomResourceGroup + "/" + Version
+
+	// These are valid condition statuses. "ConditionTrue" means a resource is in the condition;
+	// "ConditionFalse" means a resource is not in the condition; "ConditionUnknown" means kubernetes
+	// can't decide if a resource is in the condition or not.
+	ConditionTrue    ConditionStatus = "True"
+	ConditionFalse   ConditionStatus = "False"
+	ConditionUnknown ConditionStatus = "Unknown"
 )
 
 // ***************************************************************************
@@ -59,7 +67,7 @@ type ClusterList struct {
 // ClusterSpec is the desired state for a Cassandra Cluster.
 type ClusterSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rookv1.Annotations `json:"annotations"`
+	Annotations rook.Annotations `json:"annotations"`
 	// Version of Cassandra to use.
 	Version string `json:"version"`
 	// Repository to pull the image from.
@@ -98,11 +106,11 @@ type RackSpec struct {
 	// User-provided ConfigMap for jmx prometheus exporter
 	JMXExporterConfigMapName *string `json:"jmxExporterConfigMapName,omitempty"`
 	// Storage describes the underlying storage that Cassandra will consume.
-	Storage rookv1.StorageScopeSpec `json:"storage"`
+	Storage StorageScopeSpec `json:"storage"`
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rookv1.Annotations `json:"annotations"`
+	Annotations map[string]string `json:"annotations"`
 	// Placement describes restrictions for the nodes Cassandra is scheduled on.
-	Placement *rookv1.Placement `json:"placement,omitempty"`
+	Placement *Placement `json:"placement,omitempty"`
 	// Resources the Cassandra Pods will use.
 	Resources corev1.ResourceRequirements `json:"resources"`
 }
@@ -144,11 +152,39 @@ const (
 
 type ConditionStatus string
 
-// These are valid condition statuses. "ConditionTrue" means a resource is in the condition;
-// "ConditionFalse" means a resource is not in the condition; "ConditionUnknown" means kubernetes
-// can't decide if a resource is in the condition or not.
-const (
-	ConditionTrue    ConditionStatus = "True"
-	ConditionFalse   ConditionStatus = "False"
-	ConditionUnknown ConditionStatus = "Unknown"
-)
+type StorageScopeSpec struct {
+	// +nullable
+	// +optional
+	Nodes []Node `json:"nodes,omitempty"`
+
+	// PersistentVolumeClaims to use as storage
+	// +optional
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
+}
+
+// Node is a storage nodes
+// +nullable
+type Node struct {
+	// +optional
+	Name string `json:"name,omitempty"`
+}
+
+// Placement is the placement for an object
+type Placement struct {
+	// NodeAffinity is a group of node affinity scheduling rules
+	// +optional
+	NodeAffinity *v1.NodeAffinity `json:"nodeAffinity,omitempty"`
+	// PodAffinity is a group of inter pod affinity scheduling rules
+	// +optional
+	PodAffinity *v1.PodAffinity `json:"podAffinity,omitempty"`
+	// PodAntiAffinity is a group of inter pod anti affinity scheduling rules
+	// +optional
+	PodAntiAffinity *v1.PodAntiAffinity `json:"podAntiAffinity,omitempty"`
+	// The pod this Toleration is attached to tolerates any taint that matches
+	// the triple <key,value,effect> using the matching operator <operator>
+	// +optional
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+	// TopologySpreadConstraint specifies how to spread matching pods among the given topology
+	// +optional
+	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+}

@@ -26,7 +26,6 @@ import (
 	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -608,8 +607,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 
 	if c.spec.Network.IsHost() {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	} else if c.spec.Network.NetworkSpec.IsMultus() {
-		if err := k8sutil.ApplyMultus(c.spec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta); err != nil {
+	} else if c.spec.Network.IsMultus() {
+		if err := k8sutil.ApplyMultus(c.spec.Network, &podTemplateSpec.ObjectMeta); err != nil {
 			return nil, err
 		}
 	}
@@ -705,7 +704,7 @@ func applyTopologyAffinity(spec *v1.PodSpec, osd OSDInfo) error {
 		return errors.Wrapf(err, "failed to generate osd %d topology affinity", osd.ID)
 	}
 	// merge the node affinity for the topology with the existing affinity
-	p := rookv1.Placement{NodeAffinity: nodeAffinity}
+	p := cephv1.Placement{NodeAffinity: nodeAffinity}
 	p.ApplyToPodSpec(spec)
 
 	return nil

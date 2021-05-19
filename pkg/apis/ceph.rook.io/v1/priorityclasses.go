@@ -16,12 +16,16 @@ limitations under the License.
 
 package v1
 
-import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
-)
+// All returns the priority class name defined for 'all' daemons in the Ceph cluster CRD.
+func (p PriorityClassNamesSpec) All() string {
+	if val, ok := p[KeyAll]; ok {
+		return val
+	}
+	return ""
+}
 
 // GetMgrPriorityClassName returns the priority class name for the MGR service
-func GetMgrPriorityClassName(p rook.PriorityClassNamesSpec) string {
+func GetMgrPriorityClassName(p PriorityClassNamesSpec) string {
 	if _, ok := p[KeyMgr]; !ok {
 		return p.All()
 	}
@@ -29,7 +33,7 @@ func GetMgrPriorityClassName(p rook.PriorityClassNamesSpec) string {
 }
 
 // GetMonPriorityClassName returns the priority class name for the monitors
-func GetMonPriorityClassName(p rook.PriorityClassNamesSpec) string {
+func GetMonPriorityClassName(p PriorityClassNamesSpec) string {
 	if _, ok := p[KeyMon]; !ok {
 		return p.All()
 	}
@@ -37,7 +41,7 @@ func GetMonPriorityClassName(p rook.PriorityClassNamesSpec) string {
 }
 
 // GetOSDPriorityClassName returns the priority class name for the OSDs
-func GetOSDPriorityClassName(p rook.PriorityClassNamesSpec) string {
+func GetOSDPriorityClassName(p PriorityClassNamesSpec) string {
 	if _, ok := p[KeyOSD]; !ok {
 		return p.All()
 	}
@@ -45,7 +49,7 @@ func GetOSDPriorityClassName(p rook.PriorityClassNamesSpec) string {
 }
 
 // GetCleanupPriorityClassName returns the priority class name for the cleanup job
-func GetCleanupPriorityClassName(p rook.PriorityClassNamesSpec) string {
+func GetCleanupPriorityClassName(p PriorityClassNamesSpec) string {
 	if _, ok := p[KeyCleanup]; !ok {
 		return p.All()
 	}

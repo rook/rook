@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -352,8 +351,8 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 
 	t.Run("do nothing if device set count is zero", func(t *testing.T) {
 		spec = cephv1.ClusterSpec{
-			Storage: rookv1.StorageScopeSpec{
-				StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{
+			Storage: cephv1.StorageScopeSpec{
+				StorageClassDeviceSets: []cephv1.StorageClassDeviceSet{
 					{
 						Name:  "set1",
 						Count: 0,
@@ -377,8 +376,8 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 
 	t.Run("one device set with 2 PVCs", func(t *testing.T) {
 		spec = cephv1.ClusterSpec{
-			Storage: rookv1.StorageScopeSpec{
-				StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{
+			Storage: cephv1.StorageScopeSpec{
+				StorageClassDeviceSets: []cephv1.StorageClassDeviceSet{
 					{
 						Name:  "set1",
 						Count: 2,
@@ -440,8 +439,8 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 
 	t.Run("error if no volume claim template", func(t *testing.T) {
 		spec = cephv1.ClusterSpec{
-			Storage: rookv1.StorageScopeSpec{
-				StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{
+			Storage: cephv1.StorageScopeSpec{
+				StorageClassDeviceSets: []cephv1.StorageClassDeviceSet{
 					{
 						Name:                 "set1",
 						Count:                2,
@@ -521,9 +520,9 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 		useAllDevices = true
 		spec = cephv1.ClusterSpec{
 			// this storage spec should cause prepare jobs to run on all (3) nodes
-			Storage: rookv1.StorageScopeSpec{
+			Storage: cephv1.StorageScopeSpec{
 				UseAllNodes: true,
-				Selection: rookv1.Selection{
+				Selection: cephv1.Selection{
 					UseAllDevices: &useAllDevices,
 				},
 			},
@@ -560,7 +559,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 
 	t.Run("use all nodes and devices when useAllNodes and individual nodes are both set", func(t *testing.T) {
 		// this also tests that jobs that currently exist (created in previous test) are handled
-		spec.Storage.Nodes = []rookv1.Node{
+		spec.Storage.Nodes = []cephv1.Node{
 			{Name: "node0"}, {Name: "node2"},
 		}
 		doSetup()
@@ -577,14 +576,14 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 		// this also tests that existing status configmaps (from the previous tests) don't affect the
 		// reported status configmaps from this run
 		spec = cephv1.ClusterSpec{
-			Storage: rookv1.StorageScopeSpec{
+			Storage: cephv1.StorageScopeSpec{
 				UseAllNodes: false,
-				Nodes: []rookv1.Node{
+				Nodes: []cephv1.Node{
 					// run on only node0 and node2
 					{Name: "node0"},
 					{Name: "node2"},
 				},
-				Selection: rookv1.Selection{
+				Selection: cephv1.Selection{
 					UseAllDevices: &useAllDevices,
 				},
 			},
@@ -612,12 +611,12 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 
 	t.Run("use no nodes", func(t *testing.T) {
 		spec = cephv1.ClusterSpec{
-			Storage: rookv1.StorageScopeSpec{
+			Storage: cephv1.StorageScopeSpec{
 				UseAllNodes: false,
-				Nodes:       []rookv1.Node{
+				Nodes:       []cephv1.Node{
 					// empty
 				},
-				Selection: rookv1.Selection{
+				Selection: cephv1.Selection{
 					UseAllDevices: &useAllDevices,
 				},
 			},
@@ -632,14 +631,14 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 
 	t.Run("failures running prepare jobs", func(t *testing.T) {
 		spec = cephv1.ClusterSpec{
-			Storage: rookv1.StorageScopeSpec{
+			Storage: cephv1.StorageScopeSpec{
 				UseAllNodes: false,
-				Nodes: []rookv1.Node{
+				Nodes: []cephv1.Node{
 					// run on only node0 and node2
 					{Name: "node0"},
 					{Name: "node2"},
 				},
-				Selection: rookv1.Selection{
+				Selection: cephv1.Selection{
 					UseAllDevices: &useAllDevices,
 				},
 			},

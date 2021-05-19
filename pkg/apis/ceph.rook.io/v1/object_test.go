@@ -19,7 +19,7 @@ package v1
 import (
 	"testing"
 
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	rook "github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -88,7 +88,7 @@ func TestIsTLSEnabled(t *testing.T) {
 
 	// when service serving cert is used
 	objStore.Spec.Gateway.SSLCertificateRef = ""
-	objStore.Spec.Gateway.Service = &(RGWServiceSpec{Annotations: rookv1.Annotations{ServiceServingCertKey: "rgw-cert"}})
+	objStore.Spec.Gateway.Service = &(RGWServiceSpec{Annotations: rook.Annotations{ServiceServingCertKey: "rgw-cert"}})
 	IsTLS = objStore.Spec.IsTLSEnabled()
 	assert.True(t, IsTLS)
 

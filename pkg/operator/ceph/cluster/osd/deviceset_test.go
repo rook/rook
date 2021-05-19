@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	testexec "github.com/rook/rook/pkg/operator/test"
@@ -48,7 +47,7 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 	if setTemplateName {
 		claim.Name = "randomname"
 	}
-	deviceSet := rookv1.StorageClassDeviceSet{
+	deviceSet := cephv1.StorageClassDeviceSet{
 		Name:                 "mydata",
 		Count:                1,
 		Portable:             true,
@@ -56,7 +55,7 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 		SchedulerName:        "custom-scheduler",
 	}
 	spec := cephv1.ClusterSpec{
-		Storage: rookv1.StorageScopeSpec{StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{deviceSet}},
+		Storage: cephv1.StorageScopeSpec{StorageClassDeviceSets: []cephv1.StorageClassDeviceSet{deviceSet}},
 	}
 	cluster := &Cluster{
 		context:     context,
@@ -93,7 +92,7 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 		Clientset: clientset,
 	}
 
-	deviceSet := rookv1.StorageClassDeviceSet{
+	deviceSet := cephv1.StorageClassDeviceSet{
 		Name:                 "mydata",
 		Count:                1,
 		Portable:             true,
@@ -101,7 +100,7 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 		SchedulerName:        "custom-scheduler",
 	}
 	spec := cephv1.ClusterSpec{
-		Storage: rookv1.StorageScopeSpec{StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{deviceSet}},
+		Storage: cephv1.StorageScopeSpec{StorageClassDeviceSets: []cephv1.StorageClassDeviceSet{deviceSet}},
 	}
 	ns := "testns"
 	cluster := &Cluster{
@@ -239,7 +238,7 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-	deviceSet := rookv1.StorageClassDeviceSet{
+	deviceSet := cephv1.StorageClassDeviceSet{
 		Name:                 "datawithcrushparams1",
 		Count:                1,
 		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{testVolumeClaim("testwithcrushparams1")},
@@ -252,7 +251,7 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 	}
 
 	spec := cephv1.ClusterSpec{
-		Storage: rookv1.StorageScopeSpec{StorageClassDeviceSets: []rookv1.StorageClassDeviceSet{deviceSet}},
+		Storage: cephv1.StorageScopeSpec{StorageClassDeviceSets: []cephv1.StorageClassDeviceSet{deviceSet}},
 	}
 	cluster := &Cluster{
 		context:     context,

@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -120,7 +120,7 @@ func TestGetAvailableDevices(t *testing.T) {
 	context := &clusterd.Context{
 		Clientset: clientset,
 	}
-	d := []rookv1.Device{
+	d := []cephv1.Device{
 		{
 			Name: "sdc",
 		},

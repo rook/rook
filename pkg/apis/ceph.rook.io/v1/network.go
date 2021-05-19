@@ -16,9 +16,13 @@ limitations under the License.
 
 package v1
 
+// IsMultus get whether to use multus network provider
+func (n *NetworkSpec) IsMultus() bool {
+	return n.Provider == "multus"
+}
+
 // IsHost get whether to use host network provider. This method also preserve
 // compatibility with the old HostNetwork field.
-func (net *NetworkSpec) IsHost() bool {
-	rookNet := net.NetworkSpec
-	return (net.HostNetwork && net.Provider == "") || rookNet.IsHost()
+func (n *NetworkSpec) IsHost() bool {
+	return (n.HostNetwork && n.Provider == "") || n.Provider == "host"
 }

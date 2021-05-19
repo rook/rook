@@ -20,7 +20,7 @@ package attachment
 import (
 	"reflect"
 
-	rook "github.com/rook/rook/pkg/apis/rook.io"
+	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )

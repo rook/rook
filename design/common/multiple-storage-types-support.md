@@ -179,7 +179,6 @@ package v1alpha1 // "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 
 import (
   metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-  rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 )
 
 type Cluster struct {
@@ -441,4 +440,3 @@ spec:
             requests:
               storage: "1Gi"
 ```
-

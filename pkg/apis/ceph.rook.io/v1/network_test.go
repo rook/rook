@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNetworkCeph_SpecLegacy(t *testing.T) {
+func TestNetworkCephSpecLegacy(t *testing.T) {
 	netSpecYAML := []byte(`hostNetwork: true`)
 
 	rawJSON, err := yaml.YAMLToJSON(netSpecYAML)
@@ -40,8 +40,34 @@ func TestNetworkCeph_SpecLegacy(t *testing.T) {
 	assert.Equal(t, expected, net)
 }
 
-func TestNetworkCeph_IsHostLegacy(t *testing.T) {
+func TestNetworkCephIsHostLegacy(t *testing.T) {
 	net := NetworkSpec{HostNetwork: true}
 
 	assert.True(t, net.IsHost())
+}
+
+func TestNetworkSpec(t *testing.T) {
+	netSpecYAML := []byte(`
+provider: host
+selectors:
+  server: enp2s0f0
+  broker: enp2s0f0`)
+
+	rawJSON, err := yaml.YAMLToJSON(netSpecYAML)
+	assert.Nil(t, err)
+
+	var net NetworkSpec
+
+	err = json.Unmarshal(rawJSON, &net)
+	assert.Nil(t, err)
+
+	expected := NetworkSpec{
+		Provider: "host",
+		Selectors: map[string]string{
+			"server": "enp2s0f0",
+			"broker": "enp2s0f0",
+		},
+	}
+
+	assert.Equal(t, expected, net)
 }

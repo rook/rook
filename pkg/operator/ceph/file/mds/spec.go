@@ -100,8 +100,8 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.
 
 	if c.clusterSpec.Network.IsHost() {
 		d.Spec.Template.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	} else if c.clusterSpec.Network.NetworkSpec.IsMultus() {
-		if err := k8sutil.ApplyMultus(c.clusterSpec.Network.NetworkSpec, &podSpec.ObjectMeta); err != nil {
+	} else if c.clusterSpec.Network.IsMultus() {
+		if err := k8sutil.ApplyMultus(c.clusterSpec.Network, &podSpec.ObjectMeta); err != nil {
 			return nil, err
 		}
 	}

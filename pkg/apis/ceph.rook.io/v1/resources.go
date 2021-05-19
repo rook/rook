@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -47,41 +46,41 @@ const (
 )
 
 // GetMgrResources returns the placement for the MGR service
-func GetMgrResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetMgrResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgr]
 }
 
 // GetMgrSidecarResources returns the placement for the MGR sidecar container
-func GetMgrSidecarResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetMgrSidecarResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgrSidecar]
 }
 
 // GetMonResources returns the placement for the monitors
-func GetMonResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetMonResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMon]
 }
 
 // GetOSDResources returns the placement for the OSDs
-func GetOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetOSDResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyOSD]
 }
 
 // GetPrepareOSDResources returns the placement for the OSDs prepare job
-func GetPrepareOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetPrepareOSDResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyPrepareOSD]
 }
 
 // GetCrashCollectorResources returns the placement for the crash daemon
-func GetCrashCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetCrashCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
 }
 
 // GetLogCollectorResources returns the placement for the crash daemon
-func GetLogCollectorResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetLogCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
 }
 
 // GetCleanupResources returns the placement for the cleanup job
-func GetCleanupResources(p rook.ResourceSpec) v1.ResourceRequirements {
+func GetCleanupResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCleanup]
 }

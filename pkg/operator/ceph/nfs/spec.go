@@ -150,8 +150,8 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 
 	if r.cephClusterSpec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	} else if r.cephClusterSpec.Network.NetworkSpec.IsMultus() {
-		if err := k8sutil.ApplyMultus(r.cephClusterSpec.Network.NetworkSpec, &podTemplateSpec.ObjectMeta); err != nil {
+	} else if r.cephClusterSpec.Network.IsMultus() {
+		if err := k8sutil.ApplyMultus(r.cephClusterSpec.Network, &podTemplateSpec.ObjectMeta); err != nil {
 			return nil, err
 		}
 	}
