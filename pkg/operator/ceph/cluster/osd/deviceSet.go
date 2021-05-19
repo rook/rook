@@ -65,6 +65,8 @@ type deviceSet struct {
 	SchedulerName string
 	// Whether to encrypt the deviceSet
 	Encrypted bool
+	// GrowthPolicy for auto provisioning when volumeClaim gets full
+	GrowthPolicy rookv1.GrowthPolicy
 }
 
 func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) {
@@ -186,6 +188,7 @@ func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet rookv1.StorageClassDe
 		CrushInitialWeight:   crushInitialWeight,
 		CrushPrimaryAffinity: crushPrimaryAffinity,
 		Encrypted:            newDeviceSet.Encrypted,
+		GrowthPolicy:         *newDeviceSet.GrowthPolicy,
 	}
 }
 

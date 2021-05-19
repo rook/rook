@@ -158,6 +158,11 @@ spec:
         #       - ReadWriteOnce
         # Scheduler name for OSD pod placement
         # schedulerName: osd-scheduler
+        # growthPolicy for auto provisioning when volumeClaim gets full
+        # set maxsize to the capacity of DeviceStorage and growthRate for percentage increment of claimed volume
+        growthPolicy:
+          maxsize: 1Ti
+          growthRatePercent: 20
   resources:
   #  prepareosd:
   #    limits:

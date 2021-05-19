@@ -142,6 +142,12 @@ func (c *cephStatusChecker) checkStatus() {
 		if err := c.forceDeleteStuckRookPodsOnNotReadyNodes(); err != nil {
 			logger.Errorf("failed to delete pod on not ready nodes. %v", err)
 		}
+
+		if osd_Nearfull, ok := status.Health.Checks["OSD_NEARFULL"]; ok {
+			if osd_Nearfull.Severity == "HEALTH_WARN" || osd_Nearfull.Severity == "HEALTH_ERR" {
+				increaseOSDsCapacity(c)
+			}
+		}
 	}
 }
 

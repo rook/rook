@@ -2002,6 +2002,16 @@ spec:
                           encrypted:
                             description: Whether to encrypt the deviceSet
                             type: boolean
+                          growthPolicy:
+                            description: GrowthPolicy for OSD auto provisioning
+                            properties:
+                              growthRatePercent:
+                                description: GrowthRatePercent Increases the Volume Claim by the percentage set Optional
+                                type: integer
+                              maxSize:
+                                description: MaxSize defines the maximum size a Volume Claim is allowed to grow Optional
+                                type: string
+                            type: object
                           name:
                             description: Name is a unique identifier for the set
                             type: string
