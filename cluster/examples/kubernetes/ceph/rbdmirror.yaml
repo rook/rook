@@ -16,7 +16,7 @@ spec:
   #peers:
     #secretNames:
       #- secondary-cluster-peer
-  # The affinity rules to apply to the mds deployment
+  # The affinity rules to apply to the rbd-mirror deployment
   placement:
   #  nodeAffinity:
   #    requiredDuringSchedulingIgnoredDuringExecution:
@@ -25,7 +25,7 @@ spec:
   #        - key: role
   #          operator: In
   #          values:
-  #          - rgw-node
+  #          - rbd-mirror-node
   #  tolerations:
   #  - key: rbd-mirror-node
   #    operator: Exists
