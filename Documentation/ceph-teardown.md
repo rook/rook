@@ -93,6 +93,9 @@ ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
 # ceph-volume setup can leave ceph-<UUID> directories in /dev and /dev/mapper (unnecessary clutter)
 rm -rf /dev/ceph-*
 rm -rf /dev/mapper/ceph--*
+
+# Inform the OS of partition table changes
+partprobe $DISK
 ```
 
 ## Troubleshooting
