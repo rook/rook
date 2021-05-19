@@ -9,20 +9,24 @@ Any dates listed below and the specific issues that will ship in a given milesto
 See the [Github project boards](https://github.com/rook/rook/projects) for the most up-to-date issues and their status.
 
 
-## Rook 1.6
+## Rook 1.7
 
-The following high level features are targeted for Rook v1.6 (March 2021). For more detailed project tracking see the [v1.6 board](https://github.com/rook/rook/projects/20).
+The following high level features are targeted for Rook v1.7 (July 2021). For more detailed project tracking see the [v1.7 board](https://github.com/rook/rook/projects/21).
 
 * Ceph
-  * Support the Ceph Pacific release
-  * CephFS Mirroring support for data replication across clusters
-  * RBD mirroring configuration between clusters to support application DR (disaster recovery)
-  * RGW Multi-site replication improvements towards declaring the feature stable
-  * Upgrade OSDs for large clusters in parallel within failure domains
-  * Configure bucket notifications with a CRD [#6425](https://github.com/rook/rook/issues/6425)
-* Storage Providers
-  * Clearly define maintainer expectations for storage providers
-  * Remove unmaintained storage providers: EdgeFS, CockroachDB, and YugabyteDB
+  * Helm chart for the cluster CR [#2109](https://github.com/rook/rook/issues/2109)
+  * Configure bucket notifications with a CRD ([design doc](https://github.com/rook/rook/blob/master/design/ceph/object/ceph-bucket-notification-crd.md))
+  * Add alpha support for COSI (Container object storage interface) with K8s 1.22 [#7843](https://github.com/rook/rook/issues/7843)
+  * Disaster Recovery (DR): CSI solution for application failover in the event of cluster failure
+  * Allow OSDs on PVCs to automatically grow when the cluster is nearly full [#6101](https://github.com/rook/rook/issues/6101)
+  * OSD encryption key rotation [#7925](https://github.com/rook/rook/issues/7925)
+  * iSCSI gateway deployment [#4334](https://github.com/rook/rook/issues/4334)
+  * Use go-ceph to interact with object store instead of `radosgw-admin` [#7924](https://github.com/rook/rook/issues/7924)
+  * RGW Multi-site replication improvements towards declaring the feature stable [#6401](https://github.com/rook/rook/issues/6401)
+  * More complete solution for protecting against accidental cluster deletion [#7885](https://github.com/rook/rook/pull/7885)
+  * Remove support for Nautilus, focusing on support for Octopus and Pacific [#7908](https://github.com/rook/rook/issues/7908)
+ * Build hygiene
+  * Complete conversion from Jenkins pipeline to GitHub actions
 
 ## Themes
 
@@ -30,25 +34,17 @@ The general areas for improvements include the following, though may not be comm
 
 * Admission Controllers
   * Improve custom resource validation for each storage provider
-* Build hygiene
-  * Complete conversion from Jenkins pipeline to GitHub actions
-  * Run more comprehensive tests with a daily test run [#2828](https://github.com/rook/rook/issues/2828)
-  * Include more environments in the test pipeline [#1841](https://github.com/rook/rook/issues/1841)
 * Controller Runtime
   * Update [remaining Rook controllers](https://github.com/rook/rook/issues?q=is%3Aissue+is%3Aopen+%22controller+runtime%22+label%3Areliability+) to build on the controller runtime
 * Ceph
-  * Add alpha support for COSI (Container object storage interface) with K8s 1.21
   * Enable the admission controller by default [#6242](https://github.com/rook/rook/issues/6242)
   * Dashboard-driven configuration after minimal CR install
-  * RGW Multi-site configurations
-    * Declare the feature stable
-  * Disaster Recovery (DR)
-    * CSI solution for application failover in the event of cluster failure
-  * Disaster Recovery (Rook)
-    * Simplify metadata backup and disaster recovery [#592](https://github.com/rook/rook/issues/592)
-  * Helm chart for the cluster CR [#2109](https://github.com/rook/rook/issues/2109)
+  * Simplify metadata backup and disaster recovery
   * CSI Driver improvements tracked in the [CSI repo](https://github.com/ceph/ceph-csi)
+    * Support for Windows nodes
 * Cassandra
   * Handle loss of persistent local data [#2533](https://github.com/rook/rook/issues/2533)
   * Enable automated repairs [#2531](https://github.com/rook/rook/issues/2531)
+  * Graduate CRDs to beta
+* NFS
   * Graduate CRDs to beta
