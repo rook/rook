@@ -87,6 +87,24 @@ func getDeviceMapperVolume() (v1.Volume, v1.VolumeMount) {
 	return volume, volumeMounts
 }
 
+func getOSDKeyring() (v1.Volume, v1.VolumeMount) {
+	volume := v1.Volume{
+		Name: "keyring",
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: "/var/lib/ceph/bootstrap-osd/keyring",
+			},
+		},
+	}
+
+	volumeMounts := v1.VolumeMount{
+		Name:      "keyring",
+		MountPath: "/var/lib/ceph/bootstrap-osd/keyring",
+	}
+
+	return volume, volumeMounts
+}
+
 func getDataBridgeVolumeSource(claimName, configDir, namespace string, inProvisioning bool) v1.VolumeSource {
 	var source v1.VolumeSource
 	if inProvisioning {

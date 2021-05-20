@@ -80,6 +80,9 @@ OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 CV_MODE=%s
 DEVICE="$%s"
 
+# create new keyring
+ceph -n client.bootstrap-osd auth get-or-create osd.$OSD_ID mon 'profile osd' mgr 'profile osd' osd 'allow *' -k /var/lib/ceph/bootstrap-osd/keyring
+
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
 	TMP_DIR=$(mktemp -d)
@@ -139,6 +142,7 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
 	ceph-volume raw activate --device "$DEVICE" --no-systemd --no-tmpfs
 fi
+
 `
 
 	openEncryptedBlock = `
@@ -490,7 +494,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
 	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.context.ConfigDir, c.clusterInfo.Namespace, osdID, osd, osdProps)
 	if !osdProps.onPVC() {
-		volumes = append(volumes, activateOSDVolume)
+		volumes = append(volumes, activateOSDVolume...)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
 	}
 
@@ -766,8 +770,10 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 }
 
 // This container runs all the actions needed to activate an OSD before we can run the OSD process
-func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string, osdInfo OSDInfo, osdProps osdProperties) (v1.Volume, *v1.Container) {
+func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string, osdInfo OSDInfo, osdProps osdProperties) ([]v1.Volume, *v1.Container) {
 	// We need to use hostPath because the same reason as written in the comment of getDataBridgeVolumeSource()
+
+	volume := []v1.Volume{}
 	hostPathType := v1.HostPathDirectoryOrCreate
 	source := v1.VolumeSource{
 		HostPath: &v1.HostPathVolumeSource{
@@ -779,10 +785,14 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 			Type: &hostPathType,
 		},
 	}
-	volume := v1.Volume{
+	volume = append(volume, v1.Volume{
 		Name:         activateOSDVolumeName,
 		VolumeSource: source,
-	}
+	})
+
+	keyringVolume, keyringVolumeMount := getOSDKeyring()
+	volume = append(volume, keyringVolume)
+
 	envVars := append(
 		osdActivateEnvVar(),
 		blockPathEnvVariable(osdInfo.BlockPath),
@@ -800,6 +810,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		{Name: "devices", MountPath: "/dev"},
 		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
 	}
+	volMounts = append(volMounts, keyringVolumeMount)
 
 	if osdProps.onPVC() {
 		volMounts = append(volMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
