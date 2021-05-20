@@ -67,24 +67,25 @@ const (
 )
 
 const (
-	activateOSDCode = `
-set -ex
+	activateOSDOnNodeCode = `
+set -o errexit
+set -o pipefail
+set -o nounset # fail if variables are unset
+set -o xtrace
 
-OSD_ID=%s
+OSD_ID="$ROOK_OSD_ID"
 OSD_UUID=%s
 OSD_STORE_FLAG="%s"
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 CV_MODE=%s
 DEVICE="$%s"
-METADATA_DEVICE="$%s"
-WAL_DEVICE="$%s"
 
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
 	TMP_DIR=$(mktemp -d)
 
 	# activate osd
-	ceph-volume "$CV_MODE" activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
+	ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
 
 	# copy the tmpfs directory to a temporary directory
 	# this is needed because when the init container exits, the tmpfs goes away and its content with it
@@ -103,17 +104,41 @@ if [[ "$CV_MODE" == "lvm" ]]; then
 	# remove the temporary directory
 	rm --recursive --force "$TMP_DIR"
 else
-	ARGS=(--device ${DEVICE} --no-systemd --no-tmpfs)
-	if [ -n "$METADATA_DEVICE" ]; then
-		ARGS+=(--block.db ${METADATA_DEVICE})
-	fi
-	if [ -n "$WAL_DEVICE" ]; then
-		ARGS+=(--block.wal ${WAL_DEVICE})
-	fi
-	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
-	ceph-volume "$CV_MODE" activate "${ARGS[@]}"
-fi
+	# 'ceph-volume raw list' (which the osd-prepare job uses to report OSDs on nodes)
+	#  returns user-friendly device names which can change when systems reboot. To
+	# keep OSD pods from crashing repeatedly after a reboot, we need to check if the
+	# block device we have is still correct, and if it isn't correct, we need to
+	# scan all the disks to find the right one.
+	OSD_LIST="$(mktemp)"
 
+	function find_device() {
+		# jq would be preferable, but might be removed for hardened Ceph images
+		# python3 should exist in all containers having Ceph
+		python3 -c "
+import sys, json
+for _, info in json.load(sys.stdin).items():
+	if info['osd_id'] == $OSD_ID:
+		print(info['device'], end='')
+		print('found device: ' + info['device'], file=sys.stderr) # log the disk we found to stderr
+		sys.exit(0)  # don't keep processing once the disk is found
+sys.exit('no disk found with OSD ID $OSD_ID')
+"
+	}
+
+	ceph-volume raw list "$DEVICE" > "$OSD_LIST"
+	cat "$OSD_LIST"
+
+	if ! find_device < "$OSD_LIST"; then
+		ceph-volume raw list > "$OSD_LIST"
+		cat "$OSD_LIST"
+
+		DEVICE="$(find_device < "$OSD_LIST")"
+	fi
+	[[ -z "$DEVICE" ]] && { echo "no device" ; exit 1 ; }
+
+	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
+	ceph-volume raw activate --device "$DEVICE" --no-systemd --no-tmpfs
+fi
 `
 
 	openEncryptedBlock = `
@@ -293,9 +318,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 	volumes := controller.PodVolumes(provisionConfig.DataPathMap, dataDirHostPath, false)
 	failureDomainValue := osdProps.crushHostname
-	doConfigInit := true       // initialize ceph.conf in init container?
-	doBinaryCopyInit := true   // copy tini and rook binaries in an init container?
-	doActivateOSDInit := false // run an init container to activate the osd?
+	doConfigInit := true     // initialize ceph.conf in init container?
+	doBinaryCopyInit := true // copy tini and rook binaries in an init container?
 
 	// This property is used for both PVC and non-PVC use case
 	if osd.CVMode == "" {
@@ -390,7 +414,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	} else {
 		doBinaryCopyInit = false
 		doConfigInit = false
-		doActivateOSDInit = true
 		command = []string{"ceph-osd"}
 		args = []string{
 			"--foreground",
@@ -448,7 +471,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// This container will activate the OSD and place the activated filesinto an empty dir
 	// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
 	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.context.ConfigDir, c.clusterInfo.Namespace, osdID, osd, osdProps)
-	if doActivateOSDInit {
+	if !osdProps.onPVC() {
 		volumes = append(volumes, activateOSDVolume)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
 	}
@@ -501,11 +524,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if doBinaryCopyInit {
 		initContainers = append(initContainers, *copyBinariesContainer)
 	}
+
 	if osdProps.onPVC() && osd.CVMode == "lvm" {
 		initContainers = append(initContainers, c.getPVCInitContainer(osdProps))
-	}
-
-	if osdProps.onPVC() && osd.CVMode == "raw" {
+	} else if osdProps.onPVC() && osd.CVMode == "raw" {
 		// Copy main block device to an empty dir
 		initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
 		// Copy main block.db device to an empty dir
@@ -528,9 +550,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		}
 		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
 		initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
-
-	}
-	if doActivateOSDInit {
+	} else {
 		initContainers = append(initContainers, *activateOSDContainer)
 	}
 
@@ -750,6 +770,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		blockPathEnvVariable(osdInfo.BlockPath),
 		metadataDeviceEnvVar(osdInfo.MetadataPath),
 		walDeviceEnvVar(osdInfo.WalPath),
+		v1.EnvVar{Name: "ROOK_OSD_ID", Value: osdID},
 	)
 	osdStore := "--bluestore"
 
@@ -770,7 +791,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDCode, osdID, osdInfo.UUID, osdStore, osdInfo.CVMode, blockPathVarName, osdMetadataDeviceEnvVarName, osdWalDeviceEnvVarName),
+			fmt.Sprintf(activateOSDOnNodeCode, osdInfo.UUID, osdStore, osdInfo.CVMode, blockPathVarName),
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,
