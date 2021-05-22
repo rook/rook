@@ -1,7 +1,6 @@
 #################################################################################################################
-# Define the settings for the rook-ceph cluster with common settings for a production cluster.
-# All nodes with available raw devices will be used for the Ceph cluster. At least three nodes are required
-# in this example. See the documentation for more details on storage settings available.
+# Define the settings for the rook-ceph cluster with common settings for a production cluster on top of cloud instances.
+# At least three nodes are required in this example. See the documentation for more details on storage settings available.
 
 # For example, to create the cluster:
 #   kubectl create -f crds.yaml -f common.yaml -f operator.yaml
@@ -126,7 +125,7 @@ spec:
               resources:
                 requests:
                   storage: 10Gi
-              # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+              # IMPORTANT: Change the storage class depending on your environment
               storageClassName: gp2
               volumeMode: Block
               accessModes:
@@ -139,7 +138,7 @@ spec:
         #       requests:
         #         # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
         #         storage: 5Gi
-        #     # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
+        #     # IMPORTANT: Change the storage class depending on your environment
         #     storageClassName: io1
         #     volumeMode: Block
         #     accessModes:
@@ -152,7 +151,7 @@ spec:
         #       requests:
         #         # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
         #         storage: 5Gi
-        #     # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
+        #     # IMPORTANT: Change the storage class depending on your environment
         #     storageClassName: io1
         #     volumeMode: Block
         #     accessModes:
