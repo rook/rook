@@ -668,6 +668,11 @@ func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.Moni
 }
 
 func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec cephv1.MonitoringSpec, clusterInfo *client.ClusterInfo, ownerInfo *k8sutil.OwnerInfo) error {
+	if len(monitoringSpec.ExternalMgrEndpoints) == 0 {
+		logger.Debug("no metric endpoint configured, doing nothing")
+		return nil
+	}
+
 	// Get active mgr
 	var activeMgrAddr string
 	// We use mgr dump and not stat because we want the IP address
