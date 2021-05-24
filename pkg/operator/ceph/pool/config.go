@@ -18,7 +18,6 @@ limitations under the License.
 package pool
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -42,7 +41,6 @@ const (
 )
 
 func (r *ReconcileCephBlockPool) createBootstrapPeerSecret(cephBlockPool *cephv1.CephBlockPool, namespacedName types.NamespacedName) (reconcile.Result, error) {
-	ctx := context.TODO()
 	// Create rbd mirror bootstrap peer token
 	boostrapToken, err := cephclient.CreateRBDMirrorBootstrapPeer(r.context, r.clusterInfo, cephBlockPool.Name)
 	if err != nil {
@@ -60,11 +58,12 @@ func (r *ReconcileCephBlockPool) createBootstrapPeerSecret(cephBlockPool *cephv1
 
 	// Create Secret
 	logger.Debugf("store rbd-mirror bootstrap token in a Kubernetes Secret %q", s.Name)
-	_, err = r.context.Clientset.CoreV1().Secrets(cephBlockPool.Namespace).Create(ctx, s, metav1.CreateOptions{})
+	_, err = k8sutil.CreateOrUpdateSecret(r.context.Clientset, s)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
-		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to create rbd-mirror bootstrap peer %q secret", s.Name)
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to create or update rbd-mirror bootstrap peer %q secret", s.Name)
 	}
 
+	logger.Infof("successfully created bootstrap peer token secret for pool %q", cephBlockPool.Name)
 	return reconcile.Result{}, nil
 }
 
