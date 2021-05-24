@@ -273,6 +273,9 @@ if [ -b "$PVC_DEST" ]; then
 fi
 
 cp "${CP_ARGS[@]}" "$PVC_SOURCE" "$PVC_DEST"
+
+# print osd header
+head --bytes=60 "$PVC_DEST"
 `
 )
 
