@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -105,6 +106,19 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes on the CephBlockPool CRD object
 	err = c.Watch(&source.Kind{Type: &cephv1.CephBlockPool{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	if err != nil {
+		return err
+	}
+
+	// Build Handler function to return the list of ceph block pool
+	// This is used by the watchers below
+	handlerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephBlockPoolList{}, mgr.GetScheme())
+	if err != nil {
+		return err
+	}
+
+	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile update the bootstrap peer token
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}}}, handler.EnqueueRequestsFromMapFunc(handlerFunc), predicateMonEndpointChanges())
 	if err != nil {
 		return err
 	}
@@ -249,6 +263,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// CREATE/UPDATE
 	reconcileResponse, err = r.reconcileCreatePool(clusterInfo, &cephCluster.Spec, cephBlockPool)
 	if err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info("skipping reconcile since operator is still initializing")
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		}
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure, nil)
 		return reconcileResponse, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
 	}
