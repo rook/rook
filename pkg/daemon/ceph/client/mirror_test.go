@@ -45,8 +45,6 @@ func TestCreateRBDMirrorBootstrapPeer(t *testing.T) {
 			assert.Equal(t, "bootstrap", args[3])
 			assert.Equal(t, "create", args[4])
 			assert.Equal(t, pool, args[5])
-			assert.Equal(t, "--site-name", args[6])
-			assert.Equal(t, "4fe04ebb-ec0c-46c2-ac55-9eb52ebbfb82", args[7])
 			return bootstrapPeerToken, nil
 		}
 		return "", errors.New("unknown command")
