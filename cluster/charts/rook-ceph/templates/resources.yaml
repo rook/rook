@@ -7501,10 +7501,16 @@ spec:
     kind: VolumeReplicationClass
     listKind: VolumeReplicationClassList
     plural: volumereplicationclasses
+    shortNames:
+      - vrc
     singular: volumereplicationclass
   scope: Cluster
   versions:
-    - name: v1alpha1
+    - additionalPrinterColumns:
+        - jsonPath: .spec.provisioner
+          name: provisioner
+          type: string
+      name: v1alpha1
       schema:
         openAPIV3Schema:
           description: VolumeReplicationClass is the Schema for the volumereplicationclasses API
@@ -7560,10 +7566,28 @@ spec:
     kind: VolumeReplication
     listKind: VolumeReplicationList
     plural: volumereplications
+    shortNames:
+      - vr
     singular: volumereplication
   scope: Namespaced
   versions:
-    - name: v1alpha1
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        - jsonPath: .spec.volumeReplicationClass
+          name: volumeReplicationClass
+          type: string
+        - jsonPath: .spec.dataSource.name
+          name: pvcName
+          type: string
+        - jsonPath: .spec.replicationState
+          name: desiredState
+          type: string
+        - jsonPath: .status.state
+          name: currentState
+          type: string
+      name: v1alpha1
       schema:
         openAPIV3Schema:
           description: VolumeReplication is the Schema for the volumereplications API
@@ -7597,6 +7621,10 @@ spec:
                   type: object
                 replicationState:
                   description: ReplicationState represents the replication operation to be performed on the volume. Supported operations are "primary", "secondary" and "resync"
+                  enum:
+                    - primary
+                    - secondary
+                    - resync
                   type: string
                 volumeReplicationClass:
                   description: VolumeReplicationClass is the VolumeReplicationClass name for this VolumeReplication resource
