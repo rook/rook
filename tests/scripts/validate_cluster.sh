@@ -105,10 +105,14 @@ function display_status {
   $EXEC_COMMAND osd dump > test/ceph-osd-dump.txt
   $EXEC_COMMAND report > test/ceph-report.txt
 
-  kubectl -n rook-ceph logs "$(kubectl -n rook-ceph -l app=rook-ceph-operator get pods -o jsonpath='{.items[*].metadata.name}')" > test/operator.txt
-  kubectl -n rook-ceph get pods > test/pods-list.txt
-  kubectl -n rook-ceph describe job/"$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" > test/osd-prepare.txt
-  kubectl -n rook-ceph describe deploy/rook-ceph-osd-0 > test/osd-deploy.txt
+  kubectl -n rook-ceph logs deploy/rook-ceph-operator > test/operator-logs.txt
+  kubectl -n rook-ceph get pods -o wide > test/pods-list.txt
+  kubectl -n rook-ceph describe job/"$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" > test/osd-prepare-describe.txt
+  kubectl -n rook-ceph log job/"$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" > test/osd-prepare-logs.txt
+  kubectl -n rook-ceph describe deploy/rook-ceph-osd-0 > test/rook-ceph-osd-0-describe.txt
+  kubectl -n rook-ceph describe deploy/rook-ceph-osd-1 > test/rook-ceph-osd-1-describe.txt
+  kubectl -n rook-ceph logs deploy/rook-ceph-osd-0 --all-containers > test/rook-ceph-osd-0-logs.txt
+  kubectl -n rook-ceph logs deploy/rook-ceph-osd-1 --all-containers > test/rook-ceph-osd-1-logs.txt
   kubectl get all -n rook-ceph -o wide > test/cluster-wide.txt
   kubectl get all -n rook-ceph -o yaml > test/cluster-yaml.txt
   kubectl -n rook-ceph get cephcluster -o yaml > test/cephcluster.txt
