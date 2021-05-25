@@ -1465,36 +1465,6 @@ spec:
     image: ceph/ceph:v16.2.4 # Should match external cluster version
 ```
 
-### Cleanup policy
-
-Rook has the ability to cleanup resources and data that were deployed when a CephCluster is removed.
-The policy settings indicate which data should be forcibly deleted and in what way the data should be wiped.
-The `cleanupPolicy` has several fields:
-
-* `confirmation`: Only an empty string and `yes-really-destroy-data` are valid values for this field.
-  If this setting is empty, the cleanupPolicy settings will be ignored and Rook will not cleanup any resources during cluster removal.
-  To reinstall the cluster, the admin would then be required to follow the [cleanup guide](ceph-teardown.md) to delete the data on hosts.
-  If this setting is `yes-really-destroy-data`, the operator will automatically delete the data on hosts.
-  Because this cleanup policy is destructive, after the confirmation is set to `yes-really-destroy-data`
-  Rook will stop configuring the cluster as if the cluster is about to be destroyed.
-* `sanitizeDisks`: sanitizeDisks represents advanced settings that can be used to delete data on drives.
-  * `method`: indicates if the entire disk should be sanitized or simply ceph's metadata. Possible choices are 'quick' (default) or 'complete'
-  * `dataSource`: indicate where to get random bytes from to write on the disk. Possible choices are 'zero' (default) or 'random'.
-  Using random sources will consume entropy from the system and will take much more time then the zero source
-  * `iteration`: overwrite N times instead of the default (1). Takes an integer value
-* `allowUninstallWithVolumes`: If set to true, then the cephCluster deletion doesn't wait for the PVCs to be deleted. Default is false.
-
-To automate activation of the cleanup, you can use the following command. **WARNING: DATA WILL BE PERMANENTLY DELETED**:
-
-```console
-kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-```
-
-Nothing will happen until the deletion of the CR is requested, so this can still be reverted.
-However, all new configuration by the operator will be blocked with this cleanup policy enabled.
-
-Rook waits for the deletion of PVs provisioned using the cephCluster before proceeding to delete the cephCluster. To force deletion of the cephCluster without waiting for the PVs to be deleted,  you can set the allowUninstallWithVolumes to true under spec.CleanupPolicy.
-
 ### Security
 
 Rook has the ability to encrypt OSDs of clusters running on PVC via the flag (`encrypted: true`) in your `storageClassDeviceSets` [template](#pvc-based-cluster).
@@ -1619,3 +1589,45 @@ data:
 
 Note: if you are using self-signed certificates (not known/approved by a proper CA) you must pass `VAULT_SKIP_VERIFY: true`.
 Communications will remain encrypted but the validity of the certificate will not be verified.
+
+### Deleting a CephCluster
+
+During deletion of a CephCluster resource, Rook protects against accidental or premature destruction
+of user data by blocking deletion if there are any other Rook-Ceph Custom Resources that reference
+the CephCluster being deleted. Rook will warn about which other resources are blocking deletion in
+three ways until all blocking resources are deleted:
+1. An event will be registered on the CephCluster resource
+1. A status condition will be added to the CephCluster resource
+1. An error will be added to the Rook-Ceph Operator log
+
+#### Cleanup policy
+
+Rook has the ability to cleanup resources and data that were deployed when a CephCluster is removed.
+The policy settings indicate which data should be forcibly deleted and in what way the data should be wiped.
+The `cleanupPolicy` has several fields:
+
+* `confirmation`: Only an empty string and `yes-really-destroy-data` are valid values for this field.
+  If this setting is empty, the cleanupPolicy settings will be ignored and Rook will not cleanup any resources during cluster removal.
+  To reinstall the cluster, the admin would then be required to follow the [cleanup guide](ceph-teardown.md) to delete the data on hosts.
+  If this setting is `yes-really-destroy-data`, the operator will automatically delete the data on hosts.
+  Because this cleanup policy is destructive, after the confirmation is set to `yes-really-destroy-data`
+  Rook will stop configuring the cluster as if the cluster is about to be destroyed.
+* `sanitizeDisks`: sanitizeDisks represents advanced settings that can be used to delete data on drives.
+  * `method`: indicates if the entire disk should be sanitized or simply ceph's metadata. Possible choices are 'quick' (default) or 'complete'
+  * `dataSource`: indicate where to get random bytes from to write on the disk. Possible choices are 'zero' (default) or 'random'.
+  Using random sources will consume entropy from the system and will take much more time then the zero source
+  * `iteration`: overwrite N times instead of the default (1). Takes an integer value
+* `allowUninstallWithVolumes`: If set to true, then the cephCluster deletion doesn't wait for the PVCs to be deleted. Default is false.
+
+To automate activation of the cleanup, you can use the following command. **WARNING: DATA WILL BE PERMANENTLY DELETED**:
+
+```console
+kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+```
+
+Nothing will happen until the deletion of the CR is requested, so this can still be reverted.
+However, all new configuration by the operator will be blocked with this cleanup policy enabled.
+
+Rook waits for the deletion of PVs provisioned using the cephCluster before proceeding to delete the
+cephCluster. To force deletion of the cephCluster without waiting for the PVs to be deleted, you can
+set the allowUninstallWithVolumes to true under spec.CleanupPolicy.

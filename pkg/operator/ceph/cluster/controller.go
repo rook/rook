@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -36,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -116,7 +118,10 @@ func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController
 		panic(err)
 	}
 
-	clusterController.recorder = k8sutil.NewEventReporter(mgr.GetEventRecorderFor("ClusterController"))
+	// add "rook-" prefix to the controller name to make sure it is clear to all reading the events
+	// that they are coming from Rook. The controller name already has context that it is for Ceph
+	// and from the cluster controller.
+	clusterController.recorder = k8sutil.NewEventReporter(mgr.GetEventRecorderFor("rook-" + controllerName))
 
 	return &ReconcileCephCluster{
 		client:            mgr.GetClient(),
@@ -223,6 +228,13 @@ func (r *ReconcileCephCluster) Reconcile(context context.Context, request reconc
 	if err != nil {
 		logger.Errorf("failed to reconcile. %v", err)
 		r.clusterController.recorder.ReportIfNotPresent(cephCluster, corev1.EventTypeWarning, "ReconcileFailed", err.Error())
+		if !reconcileResponse.IsZero() {
+			// The framework will requeue immediately if there is an error. If we get an error with
+			// a non-empty reconcile response, just return the response with the error now logged as
+			// an event so that the framework can pause before the next reconcile per the response's
+			// intent.
+			return reconcileResponse, nil
+		}
 	} else {
 		logger.Debug("reconcile succeeded.")
 		r.clusterController.recorder.ReportIfNotPresent(cephCluster, corev1.EventTypeNormal, "ReconcileSucceeded", "cluster has been configured successfully")
@@ -261,49 +273,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 	// DELETE: the CR was deleted
 	if !cephCluster.GetDeletionTimestamp().IsZero() {
-		doCleanup := true
-		logger.Infof("deleting ceph cluster %q", cephCluster.Name)
-
-		// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
-		stopCleanupCh := make(chan struct{})
-		if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.Spec.External.Enable {
-			// Set the deleting status
-			updateStatus(r.client, request.NamespacedName, cephv1.ConditionDeleting)
-
-			monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(cephCluster.Namespace)
-			if err != nil {
-				logger.Warningf("failed to get mon secret. Skip cluster cleanup and remove finalizer. %v", err)
-				doCleanup = false
-			}
-
-			if doCleanup {
-				cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
-				if err != nil {
-					return reconcile.Result{}, cephCluster, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
-				}
-				go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
-			}
-		}
-
-		if doCleanup {
-			// Run delete sequence
-			response, ok := r.clusterController.requestClusterDelete(cephCluster)
-			if !ok {
-				// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
-				// will eventually be satisfied such as the volumes being removed
-				close(stopCleanupCh)
-				return response, cephCluster, nil
-			}
-		}
-
-		// Remove finalizer
-		err = removeFinalizer(r.client, request.NamespacedName)
-		if err != nil {
-			return reconcile.Result{}, cephCluster, errors.Wrap(err, "failed to remove finalizer")
-		}
-
-		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, cephCluster, nil
+		return r.reconcileDelete(cephCluster)
 	}
 
 	// Do reconcile here!
@@ -313,6 +283,88 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Return and do not requeue
+	return reconcile.Result{}, cephCluster, nil
+}
+
+func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) (reconcile.Result, *cephv1.CephCluster, error) {
+	nsName := r.clusterController.namespacedName
+	var err error
+
+	// Set the deleting status
+	opcontroller.UpdateClusterCondition(r.context, cephCluster, nsName,
+		cephv1.ConditionDeleting, corev1.ConditionTrue, cephv1.ClusterDeletingReason, "Deleting the CephCluster",
+		true /* keep all other conditions to be safe */)
+
+	dependents, err := CephClusterDependents(r.context, cephCluster.Namespace)
+	if err != nil {
+		return reconcile.Result{}, cephCluster, err
+	}
+	if !dependents.Empty() {
+		// if there are dependents, we should NOT delete the resource
+		dependentMsg := dependents.StringWithHeader("CephCluster %q will not be deleted until all dependents are removed", nsName.String())
+		logger.Errorf(dependentMsg)
+		// Set the DeletionIsBlocked=True status condition
+		// Adding the DeletionIsBlocked condition doesn't translate directly to a status/phase,
+		// so do not use the "UpdateClusterCondition" function which will modify that.
+		cond := buildDeletionBlockedDueToDependentsCondition(true, dependentMsg)
+		cephv1.SetStatusCondition(&cephCluster.Status.Conditions, cond)
+		if err := opcontroller.UpdateStatus(r.client, cephCluster); err != nil {
+			return reconcile.Result{}, cephCluster, errors.Wrapf(err, "on condition %s. failed to update CephCluster %q status condition %s=%s", dependentMsg, r.clusterController.namespacedName.String(), cond.Type, cond.Status)
+		}
+		return opcontroller.WaitForRequeueIfFinalizerBlocked, cephCluster, errors.New(dependentMsg)
+	}
+
+	deletingMsg := fmt.Sprintf("deleting CephCluster %q", cephCluster.Name)
+	// Report an event that the cluster is deleting
+	r.clusterController.recorder.ReportIfNotPresent(cephCluster, corev1.EventTypeNormal, string(cephv1.ClusterDeletingReason), deletingMsg)
+	// Set the DeletionIsBlocked=False status condition
+	cond := buildDeletionBlockedDueToDependentsCondition(false, "cluster can be deleted safely")
+	cephv1.SetStatusCondition(&cephCluster.Status.Conditions, cond)
+	if err := opcontroller.UpdateStatus(r.client, cephCluster); err != nil {
+		logger.Warningf("failed to set CephCluster %q status condition %s=%s; continuing deletion without setting the condition", r.clusterController.namespacedName.String(), cond.Type, cond.Status)
+	}
+	// Log deletion to the operator log
+	logger.Info(deletingMsg)
+
+	doCleanup := true
+
+	// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
+	stopCleanupCh := make(chan struct{})
+	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.Spec.External.Enable {
+		monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(cephCluster.Namespace)
+		if err != nil {
+			logger.Warningf("failed to get mon secret. Skip cluster cleanup and remove finalizer. %v", err)
+			doCleanup = false
+		}
+
+		if doCleanup {
+			cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
+			if err != nil {
+				return reconcile.Result{}, cephCluster, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
+			}
+			go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
+		}
+	}
+
+	if doCleanup {
+		// Run delete sequence
+		response, err := r.clusterController.requestClusterDelete(cephCluster)
+		if err != nil {
+			// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
+			// will eventually be satisfied such as the volumes being removed
+			// TODO: is it a memory leak to not close the channel in other cases?
+			close(stopCleanupCh)
+			return response, cephCluster, errors.Wrapf(err, "failed to clean up CephCluster %q", nsName.String())
+		}
+	}
+
+	// Remove finalizer
+	err = removeFinalizer(r.client, nsName)
+	if err != nil {
+		return reconcile.Result{}, cephCluster, errors.Wrap(err, "failed to remove finalizer")
+	}
+
+	// Return and do not requeue. Successful deletion.
 	return reconcile.Result{}, cephCluster, nil
 }
 
@@ -359,16 +411,16 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ownerInfo *k8s
 	return c.initializeCluster(cluster, clusterObj)
 }
 
-func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (reconcile.Result, bool) {
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, corev1.ConditionTrue, cephv1.ClusterDeletingReason, "Cluster is deleting")
+func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (reconcile.Result, error) {
+	nsName := fmt.Sprintf("%s/%s", cluster.Namespace, cluster.Name)
 
 	if existing, ok := c.clusterMap[cluster.Namespace]; ok && existing.namespacedName.Name != cluster.Name {
-		logger.Errorf("skipping deletion of cluster cr %q in namespace %q. cluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
-			cluster.Name, cluster.Namespace, existing.namespacedName.Name)
-		return reconcile.Result{}, true
+		logger.Errorf("skipping deletion of CephCluster %q. CephCluster CR %q already exists in this namespace. only one cluster cr per namespace is supported.",
+			nsName, existing.namespacedName.Name)
+		return reconcile.Result{}, nil // do not requeue the delete
 	}
 
-	logger.Infof("delete event for cluster %q in namespace %q", cluster.Name, cluster.Namespace)
+	logger.Infof("cleaning up CephCluster %q", nsName)
 
 	if cluster, ok := c.clusterMap[cluster.Namespace]; ok {
 		// if not already stopped, stop clientcontroller and bucketController
@@ -391,25 +443,18 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 	} else {
 		err := c.checkIfVolumesExist(cluster)
 		if err != nil {
-			opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionDeleting, corev1.ConditionFalse, "ClusterDeleting", err.Error())
-			logger.Errorf("failed to check if volumes exist. %v", err)
-			return opcontroller.WaitForRequeueIfFinalizerBlocked, false
+			return opcontroller.WaitForRequeueIfFinalizerBlocked, errors.Wrapf(err, "failed to check if volumes exist for CephCluster in namespace %q", cluster.Namespace)
 		}
 	}
 
-	// Only valid when the cluster is not external
 	if cluster.Spec.External.Enable {
 		purgeExternalCluster(c.context.Clientset, cluster.Namespace)
-		return reconcile.Result{}, true
-	}
-
-	// If the StorageClass retain policy of an encrypted cluster with KMS is Delete we also delete the keys
-	if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
+	} else if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
+		// If the StorageClass retain policy of an encrypted cluster with KMS is Delete we also delete the keys
 		// Delete keys from KMS
 		err := c.deleteOSDEncryptionKeyFromKMS(cluster)
 		if err != nil {
-			logger.Errorf("failed to delete osd encryption keys from kms. %v", err)
-			return reconcile.Result{}, true
+			logger.Errorf("failed to delete osd encryption keys for CephCluster %q from kms; deletion will continue. %v", nsName, err)
 		}
 	}
 
@@ -417,7 +462,7 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 		delete(c.clusterMap, cluster.Namespace)
 	}
 
-	return reconcile.Result{}, true
+	return reconcile.Result{}, nil
 }
 
 func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) error {
@@ -505,27 +550,6 @@ func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID 
 	return false, nil
 }
 
-// updateStatus updates an object with a given status
-func updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
-	cephCluster := &cephv1.CephCluster{}
-	err := client.Get(context.TODO(), name, cephCluster)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
-			return
-		}
-		logger.Warningf("failed to retrieve ceph cluster %q to update status to %q. %v", name, status, err)
-		return
-	}
-
-	cephCluster.Status.Phase = status
-	if err := opcontroller.UpdateStatus(client, cephCluster); err != nil {
-		logger.Errorf("failed to set ceph cluster %q status to %q. %v", cephCluster.Name, status, err)
-		return
-	}
-	logger.Debugf("ceph cluster %q status updated to %q", name, status)
-}
-
 // removeFinalizer removes a finalizer
 func removeFinalizer(client client.Client, name types.NamespacedName) error {
 	cephCluster := &cephv1.CephCluster{}
@@ -580,4 +604,17 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 	}
 
 	return nil
+}
+
+func buildDeletionBlockedDueToDependentsCondition(blocked bool, message string) cephv1.Condition {
+	status := v1.ConditionFalse
+	if blocked {
+		status = v1.ConditionTrue
+	}
+	return cephv1.Condition{
+		Type:    cephv1.ConditionDeletionIsBlocked,
+		Status:  status,
+		Reason:  cephv1.ObjectHasDependentsReason,
+		Message: message,
+	}
 }

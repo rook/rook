@@ -3682,7 +3682,7 @@ spec:
                   type: object
                 conditions:
                   items:
-                    description: Condition represents
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
                     properties:
                       lastHeartbeatTime:
                         format: date-time
@@ -3693,7 +3693,7 @@ spec:
                       message:
                         type: string
                       reason:
-                        description: ClusterReasonType is cluster reason
+                        description: ConditionReason is a reason for a condition
                         type: string
                       status:
                         type: string
