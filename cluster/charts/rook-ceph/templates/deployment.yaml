@@ -292,13 +292,13 @@ spec:
         - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
           value: {{ .Values.unreachableNodeTolerationSeconds | quote }}
 {{- end }}
-{{- if .Values.resources }}
-        resources:
-{{ toYaml .Values.resources | indent 10 }}
-{{- end }}
 {{- if .Values.allowMultipleFilesystems }}
         - name: ROOK_ALLOW_MULTIPLE_FILESYSTEMS
           value: {{ .Values.allowMultipleFilesystems | quote }}
+{{- end }}
+{{- if .Values.resources }}
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
 {{- end }}
 {{- if .Values.useOperatorHostNetwork }}
       hostNetwork: true
