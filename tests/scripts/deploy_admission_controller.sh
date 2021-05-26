@@ -14,8 +14,7 @@ function cleanup() {
 
 function error_log() {
   set +e -x
-  kubectl get validatingwebhookconfigurations cert-manager-webhook -o yaml | grep caBundle
-  kubectl get mutatingwebhookconfigurations cert-manager-webhook -o yaml | grep caBundle
+  kubectl -n rook-ceph get issuer
   kubectl -n rook-ceph get certificate
   kubectl -n rook-ceph get secret | grep rook-ceph-admission-controller
   kubectl -n rook-ceph get validatingwebhookconfigurations.admissionregistration.k8s.io 
@@ -41,7 +40,7 @@ fi
 
 # Set our known directories and parameters.
 BASE_DIR=$(cd "$(dirname "$0")"; pwd)
-CERT_VERSION="v1.2.0"
+CERT_VERSION="v1.3.1"
 
 [ -z "${NAMESPACE}" ] && NAMESPACE="rook-ceph"
 export NAMESPACE
@@ -52,9 +51,10 @@ echo "$BASE_DIR"
 
 echo "Deploying cert-manager"
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/$CERT_VERSION/cert-manager.yaml
-timeout 150 sh -c 'until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running|grep -c ^cert-) -eq 3 ]; do sleep 1; done'
-timeout 20 sh -c 'until [ $(kubectl -n cert-manager get pods -o custom-columns=READY:status.containerStatuses[*].ready | grep -c true) -eq 3 ]; do sleep 1; done'
-sleep 20
+timeout 150 sh -c 'until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running|grep -c ^cert-) -eq 3 ]; do sleep 1 && echo "waiting for cert-manager pods to be in running state"; done'
+timeout 20 sh -c 'until [ $(kubectl -n cert-manager get pods -o custom-columns=READY:status.containerStatuses[*].ready | grep -c true) -eq 3 ]; do sleep 1 && echo "waiting for the pods to be in ready state"; done'
+timeout 25 sh -c 'until [ $(kubectl get validatingwebhookconfigurations cert-manager-webhook -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | wc -c) -gt 1 ]; do sleep 1 && echo "waiting for caInjector to inject in caBundle for cert-manager validating webhook"; done'
+timeout 25 sh -c 'until [ $(kubectl get mutatingwebhookconfigurations cert-manager-webhook -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | wc -c) -gt 1 ]; do sleep 1 && echo "waiting for caInjector to inject in caBundle for cert-managers mutating webhook"; done'
 
 echo "Successfully deployed cert-manager"
 
