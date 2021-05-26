@@ -19,9 +19,9 @@ spec:
     # v13 is mimic, v14 is nautilus, and v15 is octopus.
     # RECOMMENDATION: In production, use a specific version tag instead of the general v14 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-    # If you want to be more precise, you can always use a timestamp tag such ceph/ceph:v15.2.11-20200419
+    # If you want to be more precise, you can always use a timestamp tag such ceph/ceph:v16.2.4-20210514
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
-    image: ceph/ceph:v15.2.11
+    image: ceph/ceph:v16.2.4
     # Whether to allow unsupported versions of Ceph. Currently `nautilus` and `octopus` are supported.
     # Future versions such as `pacific` would require this to be set to `true`.
     # Do not set to true in production.

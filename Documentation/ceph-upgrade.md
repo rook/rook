@@ -400,10 +400,10 @@ until all the daemons have been updated.
 Official Ceph container images can be found on [Docker Hub](https://hub.docker.com/r/ceph/ceph/tags/).
 These images are tagged in a few ways:
 
-* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v15.2.11-20210224`).
+* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v16.2.4-20210514`).
   These tags are recommended for production clusters, as there is no possibility for the cluster to
   be heterogeneous with respect to the version of Ceph running in containers.
-* Ceph major version tags (e.g., `v15`) are useful for development and test clusters so that the
+* Ceph major version tags (e.g., `v16`) are useful for development and test clusters so that the
   latest version of Ceph is always available.
 
 **Ceph containers other than the official images from the registry above will not be supported.**
@@ -416,7 +416,7 @@ The majority of the upgrade will be handled by the Rook operator. Begin the upgr
 Ceph image field in the cluster CRD (`spec.cephVersion.image`).
 
 ```sh
-NEW_CEPH_IMAGE='ceph/ceph:v15.2.11-20210224'
+NEW_CEPH_IMAGE='ceph/ceph:v16.2.4-20210514'
 CLUSTER_NAME="$ROOK_CLUSTER_NAMESPACE"  # change if your cluster name is not the Rook namespace
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $CLUSTER_NAME --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
@@ -435,10 +435,10 @@ Determining when the Ceph has fully updated is rather simple.
 ```console
 kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
-    ceph-version=14.2.7-0
-    ceph-version=15.2.9-0
+    ceph-version=15.2.12-0
+    ceph-version=16.2.4-0
 This cluster is finished:
-    ceph-version=15.2.9-0
+    ceph-version=16.2.4-0
 ```
 
 #### 3. Verify the updated cluster
