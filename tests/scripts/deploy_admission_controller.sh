@@ -11,7 +11,24 @@ function cleanup() {
   kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/$CERT_VERSION/cert-manager.yaml
   set -e
 }
-trap cleanup SIGINT ERR
+
+function error_log() {
+  set +e -x
+  kubectl get validatingwebhookconfigurations cert-manager-webhook -o yaml | grep caBundle
+  kubectl get mutatingwebhookconfigurations cert-manager-webhook -o yaml | grep caBundle
+  kubectl -n rook-ceph get certificate
+  kubectl -n rook-ceph get secret | grep rook-ceph-admission-controller
+  kubectl -n rook-ceph get validatingwebhookconfigurations.admissionregistration.k8s.io 
+  kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io cert-manager-webhook 
+  kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io rook-ceph-webhook 
+  kubectl -n cert-manager logs deploy/cert-manager-webhook --tail=10
+  kubectl -n cert-manager logs deploy/cert-manager-cainjector --tail=10
+ set -e +x
+ cleanup
+}
+
+trap cleanup SIGINT 
+trap error_log ERR
 
 # Minimum 1.16.0 kubernetes version is required to start the admission controller
 SERVER_VERSION=$(kubectl version --short | awk -F  "."  '/Server Version/ {print $2}')
@@ -33,12 +50,14 @@ export SERVICE_NAME="rook-ceph-admission-controller"
 
 echo "$BASE_DIR"
 
+echo "Deploying cert-manager"
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/$CERT_VERSION/cert-manager.yaml
 timeout 150 sh -c 'until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running|grep -c ^cert-) -eq 3 ]; do sleep 1; done'
 timeout 20 sh -c 'until [ $(kubectl -n cert-manager get pods -o custom-columns=READY:status.containerStatuses[*].ready | grep -c true) -eq 3 ]; do sleep 1; done'
 
-echo "Deploying webhook config"
+echo "Successfully deployed cert-manager"
 
+echo "Creating Issuer and Certificate"
 cat <<EOF | kubectl create -f -
 apiVersion: cert-manager.io/v1
 kind: Issuer
@@ -64,6 +83,9 @@ spec:
   secretName: rook-ceph-admission-controller
 EOF
 
+echo "Successfully created Issuer and Certificate"
+
+echo "Deploying webhook config"
 cat ${BASE_DIR}/webhook-config.yaml | \
         "${BASE_DIR}"/webhook-patch-ca-bundle.sh | \
         sed -e "s|\${NAMESPACE}|${NAMESPACE}|g" | \
