@@ -17,9 +17,12 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -52,9 +55,9 @@ type bucketChecker struct {
 }
 
 // newbucketChecker creates a new HealthChecker object
-func newBucketChecker(context *clusterd.Context, objContext *Context, port int32, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec) *bucketChecker {
+func newBucketChecker(ctx *clusterd.Context, objContext *Context, port int32, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec) *bucketChecker {
 	c := &bucketChecker{
-		context:         context,
+		context:         ctx,
 		objContext:      objContext,
 		interval:        &defaultHealthCheckInterval,
 		port:            port,
@@ -119,38 +122,50 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 
 		Always keep the bucket and the user for the health check, just do PUT and GET because bucket creation is expensive
 	*/
+	var tlsCert []byte
 	var s3AccessKey string
 	var s3SecretKey string
-	var tlsCert []byte
-	s3endpoint := buildDNSEndpoint(BuildDomainName(c.objContext.Name, c.namespacedName.Namespace), c.port, c.objectStoreSpec.IsTLSEnabled())
+	var err error
+	s3endpoint := BuildDNSEndpoint(BuildDomainName(c.objContext.Name, c.namespacedName.Namespace), c.port, c.objectStoreSpec.IsTLSEnabled())
 
 	// Generate unique user and bucket name
 	bucketName := genUniqueBucketName(c.objContext.UID)
 	userConfig := c.genUserConfig()
 
-	// Create S3 user
-	logger.Debugf("creating s3 user object %q for object store %q", userConfig.UserID, c.namespacedName.Name)
-	user, rgwerr, err := CreateUser(c.objContext, userConfig)
-	if err != nil {
-		if rgwerr == ErrorCodeFileExists {
-			user, _, err = GetUser(c.objContext, userConfig.UserID)
-			if err != nil {
-				return errors.Wrapf(err, "failed to get details from ceph object user %q for object store %q", userConfig.UserID, c.namespacedName.Name)
-			}
-		} else {
-			return errors.Wrapf(err, "failed to create object user %q. error code %d for object store %q", userConfig.UserID, rgwerr, c.namespacedName.Name)
-		}
-	}
-	// Set access and secret key
-	s3AccessKey = *user.AccessKey
-	s3SecretKey = *user.SecretKey
-
+	var httpClient *http.Client
 	if c.objectStoreSpec.IsTLSEnabled() {
 		tlsCert, err = GetTlsCaCert(c.objContext, c.objectStoreSpec)
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch CA cert for the user %q to establish TLS connection with the object store %q", userConfig.UserID, c.namespacedName.Name)
+			return errors.Wrapf(err, "failed to fetch CA cert for the user %q to establish TLS connection with the object store %q", userConfig.ID, c.namespacedName.Name)
+		}
+		httpClient.Transport = BuildTransportTLS(tlsCert)
+	}
+
+	// Build admin Ops API connection
+	co, err := admin.New(s3endpoint, c.objContext.adminOpsUserAccessKey, c.objContext.adminOpsUserSecretKey, httpClient)
+	if err != nil {
+		return errors.Wrap(err, "failed to build admin ops API connection")
+	}
+	c.objContext.adminOpsClient = co
+
+	// Create checker user
+	logger.Debugf("creating s3 user object %q for object store %q", userConfig.ID, c.namespacedName.Name)
+	var user admin.User
+	user, err = co.CreateUser(context.TODO(), userConfig)
+	if err != nil {
+		if errors.Is(err, admin.ErrUserExists) {
+			user, err = co.GetUser(context.TODO(), userConfig)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get details from ceph object user %q", userConfig.ID)
+			}
+		} else {
+			return errors.Wrapf(err, "failed to create ceph object user %q", userConfig.ID)
 		}
 	}
+
+	// Set access and secret key
+	s3AccessKey = user.Keys[0].AccessKey
+	s3SecretKey = user.Keys[0].SecretKey
 
 	// Initiate s3 agent
 	logger.Debugf("initializing s3 connection for object store %q", c.namespacedName.Name)
@@ -189,18 +204,22 @@ func (c *bucketChecker) cleanupHealthCheck() {
 	bucketToDelete := genUniqueBucketName(c.objContext.UID)
 	logger.Infof("deleting object %q from bucket %q in object store %q", s3HealthCheckObjectKey, bucketToDelete, c.namespacedName.Name)
 
-	_, err := DeleteObjectBucket(c.objContext, bucketToDelete, true)
-	if err != nil {
+	thePurge := true
+	err := c.objContext.adminOpsClient.RemoveBucket(context.TODO(), admin.Bucket{Bucket: bucketToDelete, PurgeObject: &thePurge})
+	if errors.Is(err, admin.ErrNoSuchBucket) {
+		// opinion: "not found" is not an error
+		logger.Debugf("bucket %q does not exist", bucketToDelete)
+	} else {
 		logger.Errorf("failed to delete bucket %q for object store %q. %v", bucketToDelete, c.namespacedName.Name, err)
 	}
 
 	userToDelete := c.genUserConfig()
-	output, err := DeleteUser(c.objContext, userToDelete.UserID)
-	if err != nil {
-		logger.Errorf("failed to delete object user %q for object store %q. %s. %v", userToDelete.UserID, c.namespacedName.Name, output, err)
-	} else {
-		logger.Debugf("successfully deleted object user %q for object store %q", userToDelete.UserID, c.namespacedName.Name)
+	err = c.objContext.adminOpsClient.RemoveUser(context.TODO(), userToDelete)
+	if err != nil && !errors.Is(err, admin.ErrNoSuchUser) {
+		logger.Errorf("failed to delete object user %q for object store %q. %v", userToDelete.ID, c.namespacedName.Name, err)
 	}
+
+	logger.Debugf("successfully deleted object user %q for object store %q", userToDelete.ID, c.namespacedName.Name)
 }
 
 func toCustomResourceStatus(currentStatus *cephv1.BucketStatus, details string, health cephv1.ConditionType) *cephv1.BucketStatus {
@@ -223,12 +242,12 @@ func genUniqueBucketName(uuid string) string {
 	return fmt.Sprintf("%s-%s", s3HealthCheckBucketName, uuid)
 }
 
-func (c *bucketChecker) genUserConfig() ObjectUser {
+func (c *bucketChecker) genUserConfig() admin.User {
 	userName := fmt.Sprintf("%s-%s", s3UserHealthCheckName, c.objContext.UID)
 
-	return ObjectUser{
-		UserID:      userName,
-		DisplayName: &userName,
+	return admin.User{
+		ID:          userName,
+		DisplayName: userName,
 	}
 }
 

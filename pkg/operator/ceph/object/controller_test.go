@@ -617,6 +617,9 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			if args[0] == "zone" && args[1] == "get" {
 				return zoneGetMultisiteJSON, nil
 			}
+			if args[0] == "user" && args[1] == "create" {
+				return userCreateJSON, nil
+			}
 			return "", nil
 		},
 	}

@@ -1,28 +1,34 @@
 package bucket
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
-	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
 func (p *Provisioner) bucketExists(name string) (bool, error) {
-	_, errCode, err := cephObject.GetBucket(p.objectContext, name)
-	if errCode != 0 {
-		return false, errors.Wrapf(err, "error getting ceph bucket %q", name)
+	_, err := p.adminOpsClient.GetBucketInfo(context.TODO(), admin.Bucket{Bucket: name})
+	if err != nil {
+		if errors.Is(err, admin.ErrNoSuchBucket) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err, "failed to get ceph bucket %q", name)
 	}
 	return true, nil
 }
 
 func (p *Provisioner) userExists(name string) (bool, error) {
-	_, errCode, err := cephObject.GetUser(p.objectContext, name)
-	if errCode == cephObject.RGWErrorNotFound {
-		return false, nil
+	_, err := p.adminOpsClient.GetUser(context.TODO(), admin.User{ID: name})
+	if err != nil {
+		if errors.Is(err, admin.ErrNoSuchUser) {
+			return false, nil
+		} else {
+			return false, errors.Wrapf(err, "failed to get ceph user %q", name)
+		}
 	}
-	if errCode > 0 {
-		return false, errors.Wrapf(err, "error getting ceph user %q", name)
-	}
+
 	return true, nil
 }
 
@@ -38,18 +44,18 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 	p.cephUserName = username
 
 	logger.Infof("creating Ceph user %q", username)
-	userConfig := cephObject.ObjectUser{
-		UserID:      username,
-		DisplayName: &p.cephUserName,
+	userConfig := admin.User{
+		ID:          username,
+		DisplayName: p.cephUserName,
 	}
 
-	u, errCode, err := cephObject.CreateUser(p.objectContext, userConfig)
-	if err != nil || errCode != 0 {
-		return "", "", errors.Wrapf(err, "error creating ceph user %q: %v", username, err)
+	u, err := p.adminOpsClient.CreateUser(context.TODO(), userConfig)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "failed to create ceph user %q: %v", username, err)
 	}
 
 	logger.Infof("successfully created Ceph user %q with access keys", username)
-	return *u.AccessKey, *u.SecretKey, nil
+	return u.Keys[0].AccessKey, u.Keys[0].SecretKey, nil
 }
 
 // returns "" if unable to generate a unique name.
@@ -81,21 +87,24 @@ func (p *Provisioner) deleteOBCResource(bucketName string) error {
 	logger.Infof("deleting Ceph user %q and bucket %q", p.cephUserName, bucketName)
 	if len(bucketName) > 0 {
 		// delete bucket with purge option to remove all objects
-		errCode, err := cephObject.DeleteObjectBucket(p.objectContext, bucketName, true)
-
-		if errCode == cephObject.RGWErrorNone {
+		thePurge := true
+		err := p.adminOpsClient.RemoveBucket(context.TODO(), admin.Bucket{Bucket: bucketName, PurgeObject: &thePurge})
+		if err == nil {
 			logger.Infof("bucket %q successfully deleted", p.bucketName)
-		} else if errCode == cephObject.RGWErrorNotFound {
+		} else if errors.Is(err, admin.ErrNoSuchBucket) {
 			// opinion: "not found" is not an error
 			logger.Infof("bucket %q does not exist", p.bucketName)
 		} else {
-			return errors.Wrapf(err, "failed to delete bucket %q: errCode: %d", bucketName, errCode)
+			return errors.Wrapf(err, "failed to delete bucket %q", bucketName)
 		}
 	}
 	if len(p.cephUserName) > 0 {
-		output, err := cephObject.DeleteUser(p.objectContext, p.cephUserName)
+		err := p.adminOpsClient.RemoveUser(context.TODO(), admin.User{ID: p.cephUserName})
 		if err != nil {
-			logger.Warningf("failed to delete user %q. %s. %v", p.cephUserName, output, err)
+			if errors.Is(err, admin.ErrNoSuchUser) {
+				logger.Warningf("user %q does not exist, nothing to delete. %v", p.cephUserName, err)
+			}
+			logger.Warningf("failed to delete user %q. %v", p.cephUserName, err)
 		} else {
 			logger.Infof("user %q successfully deleted", p.cephUserName)
 		}
