@@ -88,7 +88,7 @@ func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
 		if kerrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "cephObjectStore not found")
 		}
-		return nil, errors.Wrap(err, "error getting cephObjectStore")
+		return nil, errors.Wrapf(err, "failed to get ceph object store %q", p.objectStoreName)
 	}
 	return store, err
 }
@@ -101,7 +101,7 @@ func getService(c kubernetes.Interface, namespace, name string) (*v1.Service, er
 		if kerrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "cephObjectStore service not found")
 		}
-		return nil, errors.Wrap(err, "error getting cephObjectStore service")
+		return nil, errors.Wrapf(err, "failed to get ceph object store service %q", name)
 	}
 	return svc, nil
 }

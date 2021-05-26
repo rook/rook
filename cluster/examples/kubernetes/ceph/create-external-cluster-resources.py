@@ -14,12 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
+import errno
 import sys
 import json
 import argparse
 import unittest
 import re
 import requests
+import subprocess
 from os import linesep as LINESEP
 from os import path
 
@@ -138,6 +140,7 @@ class DummyRados(object):
 
 class RadosJSON:
     EXTERNAL_USER_NAME = "client.healthchecker"
+    EXTERNAL_RGW_ADMIN_OPS_USER_NAME = "rgw-admin-ops-user"
     EMPTY_OUTPUT_LIST = "Empty output list"
     DEFAULT_RGW_POOL_PREFIX = "default"
     DEFAULT_MONITORING_ENDPOINT_PORT = "9283"
@@ -347,12 +350,13 @@ class RadosJSON:
                 raise ExecutionFailureException(
                     "'mgr services' command failed.\n" +
                     "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
-            monitoring_endpoint = json_out.get('mgrmap', {}).get('services', {}).get('prometheus', '')
+            monitoring_endpoint = json_out.get('mgrmap', {}).get(
+                'services', {}).get('prometheus', '')
             if not monitoring_endpoint:
                 raise ExecutionFailureException(
                     "'prometheus' service not found, is the exporter enabled?'.\n")
             # now check the stand-by mgr-s
-            standby_arr = json_out.get('mgrmap',{}).get('standbys', [])
+            standby_arr = json_out.get('mgrmap', {}).get('standbys', [])
             for each_standby in standby_arr:
                 if 'name' in each_standby.keys():
                     standby_mgrs.append(each_standby['name'])
@@ -378,10 +382,10 @@ class RadosJSON:
             for each_standby_mgr in standby_mgrs:
                 failed_ip = each_standby_mgr
                 mgr_ips.append(
-                        self._convert_hostname_to_ip(each_standby_mgr))
+                    self._convert_hostname_to_ip(each_standby_mgr))
         except:
             raise ExecutionFailureException(
-                "Conversion of host: {} to IP failed. "\
+                "Conversion of host: {} to IP failed. "
                 "Please enter the IP addresses of all the ceph-mgrs with the '--monitoring-endpoint' flag".format(failed_ip))
         monitoring_endpoint = self._join_host_port(
             monitoring_endpoint_ip, monitoring_endpoint_port)
@@ -555,6 +559,33 @@ class RadosJSON:
                 "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
         return str(json_out[0]['key'])
 
+    def create_rgw_admin_ops_user(self):
+        cmd = ['radosgw-admin', 'user', 'create', '--uid', self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME, '--display-name',
+               'Rook RGW Admin Ops user', '--caps', 'buckets=*;users=*;usage=read;metadata=read;zone=read']
+        try:
+            output = subprocess.check_output(cmd,
+                                             stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as exec:
+            # if the user already exists, we just query it
+            if exec.returncode == errno.EEXIST:
+                cmd = ['radosgw-admin', 'user', 'info',
+                       '--uid', self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME
+                       ]
+                try:
+                    output = subprocess.check_output(cmd,
+                                                     stderr=subprocess.PIPE)
+                except subprocess.CalledProcessError as exec:
+                    err_msg = "failed to execute command %s. Output: %s. Code: %s. Error: %s" % (
+                        cmd, exec.output, exec.returncode, exec.stderr)
+                    raise Exception(err_msg)
+            else:
+                err_msg = "failed to execute command %s. Output: %s. Code: %s. Error: %s" % (
+                    cmd, exec.output, exec.returncode, exec.stderr)
+                raise Exception(err_msg)
+
+        jsonoutput = json.loads(output)
+        return jsonoutput["keys"][0]['access_key'], jsonoutput["keys"][0]['secret_key']
+
     def _gen_output_map(self):
         if self.out_map:
             return
@@ -598,6 +629,7 @@ class RadosJSON:
             self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_and_standby_mgrs()
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
+        self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
 
     def gen_shell_out(self):
         self._gen_output_map()
@@ -659,6 +691,14 @@ class RadosJSON:
                 "data": {
                     "MonitoringEndpoint": self.out_map['MONITORING_ENDPOINT'],
                     "MonitoringPort": self.out_map['MONITORING_ENDPOINT_PORT']
+                }
+            },
+            {
+                "name": "rgw-admin-ops-user",
+                "kind": "Secret",
+                "data": {
+                    "accessKey": self.out_map['ACCESS_KEY'],
+                    "secretKey": self.out_map['SECRET_KEY']
                 }
             }
         ]

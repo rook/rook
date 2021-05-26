@@ -167,11 +167,11 @@ func TestBuildDomainNameAndEndpoint(t *testing.T) {
 
 	// non-secure endpoint
 	var port int32 = 80
-	ep := buildDNSEndpoint(dns, port, false)
+	ep := BuildDNSEndpoint(dns, port, false)
 	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", ep)
 
 	// Secure endpoint
 	var securePort int32 = 443
-	ep = buildDNSEndpoint(dns, securePort, true)
+	ep = BuildDNSEndpoint(dns, securePort, true)
 	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph.svc:443", ep)
 }

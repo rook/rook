@@ -104,3 +104,31 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "rook-ceph-rgw-test-store.ns.svc", p.storeDomainName)
 }
+
+func TestMaxSizeToInt64(t *testing.T) {
+	type args struct {
+		maxSize string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{"invalid size", args{maxSize: "foo"}, 0, true},
+		{"2gb size is invalid", args{maxSize: "2g"}, 0, true},
+		{"2G size is valid", args{maxSize: "2G"}, 2000000000, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := maxSizeToInt64(tt.args.maxSize)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("maxSizeToInt64() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("maxSizeToInt64() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -49,13 +49,7 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 	}
 	tlsEnabled := false
 	if len(tlsCert) > 0 {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(tlsCert)
-
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12},
-		}
-		client.Transport = tr
+		client.Transport = BuildTransportTLS(tlsCert)
 		tlsEnabled = true
 	}
 	sess, err := session.NewSession(
@@ -192,4 +186,13 @@ func (s *S3Agent) DeleteObjectInBucket(bucketname string, key string) (bool, err
 
 	}
 	return true, nil
+}
+
+func BuildTransportTLS(tlsCert []byte) *http.Transport {
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(tlsCert)
+
+	return &http.Transport{
+		TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12},
+	}
 }
