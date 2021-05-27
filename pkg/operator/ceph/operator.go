@@ -48,15 +48,15 @@ const (
 	provisionerNameLegacy = "rook.io/block"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "operator")
-
-// The supported configurations for the volume provisioner
-var provisionerConfigs = map[string]string{
-	provisionerName:       flexvolume.FlexvolumeVendor,
-	provisionerNameLegacy: flexvolume.FlexvolumeVendorLegacy,
-}
-
 var (
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "operator")
+
+	// The supported configurations for the volume provisioner
+	provisionerConfigs = map[string]string{
+		provisionerName:       flexvolume.FlexvolumeVendor,
+		provisionerNameLegacy: flexvolume.FlexvolumeVendorLegacy,
+	}
+
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
 )
@@ -88,6 +88,7 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 	}
 	operatorConfigCallbacks := []func() error{
 		o.updateDrivers,
+		o.updateOperatorLogLevel,
 	}
 	addCallbacks := []func() error{
 		o.startDrivers,
@@ -99,6 +100,22 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 func (o *Operator) cleanup(stopCh chan struct{}) {
 	close(stopCh)
 	o.clusterController.StopWatch()
+}
+
+func (o *Operator) updateOperatorLogLevel() error {
+	rookLogLevel, err := k8sutil.GetOperatorSetting(o.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_LOG_LEVEL", "INFO")
+	if err != nil {
+		logger.Warningf("failed to load ROOK_LOG_LEVEL. Defaulting to INFO. %v", err)
+		rookLogLevel = "INFO"
+	}
+
+	logLevel, err := capnslog.ParseLevel(rookLogLevel)
+	if err != nil {
+		return errors.Wrapf(err, "failed to load ROOK_LOG_LEVEL %q.", rookLogLevel)
+	}
+
+	capnslog.SetGlobalLogLevel(logLevel)
+	return nil
 }
 
 // Run the operator instance

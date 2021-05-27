@@ -98,6 +98,9 @@ metadata:
   # should be in the namespace of the operator
   namespace: rook-ceph # namespace:operator
 data:
+  # The logging level for the operator: INFO | DEBUG
+  ROOK_LOG_LEVEL: "INFO"
+
   # Enable the CSI driver.
   # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
   ROOK_CSI_ENABLE_CEPHFS: "true"
@@ -459,9 +462,6 @@ spec:
             # - name: DISCOVER_AGENT_POD_LABELS
             #   value: "key1=value1,key2=value2"
 
-            # The logging level for the operator: INFO | DEBUG
-            - name: ROOK_LOG_LEVEL
-              value: "INFO"
             # The duration between discovering devices in the rook-discover daemonset.
             - name: ROOK_DISCOVER_DEVICES_INTERVAL
               value: "60m"
