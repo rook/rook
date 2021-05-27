@@ -60,7 +60,7 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *client.ClusterI
 func extractJSON(output string) (string, error) {
 	// `radosgw-admin` sometimes leaves logs to stderr even if it succeeds.
 	// So we should skip them if parsing output as json.
-	pattern := regexp.MustCompile("(?ms)^{.*")
+	pattern := regexp.MustCompile(`(?ms)^{.*}$`)
 	match := pattern.Find([]byte(output))
 	if match == nil {
 		return "", errors.Errorf("didn't contain json. %s", output)
