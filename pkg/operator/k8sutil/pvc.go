@@ -20,6 +20,8 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -31,10 +33,30 @@ func ExpandPVCIfRequired(client client.Client, desiredPVC *v1.PersistentVolumeCl
 		logger.Debugf("desired or current size are not specified for PVC %q", currentPVC.Name)
 		return
 	}
+
 	if desiredSize.Value() > currentSize.Value() {
+
+		if currentPVC.Spec.StorageClassName == nil || *(currentPVC.Spec.StorageClassName) == "" {
+			logger.Infof("cannot expand PVC %q because storage class is not provided", currentPVC.ObjectMeta.Name)
+			return
+		}
+
+		// get StorageClass
+		storageClass := &storagev1.StorageClass{}
+		err := client.Get(context.TODO(), types.NamespacedName{Name: *(currentPVC.Spec.StorageClassName)}, storageClass)
+		if err != nil {
+			logger.Errorf("failed to get storageClass %q. %v", *(currentPVC.Spec.StorageClassName), err)
+			return
+		}
+
+		if storageClass.AllowVolumeExpansion == nil || !*(storageClass.AllowVolumeExpansion) {
+			logger.Infof("cannot expand PVC %q. storage class %q does not allow expansion", currentPVC.ObjectMeta.Name, storageClass.ObjectMeta.Name)
+			return
+		}
+
 		currentPVC.Spec.Resources.Requests[v1.ResourceStorage] = desiredSize
 		logger.Infof("updating PVC %q size from %s to %s", currentPVC.Name, currentSize.String(), desiredSize.String())
-		if err := client.Update(context.TODO(), currentPVC); err != nil {
+		if err = client.Update(context.TODO(), currentPVC); err != nil {
 			// log the error, but don't fail the reconcile
 			logger.Errorf("failed to update PVC size. %v", err)
 			return
