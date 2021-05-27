@@ -1,7 +1,5 @@
 # Ceph monitor PV storage
 
-**Target version**: Rook 1.1
-
 ## Overview
 
 Currently all of the storage for Ceph monitors (data, logs, etc..) is provided
@@ -25,6 +23,7 @@ type MonSpec struct {
 	Count                int  `json:"count"`
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
 	VolumeClaimTemplate  *v1.PersistentVolumeClaim
+	DataSizeWarn *resource.Quantity `json:"dataSizeWarn,omitempty"`
 }
 ```
 
@@ -36,6 +35,19 @@ template. If the storage resource requirements are not specified in the claim
 template, then Rook will use a default value. This is possible because unlike
 the storage requirements of OSDs (xf: StorageClassDeviceSets), reasonable
 defaults (e.g. 5-10 GB) exist for monitor daemon storage needs.
+
+`MON_DISK_BIG` alert is triggered if the size of the monitor’s database is larger
+than `mon_data_size_warn` (default: 15 GiB) config. `DataSizeWarn` can be used to
+override the default `mon_data_size_warn`. `DataSizeWarn` should be used only in
+case of monitors on PV. Its value should be less than storage requirement provided
+in the VolumeClaimTemplate.
+
+For example: If the storage requirement for monitor PV is 15Gi then `DataSizeWarn`
+could be set to 10Gi. This will set the `mon_data_size_warn` config to 10Gi and
+`MON_DISK_BIG` alert will be triggered when this threshold of 10Gi is exceeded.
+
+If `DataSizeWarn` is not provided then rook will set the `mon_data_size_warn` to
+90% of the storage requirement mentioned in the `VolumelClaimTemplate`
 
 *Logs and crash data*. The current implementation continues the use of a
 HostPath volume based on `dataDirHostPath` for storing daemon log and crash
