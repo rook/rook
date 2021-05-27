@@ -305,8 +305,15 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		// cannot detect that correctly
 		// see: https://tracker.ceph.com/issues/43585
 		if device.Filesystem != "" {
-			logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
-			continue
+			// Allow further inspection of that device before skipping it
+			if device.Filesystem == "crypto_LUKS" && agent.pvcBacked {
+				if isCephEncryptedBlock(context, agent.clusterInfo.FSID, device.Name) {
+					logger.Infof("encrypted disk %q is an OSD part of this cluster, considering it", device.Name)
+				} else {
+					logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
+					continue
+				}
+			}
 		}
 
 		// If we detect a partition we have to make sure that ceph-volume will be able to consume it

@@ -1009,6 +1009,14 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 		// If this is an encrypted OSD
 		if os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName) != "" {
+			// // Set subsystem and label for recovery and detection
+			// We use /mnt/<pvc_name> since LUKS label/subsystem must be applied on the main block device, not the resulting encrypted dm
+			mainBlock := fmt.Sprintf("/mnt/%s", os.Getenv(oposd.PVCNameEnvVarName))
+			err = setLUKSLabelAndSubsystem(context, clusterInfo, mainBlock)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to set subsystem and label to encrypted device %q for osd %d", mainBlock, osdID)
+			}
+
 			// Close encrypted device
 			err = closeEncryptedDevice(context, block)
 			if err != nil {

@@ -144,6 +144,8 @@ fi
 	openEncryptedBlock = `
 set -xe
 
+CEPH_FSID=%s
+PVC_NAME=%s
 KEY_FILE_PATH=%s
 BLOCK_PATH=%s
 DM_NAME=%s
@@ -156,6 +158,12 @@ function open_encrypted_block {
 	echo "Opening encrypted device $BLOCK_PATH at $DM_PATH"
 	cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
 	rm -f "$KEY_FILE_PATH"
+}
+
+# This is done for upgraded clusters that did not have the subsystem and label set by the prepare job
+function set_luks_subsystem_and_label {
+	echo "setting LUKS label and subsystem"
+	cryptsetup config $BLOCK_PATH --subsystem ceph_fsid="$CEPH_FSID" --label pvc_name="$PVC_NAME"
 }
 
 if [ -b "$DM_PATH" ]; then
@@ -173,6 +181,13 @@ if [ -b "$DM_PATH" ]; then
 	done
 else
 	open_encrypted_block
+fi
+
+# Setting label and subsystem on LUKS1 is not supported and the command will fail
+if cryptsetup luksDump $BLOCK_PATH|grep -qEs "Version:.*2"; then
+	set_luks_subsystem_and_label
+else
+	echo "LUKS version is not 2 so not setting label and subsystem"
 fi
 `
 	// #nosec G101 no leak just variable names
@@ -869,7 +884,7 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(openEncryptedBlock, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), encryptionDMName(pvcName, cryptBlockType), encryptionDMPath(pvcName, cryptBlockType)),
+			fmt.Sprintf(openEncryptedBlock, c.clusterInfo.FSID, pvcName, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), encryptionDMName(pvcName, cryptBlockType), encryptionDMPath(pvcName, cryptBlockType)),
 		},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
 		SecurityContext: PrivilegedContext(),
