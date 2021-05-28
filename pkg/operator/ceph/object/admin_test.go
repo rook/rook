@@ -45,4 +45,10 @@ func TestExtractJson(t *testing.T) {
 	match, err = extractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
+
+	s = `{"test": "test"}
+this line can't be parsed as json`
+	match, err = extractJSON(s)
+	assert.NoError(t, err)
+	assert.True(t, json.Valid([]byte(match)))
 }
