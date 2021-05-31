@@ -32,13 +32,6 @@ func TestStartCSI(t *testing.T) {
 	CephFSPluginTemplatePath = "csi-cephfsplugin.yaml"
 	CephFSProvisionerDepTemplatePath = "csi-cephfsplugin-provisioner-dep.yaml"
 
-	CSIParam = Param{
-		CSIPluginImage:   "image",
-		RegistrarImage:   "image",
-		ProvisionerImage: "image",
-		AttacherImage:    "image",
-		SnapshotterImage: "image",
-	}
 	clientset := test.New(t, 3)
 	context := &clusterd.Context{
 		Clientset:     clientset,
@@ -49,6 +42,6 @@ func TestStartCSI(t *testing.T) {
 		assert.Nil(t, err)
 	}
 	AllowUnsupported = true
-	err = startDrivers(context.Clientset, context.RookClientset, "ns", serverVersion, nil, nil)
+	err = startDrivers(context.Clientset, context.RookClientset, "ns", "", "", serverVersion, nil)
 	assert.Nil(t, err)
 }

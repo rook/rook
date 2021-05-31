@@ -117,10 +117,10 @@ func (v *CephCSIVersion) isAtLeast(version *CephCSIVersion) bool {
 }
 
 // extractCephCSIVersion extracts the major, minor and extra digit of a Ceph CSI release
-func extractCephCSIVersion(src string) (*CephCSIVersion, error) {
+func extractCephCSIVersion(src, CSIPluginImage string) (*CephCSIVersion, error) {
 	m := versionCSIPattern.FindStringSubmatch(src)
 	if m == nil || len(m) < 3 {
-		return nil, errors.Errorf("failed to parse version from: %q", CSIParam.CSIPluginImage)
+		return nil, errors.Errorf("failed to parse version from: %q", CSIPluginImage)
 	}
 
 	major, err := strconv.Atoi(m[1])

@@ -239,15 +239,8 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "error getting server version")
 	}
 
-	if err = csi.SetParams(o.context.Clientset); err != nil {
-		return errors.Wrap(err, "failed to configure CSI parameters")
-	}
-
 	if serverVersion.Major < csi.KubeMinMajor || serverVersion.Major == csi.KubeMinMajor && serverVersion.Minor < csi.ProvDeploymentSuppVersion {
 		logger.Infof("CSI drivers only supported in K8s 1.14 or newer. version=%s", serverVersion.String())
-		// disable csi control variables to disable other csi functions
-		csi.EnableRBD = false
-		csi.EnableCephFS = false
 		return nil
 	}
 
@@ -266,10 +259,6 @@ func (o *Operator) updateDrivers() error {
 	err = csi.CreateCsiConfigMap(o.operatorNamespace, o.context.Clientset, ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed creating csi config map")
-	}
-
-	if err = csi.ValidateCSIParam(); err != nil {
-		return errors.Wrap(err, "invalid csi params")
 	}
 
 	go csi.ValidateAndConfigureDrivers(o.context, o.operatorNamespace, o.rookImage, o.securityAccount, serverVersion, ownerInfo)

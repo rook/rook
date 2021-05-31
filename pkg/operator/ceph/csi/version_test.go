@@ -134,7 +134,7 @@ func Test_extractCephCSIVersion(t *testing.T) {
 		Compiler: gc
 		Platform: linux/amd64
 		`)
-	version, err := extractCephCSIVersion(string(csiString))
+	version, err := extractCephCSIVersion(string(csiString), "quay.io/cephcsi/cephcsi:v3.0.0")
 
 	assert.Equal(t, &expectedVersion, version)
 	assert.Nil(t, err)
@@ -145,7 +145,7 @@ func Test_extractCephCSIVersion(t *testing.T) {
 	Compiler: gc
 	Platform: linux/amd64
 	`)
-	version, err = extractCephCSIVersion(string(csiString))
+	version, err = extractCephCSIVersion(string(csiString), "quay.io/cephcsi/cephcsi:v3.0.0")
 
 	assert.Nil(t, version)
 	assert.Contains(t, err.Error(), "failed to parse version from")

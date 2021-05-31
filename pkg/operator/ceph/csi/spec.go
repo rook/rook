@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
@@ -77,8 +78,6 @@ type templateParam struct {
 }
 
 var (
-	CSIParam Param
-
 	EnableRBD            = false
 	EnableCephFS         = false
 	EnableCSIGRPCMetrics = false
@@ -98,6 +97,9 @@ var (
 	// configuration map for csi
 	ConfigName = "rook-ceph-csi-config"
 	ConfigKey  = "csi-cluster-config-json"
+
+	csiLock    sync.Mutex
+	maxRetries = 3
 )
 
 // Specify default images as var instead of const so that they can be overridden with the Go
@@ -174,7 +176,7 @@ func CSIEnabled() bool {
 	return EnableRBD || EnableCephFS
 }
 
-func ValidateCSIParam() error {
+func ValidateCSIParam(CSIParam Param) error {
 
 	if len(CSIParam.CSIPluginImage) == 0 {
 		return errors.New("missing csi rbd plugin image")
@@ -209,14 +211,32 @@ func ValidateCSIParam() error {
 	return nil
 }
 
-func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace string, ver *version.Info, ownerInfo *k8sutil.OwnerInfo, v *CephCSIVersion) error {
+func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Interface, namespace, rookImage, securityAccount string, ver *version.Info, ownerInfo *k8sutil.OwnerInfo) error {
 	ctx := context.TODO()
 	var (
 		err                                                   error
 		rbdPlugin, cephfsPlugin                               *apps.DaemonSet
 		rbdProvisionerDeployment, cephfsProvisionerDeployment *apps.Deployment
 		rbdService, cephfsService                             *corev1.Service
+		v                                                     *CephCSIVersion
 	)
+
+	CSIParam, err := SetParams(clientset)
+	if err != nil {
+		return errors.Wrap(err, "failed to configure CSI parameters")
+	}
+
+	if err = ValidateCSIParam(CSIParam); err != nil {
+		return errors.Wrap(err, "invalid csi params")
+	}
+
+	if !AllowUnsupported && CSIEnabled() {
+		if v, err = validateCSIVersion(clientset, namespace, rookImage, securityAccount, CSIParam.CSIPluginImage, ownerInfo); err != nil {
+			return errors.Wrap(err, "invalid csi version")
+		}
+	} else {
+		logger.Info("Skipping csi version check, since unsupported versions are allowed or csi is disabled")
+	}
 
 	tp := templateParam{
 		Param:     CSIParam,
@@ -713,17 +733,17 @@ func deleteCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, na
 }
 
 // ValidateCSIVersion checks if the configured ceph-csi image is supported
-func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName string, ownerInfo *k8sutil.OwnerInfo) (*CephCSIVersion, error) {
+func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, serviceAccountName, CSIPluginImage string, ownerInfo *k8sutil.OwnerInfo) (*CephCSIVersion, error) {
 	timeout := 15 * time.Minute
 
-	logger.Infof("detecting the ceph csi image version for image %q", CSIParam.CSIPluginImage)
+	logger.Infof("detecting the ceph csi image version for image %q", CSIPluginImage)
 
 	versionReporter, err := cmdreporter.New(
 		clientset,
 		ownerInfo,
 		detectCSIVersionName, detectCSIVersionName, namespace,
 		[]string{"cephcsi"}, []string{"--version"},
-		rookImage, CSIParam.CSIPluginImage)
+		rookImage, CSIPluginImage)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set up ceph CSI version job")
@@ -743,7 +763,7 @@ func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, se
 		return nil, errors.Errorf("ceph CSI version job returned %d", retcode)
 	}
 
-	version, err := extractCephCSIVersion(stdout)
+	version, err := extractCephCSIVersion(stdout, CSIPluginImage)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to extract ceph CSI version")
 	}
