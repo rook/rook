@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
@@ -98,6 +99,8 @@ var (
 	// configuration map for csi
 	ConfigName = "rook-ceph-csi-config"
 	ConfigKey  = "csi-cluster-config-json"
+
+	csiLock sync.Mutex
 )
 
 // Specify default images as var instead of const so that they can be overridden with the Go
