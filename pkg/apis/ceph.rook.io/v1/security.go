@@ -16,6 +16,16 @@ limitations under the License.
 
 package v1
 
+import (
+	"strings"
+
+	"github.com/hashicorp/vault/api"
+)
+
+var (
+	VaultTLSConnectionDetails = []string{api.EnvVaultCACert, api.EnvVaultClientCert, api.EnvVaultClientKey}
+)
+
 // IsEnabled return whether a KMS is configured
 func (kms *KeyManagementServiceSpec) IsEnabled() bool {
 	return len(kms.ConnectionDetails) != 0
@@ -24,4 +34,23 @@ func (kms *KeyManagementServiceSpec) IsEnabled() bool {
 // IsTokenAuthEnabled return whether KMS token auth is enabled
 func (kms *KeyManagementServiceSpec) IsTokenAuthEnabled() bool {
 	return kms.TokenSecretName != ""
+}
+
+// IsTLSEnabled return KMS TLS details are configured
+func (kms *KeyManagementServiceSpec) IsTLSEnabled() bool {
+	for _, tlsOption := range VaultTLSConnectionDetails {
+		tlsSecretName := getParam(kms.ConnectionDetails, tlsOption)
+		if tlsSecretName != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// getParam returns the value of the KMS config option
+func getParam(kmsConfig map[string]string, param string) string {
+	if val, ok := kmsConfig[param]; ok && val != "" {
+		return strings.TrimSpace(val)
+	}
+	return ""
 }

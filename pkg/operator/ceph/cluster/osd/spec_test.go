@@ -383,8 +383,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
-	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)                                     // One more than the encryption with k8s for the kek get init container
-	assert.Equal(t, 0, len(deployment.Spec.Template.Spec.Volumes[7].VolumeSource.Projected.Sources), deployment.Spec.Template.Spec.Volumes[0]) // 0 since we have no tls secrets
+	assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes) // One more than the encryption with k8s for the kek get init container
 
 	// Test with encrypted OSD on PVC with RAW with KMS with TLS
 	osdProp.encrypted = true
