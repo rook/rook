@@ -198,7 +198,7 @@ set -e
 KEK_NAME=%s
 KEY_PATH=%s
 CURL_PAYLOAD=$(mktemp)
-ARGS=(--silent --show-error --request GET --header "X-Vault-Token: ${VAULT_TOKEN}")
+ARGS=(--silent --show-error --request GET --header "X-Vault-Token: ${VAULT_TOKEN//[$'\t\r\n']}")
 PYTHON_DATA_PARSE="['data']"
 
 # If a vault namespace is set
