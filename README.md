@@ -50,7 +50,8 @@ Please use the following to reach members of the community:
 - Slack: Join our [slack channel](https://slack.rook.io)
 - Forums: [rook-dev](https://groups.google.com/forum/#!forum/rook-dev)
 - Twitter: [@rook_io](https://twitter.com/rook_io)
-- Email: [cncf-rook-info@lists.cncf.io](mailto:cncf-rook-info@lists.cncf.io)
+- Email (general topics): [cncf-rook-info@lists.cncf.io](mailto:cncf-rook-info@lists.cncf.io)
+- Email (security topics): [cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io)
 
 ### Community Meeting
 
