@@ -21,6 +21,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
@@ -109,7 +110,7 @@ func (o *Operator) updateOperatorLogLevel() error {
 		rookLogLevel = "INFO"
 	}
 
-	logLevel, err := capnslog.ParseLevel(rookLogLevel)
+	logLevel, err := capnslog.ParseLevel(strings.ToUpper(rookLogLevel))
 	if err != nil {
 		return errors.Wrapf(err, "failed to load ROOK_LOG_LEVEL %q.", rookLogLevel)
 	}
