@@ -64,20 +64,6 @@ func templateToService(name, templatePath string, p templateParam) (*corev1.Serv
 	return &svc, nil
 }
 
-func templateToStatefulSet(name, templatePath string, p templateParam) (*apps.StatefulSet, error) {
-	var ss apps.StatefulSet
-	t, err := loadTemplate(name, templatePath, p)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load statefulset template")
-	}
-
-	err = yaml.Unmarshal([]byte(t), &ss)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal statefulset template")
-	}
-	return &ss, nil
-}
-
 func templateToDaemonSet(name, templatePath string, p templateParam) (*apps.DaemonSet, error) {
 	var ds apps.DaemonSet
 	t, err := loadTemplate(name, templatePath, p)
