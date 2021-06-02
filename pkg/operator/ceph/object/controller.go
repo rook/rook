@@ -253,6 +253,9 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		logger.Debugf("deleting store %q", cephObjectStore.Name)
 
 		if ok {
+			// Close the channel to stop the healthcheck of the endpoint
+			close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
+
 			response, okToDelete := r.verifyObjectBucketCleanup(cephObjectStore)
 			if !okToDelete {
 				// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
@@ -274,9 +277,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 				clusterInfo: r.clusterInfo,
 			}
 			cfg.deleteStore()
-
-			// Close the channel to stop the healthcheck of the endpoint
-			close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
 
 			// Remove object store from the map
 			delete(r.objectStoreChannels, cephObjectStore.Name)
