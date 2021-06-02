@@ -205,6 +205,15 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
+		// If the ceph block pool is still in the map, we must remove it during CR deletion
+		// We must remove it first otherwise the checker will panic since the status/info will be nil
+		if poolChannelExists {
+			// Close the channel to stop the mirroring status
+			close(r.blockPoolChannels[cephBlockPool.Name].stopChan)
+
+			// Remove ceph block pool from the map
+			delete(r.blockPoolChannels, cephBlockPool.Name)
+		}
 
 		logger.Infof("deleting pool %q", cephBlockPool.Name)
 		err := deletePool(r.context, clusterInfo, cephBlockPool)
@@ -215,15 +224,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// disable RBD stats collection if cephBlockPool was deleted
 		if err := configureRBDStats(r.context, clusterInfo); err != nil {
 			logger.Errorf("failed to disable stats collection for pool(s). %v", err)
-		}
-
-		// If the ceph block pool is still in the map, we must remove it during CR deletion
-		if poolChannelExists {
-			// Close the channel to stop the mirroring status
-			close(r.blockPoolChannels[cephBlockPool.Name].stopChan)
-
-			// Remove ceph block pool from the map
-			delete(r.blockPoolChannels, cephBlockPool.Name)
 		}
 
 		// Remove finalizer
