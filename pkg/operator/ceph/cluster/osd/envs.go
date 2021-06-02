@@ -31,6 +31,7 @@ const (
 	osdDatabaseSizeEnvVarName = "ROOK_OSD_DATABASE_SIZE"
 	osdWalSizeEnvVarName      = "ROOK_OSD_WAL_SIZE"
 	osdsPerDeviceEnvVarName   = "ROOK_OSDS_PER_DEVICE"
+	osdDeviceClassEnvVarName  = "ROOK_OSD_DEVICE_CLASS"
 	// EncryptedDeviceEnvVarName is used in the pod spec to indicate whether the OSD is encrypted or not
 	EncryptedDeviceEnvVarName = "ROOK_ENCRYPTED_DEVICE"
 	PVCNameEnvVarName         = "ROOK_PVC_NAME"
@@ -122,6 +123,10 @@ func deviceFilterEnvVar(filter string) v1.EnvVar {
 
 func devicePathFilterEnvVar(filter string) v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_DATA_DEVICE_PATH_FILTER", Value: filter}
+}
+
+func dataDeviceClassEnvVar(deviceClass string) v1.EnvVar {
+	return v1.EnvVar{Name: osdDeviceClassEnvVarName, Value: deviceClass}
 }
 
 func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {

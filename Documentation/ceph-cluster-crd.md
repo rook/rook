@@ -522,6 +522,10 @@ You can set resource requests/limits for Rook components through the [Resource R
 
 * `mon`: Set resource requests/limits for mons
 * `osd`: Set resource requests/limits for OSDs
+  This key applies for all OSDs regardless of their device classes. In case of need to apply resource requests/limits for OSDs with
+  particular device class use specific osd keys below.
+* `osd-<deviceClass>`: Set resource requests/limits for OSDs on a specific device class. Rook will automatically detect `hdd`,
+  `ssd`, or `nvme` device classes. Custom device classes can also be set.
 * `mgr`: Set resource requests/limits for MGRs
 * `mgr-sidecar`: Set resource requests/limits for the MGR sidecar, which is only created when `mgr.count: 2`.
   The sidecar requires very few resources since it only executes every 15 seconds to query Ceph for the active

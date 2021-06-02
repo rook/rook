@@ -372,6 +372,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		{Name: "CEPH_ARGS", Value: "-m $(ROOK_CEPH_MON_HOST)"},
 		blockPathEnvVariable(osd.BlockPath),
 		cvModeEnvVariable(osd.CVMode),
+		dataDeviceClassEnvVar(osd.DeviceClass),
 	}...)
 	configEnvVars := append(c.getConfigEnvVars(osdProps, dataDir), []v1.EnvVar{
 		tiniEnvVar,
