@@ -28,7 +28,7 @@ const (
 	ResourcesKeyMgr = "mgr"
 	// ResourcesKeyMgrSidecar represents the name of resource in the CR for a mgr
 	ResourcesKeyMgrSidecar = "mgr-sidecar"
-	// ResourcesKeyOSD represents the name of resource in the CR for an osd
+	// ResourcesKeyOSD represents the name of a resource in the CR for all OSDs
 	ResourcesKeyOSD = "osd"
 	// ResourcesKeyPrepareOSD represents the name of resource in the CR for the osd prepare job
 	ResourcesKeyPrepareOSD = "prepareosd"
@@ -61,9 +61,22 @@ func GetMonResources(p rook.ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMon]
 }
 
-// GetOSDResources returns the placement for the OSDs
-func GetOSDResources(p rook.ResourceSpec) v1.ResourceRequirements {
+// GetOSDResources returns the placement for all OSDs or for OSDs of specified device class (hdd, nvme, ssd)
+func GetOSDResources(p rook.ResourceSpec, deviceClass string) v1.ResourceRequirements {
+	if deviceClass == "" {
+		return p[ResourcesKeyOSD]
+	}
+	// if device class specified, but not set in requirements return common osd requirements if present
+	r, ok := p[getOSDResourceKeyForDeviceClass(deviceClass)]
+	if ok {
+		return r
+	}
 	return p[ResourcesKeyOSD]
+}
+
+// getOSDResourceKeyForDeviceClass returns key name for device class in resources spec
+func getOSDResourceKeyForDeviceClass(deviceClass string) string {
+	return ResourcesKeyOSD + "-" + deviceClass
 }
 
 // GetPrepareOSDResources returns the placement for the OSDs prepare job

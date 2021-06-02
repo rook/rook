@@ -339,7 +339,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		rejectedReason := ""
 		if agent.pvcBacked {
 			block := fmt.Sprintf("/mnt/%s", agent.nodeName)
-			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false)
+			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false, true)
 			if err != nil {
 				isAvailable = false
 				rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)
@@ -414,6 +414,20 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 					}
 				}
 				matchedDevice = desiredDevice
+
+				if matchedDevice.DeviceClass == "" {
+					classNotSet := true
+					if agent.pvcBacked {
+						crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
+						if crushDeviceClass != "" {
+							matchedDevice.DeviceClass = crushDeviceClass
+							classNotSet = false
+						}
+					}
+					if classNotSet {
+						matchedDevice.DeviceClass = sys.GetDiskDeviceClass(device)
+					}
+				}
 
 				if matched {
 					break

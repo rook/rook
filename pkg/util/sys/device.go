@@ -284,6 +284,16 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	return parseUUID(device, output)
 }
 
+func GetDiskDeviceClass(disk *LocalDisk) string {
+	if disk.Rotational {
+		return "hdd"
+	}
+	if strings.Contains(disk.RealPath, "nvme") {
+		return "nvme"
+	}
+	return "ssd"
+}
+
 // CheckIfDeviceAvailable checks if a device is available for consumption. The caller
 // needs to decide based on the return values whether it is available.
 func CheckIfDeviceAvailable(executor exec.Executor, devicePath string, pvcBacked bool) (bool, string, error) {

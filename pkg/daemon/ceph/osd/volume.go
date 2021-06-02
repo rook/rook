@@ -80,9 +80,10 @@ type osdInfo struct {
 }
 
 type osdTags struct {
-	OSDFSID     string `json:"ceph.osd_fsid"`
-	Encrypted   string `json:"ceph.encrypted"`
-	ClusterFSID string `json:"ceph.cluster_fsid"`
+	OSDFSID          string `json:"ceph.osd_fsid"`
+	Encrypted        string `json:"ceph.encrypted"`
+	ClusterFSID      string `json:"ceph.cluster_fsid"`
+	CrushDeviceClass string `json:"ceph.crush_device_class"`
 }
 
 type cephVolReport struct {
@@ -168,7 +169,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 				// I'm leaving this code with an empty metadata device for now
 				metadataBlock, walBlock = "", ""
 
-				rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV)
+				rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false)
 				if err != nil {
 					logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
 				}
@@ -186,7 +187,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		osds = append(osds, lvmOsds...)
 
 		// List existing OSD(s) configured with ceph-volume raw mode
-		rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, "", "", false)
+		rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, "", "", false, false)
 		if err != nil {
 			logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
 		}
@@ -266,7 +267,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	if !a.pvcBacked {
 		block = ""
 	}
-	rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV)
+	rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume raw")
 	}
@@ -865,7 +866,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			logger.Errorf("bad osd returned from ceph-volume %q", name)
 			continue
 		}
-		var osdFSID string
+		var osdFSID, osdDeviceClass string
 		store := "bluestore"
 		for _, osd := range osdInfo {
 			if osd.Tags.ClusterFSID != cephfsid {
@@ -876,6 +877,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			if osd.Type == "journal" {
 				store = "filestore"
 			}
+			osdDeviceClass = osd.Tags.CrushDeviceClass
 
 			// If no lv is specified let's take the one we discovered
 			if lv == "" {
@@ -904,6 +906,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			LVBackedPV:    lvBackedPV,
 			CVMode:        cvMode,
 			Store:         store,
+			DeviceClass:   osdDeviceClass,
 		}
 		osds = append(osds, osd)
 	}
@@ -933,7 +936,7 @@ func readCVLogContent(cvLogFilePath string) string {
 }
 
 // GetCephVolumeRawOSDs list OSD prepared with raw mode
-func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, block, metadataBlock, walBlock string, lvBackedPV bool) ([]oposd.OSDInfo, error) {
+func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, block, metadataBlock, walBlock string, lvBackedPV, skipDeviceClass bool) ([]oposd.OSDInfo, error) {
 	// lv can be a block device if raw mode is used
 	cvMode := "raw"
 
@@ -1009,6 +1012,15 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			LVBackedPV:    lvBackedPV,
 			CVMode:        cvMode,
 			Store:         "bluestore",
+		}
+
+		if !skipDeviceClass {
+			diskInfo, err := clusterd.PopulateDeviceInfo(blockPath, context.Executor)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
+			}
+			osd.DeviceClass = sys.GetDiskDeviceClass(diskInfo)
+			logger.Infof("setting device class %q for device %q", osd.DeviceClass, diskInfo.Name)
 		}
 
 		// If this is an encrypted OSD
