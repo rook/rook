@@ -202,6 +202,22 @@ spec:
         - name: CSI_PROVISIONER_NODE_AFFINITY
           value: {{ .Values.csi.provisionerNodeAffinity }}
 {{- end }}
+{{- if .Values.csi.rbdProvisionerTolerations }}
+        - name: CSI_RBD_PROVISIONER_TOLERATIONS
+          value: {{ toYaml .Values.csi.rbdProvisionerTolerations | quote }}
+{{- end }}
+{{- if .Values.csi.rbdProvisionerNodeAffinity }}
+        - name: CSI_RBD_PROVISIONER_NODE_AFFINITY
+          value: {{ .Values.csi.rbdProvisionerNodeAffinity }}
+{{- end }}
+{{- if .Values.csi.cephFSProvisionerTolerations }}
+        - name: CSI_CEPHFS_PROVISIONER_TOLERATIONS
+          value: {{ toYaml .Values.csi.cephFSProvisionerTolerations | quote }}
+{{- end }}
+{{- if .Values.csi.cephFSProvisionerNodeAffinity }}
+        - name: CSI_CEPHFS_PROVISIONER_NODE_AFFINITY
+          value: {{ .Values.csi.cephFSProvisionerNodeAffinity }}
+{{- end }}
 {{- if .Values.csi.allowUnsupportedVersion }}
         - name: ROOK_CSI_ALLOW_UNSUPPORTED_VERSION
           value: {{ .Values.csi.allowUnsupportedVersion | quote }}
@@ -213,6 +229,22 @@ spec:
 {{- if .Values.csi.pluginNodeAffinity }}
         - name: CSI_PLUGIN_NODE_AFFINITY
           value: {{ .Values.csi.pluginNodeAffinity }}
+{{- end }}
+{{- if .Values.csi.rbdPluginTolerations }}
+        - name: CSI_RBD_PLUGIN_TOLERATIONS
+          value: {{ toYaml .Values.csi.rbdPluginTolerations | quote }}
+{{- end }}
+{{- if .Values.csi.rbdPluginNodeAffinity }}
+        - name: CSI_RBD_PLUGIN_NODE_AFFINITY
+          value: {{ .Values.csi.rbdPluginNodeAffinity }}
+{{- end }}
+{{- if .Values.csi.cephFSPluginTolerations }}
+        - name: CSI_CEPHFS_PLUGIN_TOLERATIONS
+          value: {{ toYaml .Values.csi.cephFSPluginTolerations | quote }}
+{{- end }}
+{{- if .Values.csi.cephFSPluginNodeAffinity }}
+        - name: CSI_CEPHFS_PLUGIN_NODE_AFFINITY
+          value: {{ .Values.csi.cephFSPluginNodeAffinity }}
 {{- end }}
 {{- if .Values.csi.cephfsGrpcMetricsPort }}
         - name: CSI_CEPHFS_GRPC_METRICS_PORT

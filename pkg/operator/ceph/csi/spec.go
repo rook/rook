@@ -122,11 +122,23 @@ const (
 	kubeMinVerForBlockRestore      = "16"
 	kubeMinVerForSnapshot          = "17"
 
-	// toleration and node affinity
+	// common tolerations and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
 	provisionerNodeAffinityEnv = "CSI_PROVISIONER_NODE_AFFINITY"
 	pluginTolerationsEnv       = "CSI_PLUGIN_TOLERATIONS"
 	pluginNodeAffinityEnv      = "CSI_PLUGIN_NODE_AFFINITY"
+
+	// CephFS tolerations and node affinity
+	cephFSProvisionerTolerationsEnv  = "CSI_CEPHFS_PROVISIONER_TOLERATIONS"
+	cephFSProvisionerNodeAffinityEnv = "CSI_CEPHFS_PROVISIONER_NODE_AFFINITY"
+	cephFSPluginTolerationsEnv       = "CSI_CEPHFS_PLUGIN_TOLERATIONS"
+	cephFSPluginNodeAffinityEnv      = "CSI_CEPHFS_PLUGIN_NODE_AFFINITY"
+
+	// RBD tolerations and node affinity
+	rbdProvisionerTolerationsEnv  = "CSI_RBD_PROVISIONER_TOLERATIONS"
+	rbdProvisionerNodeAffinityEnv = "CSI_RBD_PROVISIONER_NODE_AFFINITY"
+	rbdPluginTolerationsEnv       = "CSI_RBD_PLUGIN_TOLERATIONS"
+	rbdPluginNodeAffinityEnv      = "CSI_RBD_PLUGIN_NODE_AFFINITY"
 
 	// compute resource for CSI pods
 	rbdProvisionerResource = "CSI_RBD_PROVISIONER_RESOURCE"
@@ -418,14 +430,19 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		logger.Info("successfully started CSI CephFS driver")
 	}
 
-	// get provisioner toleration and node affinity
-	provisionerTolerations := getToleration(clientset, true)
-	provisionerNodeAffinity := getNodeAffinity(clientset, true)
-	// get plugin toleration and node affinity
-	pluginTolerations := getToleration(clientset, false)
-	pluginNodeAffinity := getNodeAffinity(clientset, false)
+	// get common provisioner tolerations and node affinity
+	provisionerTolerations := getToleration(clientset, provisionerTolerationsEnv, []corev1.Toleration{})
+	provisionerNodeAffinity := getNodeAffinity(clientset, provisionerNodeAffinityEnv, &corev1.NodeAffinity{})
+	// get common plugin tolerations and node affinity
+	pluginTolerations := getToleration(clientset, pluginTolerationsEnv, []corev1.Toleration{})
+	pluginNodeAffinity := getNodeAffinity(clientset, pluginNodeAffinityEnv, &corev1.NodeAffinity{})
+
 	if rbdPlugin != nil {
-		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
+		// get RBD plugin tolerations and node affinity, defaults to common tolerations and node affinity if not specified
+		rbdPluginTolerations := getToleration(clientset, rbdPluginTolerationsEnv, pluginTolerations)
+		rbdPluginNodeAffinity := getNodeAffinity(clientset, rbdPluginNodeAffinityEnv, pluginNodeAffinity)
+		// apply RBD plugin tolerations and node affinity
+		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, rbdPluginNodeAffinity, rbdPluginTolerations)
 		// apply resource request and limit to rbdplugin containers
 		applyResourcesToContainers(clientset, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(rbdPlugin)
@@ -447,7 +464,11 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 
 	if rbdProvisionerDeployment != nil {
-		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		// get RBD provisioner tolerations and node affinity, defaults to common tolerations and node affinity if not specified
+		rbdProvisionerTolerations := getToleration(clientset, rbdProvisionerTolerationsEnv, provisionerTolerations)
+		rbdProvisionerNodeAffinity := getNodeAffinity(clientset, rbdProvisionerNodeAffinityEnv, provisionerNodeAffinity)
+		// apply RBD provisioner tolerations and node affinity
+		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, rbdProvisionerNodeAffinity, rbdProvisionerTolerations)
 		// apply resource request and limit to rbd provisioner containers
 		applyResourcesToContainers(clientset, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(rbdProvisionerDeployment)
@@ -484,7 +505,11 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 
 	if cephfsPlugin != nil {
-		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
+		// get CephFS plugin tolerations and node affinity, defaults to common tolerations and node affinity if not specified
+		cephFSPluginTolerations := getToleration(clientset, cephFSPluginTolerationsEnv, pluginTolerations)
+		cephFSPluginNodeAffinity := getNodeAffinity(clientset, cephFSPluginNodeAffinityEnv, pluginNodeAffinity)
+		// apply CephFS plugin tolerations and node affinity
+		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, cephFSPluginNodeAffinity, cephFSPluginTolerations)
 		// apply resource request and limit to cephfs plugin containers
 		applyResourcesToContainers(clientset, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(cephfsPlugin)
@@ -506,7 +531,11 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 	}
 
 	if cephfsProvisionerDeployment != nil {
-		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, provisionerNodeAffinity, provisionerTolerations)
+		// get CephFS provisioner tolerations and node affinity, defaults to common tolerations and node affinity if not specified
+		cephFSProvisionerTolerations := getToleration(clientset, cephFSProvisionerTolerationsEnv, provisionerTolerations)
+		cephFSProvisionerNodeAffinity := getNodeAffinity(clientset, cephFSProvisionerNodeAffinityEnv, provisionerNodeAffinity)
+		// apply CephFS provisioner tolerations and node affinity
+		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, cephFSProvisionerNodeAffinity, cephFSProvisionerTolerations)
 		// get resource details for cephfs provisioner
 		// apply resource request and limit to cephfs provisioner containers
 		applyResourcesToContainers(clientset, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
@@ -733,7 +762,7 @@ func validateCSIVersion(clientset kubernetes.Interface, namespace, rookImage, se
 	job.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 
 	// Apply csi provisioner toleration for csi version check job
-	job.Spec.Template.Spec.Tolerations = getToleration(clientset, true)
+	job.Spec.Template.Spec.Tolerations = getToleration(clientset, provisionerTolerationsEnv, []corev1.Toleration{})
 	stdout, _, retcode, err := versionReporter.Run(timeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to complete ceph CSI version job")
