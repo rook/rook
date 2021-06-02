@@ -28,8 +28,12 @@ import (
 )
 
 func ValidateAndConfigureDrivers(context *clusterd.Context, namespace, rookImage, securityAccount string, serverVersion *version.Info, ownerInfo *k8sutil.OwnerInfo) {
-	var v *CephCSIVersion
-	var err error
+	csiLock.Lock()
+	defer csiLock.Unlock()
+	var (
+		v   *CephCSIVersion
+		err error
+	)
 	if !AllowUnsupported && CSIEnabled() {
 		if v, err = validateCSIVersion(context.Clientset, namespace, rookImage, securityAccount, ownerInfo); err != nil {
 			logger.Errorf("invalid csi version. %+v", err)
@@ -40,9 +44,13 @@ func ValidateAndConfigureDrivers(context *clusterd.Context, namespace, rookImage
 	}
 
 	if CSIEnabled() {
-		if err := startDrivers(context.Clientset, context.RookClientset, namespace, serverVersion, ownerInfo, v); err != nil {
-			logger.Errorf("failed to start Ceph csi drivers. %v", err)
-			return
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			if err = startDrivers(context.Clientset, context.RookClientset, namespace, serverVersion, ownerInfo, v); err != nil {
+				logger.Errorf("failed to start Ceph csi drivers, will retry starting csi drivers %d more times. %v", maxRetries-i-1, err)
+			} else {
+				break
+			}
 		}
 	}
 
