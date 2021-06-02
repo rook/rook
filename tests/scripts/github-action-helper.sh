@@ -124,7 +124,7 @@ function deploy_cluster() {
 }
 
 function wait_for_prepare_pod() {
-    timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done' || true
+    timeout 180 sh -c 'until kubectl -n rook-ceph logs -f job/$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[0].metadata.name}'); do sleep 5; done' || true
     timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done' || true
     kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}') || true
     kubectl -n rook-ceph describe deploy/rook-ceph-osd-0 || true

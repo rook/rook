@@ -53,7 +53,7 @@ func vaultTokenEnvVarFromSecret(tokenSecretName string) v1.EnvVar {
 func vaultTLSEnvVarFromSecret(kmsConfig map[string]string) []v1.EnvVar {
 	vaultTLSEnvVar := []v1.EnvVar{}
 
-	for _, tlsOption := range vaultTLSConnectionDetails {
+	for _, tlsOption := range cephv1.VaultTLSConnectionDetails {
 		tlsSecretName := GetParam(kmsConfig, tlsOption)
 		if tlsSecretName != "" {
 			vaultTLSEnvVar = append(vaultTLSEnvVar, v1.EnvVar{Name: tlsOption, Value: path.Join(EtcVaultDir, tlsSecretPath(tlsOption))})
@@ -73,7 +73,7 @@ func VaultConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 	}
 	for k, v := range spec.Security.KeyManagementService.ConnectionDetails {
 		// Skip TLS and token env var to avoid env being set multiple times
-		toSkip := append(vaultTLSConnectionDetails, api.EnvVaultToken)
+		toSkip := append(cephv1.VaultTLSConnectionDetails, api.EnvVaultToken)
 		if client.StringInSlice(k, toSkip) {
 			continue
 		}

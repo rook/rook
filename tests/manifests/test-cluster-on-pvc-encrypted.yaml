@@ -14,7 +14,7 @@ spec:
           requests:
             storage: 5Gi
   cephVersion:
-    image: ceph/ceph:v14
+    image: ceph/ceph:v15
   dashboard:
     enabled: false
   network:

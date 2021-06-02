@@ -19,6 +19,7 @@ package kms
 import (
 	"github.com/hashicorp/vault/api"
 	"github.com/libopenstorage/secrets"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -45,7 +46,7 @@ func TLSSecretVolumeAndMount(config map[string]string) []v1.VolumeProjection {
 	mode := int32(0400)
 
 	// Vault TLS Secrets
-	for _, tlsOption := range vaultTLSConnectionDetails {
+	for _, tlsOption := range cephv1.VaultTLSConnectionDetails {
 		tlsSecretName := GetParam(config, tlsOption)
 		if tlsSecretName != "" {
 			projectionSecret := &v1.SecretProjection{Items: []v1.KeyToPath{{Key: tlsSecretKeyToCheck(tlsOption), Path: tlsSecretPath(tlsOption), Mode: &mode}}}

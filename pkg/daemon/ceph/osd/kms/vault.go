@@ -25,6 +25,7 @@ import (
 	"github.com/libopenstorage/secrets"
 	"github.com/libopenstorage/secrets/vault"
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -42,7 +43,6 @@ const (
 
 var (
 	vaultMandatoryConnectionDetails = []string{api.EnvVaultAddress}
-	vaultTLSConnectionDetails       = []string{api.EnvVaultCACert, api.EnvVaultClientCert, api.EnvVaultClientKey}
 )
 
 /* VAULT API INTERNAL VALUES
@@ -98,7 +98,7 @@ func InitVault(context *clusterd.Context, namespace string, config map[string]st
 
 func configTLS(clusterdContext *clusterd.Context, namespace string, config map[string]string) (map[string]string, error) {
 	ctx := context.TODO()
-	for _, tlsOption := range vaultTLSConnectionDetails {
+	for _, tlsOption := range cephv1.VaultTLSConnectionDetails {
 		tlsSecretName := GetParam(config, tlsOption)
 		if tlsSecretName == "" {
 			continue
@@ -209,7 +209,7 @@ func validateVaultConnectionDetails(clusterdContext *clusterd.Context, ns string
 	}
 
 	// Validate potential TLS configuration
-	for _, tlsOption := range vaultTLSConnectionDetails {
+	for _, tlsOption := range cephv1.VaultTLSConnectionDetails {
 		tlsSecretName := GetParam(kmsConfig, tlsOption)
 		if tlsSecretName != "" {
 			// Fetch the secret

@@ -144,6 +144,8 @@ fi
 	openEncryptedBlock = `
 set -xe
 
+CEPH_FSID=%s
+PVC_NAME=%s
 KEY_FILE_PATH=%s
 BLOCK_PATH=%s
 DM_NAME=%s
@@ -156,6 +158,12 @@ function open_encrypted_block {
 	echo "Opening encrypted device $BLOCK_PATH at $DM_PATH"
 	cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
 	rm -f "$KEY_FILE_PATH"
+}
+
+# This is done for upgraded clusters that did not have the subsystem and label set by the prepare job
+function set_luks_subsystem_and_label {
+	echo "setting LUKS label and subsystem"
+	cryptsetup config $BLOCK_PATH --subsystem ceph_fsid="$CEPH_FSID" --label pvc_name="$PVC_NAME"
 }
 
 if [ -b "$DM_PATH" ]; then
@@ -174,6 +182,13 @@ if [ -b "$DM_PATH" ]; then
 else
 	open_encrypted_block
 fi
+
+# Setting label and subsystem on LUKS1 is not supported and the command will fail
+if cryptsetup luksDump $BLOCK_PATH|grep -qEs "Version:.*2"; then
+	set_luks_subsystem_and_label
+else
+	echo "LUKS version is not 2 so not setting label and subsystem"
+fi
 `
 	// #nosec G101 no leak just variable names
 	getKEKFromVaultWithToken = `
@@ -183,7 +198,7 @@ set -e
 KEK_NAME=%s
 KEY_PATH=%s
 CURL_PAYLOAD=$(mktemp)
-ARGS=(--silent --show-error --request GET --header "X-Vault-Token: ${VAULT_TOKEN}")
+ARGS=(--silent --show-error --request GET --header "X-Vault-Token: ${VAULT_TOKEN//[$'\t\r\n']}")
 PYTHON_DATA_PARSE="['data']"
 
 # If a vault namespace is set
@@ -344,7 +359,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		if osdProps.encrypted && osd.CVMode == "raw" {
 			encryptedVol, _ := c.getEncryptionVolume(osdProps)
 			volumes = append(volumes, encryptedVol)
-			if c.spec.Security.KeyManagementService.IsEnabled() {
+			// We don't need to pass the Volume with projection for TLS when TLS is not enabled
+			// Somehow when this happens and we try to update a deployment spec it fails with:
+			//  ValidationError(Pod.spec.volumes[7].projected): missing required field "sources"
+			if c.spec.Security.KeyManagementService.IsEnabled() && c.spec.Security.KeyManagementService.IsTLSEnabled() {
 				encryptedVol, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
 				volumes = append(volumes, encryptedVol)
 			}
@@ -869,7 +887,7 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(openEncryptedBlock, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), encryptionDMName(pvcName, cryptBlockType), encryptionDMPath(pvcName, cryptBlockType)),
+			fmt.Sprintf(openEncryptedBlock, c.clusterInfo.FSID, pvcName, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), encryptionDMName(pvcName, cryptBlockType), encryptionDMPath(pvcName, cryptBlockType)),
 		},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
 		SecurityContext: PrivilegedContext(),
@@ -907,8 +925,10 @@ func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(mountPath string, os
 				getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, volMount)
 
 				// Now let's see if there is a TLS config we need to mount as well
-				_, vaultVolMount := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
-				getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, vaultVolMount)
+				if c.spec.Security.KeyManagementService.IsTLSEnabled() {
+					_, vaultVolMount := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+					getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, vaultVolMount)
+				}
 
 				// Add the container to the list of containers
 				containers = append(containers, getKEKFromKMSContainer)
