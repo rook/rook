@@ -11,7 +11,23 @@ function cleanup() {
   kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/$CERT_VERSION/cert-manager.yaml
   set -e
 }
-trap cleanup SIGINT ERR
+
+function error_log() {
+  set +e -x
+  kubectl -n rook-ceph get issuer
+  kubectl -n rook-ceph get certificate
+  kubectl -n rook-ceph get secret | grep rook-ceph-admission-controller
+  kubectl -n rook-ceph get validatingwebhookconfigurations.admissionregistration.k8s.io 
+  kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io cert-manager-webhook 
+  kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io rook-ceph-webhook 
+  kubectl -n cert-manager logs deploy/cert-manager-webhook --tail=10
+  kubectl -n cert-manager logs deploy/cert-manager-cainjector --tail=10
+ set -e +x
+ cleanup
+}
+
+trap cleanup SIGINT 
+trap error_log ERR
 
 # Minimum 1.16.0 kubernetes version is required to start the admission controller
 SERVER_VERSION=$(kubectl version --short | awk -F  "."  '/Server Version/ {print $2}')
@@ -24,7 +40,7 @@ fi
 
 # Set our known directories and parameters.
 BASE_DIR=$(cd "$(dirname "$0")"; pwd)
-CERT_VERSION="v1.2.0"
+CERT_VERSION="v1.3.1"
 
 [ -z "${NAMESPACE}" ] && NAMESPACE="rook-ceph"
 export NAMESPACE
@@ -33,12 +49,16 @@ export SERVICE_NAME="rook-ceph-admission-controller"
 
 echo "$BASE_DIR"
 
+echo "Deploying cert-manager"
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/$CERT_VERSION/cert-manager.yaml
-timeout 150 sh -c 'until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running|grep -c ^cert-) -eq 3 ]; do sleep 1; done'
-timeout 20 sh -c 'until [ $(kubectl -n cert-manager get pods -o custom-columns=READY:status.containerStatuses[*].ready | grep -c true) -eq 3 ]; do sleep 1; done'
+timeout 150 sh -c 'until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running|grep -c ^cert-) -eq 3 ]; do sleep 1 && echo "waiting for cert-manager pods to be in running state"; done'
+timeout 20 sh -c 'until [ $(kubectl -n cert-manager get pods -o custom-columns=READY:status.containerStatuses[*].ready | grep -c true) -eq 3 ]; do sleep 1 && echo "waiting for the pods to be in ready state"; done'
+timeout 25 sh -c 'until [ $(kubectl get validatingwebhookconfigurations cert-manager-webhook -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | wc -c) -gt 1 ]; do sleep 1 && echo "waiting for caInjector to inject in caBundle for cert-manager validating webhook"; done'
+timeout 25 sh -c 'until [ $(kubectl get mutatingwebhookconfigurations cert-manager-webhook -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | wc -c) -gt 1 ]; do sleep 1 && echo "waiting for caInjector to inject in caBundle for cert-managers mutating webhook"; done'
 
-echo "Deploying webhook config"
+echo "Successfully deployed cert-manager"
 
+echo "Creating Issuer and Certificate"
 cat <<EOF | kubectl create -f -
 apiVersion: cert-manager.io/v1
 kind: Issuer
@@ -64,6 +84,9 @@ spec:
   secretName: rook-ceph-admission-controller
 EOF
 
+echo "Successfully created Issuer and Certificate"
+
+echo "Deploying webhook config"
 cat ${BASE_DIR}/webhook-config.yaml | \
         "${BASE_DIR}"/webhook-patch-ca-bundle.sh | \
         sed -e "s|\${NAMESPACE}|${NAMESPACE}|g" | \
