@@ -19,7 +19,7 @@ set -xe
 #############
 # VARIABLES #
 #############
-BLOCK=$(sudo lsblk --paths | awk '/14G/ {print $1}' | head -1)
+: "${BLOCK:=$(sudo lsblk --paths | awk '/14G/ {print $1}' | head -1)}"
 
 #############
 # FUNCTIONS #
@@ -39,9 +39,16 @@ function use_local_disk() {
     BLOCK_DATA_PART=${BLOCK}1
     sudo dmsetup version || true
     sudo swapoff --all --verbose
-    sudo umount /mnt
-    # search for the device since it keeps changing between sda and sdb
-    sudo wipefs --all --force "$BLOCK_DATA_PART"
+    if mountpoint -q /mnt; then
+        sudo umount /mnt
+        # search for the device since it keeps changing between sda and sdb
+        sudo wipefs --all --force "$BLOCK_DATA_PART"
+    else
+        # it's the hosted runner!
+        sudo sgdisk --zap-all --clear --mbrtogpt -g -- "${BLOCK}"
+        sudo dd if=/dev/zero of="${BLOCK}" bs=1M count=10 oflag=direct
+        sudo parted -s "${BLOCK}" mklabel gpt
+    fi
     sudo lsblk
 }
 
@@ -113,7 +120,7 @@ function create_cluster_prerequisites() {
 function deploy_cluster() {
     cd cluster/examples/kubernetes/ceph
     kubectl create -f operator.yaml
-    sed -i "s|#deviceFilter:|deviceFilter: $(lsblk | awk '/14G/ {print $1}' | head -1)|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-test.yaml
     kubectl create -f cluster-test.yaml
     kubectl create -f object-test.yaml
     kubectl create -f pool-test.yaml
