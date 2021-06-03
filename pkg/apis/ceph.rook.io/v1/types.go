@@ -251,8 +251,9 @@ type KeyManagementServiceSpec struct {
 
 // CephVersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v15.2.13
-	Image string `json:"image"`
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v16.2.4
+	// +optional
+	Image string `json:"image,omitempty"`
 
 	// Whether to allow unsupported versions (do not set to true in production)
 	// +optional
@@ -448,7 +449,8 @@ const (
 type MonSpec struct {
 	// Count is the number of Ceph monitors
 	// +kubebuilder:validation:Minimum=0
-	Count int `json:"count"`
+	// +optional
+	Count int `json:"count,omitempty"`
 	// AllowMultiplePerNode determines if we can run multiple monitors on the same node (not recommended)
 	// +optional
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode,omitempty"`
