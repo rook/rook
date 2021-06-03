@@ -11,6 +11,7 @@ storage cluster.
 
 * [Prerequisites](#prerequisites)
 * [Using alternate namespaces](#using-alternate-namespaces)
+* [Deploying a second cluster](#deploying-a-second-cluster)
 * [Use custom Ceph user and secret for mounting](#use-custom-ceph-user-and-secret-for-mounting)
 * [Log Collection](#log-collection)
 * [OSD Information](#osd-information)
@@ -371,7 +372,7 @@ we would see the following defaults after creating a cluster:
 kubectl -n rook-ceph get ConfigMap rook-config-override -o yaml
 ```
 
-```console
+```yaml
 kind: ConfigMap
 apiVersion: v1
 metadata:
