@@ -6,6 +6,12 @@ indent: true
 
 # Disaster Recovery
 
+Under extenuating circumstances, steps may be necessary to recover the cluster health. There are several types of recovery addressed in this document:
+* [Restoring Mon Quorum](#restoring-mon-quorum)
+* [Restoring CRDs After Deletion](#restoring-crds-after-deletion)
+* [Adopt an existing Rook Ceph cluster into a new Kubernetes cluster](#adopt-an-existing-rook-ceph-cluster-into-a-new-kubernetes-cluster)
+* [Backing up and restoring a cluster based on PVCs into a new Kubernetes cluster](#backing-up-and-restoring-a-cluster-based-on-pvcs-into-a-new-kubernetes-cluster)
+
 ## Restoring Mon Quorum
 
 Under extenuating circumstances, the mons may lose quorum. If the mons cannot form quorum again,
@@ -231,9 +237,97 @@ kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas=1
 
 The operator will automatically add more mons to increase the quorum size again, depending on the `mon.count`.
 
-# Adopt an existing Rook Ceph cluster into a new Kubernetes cluster
+## Restoring CRDs After Deletion
 
-## Situations this section can help resolve
+When the Rook CRDs are deleted, the Rook operator will respond to the deletion event to attempt to clean up the cluster resources.
+If any data appears present in the cluster, Rook will refuse to allow the resources to be deleted since the operator will
+refuse to remove the finalizer on the CRs until the underlying data is deleted. For more details, see the
+[dependency design doc](https://github.com/rook/rook/blob/master/design/ceph/resource-dependencies.md).
+
+While it is good that the CRs will not be deleted and the underlying Ceph data and daemons continue to be
+available, the CRs will be stuck indefinitely in a `terminating` state in which the operator will not
+continue to reconcile. Upgrades will be blocked, further updates to the CRs are prevented, and so on.
+Since Kubernetes does not allow undeleting resources, the following procedure will allow you to restore
+the CRs to their prior state without even necessarily suffering cluster downtime.
+
+1. Scale down the operator
+
+```console
+kubectl -n rook-ceph scale --replicas=0 deploy/rook-ceph-operator
+```
+
+2. Backup all Rook CRs and critical metadata
+
+```console
+# Store the CephCluster CR settings. Also, save other Rook CRs that are in terminating state.
+kubectl -n rook-ceph get cephcluster rook-ceph -o yaml > cluster.yaml
+
+# Backup critical secrets and configmaps in case something goes wrong later in the procedure
+kubectl -n rook-ceph get secret -o yaml > secrets.yaml
+kubectl -n rook-ceph get configmap -o yaml > configmaps.yaml
+```
+
+3. Remove the owner references from all critical Rook resources that were referencing the CephCluster CR.
+   The critical resources include:
+   - Secrets: `rook-ceph-admin-keyring`, `rook-ceph-config`, `rook-ceph-mon`, `rook-ceph-mons-keyring`
+   - ConfigMap: `rook-ceph-mon-endpoints`
+   - Services: `rook-ceph-mon-*`, `rook-ceph-mgr-*`
+   - Deployments: `rook-ceph-mon-*`, `rook-ceph-osd-*`, `rook-ceph-mgr-*`
+   - PVCs (if applicable): `rook-ceph-mon-*` and the OSD PVCs (named `<deviceset>-*`, for example `set1-data-*`)
+
+For example, remove this entire block from each resource:
+
+```yaml
+ownerReferences:
+- apiVersion: ceph.rook.io/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: CephCluster
+    name: rook-ceph
+    uid: <uid>
+```
+
+4. **After confirming all critical resources have had the owner reference to the CephCluster CR removed**, now
+   we allow the cluster CR to be deleted. Remove the finalizer by editing the CephCluster CR.
+
+```console
+kubectl -n rook-ceph edit cephcluster
+```
+
+For example, remove the following from the CR metadata:
+
+```yaml
+    finalizers:
+    - cephcluster.ceph.rook.io
+```
+
+After the finalizer is removed, the CR will be immediately deleted. If all owner references were properly removed,
+all ceph daemons will continue running and there will be no downtime.
+
+5. Create the CephCluster CR with the same settings as previously
+
+```shell
+# Use the same cluster settings as exported above in step 2.
+kubectl create -f cluster.yaml
+```
+
+6. If there are other CRs in terminating state such as CephBlockPools, CephObjectStores, or CephFilesystems,
+   follow the above steps as well for those CRs:
+   - Backup the CR
+   - Remove the finalizer and confirm the CR is deleted (the underlying Ceph resources will be preserved)
+   - Create the CR again
+
+7. Scale up the operator
+
+```shell
+kubectl -n rook-ceph --replicas=1 deploy/rook-ceph-operator
+```
+
+Watch the operator log to confirm that the reconcile completes successfully.
+
+## Adopt an existing Rook Ceph cluster into a new Kubernetes cluster
+
+Situations this section can help resolve:
 
 1. The Kubernetes environment underlying a running Rook Ceph cluster failed catastrophically, requiring a new Kubernetes environment in which the user wishes to recover the previous Rook Ceph cluster.
 2. The user wishes to migrate their existing Rook Ceph cluster to a new Kubernetes environment, and downtime can be tolerated.
