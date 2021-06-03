@@ -140,25 +140,20 @@ func getComputeResource(clientset kubernetes.Interface, key string) []k8sutil.Co
 	return resource
 }
 
-func getToleration(clientset kubernetes.Interface, provisioner bool) []corev1.Toleration {
-	// Add toleration if any
-	tolerations := []corev1.Toleration{}
-	var err error
-	tolerationsRaw := ""
-	if provisioner {
-		tolerationsRaw, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, provisionerTolerationsEnv, "")
-	} else {
-		tolerationsRaw, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, pluginTolerationsEnv, "")
-	}
+func getToleration(clientset kubernetes.Interface, tolerationsName string, defaultTolerations []corev1.Toleration) []corev1.Toleration {
+	// Add toleration if any, otherwise return defaultTolerations
+	tolerationsRaw, err := k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, tolerationsName, "")
 	if err != nil {
-		// tolerationsRaw is empty
-		logger.Warningf("tolerations will not be applied. %v", err)
-		return tolerations
+		logger.Warningf("failed to read %q. %v", tolerationsName, err)
+		return defaultTolerations
 	}
-	tolerations, err = k8sutil.YamlToTolerations(tolerationsRaw)
+	if tolerationsRaw == "" {
+		return defaultTolerations
+	}
+	tolerations, err := k8sutil.YamlToTolerations(tolerationsRaw)
 	if err != nil {
-		logger.Warningf("failed to parse %q. %v", tolerationsRaw, err)
-		return tolerations
+		logger.Warningf("failed to parse %q for %q. %v", tolerationsRaw, tolerationsName, err)
+		return defaultTolerations
 	}
 	for i := range tolerations {
 		if tolerations[i].Key == "" {
@@ -172,26 +167,20 @@ func getToleration(clientset kubernetes.Interface, provisioner bool) []corev1.To
 	return tolerations
 }
 
-func getNodeAffinity(clientset kubernetes.Interface, provisioner bool) *corev1.NodeAffinity {
-	// Add NodeAffinity if any
-	nodeAffinity := ""
-	v1NodeAffinity := &corev1.NodeAffinity{}
-	var err error
-	if provisioner {
-		nodeAffinity, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, provisionerNodeAffinityEnv, "")
-	} else {
-		nodeAffinity, err = k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, pluginNodeAffinityEnv, "")
-	}
+func getNodeAffinity(clientset kubernetes.Interface, nodeAffinityName string, defaultNodeAffinity *corev1.NodeAffinity) *corev1.NodeAffinity {
+	// Add NodeAffinity if any, otherwise return defaultNodeAffinity
+	nodeAffinity, err := k8sutil.GetOperatorSetting(clientset, controller.OperatorSettingConfigMapName, nodeAffinityName, "")
 	if err != nil {
-		logger.Warningf("node affinity will not be applied. %v", err)
-		// nodeAffinity will be empty by default in case of error
-		return v1NodeAffinity
+		logger.Warningf("failed to read %q. %v", nodeAffinityName, err)
+		return defaultNodeAffinity
 	}
-	if nodeAffinity != "" {
-		v1NodeAffinity, err = k8sutil.GenerateNodeAffinity(nodeAffinity)
-		if err != nil {
-			logger.Warningf("failed to parse %q. %v", nodeAffinity, err)
-		}
+	if nodeAffinity == "" {
+		return defaultNodeAffinity
+	}
+	v1NodeAffinity, err := k8sutil.GenerateNodeAffinity(nodeAffinity)
+	if err != nil {
+		logger.Warningf("failed to parse %q for %q. %v", nodeAffinity, nodeAffinityName, err)
+		return defaultNodeAffinity
 	}
 	return v1NodeAffinity
 }
