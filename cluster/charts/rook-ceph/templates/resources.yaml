@@ -479,8 +479,6 @@ spec:
                     image:
                       description: Image is the container image used to launch the ceph daemons, such as ceph/ceph:v16.2.4
                       type: string
-                  required:
-                    - image
                   type: object
                 cleanupPolicy:
                   description: Indicates user intent when deleting a cluster; blocks orchestration and should not be set if cluster deletion is not imminent.
@@ -1142,8 +1140,6 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
-                  required:
-                    - count
                   type: object
                 monitoring:
                   description: Prometheus based Monitoring settings
