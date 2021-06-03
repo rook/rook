@@ -309,10 +309,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			if device.Filesystem == "crypto_LUKS" && agent.pvcBacked {
 				if isCephEncryptedBlock(context, agent.clusterInfo.FSID, device.Name) {
 					logger.Infof("encrypted disk %q is an OSD part of this cluster, considering it", device.Name)
-				} else {
-					logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
-					continue
 				}
+			} else {
+				logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
+				continue
 			}
 		}
 
