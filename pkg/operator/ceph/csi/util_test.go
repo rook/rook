@@ -50,13 +50,14 @@ spec:
         - name: cephfsplugin
           image: {{ .CSIPluginImage }}
 `)
-	testSSTemplate = []byte(`
-kind: StatefulSet
+	testDepTemplate = []byte(`
+kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: test-label
   namespace: {{ .Namespace }}
 spec:
+  replicas: {{ .ProvisionerReplicas }}
   selector:
     matchLabels:
       app: test-label
@@ -67,13 +68,15 @@ spec:
     spec:
       serviceAccount: test-sa
       containers:
-        - name: csi-rbdplugin-attacher
+        - name: csi-attacher
           image: {{ .AttacherImage }}
-        - name: provisioner
+        - name: csi-snapshotter
+          image: {{ .SnapshotterImage }}
+        - name: csi-resizer
+          image: {{ .ResizerImage }}
+        - name: csi-provisioner
           image: {{ .ProvisionerImage }}
-        - name: rbdplugin
-          image: {{ .CSIPluginImage }}
-        - name: cephfsplugin
+        - name: csi-cephfsplugin
           image: {{ .CSIPluginImage }}
 `)
 )
@@ -97,13 +100,13 @@ func TestDaemonSetTemplate(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestStatefulSetTemplate(t *testing.T) {
+func TestDeploymentTemplate(t *testing.T) {
 	tmp, err := ioutil.TempFile("", "yaml")
 	assert.Nil(t, err)
 
 	defer os.Remove(tmp.Name())
 
-	_, err = tmp.Write(testSSTemplate)
+	_, err = tmp.Write(testDepTemplate)
 	assert.Nil(t, err)
 	err = tmp.Close()
 	assert.Nil(t, err)
@@ -112,7 +115,7 @@ func TestStatefulSetTemplate(t *testing.T) {
 		Param:     CSIParam,
 		Namespace: "foo",
 	}
-	_, err = templateToStatefulSet("test-ss", tmp.Name(), tp)
+	_, err = templateToDeployment("test-dep", tmp.Name(), tp)
 	assert.Nil(t, err)
 }
 
