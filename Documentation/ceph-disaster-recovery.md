@@ -245,8 +245,8 @@ refuse to remove the finalizer on the CRs until the underlying data is deleted. 
 [dependency design doc](https://github.com/rook/rook/blob/master/design/ceph/resource-dependencies.md).
 
 While it is good that the CRs will not be deleted and the underlying Ceph data and daemons continue to be
-available, the CRs will be stuck indefinitely in a `terminating` state in which the operator will not
-continue to reconcile. Upgrades will be blocked, further updates to the CRs are prevented, and so on.
+available, the CRs will be stuck indefinitely in a `Deleting` state in which the operator will not
+continue to ensure cluster health. Upgrades will be blocked, further updates to the CRs are prevented, and so on.
 Since Kubernetes does not allow undeleting resources, the following procedure will allow you to restore
 the CRs to their prior state without even necessarily suffering cluster downtime.
 
