@@ -18,73 +18,16 @@ pipeline {
             when { branch "PR-*" }
             steps {
                 script {
-                    def json = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${env.CHANGE_ID}", returnStdout: true).trim()
-                    def draft = evaluateJson(json,'${json.draft}')
-                    if (draft.contains("true")) {
-                        echo ("This is a draft PR. Aborting")
-                        env.shouldBuild = "false"
-                    }
-                    def body = evaluateJson(json,'${json.body}')
-                    if (body.contains("[skip ci]")) {
-                        echo ("'[skip ci]' spotted in PR body text. Aborting.")
-                        env.shouldBuild = "false"
-                    }
-                    if (body.contains("[skip tests]")) {
-                        env.shouldTest = "false"
-                    }
-                    if (body.contains("[all logs]")) {
-                        env.getLogs = "all"
-                    }
-
                     // When running in a PR we assuming it's not an official build
                     env.isOfficialBuild = "false"
 
-                    if (!body.contains("[test full]")) {
-                        // By default run the min test matrix (all tests run, but will be distributed on different versions of K8s).
-                        // This only affects the PR builds. The master and release builds will always run the full matrix.
-                        env.testArgs = "min-test-matrix"
-                    }
-
-                    // Get changed files
-                    def json_changed_files = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${env.CHANGE_ID}/files", returnStdout: true).trim()
-                    def list = new groovy.json.JsonSlurper().parseText(json_changed_files)
-                    def changed_files = list.filename.join(",")
-                     echo ("changed files are: ${changed_files}")
-
-                    // Get PR title
-                    def title = evaluateJson(json,'${json.title}')
-
-                    // extract which specific storage provider to test
-                    if (body.contains("[test cassandra]") || title.contains("cassandra:")) {
-                        env.testProvider = "cassandra"
-                    } else if (body.contains("[test ceph]")) {
-                        // Run the Ceph tests in Jenkins if specifically requested
-                        env.testProvider = "ceph"
-                    } else if (title.contains("ceph:")) {
-                        // Don't run Jenkins for ceph PRs by default since they are covered by github actions
-                        env.shouldBuild = "false"
-                    } else if (body.contains("[test nfs]") || title.contains("nfs:")) {
-                        env.testProvider = "nfs"
-                    } else if (body.contains("[test]")) {
+                    // Only build and test if [test full]
+                    def json = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${env.CHANGE_ID}", returnStdout: true).trim()
+                    def body = evaluateJson(json,'${json.body}')
+                    env.shouldBuild = "false"
+                    if (body.contains("[test full]")) {
                         env.shouldBuild = "true"
-                    } else if (!changed_files.contains(".go")) {
-                        echo ("No golang changes detected! Looking for .md, .yaml and .txt now.")
-                        if (changed_files.contains(".md")) {
-                            echo ("Documentation changes detected! Aborting.")
-                            env.shouldBuild = "false"
-                        } else if (changed_files.contains(".yaml")) {
-                            echo ("YAML changes detected! Aborting.")
-                            env.shouldBuild = "false"
-                        } else if (changed_files.contains(".txt")) {
-                            echo ("Text changes detected! Aborting.")
-                            env.shouldBuild = "false"
-                        }
-                    } else if (!changed_files.contains(".go")) {
-                        echo ("No code changes detected! Just building.")
-                        env.shouldTest = "false"
                     }
-
-                    echo ("integration test provider: ${env.testProvider}")
                 }
             }
         }
