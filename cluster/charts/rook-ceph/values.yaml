@@ -11,7 +11,9 @@ image:
 crds:
   # Whether the helm chart should create and update the CRDs. If false, the CRDs must be
   # managed independently with cluster/examples/kubernetes/ceph/crds.yaml.
-  # **WARNING** Only set during first deployment. If later disabled the cluster will be destroyed.
+  # **WARNING** Only set during first deployment. If later disabled the cluster may be DESTROYED.
+  # If the CRDs are deleted in this case, see the disaster recovery guide to restore them.
+  # https://rook.github.io/docs/rook/master/ceph-disaster-recovery.html#restoring-crds-after-deletion
   enabled: true
 
 resources:
