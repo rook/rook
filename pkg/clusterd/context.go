@@ -18,6 +18,7 @@ package clusterd
 
 import (
 	"github.com/coreos/pkg/capnslog"
+	"github.com/jetstack/cert-manager/pkg/client/clientset/versioned"
 	netclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/util/exec"
@@ -37,6 +38,8 @@ type Context struct {
 
 	// Clientset is a connection to the core kubernetes API
 	Clientset kubernetes.Interface
+
+	CmClient versioned.Interface
 
 	// Represents the Client provided by the controller-runtime package to interact with Kubernetes objects
 	Client client.Client

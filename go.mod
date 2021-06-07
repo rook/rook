@@ -16,6 +16,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/vault/api v1.0.5-0.20200902155336-f9d5ce5a171a
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
+	github.com/jetstack/cert-manager v1.3.1
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210311161930-4bea5edaff58
 	github.com/libopenstorage/secrets v0.0.0-20201006135900-af310b01fe47
@@ -31,7 +32,7 @@ require (
 	github.com/tevino/abool v1.2.0
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	gopkg.in/ini.v1 v1.57.0
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.20.1
 	k8s.io/apiextensions-apiserver v0.20.1
 	k8s.io/apimachinery v0.20.1

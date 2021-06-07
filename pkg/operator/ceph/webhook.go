@@ -19,12 +19,17 @@ package operator
 import (
 	"context"
 	"os"
+	"time"
 
+	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
+	cmmeta "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	admv1 "k8s.io/api/admissionregistration/v1"
+
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -63,6 +68,151 @@ func isSecretPresent(ctx context.Context, context *clusterd.Context) (bool, erro
 	return true, nil
 }
 
+func webhookcreate(contextContext *context.Context, clusterdContext *clusterd.Context) {
+
+	label := "app.kubernetes.io/instance=cert-manager"
+	_ = metav1.ListOptions{}
+	options := metav1.ListOptions{LabelSelector: "app.kubernetes.io/instance=cert-manager"}
+	ctx := context.TODO()
+	var lastPod corev1.Pod
+
+	for i := 0; i < 30; i++ {
+		pods, err := clusterdContext.Clientset.CoreV1().Pods("cert-manager").List(ctx, options)
+
+		logger.Info("checking if cert-manager pods are running")
+		lastStatus := ""
+		running := 0
+
+		if err == nil && len(pods.Items) > 0 {
+			for _, pod := range pods.Items {
+				if pod.Status.Phase == "Running" {
+					running++
+				}
+				lastPod = pod
+				lastStatus = string(pod.Status.Phase)
+			}
+			if running == len(pods.Items) {
+				logger.Infof("All %d pod(s) with label %s are running", len(pods.Items), label)
+				break
+			}
+		}
+		logger.Infof("waiting for pod(s) with label %s in namespace %s to be running. status=%s, running=%d/%d, err=%+v",
+			label, namespace, lastStatus, running, len(pods.Items), err)
+		time.Sleep(1 * time.Second)
+	}
+	if len(lastPod.Name) == 0 {
+		logger.Infof("no pod was found with label %s", label)
+	}
+	// for i := 0; i < 30; i++ {
+	// 	p, _ := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(ctx, options)
+	// 	logger.Info("INSDIDE validating webhook loop")
+	// 	for _, ValidatingWebhookConfiguration := range p.Items {
+	// 		validatingWebhook := ValidatingWebhookConfiguration.Webhooks
+	// 		for _, i := range validatingWebhook {
+	// 			if ca := i.ClientConfig.CABundle; ca != nil {
+	// 				logger.Info("BUNDLE IS EMPTY")
+	// 			} else {
+	// 				logger.Info("BUNDLE IS NOT EMPTY")
+	// 				break
+	// 			}
+	// 		}
+	// 	}
+	// 	time.Sleep(1 * time.Second)
+	// }
+
+	logger.Info("defining issuer")
+
+	createIssuer := &cmapi.Issuer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "selfsigned-issuer",
+			Namespace: "rook-ceph",
+		},
+		Spec: cmapi.IssuerSpec{
+			IssuerConfig: cmapi.IssuerConfig{
+				SelfSigned: &cmapi.SelfSignedIssuer{},
+			},
+		},
+	}
+	logger.Info("done defining issuer")
+
+	logger.Info("creating issuer")
+	issuer, err := clusterdContext.CmClient.CertmanagerV1().Issuers("rook-ceph").Create(ctx, createIssuer, metav1.CreateOptions{})
+	logger.Info(err)
+	logger.Info("created issuer")
+	logger.Info("done defining certificate")
+
+	createCert := &cmapi.Certificate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-admission-controller-cert",
+			Namespace: "rook-ceph",
+		},
+		Spec: cmapi.CertificateSpec{
+			DNSNames: []string{
+				"rook-ceph-admission-controller",
+				"rook-ceph-admission-controller.rook-ceph.svc",
+				"rook-ceph-admission-controller.rook-ceph.cluster.local",
+			},
+			IssuerRef: cmmeta.ObjectReference{
+				Kind: "Issuer",
+				Name: issuer.Name,
+			},
+			SecretName: "rook-ceph-admission-controller",
+		},
+	}
+	logger.Info("done defining certificate")
+	logger.Info("creating certificate")
+	_, _ = clusterdContext.CmClient.CertmanagerV1().Certificates(namespace).Create(ctx, createCert, metav1.CreateOptions{})
+	logger.Info("crated certificate")
+	createValidatingWebhook()
+
+}
+func createValidatingWebhook() {
+	namespace := "rook-ceph"
+	webhookConfigName := "rook-ceph-webhook"
+	serviceName := "rook-ceph-admission-controller"
+	appName := "cephcluster-wh-rook-ceph-admission-controller-rook-ceph.rook.io"
+	path := "/validate-ceph-rook-io-v1-cephcluster"
+	timeout := int32(5)
+	sideEffectsNone := admv1.SideEffectClassNone
+
+	_ = admv1.ValidatingWebhookConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: webhookConfigName,
+			Annotations: map[string]string{
+				"cert-manager.io/inject-ca-from": "rook-ceph/rook-admission-controller-cert",
+			},
+		},
+		Webhooks: []admv1.ValidatingWebhook{
+			{
+				Name: appName,
+				Rules: []admv1.RuleWithOperations{
+					{
+						Operations: []admv1.OperationType{
+							"CREATE", "UPDATE", "DELETE",
+						},
+						Rule: admv1.Rule{
+							APIGroups:   []string{"ceph.rook.io"},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"cephcluster"},
+						},
+					},
+				},
+				ClientConfig: admv1.WebhookClientConfig{
+					Service: &admv1.ServiceReference{
+						Name:      serviceName,
+						Namespace: namespace,
+						Path:      &path,
+					},
+					CABundle: []byte{},
+				},
+				AdmissionReviewVersions: []string{"v1", "v1beta1"},
+				SideEffects:             &sideEffectsNone,
+				TimeoutSeconds:          &timeout,
+			},
+		},
+	}
+}
+
 func createWebhookService(context *clusterd.Context) error {
 	webhookService := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -94,6 +244,7 @@ func createWebhookService(context *clusterd.Context) error {
 
 // StartControllerIfSecretPresent will initialize the webhook if secret is detected
 func StartControllerIfSecretPresent(ctx context.Context, context *clusterd.Context, admissionImage string) error {
+	webhookcreate(&ctx, context)
 	isPresent, err := isSecretPresent(ctx, context)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve secret")
