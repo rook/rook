@@ -95,7 +95,8 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 5 test - spec version and running cluster versions are identical --> we upgrade
-	fakeImageVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 2}
+	fakeImageVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 2,
+		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
@@ -107,6 +108,40 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.NoError(t, err)
 
 	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions5)
+	assert.NoError(t, err)
+	assert.False(t, m)
+
+	// 6 test - spec version and running cluster have different commit ID
+	fakeImageVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 11, Build: 139,
+		CommitID: "5c0dc966af809fd1d429ec7bac48962a746af243"}
+	fakeRunningVersions = []byte(`
+		{
+			"overall": {
+				"ceph version 14.2.11-139.el8cp (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 2
+			}
+		}`)
+	var dummyRunningVersions6 cephv1.CephDaemonsVersions
+	err = json.Unmarshal([]byte(fakeRunningVersions), &dummyRunningVersions6)
+	assert.NoError(t, err)
+
+	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions6)
+	assert.NoError(t, err)
+	assert.True(t, m)
+
+	// 7 test - spec version and running cluster have same commit ID
+	fakeImageVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 11, Build: 139,
+		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
+	fakeRunningVersions = []byte(`
+		{
+			"overall": {
+				"ceph version 14.2.11-139.el8cp (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 2
+			}
+		}`)
+	var dummyRunningVersions7 cephv1.CephDaemonsVersions
+	err = json.Unmarshal([]byte(fakeRunningVersions), &dummyRunningVersions7)
+	assert.NoError(t, err)
+
+	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions7)
 	assert.NoError(t, err)
 	assert.False(t, m)
 }
