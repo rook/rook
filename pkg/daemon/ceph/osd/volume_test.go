@@ -340,6 +340,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			if command == "lsblk" && args[0] == mountedDev {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="%s" KNAME="/dev/dm-1, a ...interface{})`, mapperDev), nil
 			}
+			if command == "sgdisk" {
+				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
+			}
 			if contains(args, "lvm") && contains(args, "list") {
 				return `{}`, nil
 			}
@@ -428,6 +431,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			if command == "lsblk" && args[0] == mountedDev {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="%s" KNAME="/dev/dm-1, a ...interface{})`, mapperDev), nil
+			}
+			if command == "sgdisk" {
+				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
 			}
 			if args[1] == "ceph-volume" && args[4] == "lvm" && args[5] == "list" && args[6] == mapperDev {
 				return `{}`, nil
@@ -549,14 +555,18 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
-			if command == "lsblk" && args[0] == mountedDev {
-				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="%s" KNAME="/dev/dm-1"`, mapperDev), nil
+			// get lsblk for disks from cephVolumeRAWTestResult var
+			if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
+				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
 			}
 			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" {
 				return cephVolumeRAWTestResult, nil
 			}
 			if args[1] == "ceph-volume" && args[4] == "lvm" && args[5] == "list" {
 				return `{}`, nil
+			}
+			if command == "sgdisk" {
+				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
@@ -1112,12 +1122,19 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 			}
 		}
 
+		// get lsblk for disks from cephVolumeRAWTestResult var
+		if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
+			return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
+		}
+		if command == "sgdisk" {
+			return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
+		}
 		return "", errors.Errorf("unknown command: %s, args: %#v", command, args)
 	}
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "name"}
 
 	context := &clusterd.Context{Executor: executor, Clientset: test.New(t, 3)}
-	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", "", false)
+	osds, err := GetCephVolumeRawOSDs(context, clusterInfo, "4bfe8b72-5e69-4330-b6c0-4d914db8ab89", "", "", "", false, false)
 	assert.Nil(t, err)
 	require.NotNil(t, osds)
 	assert.Equal(t, 2, len(osds))

@@ -316,7 +316,8 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 		}
 
 		// fully resolve the storage config and resources for this node
-		n := c.resolveNode(node.Name)
+		// don't care about osd device class resources since it will be overwritten later for prepareosd resources
+		n := c.resolveNode(node.Name, "")
 		if n == nil {
 			logger.Warningf("node %q did not resolve", node.Name)
 			continue

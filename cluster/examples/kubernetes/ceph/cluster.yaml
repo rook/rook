@@ -189,6 +189,10 @@ spec:
 # The above example requests/limits can also be added to the other components
 #    mon:
 #    osd:
+# For OSD it also is a possible to specify requests/limits based on device class
+#    osd-hdd:
+#    osd-ssd:
+#    osd-nvme:
 #    prepareosd:
 #    mgr-sidecar:
 #    crashcollector:
