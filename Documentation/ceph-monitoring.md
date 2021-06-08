@@ -197,3 +197,4 @@ labels:
   monitoring:
     prometheus: k8s
 [...]
+```
