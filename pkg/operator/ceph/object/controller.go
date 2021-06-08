@@ -254,8 +254,14 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		logger.Debugf("deleting store %q", cephObjectStore.Name)
 
 		if ok {
-			// Close the channel to stop the healthcheck of the endpoint
-			close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
+			select {
+			case <-r.objectStoreChannels[cephObjectStore.Name].stopChan:
+				// channel was closed
+				break
+			default:
+				// Close the channel to stop the healthcheck of the endpoint
+				close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
+			}
 
 			response, okToDelete := r.verifyObjectBucketCleanup(cephObjectStore)
 			if !okToDelete {
