@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -74,7 +75,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -99,7 +100,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -119,7 +120,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -139,7 +140,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -159,7 +160,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -179,7 +180,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -199,7 +200,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -224,7 +225,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -249,7 +250,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -274,7 +275,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -299,7 +300,7 @@ func WatchControllerPredicate() predicate.Funcs {
 				if diff != "" {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if objectToBeDeleted(objOld, objNew) {
 					logger.Debugf("CR %q is going be deleted", objNew.Name)
 					return true
 				} else if objOld.GetGeneration() != objNew.GetGeneration() {
@@ -370,6 +371,10 @@ func WatchCephClusterPredicate() predicate.Funcs {
 			return false
 		},
 	}
+}
+
+func objectToBeDeleted(oldObj, newObj client.Object) bool {
+	return !oldObj.GetDeletionTimestamp().Equal(newObj.GetDeletionTimestamp())
 }
 
 // objectChanged checks whether the object has been updated

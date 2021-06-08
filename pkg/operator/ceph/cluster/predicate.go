@@ -137,7 +137,7 @@ func watchControllerPredicate(rookContext *clusterd.Context) predicate.Funcs {
 					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
 					return true
 
-				} else if objOld.GetDeletionTimestamp() != objNew.GetDeletionTimestamp() {
+				} else if !objOld.GetDeletionTimestamp().Equal(objNew.GetDeletionTimestamp()) {
 					// Set the cancellation flag to stop any ongoing orchestration
 					rookContext.RequestCancelOrchestration.Set()
 
