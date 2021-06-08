@@ -294,13 +294,6 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
-		// Ignore 'dm' device since they are not handled by c-v properly
-		// see: https://tracker.ceph.com/issues/43209
-		if strings.HasPrefix(device.Name, sys.DeviceMapperPrefix) && device.Type == sys.LVMType {
-			logger.Infof("skipping 'dm' device %q", device.Name)
-			continue
-		}
-
 		// Ignore device with filesystem signature since c-v inventory
 		// cannot detect that correctly
 		// see: https://tracker.ceph.com/issues/43585
@@ -342,26 +335,16 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		// So earlier lsblk extracted the '/dev' path, hence the device.Name property
 		// device.Name can be 'xvdca', later this is formatted to '/dev/xvdca'
 		var err error
-		var isAvailable bool
+		isAvailable := true
+		block := fmt.Sprintf("/mnt/%s", agent.nodeName)
 		rejectedReason := ""
-		if agent.pvcBacked {
-			block := fmt.Sprintf("/mnt/%s", agent.nodeName)
-			rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false)
-			if err != nil {
-				isAvailable = false
-				rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)
-			} else if len(rawOsds) > 0 {
-				isAvailable = false
-				rejectedReason = "already in use by a raw OSD, no need to reconfigure"
-			} else {
-				isAvailable = true
-			}
-		} else {
-			isAvailable, rejectedReason, err = sys.CheckIfDeviceAvailable(context.Executor, device.RealPath, agent.pvcBacked)
-			if err != nil {
-				isAvailable = false
-				rejectedReason = fmt.Sprintf("failed to check if the device %q is available. %v", device.Name, err)
-			}
+		rawOsds, err := GetCephVolumeRawOSDs(context, agent.clusterInfo, agent.clusterInfo.FSID, block, agent.metadataDevice, "", false)
+		if err != nil {
+			isAvailable = false
+			rejectedReason = fmt.Sprintf("failed to detect if there is already an osd. %v", err)
+		} else if len(rawOsds) > 0 {
+			isAvailable = false
+			rejectedReason = "already in use by a raw OSD, no need to reconfigure"
 		}
 
 		if !isAvailable {
