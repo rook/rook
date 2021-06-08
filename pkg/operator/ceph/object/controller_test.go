@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -332,6 +333,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		scheme:              s,
 		context:             c,
 		objectStoreChannels: make(map[string]*objectStoreHealth),
+		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -374,6 +376,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		scheme:              s,
 		context:             c,
 		objectStoreChannels: make(map[string]*objectStoreHealth),
+		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
 	}
 	logger.Info("STARTING PHASE 2")
 	res, err = r.Reconcile(ctx, req)
@@ -423,6 +426,20 @@ func TestCephObjectStoreController(t *testing.T) {
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil
 			}
+			if args[0] == "osd" && args[1] == "lspools" {
+				// ceph actually outputs this all on one line, but this parses the same
+				return `[
+						{"poolnum":1,"poolname":"replicapool"},
+						{"poolnum":2,"poolname":"device_health_metrics"},
+						{"poolnum":3,"poolname":".rgw.root"},
+						{"poolnum":4,"poolname":"my-store.rgw.buckets.index"},
+						{"poolnum":5,"poolname":"my-store.rgw.buckets.non-ec"},
+						{"poolnum":6,"poolname":"my-store.rgw.log"},
+						{"poolnum":7,"poolname":"my-store.rgw.control"},
+						{"poolnum":8,"poolname":"my-store.rgw.meta"},
+						{"poolnum":9,"poolname":"my-store.rgw.buckets.data"}
+					]`, nil
+			}
 			return "", nil
 		},
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
@@ -452,6 +469,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		scheme:              s,
 		context:             c,
 		objectStoreChannels: make(map[string]*objectStoreHealth),
+		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
 	}
 
 	logger.Info("STARTING PHASE 3")
@@ -464,31 +482,6 @@ func TestCephObjectStoreController(t *testing.T) {
 	assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
 	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
 	logger.Info("PHASE 3 DONE")
-
-	// Test the functionality of verifyObjectUserCleanup
-	// Here two tests are performed, first check with no CephObjectStoreUser
-	// then a CephObjectStoreUser will be created and repeat the same test
-	logger.Info("STARTING PHASE 4 testing verifyObjectUserCleanup")
-	_, okToDelete := r.verifyObjectUserCleanup(objectStore)
-	assert.True(t, okToDelete)
-	logger.Infof("Creating user %v", name)
-	objectUser := &cephv1.CephObjectStoreUser{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: cephv1.ObjectStoreUserSpec{
-			Store: store,
-		},
-		TypeMeta: metav1.TypeMeta{
-			Kind: "CephObjectStoreUser",
-		},
-	}
-	_, err = r.context.RookClientset.CephV1().CephObjectStoreUsers(objectStore.Namespace).Create(ctx, objectUser, metav1.CreateOptions{})
-	assert.NoError(t, err)
-	_, okToDelete = r.verifyObjectUserCleanup(objectStore)
-	assert.False(t, okToDelete)
-	logger.Info("PHASE 4 DONE")
 }
 
 func TestCephObjectStoreControllerMultisite(t *testing.T) {
@@ -643,6 +636,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		scheme:              s,
 		context:             c,
 		objectStoreChannels: make(map[string]*objectStoreHealth),
+		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
 	}
 
 	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"reflect"
 	"syscall"
 
@@ -341,4 +342,19 @@ func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) 
 	}
 
 	return tlsCert, nil
+}
+
+func GenObjectStoreHTTPClient(objContext *Context, spec *cephv1.ObjectStoreSpec) (*http.Client, []byte, error) {
+	nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+	c := &http.Client{}
+	tlsCert := []byte{}
+	if spec.IsTLSEnabled() {
+		var err error
+		tlsCert, err = GetTlsCaCert(objContext, spec)
+		if err != nil {
+			return nil, tlsCert, errors.Wrapf(err, "failed to fetch CA cert to establish TLS connection with object store %q", nsName)
+		}
+		c.Transport = BuildTransportTLS(tlsCert)
+	}
+	return c, tlsCert, nil
 }

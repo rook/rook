@@ -30,8 +30,8 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -182,7 +182,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 
 	// The CR was just created, initializing status fields
 	if cephRBDMirror.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
+		updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// validate the pool settings
@@ -276,7 +276,7 @@ func updateStatus(client client.Client, name types.NamespacedName, status string
 	}
 
 	rbdMirror.Status.Phase = status
-	if err := opcontroller.UpdateStatus(client, rbdMirror); err != nil {
+	if err := reporting.UpdateStatus(client, rbdMirror); err != nil {
 		logger.Errorf("failed to set rbd mirror %q status to %q. %v", rbdMirror.Name, status, err)
 		return
 	}

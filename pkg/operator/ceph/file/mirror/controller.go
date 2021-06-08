@@ -30,8 +30,8 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -173,7 +173,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 
 	// The CR was just created, initializing status fields
 	if filesystemMirror.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
+		updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -260,7 +260,7 @@ func updateStatus(client client.Client, name types.NamespacedName, status string
 	}
 
 	fsMirror.Status.Phase = status
-	if err := opcontroller.UpdateStatus(client, fsMirror); err != nil {
+	if err := reporting.UpdateStatus(client, fsMirror); err != nil {
 		logger.Errorf("failed to set filesystem mirror %q status to %q. %v", fsMirror.Name, status, err)
 		return
 	}

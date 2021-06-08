@@ -22,7 +22,7 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +47,7 @@ func updateStatus(client client.Client, poolName types.NamespacedName, status ce
 
 	pool.Status.Phase = status
 	pool.Status.Info = info
-	if err := opcontroller.UpdateStatus(client, pool); err != nil {
+	if err := reporting.UpdateStatus(client, pool); err != nil {
 		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
 		return
 	}
@@ -71,7 +71,7 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.PoolMirroring
 
 	// Update the CephBlockPool CR status field
 	blockPool.Status.MirroringStatus, blockPool.Status.MirroringInfo, blockPool.Status.SnapshotScheduleStatus = toCustomResourceStatus(blockPool.Status.MirroringStatus, mirrorStatus, blockPool.Status.MirroringInfo, mirrorInfo, blockPool.Status.SnapshotScheduleStatus, snapSchedStatus, details)
-	if err := opcontroller.UpdateStatus(c.client, blockPool); err != nil {
+	if err := reporting.UpdateStatus(c.client, blockPool); err != nil {
 		logger.Errorf("failed to set ceph block pool %q mirroring status. %v", c.namespacedName.Name, err)
 		return
 	}

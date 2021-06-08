@@ -79,3 +79,7 @@ func validateUpdatedCephCluster(updatedCephCluster *CephCluster, found *CephClus
 
 	return nil
 }
+
+func (c *CephCluster) GetStatusConditions() *[]Condition {
+	return &c.Status.Conditions
+}

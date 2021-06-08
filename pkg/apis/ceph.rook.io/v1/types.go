@@ -408,9 +408,19 @@ const (
 	// ClusterConnectingReason is cluster connecting reason
 	ClusterConnectingReason ConditionReason = "ClusterConnecting"
 
-	// ObjectHasDependentsReason represents when an resource object has dependents. For example,
-	// because deletion is blocked.
+	// ReconcileSucceeded represents when a resource reconciliation was successful.
+	ReconcileSucceeded ConditionReason = "ReconcileSucceeded"
+	// ReconcileFailed represents when a resource reconciliation failed.
+	ReconcileFailed ConditionReason = "ReconcileFailed"
+
+	// DeletingReason represents when Rook has detected a resource object should be deleted.
+	DeletingReason ConditionReason = "Deleting"
+	// ObjectHasDependentsReason represents when a resource object has dependents that are blocking
+	// deletion.
 	ObjectHasDependentsReason ConditionReason = "ObjectHasDependents"
+	// ObjectHasNoDependentsReason represents when a resource object has no dependents that are
+	// blocking deletion.
+	ObjectHasNoDependentsReason ConditionReason = "ObjectHasNoDependents"
 )
 
 // ConditionType represent a resource's status
@@ -1148,7 +1158,8 @@ type ObjectStoreStatus struct {
 	BucketStatus *BucketStatus `json:"bucketStatus,omitempty"`
 	// +optional
 	// +nullable
-	Info map[string]string `json:"info,omitempty"`
+	Info       map[string]string `json:"info,omitempty"`
+	Conditions []Condition       `json:"conditions,omitempty"`
 }
 
 // BucketStatus represents the status of a bucket

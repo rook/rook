@@ -20,7 +20,25 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	corev1 "k8s.io/api/core/v1"
 )
+
+func DeletionBlockedDueToDependentsCondition(blocked bool, message string) cephv1.Condition {
+	status := corev1.ConditionFalse
+	reason := cephv1.ObjectHasNoDependentsReason
+	if blocked {
+		status = corev1.ConditionTrue
+		reason = cephv1.ObjectHasDependentsReason
+	}
+	return cephv1.Condition{
+		Type:    cephv1.ConditionDeletionIsBlocked,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	}
+}
 
 // A DependentList represents a list of dependents of a resource. Each dependent has a plural Kind
 // and a list of names of dependent resources.

@@ -634,7 +634,7 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	}
 
 	// Fetch the object store admin ops user
-	accessKey, secretKey, err := cephObject.GetAdminOPSUserCredentials(p.context, p.clusterInfo, p.objectContext, cephObjectStore)
+	accessKey, secretKey, err := cephObject.GetAdminOPSUserCredentials(p.objectContext, &cephObjectStore.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve rgw admin ops user")
 	}

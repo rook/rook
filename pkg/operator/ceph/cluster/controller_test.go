@@ -147,7 +147,7 @@ func TestReconcile_DeleteCephCluster(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, resp.IsZero())
 		event = <-fakeRecorder.Events
-		assert.Contains(t, event, "ClusterDeleting")
+		assert.Contains(t, event, "Deleting")
 
 		unblockedCluster := &cephv1.CephCluster{}
 		err = client.Get(ctx, nsName, unblockedCluster)

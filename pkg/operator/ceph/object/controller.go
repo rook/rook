@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	appsv1 "k8s.io/api/apps/v1"
@@ -82,6 +83,7 @@ type ReconcileCephObjectStore struct {
 	clusterSpec         *cephv1.ClusterSpec
 	clusterInfo         *cephclient.ClusterInfo
 	objectStoreChannels map[string]*objectStoreHealth
+	recorder            *k8sutil.EventReporter
 }
 
 type objectStoreHealth struct {
@@ -102,6 +104,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Rec
 	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
 		panic(err)
 	}
+
 	context.Client = mgr.GetClient()
 	return &ReconcileCephObjectStore{
 		client:              mgr.GetClient(),
@@ -109,6 +112,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Rec
 		context:             context,
 		bktclient:           bktclient.NewForConfigOrDie(context.KubeConfig),
 		objectStoreChannels: make(map[string]*objectStoreHealth),
+		recorder:            k8sutil.NewEventReporter(mgr.GetEventRecorderFor("rook-" + controllerName)),
 	}
 }
 
@@ -165,31 +169,28 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileCephObjectStore) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
-	reconcileResponse, err := r.reconcile(request)
-	if err != nil {
-		logger.Errorf("failed to reconcile %v", err)
-	}
+	reconcileResponse, objectStore, err := r.reconcile(request)
 
-	return reconcileResponse, err
+	return reporting.ReportReconcileResult(logger, r.recorder, objectStore, reconcileResponse, err)
 }
 
-func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconcile.Result, *cephv1.CephObjectStore, error) {
 	// Fetch the cephObjectStore instance
 	cephObjectStore := &cephv1.CephObjectStore{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, cephObjectStore)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("cephObjectStore resource not found. Ignoring since object must be deleted.")
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, cephObjectStore, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrap(err, "failed to get cephObjectStore")
+		return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to get cephObjectStore")
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStore)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+		return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to add finalizer")
 	}
 
 	// The CR was just created, initializing status fields
@@ -211,14 +212,14 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			// Remove finalizer
 			err := opcontroller.RemoveFinalizer(r.client, cephObjectStore)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+				return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to remove finalizer")
 			}
 
 			// Return and do not requeue. Successful deletion.
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, cephObjectStore, nil
 		}
 
-		return reconcileResponse, nil
+		return reconcileResponse, cephObjectStore, nil
 	}
 	r.clusterSpec = &cephCluster.Spec
 
@@ -235,7 +236,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// Populate clusterInfo during each reconcile
 	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// Populate CephVersion
@@ -243,15 +244,15 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, cephObjectStore, nil
 		}
-		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
+		return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
 	}
 	r.clusterInfo.CephVersion = currentCephVersion
 
 	// DELETE: the CR was deleted
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting store %q", cephObjectStore.Name)
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore))
 
 		if ok {
 			select {
@@ -263,19 +264,21 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 				close(r.objectStoreChannels[cephObjectStore.Name].stopChan)
 			}
 
-			response, okToDelete := r.verifyObjectBucketCleanup(cephObjectStore)
-			if !okToDelete {
-				// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
-				// will eventually be satisfied such as the object buckets being removed
-				return response, nil
+			// get the latest version of the object now that the health checker is stopped
+			err := r.client.Get(context.TODO(), request.NamespacedName, cephObjectStore)
+			if err != nil {
+				return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to get latest CephObjectStore %q", request.NamespacedName.String())
 			}
 
-			response, okToDelete = r.verifyObjectUserCleanup(cephObjectStore)
-			if !okToDelete {
-				// If the object store cannot be deleted, requeue the request for deletion to see if the conditions
-				// will eventually be satisfied such as the object users being removed
-				return response, nil
+			deps, err := CephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore)
+			if err != nil {
+				return reconcile.Result{}, cephObjectStore, err
 			}
+			if !deps.Empty() {
+				err := reporting.ReportDeletionBlockedDueToDependents(logger, r.client, cephObjectStore, deps)
+				return opcontroller.WaitForRequeueIfFinalizerBlocked, cephObjectStore, err
+			}
+			reporting.ReportDeletionNotBlockedDueToDependents(logger, r.client, r.recorder, cephObjectStore)
 
 			cfg := clusterConfig{
 				context:     r.context,
@@ -292,16 +295,16 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.client, cephObjectStore)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to remove finalizer")
 		}
 
 		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, cephObjectStore, nil
 	}
 
 	// validate the store settings
 	if err := r.validateStore(cephObjectStore); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "invalid object store %q arguments", cephObjectStore.Name)
+		return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "invalid object store %q arguments", cephObjectStore.Name)
 	}
 
 	// If the CephCluster has enabled the "pg_autoscaler" module and is running Nautilus
@@ -319,7 +322,8 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// CREATE/UPDATE
 	_, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName, cephCluster.Spec)
 	if err != nil {
-		return r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
+		result, err := r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
+		return result, cephObjectStore, err
 	}
 
 	// Set Progressing status, we are done reconciling, the health check go routine will update the status
@@ -327,7 +331,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, cephObjectStore, nil
 }
 
 func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName, cluster cephv1.ClusterSpec) (reconcile.Result, error) {
@@ -391,6 +395,10 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		serviceIP, err := cfg.reconcileService(cephObjectStore)
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
+		}
+
+		if err := UpdateEndpoint(objContext, &cephObjectStore.Spec); err != nil {
+			return r.setFailedStatus(namespacedName, "failed to set endpoint", err)
 		}
 
 		// Reconcile Pool Creation
@@ -482,30 +490,6 @@ func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1
 	return cephObjectStore.Name, cephObjectStore.Name, cephObjectStore.Name, reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephObjectStore) verifyObjectBucketCleanup(objectstore *cephv1.CephObjectStore) (reconcile.Result, bool) {
-	bktProvisioner := GetObjectBucketProvisioner(r.context, objectstore.Namespace)
-	bktProvisioner = strings.Replace(bktProvisioner, "/", "-", -1)
-	selector := fmt.Sprintf("bucket-provisioner=%s", bktProvisioner)
-	objectBuckets, err := r.bktclient.ObjectbucketV1alpha1().ObjectBuckets().List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
-	if err != nil {
-		logger.Errorf("failed to delete object store. failed to list buckets for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
-		return opcontroller.WaitForRequeueIfFinalizerBlocked, false
-	}
-
-	if len(objectBuckets.Items) == 0 {
-		logger.Infof("no buckets found for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
-		return reconcile.Result{}, true
-	}
-
-	bucketNames := make([]string, 0)
-	for _, bucket := range objectBuckets.Items {
-		bucketNames = append(bucketNames, bucket.Name)
-	}
-
-	logger.Errorf("failed to delete object store. buckets for objectstore %q in namespace %q are not cleaned up. remaining buckets: %+v", objectstore.Name, objectstore.Namespace, bucketNames)
-	return opcontroller.WaitForRequeueIfFinalizerBlocked, false
-}
-
 func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, namespacedName types.NamespacedName) {
 	// Start monitoring object store
 	if r.objectStoreChannels[objectstore.Name].monitoringRunning {
@@ -513,53 +497,15 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 		return
 	}
 
-	// Set the monitoring flag so we don't start more than one go routine
-	r.objectStoreChannels[objectstore.Name].monitoringRunning = true
-
-	var port int32
-
-	if objectstore.Spec.IsTLSEnabled() {
-		port = objectstore.Spec.Gateway.SecurePort
-	} else if objectstore.Spec.Gateway.Port != 0 {
-		port = objectstore.Spec.Gateway.Port
-	} else {
-		logger.Error("At least one of Port or SecurePort should be non-zero")
-		return
-	}
-
-	rgwChecker := newBucketChecker(r.context, objContext, port, r.client, namespacedName, &objectstore.Spec)
-
-	// Fetch the admin ops user
-	accessKey, secretKey, err := GetAdminOPSUserCredentials(r.context, r.clusterInfo, objContext, objectstore)
+	rgwChecker, err := newBucketChecker(r.context, objContext, r.client, namespacedName, &objectstore.Spec)
 	if err != nil {
-		logger.Errorf("failed to create or retrieve rgw admin ops user. %v", err)
+		logger.Error(err)
 		return
 	}
-	rgwChecker.objContext.adminOpsUserAccessKey = accessKey
-	rgwChecker.objContext.adminOpsUserSecretKey = secretKey
 
 	logger.Info("starting rgw healthcheck")
 	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
-}
 
-func (r *ReconcileCephObjectStore) verifyObjectUserCleanup(objectstore *cephv1.CephObjectStore) (reconcile.Result, bool) {
-	ctx := context.TODO()
-	cephObjectUsers, err := r.context.RookClientset.CephV1().CephObjectStoreUsers(objectstore.Namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		logger.Errorf("failed to delete object store. failed to list user for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
-		return opcontroller.WaitForRequeueIfFinalizerBlocked, false
-	}
-
-	if len(cephObjectUsers.Items) == 0 {
-		logger.Infof("no users found for objectstore %q in namespace %q", objectstore.Name, objectstore.Namespace)
-		return reconcile.Result{}, true
-	}
-
-	userNames := make([]string, 0)
-	for _, user := range cephObjectUsers.Items {
-		userNames = append(userNames, user.Name)
-	}
-
-	logger.Errorf("failed to delete object store. users for objectstore %q in namespace %q are not cleaned up. remaining users: %+v", objectstore.Name, objectstore.Namespace, userNames)
-	return opcontroller.WaitForRequeueIfFinalizerBlocked, false
+	// Set the monitoring flag so we don't start more than one go routine
+	r.objectStoreChannels[objectstore.Name].monitoringRunning = true
 }

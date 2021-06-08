@@ -33,17 +33,24 @@ import (
 
 // Context holds the context for the object store.
 type Context struct {
-	Context               *clusterd.Context
-	clusterInfo           *cephclient.ClusterInfo
-	Name                  string
-	UID                   string
-	Endpoint              string
-	Realm                 string
-	ZoneGroup             string
-	Zone                  string
-	adminOpsUserAccessKey string
-	adminOpsUserSecretKey string
-	adminOpsClient        *admin.API
+	Context     *clusterd.Context
+	clusterInfo *cephclient.ClusterInfo
+	Name        string
+	UID         string
+	Endpoint    string
+	Realm       string
+	ZoneGroup   string
+	Zone        string
+}
+
+// AdminOpsContext holds the object store context as well as information for connecting to the admin
+// ops API.
+type AdminOpsContext struct {
+	Context
+	TlsCert               []byte
+	AdminOpsUserAccessKey string
+	AdminOpsUserSecretKey string
+	AdminOpsClient        *admin.API
 }
 
 const (
@@ -65,10 +72,18 @@ func NewContext(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 }
 
 func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, store *cephv1.CephObjectStore) (*Context, error) {
-	objContext := &Context{Context: context, Name: store.Name, clusterInfo: clusterInfo}
-	realmName, zoneGroupName, zoneName, err := getMultisiteForObjectStore(context, store)
+	nsName := fmt.Sprintf("%s/%s", store.Namespace, store.Name)
+
+	objContext := NewContext(context, clusterInfo, store.Name)
+	objContext.UID = string(store.UID)
+
+	if err := UpdateEndpoint(objContext, &store.Spec); err != nil {
+		return nil, err
+	}
+
+	realmName, zoneGroupName, zoneName, err := getMultisiteForObjectStore(context, &store.Spec, store.Namespace, store.Name)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get realm/zone group/zone for object store %q", store.Name)
+		return nil, errors.Wrapf(err, "failed to get realm/zone group/zone for object store %q", nsName)
 	}
 
 	objContext.Realm = realmName
@@ -77,15 +92,68 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 	return objContext, nil
 }
 
+// UpdateEndpoint updates an object.Context using the latest info from the CephObjectStore spec
+func UpdateEndpoint(objContext *Context, spec *cephv1.ObjectStoreSpec) error {
+	nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+
+	port, err := spec.GetPort()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get port for object store %q", nsName)
+	}
+	objContext.Endpoint = BuildDNSEndpoint(BuildDomainName(objContext.Name, objContext.clusterInfo.Namespace), port, spec.IsTLSEnabled())
+
+	return nil
+}
+
+func NewMultisiteAdminOpsContext(
+	objContext *Context,
+	spec *cephv1.ObjectStoreSpec,
+) (*AdminOpsContext, error) {
+	accessKey, secretKey, err := GetAdminOPSUserCredentials(objContext, spec)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create or retrieve rgw admin ops user")
+	}
+
+	httpClient, tlsCert, err := GenObjectStoreHTTPClient(objContext, spec)
+	if err != nil {
+		return nil, err
+	}
+	client, err := admin.New(objContext.Endpoint, accessKey, secretKey, httpClient)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build admin ops API connection")
+	}
+
+	return &AdminOpsContext{
+		Context:               *objContext,
+		TlsCert:               tlsCert,
+		AdminOpsUserAccessKey: accessKey,
+		AdminOpsUserSecretKey: secretKey,
+		AdminOpsClient:        client,
+	}, nil
+}
+
 func extractJSON(output string) (string, error) {
 	// `radosgw-admin` sometimes leaves logs to stderr even if it succeeds.
 	// So we should skip them if parsing output as json.
-	pattern := regexp.MustCompile(`(?ms)^{.*}$`)
-	match := pattern.Find([]byte(output))
-	if match == nil {
+	// valid JSON can be an object (in braces) or an array (in brackets)
+	arrayRegex := regexp.MustCompile(`(?ms)^\[.*\]$`)
+	arrayMatch := arrayRegex.Find([]byte(output))
+	objRegex := regexp.MustCompile(`(?ms)^{.*}$`)
+	objMatch := objRegex.Find([]byte(output))
+	if arrayMatch == nil && objMatch == nil {
 		return "", errors.Errorf("didn't contain json. %s", output)
 	}
-	return string(match), nil
+	if arrayMatch == nil && objMatch != nil {
+		return string(objMatch), nil
+	}
+	if arrayMatch != nil && objMatch == nil {
+		return string(arrayMatch), nil
+	}
+	// if both object and array match, take the largest of the two matches
+	if len(arrayMatch) > len(objMatch) {
+		return string(arrayMatch), nil
+	}
+	return string(objMatch), nil
 }
 
 // RunAdminCommandNoMultisite is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)
@@ -170,11 +238,13 @@ func isInvalidFlagError(err error) bool {
 	return exitCode == 22
 }
 
-func GetAdminOPSUserCredentials(ctx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, objContext *Context, cephObjectStore *cephv1.CephObjectStore) (string, string, error) {
-	if cephObjectStore.Spec.IsExternal() {
+func GetAdminOPSUserCredentials(objContext *Context, spec *cephv1.ObjectStoreSpec) (string, string, error) {
+	ns := objContext.clusterInfo.Namespace
+
+	if spec.IsExternal() {
 		// Fetch the secret for admin ops user
 		s := &v1.Secret{}
-		err := ctx.Client.Get(context.TODO(), types.NamespacedName{Name: RGWAdminOpsUserSecretName, Namespace: cephObjectStore.Namespace}, s)
+		err := objContext.Context.Client.Get(context.TODO(), types.NamespacedName{Name: RGWAdminOpsUserSecretName, Namespace: ns}, s)
 		if err != nil {
 			return "", "", err
 		}
@@ -198,16 +268,16 @@ func GetAdminOPSUserCredentials(ctx *clusterd.Context, clusterInfo *cephclient.C
 		DisplayName:  &rgwAdminOpsUserDisplayName,
 		AdminOpsUser: true,
 	}
-	logger.Debugf("creating s3 user object %q for object store %q", userConfig.UserID, cephObjectStore.Namespace)
+	logger.Debugf("creating s3 user object %q for object store %q", userConfig.UserID, ns)
 	user, rgwerr, err := CreateUser(objContext, userConfig)
 	if err != nil {
 		if rgwerr == ErrorCodeFileExists {
 			user, _, err = GetUser(objContext, userConfig.UserID)
 			if err != nil {
-				return "", "", errors.Wrapf(err, "failed to get details from ceph object user %q for object store %q", userConfig.UserID, cephObjectStore.Name)
+				return "", "", errors.Wrapf(err, "failed to get details from ceph object user %q for object store %q", userConfig.UserID, objContext.Name)
 			}
 		} else {
-			return "", "", errors.Wrapf(err, "failed to create object user %q. error code %d for object store %q", userConfig.UserID, rgwerr, cephObjectStore.Name)
+			return "", "", errors.Wrapf(err, "failed to create object user %q. error code %d for object store %q", userConfig.UserID, rgwerr, objContext.Name)
 		}
 	}
 	return *user.AccessKey, *user.SecretKey, nil

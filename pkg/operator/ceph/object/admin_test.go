@@ -51,4 +51,67 @@ this line can't be parsed as json`
 	match, err = extractJSON(s)
 	assert.NoError(t, err)
 	assert.True(t, json.Valid([]byte(match)))
+
+	// complex example with array inside an object
+	s = `this line can't be parsed as json
+{
+	"array":
+		[
+			"test",
+			"test"
+		]
+}
+this line can't be parsed as json
+`
+	match, err = extractJSON(s)
+	assert.NoError(t, err)
+	assert.True(t, json.Valid([]byte(match)))
+	assert.Equal(t, `{
+	"array":
+		[
+			"test",
+			"test"
+		]
+}`, match)
+
+	s = `[{"test": "test"}]`
+	match, err = extractJSON(s)
+	assert.NoError(t, err)
+	assert.True(t, json.Valid([]byte(match)))
+	assert.Equal(t, `[{"test": "test"}]`, match)
+
+	s = `this line can't be parsed as json
+[{"test": "test"}]`
+	match, err = extractJSON(s)
+	assert.NoError(t, err)
+	assert.True(t, json.Valid([]byte(match)))
+	assert.Equal(t, `[{"test": "test"}]`, match)
+
+	// complex example with array of objects
+	s = `this line can't be parsed as json
+[
+	{
+		"one": 1,
+		"two": 2
+	},
+	{
+		"three": 3,
+		"four": 4
+	}
+]
+this line can't be parsed as json
+`
+	match, err = extractJSON(s)
+	assert.NoError(t, err)
+	assert.True(t, json.Valid([]byte(match)))
+	assert.Equal(t, `[
+	{
+		"one": 1,
+		"two": 2
+	},
+	{
+		"three": 3,
+		"four": 4
+	}
+]`, match)
 }
