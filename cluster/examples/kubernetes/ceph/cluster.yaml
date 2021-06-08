@@ -81,7 +81,7 @@ spec:
   network:
     # enable host networking
     #provider: host
-    # EXPERIMENTAL: enable the Multus network provider
+    # enable the Multus network provider
     #provider: multus
     #selectors:
       # The selector keys are required to be `public` and `cluster`.
