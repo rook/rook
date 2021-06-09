@@ -20,8 +20,10 @@ package objectuser
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 
+	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -67,9 +69,10 @@ type ReconcileObjectStoreUser struct {
 	scheme          *runtime.Scheme
 	context         *clusterd.Context
 	objContext      *object.Context
-	userConfig      object.ObjectUser
+	userConfig      *admin.User
 	cephClusterSpec *cephv1.ClusterSpec
 	clusterInfo     *cephclient.ClusterInfo
+	adminOpsAPI     *admin.API
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -186,7 +189,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
 
-	// validate initializeObjectStoreContext
+	// Validate the object store has been initialized
 	err = r.initializeObjectStoreContext(cephObjectStoreUser)
 	if err != nil {
 		if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -207,7 +210,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// Generate user config
 	userConfig := generateUserConfig(cephObjectStoreUser)
-	r.userConfig = userConfig
+	r.userConfig = &userConfig
 
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -267,27 +270,25 @@ func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1
 
 func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectStoreUser) error {
 	logger.Infof("creating ceph object user %q in namespace %q", u.Name, u.Namespace)
-	user, rgwerr, err := object.CreateUser(r.objContext, r.userConfig)
+	var user admin.User
+	var err error
+	user, err = r.adminOpsAPI.CreateUser(context.TODO(), *r.userConfig)
 	if err != nil {
-		if rgwerr == object.ErrorCodeFileExists {
-			objectUser, _, err := object.UpdateUser(r.objContext, r.userConfig)
+		if errors.Is(err, admin.ErrUserExists) {
+			user, err = r.adminOpsAPI.GetUser(context.TODO(), *r.userConfig)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get details from ceph object user %q", objectUser.UserID)
+				return errors.Wrapf(err, "failed to get details from ceph object user %v", &r.userConfig.ID)
 			}
-
-			// Set access and secret key
-			r.userConfig.AccessKey = objectUser.AccessKey
-			r.userConfig.SecretKey = objectUser.SecretKey
-			logger.Debugf("ceph object user %q updated with display name %q", u.Name, *objectUser.DisplayName)
 
 			return nil
 		}
-		return errors.Wrapf(err, "failed to create ceph object user %q. error code %d", u.Name, rgwerr)
+
+		return errors.Wrapf(err, "failed to create ceph object user %q", u.Name)
 	}
 
 	// Set access and secret key
-	r.userConfig.AccessKey = user.AccessKey
-	r.userConfig.SecretKey = user.SecretKey
+	r.userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
+	r.userConfig.Keys[0].SecretKey = user.Keys[0].SecretKey
 
 	logger.Infof("created ceph object user %q", u.Name)
 	return nil
@@ -317,17 +318,40 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	if _, ok := store.Status.Info["endpoint"]; ok {
 		r.objContext.Endpoint = store.Status.Info["endpoint"]
 	} else {
-		return errors.Errorf("endpoint is missing in the status Info")
+		return errors.New("endpoint is missing in the status Info")
 	}
 
 	if _, ok := store.Status.Info["secureEndpoint"]; ok {
 		r.objContext.Endpoint = store.Status.Info["secureEndpoint"]
 	}
 
+	// Fetch admin Ops API user credentials
+	var accessKey, secretKey string
+	accessKey, secretKey, err = object.GetAdminOPSUserCredentials(r.context, r.clusterInfo, objContext, store)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch rgw admin ops api user credentials")
+	}
+
+	// Build TLS client if needed
+	var httpClient *http.Client
+	if store.Spec.IsTLSEnabled() {
+		tlsCert, err := object.GetTlsCaCert(objContext, &store.Spec)
+		if err != nil {
+			return errors.Wrapf(err, "failed to fetch CA cert to establish TLS connection with the object store %q", store.Name)
+		}
+		httpClient.Transport = object.BuildTransportTLS(tlsCert)
+	}
+
+	adminOpsAPI, err := admin.New(r.objContext.Endpoint, accessKey, secretKey, httpClient)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialized rgw admin ops client api")
+	}
+	r.adminOpsAPI = adminOpsAPI
+
 	return nil
 }
 
-func generateUserConfig(user *cephv1.CephObjectStoreUser) object.ObjectUser {
+func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
 	if len(displayName) == 0 {
@@ -335,9 +359,10 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) object.ObjectUser {
 	}
 
 	// create the user
-	userConfig := object.ObjectUser{
-		UserID:      user.Name,
-		DisplayName: &displayName,
+	userConfig := admin.User{
+		ID:          user.Name,
+		DisplayName: displayName,
+		Keys:        make([]admin.UserKeySpec, 1),
 	}
 
 	return userConfig
@@ -356,8 +381,8 @@ func generateStatusInfo(u *cephv1.CephObjectStoreUser) map[string]string {
 func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser) *corev1.Secret {
 	// Store the keys in a secret
 	secrets := map[string]string{
-		"AccessKey": *r.userConfig.AccessKey,
-		"SecretKey": *r.userConfig.SecretKey,
+		"AccessKey": r.userConfig.Keys[0].AccessKey,
+		"SecretKey": r.userConfig.Keys[0].SecretKey,
 		"Endpoint":  r.objContext.Endpoint,
 	}
 	secret := &corev1.Secret{
@@ -470,9 +495,13 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 
 // Delete the user
 func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
-	output, err := object.DeleteUser(r.objContext, u.Name)
+	err := r.adminOpsAPI.RemoveUser(context.TODO(), admin.User{ID: u.Name})
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete ceph object user %q. %v", u.Name, output)
+		if errors.Is(err, admin.ErrNoSuchUser) {
+			logger.Warningf("user %q does not exist, nothing to remove", u.Name)
+			return nil
+		}
+		return errors.Wrapf(err, "failed to delete ceph object user %q.", u.Name)
 	}
 
 	logger.Infof("ceph object user %q deleted successfully", u.Name)

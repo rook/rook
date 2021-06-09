@@ -9,6 +9,7 @@ CSI_RBD_NODE_SECRET_NAME=rook-csi-rbd-node
 CSI_RBD_PROVISIONER_SECRET_NAME=rook-csi-rbd-provisioner
 CSI_CEPHFS_NODE_SECRET_NAME=rook-csi-cephfs-node
 CSI_CEPHFS_PROVISIONER_SECRET_NAME=rook-csi-cephfs-provisioner
+RGW_ADMIN_OPS_USER_SECRET_NAME=rgw-admin-ops-user
 MON_SECRET_CLUSTER_NAME_KEYNAME=cluster-name
 MON_SECRET_FSID_KEYNAME=fsid
 MON_SECRET_ADMIN_KEYRING_KEYNAME=admin-secret
@@ -140,6 +141,17 @@ function importCsiCephFSProvisionerSecret() {
   --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
 }
 
+function importRGWAdminOpsUser() {
+  kubectl -n "$NAMESPACE" \
+  create \
+  secret \
+  generic \
+  --type="kubernetes.io/rook" \
+  "$RGW_ADMIN_OPS_USER_SECRET_NAME" \
+  --from-literal=accessKey="$RGW_ADMIN_OPS_USER_ACCESS_KEY" \
+  --from-literal=secretKey="$RGW_ADMIN_OPS_USER_SECRET_KEY"
+}
+
 ########
 # MAIN #
 ########
@@ -150,3 +162,4 @@ importCsiRBDNodeSecret
 importCsiRBDProvisionerSecret
 importCsiCephFSNodeSecret
 importCsiCephFSProvisionerSecret
+importRGWAdminOpsUser

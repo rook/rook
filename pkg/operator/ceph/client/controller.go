@@ -210,7 +210,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	err = r.createOrUpdateClient(cephClient)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info("skipping reconcile since operator is still initializing")
+			logger.Info(opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
 		}
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)

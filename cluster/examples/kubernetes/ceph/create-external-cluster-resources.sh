@@ -78,6 +78,15 @@ function namespace() {
   export NAMESPACE=$ns
 }
 
+function createRGWAdminOpsUser() {
+  createRGWAdminOpsUserKeys=$(radosgw-admin user create --uid rgw-admin-ops-user --display-name "Rook RGW Admin Ops user" --caps "buckets=*;users=*;usage=read;metadata=read;zone=read"|jq --raw-output .keys[0])
+  createRGWAdminOpsUserAccessKey=$(echo "$createRGWAdminOpsUserKeys"|jq --raw-output .access_key)
+  createRGWAdminOpsUserSecretKey=$(echo "$createRGWAdminOpsUserKeys"|jq --raw-output .secret_key)
+  echo "export RGW_ADMIN_OPS_USER_ACCESS_KEY=$createRGWAdminOpsUserAccessKey"
+  echo "export RGW_ADMIN_OPS_USER_SECRET_KEY=$createRGWAdminOpsUserSecretKey"
+}
+
+
 ########
 # MAIN #
 ########
@@ -90,3 +99,4 @@ createCephCSIKeyringCephFSProvisioner
 getFSID
 externalMonData
 namespace
+createRGWAdminOpsUser

@@ -40,6 +40,9 @@ const (
 	// UninitializedCephConfigError refers to the error message printed by the Ceph CLI when there is no ceph configuration file
 	// This typically is raised when the operator has not finished initializing
 	UninitializedCephConfigError = "error calling conf_read_file"
+
+	// OperatorNotInitializedMessage is the message we print when the Operator is not ready to reconcile, typically the ceph.conf has not been generated yet
+	OperatorNotInitializedMessage = "skipping reconcile since operator is still initializing"
 )
 
 var (
