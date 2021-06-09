@@ -28,8 +28,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
-	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -591,21 +590,21 @@ func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) 
 
 	for _, pool := range pools {
 		name := poolName(context.Name, pool)
-		if err := ceph.DeletePool(context.Context, context.clusterInfo, name); err != nil {
+		if err := cephclient.DeletePool(context.Context, context.clusterInfo, name); err != nil {
 			logger.Warningf("failed to delete pool %q. %v", name, err)
 		}
 	}
 
 	// Delete erasure code profile if any
-	erasureCodes, err := ceph.ListErasureCodeProfiles(context.Context, context.clusterInfo)
+	erasureCodes, err := cephclient.ListErasureCodeProfiles(context.Context, context.clusterInfo)
 	if err != nil {
 		return errors.Wrapf(err, "failed to list erasure code profiles for cluster %s", context.clusterInfo.Namespace)
 	}
 	// cleans up the EC profile for the data pool only. Metadata pools don't support EC (only replication is supported).
-	ecProfileName := ceph.GetErasureCodeProfileForPool(context.Name)
+	ecProfileName := cephclient.GetErasureCodeProfileForPool(context.Name)
 	for i := range erasureCodes {
 		if erasureCodes[i] == ecProfileName {
-			if err := ceph.DeleteErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName); err != nil {
+			if err := cephclient.DeleteErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName); err != nil {
 				return errors.Wrapf(err, "failed to delete erasure code profile %s for object store %s", ecProfileName, context.Name)
 			}
 			break
@@ -623,7 +622,7 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 		var missingPools []string
 		for _, pool := range pools {
 			poolName := poolName(context.Name, pool)
-			_, err := ceph.GetPoolDetails(context.Context, context.clusterInfo, poolName)
+			_, err := cephclient.GetPoolDetails(context.Context, context.clusterInfo, poolName)
 			if err != nil {
 				logger.Debugf("failed to find pool %q. %v", poolName, err)
 				missingPools = append(missingPools, poolName)
@@ -638,7 +637,7 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 	metadataPoolPGs, err := config.GetMonStore(context.Context, context.clusterInfo).Get("mon.", "rgw_rados_pool_pg_num_min")
 	if err != nil {
 		logger.Warningf("failed to adjust the PG count for rgw metadata pools. using the general default. %v", err)
-		metadataPoolPGs = ceph.DefaultPGCount
+		metadataPoolPGs = cephclient.DefaultPGCount
 	}
 
 	if err := createSimilarPools(context, append(metadataPools, rootPool), clusterSpec, metadataPool, metadataPoolPGs, ""); err != nil {
@@ -647,14 +646,14 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 
 	ecProfileName := ""
 	if dataPool.IsErasureCoded() {
-		ecProfileName = ceph.GetErasureCodeProfileForPool(context.Name)
+		ecProfileName = cephclient.GetErasureCodeProfileForPool(context.Name)
 		// create a new erasure code profile for the data pool
-		if err := ceph.CreateErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName, dataPool); err != nil {
+		if err := cephclient.CreateErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName, dataPool); err != nil {
 			return errors.Wrap(err, "failed to create erasure code profile")
 		}
 	}
 
-	if err := createSimilarPools(context, []string{dataPoolName}, clusterSpec, dataPool, ceph.DefaultPGCount, ecProfileName); err != nil {
+	if err := createSimilarPools(context, []string{dataPoolName}, clusterSpec, dataPool, cephclient.DefaultPGCount, ecProfileName); err != nil {
 		return errors.Wrap(err, "failed to create data pool")
 	}
 
@@ -665,16 +664,16 @@ func createSimilarPools(context *Context, pools []string, clusterSpec *cephv1.Cl
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
 		name := poolName(context.Name, pool)
-		if poolDetails, err := ceph.GetPoolDetails(context.Context, context.clusterInfo, name); err != nil {
+		if poolDetails, err := cephclient.GetPoolDetails(context.Context, context.clusterInfo, name); err != nil {
 			// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
 			// to create a replicated pool.
 			var err error
 			if poolSpec.IsErasureCoded() {
 				// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
 				// created with that property disabled to avoid unnecessary performance impact.
-				err = ceph.CreateECPoolForApp(context.Context, context.clusterInfo, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
+				err = cephclient.CreateECPoolForApp(context.Context, context.clusterInfo, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
 			} else {
-				err = ceph.CreateReplicatedPoolForApp(context.Context, context.clusterInfo, clusterSpec, name, poolSpec, pgCount, AppName)
+				err = cephclient.CreateReplicatedPoolForApp(context.Context, context.clusterInfo, clusterSpec, name, poolSpec, pgCount, AppName)
 			}
 			if err != nil {
 				return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, context.Name)
@@ -685,15 +684,15 @@ func createSimilarPools(context *Context, pools []string, clusterSpec *cephv1.Cl
 				// detect if the replication is different from the pool details
 				if poolDetails.Size != poolSpec.Replicated.Size {
 					logger.Infof("pool size is changed from %d to %d", poolDetails.Size, poolSpec.Replicated.Size)
-					if err := ceph.SetPoolReplicatedSizeProperty(context.Context, context.clusterInfo, poolDetails.Name, strconv.FormatUint(uint64(poolSpec.Replicated.Size), 10)); err != nil {
+					if err := cephclient.SetPoolReplicatedSizeProperty(context.Context, context.clusterInfo, poolDetails.Name, strconv.FormatUint(uint64(poolSpec.Replicated.Size), 10)); err != nil {
 						return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolDetails.Name, poolSpec.Replicated.Size)
 					}
 				}
 			}
 		}
 		// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count
-		if pgCount != ceph.DefaultPGCount {
-			if err := ceph.SetPoolProperty(context.Context, context.clusterInfo, name, "pg_num_min", pgCount); err != nil {
+		if pgCount != cephclient.DefaultPGCount {
+			if err := cephclient.SetPoolProperty(context.Context, context.clusterInfo, name, "pg_num_min", pgCount); err != nil {
 				return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
 			}
 		}
@@ -726,7 +725,7 @@ func GetObjectBucketProvisioner(c *clusterd.Context, namespace string) string {
 // CheckDashboardUser returns true if the user is configure else return false
 func checkDashboardUser(context *Context) (bool, error) {
 	args := []string{"dashboard", "get-rgw-api-access-key"}
-	cephCmd := ceph.NewCephCommand(context.Context, context.clusterInfo, args)
+	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
 	out, err := cephCmd.Run()
 
 	if string(out) != "" {
@@ -752,6 +751,8 @@ func enableRGWDashboard(context *Context) error {
 		DisplayName: &DashboardUser,
 		SystemUser:  true,
 	}
+	// TODO:
+	// Use admin ops user instead!
 	u, errCode, err := CreateUser(context, user)
 	if err != nil || errCode != 0 {
 		return errors.Wrapf(err, "failed to create user %q", DashboardUser)
@@ -786,19 +787,19 @@ func enableRGWDashboard(context *Context) error {
 		secretArgs = []string{"dashboard", "set-rgw-api-secret-key", *u.SecretKey}
 	}
 
-	cephCmd := ceph.NewCephCommand(context.Context, context.clusterInfo, accessArgs)
+	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, accessArgs)
 	_, err = cephCmd.Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to set user %q accesskey", DashboardUser)
 	}
 
-	cephCmd = ceph.NewCephCommand(context.Context, context.clusterInfo, secretArgs)
+	cephCmd = cephclient.NewCephCommand(context.Context, context.clusterInfo, secretArgs)
 	go func() {
 		// Setting the dashboard api secret started hanging in some clusters
 		// starting in ceph v15.2.8. We run it in a goroutine until the fix
 		// is found. We expect the ceph command to timeout so at least the goroutine exits.
 		logger.Info("setting the dashboard api secret key")
-		_, err = cephCmd.RunWithTimeout(client.CephCommandTimeout)
+		_, err = cephCmd.RunWithTimeout(cephclient.CephCommandTimeout)
 		if err != nil {
 			logger.Errorf("failed to set user %q secretkey. %v", DashboardUser, err)
 		}
@@ -829,15 +830,15 @@ func disableRGWDashboard(context *Context) {
 	}
 
 	args := []string{"dashboard", "reset-rgw-api-access-key"}
-	cephCmd := ceph.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.RunWithTimeout(client.CephCommandTimeout)
+	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
+	_, err = cephCmd.RunWithTimeout(cephclient.CephCommandTimeout)
 	if err != nil {
 		logger.Warningf("failed to reset user accesskey for user %q. %v", DashboardUser, err)
 	}
 
 	args = []string{"dashboard", "reset-rgw-api-secret-key"}
-	cephCmd = ceph.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.RunWithTimeout(client.CephCommandTimeout)
+	cephCmd = cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
+	_, err = cephCmd.RunWithTimeout(cephclient.CephCommandTimeout)
 	if err != nil {
 		logger.Warningf("failed to reset user secretkey for user %q. %v", DashboardUser, err)
 	}

@@ -102,6 +102,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Rec
 	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
 		panic(err)
 	}
+	context.Client = mgr.GetClient()
 	return &ReconcileCephObjectStore{
 		client:              mgr.GetClient(),
 		scheme:              mgrScheme,
@@ -241,7 +242,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, opconfig.MonType)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info("skipping reconcile since operator is still initializing")
+			logger.Info(opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
 		}
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
@@ -357,7 +358,6 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to reconcile external endpoint", err)
 		}
-
 	} else {
 		logger.Info("reconciling object store deployments")
 
@@ -522,6 +522,16 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 	}
 
 	rgwChecker := newBucketChecker(r.context, objContext, port, r.client, namespacedName, &objectstore.Spec)
+
+	// Fetch the admin ops user
+	accessKey, secretKey, err := GetAdminOPSUserCredentials(r.context, r.clusterInfo, objContext, objectstore)
+	if err != nil {
+		logger.Errorf("failed to create or retrieve rgw admin ops user. %v", err)
+		return
+	}
+	rgwChecker.objContext.adminOpsUserAccessKey = accessKey
+	rgwChecker.objContext.adminOpsUserSecretKey = secretKey
+
 	logger.Info("starting rgw healthcheck")
 	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
 }
