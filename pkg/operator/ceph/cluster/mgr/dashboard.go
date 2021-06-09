@@ -20,6 +20,7 @@ package mgr
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -109,15 +110,17 @@ func (c *Cluster) configureDashboardModules() error {
 }
 
 func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error) {
+	daemonID = fmt.Sprintf("mgr.%s", daemonID)
+
 	// url prefix
-	hasChanged, err := client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix, false)
+	hasChanged, err := client.SetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix, false)
 	if err != nil {
 		return false, err
 	}
 
 	// ssl support
 	ssl := strconv.FormatBool(c.spec.Dashboard.SSL)
-	changed, err := client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/ssl", ssl, false)
+	changed, err := client.SetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/ssl", ssl, false)
 	if err != nil {
 		return false, err
 	}
@@ -125,7 +128,7 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// server port
 	port := strconv.Itoa(c.dashboardPort())
-	changed, err = client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/server_port", port, false)
+	changed, err = client.SetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/server_port", port, false)
 	if err != nil {
 		return false, err
 	}
@@ -133,7 +136,7 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// SSL enabled. Needed to set specifically the ssl port setting
 	if c.spec.Dashboard.SSL {
-		changed, err = client.MgrSetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/ssl_server_port", port, false)
+		changed, err = client.SetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/ssl_server_port", port, false)
 		if err != nil {
 			return false, err
 		}
