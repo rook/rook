@@ -176,6 +176,10 @@ class RadosJSON:
                                   help="Provides the name of the RBD datapool")
         output_group.add_argument("--rgw-endpoint", default="", required=False,
                                   help="Rados GateWay endpoint (in <IP>:<PORT> format)")
+        output_group.add_argument("--rgw-tls-cert-path", default="", required=False,
+                                  help="Rados GateWay endpoint TLS certificate")
+        output_group.add_argument("--rgw-skip-tls", required=False, default=False,
+                                  help="Ignore TLS certification validation when a self-signed certificate is provided (NOT RECOMMENDED")
         output_group.add_argument("--monitoring-endpoint", default="", required=False,
                                   help="Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)")
         output_group.add_argument("--monitoring-endpoint-port", default="", required=False,
@@ -191,6 +195,12 @@ class RadosJSON:
         else:
             args_to_parse = sys.argv[1:]
         return argP.parse_args(args_to_parse)
+
+    def validate_rgw_endpoint_tls_cert(self):
+        if self._arg_parser.rgw_tls_cert_path:
+            with open(self._arg_parser.rgw_tls_cert_path, encoding='utf8') as f:
+                contents = f.read()
+                return contents.rstrip()
 
     def _check_conflicting_options(self):
         if not self._arg_parser.upgrade and not self._arg_parser.rbd_data_pool_name:
@@ -230,7 +240,7 @@ class RadosJSON:
                 "Out of range port number: {}".format(port))
         return False
 
-    def endpoint_dial(self, endpoint_str, timeout=3):
+    def endpoint_dial(self, endpoint_str, timeout=3, cert=None):
         # if the 'cluster' instance is a dummy one,
         # don't try to reach out to the endpoint
         if isinstance(self.cluster, DummyRados):
@@ -239,7 +249,14 @@ class RadosJSON:
         for prefix in protocols:
             try:
                 ep = "{}://{}".format(prefix, endpoint_str)
-                r = requests.head(ep, timeout=timeout)
+                # If verify is set to a path to a directory,
+                # the directory must have been processed using the c_rehash utility supplied with OpenSSL.
+                if prefix == "https" and cert and self._arg_parser.rgw_skip_tls:
+                    r = requests.head(ep, timeout=timeout, verify=False)
+                elif prefix == "https" and cert:
+                    r = requests.head(ep, timeout=timeout, verify=cert)
+                else:
+                    r = requests.head(ep, timeout=timeout)
                 if r.status_code == 200:
                     return
             except:
@@ -603,7 +620,8 @@ class RadosJSON:
         # if rgw_endpoint is provided, validate it
         if self._arg_parser.rgw_endpoint:
             self._invalid_endpoint(self._arg_parser.rgw_endpoint)
-            self.endpoint_dial(self._arg_parser.rgw_endpoint)
+            self.endpoint_dial(self._arg_parser.rgw_endpoint,
+                               cert=self.validate_rgw_endpoint_tls_cert())
             rgw_pool_to_validate = ["{0}.rgw.meta".format(self._arg_parser.rgw_pool_prefix),
                                     ".rgw.root",
                                     "{0}.rgw.control".format(
@@ -611,6 +629,7 @@ class RadosJSON:
                 "{0}.rgw.log".format(
                 self._arg_parser.rgw_pool_prefix)]
             pools_to_validate.extend(rgw_pool_to_validate)
+
         for pool in pools_to_validate:
             if not self.cluster.pool_exists(pool):
                 raise ExecutionFailureException(
@@ -635,12 +654,15 @@ class RadosJSON:
             )
             self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_cephFSProvisioner()
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
+        self.out_map['RGW_TLS_CERT'] = ''
         self.out_map['MONITORING_ENDPOINT'], \
             self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_and_standby_mgrs()
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
         if self._arg_parser.rgw_endpoint:
             self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
+            if self._arg_parser.rgw_tls_cert_path:
+                self.out_map['RGW_TLS_CERT'] = self.validate_rgw_endpoint_tls_cert()
 
     def gen_shell_out(self):
         self._gen_output_map()
@@ -765,6 +787,15 @@ class RadosJSON:
                         "secretKey": self.out_map['SECRET_KEY']
                     }
                 })
+        # if 'RGW_TLS_CERT' exists, then only add the "ceph-rgw-tls-cert" secret
+        if self.out_map['RGW_TLS_CERT']:
+            json_out.append({
+                "name": "ceph-rgw-tls-cert",
+                "kind": "Secret",
+                "data": {
+                    "cert": self.out_map['RGW_TLS_CERT'],
+                }
+            })
         return json.dumps(json_out)+LINESEP
 
     def upgrade_user_permissions(self):
