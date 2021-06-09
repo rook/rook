@@ -38,13 +38,13 @@ type Patcher struct {
 	statusPatch client.Patch
 }
 
-func NewPatcher(object runtime.Object, crclient client.Client) (*Patcher, error) {
+func NewPatcher(object client.Object, crclient client.Client) (*Patcher, error) {
 	if object == nil {
 		return nil, errors.Errorf("expected non-nil resource")
 	}
 
 	if _, ok := object.(runtime.Unstructured); ok {
-		object = object.DeepCopyObject()
+		object = object.DeepCopyObject().(client.Object)
 	}
 
 	old, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
@@ -67,8 +67,8 @@ func NewPatcher(object runtime.Object, crclient client.Client) (*Patcher, error)
 		hasStatus:   hasStatus,
 		old:         old,
 		oldStatus:   oldStatus,
-		objectPatch: client.MergeFrom(object.DeepCopyObject()),
-		statusPatch: client.MergeFrom(object.DeepCopyObject()),
+		objectPatch: client.MergeFrom(object.DeepCopyObject().(client.Object)),
+		statusPatch: client.MergeFrom(object.DeepCopyObject().(client.Object)),
 	}, nil
 }
 

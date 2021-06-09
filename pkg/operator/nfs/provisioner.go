@@ -31,7 +31,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
+	"k8s.io/component-helpers/storage/volume"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -262,7 +262,7 @@ func (p *Provisioner) storageClassForPV(ctx context.Context, pv *v1.PersistentVo
 	if p.client == nil {
 		return nil, fmt.Errorf("Cannot get kube client")
 	}
-	className := helper.GetPersistentVolumeClass(pv)
+	className := volume.GetPersistentVolumeClass(pv)
 	if className == "" {
 		return nil, fmt.Errorf("Volume has no storage class")
 	}
@@ -274,7 +274,7 @@ func (p *Provisioner) storageClassForPVC(ctx context.Context, pvc *v1.Persistent
 	if p.client == nil {
 		return nil, fmt.Errorf("Cannot get kube client")
 	}
-	className := helper.GetPersistentVolumeClaimClass(pvc)
+	className := volume.GetPersistentVolumeClaimClass(pvc)
 	if className == "" {
 		return nil, fmt.Errorf("Volume has no storage class")
 	}
