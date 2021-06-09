@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	osdcfg "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -167,4 +168,8 @@ func TestParseDesiredDevices(t *testing.T) {
 	assert.False(t, result[2].IsDevicePathFilter)
 	assert.False(t, result[3].IsDevicePathFilter)
 
+	// check empty devices list
+	result, err = parseDevices("")
+	assert.NoError(t, err)
+	assert.Equal(t, []osddaemon.DesiredDevice{}, result)
 }
