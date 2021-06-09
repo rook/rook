@@ -128,6 +128,16 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			continue
 		}
 
+		// backward compatibility for old deployments
+		if osdInfo.DeviceClass == "" {
+			deviceClassInfo, err := cephclient.OSDDeviceClasses(c.cluster.context, c.cluster.clusterInfo, []string{strconv.Itoa(osdID)})
+			if err != nil {
+				logger.Errorf("failed to get device class for existing deployment %q. %v", depName, err)
+			} else {
+				osdInfo.DeviceClass = deviceClassInfo[0].DeviceClass
+			}
+		}
+
 		nodeOrPVCName, err := getNodeOrPVCName(dep)
 		if err != nil {
 			errs.addError("%v", errors.Wrapf(err, "failed to update OSD %d", osdID))

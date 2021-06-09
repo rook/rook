@@ -558,6 +558,11 @@ func osdIntegrationTestExecutor(t *testing.T, clientset *fake.Clientset, namespa
 				if args[1] == "tree" {
 					return cephclientfake.OsdTreeOutput(3, 3), nil // fake output for cluster with 3 nodes having 3 OSDs
 				}
+				if args[1] == "crush" {
+					if args[2] == "get-device-class" {
+						return cephclientfake.OSDDeviceClassOutput(args[3]), nil
+					}
+				}
 			}
 			if args[0] == "versions" {
 				// the update deploy code only cares about the mons from the ceph version command results
