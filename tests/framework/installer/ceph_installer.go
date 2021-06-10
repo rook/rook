@@ -175,6 +175,24 @@ func (h *CephInstaller) CreateRookOperatorViaHelm(chartSettings string) error {
 	return nil
 }
 
+func (h *CephInstaller) WaitForToolbox(namespace string) error {
+	if err := h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-tools", namespace); err != nil {
+		return errors.Wrap(err, "Rook Toolbox couldn't start")
+	}
+	logger.Infof("Rook Toolbox started")
+
+	podNames, err := h.k8shelper.GetPodNamesForApp("rook-ceph-tools", namespace)
+	assert.NoError(h.T(), err)
+	for _, podName := range podNames {
+		// All e2e tests should run ceph commands in the toolbox since we are not inside a container
+		logger.Infof("found active toolbox pod: %q", podName)
+		client.RunAllCephCommandsInToolboxPod = podName
+		return nil
+	}
+
+	return errors.Errorf("could not find toolbox pod")
+}
+
 // CreateRookToolbox creates rook-ceph-tools via kubectl
 func (h *CephInstaller) CreateRookToolbox(manifests CephManifests) (err error) {
 	logger.Infof("Starting Rook toolbox")
@@ -184,21 +202,7 @@ func (h *CephInstaller) CreateRookToolbox(manifests CephManifests) (err error) {
 		return errors.Wrap(err, "failed to create rook-toolbox pod")
 	}
 
-	if err := h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-tools", h.settings.Namespace); err != nil {
-		return errors.Wrap(err, "Rook Toolbox couldn't start")
-	}
-	logger.Infof("Rook Toolbox started")
-
-	podNames, err := h.k8shelper.GetPodNamesForApp("rook-ceph-tools", manifests.Settings().Namespace)
-	assert.NoError(h.T(), err)
-	for _, podName := range podNames {
-		// All e2e tests should run ceph commands in the toolbox since we are not inside a container
-		logger.Infof("setting active toolbox pod to %q", podName)
-		client.RunAllCephCommandsInToolboxPod = podName
-		break
-	}
-
-	return nil
+	return h.WaitForToolbox(manifests.Settings().Namespace)
 }
 
 // Execute a command in the ceph toolbox

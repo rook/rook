@@ -143,6 +143,29 @@ func (c *cephStatusChecker) checkStatus() {
 			logger.Errorf("failed to delete pod on not ready nodes. %v", err)
 		}
 	}
+
+	c.configureHealthSettings(status)
+}
+
+func (c *cephStatusChecker) configureHealthSettings(status cephclient.CephStatus) {
+	// loop through the health codes and log what we find
+	for healthCode, check := range status.Health.Checks {
+		logger.Debugf("Health: %q, code: %q, message: %q", check.Severity, healthCode, check.Summary.Message)
+	}
+
+	// disable the insecure global id if there are no old clients
+	if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM_ALLOWED"]; ok {
+		if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM"]; !ok {
+			logger.Info("Disabling the insecure global ID as no legacy clients are currently connected. If you still require the insecure connections, see the CVE to suppress the health warning and re-enable the insecure connections. https://docs.ceph.com/en/latest/security/CVE-2021-20288/")
+			if _, err := cephclient.SetConfig(c.context, c.clusterInfo, "mon", "auth_allow_insecure_global_id_reclaim", "false", false); err != nil {
+				logger.Warningf("failed to disable the insecure global ID. %v", err)
+			} else {
+				logger.Info("insecure global ID is now disabled")
+			}
+		} else {
+			logger.Warning("insecure clients are connected to the cluster, to resolve the AUTH_INSECURE_GLOBAL_ID_RECLAIM health warning please refer to the upgrade guide to ensure all Ceph daemons are updated.")
+		}
+	}
 }
 
 // updateStatus updates an object with a given status
