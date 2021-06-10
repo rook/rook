@@ -340,9 +340,15 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 		if doCleanup {
 			cephHosts, err := r.clusterController.getCephHosts(cephCluster.Namespace)
 			if err != nil {
+				close(stopCleanupCh)
 				return reconcile.Result{}, cephCluster, errors.Wrapf(err, "failed to find valid ceph hosts in the cluster %q", cephCluster.Namespace)
 			}
+			// Go will garbage collect the stopCleanupCh if it is left open once the cluster cleanup
+			// goroutine is no longer running (i.e., referencing the channel)
 			go r.clusterController.startClusterCleanUp(stopCleanupCh, cephCluster, cephHosts, monSecret, clusterFSID)
+		} else {
+			// stop channel not needed if the cleanup goroutine isn't started
+			close(stopCleanupCh)
 		}
 	}
 
@@ -352,7 +358,6 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 		if err != nil {
 			// If the cluster cannot be deleted, requeue the request for deletion to see if the conditions
 			// will eventually be satisfied such as the volumes being removed
-			// TODO: is it a memory leak to not close the channel in other cases?
 			close(stopCleanupCh)
 			return response, cephCluster, errors.Wrapf(err, "failed to clean up CephCluster %q", nsName.String())
 		}
