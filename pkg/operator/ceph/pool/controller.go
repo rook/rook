@@ -370,7 +370,7 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 		}
 	}
 	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
-	_, err = cephclient.MgrSetConfig(clusterContext, clusterInfo, "", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","), false)
+	_, err = cephclient.SetConfig(clusterContext, clusterInfo, "mgr.", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","), false)
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable rbd_stats_pools")
 	}

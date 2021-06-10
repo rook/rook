@@ -184,6 +184,9 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	s.upgradeToMaster()
 
 	s.verifyOperatorImage(installer.VersionMaster)
+	err = s.installer.WaitForToolbox(s.namespace)
+	assert.NoError(s.T(), err)
+
 	s.verifyRookUpgrade(numOSDs)
 	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_5)
 	newFile := "post-upgrade-1_5-to-master-file"
@@ -364,4 +367,7 @@ func (s *UpgradeSuite) upgradeToMaster() {
 
 	require.NoError(s.T(),
 		s.k8sh.SetDeploymentVersion(s.settings.OperatorNamespace, operatorContainer, operatorContainer, installer.VersionMaster))
+
+	require.NoError(s.T(),
+		s.k8sh.SetDeploymentVersion(s.settings.Namespace, "rook-ceph-tools", "rook-ceph-tools", installer.VersionMaster))
 }

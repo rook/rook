@@ -18,8 +18,6 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -102,35 +100,6 @@ func MgrDisableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name 
 		return enableDisableBalancerModule(context, clusterInfo, "off")
 	}
 	return enableModule(context, clusterInfo, name, false, "disable")
-}
-
-// MgrSetConfig applies a setting for a single mgr daemon
-func MgrSetConfig(context *clusterd.Context, clusterInfo *ClusterInfo, mgrName string, key, val string, force bool) (bool, error) {
-	var getArgs, setArgs []string
-	mgrID := fmt.Sprintf("mgr.%s", mgrName)
-	getArgs = append(getArgs, "config", "get", mgrID, key)
-	if val == "" {
-		setArgs = append(setArgs, "config", "rm", mgrID, key)
-	} else {
-		setArgs = append(setArgs, "config", "set", mgrID, key, val)
-	}
-	if force {
-		setArgs = append(setArgs, "--force")
-	}
-
-	// Retrieve previous value to monitor changes
-	var prevVal string
-	buf, err := NewCephCommand(context, clusterInfo, getArgs).Run()
-	if err == nil {
-		prevVal = strings.TrimSpace(string(buf))
-	}
-
-	if _, err := NewCephCommand(context, clusterInfo, setArgs).Run(); err != nil {
-		return false, errors.Wrapf(err, "failed to set mgr config key %s to \"%s\"", key, val)
-	}
-
-	hasChanged := prevVal != val
-	return hasChanged, nil
 }
 
 func enableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name string, force bool, action string) error {

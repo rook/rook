@@ -446,11 +446,11 @@ func TestConfigureRBDStats(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Case 5: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
-	// MgrSetConfig returns an error
+	// SetConfig returns an error
 	context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
-			return "", errors.Errorf("mock error to simulate failure of MgrSetConfig() function")
+			return "", errors.New("mock error to simulate failure of SetConfig() function")
 		},
 	}
 	err = configureRBDStats(context, clusterInfo)
