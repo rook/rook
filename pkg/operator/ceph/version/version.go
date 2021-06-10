@@ -27,10 +27,11 @@ import (
 
 // CephVersion represents the Ceph version format
 type CephVersion struct {
-	Major int
-	Minor int
-	Extra int
-	Build int
+	Major    int
+	Minor    int
+	Extra    int
+	Build    int
+	CommitID string
 }
 
 const (
@@ -39,15 +40,15 @@ const (
 
 var (
 	// Minimum supported version is 14.2.5
-	Minimum = CephVersion{14, 2, 5, 0}
+	Minimum = CephVersion{14, 2, 5, 0, ""}
 	// Nautilus Ceph version
-	Nautilus = CephVersion{14, 0, 0, 0}
+	Nautilus = CephVersion{14, 0, 0, 0, ""}
 	// Octopus Ceph version
-	Octopus = CephVersion{15, 0, 0, 0}
+	Octopus = CephVersion{15, 0, 0, 0, ""}
 	// Pacific Ceph version
-	Pacific = CephVersion{16, 0, 0, 0}
+	Pacific = CephVersion{16, 0, 0, 0, ""}
 	// Quincy Ceph version
-	Quincy = CephVersion{17, 0, 0, 0}
+	Quincy = CephVersion{17, 0, 0, 0, ""}
 
 	// cephVolumeLVMDiskSortingCephVersion introduced a major regression in c-v and thus is not suitable for production
 	cephVolumeLVMDiskSortingCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 13}
@@ -64,6 +65,11 @@ var (
 	// For a build release the output is "ceph version 14.2.4-64.el8cp"
 	// So we need to detect the build version change
 	buildVersionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)\-(\d+)`)
+
+	// for parsing the commit hash in the ceph --version output. For example:
+	// input = `ceph version 14.2.11-139 (5c0dc966af809fd1d429ec7bac48962a746af243) nautilus (stable)`
+	// output = [(5c0dc966af809fd1d429ec7bac48962a746af243) 5c0dc966af809fd1d429ec7bac48962a746af243]
+	commitIDPattern = regexp.MustCompile(`\(([^)]+)\)`)
 
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephver")
 )
@@ -98,37 +104,43 @@ func (v *CephVersion) ReleaseName() string {
 // ExtractCephVersion extracts the major, minor and extra digit of a Ceph release
 func ExtractCephVersion(src string) (*CephVersion, error) {
 	var build int
-	m := versionPattern.FindStringSubmatch(src)
-	if m == nil {
+	var commitID string
+	versionMatch := versionPattern.FindStringSubmatch(src)
+	if versionMatch == nil {
 		return nil, errors.Errorf("failed to parse version from: %q", src)
 	}
 
-	major, err := strconv.Atoi(m[1])
+	major, err := strconv.Atoi(versionMatch[1])
 	if err != nil {
-		return nil, errors.Errorf("failed to parse version major part: %q", m[1])
+		return nil, errors.Errorf("failed to parse version major part: %q", versionMatch[1])
 	}
 
-	minor, err := strconv.Atoi(m[2])
+	minor, err := strconv.Atoi(versionMatch[2])
 	if err != nil {
-		return nil, errors.Errorf("failed to parse version minor part: %q", m[2])
+		return nil, errors.Errorf("failed to parse version minor part: %q", versionMatch[2])
 	}
 
-	extra, err := strconv.Atoi(m[3])
+	extra, err := strconv.Atoi(versionMatch[3])
 	if err != nil {
-		return nil, errors.Errorf("failed to parse version extra part: %q", m[3])
+		return nil, errors.Errorf("failed to parse version extra part: %q", versionMatch[3])
 	}
 
 	// See if we are running on a build release
-	mm := buildVersionPattern.FindStringSubmatch(src)
+	buildVersionMatch := buildVersionPattern.FindStringSubmatch(src)
 	// We don't need to handle any error here, so let's jump in only when "mm" has content
-	if mm != nil {
-		build, err = strconv.Atoi(mm[4])
+	if buildVersionMatch != nil {
+		build, err = strconv.Atoi(buildVersionMatch[4])
 		if err != nil {
-			logger.Warningf("failed to convert version build number part %q to an integer, ignoring", mm[4])
+			logger.Warningf("failed to convert version build number part %q to an integer, ignoring", buildVersionMatch[4])
 		}
 	}
 
-	return &CephVersion{major, minor, extra, build}, nil
+	commitIDMatch := commitIDPattern.FindStringSubmatch(src)
+	if commitIDMatch != nil {
+		commitID = commitIDMatch[1]
+	}
+
+	return &CephVersion{major, minor, extra, build, commitID}, nil
 }
 
 // Supported checks if a given release is supported
@@ -228,7 +240,9 @@ func IsIdentical(a, b CephVersion) bool {
 		if a.Minor == b.Minor {
 			if a.Extra == b.Extra {
 				if a.Build == b.Build {
-					return true
+					if a.CommitID == b.CommitID {
+						return true
+					}
 				}
 			}
 		}
@@ -258,6 +272,9 @@ func IsSuperior(a, b CephVersion) bool {
 		if a.Minor == b.Minor {
 			if a.Extra == b.Extra {
 				if a.Build > b.Build {
+					return true
+				}
+				if a.CommitID != b.CommitID {
 					return true
 				}
 			}
