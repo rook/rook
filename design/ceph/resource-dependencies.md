@@ -200,7 +200,7 @@ Reported statuses will be modified as follows:
 1. Object's status.phase should be changed to "Deleting" as soon as a deletion timestamp is detected
    and never changed
 1. A status.condition should be added if the operator is blocking deletion:
-   - Type: "BlockingDeletion"
+   - Type: "DeletionIsBlocked"
    - Status: "True"
    - Reason: "ObjectHasDependents"
    - Message: "object deletion is blocked because it has dependents:" followed by a full list of
@@ -210,7 +210,7 @@ Reported statuses will be modified as follows:
 **Event:**
 Reported events will have the following content:
 - Type: "Warning"
-- Reason: "ObjectHasDependents"
+- Reason: "ReconcileFailed"
 - Message: "object deletion is blocked because it has dependents:" followed by a full list of which
   dependents exist of which Kubernetes Object Kinds (e.g., CephBlockPools or PersistentVolumes) or
   of which Ceph kinds (e.g., pools or buckets).

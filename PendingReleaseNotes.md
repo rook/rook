@@ -9,6 +9,11 @@ v1.7...
 ## Breaking Changes
 
 ### Ceph
+- Add user data protection when deleting Rook-Ceph Custom Resources
+  - A CephCluster will not be deleted if there are any other Rook-Ceph Custom resources referencing
+    it with the assumption that they are using the underlying Ceph cluster.
+  - See [the design](https://github.com/rook/rook/blob/master/design/ceph/resource-dependencies.md)
+    for detailed information.
 
 ## Features
 

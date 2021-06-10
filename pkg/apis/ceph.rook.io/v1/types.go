@@ -383,30 +383,34 @@ type CephHealthMessage struct {
 	Message  string `json:"message"`
 }
 
-// Condition represents
+// Condition represents a status condition on any Rook-Ceph Custom Resource.
 type Condition struct {
 	Type               ConditionType      `json:"type,omitempty"`
 	Status             v1.ConditionStatus `json:"status,omitempty"`
-	Reason             ClusterReasonType  `json:"reason,omitempty"`
+	Reason             ConditionReason    `json:"reason,omitempty"`
 	Message            string             `json:"message,omitempty"`
 	LastHeartbeatTime  metav1.Time        `json:"lastHeartbeatTime,omitempty"`
 	LastTransitionTime metav1.Time        `json:"lastTransitionTime,omitempty"`
 }
 
-// ClusterReasonType is cluster reason
-type ClusterReasonType string
+// ConditionReason is a reason for a condition
+type ConditionReason string
 
 const (
 	// ClusterCreatedReason is cluster created reason
-	ClusterCreatedReason ClusterReasonType = "ClusterCreated"
+	ClusterCreatedReason ConditionReason = "ClusterCreated"
 	// ClusterConnectedReason is cluster connected reason
-	ClusterConnectedReason ClusterReasonType = "ClusterConnected"
+	ClusterConnectedReason ConditionReason = "ClusterConnected"
 	// ClusterProgressingReason is cluster progressing reason
-	ClusterProgressingReason ClusterReasonType = "ClusterProgressing"
+	ClusterProgressingReason ConditionReason = "ClusterProgressing"
 	// ClusterDeletingReason is cluster deleting reason
-	ClusterDeletingReason ClusterReasonType = "ClusterDeleting"
+	ClusterDeletingReason ConditionReason = "ClusterDeleting"
 	// ClusterConnectingReason is cluster connecting reason
-	ClusterConnectingReason ClusterReasonType = "ClusterConnecting"
+	ClusterConnectingReason ConditionReason = "ClusterConnecting"
+
+	// ObjectHasDependentsReason represents when an resource object has dependents. For example,
+	// because deletion is blocked.
+	ObjectHasDependentsReason ConditionReason = "ObjectHasDependents"
 )
 
 // ConditionType represent a resource's status
@@ -425,6 +429,9 @@ const (
 	ConditionFailure ConditionType = "Failure"
 	// ConditionDeleting represents Deleting state of an object
 	ConditionDeleting ConditionType = "Deleting"
+
+	// ConditionDeletionIsBlocked represents when deletion of the object is blocked.
+	ConditionDeletionIsBlocked ConditionType = "DeletionIsBlocked"
 )
 
 // ClusterState represents the state of a Ceph Cluster

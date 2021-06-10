@@ -29,9 +29,10 @@ import (
 )
 
 // UpdateCondition function will export each condition into the cluster custom resource
-func UpdateCondition(c *clusterd.Context, namespaceName types.NamespacedName, conditionType cephv1.ConditionType, status v1.ConditionStatus, reason cephv1.ClusterReasonType, message string) {
-	cluster, err := c.RookClientset.CephV1().CephClusters(namespaceName.Namespace).Get(context.TODO(), namespaceName.Name, metav1.GetOptions{})
-	if err != nil {
+func UpdateCondition(c *clusterd.Context, namespaceName types.NamespacedName, conditionType cephv1.ConditionType, status v1.ConditionStatus, reason cephv1.ConditionReason, message string) {
+	// use client.Client unit test this more easily with updating statuses which must use the client
+	cluster := &cephv1.CephCluster{}
+	if err := c.Client.Get(context.TODO(), namespaceName, cluster); err != nil {
 		logger.Errorf("failed to get cluster %v to update the conditions. %v", namespaceName, err)
 		return
 	}
@@ -41,7 +42,7 @@ func UpdateCondition(c *clusterd.Context, namespaceName types.NamespacedName, co
 
 // UpdateClusterCondition function will export each condition into the cluster custom resource
 func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, namespaceName types.NamespacedName, conditionType cephv1.ConditionType, status v1.ConditionStatus,
-	reason cephv1.ClusterReasonType, message string, preserveAllConditions bool) {
+	reason cephv1.ConditionReason, message string, preserveAllConditions bool) {
 
 	// Keep the conditions that already existed if they are in the list of long-term conditions,
 	// otherwise discard the temporary conditions
@@ -52,7 +53,11 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 		// The transient conditions are not persisted. However, if the currently requested condition is not expected to
 		// reset the transient conditions, they are retained. For example, if the operator is checking for ceph health
 		// in the middle of the reconcile, the progress condition should not be reset by the status check update.
-		if preserveAllConditions || condition.Reason == cephv1.ClusterCreatedReason || condition.Reason == cephv1.ClusterConnectedReason {
+		if preserveAllConditions ||
+			condition.Reason == cephv1.ClusterCreatedReason ||
+			condition.Reason == cephv1.ClusterConnectedReason ||
+			condition.Type == cephv1.ConditionDeleting ||
+			condition.Type == cephv1.ConditionDeletionIsBlocked {
 			if conditionType != condition.Type {
 				conditions = append(conditions, condition)
 				continue
@@ -83,12 +88,15 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 	conditions = append(conditions, *currentCondition)
 	cluster.Status.Conditions = conditions
 
-	cluster.Status.Phase = conditionType
-	if state := translatePhasetoState(conditionType, status); state != "" {
-		cluster.Status.State = state
+	// Once the cluster begins deleting, the phase should not revert back to any other phase
+	if cluster.Status.Phase != cephv1.ConditionDeleting {
+		cluster.Status.Phase = conditionType
+		if state := translatePhasetoState(conditionType, status); state != "" {
+			cluster.Status.State = state
+		}
+		cluster.Status.Message = currentCondition.Message
+		logger.Debugf("CephCluster %q status: %q. %q", namespaceName.Namespace, cluster.Status.Phase, cluster.Status.Message)
 	}
-	cluster.Status.Message = currentCondition.Message
-	logger.Debugf("CephCluster %q status: %q. %q", namespaceName.Namespace, cluster.Status.Phase, cluster.Status.Message)
 
 	if err := UpdateStatus(c.Client, cluster); err != nil {
 		logger.Errorf("failed to update cluster condition to %+v. %v", *currentCondition, err)
@@ -115,6 +123,9 @@ func translatePhasetoState(phase cephv1.ConditionType, status v1.ConditionStatus
 		return cephv1.ClusterStateCreating
 	case cephv1.ConditionReady:
 		return cephv1.ClusterStateCreated
+	case cephv1.ConditionDeleting:
+		// "Deleting" was not a state before, so just translate the "Deleting" condition directly.
+		return cephv1.ClusterState(cephv1.ConditionDeleting)
 	default:
 		return ""
 	}
