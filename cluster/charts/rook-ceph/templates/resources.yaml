@@ -3778,7 +3778,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: FilesystemMirroringSpec is the filesystem mirorring specification
+              description: FilesystemMirroringSpec is the filesystem mirroring specification
               properties:
                 annotations:
                   additionalProperties:
