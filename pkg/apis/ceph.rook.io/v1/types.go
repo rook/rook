@@ -1625,7 +1625,7 @@ type CephFilesystemMirrorList struct {
 	Items           []CephFilesystemMirror `json:"items"`
 }
 
-// FilesystemMirroringSpec is the filesystem mirorring specification
+// FilesystemMirroringSpec is the filesystem mirroring specification
 type FilesystemMirroringSpec struct {
 	// The affinity to place the rgw pods (default is to place on any available node)
 	// +nullable
