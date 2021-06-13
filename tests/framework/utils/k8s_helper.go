@@ -44,7 +44,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
-	storagev1util "k8s.io/kubernetes/pkg/apis/storage/v1/util"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
@@ -1008,7 +1007,7 @@ func (k8sh *K8sHelper) IsDefaultStorageClassPresent() (bool, error) {
 	}
 
 	for _, sc := range scs.Items {
-		if storagev1util.IsDefaultAnnotation(sc.ObjectMeta) {
+		if isDefaultAnnotation(sc.ObjectMeta) {
 			return true, nil
 		}
 	}
