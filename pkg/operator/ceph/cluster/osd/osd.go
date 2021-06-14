@@ -98,6 +98,7 @@ type OSDInfo struct {
 	Cluster        string `json:"cluster"`
 	UUID           string `json:"uuid"`
 	DevicePartUUID string `json:"device-part-uuid"`
+	DeviceClass    string `json:"device-class"`
 	// BlockPath is the logical Volume path for an OSD created by Ceph-volume with format '/dev/<Volume Group>/<Logical Volume>' or simply /dev/vdb if block mode is used
 	BlockPath     string `json:"lv-path"`
 	MetadataPath  string `json:"metadata-path"`
@@ -169,9 +170,13 @@ func (c *Cluster) Start() error {
 	errs := newProvisionErrors()
 
 	// Validate pod's memory if specified
-	err := controller.CheckPodMemory(cephv1.ResourcesKeyOSD, cephv1.GetOSDResources(c.spec.Resources), cephOsdPodMinimumMemory)
-	if err != nil {
-		return errors.Wrap(err, "failed to check pod memory")
+	for resourceKey, resourceValue := range c.spec.Resources {
+		if strings.HasPrefix(resourceKey, cephv1.ResourcesKeyOSD) {
+			err := controller.CheckPodMemory(resourceKey, resourceValue, cephOsdPodMinimumMemory)
+			if err != nil {
+				return errors.Wrap(err, "failed to check pod memory")
+			}
+		}
 	}
 	logger.Infof("start running osds in namespace %q", namespace)
 
@@ -257,7 +262,7 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (*util.Set, error) {
 func deploymentOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provisionConfig) (*appsv1.Deployment, error) {
 	osdLongName := fmt.Sprintf("OSD %d on node %q", osd.ID, nodeName)
 
-	osdProps, err := c.getOSDPropsForNode(nodeName)
+	osdProps, err := c.getOSDPropsForNode(nodeName, osd.DeviceClass)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate config for %s", osdLongName)
 	}
@@ -278,7 +283,7 @@ func deploymentOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provisio
 func deploymentOnPVC(c *Cluster, osd OSDInfo, pvcName string, config *provisionConfig) (*appsv1.Deployment, error) {
 	osdLongName := fmt.Sprintf("OSD %d on PVC %q", osd.ID, pvcName)
 
-	osdProps, err := c.getOSDPropsForPVC(pvcName)
+	osdProps, err := c.getOSDPropsForPVC(pvcName, osd.DeviceClass)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate config for %s", osdLongName)
 	}
@@ -306,20 +311,20 @@ func setOSDProperties(c *Cluster, osdProps osdProperties, osd OSDInfo) error {
 	return nil
 }
 
-func (c *Cluster) resolveNode(nodeName string) *rookv1.Node {
+func (c *Cluster) resolveNode(nodeName, deviceClass string) *rookv1.Node {
 	// fully resolve the storage config and resources for this node
 	rookNode := c.ValidStorage.ResolveNode(nodeName)
 	if rookNode == nil {
 		return nil
 	}
-	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, cephv1.GetOSDResources(c.spec.Resources))
+	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, cephv1.GetOSDResources(c.spec.Resources, deviceClass))
 
 	return rookNode
 }
 
-func (c *Cluster) getOSDPropsForNode(nodeName string) (osdProperties, error) {
+func (c *Cluster) getOSDPropsForNode(nodeName, deviceClass string) (osdProperties, error) {
 	// fully resolve the storage config and resources for this node
-	n := c.resolveNode(nodeName)
+	n := c.resolveNode(nodeName, deviceClass)
 	if n == nil {
 		return osdProperties{}, errors.Errorf("failed to resolve node %q", nodeName)
 	}
@@ -338,7 +343,7 @@ func (c *Cluster) getOSDPropsForNode(nodeName string) (osdProperties, error) {
 	return osdProps, nil
 }
 
-func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
+func (c *Cluster) getOSDPropsForPVC(pvcName, osdDeviceClass string) (osdProperties, error) {
 	for _, deviceSet := range c.deviceSets {
 		// The data PVC template is required.
 		dataSource, dataOK := deviceSet.PVCSources[bluestorePVCData]
@@ -361,7 +366,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 			}
 
 			if deviceSet.Resources.Limits == nil && deviceSet.Resources.Requests == nil {
-				deviceSet.Resources = cephv1.GetOSDResources(c.spec.Resources)
+				deviceSet.Resources = cephv1.GetOSDResources(c.spec.Resources, osdDeviceClass)
 			}
 
 			osdProps := osdProperties{
@@ -490,6 +495,9 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 		}
 		if envVar.Name == osdWalDeviceEnvVarName {
 			osd.WalPath = envVar.Value
+		}
+		if envVar.Name == osdDeviceClassEnvVarName {
+			osd.DeviceClass = envVar.Value
 		}
 	}
 
