@@ -464,10 +464,10 @@ The default upstream images are included below, which you can change to your des
 ```yaml
 ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.3.1"
 ROOK_CSI_REGISTRAR_IMAGE: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
-ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4"
-ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.0.2"
-ROOK_CSI_RESIZER_IMAGE: "k8s.gcr.io/sig-storage/csi-resizer:v1.0.1"
-ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v4.0.0"
+ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2"
+ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.2.1"
+ROOK_CSI_RESIZER_IMAGE: "k8s.gcr.io/sig-storage/csi-resizer:v1.2.0"
+ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v4.1.1"
 ```
 
 ### Use default images
@@ -485,11 +485,11 @@ kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec
 
 ```
 quay.io/cephcsi/cephcsi:v3.3.1
-k8s.gcr.io/sig-storage/csi-attacher:v3.0.2
+k8s.gcr.io/sig-storage/csi-attacher:v3.2.1
 k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1
-k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4
-k8s.gcr.io/sig-storage/csi-resizer:v1.0.1
-k8s.gcr.io/sig-storage/csi-snapshotter:v4.0.0
+k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2
+k8s.gcr.io/sig-storage/csi-resizer:v1.2.0
+k8s.gcr.io/sig-storage/csi-snapshotter:v4.1.1
 ```
 
 ## Replace lvm mode OSDs with raw mode (if you use LV-backed PVC)

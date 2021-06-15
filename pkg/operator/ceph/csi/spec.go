@@ -111,10 +111,10 @@ var (
 	// image names
 	DefaultCSIPluginImage         = "quay.io/cephcsi/cephcsi:v3.3.1"
 	DefaultRegistrarImage         = "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1"
-	DefaultProvisionerImage       = "k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4"
-	DefaultAttacherImage          = "k8s.gcr.io/sig-storage/csi-attacher:v3.0.2"
-	DefaultSnapshotterImage       = "k8s.gcr.io/sig-storage/csi-snapshotter:v4.0.0"
-	DefaultResizerImage           = "k8s.gcr.io/sig-storage/csi-resizer:v1.0.1"
+	DefaultProvisionerImage       = "k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2"
+	DefaultAttacherImage          = "k8s.gcr.io/sig-storage/csi-attacher:v3.2.1"
+	DefaultSnapshotterImage       = "k8s.gcr.io/sig-storage/csi-snapshotter:v4.1.1"
+	DefaultResizerImage           = "k8s.gcr.io/sig-storage/csi-resizer:v1.2.0"
 	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.1.0"
 )
 
