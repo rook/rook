@@ -128,3 +128,13 @@ func OsdOkToStopOutput(queriedID int, returnOsdIds []int, useCephPacificPlusOutp
 	}
 	return fmt.Sprintf(okTemplate, strings.Join(osdIdsStr, ","))
 }
+
+// OSDDeviceClassOutput returns JSON output from 'ceph osd crush get-device-class' that can be used for unit tests.
+// osdId is a osd ID to get from crush map. If ID is empty raise a fake error.
+func OSDDeviceClassOutput(osdId string) string {
+	if osdId == "" {
+		return "ERR: fake error from ceph cli"
+	}
+	okTemplate := `[{"osd":%s,"device_class":"hdd"}]`
+	return fmt.Sprintf(okTemplate, osdId)
+}

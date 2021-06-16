@@ -307,6 +307,31 @@ func OsdListNum(context *clusterd.Context, clusterInfo *ClusterInfo) (OsdList, e
 	return output, nil
 }
 
+// OSDDeviceClass report device class for osd
+type OSDDeviceClass struct {
+	ID          int    `json:"osd"`
+	DeviceClass string `json:"device_class"`
+}
+
+// OSDDeviceClasses returns the device classes for particular OsdIDs
+func OSDDeviceClasses(context *clusterd.Context, clusterInfo *ClusterInfo, osdIds []string) ([]OSDDeviceClass, error) {
+	var deviceClasses []OSDDeviceClass
+
+	args := []string{"osd", "crush", "get-device-class"}
+	args = append(args, osdIds...)
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return deviceClasses, errors.Wrap(err, "failed to get device-class info")
+	}
+
+	err = json.Unmarshal(buf, &deviceClasses)
+	if err != nil {
+		return deviceClasses, errors.Wrap(err, "failed to unmarshal 'osd crush get-device-class' response")
+	}
+
+	return deviceClasses, nil
+}
+
 // OSDOkToStopStats report detailed information about which OSDs are okay to stop
 type OSDOkToStopStats struct {
 	OkToStop          bool     `json:"ok_to_stop"`

@@ -238,6 +238,9 @@ func TestAddRemoveNode(t *testing.T) {
 					if args[2] == "rm" {
 						return "", nil
 					}
+					if args[2] == "get-device-class" {
+						return cephclientfake.OSDDeviceClassOutput(args[3]), nil
+					}
 				}
 				if args[1] == "out" {
 					return "", nil
