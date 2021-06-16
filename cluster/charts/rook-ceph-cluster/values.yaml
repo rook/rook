@@ -5,6 +5,9 @@
 # Namespace of the main rook operator
 operatorNamespace: rook-ceph
 
+# The metadata.name of the CephCluster CR. The default name is the same as the namespace.
+#clusterName: rook-ceph
+
 # Ability to override ceph.conf
 configOverride:
 #configOverride: |
