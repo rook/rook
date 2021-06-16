@@ -144,19 +144,24 @@ func Test_updateExistingOSDs(t *testing.T) {
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			t.Logf("command: %s %v", command, args)
-			if fmt.Sprintf("%s %s %s", command, args[0], args[1]) != "ceph osd ok-to-stop" {
-				panic(fmt.Sprintf("unexpected command %q with args %v", command, args))
+			if args[0] == "osd" {
+				if args[1] == "ok-to-stop" {
+					queriedID := args[2]
+					if strconv.Itoa(osdToBeQueried) != queriedID {
+						err := errors.Errorf("OSD %d should have been queried, but %s was queried instead", osdToBeQueried, queriedID)
+						t.Error(err)
+						return "", err
+					}
+					if len(returnOkToStopIDs) > 0 {
+						return cephclientfake.OsdOkToStopOutput(osdToBeQueried, returnOkToStopIDs, true), nil
+					}
+					return cephclientfake.OsdOkToStopOutput(osdToBeQueried, []int{}, true), errors.Errorf("induced error")
+				}
+				if args[1] == "crush" && args[2] == "get-device-class" {
+					return cephclientfake.OSDDeviceClassOutput(args[3]), nil
+				}
 			}
-			queriedID := args[2]
-			if strconv.Itoa(osdToBeQueried) != queriedID {
-				err := errors.Errorf("OSD %d should have been queried, but %s was queried instead", osdToBeQueried, queriedID)
-				t.Error(err)
-				return "", err
-			}
-			if len(returnOkToStopIDs) > 0 {
-				return cephclientfake.OsdOkToStopOutput(osdToBeQueried, returnOkToStopIDs, true), nil
-			}
-			return cephclientfake.OsdOkToStopOutput(osdToBeQueried, []int{}, true), errors.Errorf("induced error")
+			panic(fmt.Sprintf("unexpected command %q with args %v", command, args))
 		},
 	}
 
