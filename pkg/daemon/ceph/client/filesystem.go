@@ -132,7 +132,7 @@ func AllowStandbyReplay(context *clusterd.Context, clusterInfo *ClusterInfo, fsN
 }
 
 // CreateFilesystem performs software configuration steps for Ceph to provide a new filesystem.
-func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name, metadataPool string, dataPools []string, force bool) error {
+func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name, metadataPool string, dataPools []string) error {
 	if len(dataPools) == 0 {
 		return errors.New("at least one data pool is required")
 	}
@@ -152,11 +152,7 @@ func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name,
 
 	// create the filesystem
 	args := []string{"fs", "new", name, metadataPool, dataPools[0]}
-	// Force to use pre-existing pools
-	if force {
-		args = append(args, "--force")
-		logger.Infof("Filesystem %q will reuse pre-existing pools", name)
-	}
+
 	_, err = NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed enabling ceph fs %q", name)
