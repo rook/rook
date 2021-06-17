@@ -2,7 +2,7 @@
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
-  name: {{ .Release.Namespace }}
+  name: {{ default .Release.Namespace .Values.clusterName }}
 spec:
   monitoring:
     rulesNamespace: {{ default .Release.Namespace .Values.monitoring.rulesNamespaceOverride }}
