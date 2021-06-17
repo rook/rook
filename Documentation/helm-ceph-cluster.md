@@ -23,18 +23,18 @@ The [configuration](#configuration) section lists the parameters that can be con
 recommended that the rook operator be installed into the `rook-ceph` namespace. The clusters can be installed
 into the same namespace as the operator or a separate namespace.
 
-If the operator was installed in a namespace other than `rook-ceph`, the namespace
-must be set in the `operatorNamespace` variable.
-
 Rook currently publishes builds of this chart to the `release` and `master` channels.
+
+**Before installing, review the values.yaml to confirm if the default settings need to be updated.**
+- If the operator was installed in a namespace other than `rook-ceph`, the namespace
+  must be set in the `operatorNamespace` variable.
+- Set the desired settings in the `cephClusterSpec`. The [defaults](https://github.com/rook/rook/tree/{{ branchName }}/cluster/charts/rook-ceph-cluster/values.yaml)
+  are only an example and not likely to apply to your cluster.
+- The `monitoring` section should be removed from the `cephClusterSpec`, as it is specified separately in the helm settings.
 
 ### Release
 
 The release channel is the most recent release of Rook that is considered stable for the community.
-
-**Before installing, review the values.yaml to confirm if the default settings need to be updated.
-The [defaults](https://github.com/rook/rook/tree/{{ branchName }}/cluster/charts/rook-ceph-cluster/values.yaml)
-are only an example and not likely to apply to your cluster.**
 
 The example install assumes you have created a values-override.yaml.
 
