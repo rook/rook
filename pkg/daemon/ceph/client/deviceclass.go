@@ -39,3 +39,20 @@ func GetDeviceClasses(context *clusterd.Context, clusterInfo *ClusterInfo) ([]st
 
 	return deviceclass, nil
 }
+
+// GetDeviceClassOSDs gets the OSDs associated with a device class.
+func GetDeviceClassOSDs(context *clusterd.Context, clusterInfo *ClusterInfo, deviceClass string) ([]int, error) {
+	args := []string{"osd", "crush", "class", "ls-osd", deviceClass}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	buf, err := cmd.Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get device class osd. %s", string(buf))
+	}
+
+	var osds []int
+	if err := json.Unmarshal(buf, &osds); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal device class osd response")
+	}
+
+	return osds, nil
+}

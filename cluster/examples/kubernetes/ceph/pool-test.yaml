@@ -9,5 +9,6 @@ metadata:
   name: replicapool
   namespace: rook-ceph # namespace:cluster
 spec:
+  failureDomain: osd
   replicated:
     size: 1

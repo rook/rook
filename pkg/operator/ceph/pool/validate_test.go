@@ -230,3 +230,79 @@ func TestValidateCrushProperties(t *testing.T) {
 	err = ValidatePool(context, clusterInfo, clusterSpec, p)
 	assert.NoError(t, err)
 }
+
+func TestValidateDeviceClasses(t *testing.T) {
+	testcases := []struct {
+		name                       string
+		primaryDeviceClassOutput   string
+		secondaryDeviceClassOutput string
+		hybridStorageSpec          *cephv1.HybridStorageSpec
+		isValidSpec                bool
+	}{
+		{
+			name:                       "valid hybridStorageSpec",
+			primaryDeviceClassOutput:   "[0, 1, 2]",
+			secondaryDeviceClassOutput: "[3, 4, 5]",
+			hybridStorageSpec: &cephv1.HybridStorageSpec{
+				PrimaryDeviceClass:   "ssd",
+				SecondaryDeviceClass: "hdd",
+			},
+			isValidSpec: true,
+		},
+		{
+			name:                       "invalid hybridStorageSpec.PrimaryDeviceClass",
+			primaryDeviceClassOutput:   "[]",
+			secondaryDeviceClassOutput: "[3, 4, 5]",
+			hybridStorageSpec: &cephv1.HybridStorageSpec{
+				PrimaryDeviceClass:   "ssd",
+				SecondaryDeviceClass: "hdd",
+			},
+			isValidSpec: false,
+		},
+		{
+			name:                       "invalid hybridStorageSpec.SecondaryDeviceClass",
+			primaryDeviceClassOutput:   "[0, 1, 2]",
+			secondaryDeviceClassOutput: "[]",
+			hybridStorageSpec: &cephv1.HybridStorageSpec{
+				PrimaryDeviceClass:   "ssd",
+				SecondaryDeviceClass: "hdd",
+			},
+			isValidSpec: false,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
+			executor := &exectest.MockExecutor{}
+			context := &clusterd.Context{Executor: executor}
+			executor.MockExecuteCommandWithOutputFile = func(command string, outFileArg string, args ...string) (string, error) {
+				logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
+				if args[1] == "crush" && args[2] == "class" && args[3] == "ls-osd" && args[4] == "ssd" {
+					// Mock executor for `ceph osd crush class ls-osd ssd`
+					return tc.primaryDeviceClassOutput, nil
+				} else if args[1] == "crush" && args[2] == "class" && args[3] == "ls-osd" && args[4] == "hdd" {
+					// Mock executor for `ceph osd crush class ls-osd hdd`
+					return tc.secondaryDeviceClassOutput, nil
+				}
+				return "", nil
+			}
+
+			p := &cephv1.CephBlockPool{
+				ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace},
+				Spec: cephv1.PoolSpec{
+					Replicated: cephv1.ReplicatedSpec{
+						HybridStorage: tc.hybridStorageSpec,
+					},
+				},
+			}
+
+			err := validateDeviceClasses(context, clusterInfo, &p.Spec)
+			if tc.isValidSpec {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}

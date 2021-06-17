@@ -128,6 +128,22 @@ spec:
                 replicated:
                   description: The replication settings
                   properties:
+                    hybridStorage:
+                      description: HybridStorage represents hybrid storage tier settings
+                      nullable: true
+                      properties:
+                        primaryDeviceClass:
+                          description: PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+                          minLength: 1
+                          type: string
+                        secondaryDeviceClass:
+                          description: SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+                          minLength: 1
+                          type: string
+                      required:
+                        - primaryDeviceClass
+                        - secondaryDeviceClass
+                      type: object
                     replicasPerFailureDomain:
                       description: ReplicasPerFailureDomain the number of replica in the specified failure domain
                       minimum: 1
@@ -4520,6 +4536,22 @@ spec:
                       replicated:
                         description: The replication settings
                         properties:
+                          hybridStorage:
+                            description: HybridStorage represents hybrid storage tier settings
+                            nullable: true
+                            properties:
+                              primaryDeviceClass:
+                                description: PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+                                minLength: 1
+                                type: string
+                              secondaryDeviceClass:
+                                description: SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+                                minLength: 1
+                                type: string
+                            required:
+                              - primaryDeviceClass
+                              - secondaryDeviceClass
+                            type: object
                           replicasPerFailureDomain:
                             description: ReplicasPerFailureDomain the number of replica in the specified failure domain
                             minimum: 1
@@ -4659,6 +4691,22 @@ spec:
                     replicated:
                       description: The replication settings
                       properties:
+                        hybridStorage:
+                          description: HybridStorage represents hybrid storage tier settings
+                          nullable: true
+                          properties:
+                            primaryDeviceClass:
+                              description: PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+                              minLength: 1
+                              type: string
+                            secondaryDeviceClass:
+                              description: SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+                              minLength: 1
+                              type: string
+                          required:
+                            - primaryDeviceClass
+                            - secondaryDeviceClass
+                          type: object
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
                           minimum: 1
@@ -6193,6 +6241,22 @@ spec:
                     replicated:
                       description: The replication settings
                       properties:
+                        hybridStorage:
+                          description: HybridStorage represents hybrid storage tier settings
+                          nullable: true
+                          properties:
+                            primaryDeviceClass:
+                              description: PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+                              minLength: 1
+                              type: string
+                            secondaryDeviceClass:
+                              description: SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+                              minLength: 1
+                              type: string
+                          required:
+                            - primaryDeviceClass
+                            - secondaryDeviceClass
+                          type: object
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
                           minimum: 1
@@ -7099,6 +7163,22 @@ spec:
                     replicated:
                       description: The replication settings
                       properties:
+                        hybridStorage:
+                          description: HybridStorage represents hybrid storage tier settings
+                          nullable: true
+                          properties:
+                            primaryDeviceClass:
+                              description: PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+                              minLength: 1
+                              type: string
+                            secondaryDeviceClass:
+                              description: SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+                              minLength: 1
+                              type: string
+                          required:
+                            - primaryDeviceClass
+                            - secondaryDeviceClass
+                          type: object
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
                           minimum: 1
@@ -7499,6 +7579,22 @@ spec:
                     replicated:
                       description: The replication settings
                       properties:
+                        hybridStorage:
+                          description: HybridStorage represents hybrid storage tier settings
+                          nullable: true
+                          properties:
+                            primaryDeviceClass:
+                              description: PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+                              minLength: 1
+                              type: string
+                            secondaryDeviceClass:
+                              description: SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+                              minLength: 1
+                              type: string
+                          required:
+                            - primaryDeviceClass
+                            - secondaryDeviceClass
+                          type: object
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
                           minimum: 1
@@ -7636,6 +7732,22 @@ spec:
                     replicated:
                       description: The replication settings
                       properties:
+                        hybridStorage:
+                          description: HybridStorage represents hybrid storage tier settings
+                          nullable: true
+                          properties:
+                            primaryDeviceClass:
+                              description: PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+                              minLength: 1
+                              type: string
+                            secondaryDeviceClass:
+                              description: SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+                              minLength: 1
+                              type: string
+                          required:
+                            - primaryDeviceClass
+                            - secondaryDeviceClass
+                          type: object
                         replicasPerFailureDomain:
                           description: ReplicasPerFailureDomain the number of replica in the specified failure domain
                           minimum: 1
