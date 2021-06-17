@@ -333,7 +333,9 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	}
 
 	// Build TLS client if needed
-	var httpClient *http.Client
+	httpClient := &http.Client{
+		Timeout: object.HttpTimeOut,
+	}
 	if store.Spec.IsTLSEnabled() {
 		tlsCert, err := object.GetTlsCaCert(objContext, &store.Spec)
 		if err != nil {
