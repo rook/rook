@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '0 0 * * *'  # every day at midnight
 
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
 jobs:
   canary-arm64:
     runs-on: [self-hosted, ubuntu-20.04, ARM64]
