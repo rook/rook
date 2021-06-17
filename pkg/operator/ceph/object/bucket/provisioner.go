@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -622,7 +621,7 @@ func (p *Provisioner) setTlsCaCert() error {
 func (p *Provisioner) setAdminOpsAPIClient() error {
 	// Build TLS transport for the HTTP client if needed
 	httpClient := &http.Client{
-		Timeout: time.Second * 15,
+		Timeout: cephObject.HttpTimeOut,
 	}
 	if p.tlsCert != nil {
 		httpClient.Transport = cephObject.BuildTransportTLS(p.tlsCert)
