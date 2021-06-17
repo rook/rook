@@ -126,5 +126,14 @@ The metadata server settings correspond to the MDS daemon settings.
 * `annotations`: Key value pair list of annotations to add.
 * `labels`: Key value pair list of labels to add.
 * `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml).
-* `resources`: Set resource requests/limits for the Filesystem MDS Pod(s), see [Resource Requirements/Limits](ceph-cluster-crd.md#resource-requirementslimits).
+* `resources`: Set resource requests/limits for the Filesystem MDS Pod(s), see [MDS Resources Configuration Settings](#mds-resources-configuration-settings)
 * `priorityClassName`: Set priority class name for the Filesystem MDS Pod(s)
+
+### MDS Resources Configuration Settings
+
+The format of the resource requests/limits structure is the same as described in the [Ceph Cluster CRD documentation](ceph-cluster-crd.md#resource-requirementslimits).
+
+If the memory resource limit is declared Rook will automatically set the MDS configuration `mds_cache_memory_limit`. The configuration value is calculated with the aim that the actual MDS memory consumption remains consistent with the MDS pods' resource declaration.
+
+In order to provide the best possible experience running Ceph in containers, Rook internally recommends the memory for MDS daemons to be at least 4096MB.
+If a user configures a limit or request value that is too low, Rook will still run the pod(s) and print a warning to the operator log.
