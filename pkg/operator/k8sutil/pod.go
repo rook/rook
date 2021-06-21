@@ -278,7 +278,7 @@ func GetPodLog(clientset kubernetes.Interface, namespace string, labelSelector s
 		if err != nil {
 			return "", errors.Wrapf(err, "error copying file from %s to %s", builder, readCloser)
 		}
-		return builder.String(), err //nolint, no else statement needed
+		return builder.String(), err //nolint // no else statement needed
 	}
 
 	return "", fmt.Errorf("did not find any pods with label %s", labelSelector)
