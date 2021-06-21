@@ -313,13 +313,15 @@ class RadosJSON:
             raise ExecutionFailureException("No matching 'mon' details found")
         q_leader_details = q_leader_matching_list[0]
         # get the address vector of the quorum-leader
-        q_leader_addrvec = q_leader_details.get('public_addrs', {}).get('addrvec', [])
+        q_leader_addrvec = q_leader_details.get(
+            'public_addrs', {}).get('addrvec', [])
         # if the quorum-leader has only one address in the address-vector
         # and it is of type 'v2' (ie; with <IP>:3300),
         # raise an exception to make user aware that
         # they have to enable 'v1' (ie; with <IP>:6789) type as well
         if len(q_leader_addrvec) == 1 and q_leader_addrvec[0]['type'] == 'v2':
-            raise ExecutionFailureException("Only 'v2' address type is enabled, user should also enable 'v1' type as well")
+            raise ExecutionFailureException(
+                "Only 'v2' address type is enabled, user should also enable 'v1' type as well")
         ip_port = str(q_leader_details['public_addr'].split('/')[0])
         return "{}={}".format(str(q_leader_name), ip_port)
 
@@ -637,7 +639,8 @@ class RadosJSON:
             self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_and_standby_mgrs()
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
-        self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
+        if self._arg_parser.rgw_endpoint:
+            self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
 
     def gen_shell_out(self):
         self._gen_output_map()
@@ -700,14 +703,6 @@ class RadosJSON:
                     "MonitoringEndpoint": self.out_map['MONITORING_ENDPOINT'],
                     "MonitoringPort": self.out_map['MONITORING_ENDPOINT_PORT']
                 }
-            },
-            {
-                "name": "rgw-admin-ops-user",
-                "kind": "Secret",
-                "data": {
-                    "accessKey": self.out_map['ACCESS_KEY'],
-                    "secretKey": self.out_map['SECRET_KEY']
-                }
             }
         ]
 
@@ -761,6 +756,15 @@ class RadosJSON:
                     "poolPrefix": self.out_map['RGW_POOL_PREFIX']
                 }
             })
+            json_out.append(
+                {
+                    "name": "rgw-admin-ops-user",
+                    "kind": "Secret",
+                    "data": {
+                        "accessKey": self.out_map['ACCESS_KEY'],
+                        "secretKey": self.out_map['SECRET_KEY']
+                    }
+                })
         return json.dumps(json_out)+LINESEP
 
     def upgrade_user_permissions(self):
