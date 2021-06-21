@@ -21,6 +21,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
@@ -42,6 +43,7 @@ caps osd = "allow rwx"
 	certKeyFileName                = "rgw-key.pem"
 	rgwPortInternalPort      int32 = 8080
 	ServiceServingCertCAFile       = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
+	HttpTimeOut                    = time.Second * 15
 )
 
 var (
