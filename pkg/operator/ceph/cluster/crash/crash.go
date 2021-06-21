@@ -21,16 +21,20 @@ import (
 	"fmt"
 	"path"
 
+	"k8s.io/api/batch/v1beta1"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/version"
+
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -43,7 +47,7 @@ const (
 )
 
 // createOrUpdateCephCrash is a wrapper around controllerutil.CreateOrUpdate
-func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *version.CephVersion) (controllerutil.OperationResult, error) {
+func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) (controllerutil.OperationResult, error) {
 	// Create or Update the deployment default/foo
 	nodeHostnameLabel, ok := node.ObjectMeta.Labels[corev1.LabelHostname]
 	if !ok {
@@ -123,50 +127,74 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 }
 
 // createOrUpdateCephCron is a wrapper around controllerutil.CreateOrUpdate
-func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, cephVersion *version.CephVersion) (controllerutil.OperationResult, error) {
-	cronJob := &v1beta1.CronJob{
+func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion, useCronJobV1 bool) (controllerutil.OperationResult, error) {
+	objectMeta := metav1.ObjectMeta{
+		Name:      prunerName,
+		Namespace: cephCluster.GetNamespace(),
+	}
+	// Adding volumes to pods containing data needed to connect to the ceph cluster.
+	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")
+	volumes = append(volumes, keyring.Volume().CrashCollector())
+
+	// labels for the pod, the deployment, and the deploymentSelector
+	cronJobLabels := map[string]string{
+		k8sutil.AppAttr: prunerName,
+	}
+	cronJobLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
+
+	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      prunerName,
-			Namespace: cephCluster.GetNamespace(),
+			Labels: cronJobLabels,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				getCrashPruneContainer(cephCluster, *cephVersion),
+			},
+			RestartPolicy: corev1.RestartPolicyNever,
+			HostNetwork:   cephCluster.Spec.Network.IsHost(),
+			Volumes:       volumes,
 		},
 	}
+
+	// After 100 failures, the cron job will no longer run.
+	// To avoid this, the cronjob is configured to only count the failures
+	// that occurred in the last hour.
+	deadline := int64(60)
+
+	// minimum k8s version required for v1 cronJob is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 cronJob.
+	if useCronJobV1 {
+		// delete v1beta1 cronJob if it already exists
+		err := r.client.Delete(context.TODO(), &v1beta1.CronJob{ObjectMeta: objectMeta})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return controllerutil.OperationResultNone, errors.Wrapf(err, "failed to delete CronJob v1Beta1 %q", prunerName)
+		}
+
+		cronJob := &v1.CronJob{ObjectMeta: objectMeta}
+		err = controllerutil.SetControllerReference(&cephCluster, cronJob, r.scheme)
+		if err != nil {
+			return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of deployment %q", cronJob.Name)
+		}
+		mutateFunc := func() error {
+			cronJob.ObjectMeta.Labels = cronJobLabels
+			cronJob.Spec.JobTemplate.Spec.Template = podTemplateSpec
+			cronJob.Spec.Schedule = pruneSchedule
+			cronJob.Spec.StartingDeadlineSeconds = &deadline
+
+			return nil
+		}
+
+		return controllerutil.CreateOrUpdate(context.TODO(), r.client, cronJob, mutateFunc)
+	}
+	cronJob := &v1beta1.CronJob{ObjectMeta: objectMeta}
 	err := controllerutil.SetControllerReference(&cephCluster, cronJob, r.scheme)
 	if err != nil {
 		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of deployment %q", cronJob.Name)
 	}
 
-	// Adding volumes to pods containing data needed to connect to the ceph cluster.
-	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")
-	volumes = append(volumes, keyring.Volume().CrashCollector())
-
 	mutateFunc := func() error {
-
-		// labels for the pod, the deployment, and the deploymentSelector
-		cronJobLabels := map[string]string{
-			k8sutil.AppAttr: prunerName,
-		}
-		cronJobLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
-
 		cronJob.ObjectMeta.Labels = cronJobLabels
-		cronJob.Spec.JobTemplate.Spec.Template = corev1.PodTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: cronJobLabels,
-			},
-			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{
-					getCrashPruneContainer(cephCluster, *cephVersion),
-				},
-				RestartPolicy: corev1.RestartPolicyNever,
-				HostNetwork:   cephCluster.Spec.Network.IsHost(),
-				Volumes:       volumes,
-			},
-		}
-
+		cronJob.Spec.JobTemplate.Spec.Template = podTemplateSpec
 		cronJob.Spec.Schedule = pruneSchedule
-		// After 100 failures, the cron job will no longer run.
-		// To avoid this, the cronjob is configured to only count the failures
-		// that occurred in the last hour.
-		deadline := int64(60)
 		cronJob.Spec.StartingDeadlineSeconds = &deadline
 
 		return nil
@@ -208,7 +236,7 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 	)
 }
 
-func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion version.CephVersion) corev1.Container {
+func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion) corev1.Container {
 	cephImage := cephCluster.Spec.CephVersion.Image
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	crashEnvVar := generateCrashEnvVar()
@@ -231,7 +259,7 @@ func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion version
 	return container
 }
 
-func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion version.CephVersion) corev1.Container {
+func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion) corev1.Container {
 	cephImage := cephCluster.Spec.CephVersion.Image
 	envVars := append(controller.DaemonEnvVars(cephImage), generateCrashEnvVar())
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
