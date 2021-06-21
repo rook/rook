@@ -22,7 +22,6 @@ import (
 	"crypto/x509"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -45,7 +44,7 @@ func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 		logLevel = aws.LogDebug
 	}
 	client := http.Client{
-		Timeout: time.Second * 15,
+		Timeout: HttpTimeOut,
 	}
 	tlsEnabled := false
 	if len(tlsCert) > 0 {

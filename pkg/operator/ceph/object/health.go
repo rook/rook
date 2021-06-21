@@ -131,13 +131,15 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	// Generate unique user and bucket name
 	bucketName := genUniqueBucketName(c.objContext.UID)
 	userConfig := c.genUserConfig()
-
-	var httpClient *http.Client
+	httpClient := &http.Client{
+		Timeout: HttpTimeOut,
+	}
 	if c.objectStoreSpec.IsTLSEnabled() {
 		tlsCert, err = GetTlsCaCert(c.objContext, c.objectStoreSpec)
 		if err != nil {
 			return errors.Wrapf(err, "failed to fetch CA cert for the user %q to establish TLS connection with the object store %q", userConfig.ID, c.namespacedName.Name)
 		}
+
 		httpClient.Transport = BuildTransportTLS(tlsCert)
 	}
 
