@@ -1300,7 +1300,8 @@ func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 		return c.updateMon(m, d)
 	}
 
-	if c.monVolumeClaimTemplate(m) != nil {
+	monVolumeClaim := c.monVolumeClaimTemplate(m)
+	if monVolumeClaim != nil {
 		pvc, err := c.makeDeploymentPVC(m, false)
 		if err != nil {
 			return errors.Wrapf(err, "failed to make mon %s pvc", d.Name)
@@ -1315,15 +1316,18 @@ func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
 		}
 	}
 
-	if schedule == nil || schedule.Zone != "" {
-		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
-			map[string]string{k8sutil.AppAttr: AppName}, nil)
+	var nodeSelector map[string]string
+	if schedule == nil || (monVolumeClaim != nil && zone != "") {
+		// Schedule the mon according to placement settings, and allow it to be portable among nodes if allowed by the PV
+		nodeSelector = nil
 	} else {
+		// Schedule the mon on a specific host if specified, or else allow it to be portable according to the PV
 		p.PodAffinity = nil
 		p.PodAntiAffinity = nil
-		k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
-			map[string]string{k8sutil.AppAttr: AppName}, map[string]string{v1.LabelHostname: schedule.Hostname})
+		nodeSelector = map[string]string{v1.LabelHostname: schedule.Hostname}
 	}
+	k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
+		map[string]string{k8sutil.AppAttr: AppName}, nodeSelector)
 
 	logger.Debugf("Starting mon: %+v", d.Name)
 	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Create(ctx, d, metav1.CreateOptions{})
