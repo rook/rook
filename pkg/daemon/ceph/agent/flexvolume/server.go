@@ -38,7 +38,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/kubernetes/pkg/volume/flexvolume"
 )
 
 const (
@@ -152,9 +151,9 @@ func TouchFlexDrivers(vendor, driverName string) {
 
 // Encode the flex settings in json
 func generateFlexSettings(enableSELinuxRelabeling, enableFSGroup bool) ([]byte, error) {
-	status := flexvolume.DriverStatus{
-		Status: flexvolume.StatusSuccess,
-		Capabilities: &flexvolume.DriverCapabilities{
+	status := driverStatus{
+		Status: statusSuccess,
+		Capabilities: &driverCapabilities{
 			Attach: false,
 			// Required for metrics
 			SupportsMetrics: true,
@@ -178,7 +177,7 @@ func generateFlexSettings(enableSELinuxRelabeling, enableFSGroup bool) ([]byte, 
 func LoadFlexSettings(directory string) []byte {
 	// Load the settings from the expected config file, ensure they are valid settings, then return them in
 	// a json string to the caller
-	var status flexvolume.DriverStatus
+	var status driverStatus
 	if output, err := ioutil.ReadFile(filepath.Clean(path.Join(directory, settingsFilename))); err == nil {
 		if err := json.Unmarshal(output, &status); err == nil {
 			if output, err = json.Marshal(status); err == nil {
