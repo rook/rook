@@ -143,6 +143,42 @@ func TestResourceName(t *testing.T) {
 	assert.Equal(t, "rook-ceph-mon-b", resourceName("b"))
 }
 
+func TestStartMonDeployment(t *testing.T) {
+	ctx := context.TODO()
+	namespace := "ns"
+	context, err := newTestStartCluster(t, namespace)
+	assert.NoError(t, err)
+	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
+
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: EndpointConfigMapName},
+		Data:       map[string]string{"maxMonId": "1"},
+	}
+	_, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(ctx, cm, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Start mon a on a specific node since there is no volumeClaimTemplate
+	m := &monConfig{ResourceName: "rook-ceph-mon-a", DaemonName: "a", Port: 3300, PublicIP: "1.2.3.4", DataPathMap: &config.DataPathMap{}}
+	schedule := &MonScheduleInfo{Hostname: "host-a", Zone: "zonea"}
+	err = c.startMon(m, schedule)
+	assert.NoError(t, err)
+	deployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(ctx, m.ResourceName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, schedule.Hostname, deployment.Spec.Template.Spec.NodeSelector["kubernetes.io/hostname"])
+
+	// Start mon b on any node in a zone since there is a volumeClaimTemplate
+	m = &monConfig{ResourceName: "rook-ceph-mon-b", DaemonName: "b", Port: 3300, PublicIP: "1.2.3.5", DataPathMap: &config.DataPathMap{}}
+	schedule = &MonScheduleInfo{Hostname: "host-b", Zone: "zoneb"}
+	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{}
+	err = c.startMon(m, schedule)
+	assert.NoError(t, err)
+	deployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(ctx, m.ResourceName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// no node selector when there is a volumeClaimTemplate and the mon is assigned to a zone
+	assert.Equal(t, 0, len(deployment.Spec.Template.Spec.NodeSelector))
+}
+
 func TestStartMonPods(t *testing.T) {
 	ctx := context.TODO()
 	namespace := "ns"
