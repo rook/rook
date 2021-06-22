@@ -40,6 +40,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 func TestCheckHealth(t *testing.T) {
@@ -147,6 +148,62 @@ func TestCheckHealth(t *testing.T) {
 		}
 		assert.True(t, found, pvc.Name)
 	}
+}
+
+func TestEvictMonOnSameNode(t *testing.T) {
+	ctx := context.TODO()
+	clientset := test.New(t, 1)
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: &exectest.MockExecutor{}, RequestCancelOrchestration: abool.New()}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})
+	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0}, "myversion")
+	c.maxMonID = 2
+	c.waitForStart = false
+	waitForMonitorScheduling = func(c *Cluster, d *apps.Deployment) (SchedulingResult, error) {
+		node, _ := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
+		return SchedulingResult{Node: node}, nil
+	}
+
+	c.spec.Mon.Count = 3
+	createTestMonPod(t, clientset, c, "a", "node1")
+
+	// Nothing to evict with a single mon
+	err := c.evictMonIfMultipleOnSameNode()
+	assert.NoError(t, err)
+
+	// Create a second mon on a different node
+	createTestMonPod(t, clientset, c, "b", "node2")
+
+	// Nothing to evict with where mons are on different nodes
+	err = c.evictMonIfMultipleOnSameNode()
+	assert.NoError(t, err)
+
+	// Create a third mon on the same node as mon a
+	createTestMonPod(t, clientset, c, "c", "node1")
+	assert.Equal(t, 2, c.maxMonID)
+
+	// Should evict either mon a or mon c since they are on the same node and failover to mon d
+	err = c.evictMonIfMultipleOnSameNode()
+	assert.NoError(t, err)
+	_, err = clientset.AppsV1().Deployments(c.Namespace).Get(ctx, "rook-ceph-mon-d", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, 3, c.maxMonID)
+}
+
+func createTestMonPod(t *testing.T, clientset kubernetes.Interface, c *Cluster, name, node string) {
+	m := &monConfig{ResourceName: resourceName(name), DaemonName: name, DataPathMap: &config.DataPathMap{}}
+	d, err := c.makeDeployment(m, false)
+	assert.NoError(t, err)
+	monPod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "mon-pod-" + name, Namespace: c.Namespace, Labels: d.Labels},
+		Spec:       d.Spec.Template.Spec,
+	}
+	monPod.Spec.NodeName = node
+	monPod.Status.Phase = v1.PodRunning
+	_, err = clientset.CoreV1().Pods(c.Namespace).Create(context.TODO(), monPod, metav1.CreateOptions{})
+	assert.NoError(t, err)
 }
 
 func TestScaleMonDeployment(t *testing.T) {
