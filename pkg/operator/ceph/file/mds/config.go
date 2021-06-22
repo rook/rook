@@ -74,6 +74,9 @@ func (c *Cluster) setDefaultFlagsMonConfigStore(mdsID string) error {
 	if !c.fs.Spec.MetadataServer.Resources.Limits.Memory().IsZero() {
 		mdsCacheMemoryLimit := float64(c.fs.Spec.MetadataServer.Resources.Limits.Memory().Value()) * mdsCacheMemoryLimitFactor
 		configOptions["mds_cache_memory_limit"] = strconv.Itoa(int(mdsCacheMemoryLimit))
+	} else if !c.fs.Spec.MetadataServer.Resources.Requests.Memory().IsZero() {
+		mdsCacheMemoryRequest := float64(c.fs.Spec.MetadataServer.Resources.Requests.Memory().Value()) * mdsCacheMemoryResourceFactor
+		configOptions["mds_cache_memory_limit"] = strconv.Itoa(int(mdsCacheMemoryRequest))
 	}
 
 	// Set mds_join_fs flag to force mds daemon to join a specific fs
