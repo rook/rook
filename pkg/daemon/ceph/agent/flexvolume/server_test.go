@@ -26,7 +26,6 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/kubernetes/pkg/volume/flexvolume"
 )
 
 func TestConfigureFlexVolume(t *testing.T) {
@@ -50,7 +49,7 @@ func TestConfigureFlexVolume(t *testing.T) {
 
 	// verify the non-default settings
 	settings := LoadFlexSettings(driverDir)
-	var status flexvolume.DriverStatus
+	var status driverStatus
 	err = json.Unmarshal(settings, &status)
 	assert.Nil(t, err)
 	assert.False(t, status.Capabilities.FSGroup)

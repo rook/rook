@@ -44,7 +44,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
-	storagev1util "k8s.io/kubernetes/pkg/apis/storage/v1/util"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
@@ -496,7 +495,7 @@ func (k8sh *K8sHelper) GetEventsFromNamespace(namespace, testName, platformName 
 	if events == "" {
 		return
 	}
-	file.WriteString(events) //nolint, ok to ignore this test logging
+	file.WriteString(events) //nolint // ok to ignore this test logging
 }
 
 func (k8sh *K8sHelper) appendPodDescribe(file *os.File, namespace, name string) {
@@ -504,9 +503,9 @@ func (k8sh *K8sHelper) appendPodDescribe(file *os.File, namespace, name string) 
 	if description == "" {
 		return
 	}
-	writeHeader(file, fmt.Sprintf("Pod: %s\n", name)) //nolint, ok to ignore this test logging
-	file.WriteString(description)                     //nolint, ok to ignore this test logging
-	file.WriteString("\n")                            //nolint, ok to ignore this test logging
+	writeHeader(file, fmt.Sprintf("Pod: %s\n", name)) //nolint // ok to ignore this test logging
+	file.WriteString(description)                     //nolint // ok to ignore this test logging
+	file.WriteString("\n")                            //nolint // ok to ignore this test logging
 }
 
 func (k8sh *K8sHelper) PrintPodDescribe(namespace string, args ...string) {
@@ -1008,7 +1007,7 @@ func (k8sh *K8sHelper) IsDefaultStorageClassPresent() (bool, error) {
 	}
 
 	for _, sc := range scs.Items {
-		if storagev1util.IsDefaultAnnotation(sc.ObjectMeta) {
+		if isDefaultAnnotation(sc.ObjectMeta) {
 			return true, nil
 		}
 	}
@@ -1510,9 +1509,9 @@ func (k8sh *K8sHelper) getPodLogs(pod v1.Pod, platformName, namespace, testName 
 }
 
 func writeHeader(file *os.File, message string) error {
-	file.WriteString("\n-----------------------------------------\n") //nolint, ok to ignore this test logging
-	file.WriteString(message)                                         //nolint, ok to ignore this test logging
-	file.WriteString("\n-----------------------------------------\n") //nolint, ok to ignore this test logging
+	file.WriteString("\n-----------------------------------------\n") //nolint // ok to ignore this test logging
+	file.WriteString(message)                                         //nolint // ok to ignore this test logging
+	file.WriteString("\n-----------------------------------------\n") //nolint // ok to ignore this test logging
 
 	return nil
 }
@@ -1522,7 +1521,7 @@ func (k8sh *K8sHelper) appendContainerLogs(file *os.File, pod v1.Pod, containerN
 	if initContainer {
 		message = "INIT " + message
 	}
-	writeHeader(file, message) //nolint, ok to ignore this test logging
+	writeHeader(file, message) //nolint // ok to ignore this test logging
 	ctx := context.TODO()
 	logOpts := &v1.PodLogOptions{Previous: previousLog}
 	if containerName != "" {

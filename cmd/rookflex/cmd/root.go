@@ -79,7 +79,7 @@ func log(client *rpc.Client, message string, isError bool) {
 		Message: message,
 		IsError: isError,
 	}
-	// nolint, #nosec G104  in this case we want the original errors
+	// nolint // #nosec G104  in this case we want the original errors
 	// to be returned in case of another failure
 	client.Call("Controller.Log", log, nil)
 }

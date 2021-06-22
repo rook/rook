@@ -127,7 +127,7 @@ func (s *NfsSuite) TestNfsServerInstallation() {
 	// verify another smaller export is running OK
 	assert.True(s.T(), true, s.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
-	defer s.rwClient.Delete() //nolint, delete a nfs consuming pod in rook
+	defer s.rwClient.Delete() //nolint // delete a nfs consuming pod in rook
 	podList, err = s.rwClient.CreateWriteClient("nfs-pv-claim")
 	require.NoError(s.T(), err)
 	assert.True(s.T(), true, s.checkReadData(podList))
