@@ -189,7 +189,7 @@ func CSIEnabled() bool {
 	return EnableRBD || EnableCephFS
 }
 
-func ValidateCSIParam() error {
+func validateCSIParam() error {
 
 	if len(CSIParam.CSIPluginImage) == 0 {
 		return errors.New("missing csi rbd plugin image")
