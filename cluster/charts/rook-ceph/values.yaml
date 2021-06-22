@@ -22,7 +22,7 @@ resources:
     memory: 256Mi
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 128Mi
 
 nodeSelector: {}
 # Constraint rook-ceph-operator Deployment to nodes with label `disktype: ssd`.
