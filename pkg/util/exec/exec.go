@@ -247,11 +247,16 @@ func startCommand(env []string, command string, arg ...string) (*exec.Cmd, io.Re
 
 // read from reader line by line and write it to the log
 func logFromReader(logger *capnslog.PackageLogger, reader io.ReadCloser) {
+	l := logger.Debug
+	// If we are an OSD we must log using Info to print out stdout/stderr
+	if os.Getenv("ROOK_OSD_ID") != "" {
+		l = logger.Info
+	}
 	in := bufio.NewScanner(reader)
 	lastLine := ""
 	for in.Scan() {
 		lastLine = in.Text()
-		logger.Debug(lastLine)
+		l(lastLine)
 	}
 }
 
