@@ -246,15 +246,20 @@ fi
 curl "${ARGS[@]}" "$VAULT_ADDR"/v1/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
 
 # Check for warnings in the payload
-if python3 -c "import sys, json; print(json.load(sys.stdin)[\"warnings\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
-  # We could get a warning but it is not necessary an issue, so if there is no key we exit
-  if ! python3 -c "import sys, json; print(json.load(sys.stdin)${PYTHON_DATA_PARSE}[\"$KEK_NAME\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
-    exit 1
+if warning=$(python3 -c "import sys, json; print(json.load(sys.stdin)[\"warnings\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"); then
+  if [[ "$warning" != None ]]; then
+    # We could get a warning but it is not necessary an issue, so if there is no key we exit
+    if ! python3 -c "import sys, json; print(json.load(sys.stdin)${PYTHON_DATA_PARSE}[\"$KEK_NAME\"], end='')" &> /dev/null < "$CURL_PAYLOAD"; then
+      echo "no encryption key $KEK_NAME present in vault"
+      echo "$warning"
+      exit 1
+    fi
   fi
 fi
 
 # Check for errors in the payload
-if python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"; then
+if error=$(python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"); then
+  echo "$error"
   exit 1
 fi
 
