@@ -19,6 +19,7 @@ package k8sutil
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	netapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -95,6 +96,9 @@ func ApplyMultus(net rookv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 	if shortSyntax && jsonSyntax {
 		return fmt.Errorf("ApplyMultus: Can't mix short and JSON form")
 	}
+
+	// Sort network strings so that pods/deployments won't need updated in a loop if nothing changes
+	sort.Strings(v)
 
 	networks := strings.Join(v, ", ")
 	if jsonSyntax {
