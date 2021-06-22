@@ -34,6 +34,17 @@ func ValidateAndConfigureDrivers(context *clusterd.Context, namespace, rookImage
 		v   *CephCSIVersion
 		err error
 	)
+
+	if err = setParams(context.Clientset); err != nil {
+		logger.Errorf("failed to configure CSI parameters. %v", err)
+		return
+	}
+
+	if err = validateCSIParam(); err != nil {
+		logger.Errorf("failed to validate CSI parameters. %v", err)
+		return
+	}
+
 	if !AllowUnsupported && CSIEnabled() {
 		if v, err = validateCSIVersion(context.Clientset, namespace, rookImage, securityAccount, ownerInfo); err != nil {
 			logger.Errorf("invalid csi version. %+v", err)
@@ -57,7 +68,7 @@ func ValidateAndConfigureDrivers(context *clusterd.Context, namespace, rookImage
 	stopDrivers(context.Clientset, namespace, serverVersion)
 }
 
-func SetParams(clientset kubernetes.Interface) error {
+func setParams(clientset kubernetes.Interface) error {
 	var err error
 
 	csiEnableRBD, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "ROOK_CSI_ENABLE_RBD", "true")
