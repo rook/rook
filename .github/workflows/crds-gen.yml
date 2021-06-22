@@ -11,6 +11,11 @@ on:
       - master
       - release-*
 
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
 jobs:
   crds-gen:
     runs-on: ubuntu-18.04
