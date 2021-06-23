@@ -30,9 +30,9 @@ jobs:
         go-version: 1.16
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -110,9 +110,9 @@ jobs:
       run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -188,9 +188,9 @@ jobs:
       run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -255,9 +255,9 @@ jobs:
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -319,9 +319,9 @@ jobs:
         go-version: 1.16
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -392,9 +392,9 @@ jobs:
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -460,9 +460,9 @@ jobs:
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -525,9 +525,9 @@ jobs:
         go-version: 1.16
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -615,9 +615,9 @@ jobs:
       run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -678,9 +678,9 @@ jobs:
       run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
