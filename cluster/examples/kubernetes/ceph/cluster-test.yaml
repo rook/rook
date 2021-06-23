@@ -18,6 +18,7 @@ data:
     osd_pool_default_size = 1
     mon_warn_on_pool_no_redundancy = false
     bdev_flock_retry = 20
+    bluefs_buffered_io = false
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
