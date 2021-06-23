@@ -57,5 +57,6 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-smoke-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
