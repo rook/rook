@@ -40,6 +40,8 @@ var (
 
 	retriesBeforeNodeDrainFailover = 1
 	timeZero                       = time.Duration(0)
+	// Check whether mons are on the same node once per operator restart since it's a rare scheduling condition
+	needToCheckMonsOnSameNode = true
 )
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
@@ -208,7 +210,6 @@ func (c *Cluster) checkHealth() error {
 		if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
 			timeToFailover := int(MonOutTimeout.Seconds() - time.Since(c.monTimeoutList[mon.Name]).Seconds())
 			logger.Warningf("mon %q not found in quorum, waiting for timeout (%d seconds left) before failover", mon.Name, timeToFailover)
-
 			continue
 		}
 
@@ -257,10 +258,18 @@ func (c *Cluster) checkHealth() error {
 		}
 	}
 
-	// remove any pending/not needed mon canary deployment if everything is ok
 	if allMonsInQuorum && len(quorumStatus.MonMap.Mons) == desiredMonCount {
+		// remove any pending/not needed mon canary deployment if everything is ok
 		logger.Debug("mon cluster is healthy, removing any existing canary deployment")
 		c.removeCanaryDeployments()
+
+		// Check whether two healthy mons are on the same node when they should not be.
+		// This should be a rare event to find them on the same node, so we just need to check
+		// once per operator restart.
+		if needToCheckMonsOnSameNode {
+			needToCheckMonsOnSameNode = false
+			return c.evictMonIfMultipleOnSameNode()
+		}
 	}
 
 	return nil
@@ -600,4 +609,45 @@ func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse
 
 	logger.Debugf("ClusterInfo.Monitors is %+v", c.ClusterInfo.Monitors)
 	return changed, nil
+}
+
+func (c *Cluster) evictMonIfMultipleOnSameNode() error {
+	if c.spec.Mon.AllowMultiplePerNode {
+		logger.Debug("skipping check for multiple mons on same node since multiple mons are allowed")
+		return nil
+	}
+
+	logger.Info("checking if multiple mons are on the same node")
+
+	// Get all the mon pods
+	label := fmt.Sprintf("app=%s", AppName)
+	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: label})
+	if err != nil {
+		return errors.Wrap(err, "failed to list mon pods")
+	}
+
+	nodesToMons := map[string]string{}
+	for _, pod := range pods.Items {
+		logger.Debugf("analyzing mon pod %q on node %q", pod.Name, pod.Spec.NodeName)
+		if _, ok := pod.Labels["mon_canary"]; ok {
+			logger.Debugf("skipping mon canary pod %q", pod.Name)
+			continue
+		}
+		if pod.Spec.NodeName == "" {
+			logger.Warningf("mon %q is not assigned to a node", pod.Name)
+			continue
+		}
+		monName := pod.Labels["mon"]
+		previousMonName, ok := nodesToMons[pod.Spec.NodeName]
+		if !ok {
+			// remember this node is taken by this mon
+			nodesToMons[pod.Spec.NodeName] = monName
+			continue
+		}
+
+		logger.Warningf("Both mons %q and %q are on node %q. Evicting mon %q", monName, previousMonName, pod.Spec.NodeName, monName)
+		return c.failoverMon(monName)
+	}
+
+	return nil
 }
