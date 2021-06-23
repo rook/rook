@@ -61,6 +61,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   TestCephHelmSuite:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
@@ -112,6 +113,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   TestCephMultiClusterDeploySuite:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
@@ -162,6 +164,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   TestCephSmokeSuite:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
@@ -211,6 +214,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   TestCephUpgradeSuite:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
@@ -260,6 +264,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   TestCassandraSuite:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
@@ -310,6 +315,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   TestNFSSuite:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
@@ -363,3 +369,4 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120

@@ -89,8 +89,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   pvc:
     runs-on: ubuntu-18.04
@@ -166,8 +167,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   pvc-db:
     runs-on: ubuntu-18.04
@@ -230,8 +232,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc-db')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   pvc-db-wal:
     runs-on: ubuntu-18.04
@@ -298,8 +301,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-canary-pvc-db-wal')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   encryption-pvc:
     runs-on: ubuntu-18.04
@@ -365,8 +369,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   encryption-pvc-db:
     runs-on: ubuntu-18.04
@@ -432,8 +437,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-db')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-18.04
@@ -500,8 +506,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-db-wal')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
 
   encryption-pvc-kms-vault-token-auth:
@@ -587,8 +594,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-encryption-pvc-kms-vault-token-auth')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   lvm-pvc:
     runs-on: ubuntu-18.04
@@ -649,8 +657,9 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-lvm-pvc')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
 
   multi-cluster-mirroring:
     runs-on: ubuntu-18.04
@@ -768,5 +777,6 @@ jobs:
         path: test
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-multi-cluster-mirroring')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
