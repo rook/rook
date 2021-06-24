@@ -199,7 +199,6 @@ func (c *ClusterController) waitForCephDaemonCleanUp(stopCleanupCh chan struct{}
 
 			logger.Debugf("waiting for ceph daemons in cluster %q to be cleaned up. Retrying in %q",
 				cluster.Namespace, retryInterval.String())
-			break
 		case <-stopCleanupCh:
 			return errors.New("cancelling the host cleanup job")
 		}
