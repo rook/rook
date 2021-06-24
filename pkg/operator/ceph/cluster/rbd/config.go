@@ -50,14 +50,6 @@ type daemonConfig struct {
 	ownerInfo    *k8sutil.OwnerInfo
 }
 
-// PeerToken is the content of the peer token
-type PeerToken struct {
-	ClusterFSID string `json:"fsid"`
-	ClientID    string `json:"client_id"`
-	Key         string `json:"key"`
-	MonHost     string `json:"mon_host"`
-}
-
 func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo, daemonConfig *daemonConfig) (string, error) {
 	ctx := context.TODO()
 	user := fullDaemonName(daemonConfig.DaemonID)

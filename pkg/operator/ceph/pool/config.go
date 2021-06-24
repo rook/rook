@@ -18,6 +18,8 @@ limitations under the License.
 package pool
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -47,8 +49,14 @@ func (r *ReconcileCephBlockPool) createBootstrapPeerSecret(cephBlockPool *cephv1
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create rbd-mirror bootstrap peer")
 	}
 
+	// Add additional information to the peer token
+	expandedPeerToken, err := r.expandBootstrapPeerToken(cephBlockPool, namespacedName, boostrapToken)
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to add extra information to rbd-mirror bootstrap peer")
+	}
+
 	// Generate and create a Kubernetes Secret with this token
-	s := GenerateBootstrapPeerSecret(cephBlockPool.Name, cephBlockPool.Namespace, boostrapToken)
+	s := GenerateBootstrapPeerSecret(cephBlockPool.Name, cephBlockPool.Namespace, expandedPeerToken)
 
 	// set ownerref to the Secret
 	err = controllerutil.SetControllerReference(cephBlockPool, s, r.scheme)
@@ -92,4 +100,38 @@ func generateStatusInfo(p *cephv1.CephBlockPool) map[string]string {
 	m := make(map[string]string)
 	m[RBDMirrorBootstrapPeerSecretName] = buildBoostrapPeerSecretName(p.Name)
 	return m
+}
+
+func (r *ReconcileCephBlockPool) expandBootstrapPeerToken(cephBlockPool *cephv1.CephBlockPool, namespacedName types.NamespacedName, token []byte) ([]byte, error) {
+	// First decode the token, it's base64 encoded
+	decodedToken, err := base64.StdEncoding.DecodeString(string(token))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode bootstrap peer token")
+	}
+
+	// Unmarshal the decoded value to a Go type
+	var decodedTokenToGo opcontroller.PeerToken
+	err = json.Unmarshal(decodedToken, &decodedTokenToGo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal decoded token")
+	}
+
+	// Fetch the pool ID
+	poolDetails, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, cephBlockPool.Name)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get pool %q details", cephBlockPool.Name)
+	}
+
+	// Add extra details to the token
+	decodedTokenToGo.PoolID = poolDetails.Number
+	decodedTokenToGo.Namespace = namespacedName.Namespace
+
+	// Marshal the Go type back to JSON
+	decodedTokenBackToJSON, err := json.Marshal(decodedTokenToGo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to encode go type back to json")
+	}
+
+	// Return the base64 encoded token
+	return []byte(base64.StdEncoding.EncodeToString(decodedTokenBackToJSON)), nil
 }
