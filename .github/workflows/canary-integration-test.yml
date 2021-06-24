@@ -586,6 +586,7 @@ jobs:
     - name: validate rgw vault
       run: |
         tests/scripts/deploy-validate-vault.sh validate_rgw
+        exit 1
 
     - name: Upload encryption-pvc-kms-vault-token-auth test result
       uses: actions/upload-artifact@v2
