@@ -443,23 +443,26 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 		}
 	}
 
-	if cluster.Spec.CleanupPolicy.AllowUninstallWithVolumes {
-		logger.Info("skipping check for existing PVs as allowUninstallWithVolumes is set to true")
-	} else {
-		err := c.checkIfVolumesExist(cluster)
-		if err != nil {
-			return opcontroller.WaitForRequeueIfFinalizerBlocked, errors.Wrapf(err, "failed to check if volumes exist for CephCluster in namespace %q", cluster.Namespace)
-		}
-	}
-
 	if cluster.Spec.External.Enable {
 		purgeExternalCluster(c.context.Clientset, cluster.Namespace)
-	} else if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
-		// If the StorageClass retain policy of an encrypted cluster with KMS is Delete we also delete the keys
-		// Delete keys from KMS
-		err := c.deleteOSDEncryptionKeyFromKMS(cluster)
-		if err != nil {
-			logger.Errorf("failed to delete osd encryption keys for CephCluster %q from kms; deletion will continue. %v", nsName, err)
+	} else {
+		if cluster.Spec.CleanupPolicy.AllowUninstallWithVolumes {
+			logger.Info("skipping check for existing PVs as allowUninstallWithVolumes is set to true")
+		} else {
+			// If the StorageClass retain policy of an encrypted cluster with KMS is Delete we also delete the keys
+			if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
+				// Delete keys from KMS
+				logger.Info("starting encryption key(s) deletion from kms")
+				err := c.deleteOSDEncryptionKeyFromKMS(cluster)
+				if err != nil {
+					return reconcile.Result{}, errors.Wrapf(err, "failed to delete osd encryption keys from kms")
+				}
+				logger.Info("successfully deleted encryption key(s) from kms")
+			}
+			err := c.checkIfVolumesExist(cluster)
+			if err != nil {
+				return opcontroller.WaitForRequeueIfFinalizerBlocked, errors.Wrapf(err, "failed to check if volumes exist for CephCluster in namespace %q", cluster.Namespace)
+			}
 		}
 	}
 
@@ -606,6 +609,7 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 			logger.Errorf("failed to delete secret. %v", err)
 			continue
 		}
+		logger.Debugf("successfully deleted encryption key %q", osdPVC.Name)
 	}
 
 	return nil
