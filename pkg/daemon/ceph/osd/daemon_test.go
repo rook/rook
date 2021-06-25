@@ -170,6 +170,12 @@ USEC_INITIALIZED=1128667
 		]
 	 }
 	 `
+
+	partedAtariOutput = `BYT;
+/dev/sdb1:1509kB:unknown:512:512:atari:Unknown:;`
+
+	partedUnknownOutput = `BYT;
+/dev/sdc1:10.7GB:unknown:512:512:unknown:Unknown:;`
 )
 
 func TestAvailableDevices(t *testing.T) {
@@ -242,7 +248,16 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 					}
 				}
 				return "{}", nil
+
+			} else if command == "parted" {
+				if strings.Contains(args[2], "sdu1") {
+					return partedAtariOutput, nil
+				} else if strings.Contains(args[2], "sdt1") {
+					// parted returns an error if the partition type is unknown
+					return partedUnknownOutput, errors.New("fake unknown part type err")
+				}
 			}
+
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		},
 	}
@@ -258,6 +273,8 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "rda", RealPath: "/dev/rda"},
 		{Name: "rdb", RealPath: "/dev/rdb"},
 		{Name: "sdt1", RealPath: "/dev/sdt1", Type: sys.PartType},
+		{Name: "sdu1", RealPath: "/dev/sdu1", Type: sys.PartType},                     // is atari
+		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"}, // has filesystem
 	}
 
 	version := cephver.Octopus
@@ -276,11 +293,17 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 7, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+	assert.Equal(t, -1, mapping.Entries["sde"].Data)
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
 	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
 	assert.NotNil(t, mapping.Entries["nvme01"].Metadata)
 	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
+	assert.Equal(t, -1, mapping.Entries["sdt1"].Data)
+	assert.NotContains(t, mapping.Entries, "sdb")  // sdb is in use (has a partition)
+	assert.NotContains(t, mapping.Entries, "sdc")  // sdc is too small
+	assert.NotContains(t, mapping.Entries, "sdu1") // sdu1 is atari
+	assert.NotContains(t, mapping.Entries, "sdv1") // sdv1 has a filesystem
 
 	// Partition is skipped
 	agent.clusterInfo.CephVersion = cephver.Nautilus
