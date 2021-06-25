@@ -17,15 +17,28 @@ limitations under the License.
 package sys
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"os"
 	osexec "os/exec"
 	"path"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/util/exec"
+)
+
+var (
+	// SkipDeviceOpenForUnitTests should be set to true for unit tests to avoid making calls to open
+	// disks or partitions which can't be mocked easily.
+	SkipDeviceOpenForUnitTests = false
+
+	// SkipDeviceOpenForUnitTestsInfoMessage is the message reported when device open is skipped in
+	// unit tests because of SkipDeviceOpenForUnitTests. This should not be present during runtime.
+	SkipDeviceOpenForUnitTestsInfoMessage = "skipping open on device because this is a unit test"
 )
 
 const (
@@ -43,21 +56,18 @@ const (
 	MultiPath = "mpath"
 	// LinearType is a linear type
 	LinearType = "linear"
-	sgdiskCmd  = "sgdisk"
+	// GPTType is a gpt partition type
+	GPTType = "gpt"
+
 	// CephLVPrefix is the prefix of a LV owned by ceph-volume
 	CephLVPrefix = "ceph--"
 	// DeviceMapperPrefix is the prefix of a LV from the device mapper interface
 	DeviceMapperPrefix = "dm-"
 )
 
-// CephVolumeInventory represents the output of the ceph-volume inventory command
-type CephVolumeInventory struct {
-	Path            string          `json:"path"`
-	Available       bool            `json:"available"`
-	RejectedReasons json.RawMessage `json:"rejected_reasons"`
-	SysAPI          json.RawMessage `json:"sys_api"`
-	LVS             json.RawMessage `json:"lvs"`
-}
+const (
+	sgdiskCmd = "sgdisk"
+)
 
 // CephVolumeLVMList represents the output of the ceph-volume lvm list command
 type CephVolumeLVMList map[string][]map[string]interface{}
@@ -114,6 +124,8 @@ type LocalDisk struct {
 	KernelName string `json:"kernel-name,omitempty"`
 	// Whether this device should be encrypted
 	Encrypted bool `json:"encrypted,omitempty"`
+	// PartitionTableType is the partition table type of the device (e.g., dos, gpt, )
+	PartitionTableType string
 }
 
 // ListDevices list all devices available on a machine
@@ -399,35 +411,106 @@ func parseUdevInfo(output string) map[string]string {
 	return result
 }
 
-func isDeviceAvailable(executor exec.Executor, devicePath string) (bool, string, error) {
-	CVInventory, err := inventoryDevice(executor, devicePath)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to determine if the device %q is available. %v", devicePath, err)
-	}
-
-	if CVInventory.Available {
+// if this function returns an error, the disk should not be used (should be considered unavailable)
+func rejectDeviceIfBluestore(devicePath string) (available bool, rejectedReason string, outErr error) {
+	if SkipDeviceOpenForUnitTests {
+		logger.Infof("%s: %q", SkipDeviceOpenForUnitTestsInfoMessage, devicePath)
+		// if this is a unit test, just return that the device is available to avoid making calls to
+		// open a disk that might not exist on the system. This function was tested manually on a
+		// system with a mix of bluestore and non-bluestore disks and should be tested whenever
+		// there are changes in the future.
 		return true, "", nil
 	}
 
-	return false, string(CVInventory.RejectedReasons), nil
+	// device must not be locked - try to open in read-write exclusive mode to test if it's locked or not
+	// related: https://github.com/ceph/ceph/pull/24504
+	f, err := os.OpenFile(devicePath, os.O_RDWR|os.O_EXCL, os.FileMode(0))
+	if err != nil {
+		return false, "locked", nil
+	}
+	// do not defer f.Close() because we need to check the error value from f.Close() below
+
+	// must not already be a bluestore OSD - check the magic header on the disk which we conveniently opened
+	// see: https://github.com/ceph/ceph/blob/4dae3915a842281f93486b612f645eb2eb604385/src/os/bluestore/bluestore_types.cc#L35
+	// code based on: https://github.com/rekby/gpt/blob/7da10aec5566349f29875dad4a59c8341b01e00a/gpt.go#L81
+	sig := [22]byte{}
+	err = binary.Read(f, binary.LittleEndian, &sig)
+	if err != nil {
+		f.Close() // ignore close errors here since we are returning an error anyway
+		return false, "", errors.Wrapf(err, "failed to read bluestore header from device %q", devicePath)
+	}
+	err = f.Close()
+	if err != nil {
+		// failure to close could cause problems later if the device is left locked in exclusive mode
+		return false, "", errors.Wrapf(err, "failed to close device %q opened in exclusive mode", devicePath)
+	}
+
+	if string(sig[:]) == "bluestore block device" {
+		return false, "has BlueStore device label", nil
+	}
+
+	// available
+	return true, "", nil
 }
 
-func inventoryDevice(executor exec.Executor, devicePath string) (CephVolumeInventory, error) {
-	var CVInventory CephVolumeInventory
-
-	args := []string{"inventory", "--format", "json", devicePath}
-	inventory, err := executor.ExecuteCommandWithOutput("ceph-volume", args...)
+// if this function returns an error, the disk should not be used (should be considered unavailable)
+func isDeviceAvailable(executor exec.Executor, devicePath string) (available bool, rejectedReasons string, outErr error) {
+	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
+		"--bytes", "--nodeps", "--noheadings", "--output", "RM,RO,SIZE,TYPE")
 	if err != nil {
-		return CVInventory, fmt.Errorf("failed to execute ceph-volume inventory on disk %q. %v", devicePath, err)
+		return false, "", errors.Wrapf(err, "failed to determine if device %q is available", devicePath)
+	}
+	items := strings.Fields(output)
+	if len(items) != 4 {
+		return false, "", errors.Errorf(
+			"failed to determine if device %q is available. lsblk output should have 4 fields but has %d: %s", devicePath, len(items), items)
+	}
+	rm := items[0]
+	ro := items[1]
+	sizeStr := items[2]
+	devType := items[3]
+
+	rejectedList := []string{}
+
+	// must not be removable
+	if rm != "0" { // 0 means not removable, 1 means removable
+		rejectedList = append(rejectedList, "removable")
 	}
 
-	bInventory := []byte(inventory)
-	err = json.Unmarshal(bInventory, &CVInventory)
-	if err != nil {
-		return CVInventory, fmt.Errorf("error unmarshalling json data coming from ceph-volume inventory %q. %v", devicePath, err)
+	// must not be read-only
+	if ro != "0" { // 0 means not read-only, 1 means read-only
+		rejectedList = append(rejectedList, "read-only")
 	}
 
-	return CVInventory, nil
+	// must be large enough
+	sizeBytes, err := strconv.Atoi(sizeStr)
+	if err != nil {
+		return false, "", errors.Wrapf(err,
+			"failed to determine if device %q is available. failed to interpret reported size %q", devicePath, sizeStr)
+	}
+	if sizeBytes < 5368709120 /* 5368709120 = 5GB */ {
+		rejectedList = append(rejectedList, "insufficient space (< 5GB)")
+	}
+
+	// must be raw device or partition
+	// rejects devType == "lvm" if is an LVM device because LVM is handled in other functions
+	if devType != DiskType && devType != PartType {
+		rejectedList = append(rejectedList,
+			fmt.Sprintf(`device type %q is not acceptable; should be raw device ("disk") or partition ("part")`, devType))
+	}
+
+	available, rejectedReason, err := rejectDeviceIfBluestore(devicePath)
+	if err != nil {
+		return false, "", err
+	}
+	if !available {
+		rejectedList = append(rejectedList, rejectedReason)
+	}
+
+	// do not need to check if disk is a ceph-disk member because Rook has never used ceph-disk
+	// disks, is not intended to adopt those disks, and is not in danger of stepping on those
+
+	return len(rejectedList) == 0, fmt.Sprintf("[%s]", strings.Join(rejectedList, ", ")), nil
 }
 
 func isLVAvailable(executor exec.Executor, devicePath string) (bool, string, error) {
@@ -473,15 +556,14 @@ func ListDevicesChild(executor exec.Executor, device string) ([]string, error) {
 	return strings.Split(childListRaw, "\n"), nil
 }
 
-// PartitionIsAtari returns true if the device partition is an Atari type.
-// Ceph bluestore raw disks can sometimes appear as though they have ATARI (AHDI)
-// partitions created on them when they don't in reality.
-// See: https://github.com/rook/rook/issues/7940
-func PartitionIsAtari(executor exec.Executor, device string) (bool, error) {
+// PartitionTableType returns the partition table type for the device (disk or partition)
+func PartitionTableType(executor exec.Executor, deviceName string) (string, error) {
+	// MUST USE PARTED! it is the only tool that reliably detects when partitions are "atari"
+	// See: https://github.com/rook/rook/issues/7940
 	// the command error is not processed the same way as most Go errors. parted returns an error
 	// when the partition table type is unknown, so always process the raw output, even in the case
 	// of a command error
-	raw, cmdErr := executor.ExecuteCommandWithOutput("parted", "--machine", "--script", path.Join("/dev", device), "print")
+	raw, cmdErr := executor.ExecuteCommandWithOutput("parted", "--machine", "--script", path.Join("/dev", deviceName), "print")
 	// --machine gives machine-parseable output: https://alioth-lists.debian.net/pipermail/parted-devel/2006-December/000573.html
 	// HEADER-TYPE;
 	// DISK-FULL-PATH:...:PART-TABLE-TYPE:PART-TABLE-NAME:FLAGS-SET;
@@ -490,20 +572,20 @@ func PartitionIsAtari(executor exec.Executor, device string) (bool, error) {
 	raw = strings.TrimSpace(raw) // trim begin/end newlines if exist
 	lines := strings.Split(raw, "\n")
 	if len(lines) < 2 {
-		return true, fmt.Errorf("failed to get 'parted' info for device %q. expect at least two lines of output: %q. %v", device, raw, cmdErr)
+		return "", fmt.Errorf("failed to get 'parted' info for device %q. expect at least two lines of output: %q. %v", deviceName, raw, cmdErr)
 	}
 	rawInfo := lines[1]
 	if rawInfo[len(rawInfo)-1] != ';' {
 		// the last char should be a semicolon
-		return true, fmt.Errorf("failed to get 'parted' info for device %q. expect a semicolon at end: %q. %v", device, rawInfo, cmdErr)
+		return "", fmt.Errorf("failed to get 'parted' info for device %q. expect a semicolon at end: %q. %v", deviceName, rawInfo, cmdErr)
 	}
 	rawInfo = strings.TrimRight(rawInfo, ";") // trim the right semicolon
 	items := strings.Split(rawInfo, ":")
 	if len(items) < 6 {
 		// expect at least 6 fields
-		return true, fmt.Errorf("failed to get 'parted' info for device %q. expect at least 6 fields: %q. %v", device, rawInfo, cmdErr)
+		return "", fmt.Errorf("failed to get 'parted' info for device %q. expect at least 6 fields: %q. %v", deviceName, rawInfo, cmdErr)
 	}
 	pType := items[len(items)-3] // 3rd to last field
 
-	return pType == "atari", nil
+	return pType, nil
 }

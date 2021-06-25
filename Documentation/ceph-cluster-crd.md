@@ -437,6 +437,10 @@ Below are the settings available, both at the cluster and individual node level,
   * `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
 * `storageClassDeviceSets`: Explained in [Storage Class Device Sets](#storage-class-device-sets)
 
+In all cases, Rook will skip deploying OSDs on devices if the disk has partitions, a filesystem,
+or is otherwise in use. Rook will skip deploying OSDs on partitions if the partition has a
+filesystem or is in use.
+
 ### Storage Class Device Sets
 
 The following are the settings for Storage Class Device Sets which can be configured to create OSDs that are backed by block mode PVs.

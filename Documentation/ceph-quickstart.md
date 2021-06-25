@@ -24,7 +24,7 @@ To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [fo
 
 In order to configure the Ceph storage cluster, at least one of these local storage options are required:
 - Raw devices (no partitions or formatted filesystems)
-- Raw partitions (no formatted filesystem)
+- Unused GPT partitions (no formatted filesystem)
 - PVs available from a storage class in `block` mode
 
 You can confirm whether your partitions or devices are formatted filesystems with the following command.

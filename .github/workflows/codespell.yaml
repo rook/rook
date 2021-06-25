@@ -30,6 +30,7 @@ jobs:
           # te: udev persistent naming test in pkg/daemon/ceph/osd/daemon_test.go
           # parm: modinfo parameter
           # assigment: inherited from K8s TopologySpreadConstraints dependency
-          ignore_words_list: aks,keyserver,atleast,ser,ist,ba,iam,te,parm,assigment
+          # msdos: output for an MS-DOS partition label from 'parted' tool
+          ignore_words_list: aks,keyserver,atleast,ser,ist,ba,iam,te,parm,assigment,msdos
           check_filenames: true
           check_hidden: true

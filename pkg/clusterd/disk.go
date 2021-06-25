@@ -205,3 +205,12 @@ func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *sys.LocalDis
 
 	return disk, nil
 }
+
+func PopulateDevicePartitionType(d string, executor exec.Executor, disk *sys.LocalDisk) (*sys.LocalDisk, error) {
+	pType, err := sys.PartitionTableType(executor, d)
+	if err != nil {
+		return disk, err
+	}
+	disk.PartitionTableType = pType
+	return disk, nil
+}

@@ -25,6 +25,7 @@ import (
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -137,6 +138,14 @@ func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
 // Test to make sure all rook components are installed and Running
 func (s *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
 	checkIfRookClusterIsInstalled(s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 3)
+
+	// verify that OSD provisioning is not skipping the check for bluestore headers on disks
+	pods, err := s.k8sh.GetPodNamesForApp("rook-ceph-osd-prepare", s.settings.Namespace)
+	assert.NoError(s.T(), err)
+	anOsdPrepPod := pods[0]
+	logs, err := s.k8sh.Kubectl("-n", s.settings.Namespace, "logs", anOsdPrepPod)
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), logs, sys.SkipDeviceOpenForUnitTestsInfoMessage)
 }
 
 // Smoke Test for Mon failover - Test check the following operations for the Mon failover in order

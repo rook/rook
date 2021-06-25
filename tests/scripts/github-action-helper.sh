@@ -39,33 +39,38 @@ function print_k8s_cluster_status() {
 }
 
 function use_local_disk() {
-  BLOCK_DATA_PART=${BLOCK}1
-  sudo dmsetup version || true
-  sudo swapoff --all --verbose
-  if mountpoint -q /mnt; then
-    sudo umount /mnt
-    # search for the device since it keeps changing between sda and sdb
-    sudo wipefs --all --force "$BLOCK_DATA_PART"
-  else
-    # it's the hosted runner!
-    sudo sgdisk --zap-all --clear --mbrtogpt -g -- "${BLOCK}"
-    sudo dd if=/dev/zero of="${BLOCK}" bs=1M count=10 oflag=direct
-    sudo parted -s "${BLOCK}" mklabel gpt
-  fi
-  sudo lsblk
+    sudo dmsetup version || true
+    sudo swapoff --all --verbose
+    if mountpoint -q /mnt; then
+        # it's a GitHub runner
+        sudo umount /mnt
+        # search for the device since it keeps changing between sda and sdb
+        PARTITION=${BLOCK}1
+        sudo wipefs --all --force "$PARTITION"
+        # changing partition table to gpt gives the following error message in the correct case:
+        # ... unable to inform the kernel of the change, probably because it/they are in use. As a result, the old partition(s) will remain in use...
+        # In practice, a reboot isn't necessary if we rescan partitions afterwards
+        sudo parted -s "${PARTITION}" mklabel gpt || true
+        sudo partprobe "${BLOCK}"
+        sleep 5 # give a few seconds for the kernel to reload the partitions
+        # intentionally fails if partition table is not detected as GPT by udev
+        sudo udevadm info --query=property "${PARTITION}" | grep ID_PART_TABLE_TYPE=gpt
+    else
+        # it's a hosted runner (e.g., the arm64 runner)
+        sudo sgdisk --zap-all --clear --mbrtogpt -g -- "${BLOCK}"
+        sudo dd if=/dev/zero of="${BLOCK}" bs=1M count=10 oflag=direct
+        sudo parted -s "${BLOCK}" mklabel gpt
+    fi
+    sudo lsblk
+
 }
 
 function use_local_disk_for_integration_test() {
-  sudo swapoff --all --verbose
-  sudo umount /mnt
-  # search for the device since it keeps changing between sda and sdb
-  PARTITION="${BLOCK}1"
-  sudo wipefs --all --force "$PARTITION"
-  sudo lsblk
-  # add a udev rule to force the disk partitions to ceph
-  # we have observed that some runners keep detaching/re-attaching the additional disk overriding the permissions to the default root:disk
-  # for more details see: https://github.com/rook/rook/issues/7405
-  echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
+    use_local_disk
+    # add a udev rule to force the disk partitions to be owned by ceph
+    # some runners keep detaching/re-attaching the additional disk, overriding the permissions to the default root:disk
+    # for more details see: https://github.com/rook/rook/issues/7405
+    echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
 }
 
 function create_partitions_for_osds() {

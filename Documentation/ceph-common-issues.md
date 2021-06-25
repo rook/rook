@@ -535,7 +535,7 @@ The common misconfigurations include:
 * If `useAllDevices: true`, Rook expects to find local devices attached to the nodes. If no devices are found, no OSDs will be created.
 * If `useAllDevices: false`, OSDs will only be created if `deviceFilter` is specified.
 * Only local devices attached to the nodes will be configurable by Rook. In other words, the devices must show up under `/dev`.
-  * The devices must not have any partitions or filesystems on them. Rook will only configure raw devices. Partitions are not yet supported.
+  * The devices must not have any partitions or filesystems on them. Rook will only configure raw devices or GPT partitions.
 
 ## OSD pods are failing to start
 
@@ -591,11 +591,11 @@ Then when the cluster CRD is applied to start a new cluster, the rook-operator s
 First, ensure that you have specified the devices correctly in the CRD.
 The [Cluster CRD](ceph-cluster-crd.md#storage-selection-settings) has several ways to specify the devices that are to be consumed by the Rook storage:
 
-* `useAllDevices: true`: Rook will consume all devices it determines to be available
+* `useAllDevices: true`: Rook will consume all disks and partitions it determines to be available
 * `deviceFilter`: Consume all devices that match this regular expression
 * `devices`: Explicit list of device names on each node to consume
 
-Second, if Rook determines that a device is not available (has existing partitions or a formatted filesystem), Rook will skip consuming the devices.
+Second, if Rook determines that a device is not available (like a formatted filesystem), Rook will skip consuming the devices.
 If Rook is not starting OSDs on the devices you expect, Rook may have skipped it for this reason. To see if a device was skipped, view the OSD preparation log
 on the node where the device was skipped. Note that it is completely normal and expected for OSD prepare pod to be in the `completed` state.
 After the job is complete, Rook leaves the pod around in case the logs need to be investigated.
@@ -621,7 +621,7 @@ kubectl -n rook-ceph logs rook-ceph-osd-prepare-node1-fvmrp provision
 Here are some key lines to look for in the log:
 
 >```
-># A device will be skipped if Rook sees it has partitions or a filesystem
+># A device will be skipped if Rook sees it has a filesystem
 >2019-05-30 19:02:57.353171 W | cephosd: skipping device sda that is in use
 >2019-05-30 19:02:57.452168 W | skipping device "sdb5": ["Used by ceph-disk"]
 >
@@ -958,13 +958,14 @@ You need to create the CRDs found in `cluster/examples/kubernetes/ceph/pre-k8s-1
 ## Unexpected partitions created
 
 ### Symptoms
-**Rook versions v1.6.0-v1.6.6 may create unwanted OSDs on partitions that appear unexpectedly and
+**Rook versions v1.6.0-v1.6.7 may create unwanted OSDs on partitions that appear unexpectedly and
 seemingly randomly, which will corrupt existing OSDs.**
 
 Unexpected partitions are created on host disks that are used by Ceph OSDs. This happens more often
 on SSDs than HDDs and usually only on disks that are 1TB or larger. Many tools like `lsblk`,
 `blkid`, and `udevadm` will not show a partition table type for the partition; however, `parted`
-will reliably list the partition as `atari` (see the example command and output below).
+will sometimes (but not always) list the partition as `atari` (see the example command and output
+below).
 
 ```console
 # parted --script /dev/sdb1 print
@@ -987,12 +988,12 @@ that can appear to the kernel as an Atari partition.
 You can see https://github.com/rook/rook/issues/7940 for more detailed information and discussion.
 
 ### Solution
-#### Recover from corruption (v1.6.0-v1.6.6)
-If you are using Rook v1.6, you must update to v1.6.7 or higher to avoid further incidents of OSD
+#### Recover from corruption (v1.6.0-v1.6.7)
+If you are using Rook v1.6, you must update to v1.6.8 or higher to avoid further incidents of OSD
 corruption caused by these Atari partitions.
 
 If there are already OSDs created on the unexpected partitions, OSD corruption has already occurred.
-To recover from this, immediately update to v1.6.7 or higher. After the update, no further OSD
+To recover from this, immediately update to v1.6.8 or higher. After the update, no further OSD
 corruption should occur. Next, to get back to a healthy Ceph cluster state, focus on one corruped
 disk at a time and [remove all OSDs on each corrupted disk](ceph-osd-mgmt.md#remove-an-osd) one disk
 at a time.
@@ -1008,8 +1009,10 @@ as well as a second corrupted disk `/dev/sde` with one unexpected partition (`/d
 If your Rook-Ceph cluster does not have any critical data stored in it, it may be simpler to
 uninstall Rook completely and redeploy with v1.6.7 or higher.
 
-#### Handling randomly appearing partitions (v1.6.7+)
-If you are using Rook v1.6.7 or higher, it is safe to ignore these unexpected `atari` partitions.
+If you wish to deploy on partitions, note that they must have a GPT partition header as of 1.6.8.
+
+#### Handling randomly appearing partitions (v1.6.8+)
+If you are using Rook v1.6.8 or higher, it is safe to ignore these unexpected `atari` partitions.
 Rook will not create OSDs on them.
 
 Not all Linux distributions build kernel with Atari support enabled. If possible, we recommend

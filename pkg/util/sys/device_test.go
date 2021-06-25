@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -196,78 +197,162 @@ func TestListDevicesChildListDevicesChild(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(child))
 }
-func TestPartitionIsAtari(t *testing.T) {
-	// This also implicitly tests PartitionIsAtari
 
-	partedAtariOutput := `BYT;
-/dev/sdb1:1509kB:unknown:512:512:atari:Unknown:;`
-
-	partedNonAtariOutput := `BYT;
+func TestPartitionTableType(t *testing.T) {
+	type execOut struct {
+		str string
+		err error
+	}
+	type testCase struct {
+		name    string
+		mockOut execOut
+		expect  string
+		// basic check to see if some text exists in the error itself; "" means do not want error
+		expectErrText string
+	}
+	tests := []testCase{
+		{name: "whole disk",
+			// example /dev/sda on ubuntu vm
+			mockOut: execOut{str: `BYT;
+/dev/sda:137GB:scsi:512:512:msdos:ATA VBOX HARDDISK:;
+1:1049kB:512MB:511MB:ext4::boot;
+2:512MB:2560MB:2048MB:linux-swap(v1)::;
+3:2560MB:137GB:135GB:ext4::;`, err: nil},
+			expect: "msdos", expectErrText: ""},
+		{name: "loop partition",
+			// example /dev/sda2 from above
+			mockOut: execOut{str: `BYT;
 /dev/sda2:2048MB:unknown:512:512:loop:Unknown:;
-1:0.00B:2048MB:2048MB:linux-swap(v1)::;`
-
-	partedUnknownOutput := `BYT;
-/dev/sdc1:10.7GB:unknown:512:512:unknown:Unknown:;`
-
-	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
-			t.Log("command:", command, arg)
-			switch arg[2] {
-			case "/dev/vdb1": // is atari
-				return partedAtariOutput, nil
-			case "/dev/vdb2": // not atari
-				return partedNonAtariOutput, nil
-			case "/dev/vdb3": // unknown type (has error)
-				// parted returns an error if the partition type is unknown, but it still outputs
-				// info to stdout that can be parsed successfully
-				return partedUnknownOutput, fmt.Errorf("fake error about unrecognized disk label")
-			case "/dev/vdb4": // too few lines (none), and error (likely in real world)
-				return "", fmt.Errorf("fake error") // too few output lines (none)
-			case "/dev/vdb5": // too few fields, no error (unlikely in real world)
-				return `BYT;
-/dev/sdc1:Unknown:;`, nil
-			case "/dev/vdb6": // no semicolon
-				return `BYT;
-there:is:not:a:semicolon:after:this:line:`, nil
-			default:
-				panic("unhandled command")
-			}
-		},
+1:0.00B:2048MB:2048MB:linux-swap(v1)::;`, err: nil},
+			expect: "loop", expectErrText: ""},
+		{name: "atari partition",
+			// example from manually-created atari partition
+			mockOut: execOut{str: `BYT;
+/dev/sdb1:1509kB:unknown:512:512:atari:Unknown:;`, err: nil},
+			expect: "atari", expectErrText: ""},
+		{name: "gpt partition",
+			mockOut: execOut{str: `BYT;
+/dev/sdd2:5369MB:unknown:512:512:gpt:Unknown:;`, err: nil},
+			expect: "gpt", expectErrText: ""},
+		{name: "unknown partition",
+			// parted returns an error when it finds an unknown partition type
+			mockOut: execOut{str: `BYT;
+/dev/sdc1:10.7GB:unknown:512:512:unknown:Unknown:;`, err: fmt.Errorf("fake partition type unknown error")},
+			expect: "unknown", expectErrText: ""},
+		{name: "too few fields",
+			mockOut: execOut{str: `BYT;
+/dev/sdc1:Unknown:;`, err: nil /* assume this case would have no error */},
+			expect: "", expectErrText: "fields"},
+		{name: "only one line of output",
+			mockOut: execOut{str: `BYT;`, err: fmt.Errorf("fake error where parted doesn't output part info")},
+			expect:  "", expectErrText: "lines"},
+		{name: "no lines of output",
+			mockOut: execOut{str: ``, err: fmt.Errorf("fake error where parted outputs nothing to stdout")},
+			expect:  "", expectErrText: "lines"},
+		{name: "no semicolon output",
+			mockOut: execOut{str: `BYT;
+there:is:not:a:semicolon:after:this:line:`, err: nil /* assume this case would have no error */},
+			expect: "", expectErrText: "semicolon"},
 	}
 
-	t.Run("is atari", func(t *testing.T) {
-		a, err := PartitionIsAtari(executor, "vdb1")
-		assert.NoError(t, err)
-		assert.True(t, a)
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// set up executor with test definition's mock output
+			executor := &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+					t.Log("command:", command, arg)
+					assert.Equal(t, "/dev/sdb1", arg[len(arg)-2]) // 2nd to last arg should be /dev/sdb1
+					return test.mockOut.str, test.mockOut.err
+				},
+			}
+			// always query with sdb1 so above can verify the query is "/dev/<input>"
+			got, err := PartitionTableType(executor, "sdb1")
+			if test.expectErrText != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), test.expectErrText)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, test.expect, got)
+		})
+	}
+}
 
-	t.Run("not atari", func(t *testing.T) {
-		a, err := PartitionIsAtari(executor, "vdb2")
-		assert.NoError(t, err)
-		assert.False(t, a)
-	})
+func Test_isDeviceAvailable(t *testing.T) {
+	SkipDeviceOpenForUnitTests = true // don't try to open the disks (will fail on most systems)
 
-	t.Run("unknown partition type output", func(t *testing.T) {
-		a, err := PartitionIsAtari(executor, "vdb3")
-		assert.NoError(t, err)
-		assert.False(t, a)
-	})
+	type execOut struct {
+		str string
+		err error
+	}
+	type testCase struct {
+		name                string
+		mockOut             execOut
+		expectAvail         bool
+		expectRejectReasons string
+		expectErr           bool
+	}
 
-	t.Run("too few output lines", func(t *testing.T) {
-		_, err := PartitionIsAtari(executor, "vdb4")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "lines") // minimal check for error message content
-	})
+	tests := []testCase{
+		{name: "available disk",
+			mockOut:     execOut{str: "0 0 10737418240 disk", err: nil},
+			expectAvail: true, expectRejectReasons: "[]", expectErr: false},
+		{name: "available partition",
+			mockOut:     execOut{str: "0 0 10737418240 part", err: nil},
+			expectAvail: true, expectRejectReasons: "[]", expectErr: false},
+		{name: "removable disk not available",
+			mockOut:     execOut{str: "1 0 10737418240 disk", err: nil},
+			expectAvail: false, expectRejectReasons: "[removable]", expectErr: false},
+		{name: "readonly partition not available",
+			mockOut:     execOut{str: "0 1 10737418240 part", err: nil},
+			expectAvail: false, expectRejectReasons: "[read-only]", expectErr: false},
+		{name: "size < 5GB not available",
+			mockOut:     execOut{str: "0 0 5368709119 disk", err: nil},
+			expectAvail: false, expectRejectReasons: "[insufficient space (< 5GB)]", expectErr: false},
+		{name: "size == 5GB is available",
+			mockOut:     execOut{str: "0 0 5368709120 part", err: nil},
+			expectAvail: true, expectRejectReasons: "[]", expectErr: false},
+		{name: "size > 5GB is available",
+			mockOut:     execOut{str: "0 0 5368709121 part", err: nil},
+			expectAvail: true, expectRejectReasons: "[]", expectErr: false},
+		{name: "lvm unavailable",
+			mockOut:     execOut{str: "0 0 5368709120 lvm", err: nil},
+			expectAvail: false, expectRejectReasons: `[device type "lvm" is not acceptable; should be raw device ("disk") or partition ("part")]`, expectErr: false},
+		{name: "err during lvm exec",
+			mockOut:     execOut{str: "0 0 5368709120 disk", err: errors.Errorf("fake err")},
+			expectAvail: false, expectRejectReasons: "", expectErr: true},
+		{name: "multiple reject reasons for disk",
+			mockOut:     execOut{str: "1 1 5368709119 disk"},
+			expectAvail: false, expectRejectReasons: `[removable, read-only, insufficient space (< 5GB)]`, expectErr: false},
+		{name: "multiple reject reasons for partition",
+			mockOut:     execOut{str: "1 1 5368709119 part"},
+			expectAvail: false, expectRejectReasons: `[removable, read-only, insufficient space (< 5GB)]`, expectErr: false},
+		{name: "multiple reject reasons for lvm",
+			mockOut:     execOut{str: "1 1 5368709119 lvm"},
+			expectAvail: false, expectRejectReasons: `[removable, read-only, insufficient space (< 5GB), device type "lvm" is not acceptable; should be raw device ("disk") or partition ("part")]`, expectErr: false},
+	}
 
-	t.Run("too few output fields", func(t *testing.T) {
-		_, err := PartitionIsAtari(executor, "vdb5")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "fields") // minimal check for error message content
-	})
-
-	t.Run("no semicolon after fields", func(t *testing.T) {
-		_, err := PartitionIsAtari(executor, "vdb6")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "semicolon") // minimal check for error message content
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// set up executor with test definition's mock output
+			executor := &exectest.MockExecutor{
+				MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+					t.Log("command:", command, arg)
+					assert.Equal(t, "lsblk", command)
+					assert.Equal(t, "/dev/sdb1", arg[0])
+					assert.Equal(t, "RM,RO,SIZE,TYPE", arg[len(arg)-1])
+					return test.mockOut.str, test.mockOut.err
+				},
+			}
+			// always query with sdb1 so above can verify the query is "/dev/<input>"
+			avail, rejectReasons, err := isDeviceAvailable(executor, "/dev/sdb1")
+			if test.expectErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectAvail, avail)
+			assert.Equal(t, test.expectRejectReasons, rejectReasons)
+		})
+	}
 }

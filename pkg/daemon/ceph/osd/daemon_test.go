@@ -63,9 +63,9 @@ USEC_INITIALIZED=15981915740802
 `
 
 	udevPartOutput = `
-DEVNAME=/dev/sdt1
+DEVNAME=/dev/sdt2
 DEVLINKS=/dev/disk/by-partlabel/test
-DEVPATH=/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/VMBUS:00/763a35b7-6c97-461e-a494-c92c785255d0/host0/target0:0:0/0:0:0:0/block/sdt/sdt1
+DEVPATH=/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/VMBUS:00/763a35b7-6c97-461e-a494-c92c785255d0/host0/target0:0:0/0:0:0:0/block/sdt/sdt2
 DEVTYPE=partition
 ID_BUS=scsi
 ID_MODEL=Virtual_Disk
@@ -99,100 +99,36 @@ TAGS=:systemd:
 USEC_INITIALIZED=1128667
 `
 
-	cvInventoryOutputAvailable = `
-	{
-		"available":true,
-		"lvs":[
-
-		],
-		"rejected_reasons":[
-		   ""
-		],
-		"sys_api":{
-		   "size":10737418240.0,
-		   "scheduler_mode":"mq-deadline",
-		   "rotational":"0",
-		   "vendor":"",
-		   "human_readable_size":"10.00 GB",
-		   "sectors":0,
-		   "sas_device_handle":"",
-		   "rev":"",
-		   "sas_address":"",
-		   "locked":0,
-		   "sectorsize":"512",
-		   "removable":"0",
-		   "path":"/dev/sdb",
-		   "support_discard":"0",
-		   "model":"",
-		   "ro":"0",
-		   "nr_requests":"64",
-		   "partitions":{
-
-		   }
-		},
-		"path":"/dev/sdb",
-		"device_id":""
-	 }
-	 `
-
-	cvInventoryOutputNotAvailableBluestoreLabel = `
-	{
-		"available":false,
-		"lvs":[
-
-		],
-		"rejected_reasons":[
-		   "Has BlueStore device label"
-		]
-	 }
-	`
-
-	cvInventoryOutputNotAvailableLocked = `
-	{
-		"available":false,
-		"lvs":[
-
-		],
-		"rejected_reasons":[
-		   "locked"
-		]
-	 }
-	 `
-
-	cvInventoryOutputNotAvailableSmall = `
-	{
-		"available":false,
-		"lvs":[
-
-		],
-		"rejected_reasons":[
-			["Insufficient space (<5GB)"]
-		]
-	 }
-	 `
-
-	partedAtariOutput = `BYT;
-/dev/sdb1:1509kB:unknown:512:512:atari:Unknown:;`
+	partedGPTOutput = `BYT;
+/dev/sdt2:1509kB:unknown:512:512:gpt:Unknown:;`
 
 	partedUnknownOutput = `BYT;
-/dev/sdc1:10.7GB:unknown:512:512:unknown:Unknown:;`
+/dev/sdu2:10.7GB:unknown:512:512:unknown:Unknown:;`
 )
 
 func TestAvailableDevices(t *testing.T) {
+	sys.SkipDeviceOpenForUnitTests = true
+
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("OUTPUT for %s %v", command, args)
 
 			if command == "lsblk" {
-				if strings.Contains(args[3], "sdb") {
-					// /dev/sdb has a partition
-					return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
-NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
+				if args[len(args)-1] == "RM,RO,SIZE,TYPE" {
+					if args[0] == "/dev/sdc" {
+						// /dev/sdc is too small
+						return `0 0 2684354560 disk`, nil // 2.5GB disk
+					}
+					diskOrPart := "disk"
+					if strings.HasSuffix(args[0], "2") { // all this unit test's partitions are numbered 2
+						diskOrPart = "part"
+					}
+					return `0 0 10737418240 ` + diskOrPart, nil // 10GB disk
 				} else if strings.Contains(args[0], "vg1-lv") {
 					// /dev/mapper/vg1-lv* are LVs
 					return `TYPE="lvm"`, nil
-				} else if strings.Contains(args[0], "sdt1") {
+				} else if strings.Contains(args[0], "sdt2") {
 					return `TYPE="part"`, nil
 				} else if strings.HasPrefix(args[0], "/dev") {
 					return `TYPE="disk"`, nil
@@ -207,7 +143,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				if strings.Contains(args[2], "sdc") {
 					// /dev/sdc has a file system
 					return udevFSOutput, nil
-				} else if strings.Contains(args[2], "sdt1") {
+				} else if strings.Contains(args[2], "sdt2") {
 					return udevPartOutput, nil
 				}
 
@@ -224,21 +160,6 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				} else if strings.Contains(args[2], "vg1-lv2") {
 					return "vg1:lv2:", nil
 				}
-			} else if command == "ceph-volume" {
-				if args[0] == "inventory" {
-					if strings.Contains(args[3], "/mnt/set1-0-data-qfhfk") {
-						return cvInventoryOutputNotAvailableBluestoreLabel, nil
-					} else if strings.Contains(args[3], "sdb") {
-						// sdb is locked
-						return cvInventoryOutputNotAvailableLocked, nil
-					} else if strings.Contains(args[3], "sdc") {
-						// sdc is too small
-						return cvInventoryOutputNotAvailableSmall, nil
-					}
-
-					return cvInventoryOutputAvailable, nil
-				}
-
 			} else if command == "stdbuf" {
 				if args[4] == "raw" && args[5] == "list" {
 					return cephVolumeRAWTestResult, nil
@@ -250,11 +171,11 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				return "{}", nil
 
 			} else if command == "parted" {
-				if strings.Contains(args[2], "sdu1") {
-					return partedAtariOutput, nil
-				} else if strings.Contains(args[2], "sdt1") {
+				if strings.Contains(args[2], "sdu2") {
 					// parted returns an error if the partition type is unknown
 					return partedUnknownOutput, errors.New("fake unknown part type err")
+				} else if strings.Contains(args[2], "sdt2") {
+					return partedGPTOutput, nil
 				}
 			}
 
@@ -265,16 +186,15 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	context := &clusterd.Context{Executor: executor}
 	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1", RealPath: "/dev/sda"},
-		{Name: "sdb", DevLinks: "/dev/disk/by-id/scsi-4567 /dev/disk/by-path/pci-4:5:6:7-scsi-1", RealPath: "/dev/sdb"},
 		{Name: "sdc", DevLinks: "/dev/disk/by-id/scsi-89ab /dev/disk/by-path/pci-8:9:a:b-scsi-1", RealPath: "/dev/sdc"},
 		{Name: "sdd", DevLinks: "/dev/disk/by-id/scsi-cdef /dev/disk/by-path/pci-c:d:e:f-scsi-1", RealPath: "/dev/sdd"},
 		{Name: "sde", DevLinks: "/dev/disk/by-id/sde-0x0000 /dev/disk/by-path/pci-0000:00:18.0-ata-1", RealPath: "/dev/sde"},
 		{Name: "nvme01", DevLinks: "/dev/disk/by-id/nvme-0246 /dev/disk/by-path/pci-0:2:4:6-nvme-1", RealPath: "/dev/nvme01"},
 		{Name: "rda", RealPath: "/dev/rda"},
 		{Name: "rdb", RealPath: "/dev/rdb"},
-		{Name: "sdt1", RealPath: "/dev/sdt1", Type: sys.PartType},
-		{Name: "sdu1", RealPath: "/dev/sdu1", Type: sys.PartType},                     // is atari
-		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"}, // has filesystem
+		{Name: "sdt2", RealPath: "/dev/sdt2", Type: sys.PartType},
+		{Name: "sdu2", RealPath: "/dev/sdu2", Type: sys.PartType},                     // is atari
+		{Name: "sdv2", RealPath: "/dev/sdv2", Type: sys.PartType, Filesystem: "ext2"}, // has filesystem
 	}
 
 	version := cephver.Octopus
@@ -299,11 +219,10 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
 	assert.NotNil(t, mapping.Entries["nvme01"].Metadata)
 	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
-	assert.Equal(t, -1, mapping.Entries["sdt1"].Data)
-	assert.NotContains(t, mapping.Entries, "sdb")  // sdb is in use (has a partition)
+	assert.Equal(t, -1, mapping.Entries["sdt2"].Data)
 	assert.NotContains(t, mapping.Entries, "sdc")  // sdc is too small
-	assert.NotContains(t, mapping.Entries, "sdu1") // sdu1 is atari
-	assert.NotContains(t, mapping.Entries, "sdv1") // sdv1 has a filesystem
+	assert.NotContains(t, mapping.Entries, "sdu2") // sdu2 is unknown
+	assert.NotContains(t, mapping.Entries, "sdv2") // sdv2 has a filesystem
 
 	// Partition is skipped
 	agent.clusterInfo.CephVersion = cephver.Nautilus
@@ -368,7 +287,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
-	assert.Equal(t, -1, mapping.Entries["sdt1"].Data)
+	assert.Equal(t, -1, mapping.Entries["sdt2"].Data)
 
 	// select a device by explicit link
 	agent.devices = []DesiredDevice{{Name: "/dev/disk/by-id/sde-0x0000"}}
@@ -380,7 +299,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
-	assert.Equal(t, -1, mapping.Entries["sdt1"].Data)
+	assert.Equal(t, -1, mapping.Entries["sdt2"].Data)
 
 	// test on PVC
 	context.Devices = []*sys.LocalDisk{
