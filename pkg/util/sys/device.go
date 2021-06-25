@@ -43,11 +43,17 @@ const (
 	MultiPath = "mpath"
 	// LinearType is a linear type
 	LinearType = "linear"
-	sgdiskCmd  = "sgdisk"
+	// GPTType is a gpt partition type
+	GPTType = "gpt"
+
 	// CephLVPrefix is the prefix of a LV owned by ceph-volume
 	CephLVPrefix = "ceph--"
 	// DeviceMapperPrefix is the prefix of a LV from the device mapper interface
 	DeviceMapperPrefix = "dm-"
+)
+
+const (
+	sgdiskCmd = "sgdisk"
 )
 
 // CephVolumeInventory represents the output of the ceph-volume inventory command
@@ -114,6 +120,8 @@ type LocalDisk struct {
 	KernelName string `json:"kernel-name,omitempty"`
 	// Whether this device should be encrypted
 	Encrypted bool `json:"encrypted,omitempty"`
+	// PartitionTableType is the partition table type of the device (e.g., dos, gpt, )
+	PartitionTableType string
 }
 
 // ListDevices list all devices available on a machine

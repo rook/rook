@@ -98,6 +98,33 @@ SUBSYSTEM=block
 TAGS=:systemd:
 USEC_INITIALIZED=1128667
 `
+	udevPartOutputNoType = `DEVLINKS=/dev/disk/by-path/pci-0000:00:0d.0-ata-1-part1 /dev/disk/by-id/ata-VBOX_HARDDISK_VB7be21a98-c921c994-part1
+DEVNAME=/dev/sdu1
+DEVPATH=/devices/pci0000:00/0000:00:0d.0/ata3/host2/target2:0:0/2:0:0:0/block/sdu/sdu1
+DEVTYPE=partition
+ID_ATA=1
+ID_ATA_FEATURE_SET_PM=1
+ID_ATA_FEATURE_SET_PM_ENABLED=1
+ID_ATA_SATA=1
+ID_ATA_SATA_SIGNAL_RATE_GEN2=1
+ID_ATA_WRITE_CACHE=1
+ID_ATA_WRITE_CACHE_ENABLED=1
+ID_BUS=ata
+ID_MODEL=VBOX_HARDDISK
+ID_MODEL_ENC=VBOX\x20HARDDISK\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20
+ID_PATH=pci-0000:00:0d.0-ata-1
+ID_PATH_TAG=pci-0000_00_0d_0-ata-1
+ID_REVISION=1.0
+ID_SERIAL=VBOX_HARDDISK_VB7be21a98-c921c994
+ID_SERIAL_SHORT=VB7be21a98-c921c994
+ID_TYPE=disk
+MAJOR=8
+MINOR=17
+PARTN=1
+SUBSYSTEM=block
+TAGS=:systemd:
+USEC_INITIALIZED=31586003974
+net.ifnames=0`
 
 	cvInventoryOutputAvailable = `
 	{
@@ -186,7 +213,8 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				} else if strings.Contains(args[0], "vg1-lv") {
 					// /dev/mapper/vg1-lv* are LVs
 					return `TYPE="lvm"`, nil
-				} else if strings.Contains(args[0], "sdt1") {
+				} else if strings.Contains(args[0], "sdt1") || strings.Contains(args[0], "sdu1") {
+					// sdu1 and sdt1 are partitions
 					return `TYPE="part"`, nil
 				} else if strings.HasPrefix(args[0], "/dev") {
 					return `TYPE="disk"`, nil
@@ -202,7 +230,11 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 					// /dev/sdc has a file system
 					return udevFSOutput, nil
 				} else if strings.Contains(args[2], "sdt1") {
+					// sdt1 is a valid gpt partition
 					return udevPartOutput, nil
+				} else if strings.Contains(args[2], "sdu1") {
+					// sdu1 is not a valid gpt partition
+					return udevPartOutputNoType, nil
 				}
 
 				return "", nil
@@ -258,6 +290,8 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "rda", RealPath: "/dev/rda"},
 		{Name: "rdb", RealPath: "/dev/rdb"},
 		{Name: "sdt1", RealPath: "/dev/sdt1", Type: sys.PartType},
+		{Name: "sdu1", RealPath: "/dev/sdu1", Type: sys.PartType},
+		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"}, // has filesystem
 	}
 
 	version := cephver.Octopus
@@ -276,11 +310,17 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 7, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+	assert.Equal(t, -1, mapping.Entries["sde"].Data)
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
 	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
 	assert.NotNil(t, mapping.Entries["nvme01"].Metadata)
 	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
+	assert.Equal(t, -1, mapping.Entries["sdt1"].Data)
+	assert.NotContains(t, mapping.Entries, "sdb")  // sdb is in use (has a partition)
+	assert.NotContains(t, mapping.Entries, "sdc")  // sdc is too small
+	assert.NotContains(t, mapping.Entries, "sdu1") // sdu1 does not have a partition type
+	assert.NotContains(t, mapping.Entries, "sdv1") // sdv1 has a filesystem
 
 	// Partition is skipped
 	agent.clusterInfo.CephVersion = cephver.Nautilus

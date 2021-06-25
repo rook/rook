@@ -31,6 +31,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
 * [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 * [Failed to create CRDs](#failed-to-create-crds)
+* [Unexpected partitions created](#unexpected-partitions-created)
 
 See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
 
@@ -953,3 +954,58 @@ If you are using Kubernetes version is v1.15 or older, you will see an error lik
 >unable to recognize "STDIN": no matches for kind "CustomResourceDefinition" in version "apiextensions.k8s.io/v1"
 >```
 You need to create the CRDs found in `cluster/examples/kubernetes/ceph/pre-k8s-1.16`. Note that these pre-1.16 `apiextensions.k8s.io/v1beta1` CRDs are deprecated in k8s v1.16 and will no longer be supported from k8s v1.22.
+
+## Unexpected partitions created
+
+### Symptoms
+**Rook versions v1.6.0-v1.6.6 may create unwanted OSDs on these partitions, which will corrupt
+existing OSDs.**
+
+Unexpected partitions are created on host disks that are used by Ceph OSDs. This happens more often
+on SSDs than HDDs and usually only on disks that are 1TB or larger. Many tools like `lsblk`,
+`blkid`, and `udevadm` will not show a partition table type for the partition; however, `parted`
+will reliably list the partition as `atari` (see the example command and output below).
+
+```console
+# parted --script /dev/sdb1 print
+Model: Unknown (unknown)
+Disk /dev/sdb1: 1509kB
+Sector size (logical/physical): 512B/512B
+Partition Table: atari
+Disk Flags:
+
+Number  Start  End  Size  Type  File system  Flags
+
+```
+
+The underlying issue causing this is Atari (sometimes identified as AHDI) partition support in the
+Linux kernel. Atari partitions have very relaxed specifications compared to modern partition types,
+and it is relatively easy for random data written to a disk to appear as an Atari partition to the
+Linux kernel. Ceph's Bluestore OSDs have an anecdotally high probability of writing data on to disks
+that can randomly appear to the kernel as an Atari partition.
+
+You can see https://github.com/rook/rook/issues/7940 for more detailed information and discussion.
+
+### Solution
+If you are using Rook v1.6, you must update to v1.6.7 or higher to avoid OSD corruption.
+
+If you are using Rook v1.6.7 or higher, it is safe to ignore these unexpected `atari` partitions.
+Rook will only deploy OSDs on `gpt` partitions.
+
+Not all Linux distributions build kernel with Atari support enabled. If possible, we recommend
+switching to a kernel built without Atari support enabled. The example below shows an example of how
+to determine if your kernel was built with Atari support enabled.
+
+```console
+$ cat /boot/config-$(uname -r) | grep ATARI
+CONFIG_ATARI_PARTITION=y
+```
+
+The following distributions are known to have Atari support enabled (problematic):
+- Ubuntu
+- openSUSE
+
+The following distribution are known to have Atari support disabled:
+- CentOS 7 and 8
+- RHEL 8
+- openSUSE (kvmsmall kernel on Leap 15.2 and above)

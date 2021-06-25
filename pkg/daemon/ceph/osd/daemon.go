@@ -328,6 +328,14 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 				logger.Errorf("failed to get udev info of partition %q. %v", device.Name, err)
 				continue
 			}
+			if device.PartitionTableType != sys.GPTType {
+				pType := "unknown or untyped (possibly atari)"
+				if device.PartitionTableType != "" {
+					pType = device.PartitionTableType
+				}
+				logger.Infof("skipping partition %q because it is not a gpt partition. detected: %q", device.Name, pType)
+				continue
+			}
 		}
 
 		// Check if the desired device is available
