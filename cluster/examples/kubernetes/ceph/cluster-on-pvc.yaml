@@ -99,8 +99,9 @@ spec:
                   topologyKey: kubernetes.io/hostname
           topologySpreadConstraints:
             - maxSkew: 1
+              # IMPORTANT: If you don't have zone labels, change this to another key such as kubernetes.io/hostname
               topologyKey: topology.kubernetes.io/zone
-              whenUnsatisfiable: ScheduleAnyway
+              whenUnsatisfiable: DoNotSchedule
               labelSelector:
                 matchExpressions:
                   - key: app
