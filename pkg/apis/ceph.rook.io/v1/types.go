@@ -21,6 +21,7 @@ import (
 
 	rook "github.com/rook/rook/pkg/apis/rook.io"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -1431,12 +1432,59 @@ type CephObjectStoreUserList struct {
 
 // ObjectStoreUserSpec represent the spec of an Objectstoreuser
 type ObjectStoreUserSpec struct {
-	//The store the user will be created in
+	// The store the user will be created in
 	// +optional
 	Store string `json:"store,omitempty"`
-	//The display name for the ceph users
+	// The display name for the ceph users
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
+	// +optional
+	// +nullable
+	Capabilities *ObjectUserCapSpec `json:"capabilities,omitempty"`
+	// +optional
+	// +nullable
+	Quotas *ObjectUserQuotaSpec `json:"quotas,omitempty"`
+}
+
+// Additional admin-level capabilities for the Ceph object store user
+type ObjectUserCapSpec struct {
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store users. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	User string `json:"user,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store buckets. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Bucket string `json:"bucket,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store metadata. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	MetaData string `json:"metadata,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store usage. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Usage string `json:"usage,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store zones. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Zone string `json:"zone,omitempty"`
+}
+
+// ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
+type ObjectUserQuotaSpec struct {
+	// Maximum bucket limit for the ceph user
+	// +optional
+	// +nullable
+	MaxBuckets *int `json:"maxBuckets,omitempty"`
+	// Maximum size limit of all objects across all the user's buckets
+	// See https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity for more info.
+	// +optional
+	// +nullable
+	MaxSize *resource.Quantity `json:"maxSize,omitempty"`
+	// Maximum number of objects across all the user's buckets
+	// +optional
+	// +nullable
+	MaxObjects *int64 `json:"maxObjects,omitempty"`
 }
 
 // CephObjectRealm represents a Ceph Object Store Gateway Realm
