@@ -53,6 +53,8 @@ func ConfigureLivenessProbe(daemon rookv1.KeyType, container v1.Container, healt
 }
 
 func GetLivenessProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
+	newProbe := *desiredProbe
+
 	// Do not replace the handler with the previous one!
 	// On the first iteration, the handler appears empty and is then replaced by whatever first daemon value comes in
 	// e.g: [env -i sh -c ceph --admin-daemon /run/ceph/ceph-mon.b.asok mon_status] - meaning mon b was the first picked in the list of mons
@@ -61,25 +63,25 @@ func GetLivenessProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Prob
 	//
 	// Let's always force the default handler, there is no reason to change it anyway since the underlying content is generated based on the daemon's name
 	// so we can not make it generic via the spec
-	desiredProbe.Handler = currentProbe.Handler
+	newProbe.Handler = currentProbe.Handler
 
 	// If the user has not specified thresholds and timeouts, set them to the same values as
 	// in the default liveness probe created by Rook.
-	if desiredProbe.FailureThreshold == 0 {
-		desiredProbe.FailureThreshold = currentProbe.FailureThreshold
+	if newProbe.FailureThreshold == 0 {
+		newProbe.FailureThreshold = currentProbe.FailureThreshold
 	}
-	if desiredProbe.PeriodSeconds == 0 {
-		desiredProbe.PeriodSeconds = currentProbe.PeriodSeconds
+	if newProbe.PeriodSeconds == 0 {
+		newProbe.PeriodSeconds = currentProbe.PeriodSeconds
 	}
-	if desiredProbe.SuccessThreshold == 0 {
-		desiredProbe.SuccessThreshold = currentProbe.SuccessThreshold
+	if newProbe.SuccessThreshold == 0 {
+		newProbe.SuccessThreshold = currentProbe.SuccessThreshold
 	}
-	if desiredProbe.TimeoutSeconds == 0 {
-		desiredProbe.TimeoutSeconds = currentProbe.TimeoutSeconds
+	if newProbe.TimeoutSeconds == 0 {
+		newProbe.TimeoutSeconds = currentProbe.TimeoutSeconds
 	}
-	if desiredProbe.InitialDelaySeconds == 0 {
-		desiredProbe.InitialDelaySeconds = currentProbe.InitialDelaySeconds
+	if newProbe.InitialDelaySeconds == 0 {
+		newProbe.InitialDelaySeconds = currentProbe.InitialDelaySeconds
 	}
 
-	return desiredProbe
+	return &newProbe
 }
