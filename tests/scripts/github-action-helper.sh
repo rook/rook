@@ -20,6 +20,7 @@ set -xe
 # VARIABLES #
 #############
 : "${BLOCK:=$(sudo lsblk --paths | awk '/14G/ {print $1}' | head -1)}"
+NETWORK_ERROR="connection reset by peer"
 
 #############
 # FUNCTIONS #
@@ -92,7 +93,19 @@ function build_rook() {
   fi
   GOPATH=$(go env GOPATH) make clean
   # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-  make -j$nproc IMAGES='ceph' VERSION=0 "$build_type"
+  for _ in $(seq 1 3); do
+    if ! o=$(make -j"$(nproc)" IMAGES='ceph' VERSION=0 "$build_type"); then
+      case "$o" in
+        *"$NETWORK_ERROR"*)
+          echo "network failure occurred, retrying..."
+          continue
+        ;;
+        *)
+          # valid failure
+          exit 1
+      esac
+    fi
+  done
   # validate build
   tests/scripts/validate_modified_files.sh build
   docker images
