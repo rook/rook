@@ -42,7 +42,7 @@ type CephManifests interface {
 	GetNFS(name, pool string, daemonCount int) string
 	GetRBDMirror(name string, daemonCount int) string
 	GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string
-	GetObjectStoreUser(name, displayName, store string) string
+	GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string
 	GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region string) string
 	GetOBC(obcName, storageClassName, bucketName string, maxObject string, createBucket bool) string
 	GetClient(name string, caps map[string]string) string
@@ -433,7 +433,7 @@ spec:
 `
 }
 
-func (m *CephManifestsMaster) GetObjectStoreUser(name string, displayName string, store string) string {
+func (m *CephManifestsMaster) GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStoreUser
 metadata:
@@ -441,7 +441,13 @@ metadata:
   namespace: ` + m.settings.Namespace + `
 spec:
   displayName: ` + displayName + `
-  store: ` + store
+  store: ` + store + `
+  quotas:
+    maxBuckets: ` + strconv.Itoa(maxbuckets) + `
+    maxObjects: ` + strconv.Itoa(maxobjects) + `
+    maxSize: ` + maxsize + `
+  capabilities:
+    user: ` + usercaps
 }
 
 //GetBucketStorageClass returns the manifest to create object bucket

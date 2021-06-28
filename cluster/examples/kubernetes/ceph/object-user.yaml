@@ -11,3 +11,15 @@ metadata:
 spec:
   store: my-store
   displayName: "my display name"
+  # Quotas set on the user
+  # quotas:
+     # maxBuckets: 100
+     # maxSize: 10G
+     # maxObjects: 10000
+  # Additional permissions given to the user
+  # capabilities:
+     # user: "*"
+     # bucket: "*"
+     # metadata: "*"
+     # usage: "*"
+     # zone: "*"
