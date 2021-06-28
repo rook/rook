@@ -22,6 +22,7 @@ import (
 	"regexp"
 
 	"github.com/ceph/go-ceph/rgw/admin"
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -122,7 +123,9 @@ func NewMultisiteAdminOpsContext(
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build admin ops API connection")
 	}
-
+	if logger.LevelAt(capnslog.DEBUG) {
+		client.Debug = true
+	}
 	return &AdminOpsContext{
 		Context:               *objContext,
 		TlsCert:               tlsCert,
