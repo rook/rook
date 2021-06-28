@@ -44,6 +44,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -367,6 +368,38 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 		Keys:        make([]admin.UserKeySpec, 1),
 	}
 
+	if user.Spec.MaxBuckets != 0 {
+		userConfig.MaxBuckets = &user.Spec.MaxBuckets
+	}
+
+	if user.Spec.MaxObjects != 0 || user.Spec.MaxSize != "" {
+		quotaEnable := true
+		var maxSize int64 = -1
+		var maxObjects int64 = -1
+		if user.Spec.MaxObjects >= 0 {
+			maxObjects = int64(user.Spec.MaxObjects)
+		}
+		if user.Spec.MaxSize != "" {
+			maxSizeInt, _ := resource.ParseQuantity(user.Spec.MaxSize)
+			maxSize = maxSizeInt.Value()
+		}
+		userConfig.UserQuota = admin.QuotaSpec{
+			UID:        user.Name,
+			Enabled:    &quotaEnable,
+			MaxSize:    &maxSize,
+			MaxObjects: &maxObjects,
+		}
+	}
+
+	if user.Spec.Caps != nil {
+		for capType, capPerm := range user.Spec.Caps {
+			userCap := admin.UserCapSpec{
+				Type: capType,
+				Perm: capPerm,
+			}
+			userConfig.Caps = append(userConfig.Caps, userCap)
+		}
+	}
 	return userConfig
 }
 

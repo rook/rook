@@ -1204,6 +1204,18 @@ type ObjectStoreUserSpec struct {
 	//The display name for the ceph users
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
+	//The additional capablities for the ceph user
+	// +optional
+	Caps map[string]string `json:"caps,omitempty"`
+	//The maximum bucket limit for the ceph user
+	// +optional
+	MaxBuckets int `json:"maxBuckets,omitempty"`
+	//The maximum size limit for the ceph user
+	// +optional
+	MaxSize string `json:"maxSize,omitempty"`
+	//The maximum object limit for the ceph user
+	// +optional
+	MaxObjects int `json:"maxObjects,omitempty"`
 }
 
 // CephObjectRealm represents a Ceph Object Store Gateway Realm
