@@ -166,7 +166,7 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 	}
 
 	if !p.Mirroring.Enabled && p.Mirroring.SnapshotSchedulesEnabled() {
-		return errors.New("mirroring must be enabled to configure snapshot scheduling")
+		logger.Warning("mirroring must be enabled to configure snapshot scheduling")
 	}
 
 	return nil

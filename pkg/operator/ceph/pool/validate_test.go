@@ -164,12 +164,6 @@ func TestValidatePool(t *testing.T) {
 		p.Spec.Mirroring.SnapshotSchedules = []cephv1.SnapshotScheduleSpec{{Interval: "24h"}}
 		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
 		assert.NoError(t, err)
-
-		// Error mirror is disabled but snap schedule is enabled
-		p.Spec.Mirroring.Enabled = false
-		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-		assert.Error(t, err)
-		assert.EqualError(t, err, "mirroring must be enabled to configure snapshot scheduling")
 	}
 
 	// Failure and subfailure domains

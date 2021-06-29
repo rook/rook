@@ -281,6 +281,30 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 				return errors.Wrapf(err, "failed to enable snapshot scheduling for pool %q", poolName)
 			}
 		}
+	} else {
+		if pool.Mirroring.Mode == "pool" {
+			// Remove storage cluster peers
+			mirrorInfo, err := GetPoolMirroringInfo(context, clusterInfo, poolName)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get mirroring info for the pool %q", poolName)
+			}
+			for _, peer := range mirrorInfo.Peers {
+				if peer.UUID != "" {
+					err := removeClusterPeer(context, clusterInfo, poolName, peer.UUID)
+					if err != nil {
+						return errors.Wrapf(err, "failed to remove cluster peer with UUID %q for the pool %q", peer.UUID, poolName)
+					}
+				}
+			}
+
+			// Disable mirroring
+			err = disablePoolMirroring(context, clusterInfo, poolName)
+			if err != nil {
+				return errors.Wrapf(err, "failed to disable mirroring for pool %q", poolName)
+			}
+		} else if pool.Mirroring.Mode == "image" {
+			logger.Warningf("manually disable mirroring on images in the pool %q", poolName)
+		}
 	}
 
 	// set maxSize quota
