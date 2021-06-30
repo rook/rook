@@ -88,6 +88,7 @@ jobs:
     - name: test external script create-external-cluster-resources.py
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}')
+        timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr|grep -Eosq \"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\" ; do sleep 1 && echo 'waiting for the manager IP to be available'; done"
         mgr_raw=$(kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr)
         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
         kubectl -n rook-ceph exec $toolbox -- /bin/bash -c "echo \"$(kubectl get pods -o wide -n rook-ceph -l app=rook-ceph-mgr --no-headers=true|head -n1|awk '{print $6"\t"$1}')\" >>/etc/hosts"
