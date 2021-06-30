@@ -87,6 +87,9 @@ jobs:
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: remove read permission from kube config file
+      run: sudo chmod go-r ~/.kube/config
+
     - name: print k8s cluster status
       run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
