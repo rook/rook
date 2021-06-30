@@ -6284,7 +6284,7 @@ spec:
                     instances:
                       description: The number of pods in the rgw replicaset.
                       format: int32
-                      minimum: 1
+                      nullable: true
                       type: integer
                     labels:
                       additionalProperties:
@@ -6882,8 +6882,6 @@ spec:
                       description: The name of the secret that stores the ssl certificate for secure rgw connections
                       nullable: true
                       type: string
-                  required:
-                    - instances
                   type: object
                 healthCheck:
                   description: The rgw Bucket healthchecks and liveness probe
