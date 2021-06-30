@@ -196,3 +196,78 @@ func TestListDevicesChildListDevicesChild(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(child))
 }
+func TestPartitionIsAtari(t *testing.T) {
+	// This also implicitly tests PartitionIsAtari
+
+	partedAtariOutput := `BYT;
+/dev/sdb1:1509kB:unknown:512:512:atari:Unknown:;`
+
+	partedNonAtariOutput := `BYT;
+/dev/sda2:2048MB:unknown:512:512:loop:Unknown:;
+1:0.00B:2048MB:2048MB:linux-swap(v1)::;`
+
+	partedUnknownOutput := `BYT;
+/dev/sdc1:10.7GB:unknown:512:512:unknown:Unknown:;`
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+			t.Log("command:", command, arg)
+			switch arg[2] {
+			case "/dev/vdb1": // is atari
+				return partedAtariOutput, nil
+			case "/dev/vdb2": // not atari
+				return partedNonAtariOutput, nil
+			case "/dev/vdb3": // unknown type (has error)
+				// parted returns an error if the partition type is unknown, but it still outputs
+				// info to stdout that can be parsed successfully
+				return partedUnknownOutput, fmt.Errorf("fake error about unrecognized disk label")
+			case "/dev/vdb4": // too few lines (none), and error (likely in real world)
+				return "", fmt.Errorf("fake error") // too few output lines (none)
+			case "/dev/vdb5": // too few fields, no error (unlikely in real world)
+				return `BYT;
+/dev/sdc1:Unknown:;`, nil
+			case "/dev/vdb6": // no semicolon
+				return `BYT;
+there:is:not:a:semicolon:after:this:line:`, nil
+			default:
+				panic("unhandled command")
+			}
+		},
+	}
+
+	t.Run("is atari", func(t *testing.T) {
+		a, err := PartitionIsAtari(executor, "vdb1")
+		assert.NoError(t, err)
+		assert.True(t, a)
+	})
+
+	t.Run("not atari", func(t *testing.T) {
+		a, err := PartitionIsAtari(executor, "vdb2")
+		assert.NoError(t, err)
+		assert.False(t, a)
+	})
+
+	t.Run("unknown partition type output", func(t *testing.T) {
+		a, err := PartitionIsAtari(executor, "vdb3")
+		assert.NoError(t, err)
+		assert.False(t, a)
+	})
+
+	t.Run("too few output lines", func(t *testing.T) {
+		_, err := PartitionIsAtari(executor, "vdb4")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "lines") // minimal check for error message content
+	})
+
+	t.Run("too few output fields", func(t *testing.T) {
+		_, err := PartitionIsAtari(executor, "vdb5")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "fields") // minimal check for error message content
+	})
+
+	t.Run("no semicolon after fields", func(t *testing.T) {
+		_, err := PartitionIsAtari(executor, "vdb6")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "semicolon") // minimal check for error message content
+	})
+}
