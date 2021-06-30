@@ -39,6 +39,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -355,7 +356,7 @@ func updateStatus(client client.Client, name types.NamespacedName, status cephv1
 	if cephClient.Status.Phase == cephv1.ConditionReady {
 		cephClient.Status.Info = generateStatusInfo(cephClient)
 	}
-	if err := opcontroller.UpdateStatus(client, cephClient); err != nil {
+	if err := reporting.UpdateStatus(client, cephClient); err != nil {
 		logger.Errorf("failed to set ceph client %q status to %q. %v", name, status, err)
 		return
 	}

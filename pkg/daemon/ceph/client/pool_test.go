@@ -23,10 +23,9 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/rook/rook/pkg/clusterd"
 )
 
 func TestCreateECPoolWithOverwrites(t *testing.T) {

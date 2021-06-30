@@ -78,6 +78,14 @@ func TestSetStatusCondition(t *testing.T) {
 				{Type: "third"},
 			},
 		},
+		{
+			name:       "empty-conditions",
+			conditions: []Condition{},
+			toAdd:      Condition{Type: "first", Status: v1.ConditionTrue, LastTransitionTime: oneHourBefore, LastHeartbeatTime: oneHourBefore, Reason: "reason", Message: "message"},
+			expected: []Condition{
+				{Type: "first", Status: v1.ConditionTrue, LastTransitionTime: oneHourBefore, LastHeartbeatTime: oneHourBefore, Reason: "reason", Message: "message"},
+			},
+		},
 	}
 
 	for _, test := range tests {

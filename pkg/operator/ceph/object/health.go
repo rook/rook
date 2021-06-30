@@ -19,7 +19,6 @@ package object
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -46,7 +45,7 @@ var (
 // bucketChecker aggregates the mon/cluster info needed to check the health of the monitors
 type bucketChecker struct {
 	context         *clusterd.Context
-	objContext      *Context
+	objContext      *AdminOpsContext
 	interval        *time.Duration
 	port            int32
 	client          client.Client
@@ -55,10 +54,22 @@ type bucketChecker struct {
 }
 
 // newbucketChecker creates a new HealthChecker object
-func newBucketChecker(ctx *clusterd.Context, objContext *Context, port int32, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec) *bucketChecker {
+func newBucketChecker(
+	ctx *clusterd.Context, objContext *Context, client client.Client, namespacedName types.NamespacedName, objectStoreSpec *cephv1.ObjectStoreSpec,
+) (*bucketChecker, error) {
+	port, err := objectStoreSpec.GetPort()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create bucket checker for CephObjectStore %q", namespacedName.String())
+	}
+
+	opsCtx, err := NewMultisiteAdminOpsContext(objContext, objectStoreSpec)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create bucket checker for CephObjectStore %q", namespacedName.String())
+	}
+
 	c := &bucketChecker{
 		context:         ctx,
-		objContext:      objContext,
+		objContext:      opsCtx,
 		interval:        &defaultHealthCheckInterval,
 		port:            port,
 		namespacedName:  namespacedName,
@@ -73,7 +84,7 @@ func newBucketChecker(ctx *clusterd.Context, objContext *Context, port int32, cl
 		c.interval = &checkInterval.Duration
 	}
 
-	return c
+	return c, nil
 }
 
 // checkObjectStore periodically checks the health of the cluster
@@ -122,41 +133,28 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 
 		Always keep the bucket and the user for the health check, just do PUT and GET because bucket creation is expensive
 	*/
-	var tlsCert []byte
-	var s3AccessKey string
-	var s3SecretKey string
-	var err error
-	s3endpoint := BuildDNSEndpoint(BuildDomainName(c.objContext.Name, c.namespacedName.Namespace), c.port, c.objectStoreSpec.IsTLSEnabled())
 
-	// Generate unique user and bucket name
-	bucketName := genUniqueBucketName(c.objContext.UID)
-	userConfig := c.genUserConfig()
-	httpClient := &http.Client{
-		Timeout: HttpTimeOut,
+	// Keep admin ops context up-to date if there are config changes
+	if err := UpdateEndpoint(&c.objContext.Context, c.objectStoreSpec); err != nil {
+		return errors.Wrapf(err, "failed to parse updated CephObjectStore spec")
 	}
-	if c.objectStoreSpec.IsTLSEnabled() {
-		tlsCert, err = GetTlsCaCert(c.objContext, c.objectStoreSpec)
-		if err != nil {
-			return errors.Wrapf(err, "failed to fetch CA cert for the user %q to establish TLS connection with the object store %q", userConfig.ID, c.namespacedName.Name)
-		}
-
-		httpClient.Transport = BuildTransportTLS(tlsCert)
-	}
-
-	// Build admin Ops API connection
-	co, err := admin.New(s3endpoint, c.objContext.adminOpsUserAccessKey, c.objContext.adminOpsUserSecretKey, httpClient)
+	opsCtx, err := NewMultisiteAdminOpsContext(&c.objContext.Context, c.objectStoreSpec)
 	if err != nil {
 		return errors.Wrap(err, "failed to build admin ops API connection")
 	}
-	c.objContext.adminOpsClient = co
+	c.objContext = opsCtx
+
+	// Generate unique user and bucket name
+	bucketName := genHealthCheckerBucketName(c.objContext.UID)
+	userConfig := genUserCheckerConfig(c.objContext.UID)
 
 	// Create checker user
 	logger.Debugf("creating s3 user object %q for object store %q", userConfig.ID, c.namespacedName.Name)
 	var user admin.User
-	user, err = co.CreateUser(context.TODO(), userConfig)
+	user, err = opsCtx.AdminOpsClient.CreateUser(context.TODO(), userConfig)
 	if err != nil {
 		if errors.Is(err, admin.ErrUserExists) {
-			user, err = co.GetUser(context.TODO(), userConfig)
+			user, err = opsCtx.AdminOpsClient.GetUser(context.TODO(), userConfig)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get details from ceph object user %q", userConfig.ID)
 			}
@@ -166,8 +164,10 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	}
 
 	// Set access and secret key
-	s3AccessKey = user.Keys[0].AccessKey
-	s3SecretKey = user.Keys[0].SecretKey
+	tlsCert := opsCtx.TlsCert
+	s3endpoint := opsCtx.Endpoint
+	s3AccessKey := user.Keys[0].AccessKey
+	s3SecretKey := user.Keys[0].SecretKey
 
 	// Initiate s3 agent
 	logger.Debugf("initializing s3 connection for object store %q", c.namespacedName.Name)
@@ -182,10 +182,10 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	// Bucket health test
 	err = c.testBucketHealth(s3client, bucketName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to run bucket health checks for object store %q", c.namespacedName.Name)
+		return errors.Wrapf(err, "failed to run bucket health checks for object store %q", c.namespacedName.String())
 	}
 
-	logger.Debugf("successfully checked object store endpoint for object store %q", c.namespacedName.Name)
+	logger.Debugf("successfully checked object store endpoint for object store %q", c.namespacedName.String())
 
 	// Update the EndpointStatus in the CR to reflect the healthyness
 	updateStatusBucket(c.client, c.namespacedName, cephv1.ConditionConnected, "")
@@ -194,7 +194,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 }
 
 func cleanupObjectHealthCheck(s3client *S3Agent, objectStoreUID string) {
-	bucketToDelete := genUniqueBucketName(objectStoreUID)
+	bucketToDelete := genHealthCheckerBucketName(objectStoreUID)
 	logger.Debugf("deleting object %q from bucket %q", s3HealthCheckObjectKey, bucketToDelete)
 	_, err := s3client.DeleteObjectInBucket(bucketToDelete, s3HealthCheckObjectKey)
 	if err != nil {
@@ -203,11 +203,11 @@ func cleanupObjectHealthCheck(s3client *S3Agent, objectStoreUID string) {
 }
 
 func (c *bucketChecker) cleanupHealthCheck() {
-	bucketToDelete := genUniqueBucketName(c.objContext.UID)
+	bucketToDelete := genHealthCheckerBucketName(c.objContext.UID)
 	logger.Infof("deleting object %q from bucket %q in object store %q", s3HealthCheckObjectKey, bucketToDelete, c.namespacedName.Name)
 
 	thePurge := true
-	err := c.objContext.adminOpsClient.RemoveBucket(context.TODO(), admin.Bucket{Bucket: bucketToDelete, PurgeObject: &thePurge})
+	err := c.objContext.AdminOpsClient.RemoveBucket(context.TODO(), admin.Bucket{Bucket: bucketToDelete, PurgeObject: &thePurge})
 	if errors.Is(err, admin.ErrNoSuchBucket) {
 		// opinion: "not found" is not an error
 		logger.Debugf("bucket %q does not exist", bucketToDelete)
@@ -215,8 +215,8 @@ func (c *bucketChecker) cleanupHealthCheck() {
 		logger.Errorf("failed to delete bucket %q for object store %q. %v", bucketToDelete, c.namespacedName.Name, err)
 	}
 
-	userToDelete := c.genUserConfig()
-	err = c.objContext.adminOpsClient.RemoveUser(context.TODO(), userToDelete)
+	userToDelete := genUserCheckerConfig(c.objContext.UID)
+	err = c.objContext.AdminOpsClient.RemoveUser(context.TODO(), userToDelete)
 	if err != nil && !errors.Is(err, admin.ErrNoSuchUser) {
 		logger.Errorf("failed to delete object user %q for object store %q. %v", userToDelete.ID, c.namespacedName.Name, err)
 	}
@@ -240,12 +240,12 @@ func toCustomResourceStatus(currentStatus *cephv1.BucketStatus, details string, 
 	return s
 }
 
-func genUniqueBucketName(uuid string) string {
+func genHealthCheckerBucketName(uuid string) string {
 	return fmt.Sprintf("%s-%s", s3HealthCheckBucketName, uuid)
 }
 
-func (c *bucketChecker) genUserConfig() admin.User {
-	userName := fmt.Sprintf("%s-%s", s3UserHealthCheckName, c.objContext.UID)
+func genUserCheckerConfig(cephObjectStoreUID string) admin.User {
+	userName := fmt.Sprintf("%s-%s", s3UserHealthCheckName, cephObjectStoreUID)
 
 	return admin.User{
 		ID:          userName,

@@ -198,3 +198,19 @@ $ vault kv put rook/<mybucketkey> key=$(openssl rand -base64 32) # kv engine
 $ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 
 * TLS authentication with custom certs between Vault and RGW are yet to be supported.
+
+## Deleting a CephObjectStore
+
+During deletion of a CephObjectStore resource, Rook protects against accidental or premature
+destruction of user data by blocking deletion if there are any object buckets in the object store
+being deleted. Buckets may have been created by users or by ObjectBucketClaims.
+
+For deletion to be successful, all buckets in the object store must be removed. This may require
+manual deletion or removal of all ObjectBucketClaims. Alternately, the
+`cephobjectstore.ceph.rook.io` finalizer on the CephObjectStore can be removed to remove the
+Kubernetes Custom Resource, but the Ceph pools which store the data will not be removed in this case.
+
+Rook will warn about which buckets are blocking deletion in three ways:
+1. An event will be registered on the CephObjectStore resource
+1. A status condition will be added to the CephObjectStore resource
+1. An error will be added to the Rook-Ceph Operator log

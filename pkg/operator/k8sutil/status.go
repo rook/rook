@@ -27,6 +27,6 @@ const (
 	ReconcilingStatus = "Reconciling"
 	// ReconcileFailedStatus indicates a reconciliation failed
 	ReconcileFailedStatus = "ReconcileFailed"
-	// Created indicates the object just got created
-	Created = "Created"
+	// EmptyStatus indicates the object just got created
+	EmptyStatus = ""
 )

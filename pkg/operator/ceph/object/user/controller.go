@@ -20,12 +20,12 @@ package objectuser
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"reflect"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -68,11 +68,10 @@ type ReconcileObjectStoreUser struct {
 	client          client.Client
 	scheme          *runtime.Scheme
 	context         *clusterd.Context
-	objContext      *object.Context
+	objContext      *object.AdminOpsContext
 	userConfig      *admin.User
 	cephClusterSpec *cephv1.ClusterSpec
 	clusterInfo     *cephclient.ClusterInfo
-	adminOpsAPI     *admin.API
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -157,7 +156,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// The CR was just created, initializing status fields
 	if cephObjectStoreUser.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.Created)
+		updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -272,10 +271,10 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 	logger.Infof("creating ceph object user %q in namespace %q", u.Name, u.Namespace)
 	var user admin.User
 	var err error
-	user, err = r.adminOpsAPI.CreateUser(context.TODO(), *r.userConfig)
+	user, err = r.objContext.AdminOpsClient.CreateUser(context.TODO(), *r.userConfig)
 	if err != nil {
 		if errors.Is(err, admin.ErrUserExists) {
-			user, err = r.adminOpsAPI.GetUser(context.TODO(), *r.userConfig)
+			user, err = r.objContext.AdminOpsClient.GetUser(context.TODO(), *r.userConfig)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get details from ceph object user %v", &r.userConfig.ID)
 			}
@@ -309,46 +308,11 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	if err != nil {
 		return errors.Wrapf(err, "Multisite failed to set on object context for object store user")
 	}
-
-	r.objContext = objContext
-	if store.Status == nil {
-		return errors.New("failed to initialize ceph object user because unknown object store status")
-	}
-
-	if _, ok := store.Status.Info["endpoint"]; ok {
-		r.objContext.Endpoint = store.Status.Info["endpoint"]
-	} else {
-		return errors.New("endpoint is missing in the status Info")
-	}
-
-	if _, ok := store.Status.Info["secureEndpoint"]; ok {
-		r.objContext.Endpoint = store.Status.Info["secureEndpoint"]
-	}
-
-	// Fetch admin Ops API user credentials
-	var accessKey, secretKey string
-	accessKey, secretKey, err = object.GetAdminOPSUserCredentials(r.context, r.clusterInfo, objContext, store)
-	if err != nil {
-		return errors.Wrap(err, "failed to fetch rgw admin ops api user credentials")
-	}
-
-	// Build TLS client if needed
-	httpClient := &http.Client{
-		Timeout: object.HttpTimeOut,
-	}
-	if store.Spec.IsTLSEnabled() {
-		tlsCert, err := object.GetTlsCaCert(objContext, &store.Spec)
-		if err != nil {
-			return errors.Wrapf(err, "failed to fetch CA cert to establish TLS connection with the object store %q", store.Name)
-		}
-		httpClient.Transport = object.BuildTransportTLS(tlsCert)
-	}
-
-	adminOpsAPI, err := admin.New(r.objContext.Endpoint, accessKey, secretKey, httpClient)
+	opsContext, err := object.NewMultisiteAdminOpsContext(objContext, &store.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialized rgw admin ops client api")
 	}
-	r.adminOpsAPI = adminOpsAPI
+	r.objContext = opsContext
 
 	return nil
 }
@@ -497,7 +461,7 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 
 // Delete the user
 func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
-	err := r.adminOpsAPI.RemoveUser(context.TODO(), admin.User{ID: u.Name})
+	err := r.objContext.AdminOpsClient.RemoveUser(context.TODO(), admin.User{ID: u.Name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			logger.Warningf("user %q does not exist, nothing to remove", u.Name)
@@ -549,7 +513,7 @@ func updateStatus(client client.Client, name types.NamespacedName, status string
 	if user.Status.Phase == k8sutil.ReadyStatus {
 		user.Status.Info = generateStatusInfo(user)
 	}
-	if err := opcontroller.UpdateStatus(client, user); err != nil {
+	if err := reporting.UpdateStatus(client, user); err != nil {
 		logger.Errorf("failed to set object store user %q status to %q. %v", name, status, err)
 		return
 	}

@@ -1691,3 +1691,21 @@ func (k8sh *K8sHelper) WaitForCronJob(name, namespace string) error {
 	}
 	return fmt.Errorf("giving up waiting for CronJob named %s in namespace %s", name, namespace)
 }
+
+func (k8sh *K8sHelper) GetResourceStatus(kind, name, namespace string) (string, error) {
+	return k8sh.Kubectl("-n", namespace, "get", kind, name) // TODO: -o status
+}
+
+func (k8sh *K8sHelper) WaitUntilResourceIsDeleted(kind, namespace, name string) error {
+	var err error
+	var out string
+	for i := 0; i < RetryLoop; i++ {
+		out, err = k8sh.Kubectl("-n", namespace, "get", kind, name, "-o", "name")
+		if strings.Contains(out, "Error from server (NotFound): ") {
+			return nil
+		}
+		logger.Infof("waiting %d more seconds for resource %s %q to be deleted:\n%s", RetryInterval, kind, name, out)
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return errors.Wrapf(err, "timed out waiting for resource %s %q to be deleted:\n%s", kind, name, out)
+}

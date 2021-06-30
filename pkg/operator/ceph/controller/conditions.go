@@ -23,6 +23,7 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -98,7 +99,7 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 		logger.Debugf("CephCluster %q status: %q. %q", namespaceName.Namespace, cluster.Status.Phase, cluster.Status.Message)
 	}
 
-	if err := UpdateStatus(c.Client, cluster); err != nil {
+	if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
 		logger.Errorf("failed to update cluster condition to %+v. %v", *currentCondition, err)
 	}
 }

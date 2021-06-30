@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -258,7 +259,7 @@ func (c *ClusterController) updateClusterCephVersion(image string, cephVersion c
 	// update the Ceph version on the retrieved cluster object
 	// do not overwrite the ceph status that is updated in a separate goroutine
 	cephCluster.Status.CephVersion = cephClusterVersion
-	if err := opcontroller.UpdateStatus(c.client, cephCluster); err != nil {
+	if err := reporting.UpdateStatus(c.client, cephCluster); err != nil {
 		logger.Errorf("failed to update cluster %q version. %v", c.namespacedName.Name, err)
 		return
 	}

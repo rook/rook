@@ -36,6 +36,15 @@ func (s *ObjectStoreSpec) IsTLSEnabled() bool {
 	return s.Gateway.SecurePort != 0 && (s.Gateway.SSLCertificateRef != "" || s.GetServiceServingCert() != "")
 }
 
+func (s *ObjectStoreSpec) GetPort() (int32, error) {
+	if s.IsTLSEnabled() {
+		return s.Gateway.SecurePort, nil
+	} else if s.Gateway.Port != 0 {
+		return s.Gateway.Port, nil
+	}
+	return -1, errors.New("At least one of Port or SecurePort should be non-zero")
+}
+
 func (s *ObjectStoreSpec) IsExternal() bool {
 	return len(s.Gateway.ExternalRgwEndpoints) != 0
 }
@@ -88,4 +97,8 @@ func (s *ObjectStoreSpec) GetServiceServingCert() string {
 		return s.Gateway.Service.Annotations[ServiceServingCertKey]
 	}
 	return ""
+}
+
+func (c *CephObjectStore) GetStatusConditions() *[]Condition {
+	return &c.Status.Conditions
 }

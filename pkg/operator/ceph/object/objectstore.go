@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
@@ -185,28 +186,28 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 }
 
 // This is used for quickly getting the name of the realm, zone group, and zone for an object-store to pass into a Context
-func getMultisiteForObjectStore(clusterdContext *clusterd.Context, store *cephv1.CephObjectStore) (string, string, string, error) {
+func getMultisiteForObjectStore(clusterdContext *clusterd.Context, spec *cephv1.ObjectStoreSpec, namespace, name string) (string, string, string, error) {
 	ctx := context.TODO()
-	if store.Spec.IsMultisite() {
-		zone, err := clusterdContext.RookClientset.CephV1().CephObjectZones(store.Namespace).Get(ctx, store.Spec.Zone.Name, metav1.GetOptions{})
+	if spec.IsMultisite() {
+		zone, err := clusterdContext.RookClientset.CephV1().CephObjectZones(namespace).Get(ctx, spec.Zone.Name, metav1.GetOptions{})
 		if err != nil {
-			return "", "", "", errors.Wrapf(err, "failed to find zone for object-store %q", store.Name)
+			return "", "", "", errors.Wrapf(err, "failed to find zone for object-store %q", name)
 		}
 
-		zonegroup, err := clusterdContext.RookClientset.CephV1().CephObjectZoneGroups(store.Namespace).Get(ctx, zone.Spec.ZoneGroup, metav1.GetOptions{})
+		zonegroup, err := clusterdContext.RookClientset.CephV1().CephObjectZoneGroups(namespace).Get(ctx, zone.Spec.ZoneGroup, metav1.GetOptions{})
 		if err != nil {
-			return "", "", "", errors.Wrapf(err, "failed to find zone group for object-store %q", store.Name)
+			return "", "", "", errors.Wrapf(err, "failed to find zone group for object-store %q", name)
 		}
 
-		realm, err := clusterdContext.RookClientset.CephV1().CephObjectRealms(store.Namespace).Get(ctx, zonegroup.Spec.Realm, metav1.GetOptions{})
+		realm, err := clusterdContext.RookClientset.CephV1().CephObjectRealms(namespace).Get(ctx, zonegroup.Spec.Realm, metav1.GetOptions{})
 		if err != nil {
-			return "", "", "", errors.Wrapf(err, "failed to find realm for object-store %q", store.Name)
+			return "", "", "", errors.Wrapf(err, "failed to find realm for object-store %q", name)
 		}
 
 		return realm.Name, zonegroup.Name, zone.Name, nil
 	}
 
-	return store.Name, store.Name, store.Name, nil
+	return name, name, name, nil
 }
 
 func checkZoneIsMaster(objContext *Context) (bool, error) {
@@ -625,19 +626,46 @@ func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) 
 	return nil
 }
 
+func allObjectPools(storeName string) []string {
+	baseObjPools := append(metadataPools, dataPoolName, rootPool)
+
+	poolsForThisStore := make([]string, 0, len(baseObjPools))
+	for _, p := range baseObjPools {
+		poolsForThisStore = append(poolsForThisStore, poolName(storeName, p))
+	}
+	return poolsForThisStore
+}
+
+func missingPools(context *Context) ([]string, error) {
+	// list pools instead of querying each pool individually. querying each individually makes it
+	// hard to determine if an error is because the pool does not exist or because of a connection
+	// issue with ceph mons (or some other underlying issue). if listing pools fails, we can be sure
+	// it is a connection issue and return an error.
+	existingPoolSummaries, err := cephclient.ListPoolSummaries(context.Context, context.clusterInfo)
+	if err != nil {
+		return []string{}, errors.Wrapf(err, "failed to determine if pools are missing. failed to list pools")
+	}
+	existingPools := util.NewSet()
+	for _, summary := range existingPoolSummaries {
+		existingPools.Add(summary.Name)
+	}
+
+	missingPools := []string{}
+	for _, objPool := range allObjectPools(context.Name) {
+		if !existingPools.Contains(objPool) {
+			missingPools = append(missingPools, objPool)
+		}
+	}
+
+	return missingPools, nil
+}
+
 func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool, dataPool cephv1.PoolSpec) error {
 	if emptyPool(dataPool) && emptyPool(metadataPool) {
 		logger.Info("no pools specified for the CR, checking for their existence...")
-		pools := append(metadataPools, dataPoolName)
-		pools = append(pools, rootPool)
-		var missingPools []string
-		for _, pool := range pools {
-			poolName := poolName(context.Name, pool)
-			_, err := cephclient.GetPoolDetails(context.Context, context.clusterInfo, poolName)
-			if err != nil {
-				logger.Debugf("failed to find pool %q. %v", poolName, err)
-				missingPools = append(missingPools, poolName)
-			}
+		missingPools, err := missingPools(context)
+		if err != nil {
+			return err
 		}
 		if len(missingPools) > 0 {
 			return fmt.Errorf("CR store pools are missing: %v", missingPools)

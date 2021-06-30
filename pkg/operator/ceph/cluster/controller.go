@@ -34,10 +34,10 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -225,22 +225,8 @@ func (r *ReconcileCephCluster) Reconcile(context context.Context, request reconc
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, cephCluster, err := r.reconcile(request)
 
-	if err != nil {
-		logger.Errorf("failed to reconcile. %v", err)
-		r.clusterController.recorder.ReportIfNotPresent(cephCluster, corev1.EventTypeWarning, "ReconcileFailed", err.Error())
-		if !reconcileResponse.IsZero() {
-			// The framework will requeue immediately if there is an error. If we get an error with
-			// a non-empty reconcile response, just return the response with the error now logged as
-			// an event so that the framework can pause before the next reconcile per the response's
-			// intent.
-			return reconcileResponse, nil
-		}
-	} else {
-		logger.Debug("reconcile succeeded.")
-		r.clusterController.recorder.ReportIfNotPresent(cephCluster, corev1.EventTypeNormal, "ReconcileSucceeded", "cluster has been configured successfully")
-	}
-
-	return reconcileResponse, err
+	return reporting.ReportReconcileResult(logger, r.clusterController.recorder,
+		cephCluster, reconcileResponse, err)
 }
 
 func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.Result, *cephv1.CephCluster, error) {
@@ -295,36 +281,15 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 		cephv1.ConditionDeleting, corev1.ConditionTrue, cephv1.ClusterDeletingReason, "Deleting the CephCluster",
 		true /* keep all other conditions to be safe */)
 
-	dependents, err := CephClusterDependents(r.context, cephCluster.Namespace)
+	deps, err := CephClusterDependents(r.context, cephCluster.Namespace)
 	if err != nil {
 		return reconcile.Result{}, cephCluster, err
 	}
-	if !dependents.Empty() {
-		// if there are dependents, we should NOT delete the resource
-		dependentMsg := dependents.StringWithHeader("CephCluster %q will not be deleted until all dependents are removed", nsName.String())
-		logger.Errorf(dependentMsg)
-		// Set the DeletionIsBlocked=True status condition
-		// Adding the DeletionIsBlocked condition doesn't translate directly to a status/phase,
-		// so do not use the "UpdateClusterCondition" function which will modify that.
-		cond := buildDeletionBlockedDueToDependentsCondition(true, dependentMsg)
-		cephv1.SetStatusCondition(&cephCluster.Status.Conditions, cond)
-		if err := opcontroller.UpdateStatus(r.client, cephCluster); err != nil {
-			return reconcile.Result{}, cephCluster, errors.Wrapf(err, "on condition %s. failed to update CephCluster %q status condition %s=%s", dependentMsg, r.clusterController.namespacedName.String(), cond.Type, cond.Status)
-		}
-		return opcontroller.WaitForRequeueIfFinalizerBlocked, cephCluster, errors.New(dependentMsg)
+	if !deps.Empty() {
+		err := reporting.ReportDeletionBlockedDueToDependents(logger, r.client, cephCluster, deps)
+		return opcontroller.WaitForRequeueIfFinalizerBlocked, cephCluster, err
 	}
-
-	deletingMsg := fmt.Sprintf("deleting CephCluster %q", cephCluster.Name)
-	// Report an event that the cluster is deleting
-	r.clusterController.recorder.ReportIfNotPresent(cephCluster, corev1.EventTypeNormal, string(cephv1.ClusterDeletingReason), deletingMsg)
-	// Set the DeletionIsBlocked=False status condition
-	cond := buildDeletionBlockedDueToDependentsCondition(false, "cluster can be deleted safely")
-	cephv1.SetStatusCondition(&cephCluster.Status.Conditions, cond)
-	if err := opcontroller.UpdateStatus(r.client, cephCluster); err != nil {
-		logger.Warningf("failed to set CephCluster %q status condition %s=%s; continuing deletion without setting the condition", r.clusterController.namespacedName.String(), cond.Type, cond.Status)
-	}
-	// Log deletion to the operator log
-	logger.Info(deletingMsg)
+	reporting.ReportDeletionNotBlockedDueToDependents(logger, r.client, r.clusterController.recorder, cephCluster)
 
 	doCleanup := true
 
@@ -609,17 +574,4 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 	}
 
 	return nil
-}
-
-func buildDeletionBlockedDueToDependentsCondition(blocked bool, message string) cephv1.Condition {
-	status := v1.ConditionFalse
-	if blocked {
-		status = v1.ConditionTrue
-	}
-	return cephv1.Condition{
-		Type:    cephv1.ConditionDeletionIsBlocked,
-		Status:  status,
-		Reason:  cephv1.ObjectHasDependentsReason,
-		Message: message,
-	}
 }

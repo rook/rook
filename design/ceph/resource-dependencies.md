@@ -297,9 +297,10 @@ easy to tackle these changes in stages so that changes can be more easily implem
 
 Stages by priority:
 1. Block deletion of a CephCluster when there are other Rook-Ceph resources in the same namespace
-1. Block deletion of a CephBlockPool, CephFilesystem, CephObjectStore, or CephObjectZone when a CephNFS uses one of its pools.
 1. Block deletion of a CephObjectStore when there is a user bucket present in the store.
    - This already has an implementation, but it blocks for unrelated OBs
+1. Block deletion of a CephBlockPool, CephFilesystem, CephObjectStore, or CephObjectZone when a
+   CephNFS uses one of its pools.
 1. Block deletion of a CephBlockPool or CephFilesystem when there is a PersistentVolume reliant on it.
 1. Block deletion of a CephObjectStore when there is a CephObjectStoreUser reliant on it.
 1. Block deletion of a CephRBDMirror if a CephBlockPool has mirroring enabled, AND

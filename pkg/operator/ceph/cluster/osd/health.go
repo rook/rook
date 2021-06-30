@@ -26,7 +26,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -203,7 +203,7 @@ func (m *OSDHealthMonitor) updateCephStatus(devices []string) {
 	}
 	if !reflect.DeepEqual(cephCluster.Status.CephStorage, &cephClusterStorage) {
 		cephCluster.Status.CephStorage = &cephClusterStorage
-		if err := opcontroller.UpdateStatus(m.context.Client, cephCluster); err != nil {
+		if err := reporting.UpdateStatus(m.context.Client, cephCluster); err != nil {
 			logger.Errorf("failed to update cluster %q Storage. %v", m.clusterInfo.NamespacedName().Name, err)
 			return
 		}
