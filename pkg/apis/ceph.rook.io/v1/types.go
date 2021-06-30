@@ -1085,8 +1085,9 @@ type GatewaySpec struct {
 	SecurePort int32 `json:"securePort,omitempty"`
 
 	// The number of pods in the rgw replicaset.
-	// +kubebuilder:validation:Minimum=1
-	Instances int32 `json:"instances"`
+	// +nullable
+	// +optional
+	Instances int32 `json:"instances,omitempty"`
 
 	// The name of the secret that stores the ssl certificate for secure rgw connections
 	// +nullable
