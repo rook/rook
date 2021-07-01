@@ -41,6 +41,14 @@ func ValidatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo
 
 // ValidatePoolSpec validates the Ceph block pool spec CR
 func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.PoolSpec) error {
+
+	if p.IsHybridStoragePool() {
+		err := validateDeviceClasses(context, clusterInfo, p)
+		if err != nil {
+			return errors.Wrap(err, "failed to validate device classes for hybrid storage pool spec")
+		}
+	}
+
 	if p.IsReplicated() && p.IsErasureCoded() {
 		return errors.New("both replication and erasure code settings cannot be specified")
 	}
@@ -159,6 +167,40 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 
 	if !p.Mirroring.Enabled && p.Mirroring.SnapshotSchedulesEnabled() {
 		return errors.New("mirroring must be enabled to configure snapshot scheduling")
+	}
+
+	return nil
+}
+
+// validateDeviceClasses validates the primary and secondary device classes in the HybridStorageSpec
+func validateDeviceClasses(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo,
+	p *cephv1.PoolSpec) error {
+
+	primaryDeviceClass := p.Replicated.HybridStorage.PrimaryDeviceClass
+	secondaryDeviceClass := p.Replicated.HybridStorage.SecondaryDeviceClass
+
+	err := validateDeviceClassOSDs(context, clusterInfo, primaryDeviceClass)
+	if err != nil {
+		return errors.Wrapf(err, "failed to validate primary device class %q", primaryDeviceClass)
+	}
+
+	err = validateDeviceClassOSDs(context, clusterInfo, secondaryDeviceClass)
+	if err != nil {
+		return errors.Wrapf(err, "failed to validate secondary device class %q", secondaryDeviceClass)
+	}
+
+	return nil
+}
+
+// validateDeviceClassOSDs validates that the device class should have atleast one OSD
+func validateDeviceClassOSDs(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo,
+	deviceClassName string) error {
+	deviceClassOSDs, err := cephclient.GetDeviceClassOSDs(context, clusterInfo, deviceClassName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get osds for the device class %q", deviceClassName)
+	}
+	if len(deviceClassOSDs) == 0 {
+		return errors.Errorf("no osds available for the device class %q", deviceClassName)
 	}
 
 	return nil

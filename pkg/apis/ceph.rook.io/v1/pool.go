@@ -38,6 +38,10 @@ func (p *PoolSpec) IsErasureCoded() bool {
 	return p.ErasureCoded.CodingChunks > 0 || p.ErasureCoded.DataChunks > 0
 }
 
+func (p *PoolSpec) IsHybridStoragePool() bool {
+	return p.Replicated.HybridStorage != nil
+}
+
 func (p *PoolSpec) IsCompressionEnabled() bool {
 	return p.CompressionMode != ""
 }

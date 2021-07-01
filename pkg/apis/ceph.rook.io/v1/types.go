@@ -839,6 +839,25 @@ type ReplicatedSpec struct {
 	// SubFailureDomain the name of the sub-failure domain
 	// +optional
 	SubFailureDomain string `json:"subFailureDomain,omitempty"`
+
+	// HybridStorage represents hybrid storage tier settings
+	// +optional
+	// +nullable
+	HybridStorage *HybridStorageSpec `json:"hybridStorage,omitempty"`
+}
+
+// HybridStorageSpec represents the settings for hybrid storage pool
+type HybridStorageSpec struct {
+	// PrimaryDeviceClass represents high performance tier (for example SSD or NVME) for Primary OSD
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	PrimaryDeviceClass string `json:"primaryDeviceClass"`
+	// SecondaryDeviceClass represents low performance tier (for example HDDs) for remaining OSDs
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	SecondaryDeviceClass string `json:"secondaryDeviceClass"`
 }
 
 // MirroringSpec represents the setting for a mirrored pool

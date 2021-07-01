@@ -38,6 +38,20 @@ rule %s {
         step emit
 }
 `
+	twoStepHybridCRUSHRuleTemplate = `
+rule %s {
+        id %d
+        type replicated
+        min_size %d
+        max_size %d
+        step take %s class %s
+        step chooseleaf firstn 1 type %s
+        step emit
+        step take %s class %s
+        step chooseleaf firstn 0 type %s
+        step emit
+}
+`
 )
 
 var (
@@ -59,6 +73,25 @@ func buildTwoStepPlainCrushRule(crushMap CrushMap, ruleName string, pool cephv1.
 		crushRuleInsert,
 		pool.FailureDomain,
 		pool.Replicated.SubFailureDomain,
+	)
+}
+
+func buildTwoStepHybridCrushRule(crushMap CrushMap, ruleName string, pool cephv1.PoolSpec) string {
+	primaryOSDDeviceClass := pool.Replicated.HybridStorage.PrimaryDeviceClass
+	secondaryOSDsDeviceClass := pool.Replicated.HybridStorage.SecondaryDeviceClass
+
+	return fmt.Sprintf(
+		twoStepHybridCRUSHRuleTemplate,
+		ruleName,
+		generateRuleID(crushMap.Rules),
+		ruleMinSizeDefault,
+		ruleMaxSizeDefault,
+		pool.CrushRoot,
+		primaryOSDDeviceClass,
+		pool.FailureDomain,
+		pool.CrushRoot,
+		secondaryOSDsDeviceClass,
+		pool.FailureDomain,
 	)
 }
 

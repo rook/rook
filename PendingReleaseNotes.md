@@ -17,6 +17,12 @@ v1.7...
     being deleted when there is a referencing ObjectBucketClaim present.
   - See [the design](https://github.com/rook/rook/blob/master/design/ceph/resource-dependencies.md)
     for detailed information.
+- Add support for creating Hybrid Storage Pools
+  - Hybrid storage pool helps to create hybrid crush rule for choosing primary OSD for high performance
+    devices (ssd, nvme, etc) and remaining OSD for low performance devices (hdd).
+  - See [the design](Documentation/ceph-pool-crd.md#hybrid-storage-pools) for more details.
+  - Checkout the [ceph docs](https://docs.ceph.com/en/latest/rados/operations/crush-map/#custom-crush-rules)
+    for detailed information.
 
 ## Features
 

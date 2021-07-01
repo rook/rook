@@ -126,7 +126,7 @@ func CreateDefaultStretchCrushRule(context *clusterd.Context, clusterInfo *Clust
 		FailureDomain: failureDomain,
 		Replicated:    cephv1.ReplicatedSpec{SubFailureDomain: clusterSpec.Mon.StretchCluster.SubFailureDomain},
 	}
-	if err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, defaultStretchCrushRuleName, pool); err != nil {
+	if err := createStretchCrushRule(context, clusterInfo, clusterSpec, defaultStretchCrushRuleName, pool); err != nil {
 		return errors.Wrap(err, "failed to create default stretch crush rule")
 	}
 	logger.Info("successfully created the default stretch crush rule")

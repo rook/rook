@@ -350,10 +350,16 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 		// The stretch cluster rule is created initially by the operator when the stretch cluster is configured
 		// so there is no need to create a new crush rule for the pools here.
 		crushRuleName = defaultStretchCrushRuleName
+	} else if pool.IsHybridStoragePool() {
+		// Create hybrid crush rule
+		err := createHybridCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create hybrid crush rule %q", crushRuleName)
+		}
 	} else {
 		if pool.Replicated.ReplicasPerFailureDomain > 1 {
 			// Create a two-step CRUSH rule for pools other than stretch clusters
-			err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool)
+			err := createStretchCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create two-step crush rule %q", crushRuleName)
 			}
@@ -386,11 +392,17 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 	return nil
 }
 
-func createTwoStepCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, ruleName string, pool cephv1.PoolSpec) error {
+func createStretchCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, ruleName string, pool cephv1.PoolSpec) error {
+	// set the crush root to the default if not already specified
+	if pool.CrushRoot == "" {
+		pool.CrushRoot = GetCrushRootFromSpec(clusterSpec)
+	}
+
 	// set the crush failure domain to the "host" if not already specified
 	if pool.FailureDomain == "" {
 		pool.FailureDomain = cephv1.DefaultFailureDomain
 	}
+
 	// set the crush failure sub domain to the "host" if not already specified
 	if pool.Replicated.SubFailureDomain == "" {
 		pool.Replicated.SubFailureDomain = cephv1.DefaultFailureDomain
@@ -400,25 +412,49 @@ func createTwoStepCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo,
 		return errors.Errorf("failure and subfailure domains cannot be identical, current is %q", pool.FailureDomain)
 	}
 
+	crushMap, err := getCurrentCrushMap(context, clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get current crush map")
+	}
+
+	if crushRuleExists(crushMap, ruleName) {
+		logger.Debugf("CRUSH rule %q already exists", ruleName)
+		return nil
+	}
+
+	// Build plain text rule
+	ruleset := buildTwoStepPlainCrushRule(crushMap, ruleName, pool)
+
+	return updateCrushMap(context, clusterInfo, ruleset)
+}
+
+func createHybridCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, ruleName string, pool cephv1.PoolSpec) error {
 	// set the crush root to the default if not already specified
 	if pool.CrushRoot == "" {
 		pool.CrushRoot = GetCrushRootFromSpec(clusterSpec)
 	}
 
-	// Get the current CRUSH map
-	var crushMap CrushMap
-	crushMap, err := GetCrushMap(context, clusterInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to get crush map")
+	// set the crush failure domain to the "host" if not already specified
+	if pool.FailureDomain == "" {
+		pool.FailureDomain = cephv1.DefaultFailureDomain
 	}
 
-	// Check if the crush rule already exists
-	for _, rule := range crushMap.Rules {
-		if rule.Name == ruleName {
-			logger.Debugf("CRUSH rule %q already exists", ruleName)
-			return nil
-		}
+	crushMap, err := getCurrentCrushMap(context, clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get current crush map")
 	}
+
+	if crushRuleExists(crushMap, ruleName) {
+		logger.Debugf("CRUSH rule %q already exists", ruleName)
+		return nil
+	}
+
+	ruleset := buildTwoStepHybridCrushRule(crushMap, ruleName, pool)
+
+	return updateCrushMap(context, clusterInfo, ruleset)
+}
+
+func updateCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo, ruleset string) error {
 
 	// Fetch the compiled crush map
 	compiledCRUSHMapFilePath, err := GetCompiledCrushMap(context, clusterInfo)
@@ -445,9 +481,6 @@ func createTwoStepCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo,
 		}
 	}()
 
-	// Build plain text rule
-	plainRule := buildTwoStepPlainCrushRule(crushMap, ruleName, pool)
-
 	// Append plain rule to the decompiled crush map
 	f, err := os.OpenFile(filepath.Clean(decompiledCRUSHMapFilePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0400)
 	if err != nil {
@@ -461,7 +494,7 @@ func createTwoStepCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo,
 	}()
 
 	// Append the new crush rule into the crush map
-	if _, err := f.WriteString(plainRule); err != nil {
+	if _, err := f.WriteString(ruleset); err != nil {
 		return errors.Wrapf(err, "failed to append replicated plain crush rule to decompiled crush map %q", decompiledCRUSHMapFilePath)
 	}
 
@@ -581,4 +614,24 @@ func GetPoolStatistics(context *clusterd.Context, clusterInfo *ClusterInfo, name
 	}
 
 	return &poolStats, nil
+}
+
+func crushRuleExists(crushMap CrushMap, ruleName string) bool {
+	// Check if the crush rule already exists
+	for _, rule := range crushMap.Rules {
+		if rule.Name == ruleName {
+			return true
+		}
+	}
+
+	return false
+}
+
+func getCurrentCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo) (CrushMap, error) {
+	crushMap, err := GetCrushMap(context, clusterInfo)
+	if err != nil {
+		return CrushMap{}, errors.Wrap(err, "failed to get crush map")
+	}
+
+	return crushMap, nil
 }

@@ -314,7 +314,7 @@ func testCreateStretchCrushRule(t *testing.T, alreadyExists bool) {
 		ruleName = "replicated_ruleset"
 	}
 
-	err := createTwoStepCrushRule(context, clusterInfo, clusterSpec, ruleName, poolSpec)
+	err := createStretchCrushRule(context, clusterInfo, clusterSpec, ruleName, poolSpec)
 	assert.NoError(t, err)
 }
 
@@ -393,6 +393,65 @@ func testCreatePoolWithReplicasPerFailureDomain(t *testing.T, failureDomain, cru
 	assert.True(t, poolRuleCreated)
 	assert.True(t, poolRuleSet)
 	assert.True(t, poolAppEnable)
+}
+
+func TestCreateHybridCrushRule(t *testing.T) {
+	testCreateHybridCrushRule(t, true)
+	testCreateHybridCrushRule(t, false)
+}
+
+func testCreateHybridCrushRule(t *testing.T, alreadyExists bool) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "osd" {
+			if args[1] == "getcrushmap" {
+				return "", nil
+			}
+			if args[1] == "setcrushmap" {
+				if alreadyExists {
+					return "", errors.New("setcrushmap not expected for already existing crush rule")
+				}
+				return "", nil
+			}
+		}
+		if command == "crushtool" {
+			switch {
+			case args[0] == "--decompile" || args[0] == "--compile":
+				if alreadyExists {
+					return "", errors.New("--compile or --decompile not expected for already existing crush rule")
+				}
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command (file): %s %v", command, args)
+		if args[0] == "osd" && args[1] == "crush" && args[2] == "dump" {
+			return testCrushMap, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	clusterInfo := AdminClusterInfo("mycluster")
+	clusterSpec := &cephv1.ClusterSpec{}
+	poolSpec := cephv1.PoolSpec{
+		FailureDomain: "rack",
+		Replicated: cephv1.ReplicatedSpec{
+			HybridStorage: &cephv1.HybridStorageSpec{
+				PrimaryDeviceClass:   "ssd",
+				SecondaryDeviceClass: "hdd",
+			},
+		},
+	}
+	ruleName := "testrule"
+	if alreadyExists {
+		ruleName = "hybrid_ruleset"
+	}
+
+	err := createHybridCrushRule(context, clusterInfo, clusterSpec, ruleName, poolSpec)
+	assert.NoError(t, err)
 }
 
 func hasCrushtool() bool {

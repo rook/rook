@@ -31,6 +31,26 @@ spec:
   deviceClass: hdd
 ```
 
+#### Hybrid Storage Pools
+Hybrid storage is a combination of two different storage tiers. For example, SSD and HDD.
+This helps to improve the read performance of cluster by placing, say, 1st copy of data on the higher performance tier (SSD or NVME) and remaining replicated copies on lower cost tier (HDDs).
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: host
+  replicated:
+    size: 3
+    hybridStorage:
+      primaryDeviceClass: ssd
+      secondaryDeviceClass: hdd
+```
+> **IMPORTANT**: The device classes `primaryDeviceClass` and `secondaryDeviceClass` must have at least one OSD associated with them or else the pool creation will fail.
+
 ### Erasure Coded
 
 This sample will lower the overall storage capacity requirement, while also adding redundancy by using [erasure coding](#erasure-coding).
