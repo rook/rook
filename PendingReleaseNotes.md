@@ -9,6 +9,13 @@ v1.7...
 ## Breaking Changes
 
 ### Ceph
+
+## Features
+
+### Core
+
+### Ceph
+
 - Add user data protection when deleting Rook-Ceph Custom Resources
   - A CephCluster will not be deleted if there are any other Rook-Ceph Custom resources referencing
     it with the assumption that they are using the underlying Ceph cluster.
@@ -23,9 +30,3 @@ v1.7...
   - See [the design](Documentation/ceph-pool-crd.md#hybrid-storage-pools) for more details.
   - Checkout the [ceph docs](https://docs.ceph.com/en/latest/rados/operations/crush-map/#custom-crush-rules)
     for detailed information.
-
-## Features
-
-### Core
-
-### Ceph
