@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -219,6 +220,10 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 func (r *ReconcileCephCluster) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, cephCluster, err := r.reconcile(request)
+	if err != nil && strings.Contains(err.Error(), opcontroller.CancellingOrchestrationMessage) {
+		logger.Infof("Cluster update requested. %s", opcontroller.CancellingOrchestrationMessage)
+		return opcontroller.ImmediateRetryResultNoBackoff, nil
+	}
 
 	if err != nil {
 		logger.Errorf("failed to reconcile. %v", err)
