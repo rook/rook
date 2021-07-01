@@ -165,7 +165,9 @@ func (*CommandExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duratio
 	// if there was anything that went to stdout/stderr then log it, even before
 	// we return an error
 	if string(cmdOut) != "" {
-		logger.Debug(string(cmdOut))
+		if !strings.Contains(err.Error(), "error calling conf_read_file") {
+			logger.Debug(string(cmdOut))
+		}
 	}
 
 	if ctx.Err() == context.DeadlineExceeded {
