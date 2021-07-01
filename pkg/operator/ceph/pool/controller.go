@@ -195,9 +195,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 	// Initialize the channel for this object store
 	// This allows us to track multiple CephBlockPool in the same namespace
-	_, poolChannelExists := r.blockPoolChannels[cephBlockPool.Name]
+	blockPoolChannelKey := fmt.Sprintf("%s-%s", cephBlockPool.Namespace, cephBlockPool.Name)
+	_, poolChannelExists := r.blockPoolChannels[blockPoolChannelKey]
 	if !poolChannelExists {
-		r.blockPoolChannels[cephBlockPool.Name] = &blockPoolHealth{
+		r.blockPoolChannels[blockPoolChannelKey] = &blockPoolHealth{
 			stopChan:          make(chan struct{}),
 			monitoringRunning: false,
 		}
@@ -209,10 +210,10 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// We must remove it first otherwise the checker will panic since the status/info will be nil
 		if poolChannelExists {
 			// Close the channel to stop the mirroring status
-			close(r.blockPoolChannels[cephBlockPool.Name].stopChan)
+			close(r.blockPoolChannels[blockPoolChannelKey].stopChan)
 
 			// Remove ceph block pool from the map
-			delete(r.blockPoolChannels, cephBlockPool.Name)
+			delete(r.blockPoolChannels, blockPoolChannelKey)
 		}
 
 		logger.Infof("deleting pool %q", cephBlockPool.Name)
@@ -291,11 +292,12 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// Run the goroutine to update the mirroring status
 		if !cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
 			// Start monitoring object store
-			if r.blockPoolChannels[cephBlockPool.Name].monitoringRunning {
+			if r.blockPoolChannels[blockPoolChannelKey].monitoringRunning {
 				logger.Debug("external rgw endpoint monitoring go routine already running!")
 			} else {
 				checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &cephBlockPool.Spec, cephBlockPool.Name)
-				go checker.checkMirroring(r.blockPoolChannels[cephBlockPool.Name].stopChan)
+				r.blockPoolChannels[blockPoolChannelKey].monitoringRunning = true
+				go checker.checkMirroring(r.blockPoolChannels[blockPoolChannelKey].stopChan)
 			}
 		}
 
