@@ -23,7 +23,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -579,7 +578,7 @@ func getObjectStores(context *Context) ([]string, error) {
 	return r.Realms, nil
 }
 
-func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) error {
+func deletePools(ctx *Context, spec cephv1.ObjectStoreSpec, lastStore bool) error {
 	if emptyPool(spec.DataPool) && emptyPool(spec.MetadataPool) {
 		logger.Info("skipping removal of pools since not specified in the object store")
 		return nil
@@ -590,33 +589,44 @@ func deletePools(context *Context, spec cephv1.ObjectStoreSpec, lastStore bool) 
 		pools = append(pools, rootPool)
 	}
 
-	var wg sync.WaitGroup
-	for _, pool := range pools {
-		wg.Add(1)
-		name := poolName(context.Name, pool)
-		go func() {
-			defer wg.Done()
-			if err := cephclient.DeletePool(context.Context, context.clusterInfo, name); err != nil {
-				logger.Warningf("failed to delete pool %q. %v", name, err)
-				return
-			}
-		}()
-	}
+	if configurePoolsConcurrently() {
+		waitGroup, _ := errgroup.WithContext(context.TODO())
+		for _, pool := range pools {
+			name := poolName(ctx.Name, pool)
+			waitGroup.Go(func() error {
+				if err := cephclient.DeletePool(ctx.Context, ctx.clusterInfo, name); err != nil {
+					return errors.Wrapf(err, "failed to delete pool %q. ", name)
+				}
+				return nil
+			},
+			)
+		}
 
-	// Wait for all the pools to be deleted
-	wg.Wait()
+		// Wait for all the pools to be deleted
+		if err := waitGroup.Wait(); err != nil {
+			logger.Warning(err)
+		}
+
+	} else {
+		for _, pool := range pools {
+			name := poolName(ctx.Name, pool)
+			if err := cephclient.DeletePool(ctx.Context, ctx.clusterInfo, name); err != nil {
+				logger.Warningf("failed to delete pool %q. %v", name, err)
+			}
+		}
+	}
 
 	// Delete erasure code profile if any
-	erasureCodes, err := cephclient.ListErasureCodeProfiles(context.Context, context.clusterInfo)
+	erasureCodes, err := cephclient.ListErasureCodeProfiles(ctx.Context, ctx.clusterInfo)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list erasure code profiles for cluster %s", context.clusterInfo.Namespace)
+		return errors.Wrapf(err, "failed to list erasure code profiles for cluster %s", ctx.clusterInfo.Namespace)
 	}
 	// cleans up the EC profile for the data pool only. Metadata pools don't support EC (only replication is supported).
-	ecProfileName := cephclient.GetErasureCodeProfileForPool(context.Name)
+	ecProfileName := cephclient.GetErasureCodeProfileForPool(ctx.Name)
 	for i := range erasureCodes {
 		if erasureCodes[i] == ecProfileName {
-			if err := cephclient.DeleteErasureCodeProfile(context.Context, context.clusterInfo, ecProfileName); err != nil {
-				return errors.Wrapf(err, "failed to delete erasure code profile %s for object store %s", ecProfileName, context.Name)
+			if err := cephclient.DeleteErasureCodeProfile(ctx.Context, ctx.clusterInfo, ecProfileName); err != nil {
+				return errors.Wrapf(err, "failed to delete erasure code profile %s for object store %s", ecProfileName, ctx.Name)
 			}
 			break
 		}
@@ -671,52 +681,77 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 	return nil
 }
 
-func createSimilarPools(ctx *Context, pools []string, clusterSpec *cephv1.ClusterSpec, poolSpec cephv1.PoolSpec, pgCount, ecProfileName string) error {
-	waitGroup, _ := errgroup.WithContext(context.TODO())
-
-	for _, pool := range pools {
-		// Avoid the loop re-using the same value with a closure
-		pool := pool
-		waitGroup.Go(func() error {
-			// create the pool if it doesn't exist yet
-			name := poolName(ctx.Name, pool)
-			if poolDetails, err := cephclient.GetPoolDetails(ctx.Context, ctx.clusterInfo, name); err != nil {
-				// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
-				// to create a replicated pool.
-				var err error
-				if poolSpec.IsErasureCoded() {
-					// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
-					// created with that property disabled to avoid unnecessary performance impact.
-					err = cephclient.CreateECPoolForApp(ctx.Context, ctx.clusterInfo, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
-				} else {
-					err = cephclient.CreateReplicatedPoolForApp(ctx.Context, ctx.clusterInfo, clusterSpec, name, poolSpec, pgCount, AppName)
-				}
-				if err != nil {
-					return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, ctx.Name)
-				}
-			} else {
-				// pools already exist
-				if poolSpec.IsReplicated() {
-					// detect if the replication is different from the pool details
-					if poolDetails.Size != poolSpec.Replicated.Size {
-						logger.Infof("pool size is changed from %d to %d", poolDetails.Size, poolSpec.Replicated.Size)
-						if err := cephclient.SetPoolReplicatedSizeProperty(ctx.Context, ctx.clusterInfo, poolDetails.Name, strconv.FormatUint(uint64(poolSpec.Replicated.Size), 10)); err != nil {
-							return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolDetails.Name, poolSpec.Replicated.Size)
-						}
-					}
-				}
-			}
-			// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count
-			if pgCount != cephclient.DefaultPGCount {
-				if err := cephclient.SetPoolProperty(ctx.Context, ctx.clusterInfo, name, "pg_num_min", pgCount); err != nil {
-					return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
-				}
-			}
-
-			return nil
-		})
+// configurePoolsConcurrently checks if operator pod resources are set or not
+func configurePoolsConcurrently() bool {
+	// if operator resources are specified return false as it will lead to operator pod killed due to resource limit
+	// nolint #S1008, we can safely suppress this
+	if os.Getenv("OPERATOR_RESOURCES_SPECIFIED") == "true" {
+		return false
 	}
-	return waitGroup.Wait()
+	return true
+}
+
+func createSimilarPools(ctx *Context, pools []string, clusterSpec *cephv1.ClusterSpec, poolSpec cephv1.PoolSpec, pgCount, ecProfileName string) error {
+	// We have concurrency
+	if configurePoolsConcurrently() {
+		waitGroup, _ := errgroup.WithContext(context.TODO())
+		for _, pool := range pools {
+			// Avoid the loop re-using the same value with a closure
+			pool := pool
+
+			waitGroup.Go(func() error { return createRGWPool(ctx, clusterSpec, poolSpec, pgCount, ecProfileName, pool) })
+		}
+		return waitGroup.Wait()
+	}
+
+	// No concurrency!
+	for _, pool := range pools {
+		err := createRGWPool(ctx, clusterSpec, poolSpec, pgCount, ecProfileName, pool)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv1.PoolSpec, pgCount, ecProfileName, pool string) error {
+	// create the pool if it doesn't exist yet
+	name := poolName(ctx.Name, pool)
+	if poolDetails, err := cephclient.GetPoolDetails(ctx.Context, ctx.clusterInfo, name); err != nil {
+		// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
+		// to create a replicated pool.
+		var err error
+		if poolSpec.IsErasureCoded() {
+			// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
+			// created with that property disabled to avoid unnecessary performance impact.
+			err = cephclient.CreateECPoolForApp(ctx.Context, ctx.clusterInfo, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
+		} else {
+			err = cephclient.CreateReplicatedPoolForApp(ctx.Context, ctx.clusterInfo, clusterSpec, name, poolSpec, pgCount, AppName)
+		}
+		if err != nil {
+			return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, ctx.Name)
+		}
+	} else {
+		// pools already exist
+		if poolSpec.IsReplicated() {
+			// detect if the replication is different from the pool details
+			if poolDetails.Size != poolSpec.Replicated.Size {
+				logger.Infof("pool size is changed from %d to %d", poolDetails.Size, poolSpec.Replicated.Size)
+				if err := cephclient.SetPoolReplicatedSizeProperty(ctx.Context, ctx.clusterInfo, poolDetails.Name, strconv.FormatUint(uint64(poolSpec.Replicated.Size), 10)); err != nil {
+					return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolDetails.Name, poolSpec.Replicated.Size)
+				}
+			}
+		}
+	}
+	// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count
+	if pgCount != cephclient.DefaultPGCount {
+		if err := cephclient.SetPoolProperty(ctx.Context, ctx.clusterInfo, name, "pg_num_min", pgCount); err != nil {
+			return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
+		}
+	}
+
+	return nil
 }
 
 func poolName(storeName, poolName string) string {
