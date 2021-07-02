@@ -227,7 +227,7 @@ func (r *ReconcileCephNFS) downCephNFS(n *cephv1.CephNFS, nfsServerListNum int) 
 		logger.Infof("removing deployment %q", depNameToRemove)
 		err := r.context.Clientset.AppsV1().Deployments(n.Namespace).Delete(ctx, depNameToRemove, metav1.DeleteOptions{})
 		if err != nil {
-			if !kerrors.IsAlreadyExists(err) {
+			if !kerrors.IsNotFound(err) {
 				return errors.Wrap(err, "failed to delete ceph nfs deployment")
 			}
 		}
