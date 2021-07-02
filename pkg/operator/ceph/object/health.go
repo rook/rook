@@ -203,11 +203,13 @@ func (c *bucketChecker) cleanupHealthCheck() {
 
 	thePurge := true
 	err := c.objContext.AdminOpsClient.RemoveBucket(context.TODO(), admin.Bucket{Bucket: bucketToDelete, PurgeObject: &thePurge})
-	if errors.Is(err, admin.ErrNoSuchBucket) {
-		// opinion: "not found" is not an error
-		logger.Debugf("bucket %q does not exist", bucketToDelete)
-	} else {
-		logger.Errorf("failed to delete bucket %q for object store %q. %v", bucketToDelete, c.namespacedName.Name, err)
+	if err != nil {
+		if errors.Is(err, admin.ErrNoSuchBucket) {
+			// opinion: "not found" is not an error
+			logger.Debugf("bucket %q does not exist", bucketToDelete)
+		} else {
+			logger.Errorf("failed to delete bucket %q for object store %q. %v", bucketToDelete, c.namespacedName.Name, err)
+		}
 	}
 
 	userToDelete := genUserCheckerConfig(c.objContext.UID)
