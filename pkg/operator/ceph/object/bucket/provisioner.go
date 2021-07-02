@@ -481,17 +481,13 @@ func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error
 	return nil
 }
 
-func (p *Provisioner) setObjectStorePort(sc *storagev1.StorageClass) error {
-	name := getObjectStoreName(sc)
-	name = fmt.Sprintf("%s-%s", cephObject.AppName, name)
-	namespace := getObjectStoreNameSpace(sc)
-	// also ensure the service exists and get the appropriate clusterIP port
-	svc, err := getService(p.context.Clientset, namespace, name)
+func (p *Provisioner) setObjectStorePort() error {
+	store, err := p.getObjectStore()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get cephObjectStore")
 	}
-	p.storePort = svc.Spec.Ports[0].Port
-	return nil
+	p.storePort, err = store.Spec.GetPort()
+	return err
 }
 
 func (p *Provisioner) setObjectStoreName(sc *storagev1.StorageClass) {
@@ -539,7 +535,7 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 		if err := p.setObjectStoreDomainName(sc); err != nil {
 			return errors.Wrap(err, "failed to set object store domain name")
 		}
-		if err := p.setObjectStorePort(sc); err != nil {
+		if err := p.setObjectStorePort(); err != nil {
 			return errors.Wrap(err, "failed to set object store port")
 		}
 	}
