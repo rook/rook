@@ -19,6 +19,7 @@ package rook
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -33,6 +34,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/tevino/abool"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/dynamic"
@@ -201,6 +203,17 @@ func GetOperatorServiceAccount(clientset kubernetes.Interface) string {
 	TerminateOnError(err, "failed to get pod")
 
 	return pod.Spec.ServiceAccountName
+}
+
+func CheckOperatorResources(clientset kubernetes.Interface) {
+	// Getting the info of the operator pod
+	pod, err := k8sutil.GetRunningPod(clientset)
+	TerminateOnError(err, "failed to get pod")
+	resource := pod.Spec.Containers[0].Resources
+	// set env var if operator pod resources are set
+	if !reflect.DeepEqual(resource, (v1.ResourceRequirements{})) {
+		os.Setenv("OPERATOR_RESOURCES_SPECIFIED", "true")
+	}
 }
 
 // TerminateOnError terminates if err is not nil
