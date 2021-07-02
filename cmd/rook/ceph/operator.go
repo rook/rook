@@ -77,6 +77,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(err)
 	}
 
+	rook.CheckOperatorResources(context.Clientset)
 	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
 	rookBaseImageCephVersion, err := rook.GetOperatorBaseImageCephVersion(context)
 	if err != nil {
