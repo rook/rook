@@ -28,10 +28,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -118,18 +120,15 @@ func fakePDBConfigMap(drainingFailureDomain string) *corev1.ConfigMap {
 
 func getFakeReconciler(t *testing.T, obj ...runtime.Object) *ReconcileClusterDisruption {
 	scheme := scheme.Scheme
-	err := policyv1beta1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to build scheme")
-	}
+	err := policyv1.AddToScheme(scheme)
+	assert.NoError(t, err)
+	err = policyv1beta1.AddToScheme(scheme)
+	assert.NoError(t, err)
+
 	err = appsv1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to build scheme")
-	}
+	assert.NoError(t, err)
 	err = corev1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to build scheme")
-	}
+	assert.NoError(t, err)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 
 	return &ReconcileClusterDisruption{
@@ -357,16 +356,32 @@ func TestReconcilePDBForOSD(t *testing.T) {
 				}
 				return "", errors.Errorf("unexpected ceph command '%v'", args)
 			}
-			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor}}
+			clientset := test.New(t, 3)
+
+			// check for PDBV1 version
+			test.SetFakeKubernetesVersion(clientset, "v1.21.0")
+			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor, Clientset: clientset}}
 			_, err := r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone", tc.allFailureDomains, tc.osdDownFailureDomains, tc.activeNodeDrains)
 			assert.NoError(t, err)
 
 			// assert that pdb for osd are created correctly
-			existingPDBs := &policyv1beta1.PodDisruptionBudgetList{}
-			err = r.client.List(context.TODO(), existingPDBs)
+			existingPDBsV1 := &policyv1.PodDisruptionBudgetList{}
+			err = r.client.List(context.TODO(), existingPDBsV1)
 			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBs.Items))
-			for _, pdb := range existingPDBs.Items {
+			assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBsV1.Items))
+			for _, pdb := range existingPDBsV1.Items {
+				assert.Equal(t, tc.expectedMaxUnavailableCount, pdb.Spec.MaxUnavailable.IntValue())
+			}
+			// check for PDBV1Beta1 version
+			test.SetFakeKubernetesVersion(clientset, "v1.20.0")
+			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor, Clientset: clientset}}
+			_, err = r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone", tc.allFailureDomains, tc.osdDownFailureDomains, tc.activeNodeDrains)
+			assert.NoError(t, err)
+			existingPDBsV1Beta1 := &policyv1beta1.PodDisruptionBudgetList{}
+			err = r.client.List(context.TODO(), existingPDBsV1Beta1)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBsV1Beta1.Items))
+			for _, pdb := range existingPDBsV1Beta1.Items {
 				assert.Equal(t, tc.expectedMaxUnavailableCount, pdb.Spec.MaxUnavailable.IntValue())
 			}
 
@@ -397,7 +412,8 @@ func TestPGHealthcheckTimeout(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
-	r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor}}
+	clientset := test.New(t, 3)
+	r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor, Clientset: clientset}}
 	// set PG health check timeout to 10 minutes
 	r.pgHealthCheckTimeout = time.Duration(time.Minute * 10)
 

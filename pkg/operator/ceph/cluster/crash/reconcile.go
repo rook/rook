@@ -279,7 +279,7 @@ func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error
 func (r *ReconcileNode) reconcileCrashRetention(namespace string, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) error {
 	k8sVersion, err := k8sutil.GetK8SVersion(r.context.Clientset)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch get k8s version")
+		return errors.Wrap(err, "failed to fetch k8s version")
 	}
 	useCronJobV1 := k8sVersion.AtLeast(version.MustParseSemantic(minVersionForCronV1))
 

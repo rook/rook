@@ -26,10 +26,11 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	rookversion "github.com/rook/rook/pkg/version"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -117,7 +118,7 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 	logger.Infof("removing %s %s if it exists", resourceType, name)
 	err := deleteAction(options)
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !kerrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete %s. %+v", name, err)
 		}
 		return nil
@@ -130,7 +131,7 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 		// check for the existence of the resource
 		err = getAction()
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kerrors.IsNotFound(err) {
 				logger.Infof("confirmed %s does not exist", name)
 				return nil
 			}
@@ -205,4 +206,15 @@ func StartOperatorSettingsWatch(context *clusterd.Context, operatorNamespace, op
 			DeleteFunc: deleteFunc,
 		})
 	go cacheController.Run(stopCh)
+}
+
+func UsePDBV1Beta1Version(Clientset kubernetes.Interface) (bool, error) {
+	k8sVersion, err := GetK8SVersion(Clientset)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to fetch k8s version")
+	}
+	logger.Debugf("kubernetes version fetched %v", k8sVersion)
+	// minimum k8s version required for v1 PodDisruptionBudget is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 PodDisruptionBudget.
+	minVersionForPDBV1 := "1.21.0"
+	return k8sVersion.LessThan(version.MustParseSemantic(minVersionForPDBV1)), nil
 }
