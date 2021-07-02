@@ -21,10 +21,13 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -52,17 +55,36 @@ func (c *Cluster) reconcileMonPDB() error {
 }
 
 func (c *Cluster) createOrUpdateMonPDB(maxUnavailable int32) (controllerutil.OperationResult, error) {
+	usePDBV1, err := UsePDBV1Version(c.context.Clientset)
+	if err != nil {
+		return controllerutil.OperationResultNone, err
+	}
+	objectMeta := metav1.ObjectMeta{
+		Name:      monPDBName,
+		Namespace: c.Namespace,
+	}
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{k8sutil.AppAttr: AppName},
+	}
+	if usePDBV1 {
+		pdb := &policyv1.PodDisruptionBudget{
+			ObjectMeta: objectMeta}
+
+		mutateFunc := func() error {
+			pdb.Spec = policyv1.PodDisruptionBudgetSpec{
+				Selector:       selector,
+				MaxUnavailable: &intstr.IntOrString{IntVal: maxUnavailable},
+			}
+			return nil
+		}
+		return controllerutil.CreateOrUpdate(context.TODO(), c.context.Client, pdb, mutateFunc)
+	}
 	pdb := &policyv1beta1.PodDisruptionBudget{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      monPDBName,
-			Namespace: c.Namespace,
-		}}
+		ObjectMeta: objectMeta}
 
 	mutateFunc := func() error {
 		pdb.Spec = policyv1beta1.PodDisruptionBudgetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{k8sutil.AppAttr: AppName},
-			},
+			Selector:       selector,
 			MaxUnavailable: &intstr.IntOrString{IntVal: maxUnavailable},
 		}
 		return nil
@@ -96,4 +118,19 @@ func (c *Cluster) allowMonDrain(request types.NamespacedName) error {
 		return errors.Wrapf(err, "failed to update MaxUnavailable for mon PDB %q", request.Name)
 	}
 	return nil
+}
+
+func UsePDBV1Version(Clientset kubernetes.Interface) (bool, error) {
+	k8sVersion, err := k8sutil.GetK8SVersion(Clientset)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to fetch k8s version")
+	}
+	logger.Debugf("kubernetes version fetched %v", k8sVersion)
+	// minimum k8s version required for v1 PodDisruptionBudget is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 PodDisruptionBudget.
+	minVersionForPDBV1 := "1.21.0"
+	usePDBV1 := k8sVersion.AtLeast(version.MustParseSemantic(minVersionForPDBV1))
+	if usePDBV1 {
+		return true, nil
+	}
+	return false, nil
 }

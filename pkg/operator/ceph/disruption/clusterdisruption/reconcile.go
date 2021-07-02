@@ -31,10 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	mon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 )
 
@@ -262,7 +263,17 @@ func (r *ReconcileClusterDisruption) deleteDrainCanaryPods(namespace string) err
 }
 
 func (r *ReconcileClusterDisruption) deleteLegacyPDBForOSD(namespace string) error {
-	err := r.client.DeleteAllOf(context.TODO(), &policyv1beta1.PodDisruptionBudget{}, client.InNamespace(namespace),
+	var podDisruptionBudget client.Object
+	usePDBV1, err := mon.UsePDBV1Version(r.context.ClusterdContext.Clientset)
+	if err != nil {
+		return err
+	}
+	if usePDBV1 {
+		podDisruptionBudget = &policyv1.PodDisruptionBudget{}
+	} else {
+		podDisruptionBudget = &policyv1beta1.PodDisruptionBudget{}
+	}
+	err = r.client.DeleteAllOf(context.TODO(), podDisruptionBudget, client.InNamespace(namespace),
 		client.MatchingLabels{k8sutil.AppAttr: legacyOSDPDBLabel})
 	if err != nil && !kerrors.IsNotFound(err) {
 		return errors.Wrapf(err, "failed to delete legacy OSD PDBs with label %q", legacyOSDPDBLabel)
