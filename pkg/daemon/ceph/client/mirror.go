@@ -44,7 +44,7 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	defer func() error {
 		err := os.Remove(tokenFilePath)
 		return err
-	}() //nolint, we don't want to return here
+	}() //nolint // we don't want to return here
 
 	// Build command
 	args := []string{"mirror", "pool", "peer", "bootstrap", "import", poolName, tokenFilePath}

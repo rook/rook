@@ -440,7 +440,7 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 		if name == "" {
 			return "", errors.Errorf("node name not found on the osd pod %q", pod.Name)
 		}
-		return name, nil //nolint, no need for else statement
+		return name, nil //nolint // no need for else statement
 	}
 
 	return "", errors.Errorf("node selector not found on deployment for osd with pvc %q", pvcName)
