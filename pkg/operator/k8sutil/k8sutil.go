@@ -73,7 +73,7 @@ func GetK8SVersion(clientset kubernetes.Interface) (*version.Version, error) {
 	index := strings.Index(serverVersion.GitVersion, "+")
 	if index != -1 {
 		newVersion := serverVersion.GitVersion[:index]
-		logger.Infof("returning version %s instead of %s", newVersion, serverVersion.GitVersion)
+		logger.Debugf("returning version %s instead of %s", newVersion, serverVersion.GitVersion)
 		serverVersion.GitVersion = newVersion
 	}
 	return version.MustParseSemantic(serverVersion.GitVersion), nil
