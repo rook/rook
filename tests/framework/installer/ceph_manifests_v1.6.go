@@ -25,19 +25,19 @@ import (
 
 const (
 	// The version from which the upgrade test will start
-	Version1_5 = "v1.5.8"
+	Version1_6 = "v1.6.7"
 )
 
-// CephManifestsV1_4 wraps rook yaml definitions
-type CephManifestsV1_5 struct {
+// CephManifestsV1_6 wraps rook yaml definitions
+type CephManifestsV1_6 struct {
 	settings *TestCephSettings
 }
 
-func (m *CephManifestsV1_5) Settings() *TestCephSettings {
+func (m *CephManifestsV1_6) Settings() *TestCephSettings {
 	return m.settings
 }
 
-func (m *CephManifestsV1_5) GetCRDs(k8shelper *utils.K8sHelper) string {
+func (m *CephManifestsV1_6) GetCRDs(k8shelper *utils.K8sHelper) string {
 	if k8shelper.VersionAtLeast("v1.16.0") {
 		return m.settings.readManifestFromGithub("crds.yaml")
 	}
@@ -45,7 +45,7 @@ func (m *CephManifestsV1_5) GetCRDs(k8shelper *utils.K8sHelper) string {
 }
 
 // GetRookOperator returns rook Operator manifest
-func (m *CephManifestsV1_5) GetOperator() string {
+func (m *CephManifestsV1_6) GetOperator() string {
 	var manifest string
 	if utils.IsPlatformOpenShift() {
 		manifest = m.settings.readManifestFromGithub("operator-openshift.yaml")
@@ -56,12 +56,12 @@ func (m *CephManifestsV1_5) GetOperator() string {
 }
 
 // GetCommon returns rook-cluster manifest
-func (m *CephManifestsV1_5) GetCommon() string {
+func (m *CephManifestsV1_6) GetCommon() string {
 	return m.settings.readManifestFromGithub("common.yaml")
 }
 
 // GetRookToolBox returns rook-toolbox manifest
-func (m *CephManifestsV1_5) GetToolbox() string {
+func (m *CephManifestsV1_6) GetToolbox() string {
 	if m.settings.DirectMountToolbox {
 		manifest := strings.ReplaceAll(m.settings.readManifestFromGithub("direct-mount.yaml"), "name: rook-direct-mount", "name: rook-ceph-tools")
 		return strings.ReplaceAll(manifest, "app: rook-direct-mount", "app: rook-ceph-tools")
@@ -69,7 +69,7 @@ func (m *CephManifestsV1_5) GetToolbox() string {
 	return m.settings.readManifestFromGithub("toolbox.yaml")
 }
 
-func (m *CephManifestsV1_5) GetCommonExternal() string {
+func (m *CephManifestsV1_6) GetCommonExternal() string {
 	return m.settings.readManifestFromGithub("common-external.yaml")
 }
 
@@ -82,7 +82,7 @@ func (m *CephManifestsV1_5) GetCommonExternal() string {
 //**********************************************************************************
 
 // GetRookCluster returns rook-cluster manifest
-func (m *CephManifestsV1_5) GetCephCluster() string {
+func (m *CephManifestsV1_6) GetCephCluster() string {
 	crushRoot := "# crushRoot not specified; Rook will use `default`"
 	if m.settings.Mons == 1 {
 		crushRoot = `crushRoot: "custom-root"`
@@ -188,7 +188,7 @@ spec:
         interval: 5s`
 }
 
-func (m *CephManifestsV1_5) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {
+func (m *CephManifestsV1_6) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {
 	// Create a CSI driver snapshotclass
 	return `
 apiVersion: snapshot.storage.k8s.io/v1beta1
@@ -204,7 +204,7 @@ parameters:
 `
 }
 
-func (m *CephManifestsV1_5) GetFileStorageSnapshotClass(snapshotClassName, reclaimPolicy string) string {
+func (m *CephManifestsV1_6) GetFileStorageSnapshotClass(snapshotClassName, reclaimPolicy string) string {
 	// Create a CSI driver snapshotclass
 	return `
 apiVersion: snapshot.storage.k8s.io/v1beta1
@@ -220,7 +220,7 @@ parameters:
 `
 }
 
-func (m *CephManifestsV1_5) GetBlockPool(poolName, replicaSize string) string {
+func (m *CephManifestsV1_6) GetBlockPool(poolName, replicaSize string) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
@@ -244,7 +244,7 @@ spec:
       interval: 10s`
 }
 
-func (m *CephManifestsV1_5) GetBlockStorageClass(poolName, storageClassName, reclaimPolicy string) string {
+func (m *CephManifestsV1_6) GetBlockStorageClass(poolName, storageClassName, reclaimPolicy string) string {
 	// Create a CSI driver storage class
 	if m.settings.UseCSI {
 		return `
@@ -278,7 +278,7 @@ parameters:
     clusterNamespace: ` + m.settings.Namespace
 }
 
-func (m *CephManifestsV1_5) GetFileStorageClass(fsName, storageClassName string) string {
+func (m *CephManifestsV1_6) GetFileStorageClass(fsName, storageClassName string) string {
 	// Create a CSI driver storage class
 	csiCephFSNodeSecret := "rook-csi-cephfs-node"               //nolint:gosec // We safely suppress gosec in tests file
 	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner" //nolint:gosec // We safely suppress gosec in tests file
@@ -300,7 +300,7 @@ parameters:
 }
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
-func (m *CephManifestsV1_5) GetFilesystem(name string, activeCount int) string {
+func (m *CephManifestsV1_6) GetFilesystem(name string, activeCount int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephFilesystem
 metadata:
@@ -322,7 +322,7 @@ spec:
 }
 
 // GetFilesystem returns the manifest to create a Rook Ceph NFS resource with the given config.
-func (m *CephManifestsV1_5) GetNFS(name, pool string, count int) string {
+func (m *CephManifestsV1_6) GetNFS(name, pool string, count int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephNFS
 metadata:
@@ -336,7 +336,7 @@ spec:
     active: ` + strconv.Itoa(count)
 }
 
-func (m *CephManifestsV1_5) GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string {
+func (m *CephManifestsV1_6) GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
@@ -363,7 +363,7 @@ spec:
 `
 }
 
-func (m *CephManifestsV1_5) GetObjectStoreUser(name string, displayName string, store string) string {
+func (m *CephManifestsV1_6) GetObjectStoreUser(name string, displayName string, store string) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStoreUser
 metadata:
@@ -375,7 +375,7 @@ spec:
 }
 
 //GetBucketStorageClass returns the manifest to create object bucket
-func (m *CephManifestsV1_5) GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region string) string {
+func (m *CephManifestsV1_6) GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region string) string {
 	return `apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -389,7 +389,7 @@ parameters:
 }
 
 //GetOBC returns the manifest to create object bucket claim
-func (m *CephManifestsV1_5) GetOBC(claimName, storageClassName, objectBucketName, maxObject string, varBucketName bool) string {
+func (m *CephManifestsV1_6) GetOBC(claimName, storageClassName, objectBucketName, maxObject string, varBucketName bool) string {
 	bucketParameter := "generateBucketName"
 	if varBucketName {
 		bucketParameter = "bucketName"
@@ -405,7 +405,7 @@ spec:
     maxObjects: "` + maxObject + `"`
 }
 
-func (m *CephManifestsV1_5) GetClient(claimName string, caps map[string]string) string {
+func (m *CephManifestsV1_6) GetClient(claimName string, caps map[string]string) string {
 	clientCaps := []string{}
 	for name, cap := range caps {
 		str := name + ": " + cap
@@ -421,7 +421,7 @@ spec:
     ` + strings.Join(clientCaps, "\n    ")
 }
 
-func (m *CephManifestsV1_5) GetExternalCephCluster() string {
+func (m *CephManifestsV1_6) GetExternalCephCluster() string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -434,7 +434,7 @@ spec:
 }
 
 // GetRBDMirror returns the manifest to create a Rook Ceph RBD Mirror resource with the given config.
-func (m *CephManifestsV1_5) GetRBDMirror(name string, count int) string {
+func (m *CephManifestsV1_6) GetRBDMirror(name string, count int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephRBDMirror
 metadata:

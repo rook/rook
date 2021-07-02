@@ -59,8 +59,8 @@ func NewCephManifests(settings *TestCephSettings) CephManifests {
 	switch settings.RookVersion {
 	case VersionMaster:
 		return &CephManifestsMaster{settings}
-	case Version1_5:
-		return &CephManifestsV1_5{settings}
+	case Version1_6:
+		return &CephManifestsV1_6{settings}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", settings.RookVersion))
 }
