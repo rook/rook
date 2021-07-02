@@ -33,11 +33,9 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8scsi "k8s.io/api/storage/v1beta1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/typed/storage/v1beta1"
 )
 
 type Param struct {
@@ -100,7 +98,8 @@ var (
 	ConfigName = "rook-ceph-csi-config"
 	ConfigKey  = "csi-cluster-config-json"
 
-	csiLock sync.Mutex
+	csiLock      sync.Mutex
+	csiDriverobj csiDriver
 )
 
 // Specify default images as var instead of const so that they can be overridden with the Go
@@ -124,6 +123,8 @@ const (
 	kubeMinVerForFilesystemRestore = "15"
 	kubeMinVerForBlockRestore      = "16"
 	kubeMinVerForSnapshot          = "17"
+	kubeMinVerForV1csiDriver       = "18"
+	kubeMaxVerForBeta1csiDriver    = "21"
 
 	// common tolerations and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
@@ -245,6 +246,28 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 
 	CephFSDriverName = tp.DriverNamePrefix + "cephfs.csi.ceph.com"
 	RBDDriverName = tp.DriverNamePrefix + "rbd.csi.ceph.com"
+
+	csiDriverobj = beta1CsiDriver{}
+	if ver.Major > KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor >= kubeMinVerForV1csiDriver {
+		csiDriverobj = v1CsiDriver{}
+		// In case of an k8s version upgrade, delete the beta CSIDriver object;
+		// before the creation of updated v1 object to avoid conflicts.
+		// Also, attempt betav1 driver object deletion only if version is less
+		// than maximum supported version for betav1 object.(unavailable in v1.22+)
+		// Ignore if not found.
+		if EnableRBD && ver.Minor <= kubeMaxVerForBeta1csiDriver {
+			err = beta1CsiDriver{}.deleteCSIDriverInfo(ctx, clientset, RBDDriverName)
+			if err != nil {
+				logger.Errorf("failed to delete %q Driver Info. %v", RBDDriverName, err)
+			}
+		}
+		if EnableCephFS && ver.Minor <= kubeMaxVerForBeta1csiDriver {
+			err = beta1CsiDriver{}.deleteCSIDriverInfo(ctx, clientset, CephFSDriverName)
+			if err != nil {
+				logger.Errorf("failed to delete %q Driver Info. %v", CephFSDriverName, err)
+			}
+		}
+	}
 
 	tp.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
 
@@ -579,7 +602,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			// logging a warning and intentionally continuing with the default log level
 			logger.Warningf("failed to parse CSI_RBD_FSGROUPPOLICY. Defaulting to %q. %v", k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy, err)
 		}
-		err = createCSIDriverInfo(ctx, clientset, RBDDriverName, fsGroupPolicyForRBD)
+		err = csiDriverobj.createCSIDriverInfo(ctx, clientset, RBDDriverName, fsGroupPolicyForRBD)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
@@ -591,7 +614,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			// log level
 			logger.Warningf("failed to parse CSI_CEPHFS_FSGROUPPOLICY. Defaulting to %q. %v", k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy, err)
 		}
-		err = createCSIDriverInfo(ctx, clientset, CephFSDriverName, fsGroupPolicyForCephFS)
+		err = csiDriverobj.createCSIDriverInfo(ctx, clientset, CephFSDriverName, fsGroupPolicyForCephFS)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
@@ -626,6 +649,10 @@ func deleteCSIDriverResources(
 	clientset kubernetes.Interface, ver *version.Info, namespace, daemonset, deployment, service, driverName string) bool {
 	ctx := context.TODO()
 	succeeded := true
+	csiDriverobj = beta1CsiDriver{}
+	if ver.Major > KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor >= kubeMinVerForV1csiDriver {
+		csiDriverobj = v1CsiDriver{}
+	}
 	err := k8sutil.DeleteDaemonset(clientset, namespace, daemonset)
 	if err != nil {
 		logger.Errorf("failed to delete the %q. %v", daemonset, err)
@@ -644,7 +671,7 @@ func deleteCSIDriverResources(
 		succeeded = false
 	}
 
-	err = deleteCSIDriverInfo(ctx, clientset, driverName)
+	err = csiDriverobj.deleteCSIDriverInfo(ctx, clientset, driverName)
 	if err != nil {
 		logger.Errorf("failed to delete %q Driver Info. %v", driverName, err)
 		succeeded = false
@@ -669,79 +696,6 @@ func applyCephClusterNetworkConfig(ctx context.Context, objectMeta *metav1.Objec
 	}
 
 	return isMultusApplied, nil
-}
-
-// createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
-func createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name, fsGroupPolicy string) error {
-	attach := true
-	mountInfo := false
-	// Create CSIDriver object
-	csiDriver := &k8scsi.CSIDriver{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: k8scsi.CSIDriverSpec{
-			AttachRequired: &attach,
-			PodInfoOnMount: &mountInfo,
-		},
-	}
-	if fsGroupPolicy != "" {
-		policy := k8scsi.FSGroupPolicy(fsGroupPolicy)
-		csiDriver.Spec.FSGroupPolicy = &policy
-	}
-	csidrivers := clientset.StorageV1beta1().CSIDrivers()
-	driver, err := csidrivers.Get(ctx, name, metav1.GetOptions{})
-	if err == nil {
-		// As FSGroupPolicy field is immutable, should be set only during create time.
-		// if the request is to change the FSGroupPolicy, we are deleting the CSIDriver object and creating it.
-		if driver.Spec.FSGroupPolicy != nil && csiDriver.Spec.FSGroupPolicy != nil && *driver.Spec.FSGroupPolicy != *csiDriver.Spec.FSGroupPolicy {
-			return reCreateCSIDriverInfo(ctx, csidrivers, csiDriver)
-		}
-
-		// For csidriver we need to provide the resourceVersion when updating the object.
-		// From the docs (https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata)
-		// > "This value MUST be treated as opaque by clients and passed unmodified back to the server"
-		csiDriver.ObjectMeta.ResourceVersion = driver.ObjectMeta.ResourceVersion
-		_, err = csidrivers.Update(ctx, csiDriver, metav1.UpdateOptions{})
-		if err == nil {
-			logger.Infof("CSIDriver object updated for driver %q", name)
-		}
-		return err
-	}
-
-	if apierrors.IsNotFound(err) {
-		_, err = csidrivers.Create(ctx, csiDriver, metav1.CreateOptions{})
-		if err == nil {
-			logger.Infof("CSIDriver object created for driver %q", name)
-		}
-	}
-
-	return err
-}
-
-func reCreateCSIDriverInfo(ctx context.Context, csiClient v1beta1.CSIDriverInterface, csiDriver *k8scsi.CSIDriver) error {
-	err := csiClient.Delete(ctx, csiDriver.Name, metav1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete CSIDriver object for driver %q", csiDriver.Name)
-	}
-	logger.Infof("CSIDriver object deleted for driver %q", csiDriver.Name)
-	_, err = csiClient.Create(ctx, csiDriver, metav1.CreateOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "failed to recreate CSIDriver object for driver %q", csiDriver.Name)
-	}
-	logger.Infof("CSIDriver object recreated for driver %q", csiDriver.Name)
-	return nil
-}
-
-// deleteCSIDriverInfo deletes CSIDriverInfo and returns the error if any
-func deleteCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name string) error {
-	err := clientset.StorageV1beta1().CSIDrivers().Delete(ctx, name, metav1.DeleteOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-	}
-	return err
 }
 
 // ValidateCSIVersion checks if the configured ceph-csi image is supported
