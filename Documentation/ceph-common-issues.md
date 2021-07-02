@@ -958,7 +958,7 @@ You need to create the CRDs found in `cluster/examples/kubernetes/ceph/pre-k8s-1
 ## Unexpected partitions created
 
 ### Symptoms
-**Rook versions v1.6.0-v1.6.6 may create unwanted OSDs on partitions that appear unexpectedly and
+**Rook versions v1.6.0-v1.6.7 may create unwanted OSDs on partitions that appear unexpectedly and
 seemingly randomly, which will corrupt existing OSDs.**
 
 Unexpected partitions are created on host disks that are used by Ceph OSDs. This happens more often
@@ -987,7 +987,7 @@ that can appear to the kernel as an Atari partition.
 You can see https://github.com/rook/rook/issues/7940 for more detailed information and discussion.
 
 ### Solution
-#### Recover from corruption (v1.6.0-v1.6.6)
+#### Recover from corruption (v1.6.0-v1.6.7)
 If you are using Rook v1.6, you must update to v1.6.7 or higher to avoid further incidents of OSD
 corruption caused by these Atari partitions.
 
