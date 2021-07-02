@@ -9,7 +9,6 @@ operatorNamespace: rook-ceph
 #clusterName: rook-ceph
 
 # Ability to override ceph.conf
-configOverride:
 #configOverride: |
 #  [global]
 #  mon_allow_pool_delete = true
@@ -88,7 +87,7 @@ cephClusterSpec:
     # port: 8443
     # serve the dashboard using SSL
     ssl: true
-  network:
+  #network:
   # enable host networking
   #provider: host
   # EXPERIMENTAL: enable the Multus network provider
@@ -169,7 +168,7 @@ cephClusterSpec:
   #    osd:
   #    mgr:
   #    cleanup:
-  annotations:
+  #annotations:
   #    all:
   #    mon:
   #    osd:
@@ -177,7 +176,7 @@ cephClusterSpec:
   #    prepareosd:
   # If no mgr annotations are set, prometheus scrape annotations will be set by default.
   #    mgr:
-  labels:
+  #labels:
   #    all:
   #    mon:
   #    osd:
@@ -187,7 +186,7 @@ cephClusterSpec:
   # monitoring is a list of key-value pairs. It is injected into all the monitoring resources created by operator.
   # These labels can be passed as LabelSelector to Prometheus
   #    monitoring:
-  resources:
+  #resources:
   # The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
   #    mgr:
   #      limits:
@@ -215,7 +214,7 @@ cephClusterSpec:
     useAllNodes: true
     useAllDevices: true
     #deviceFilter:
-    config:
+    #config:
     # crushRoot: "custom-root" # specify a non-default root label for the CRUSH map
     # metadataDevice: "md0" # specify a non-rotational storage so ceph-volume will use it as block db device of bluestore.
     # databaseSizeMB: "1024" # uncomment if the disks are smaller than 100 GB
