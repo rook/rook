@@ -17,6 +17,7 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"reflect"
@@ -119,7 +120,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 
 	// Set the ssl cert if specified
 	if c.store.Spec.Gateway.SecurePort != 0 {
-		secretVolSrc, err := generateVolumeSourceWithTLSSecret(c.store.Spec)
+		secretVolSrc, err := c.generateVolumeSourceWithTLSSecret()
 		if err != nil {
 			return v1.PodTemplateSpec{}, err
 		}
@@ -492,29 +493,50 @@ func getLabels(name, namespace string, includeNewLabels bool) map[string]string 
 	return labels
 }
 
-func generateVolumeSourceWithTLSSecret(objSpec cephv1.ObjectStoreSpec) (*v1.SecretVolumeSource, error) {
+func (c *clusterConfig) generateVolumeSourceWithTLSSecret() (*v1.SecretVolumeSource, error) {
 	// Keep the TLS secret as secure as possible in the container. Give only user read perms.
 	// Because the Secret mount is owned by "root" and fsGroup breaks on OCP since we cannot predict it
 	// Also, we don't want to change the SCC for fsGroup to RunAsAny since it has a major broader impact
 	// Let's open the permissions a bit more so that everyone can read the cert.
 	userReadOnly := int32(0444)
 	var secretVolSrc *v1.SecretVolumeSource
-	if objSpec.Gateway.SSLCertificateRef != "" {
+	if c.store.Spec.Gateway.SSLCertificateRef != "" {
 		secretVolSrc = &v1.SecretVolumeSource{
-			SecretName: objSpec.Gateway.SSLCertificateRef,
-			Items: []v1.KeyToPath{
+			SecretName: c.store.Spec.Gateway.SSLCertificateRef,
+		}
+		secretType, err := c.rgwTLSSecretType()
+		if err != nil {
+			return nil, err
+		}
+		switch secretType {
+		case v1.SecretTypeOpaque:
+			secretVolSrc.Items = []v1.KeyToPath{
 				{Key: certKeyName, Path: certFilename, Mode: &userReadOnly},
-			}}
-	} else if objSpec.GetServiceServingCert() != "" {
+			}
+		case v1.SecretTypeTLS:
+			secretVolSrc.Items = []v1.KeyToPath{
+				{Key: v1.TLSCertKey, Path: certFilename, Mode: &userReadOnly},
+				{Key: v1.TLSPrivateKeyKey, Path: certKeyFileName, Mode: &userReadOnly},
+			}
+		}
+	} else if c.store.Spec.GetServiceServingCert() != "" {
 		secretVolSrc = &v1.SecretVolumeSource{
-			SecretName: objSpec.GetServiceServingCert(),
+			SecretName: c.store.Spec.GetServiceServingCert(),
 			Items: []v1.KeyToPath{
-				{Key: "tls.crt", Path: certFilename, Mode: &userReadOnly},
-				{Key: "tls.key", Path: certKeyFileName, Mode: &userReadOnly},
+				{Key: v1.TLSCertKey, Path: certFilename, Mode: &userReadOnly},
+				{Key: v1.TLSPrivateKeyKey, Path: certKeyFileName, Mode: &userReadOnly},
 			}}
 	} else {
 		return nil, errors.New("no TLS certificates found")
 	}
 
 	return secretVolSrc, nil
+}
+
+func (c *clusterConfig) rgwTLSSecretType() (v1.SecretType, error) {
+	rgwTlsSecret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(context.TODO(), c.store.Spec.Gateway.SSLCertificateRef, metav1.GetOptions{})
+	if rgwTlsSecret != nil {
+		return rgwTlsSecret.Type, nil
+	}
+	return "", errors.Wrapf(err, "no Kubernetes secrets referring TLS certificates found")
 }

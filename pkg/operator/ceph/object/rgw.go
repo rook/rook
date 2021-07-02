@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -332,7 +333,11 @@ func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) 
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get secret %s containing TLS certificate defined in %s", objectStoreSpec.Gateway.SSLCertificateRef, objContext.Name)
 		}
-		tlsCert = tlsSecretCert.Data[certKeyName]
+		if tlsSecretCert.Type == v1.SecretTypeOpaque {
+			tlsCert = tlsSecretCert.Data[certKeyName]
+		} else if tlsSecretCert.Type == v1.SecretTypeTLS {
+			tlsCert = tlsSecretCert.Data[v1.TLSCertKey]
+		}
 	} else if objectStoreSpec.GetServiceServingCert() != "" {
 		tlsCert, err = ioutil.ReadFile(ServiceServingCertCAFile)
 		if err != nil {
