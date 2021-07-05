@@ -808,7 +808,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 			}
 
 			for _, report := range cvReports {
-				if report.BlockDB != mdPath {
+				if report.BlockDB != mdPath && !strings.HasSuffix(mdPath, report.BlockDB) {
 					return errors.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
 				}
 			}

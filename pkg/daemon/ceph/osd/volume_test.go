@@ -1333,15 +1333,14 @@ func TestIsNewStyledLvmBatch(t *testing.T) {
 }
 
 func TestInitializeBlockWithMD(t *testing.T) {
-	// Common vars for all the tests
-	devices := &DeviceOsdMapping{
-		Entries: map[string]*DeviceOsdIDEntry{
-			"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "/dev/sdd"}},
-		},
-	}
-
 	// Test default behavior
 	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "/dev/sdd"}},
+			},
+		}
+
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommand = func(command string, args ...string) error {
 			logger.Infof("%s %v", command, args)
@@ -1373,6 +1372,46 @@ func TestInitializeBlockWithMD(t *testing.T) {
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed default behavior test")
 	}
+
+	// Test initialize with LV as metadata devices
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "vg0/lv0"}},
+			},
+		}
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/vg0/lv0" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/vg0/lv0" && args[14] == "--report" {
+				return `[{"block_db": "vg0/lv0", "encryption": "None", "data": "/dev/sda", "data_size": "100.00 GB", "block_db_size": "10.00 GB"}]`, nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 4}}, nodeName: "node1"}
+		context := &clusterd.Context{Executor: executor}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		assert.NoError(t, err, "failed LV as metadataDevice test")
+	}
+
 }
 
 func TestUseRawMode(t *testing.T) {
