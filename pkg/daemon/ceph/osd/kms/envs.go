@@ -86,6 +86,13 @@ func VaultConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 	// Add TLS env if any
 	envs = append(envs, vaultTLSEnvVarFromSecret(spec.Security.KeyManagementService.ConnectionDetails)...)
 
+	// Populate backend version
+	backendVersion, err := BackendVersion(spec.Security.KeyManagementService.ConnectionDetails)
+	if err != nil {
+		logger.Errorf("%v", err)
+	}
+	envs = append(envs, v1.EnvVar{Name: vault.VaultBackendKey, Value: backendVersion})
+
 	logger.Debugf("kms envs are %v", envs)
 
 	// Sort env vars since the input is a map which by nature is unsorted...

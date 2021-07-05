@@ -183,6 +183,12 @@ func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec c
 		if !ok || len(token) == 0 {
 			return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", KMSTokenSecretNameKey, securitySpec.KeyManagementService.TokenSecretName)
 		}
+
+		// Set the env variable
+		err = os.Setenv(api.EnvVaultToken, string(token))
+		if err != nil {
+			return errors.Wrap(err, "failed to set kms token to an env var")
+		}
 	}
 
 	return nil
