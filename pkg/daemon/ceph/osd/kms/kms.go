@@ -24,6 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/hashicorp/vault/api"
 	"github.com/libopenstorage/secrets"
+	"github.com/libopenstorage/secrets/vault"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -155,21 +156,8 @@ func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec c
 		return errors.New("failed to validate kms configuration (missing token in spec)")
 	}
 
-	// Lookup mandatory connection details
-	for _, config := range kmsMandatoryConnectionDetails {
-		if GetParam(securitySpec.KeyManagementService.ConnectionDetails, config) == "" {
-			return errors.Errorf("failed to validate kms config %q. cannot be empty", config)
-		}
-	}
-
-	// Validate KMS provider connection details
-	switch GetParam(securitySpec.KeyManagementService.ConnectionDetails, Provider) {
-	case "vault":
-		err := validateVaultConnectionDetails(clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
-		if err != nil {
-			return errors.Wrap(err, "failed to validate vault connection details")
-		}
-	}
+	// KMS provider must be specified
+	provider := GetParam(securitySpec.KeyManagementService.ConnectionDetails, Provider)
 
 	// Validate potential token Secret presence
 	if securitySpec.KeyManagementService.IsTokenAuthEnabled() {
@@ -183,6 +171,46 @@ func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec c
 		if !ok || len(token) == 0 {
 			return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", KMSTokenSecretNameKey, securitySpec.KeyManagementService.TokenSecretName)
 		}
+
+		switch provider {
+		case "vault":
+			// Set the env variable
+			err = os.Setenv(api.EnvVaultToken, string(token))
+			if err != nil {
+				return errors.Wrap(err, "failed to set vault kms token to an env var")
+			}
+		}
+	}
+
+	// Lookup mandatory connection details
+	for _, config := range kmsMandatoryConnectionDetails {
+		if GetParam(securitySpec.KeyManagementService.ConnectionDetails, config) == "" {
+			return errors.Errorf("failed to validate kms config %q. cannot be empty", config)
+		}
+	}
+
+	// Validate KMS provider connection details
+	switch provider {
+	case "vault":
+		err := validateVaultConnectionDetails(clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
+		if err != nil {
+			return errors.Wrap(err, "failed to validate vault connection details")
+		}
+
+		secretEngine := securitySpec.KeyManagementService.ConnectionDetails[VaultSecretEngineKey]
+		switch secretEngine {
+		case VaultKVSecretEngineKey:
+			// Append Backend Version if not already present
+			if GetParam(securitySpec.KeyManagementService.ConnectionDetails, vault.VaultBackendKey) == "" {
+				backendVersion, err := BackendVersion(securitySpec.KeyManagementService.ConnectionDetails)
+				if err != nil {
+					return errors.Wrap(err, "failed to get backend version")
+				}
+				securitySpec.KeyManagementService.ConnectionDetails[vault.VaultBackendKey] = backendVersion
+			}
+		}
+	default:
+		return errors.Errorf("failed to validate kms provider connection details (provider %q not supported)", provider)
 	}
 
 	return nil

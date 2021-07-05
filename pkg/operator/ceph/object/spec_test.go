@@ -344,6 +344,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	// kv engine version v1, will fail
 	c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
+	c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v1"
 	b, err = c.CheckRGWKMS()
 	assert.False(t, b)
 	assert.Error(t, err)
