@@ -18,15 +18,15 @@ limitations under the License.
 package pool
 
 import (
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 // ValidatePool Validate the pool arguments
-func ValidatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.CephBlockPool) error {
+func ValidatePool(context *clusterd.Context, clusterInfo *client.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.CephBlockPool) error {
 	if p.Name == "" {
 		return errors.New("missing name")
 	}
@@ -71,10 +71,10 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 		}
 	}
 
-	var crush cephclient.CrushMap
+	var crush client.CrushMap
 	var err error
 	if p.FailureDomain != "" || p.CrushRoot != "" {
-		crush, err = cephclient.GetCrushMap(context, clusterInfo)
+		crush, err = client.GetCrushMap(context, clusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to get crush map")
 		}

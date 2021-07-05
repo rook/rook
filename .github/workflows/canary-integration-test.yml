@@ -711,16 +711,18 @@ jobs:
         yq w -i -d1 cluster-test.yaml spec.cephVersion.image ceph/daemon-base:latest-pacific-devel
         kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f filesystem-mirror.yaml -f toolbox.yaml
 
+    # cephfs-mirroring is a push operation
+    # running bootstrap create on secondary and bootstrap import on primary. mirror daemons on primary.
     - name: deploy second cluster rook
       run: |
         BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
         cd cluster/examples/kubernetes/ceph/
         NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
-        sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml rbdmirror.yaml filesystem-mirror.yaml
+        sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml rbdmirror.yaml
         yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}2
-        yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
+        yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-secondary"
         yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
-        kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f filesystem-mirror.yaml -f toolbox.yaml
+        kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f toolbox.yaml
 
     - name: wait for ceph cluster 1 to be ready
       run: |
@@ -749,13 +751,13 @@ jobs:
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool/test snapshot
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
 
-    - name: copy peer secret into the other cluster
+    - name: copy block mirror peer secret into the other cluster
       run: |
         kubectl -n rook-ceph get secret pool-peer-token-replicapool -o yaml |\
         sed 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g; s/name: pool-peer-token-replicapool/name: pool-peer-token-replicapool-config/g' |\
         kubectl create --namespace=rook-ceph-secondary -f -
 
-    - name: add peer secret to the other cluster
+    - name: add block mirror peer secret to the other cluster
       run: |
         kubectl -n rook-ceph-secondary patch cephrbdmirror my-rbd-mirror --type merge -p '{"spec":{"peers": {"secretNames": ["pool-peer-token-replicapool-config"]}}}'
 
@@ -769,6 +771,46 @@ jobs:
         timeout 80 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.mirroringStatus.summary.daemon_health}'|grep -c OK)" -eq 1 ]; do echo "waiting for mirroring status to be updated" && sleep 1; done'
         kubectl -n rook-ceph-secondary get cephblockpool -o yaml
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
+
+    - name: create replicated mirrored filesystem on cluster 1
+      run: |
+        PRIMARY_YAML=cluster/examples/kubernetes/ceph/filesystem-test-primary.yaml
+        cp cluster/examples/kubernetes/ceph/filesystem-test.yaml "$PRIMARY_YAML"
+        yq merge --inplace --arrays append "$PRIMARY_YAML" tests/manifests/test-fs-mirror-spec.yaml
+        kubectl create -f "$PRIMARY_YAML"
+        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
+
+    - name: create replicated mirrored filesystem on cluster 2
+      run: |
+        cd cluster/examples/kubernetes/ceph/
+        yq w -i filesystem-test.yaml metadata.namespace rook-ceph-secondary
+        yq w -i filesystem-test.yaml spec.mirroring.enabled true
+        kubectl create -f filesystem-test.yaml
+        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
+
+    - name: copy filesystem mirror peer secret from the secondary cluster to the primary one
+      run: |
+        kubectl -n rook-ceph-secondary get secret fs-peer-token-myfs -o yaml |\
+        sed '/ownerReferences/,+6d' |\
+        sed 's/namespace: rook-ceph-secondary/namespace: rook-ceph/g; s/name: fs-peer-token-myfs/name: fs-peer-token-myfs-config/g' |\
+        kubectl create --namespace=rook-ceph -f -
+
+    - name: add filesystem mirror peer secret to the primary cluster
+      run: |
+        kubectl -n rook-ceph patch cephfilesystem myfs --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["fs-peer-token-myfs-config"]}}}}'
+
+    - name: verify fs mirroring is working
+      run: |
+        timeout 45 sh -c 'until [ "$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/|grep -c asok)" -eq 3 ]; do echo "waiting for connection to peer" && sleep 1; done'
+        sockets=$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/)
+        status=$(for socket in $sockets; do minikube kubectl -- -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$socket help|awk -F ":" '/get filesystem mirror status/ {print $1}'; done)
+        if [ "${#status}" -lt 1 ]; then echo "peer addition failed" && exit 1; fi
+
+    - name: display cephfilesystem and fs mirror daemon status
+      run: |
+        kubectl -n rook-ceph get cephfilesystem myfs -o yaml
+        # the check is not super ideal since 'mirroring_failed' is only displayed when there is a failure but not when it's working...
+        timeout 60 sh -c 'while [ "$(kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs snapshot mirror daemon status myfs|jq -r '.[0].filesystems[0]'|grep -c "mirroring_failed")" -eq 1 ]; do echo "waiting for filesystem to be mirrored" && sleep 1; done'
 
     - name: upload test result
       uses: actions/upload-artifact@v2

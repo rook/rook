@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
@@ -29,14 +30,19 @@ const (
 	keyringTemplate = `
 [client.fs-mirror]
 	key = %s
-	caps mon = "allow r"
+	caps mon = "allow profile cephfs-mirror"
 	caps mgr = "allow r"
 	caps mds = "allow r"
 	caps osd = "'allow rw tag cephfs metadata=*, allow r tag cephfs data=*'"
-
 `
 	user   = "client.fs-mirror"
 	userID = "fs-mirror"
+)
+
+var (
+	// PeerAdditionMinVersion This version includes a number of fixes for snapshots and mirror status
+	// TODO change me to 16.2.5
+	PeerAdditionMinVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 2}
 )
 
 // daemonConfig for a single rbd-mirror
@@ -48,7 +54,7 @@ type daemonConfig struct {
 
 func (r *ReconcileFilesystemMirror) generateKeyring(clusterInfo *client.ClusterInfo, daemonConfig *daemonConfig) (string, error) {
 	access := []string{
-		"mon", "allow r",
+		"mon", "allow profile cephfs-mirror",
 		"mgr", "allow r",
 		"mds", "allow r",
 		"osd", "allow rw tag cephfs metadata=*, allow r tag cephfs data=*",

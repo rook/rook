@@ -27,8 +27,9 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
@@ -40,7 +41,7 @@ import (
 )
 
 func TestPodVolumes(t *testing.T) {
-	dataPathMap := opconfig.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
+	dataPathMap := config.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
 
 	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes(dataPathMap, "", false)); err != nil {
 		t.Errorf("PodVolumes(\"\") - data dir source is not EmptyDir: %s", err.Error())
@@ -52,7 +53,7 @@ func TestPodVolumes(t *testing.T) {
 
 func TestMountsMatchVolumes(t *testing.T) {
 
-	dataPathMap := opconfig.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
+	dataPathMap := config.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
 
 	volsMountsTestDef := test.VolumesAndMountsTestDefinition{
 		VolumesSpec: &test.VolumesSpec{
@@ -115,24 +116,24 @@ func TestCheckPodMemory(t *testing.T) {
 }
 
 func TestBuildAdminSocketCommand(t *testing.T) {
-	c := getDaemonConfig(opconfig.OsdType, "")
+	c := getDaemonConfig(config.OsdType, "")
 
 	command := c.buildAdminSocketCommand()
 	assert.Equal(t, "status", command)
 
-	c.daemonType = opconfig.MonType
+	c.daemonType = config.MonType
 	command = c.buildAdminSocketCommand()
 	assert.Equal(t, "mon_status", command)
 }
 
 func TestBuildSocketName(t *testing.T) {
 	daemonID := "0"
-	c := getDaemonConfig(opconfig.OsdType, daemonID)
+	c := getDaemonConfig(config.OsdType, daemonID)
 
 	socketName := c.buildSocketName()
 	assert.Equal(t, "ceph-osd.0.asok", socketName)
 
-	c.daemonType = opconfig.MonType
+	c.daemonType = config.MonType
 	c.daemonID = "a"
 	socketName = c.buildSocketName()
 	assert.Equal(t, "ceph-mon.a.asok", socketName)
@@ -140,7 +141,7 @@ func TestBuildSocketName(t *testing.T) {
 
 func TestBuildSocketPath(t *testing.T) {
 	daemonID := "0"
-	c := getDaemonConfig(opconfig.OsdType, daemonID)
+	c := getDaemonConfig(config.OsdType, daemonID)
 
 	socketPath := c.buildSocketPath()
 	assert.Equal(t, "/run/ceph/ceph-osd.0.asok", socketPath)
@@ -148,7 +149,7 @@ func TestBuildSocketPath(t *testing.T) {
 
 func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 	daemonID := "0"
-	probe := GenerateLivenessProbeExecDaemon(opconfig.OsdType, daemonID)
+	probe := GenerateLivenessProbeExecDaemon(config.OsdType, daemonID)
 	expectedCommand := []string{"env",
 		"-i",
 		"sh",
@@ -161,7 +162,7 @@ func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 	assert.Equal(t, initialDelaySecondsOSDDaemon, probe.InitialDelaySeconds)
 
 	// test with a mon so the delay should be 10
-	probe = GenerateLivenessProbeExecDaemon(opconfig.MonType, "a")
+	probe = GenerateLivenessProbeExecDaemon(config.MonType, "a")
 	assert.Equal(t, initialDelaySecondsNonOSDDaemon, probe.InitialDelaySeconds)
 }
 
@@ -214,7 +215,7 @@ func TestNetworkBindingFlags(t *testing.T) {
 	ipv6FlagTrue := "--ms-bind-ipv6=true"
 	ipv6FlagFalse := "--ms-bind-ipv6=false"
 	type args struct {
-		cluster *cephclient.ClusterInfo
+		cluster *client.ClusterInfo
 		spec    *cephv1.ClusterSpec
 	}
 	tests := []struct {
@@ -222,13 +223,13 @@ func TestNetworkBindingFlags(t *testing.T) {
 		args args
 		want []string
 	}{
-		{"octopus-ipv4", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
-		{"octopus-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
-		{"octopus-dualstack-unsupported", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4, DualStack: true}}}, []string{}},
-		{"octopus-dualstack-unsupported-by-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv6FlagTrue}},
-		{"pacific-ipv4", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
-		{"pacific-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
-		{"pacific-dualstack-supported", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv4FlagTrue, ipv6FlagTrue}},
+		{"octopus-ipv4", args{cluster: &client.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
+		{"octopus-ipv6", args{cluster: &client.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
+		{"octopus-dualstack-unsupported", args{cluster: &client.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4, DualStack: true}}}, []string{}},
+		{"octopus-dualstack-unsupported-by-ipv6", args{cluster: &client.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv6FlagTrue}},
+		{"pacific-ipv4", args{cluster: &client.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
+		{"pacific-ipv6", args{cluster: &client.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
+		{"pacific-dualstack-supported", args{cluster: &client.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv4FlagTrue, ipv6FlagTrue}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

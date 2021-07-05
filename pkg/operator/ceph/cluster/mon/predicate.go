@@ -14,21 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package pool to manage a rook pool.
-package pool
+package mon
 
 import (
 	"encoding/json"
 	"reflect"
 	"sort"
 
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-func predicateMonEndpointChanges() predicate.Funcs {
+func PredicateMonEndpointChanges() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			return false
@@ -48,7 +46,7 @@ func predicateMonEndpointChanges() predicate.Funcs {
 			if !ok {
 				return false
 			}
-			if cmNew.GetName() == mon.EndpointConfigMapName {
+			if cmNew.GetName() == EndpointConfigMapName {
 				if wereMonEndpointsUpdated(cmOld.Data, cmNew.Data) {
 					logger.Info("monitor endpoints changed, updating the bootstrap peer token")
 					return true
@@ -64,14 +62,14 @@ func wereMonEndpointsUpdated(oldCMData, newCMData map[string]string) bool {
 	if oldMapping, ok := oldCMData["mapping"]; ok {
 		if newMapping, ok := newCMData["mapping"]; ok {
 			// Unmarshal both into a type
-			var oldMappingToGo mon.Mapping
+			var oldMappingToGo Mapping
 			err := json.Unmarshal([]byte(oldMapping), &oldMappingToGo)
 			if err != nil {
 				logger.Debugf("failed to unmarshal new. %v", err)
 				return false
 			}
 
-			var newMappingToGo mon.Mapping
+			var newMappingToGo Mapping
 			err = json.Unmarshal([]byte(newMapping), &newMappingToGo)
 			if err != nil {
 				logger.Debugf("failed to unmarshal new. %v", err)

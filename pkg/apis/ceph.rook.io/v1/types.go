@@ -653,7 +653,6 @@ type CephBlockPoolStatus struct {
 	MirroringInfo *MirroringInfoSpec `json:"mirroringInfo,omitempty"`
 	// +optional
 	SnapshotScheduleStatus *SnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
-	// Use only info and put mirroringStatus in it?
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
@@ -877,6 +876,10 @@ type MirroringSpec struct {
 
 // SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
 type SnapshotScheduleSpec struct {
+	// Path is the path to snapshot, only valid for CephFS
+	// +optional
+	Path string `json:"path,omitempty"`
+
 	// Interval represent the periodicity of the snapshot.
 	// +optional
 	Interval string `json:"interval,omitempty"`
@@ -934,7 +937,7 @@ type CephFilesystem struct {
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              FilesystemSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Status *Status `json:"status,omitempty"`
+	Status *CephFilesystemStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -970,7 +973,11 @@ type FilesystemSpec struct {
 	// The mirroring settings
 	// +nullable
 	// +optional
-	Mirroring FSMirroringSpec `json:"mirroring,omitempty"`
+	Mirroring *FSMirroringSpec `json:"mirroring,omitempty"`
+
+	// The mirroring statusCheck
+	// +kubebuilder:pruning:PreserveUnknownFields
+	StatusCheck MirrorHealthCheckSpec `json:"statusCheck,omitempty"`
 }
 
 // MetadataServerSpec represents the specification of a Ceph Metadata Server
@@ -1019,6 +1026,189 @@ type FSMirroringSpec struct {
 	// Enabled whether this filesystem is mirrored or not
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
+
+	// Peers represents the peers spec
+	// +nullable
+	// +optional
+	Peers *MirroringPeerSpec `json:"peers,omitempty"`
+
+	// SnapshotSchedules is the scheduling of snapshot for mirrored filesystems
+	// +optional
+	SnapshotSchedules []SnapshotScheduleSpec `json:"snapshotSchedules,omitempty"`
+
+	// Retention is the retention policy for a snapshot schedule
+	// One path has exactly one retention policy.
+	// A policy can however contain multiple count-time period pairs in order to specify complex retention policies
+	// +optional
+	SnapshotRetention []SnapshotScheduleRetentionSpec `json:"snapshotRetention,omitempty"`
+}
+
+// SnapshotScheduleRetentionSpec is a retention policy
+type SnapshotScheduleRetentionSpec struct {
+	// Path is the path to snapshot
+	// +optional
+	Path string `json:"path,omitempty"`
+
+	// Duration represents the retention duration for a snapshot
+	// +optional
+	Duration string `json:"duration,omitempty"`
+}
+
+// CephFilesystemStatus represents the status of a Ceph Filesystem
+type CephFilesystemStatus struct {
+	// +optional
+	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	SnapshotScheduleStatus *FilesystemSnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
+	// Use only info and put mirroringStatus in it?
+	// +optional
+	// +nullable
+	Info map[string]string `json:"info,omitempty"`
+	// MirroringStatus is the filesystem mirroring status
+	// +optional
+	MirroringStatus *FilesystemMirroringInfoSpec `json:"mirroringStatus,omitempty"`
+}
+
+// FilesystemMirroringInfo is the status of the pool mirroring
+type FilesystemMirroringInfoSpec struct {
+	// PoolMirroringStatus is the mirroring status of a filesystem
+	// +nullable
+	// +optional
+	FilesystemMirroringAllInfo []FilesystemMirroringInfo `json:"daemonsStatus,omitempty"`
+	// LastChecked is the last time time the status was checked
+	// +optional
+	LastChecked string `json:"lastChecked,omitempty"`
+	// LastChanged is the last time time the status last changed
+	// +optional
+	LastChanged string `json:"lastChanged,omitempty"`
+	// Details contains potential status errors
+	// +optional
+	Details string `json:"details,omitempty"`
+}
+
+// FilesystemSnapshotScheduleStatusSpec is the status of the snapshot schedule
+type FilesystemSnapshotScheduleStatusSpec struct {
+	// SnapshotSchedules is the list of snapshots scheduled
+	// +nullable
+	// +optional
+	SnapshotSchedules []FilesystemSnapshotSchedulesSpec `json:"snapshotSchedules,omitempty"`
+	// LastChecked is the last time time the status was checked
+	// +optional
+	LastChecked string `json:"lastChecked,omitempty"`
+	// LastChanged is the last time time the status last changed
+	// +optional
+	LastChanged string `json:"lastChanged,omitempty"`
+	// Details contains potential status errors
+	// +optional
+	Details string `json:"details,omitempty"`
+}
+
+// FilesystemSnapshotSchedulesSpec is the list of snapshot scheduled for images in a pool
+type FilesystemSnapshotSchedulesSpec struct {
+	// Fs is the name of the Ceph Filesystem
+	// +optional
+	Fs string `json:"fs,omitempty"`
+	// Subvol is the name of the sub volume
+	// +optional
+	Subvol string `json:"subvol,omitempty"`
+	// Path is the path on the filesystem
+	// +optional
+	Path string `json:"path,omitempty"`
+	// +optional
+	RelPath string `json:"rel_path,omitempty"`
+	// +optional
+	Schedule string `json:"schedule,omitempty"`
+	// +optional
+	Retention FilesystemSnapshotScheduleStatusRetention `json:"retention,omitempty"`
+}
+
+// FilesystemSnapshotScheduleStatusRetention is the retention specification for a filesystem snapshot schedule
+type FilesystemSnapshotScheduleStatusRetention struct {
+	// Start is when the snapshot schedule starts
+	// +optional
+	Start string `json:"start,omitempty"`
+	// Created is when the snapshot schedule was created
+	// +optional
+	Created string `json:"created,omitempty"`
+	// First is when the first snapshot schedule was taken
+	// +optional
+	First string `json:"first,omitempty"`
+	// Last is when the last snapshot schedule was taken
+	// +optional
+	Last string `json:"last,omitempty"`
+	// LastPruned is when the last snapshot schedule was pruned
+	// +optional
+	LastPruned string `json:"last_pruned,omitempty"`
+	// CreatedCount is total amount of snapshots
+	// +optional
+	CreatedCount int `json:"created_count,omitempty"`
+	// PrunedCount is total amount of pruned snapshots
+	// +optional
+	PrunedCount int `json:"pruned_count,omitempty"`
+	// Active is whether the scheduled is active or not
+	// +optional
+	Active bool `json:"active,omitempty"`
+}
+
+// FilesystemMirrorInfoSpec is the filesystem mirror status of a given filesystem
+type FilesystemMirroringInfo struct {
+	// DaemonID is the cephfs-mirror name
+	// +optional
+	DaemonID int `json:"daemon_id,omitempty"`
+	// Filesystems is the list of filesystems managed by a given cephfs-mirror daemon
+	// +optional
+	Filesystems []FilesystemsSpec `json:"filesystems,omitempty"`
+}
+
+// FilesystemsSpec is spec for the mirrored filesystem
+type FilesystemsSpec struct {
+	// FilesystemID is the filesystem identifier
+	// +optional
+	FilesystemID int `json:"filesystem_id,omitempty"`
+	// Name is name of the filesystem
+	// +optional
+	Name string `json:"name,omitempty"`
+	// DirectoryCount is the number of directories in the filesystem
+	// +optional
+	DirectoryCount int `json:"directory_count,omitempty"`
+	// Peers represents the mirroring peers
+	// +optional
+	Peers []FilesystemMirrorInfoPeerSpec `json:"peers,omitempty"`
+}
+
+// FilesystemMirrorInfoPeerSpec is the specification of a filesystem peer mirror
+type FilesystemMirrorInfoPeerSpec struct {
+	// UUID is the peer unique identifier
+	// +optional
+	UUID string `json:"uuid,omitempty"`
+	// Remote are the remote cluster information
+	// +optional
+	Remote *PeerRemoteSpec `json:"remote,omitempty"`
+	// Stats are the stat a peer mirror
+	// +optional
+	Stats *PeerStatSpec `json:"stats,omitempty"`
+}
+
+type PeerRemoteSpec struct {
+	// ClientName is cephx name
+	// +optional
+	ClientName string `json:"client_name,omitempty"`
+	// ClusterName is the name of the cluster
+	// +optional
+	ClusterName string `json:"cluster_name,omitempty"`
+	// FsName is the filesystem name
+	// +optional
+	FsName string `json:"fs_name,omitempty"`
+}
+
+// PeerStatSpec are the mirror stat with a given peer
+type PeerStatSpec struct {
+	// FailureCount is the number of mirroring failure
+	// +optional
+	FailureCount int `json:"failure_count,omitempty"`
+	// RecoveryCount is the number of recovery attempted after failures
+	// +optional
+	RecoveryCount int `json:"recovery_count,omitempty"`
 }
 
 // +genclient
@@ -1592,10 +1782,10 @@ type RBDMirroringSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	Count int `json:"count"`
 
-	// RBDMirroringPeerSpec represents the peers spec
+	// Peers represents the peers spec
 	// +nullable
 	// +optional
-	Peers RBDMirroringPeerSpec `json:"peers,omitempty"`
+	Peers MirroringPeerSpec `json:"peers,omitempty"`
 
 	// The affinity to place the rgw pods (default is to place on any available node)
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1626,9 +1816,9 @@ type RBDMirroringSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
-// RBDMirroringPeerSpec represents the specification of an RBD mirror peer
-type RBDMirroringPeerSpec struct {
-	// SecretNames represents the Kubernetes Secret names to add rbd-mirror peers
+// MirroringPeerSpec represents the specification of a mirror peer
+type MirroringPeerSpec struct {
+	// SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
 	// +optional
 	SecretNames []string `json:"secretNames,omitempty"`
 }

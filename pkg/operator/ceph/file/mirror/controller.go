@@ -202,11 +202,12 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 		}
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
 	}
+	r.clusterInfo.CephVersion = currentCephVersion
+
 	// Validate Ceph version
 	if !currentCephVersion.IsAtLeastPacific() {
 		return opcontroller.ImmediateRetryResult, errors.Errorf("ceph pacific version is required to deploy cephfs mirroring, current cluster runs %q", currentCephVersion.String())
 	}
-	r.clusterInfo.CephVersion = currentCephVersion
 
 	// CREATE/UPDATE
 	logger.Debug("reconciling ceph filesystem mirror deployments")

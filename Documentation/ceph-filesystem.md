@@ -124,25 +124,6 @@ Create the storage class.
 kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/storageclass.yaml
 ```
 
-## Mirroring
-
-Since Ceph Pacific, CephFS supports asynchronous replication of snapshots to a remote CephFS file system via cephfs-mirror tool. Snapshots are synchronized by mirroring snapshot data followed by creating a snapshot with the same name (for a given directory on the remote file system) as the snapshot being synchronized.
-It is generally useful when planning for Disaster Recovery.
-For clusters that are geographically distributed and stretching is not possible due to high latencies.
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephFilesystem
-metadata:
-  name: myfs
-  namespace: rook-ceph
-spec:
-...
-...
-  mirroring:
-    enabled: true
-```
-
 ## Quotas
 
 > **IMPORTANT**: The CephFS CSI driver uses quotas to enforce the PVC size requested.

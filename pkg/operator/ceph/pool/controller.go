@@ -118,7 +118,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile update the bootstrap peer token
-	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}}}, handler.EnqueueRequestsFromMapFunc(handlerFunc), predicateMonEndpointChanges())
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}}}, handler.EnqueueRequestsFromMapFunc(handlerFunc), mon.PredicateMonEndpointChanges())
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 	r.clusterInfo = clusterInfo
 
-	// Initialize the channel for this object store
+	// Initialize the channel for this pool
 	// This allows us to track multiple CephBlockPool in the same namespace
 	blockPoolChannelKey := fmt.Sprintf("%s-%s", cephBlockPool.Namespace, cephBlockPool.Name)
 	_, poolChannelExists := r.blockPoolChannels[blockPoolChannelKey]
@@ -282,7 +282,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	logger.Debug("reconciling create rbd mirror peer configuration")
 	if cephBlockPool.Spec.Mirroring.Enabled {
 		// Always create a bootstrap peer token in case another cluster wants to add us as a peer
-		reconcileResponse, err = r.createBootstrapPeerSecret(cephBlockPool, request.NamespacedName)
+		reconcileResponse, err = opcontroller.CreateBootstrapPeerSecret(r.context, clusterInfo, cephBlockPool, request.NamespacedName, r.scheme)
 		if err != nil {
 			updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure, nil)
 			return reconcileResponse, errors.Wrapf(err, "failed to create rbd-mirror bootstrap peer for pool %q.", cephBlockPool.GetName())
@@ -292,9 +292,9 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		logger.Debug("listing rbd-mirror CR")
 		// Run the goroutine to update the mirroring status
 		if !cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
-			// Start monitoring object store
+			// Start monitoring of the pool
 			if r.blockPoolChannels[blockPoolChannelKey].monitoringRunning {
-				logger.Debug("external rgw endpoint monitoring go routine already running!")
+				logger.Debug("pool monitoring go routine already running!")
 			} else {
 				r.blockPoolChannels[blockPoolChannelKey].monitoringRunning = true
 				go checker.checkMirroring(r.blockPoolChannels[blockPoolChannelKey].stopChan)
@@ -302,7 +302,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 
 		// Set Ready status, we are done reconciling
-		updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, generateStatusInfo(cephBlockPool))
+		updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephBlockPool))
 
 		// If not mirrored there is no Status Info field to fulfil
 	} else {

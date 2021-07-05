@@ -17,6 +17,10 @@ limitations under the License.
 package v1
 
 // HasPeers returns whether the RBD mirror daemon has peer and should connect to it
-func (m *RBDMirroringPeerSpec) HasPeers() bool {
+func (m *MirroringPeerSpec) HasPeers() bool {
 	return len(m.SecretNames) != 0
+}
+
+func (m *FSMirroringSpec) SnapShotScheduleEnabled() bool {
+	return len(m.SnapshotSchedules) != 0
 }

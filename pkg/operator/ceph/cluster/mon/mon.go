@@ -578,8 +578,7 @@ func (c *Cluster) clusterInfoToMonConfig(excludedMon string) []*monConfig {
 			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
 			PublicIP:     cephutil.GetIPFromEndpoint(monitor.Endpoint),
 			Zone:         zone,
-			DataPathMap: config.NewStatefulDaemonDataPathMap(
-				c.spec.DataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
+			DataPathMap:  config.NewStatefulDaemonDataPathMap(c.spec.DataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
 		})
 	}
 	return mons

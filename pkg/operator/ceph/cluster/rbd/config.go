@@ -92,13 +92,13 @@ func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.
 		}
 
 		// Validate peer secret content
-		peerSpec, err := validatePeerToken(s.Data)
+		err = opcontroller.ValidatePeerToken(cephRBDMirror, s.Data)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to validate rbd-mirror bootstrap peer secret %q data", peerSecret)
 		}
 
 		// Add Peer detail to the Struct
-		r.peers[peerSecret] = peerSpec
+		r.peers[peerSecret] = &peerSpec{poolName: string(s.Data["pool"]), direction: string(s.Data["direction"])}
 
 		// Add rbd-mirror peer
 		err = r.addPeer(peerSecret, s.Data)
@@ -108,23 +108,6 @@ func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func validatePeerToken(data map[string][]byte) (*peerSpec, error) {
-	if len(data) == 0 {
-		return nil, errors.Errorf("failed to lookup 'data' secret field (empty)")
-	}
-
-	// Lookup Secret keys and content
-	keysToTest := []string{"token", "pool"}
-	for _, key := range keysToTest {
-		k, ok := data[key]
-		if !ok || len(k) == 0 {
-			return nil, errors.Errorf("failed to lookup %q key in secret bootstrap peer (missing or empty)", key)
-		}
-	}
-
-	return &peerSpec{poolName: string(data["pool"]), direction: string(data["direction"])}, nil
 }
 
 func (r *ReconcileCephRBDMirror) addPeer(peerSecret string, data map[string][]byte) error {

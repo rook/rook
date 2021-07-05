@@ -84,7 +84,7 @@ When creating an erasure-coded pool, it is highly recommended to create the pool
 RADOS Block Device (RBD) mirroring is a process of asynchronous replication of Ceph block device images between two or more Ceph clusters.
 Mirroring ensures point-in-time consistent replicas of all changes to an image, including reads and writes, block device resizing, snapshots, clones and flattening.
 It is generally useful when planning for Disaster Recovery.
-For clusters that are geographically distributed and stretching is not possible due to high latencies.
+Mirroring is for clusters that are geographically distributed and stretching a single cluster is not possible due to high latencies.
 
 The following will enable mirroring of the pool at the image level:
 

@@ -139,6 +139,7 @@ function deploy_cluster() {
   kubectl create -f pool-test.yaml
   kubectl create -f filesystem-test.yaml
   kubectl create -f rbdmirror.yaml
+  kubectl create -f filesystem-mirror.yaml
   kubectl create -f nfs-test.yaml
   kubectl create -f toolbox.yaml
 }

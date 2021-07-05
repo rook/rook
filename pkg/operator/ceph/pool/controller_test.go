@@ -27,6 +27,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -360,15 +361,15 @@ func TestCephBlockPoolController(t *testing.T) {
 		err = r.client.Get(context.TODO(), req.NamespacedName, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
-		if _, ok := pool.Status.Info[RBDMirrorBootstrapPeerSecretName]; ok {
+		if _, ok := pool.Status.Info[opcontroller.RBDMirrorBootstrapPeerSecretName]; ok {
 			break
 		}
 		logger.Infof("FIX: trying again to update the mirroring status")
 	}
-	assert.NotEmpty(t, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], pool.Status.Info)
+	assert.NotEmpty(t, pool.Status.Info[opcontroller.RBDMirrorBootstrapPeerSecretName], pool.Status.Info)
 
 	// fetch the secret
-	myPeerSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(ctx, pool.Status.Info[RBDMirrorBootstrapPeerSecretName], metav1.GetOptions{})
+	myPeerSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(ctx, pool.Status.Info[opcontroller.RBDMirrorBootstrapPeerSecretName], metav1.GetOptions{})
 	assert.NoError(t, err)
 	if myPeerSecret != nil {
 		assert.NotEmpty(t, myPeerSecret.Data["token"], myPeerSecret.Data)

@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package pool to manage a rook pool.
-package pool
+package mon
 
 import "testing"
 
