@@ -71,7 +71,7 @@ func (h *HelmSuite) SetupSuite() {
 		Mons:                      1,
 		UseCSI:                    true,
 		SkipOSDCreation:           false,
-		EnableAdmissionController: true,
+		EnableAdmissionController: false,
 		EnableDiscovery:           true,
 		RookVersion:               installer.VersionMaster,
 		CephVersion:               installer.OctopusVersion,
