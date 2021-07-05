@@ -43,20 +43,6 @@ func TestValidateConnectionDetails(t *testing.T) {
 
 	securitySpec.KeyManagementService.TokenSecretName = "vault-token"
 
-	// Error: Data is present but no provider
-	securitySpec.KeyManagementService.ConnectionDetails = map[string]string{"foo": "bar"}
-	err = ValidateConnectionDetails(context, securitySpec, ns)
-	assert.Error(t, err, "")
-	assert.EqualError(t, err, "failed to validate kms config \"KMS_PROVIDER\". cannot be empty")
-
-	// Error: Data has a KMS_PROVIDER but missing details
-	securitySpec.KeyManagementService.ConnectionDetails["KMS_PROVIDER"] = "vault"
-	err = ValidateConnectionDetails(context, securitySpec, ns)
-	assert.Error(t, err, "")
-	assert.EqualError(t, err, "failed to validate vault connection details: failed to find connection details \"VAULT_ADDR\"")
-
-	// Error: connection details are correct but the token secret does not exist
-	securitySpec.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
 	err = ValidateConnectionDetails(context, securitySpec, ns)
 	assert.Error(t, err, "")
 	assert.EqualError(t, err, "failed to fetch kms token secret \"vault-token\": secrets \"vault-token\" not found")
@@ -87,7 +73,18 @@ func TestValidateConnectionDetails(t *testing.T) {
 	_, err = context.Clientset.CoreV1().Secrets(ns).Update(ctx, s, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, securitySpec, ns)
-	assert.NoError(t, err, "")
+	assert.Error(t, err, "")
+	assert.EqualError(t, err, "failed to validate kms config \"KMS_PROVIDER\". cannot be empty")
+	securitySpec.KeyManagementService.ConnectionDetails["KMS_PROVIDER"] = "vault"
+
+	// Error: Data has a KMS_PROVIDER but missing details
+	err = ValidateConnectionDetails(context, securitySpec, ns)
+	assert.Error(t, err, "")
+	assert.EqualError(t, err, "failed to validate vault connection details: failed to find connection details \"VAULT_ADDR\"")
+
+	// Error: connection details are correct but the token secret does not exist
+	securitySpec.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
+	securitySpec.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v1"
 
 	// Error: TLS is configured but secrets do not exist
 	securitySpec.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
