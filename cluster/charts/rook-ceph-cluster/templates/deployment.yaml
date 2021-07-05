@@ -16,7 +16,8 @@ spec:
         app: rook-ceph-tools
     spec:
       dnsPolicy: ClusterFirstWithHostNet
-{{- if default "" .Values.cephClusterSpec.network.provider | eq "host" }}
+{{- $network := .Values.cephClusterSpec.network | default dict -}}
+{{- if ($network.provider | default "") | eq "host" }}
       hostNetwork: true
 {{- end }}
       containers:
