@@ -336,7 +336,7 @@ spec:
     active: ` + strconv.Itoa(count)
 }
 
-func (m *CephManifestsV1_5) GetObjectStore(name string, replicaCount, port int) string {
+func (m *CephManifestsV1_5) GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
