@@ -374,6 +374,27 @@ func TestCephBlockPoolController(t *testing.T) {
 		assert.NotEmpty(t, myPeerSecret.Data["token"], myPeerSecret.Data)
 		assert.NotEmpty(t, myPeerSecret.Data["pool"])
 	}
+
+	//
+	// TEST 6: Mirroring disabled
+	r = &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolChannels: make(map[string]*blockPoolHealth),
+	}
+	pool.Spec.Mirroring.Enabled = false
+	pool.Spec.Mirroring.Mode = "image"
+	err = r.client.Update(context.TODO(), pool)
+	assert.NoError(t, err)
+	res, err = r.Reconcile(ctx, req)
+	assert.NoError(t, err)
+	assert.False(t, res.Requeue)
+	err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+	assert.NoError(t, err)
+	assert.Equal(t, cephv1.ConditionReady, pool.Status.Phase)
+
+	assert.Nil(t, pool.Status.MirroringStatus)
 }
 
 func TestConfigureRBDStats(t *testing.T) {
