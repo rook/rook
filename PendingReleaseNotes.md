@@ -31,3 +31,4 @@ v1.7...
   - Checkout the [ceph docs](https://docs.ceph.com/en/latest/rados/operations/crush-map/#custom-crush-rules)
     for detailed information.
 - Add support cephfs mirroring peer configuration, refer to the [configuration](Documentation/ceph-filesystem-crd.md#mirroring) for more details
+- Add support for Kubernetes TLS secret for referring TLS certs needed for ceph RGW server. 

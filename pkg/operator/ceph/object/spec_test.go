@@ -91,6 +91,10 @@ func TestPodSpecs(t *testing.T) {
 }
 
 func TestSSLPodSpec(t *testing.T) {
+	ctx := context.TODO()
+	// Placeholder
+	context := &clusterd.Context{Clientset: test.New(t, 3)}
+
 	store := simpleStore()
 	store.Spec.Gateway.Resources = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
@@ -105,12 +109,14 @@ func TestSSLPodSpec(t *testing.T) {
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := clienttest.CreateTestClusterInfo(1)
 	info.CephVersion = cephver.Nautilus
+	info.Namespace = store.Namespace
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 	store.Spec.Gateway.SecurePort = 443
 
 	c := &clusterConfig{
 		clusterInfo: info,
 		store:       store,
+		context:     context,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
@@ -130,8 +136,22 @@ func TestSSLPodSpec(t *testing.T) {
 	assert.Error(t, err)
 
 	// Using SSLCertificateRef
+	// Opaque Secret
 	c.store.Spec.Gateway.SSLCertificateRef = "mycert"
-	secretVolSrc, _ := generateVolumeSourceWithTLSSecret(c.store.Spec)
+	rgwtlssecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      c.store.Spec.Gateway.SSLCertificateRef,
+			Namespace: c.store.Namespace,
+		},
+		Data: map[string][]byte{
+			"cert": []byte("tlssecrettesting"),
+		},
+		Type: v1.SecretTypeOpaque,
+	}
+	_, err = c.context.Clientset.CoreV1().Secrets(store.Namespace).Create(ctx, rgwtlssecret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	secretVolSrc, err := c.generateVolumeSourceWithTLSSecret()
+	assert.NoError(t, err)
 	assert.Equal(t, secretVolSrc.SecretName, "mycert")
 	s, err := c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
@@ -139,11 +159,35 @@ func TestSSLPodSpec(t *testing.T) {
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
-
+	// TLS Secret
+	c.store.Spec.Gateway.SSLCertificateRef = "tlscert"
+	rgwtlssecret = &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      c.store.Spec.Gateway.SSLCertificateRef,
+			Namespace: c.store.Namespace,
+		},
+		Data: map[string][]byte{
+			"tls.crt": []byte("tlssecrettestingcert"),
+			"tls.key": []byte("tlssecrettestingkey"),
+		},
+		Type: v1.SecretTypeTLS,
+	}
+	_, err = c.context.Clientset.CoreV1().Secrets(store.Namespace).Create(ctx, rgwtlssecret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	secretVolSrc, err = c.generateVolumeSourceWithTLSSecret()
+	assert.NoError(t, err)
+	assert.Equal(t, secretVolSrc.SecretName, "tlscert")
+	s, err = c.makeRGWPodSpec(rgwConfig)
+	assert.NoError(t, err)
+	podTemplate = cephtest.NewPodTemplateSpecTester(t, &s)
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
+		"200", "100", "1337", "500", /* resources */
+		"my-priority-class")
 	// Using service serving cert
 	c.store.Spec.Gateway.SSLCertificateRef = ""
 	c.store.Spec.Gateway.Service = &(cephv1.RGWServiceSpec{Annotations: rook.Annotations{cephv1.ServiceServingCertKey: "rgw-cert"}})
-	secretVolSrc, _ = generateVolumeSourceWithTLSSecret(c.store.Spec)
+	secretVolSrc, err = c.generateVolumeSourceWithTLSSecret()
+	assert.NoError(t, err)
 	assert.Equal(t, secretVolSrc.SecretName, "rgw-cert")
 	s, err = c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
