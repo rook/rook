@@ -318,7 +318,10 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// CREATE/UPDATE
 	_, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName, cephCluster.Spec)
-	if err != nil {
+	if err != nil && kerrors.IsNotFound(err) {
+		logger.Info(opcontroller.OperatorNotInitializedMessage)
+		return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+	} else if err != nil {
 		return r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
 	}
 
@@ -344,6 +347,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	}
 	objContext := NewContext(r.context, r.clusterInfo, cephObjectStore.Name)
 	objContext.UID = string(cephObjectStore.UID)
+	objContext.CephClusterSpec = cluster
 
 	var err error
 
@@ -405,7 +409,9 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		// Reconcile Multisite Creation
 		logger.Infof("setting multisite settings for object store %q", cephObjectStore.Name)
 		err = setMultisite(objContext, cephObjectStore, serviceIP)
-		if err != nil {
+		if err != nil && kerrors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		} else if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to configure multisite for object store", err)
 		}
 
@@ -432,7 +438,8 @@ func (r *ReconcileCephObjectStore) reconcileCephZone(store *cephv1.CephObjectSto
 
 	_, err := RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+		// ENOENT mean “No such file or directory”
+		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			return waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "ceph zone %q not found", store.Spec.Zone.Name)
 		} else {
 			return waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "radosgw-admin zone get failed with code %d", code)

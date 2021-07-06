@@ -155,7 +155,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	c.objContext.adminOpsClient = co
 
 	// Create checker user
-	logger.Debugf("creating s3 user object %q for object store %q", userConfig.ID, c.namespacedName.Name)
+	logger.Debugf("creating s3 user object %q for object store %q health check", userConfig.ID, c.namespacedName.Name)
 	var user admin.User
 	user, err = co.CreateUser(context.TODO(), userConfig)
 	if err != nil {

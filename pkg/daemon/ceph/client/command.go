@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 // RunAllCephCommandsInToolboxPod - when running the e2e tests, all ceph commands need to be run in the toolbox.
@@ -41,8 +42,7 @@ const (
 	// Kubectl is the name of the CLI tool for 'kubectl'
 	Kubectl = "kubectl"
 	// CrushTool is the name of the CLI tool for 'crushtool'
-	CrushTool          = "crushtool"
-	CephCommandTimeout = 15 * time.Second
+	CrushTool = "crushtool"
 	// DefaultPGCount will cause Ceph to use the internal default PG count
 	DefaultPGCount = "0"
 )
@@ -62,7 +62,7 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 
 	// we could use a slice and iterate over it but since we have only 3 elements
 	// I don't think this is worth a loop
-	timeout := strconv.Itoa(int(CephCommandTimeout.Seconds()))
+	timeout := strconv.Itoa(int(exec.CephCommandTimeout.Seconds()))
 	if command != "rbd" && command != "crushtool" && command != "radosgw-admin" {
 		args = append(args, "--connect-timeout="+timeout)
 	}
@@ -174,7 +174,7 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 // configured its arguments. It is future work to integrate this case into the
 // generalization.
 func ExecuteRBDCommandWithTimeout(context *clusterd.Context, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(CephCommandTimeout, RBDTool, args...)
+	output, err := context.Executor.ExecuteCommandWithTimeout(exec.CephCommandTimeout, RBDTool, args...)
 	return output, err
 }
 

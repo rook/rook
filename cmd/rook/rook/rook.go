@@ -153,6 +153,9 @@ func NewContext() *clusterd.Context {
 	context.Clientset, err = kubernetes.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create k8s clientset")
 
+	context.RemoteExecutor.ClientSet = context.Clientset
+	context.RemoteExecutor.RestClient = context.KubeConfig
+
 	context.APIExtensionClientset, err = apiextensionsclient.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create k8s API extension clientset")
 
