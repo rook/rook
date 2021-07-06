@@ -138,11 +138,6 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	if err := UpdateEndpoint(&c.objContext.Context, c.objectStoreSpec); err != nil {
 		return errors.Wrapf(err, "failed to parse updated CephObjectStore spec")
 	}
-	opsCtx, err := NewMultisiteAdminOpsContext(&c.objContext.Context, c.objectStoreSpec)
-	if err != nil {
-		return errors.Wrap(err, "failed to build admin ops API connection")
-	}
-	c.objContext = opsCtx
 
 	// Generate unique user and bucket name
 	bucketName := genHealthCheckerBucketName(c.objContext.UID)
@@ -151,10 +146,10 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	// Create checker user
 	logger.Debugf("creating s3 user object %q for object store %q", userConfig.ID, c.namespacedName.Name)
 	var user admin.User
-	user, err = opsCtx.AdminOpsClient.CreateUser(context.TODO(), userConfig)
+	user, err := c.objContext.AdminOpsClient.CreateUser(context.TODO(), userConfig)
 	if err != nil {
 		if errors.Is(err, admin.ErrUserExists) {
-			user, err = opsCtx.AdminOpsClient.GetUser(context.TODO(), userConfig)
+			user, err = c.objContext.AdminOpsClient.GetUser(context.TODO(), userConfig)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get details from ceph object user %q", userConfig.ID)
 			}
@@ -164,8 +159,8 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	}
 
 	// Set access and secret key
-	tlsCert := opsCtx.TlsCert
-	s3endpoint := opsCtx.Endpoint
+	tlsCert := c.objContext.TlsCert
+	s3endpoint := c.objContext.Endpoint
 	s3AccessKey := user.Keys[0].AccessKey
 	s3SecretKey := user.Keys[0].SecretKey
 
