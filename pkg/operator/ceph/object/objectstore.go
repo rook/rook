@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -120,6 +121,10 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 	if zoneIsMaster {
 		_, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
 		if err != nil {
+
+			if kerrors.IsNotFound(err) {
+				return err
+			}
 			return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone group %q", objContext.Name, objContext.ZoneGroup)
 		}
 		logger.Debugf("endpoint %q was removed from zone group %q. the remaining endpoints in the zone group are %q", objContext.Endpoint, objContext.ZoneGroup, zoneEndpoints)
@@ -217,6 +222,11 @@ func checkZoneIsMaster(objContext *Context) (bool, error) {
 
 	zoneGroupJson, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
+		// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
+		// The caller can nicely handle the error and not overflow the op logs with misleading error messages
+		if kerrors.IsNotFound(err) {
+			return false, err
+		}
 		return false, errors.Wrap(err, "failed to get rgw zone group")
 	}
 	zoneGroupOutput, err := DecodeZoneGroupConfig(zoneGroupJson)
@@ -227,6 +237,11 @@ func checkZoneIsMaster(objContext *Context) (bool, error) {
 
 	zoneOutput, err := RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
+		// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
+		// The caller can nicely handle the error and not overflow the op logs with misleading error messages
+		if kerrors.IsNotFound(err) {
+			return false, err
+		}
 		return false, errors.Wrap(err, "failed to get rgw zone")
 	}
 	zoneID, err := decodeID(zoneOutput)
@@ -251,6 +266,11 @@ func checkZoneGroupIsMaster(objContext *Context) (bool, error) {
 
 	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
+		// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
+		// The caller can nicely handle the error and not overflow the op logs with misleading error messages
+		if kerrors.IsNotFound(err) {
+			return false, err
+		}
 		return false, errors.Wrap(err, "failed to get rgw zone group")
 	}
 
@@ -311,7 +331,9 @@ func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, er
 
 	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
-		return []string{}, errors.Wrap(err, "failed to get rgw zone group")
+		// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
+		// The caller can nicely handle the error and not overflow the op logs with misleading error messages
+		return []string{}, errorOrIsNotFound(err, "failed to get rgw zone group %q", objContext.Name)
 	}
 	zoneGroupJson, err := DecodeZoneGroupConfig(zoneGroupOutput)
 	if err != nil {
@@ -344,45 +366,48 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the realm if it doesn't exist yet
 	output, err := RunAdminCommandNoMultisite(objContext, true, "realm", "get", realmArg)
 	if err != nil {
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+		// ENOENT means “No such file or directory”
+		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			updatePeriod = true
 			output, err = RunAdminCommandNoMultisite(objContext, false, "realm", "create", realmArg)
 			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph realm %q, for reason %q", objContext.ZoneGroup, output)
+				return errorOrIsNotFound(err, "failed to create ceph realm %q, for reason %q", objContext.ZoneGroup, output)
 			}
 			logger.Debugf("created realm %v", objContext.Realm)
 		} else {
-			return errors.Wrapf(err, "radosgw-admin realm get failed with code %d, for reason %q", code, output)
+			return errorOrIsNotFound(err, "radosgw-admin realm get failed with code %d, for reason %q. %v", strconv.Itoa(code), output, string(kerrors.ReasonForError(err)))
 		}
 	}
 
 	// create the zonegroup if it doesn't exist yet
 	output, err = RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+		// ENOENT means “No such file or directory”
+		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			updatePeriod = true
 			output, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "create", "--master", realmArg, zoneGroupArg, endpointArg)
 			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph zone group %q, for reason %q", objContext.ZoneGroup, output)
+				return errorOrIsNotFound(err, "failed to create ceph zone group %q, for reason %q", objContext.ZoneGroup, output)
 			}
 			logger.Debugf("created zone group %v", objContext.ZoneGroup)
 		} else {
-			return errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d, for reason %q", code, output)
+			return errorOrIsNotFound(err, "radosgw-admin zonegroup get failed with code %d, for reason %q", strconv.Itoa(code), output)
 		}
 	}
 
 	// create the zone if it doesn't exist yet
 	output, err = runAdminCommand(objContext, true, "zone", "get")
 	if err != nil {
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+		// ENOENT means “No such file or directory”
+		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			updatePeriod = true
 			output, err = runAdminCommand(objContext, false, "zone", "create", "--master", endpointArg)
 			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph zone %q, for reason %q", objContext.Zone, output)
+				return errorOrIsNotFound(err, "failed to create ceph zone %q, for reason %q", objContext.Zone, output)
 			}
 			logger.Debugf("created zone %v", objContext.Zone)
 		} else {
-			return errors.Wrapf(err, "radosgw-admin zone get failed with code %d, for reason %q", code, output)
+			return errorOrIsNotFound(err, "radosgw-admin zone get failed with code %d, for reason %q", strconv.Itoa(code), output)
 		}
 	}
 
@@ -390,7 +415,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 		// the period will help notify other zones of changes if there are multi-zones
 		_, err := runAdminCommand(objContext, false, "period", "update", "--commit")
 		if err != nil {
-			return errors.Wrap(err, "failed to update period")
+			return errorOrIsNotFound(err, "failed to update period")
 		}
 		logger.Debugf("updated period for realm %v", objContext.Realm)
 	}
@@ -416,7 +441,7 @@ func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 		// endpoints that are part of a master zone are supposed to be the endpoints for a zone group
 		_, err := RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
 		if err != nil {
-			return errors.Wrapf(err, "failed to add object store %q in rgw zone group %q", objContext.Name, objContext.ZoneGroup)
+			return errorOrIsNotFound(err, "failed to add object store %q in rgw zone group %q", objContext.Name, objContext.ZoneGroup)
 		}
 		logger.Debugf("endpoints for zonegroup %q are now %q", objContext.ZoneGroup, zoneEndpoints)
 
@@ -428,14 +453,14 @@ func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 	}
 	_, err = RunAdminCommandNoMultisite(objContext, false, "zone", "modify", realmArg, zoneGroupArg, zoneArg, endpointArg)
 	if err != nil {
-		return errors.Wrapf(err, "failed to add object store %q in rgw zone %q", objContext.Name, objContext.Zone)
+		return errorOrIsNotFound(err, "failed to add object store %q in rgw zone %q", objContext.Name, objContext.Zone)
 	}
 	logger.Debugf("endpoints for zone %q are now %q", objContext.Zone, zoneEndpoints)
 
 	// the period will help notify other zones of changes if there are multi-zones
 	_, err = RunAdminCommandNoMultisite(objContext, false, "period", "update", "--commit", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
-		return errors.Wrap(err, "failed to update period")
+		return errorOrIsNotFound(err, "failed to update period")
 	}
 	logger.Infof("added object store %q to realm %q, zonegroup %q, zone %q", objContext.Name, objContext.Realm, objContext.ZoneGroup, objContext.Zone)
 
@@ -474,11 +499,11 @@ func createSystemUser(objContext *Context, namespace string) error {
 		displayNameArg := fmt.Sprintf("--display-name=%s.user", objContext.Realm)
 		output, err = RunAdminCommandNoMultisite(objContext, false, "user", "create", realmArg, zoneGroupArg, zoneArg, uidArg, displayNameArg, accessKeyArg, secretKeyArg, systemArg)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create realm system user %q for reason: %q", uid, output)
+			return errorOrIsNotFound(err, "failed to create realm system user %q for reason: %q", uid, output)
 		}
 		logger.Debugf("created realm system user %v", uid)
 	} else {
-		return errors.Wrapf(err, "radosgw-admin user info for system user failed with code %d and output %q", code, output)
+		return errorOrIsNotFound(err, "radosgw-admin user info for system user failed with code %d and output %q", strconv.Itoa(code), output)
 	}
 
 	return nil
@@ -510,7 +535,7 @@ func setMultisite(objContext *Context, store *cephv1.CephObjectStore, serviceIP 
 		endpointArg := fmt.Sprintf("--endpoints=%s", serviceEndpoint)
 		err := createMultisite(objContext, endpointArg)
 		if err != nil {
-			return errors.Wrapf(err, "failed create ceph multisite for object-store %q", objContext.Name)
+			return errorOrIsNotFound(err, "failed create ceph multisite for object-store %q", objContext.Name)
 		}
 	}
 
@@ -563,6 +588,11 @@ func DecodeZoneGroupConfig(data string) (zoneGroupType, error) {
 func getObjectStores(context *Context) ([]string, error) {
 	output, err := RunAdminCommandNoMultisite(context, true, "realm", "list")
 	if err != nil {
+		// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
+		// The caller can nicely handle the error and not overflow the op logs with misleading error messages
+		if kerrors.IsNotFound(err) {
+			return []string{}, err
+		}
 		// exit status 2 indicates the object store does not exist, so return nothing
 		if strings.Index(err.Error(), "exit status 2") == 0 {
 			return []string{}, nil
@@ -881,7 +911,7 @@ func enableRGWDashboard(context *Context) error {
 		// starting in ceph v15.2.8. We run it in a goroutine until the fix
 		// is found. We expect the ceph command to timeout so at least the goroutine exits.
 		logger.Info("setting the dashboard api secret key")
-		_, err = cephCmd.RunWithTimeout(cephclient.CephCommandTimeout)
+		_, err = cephCmd.RunWithTimeout(exec.CephCommandTimeout)
 		if err != nil {
 			logger.Errorf("failed to set user %q secretkey. %v", DashboardUser, err)
 		}
@@ -913,16 +943,25 @@ func disableRGWDashboard(context *Context) {
 
 	args := []string{"dashboard", "reset-rgw-api-access-key"}
 	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.RunWithTimeout(cephclient.CephCommandTimeout)
+	_, err = cephCmd.RunWithTimeout(exec.CephCommandTimeout)
 	if err != nil {
 		logger.Warningf("failed to reset user accesskey for user %q. %v", DashboardUser, err)
 	}
 
 	args = []string{"dashboard", "reset-rgw-api-secret-key"}
 	cephCmd = cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
-	_, err = cephCmd.RunWithTimeout(cephclient.CephCommandTimeout)
+	_, err = cephCmd.RunWithTimeout(exec.CephCommandTimeout)
 	if err != nil {
 		logger.Warningf("failed to reset user secretkey for user %q. %v", DashboardUser, err)
 	}
 	logger.Info("done disabling the dashboard api secret key")
+}
+
+func errorOrIsNotFound(err error, msg string, args ...string) error {
+	// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
+	// The caller can nicely handle the error and not overflow the op logs with misleading error messages
+	if kerrors.IsNotFound(err) {
+		return err
+	}
+	return errors.Wrapf(err, msg, args)
 }

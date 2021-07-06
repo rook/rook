@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -53,7 +54,7 @@ func (c *Cluster) setRookOrchestratorBackend() error {
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
 		args := []string{orchestratorCLIName, "set", "backend", "rook"}
-		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(client.CephCommandTimeout)
+		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandTimeout)
 		return "set rook backend", output, err
 	}, c.exitCode, 5, invalidArgErrorCode, orchestratorInitWaitTime)
 	if err != nil {

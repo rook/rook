@@ -25,11 +25,19 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kexec "k8s.io/utils/exec"
+)
+
+var (
+	CephCommandTimeout = 15 * time.Second
 )
 
 // Executor is the main interface for all the exec commands
@@ -44,8 +52,7 @@ type Executor interface {
 }
 
 // CommandExecutor is the type of the Executor
-type CommandExecutor struct {
-}
+type CommandExecutor struct{}
 
 // ExecuteCommand starts a process and wait for its completion
 func (c *CommandExecutor) ExecuteCommand(command string, arg ...string) error {
@@ -322,10 +329,27 @@ func assertErrorType(err error) string {
 }
 
 // ExtractExitCode attempts to get the exit code from the error returned by an Executor function.
-// This should also work for any errors returned by the golang os/exec package.
+// This should also work for any errors returned by the golang os/exec package and "k8s.io/utils/exec"
 func ExtractExitCode(err error) (int, error) {
-	if ee, ok := err.(*exec.ExitError); ok {
-		return ee.ExitCode(), nil
+	switch errType := err.(type) {
+	case *exec.ExitError:
+		return errType.ExitCode(), nil
+
+	case *kexec.CodeExitError:
+		return errType.ExitStatus(), nil
+
+	case *kerrors.StatusError:
+		return int(errType.ErrStatus.Code), nil
+
+	default:
+		logger.Debugf(err.Error())
+		// This is ugly but I don't know why the type assertion does not work...
+		// Whatever I've tried I can see the type "exec.CodeExitError" but none of the "case" nor other attempts with "errors.As()" worked :(
+		// So I'm parsing the Error string until we have a solution
+		if strings.Contains(err.Error(), "command terminated with exit code") {
+			a := strings.SplitAfter(err.Error(), "command terminated with exit code")
+			return strconv.Atoi(strings.TrimSpace(a[1]))
+		}
+		return 0, errors.Errorf("error %#v is not an ExitError nor CodeExitError but is %v", err, reflect.TypeOf(err))
 	}
-	return 0, errors.Errorf("error %#v is not an ExitError", err)
 }

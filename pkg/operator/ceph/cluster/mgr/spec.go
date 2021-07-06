@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -35,12 +36,20 @@ import (
 )
 
 const (
-	podIPEnvVar       = "ROOK_POD_IP"
-	serviceMetricName = "http-metrics"
+	podIPEnvVar                   = "ROOK_POD_IP"
+	serviceMetricName             = "http-metrics"
+	CommandProxyInitContainerName = "cmd-proxy"
 )
 
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error) {
 	logger.Debugf("mgrConfig: %+v", mgrConfig)
+
+	volumes := controller.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName)
+	if c.spec.Network.IsMultus() {
+		adminKeyringVol, _ := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
+		volumes = append(volumes, adminKeyringVol)
+	}
+
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
@@ -55,7 +64,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			},
 			ServiceAccountName: serviceAccountName,
 			RestartPolicy:      v1.RestartPolicyAlways,
-			Volumes:            controller.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+			Volumes:            volumes,
 			HostNetwork:        c.spec.Network.IsHost(),
 			PriorityClassName:  cephv1.GetMgrPriorityClassName(c.spec.PriorityClassNames),
 		},
@@ -91,6 +100,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 		if err := k8sutil.ApplyMultus(c.spec.Network, &podSpec.ObjectMeta); err != nil {
 			return nil, err
 		}
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeCmdProxySidecarContainer(mgrConfig))
 	}
 
 	cephv1.GetMgrAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podSpec.ObjectMeta)
@@ -226,6 +236,22 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 		Env:       envVars,
 		Resources: cephv1.GetMgrSidecarResources(c.spec.Resources),
 	}
+}
+
+func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Container {
+	_, adminKeyringVolMount := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
+	container := v1.Container{
+		Name:            CommandProxyInitContainerName,
+		Command:         []string{"sleep"},
+		Args:            []string{"infinity"},
+		Image:           c.spec.CephVersion.Image,
+		VolumeMounts:    append(controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName), adminKeyringVolMount),
+		Env:             append(controller.DaemonEnvVars(c.spec.CephVersion.Image), v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())}),
+		Resources:       cephv1.GetMgrResources(c.spec.Resources),
+		SecurityContext: controller.PodSecurityContext(),
+	}
+
+	return container
 }
 
 func getDefaultMgrLivenessProbe() *v1.Probe {

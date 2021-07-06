@@ -91,6 +91,25 @@ rules:
       - update
       - delete
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+    # Most resources are represented by a string representation of their name, such as “pods”, just as it appears in the URL for the relevant API endpoint.
+    # However, some Kubernetes APIs involve a “subresource”, such as the logs for a pod. [...]
+    # To represent this in an RBAC role, use a slash to delimit the resource and subresource.
+    # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
 # The role for the operator to manage resources in its own namespace
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -345,6 +364,22 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
+  name: rook-ceph-system
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: rook-ceph # namespace:operator
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
   name: rook-ceph-system
 subjects:
   - kind: ServiceAccount
