@@ -348,6 +348,9 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	if err != nil {
 		return errors.Wrap(err, "failed to initialized rgw admin ops client api")
 	}
+	if logger.LevelAt(capnslog.DEBUG) {
+		adminOpsAPI.Debug = true
+	}
 	r.adminOpsAPI = adminOpsAPI
 
 	return nil

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
+	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -147,6 +148,9 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	co, err := admin.New(s3endpoint, c.objContext.adminOpsUserAccessKey, c.objContext.adminOpsUserSecretKey, httpClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to build admin ops API connection")
+	}
+	if logger.LevelAt(capnslog.DEBUG) {
+		co.Debug = true
 	}
 	c.objContext.adminOpsClient = co
 

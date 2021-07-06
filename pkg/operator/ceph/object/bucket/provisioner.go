@@ -25,6 +25,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/ceph/go-ceph/rgw/admin"
+	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -80,7 +81,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), true, p.tlsCert)
+	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), p.adminOpsClient.Debug, p.tlsCert)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -157,7 +158,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrapf(err, "failed to get user %q", stats.Owner)
 	}
 
-	s3svc, err := cephObject.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), true, p.tlsCert)
+	s3svc, err := cephObject.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), p.adminOpsClient.Debug, p.tlsCert)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -253,7 +254,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return err
 		}
 
-		s3svc, err := cephObject.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), true, p.tlsCert)
+		s3svc, err := cephObject.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), p.adminOpsClient.Debug, p.tlsCert)
 		if err != nil {
 			return err
 		}
@@ -647,7 +648,9 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to build object store admin ops API connection")
 	}
-
+	if logger.LevelAt(capnslog.DEBUG) {
+		adminOpsClient.Debug = true
+	}
 	p.adminOpsClient = adminOpsClient
 
 	return nil
