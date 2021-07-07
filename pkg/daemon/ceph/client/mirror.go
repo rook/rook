@@ -97,6 +97,39 @@ func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, po
 	return nil
 }
 
+// disablePoolMirroring turns off mirroring on a pool
+func disablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) error {
+	logger.Infof("disabling mirroring for pool %q", poolName)
+
+	// Build command
+	args := []string{"mirror", "pool", "disable", poolName}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+
+	// Run command
+	output, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to disable mirroring for pool %q. %s", poolName, output)
+	}
+
+	return nil
+}
+
+func removeClusterPeer(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, peerUUID string) error {
+	logger.Infof("removing cluster peer with UUID %q for the pool %q", peerUUID, poolName)
+
+	// Build command
+	args := []string{"mirror", "pool", "peer", "remove", poolName, peerUUID}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+
+	// Run command
+	output, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove cluster peer with UUID %q for the pool %q. %s", peerUUID, poolName, output)
+	}
+
+	return nil
+}
+
 // GetPoolMirroringStatus prints the pool mirroring status
 func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.PoolMirroringStatus, error) {
 	logger.Debugf("retrieving mirroring pool %q status", poolName)
