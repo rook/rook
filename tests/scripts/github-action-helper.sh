@@ -21,6 +21,8 @@ set -xe
 #############
 : "${BLOCK:=$(sudo lsblk --paths | awk '/14G/ {print $1}' | head -1)}"
 NETWORK_ERROR="connection reset by peer"
+SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
+INTERNAL_ERROR="INTERNAL_ERROR"
 
 #############
 # FUNCTIONS #
@@ -97,6 +99,14 @@ function build_rook() {
     if ! o=$(make -j"$(nproc)" IMAGES='ceph' VERSION=0 "$build_type"); then
       case "$o" in
         *"$NETWORK_ERROR"*)
+          echo "network failure occurred, retrying..."
+          continue
+        ;;
+        *"$SERVICE_UNAVAILABLE_ERROR"*)
+          echo "network failure occurred, retrying..."
+          continue
+        ;;
+        *"$INTERNAL_ERROR"*)
           echo "network failure occurred, retrying..."
           continue
         ;;
