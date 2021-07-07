@@ -25,11 +25,9 @@ import (
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner"
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -91,19 +89,6 @@ func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
 		return nil, errors.Wrapf(err, "failed to get ceph object store %q", p.objectStoreName)
 	}
 	return store, err
-}
-
-func getService(c kubernetes.Interface, namespace, name string) (*v1.Service, error) {
-	ctx := context.TODO()
-	// Verify the object store's service actually exists
-	svc, err := c.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return nil, errors.Wrap(err, "cephObjectStore service not found")
-		}
-		return nil, errors.Wrapf(err, "failed to get ceph object store service %q", name)
-	}
-	return svc, nil
 }
 
 func randomString(n int) string {
