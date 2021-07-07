@@ -154,6 +154,9 @@ func NewContext() *clusterd.Context {
 	context.Clientset, err = kubernetes.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create k8s clientset")
 
+	context.RemoteExecutor.ClientSet = context.Clientset
+	context.RemoteExecutor.RestClient = context.KubeConfig
+
 	// Dynamic clientset allows dealing with resources that aren't statically typed but determined
 	// at runtime.
 	context.DynamicClientset, err = dynamic.NewForConfig(context.KubeConfig)

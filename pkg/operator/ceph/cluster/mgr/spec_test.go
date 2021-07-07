@@ -62,21 +62,37 @@ func TestPodSpec(t *testing.T) {
 		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MgrType, "a", "rook-ceph", "/var/lib/rook/"),
 	}
 
-	d, err := c.makeDeployment(&mgrTestConfig)
-	assert.NoError(t, err)
+	t.Run("traditional deployment", func(t *testing.T) {
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
 
-	// Deployment should have Ceph labels
-	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-		config.MgrType, "a", AppName, "ns")
+		// Deployment should have Ceph labels
+		test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
+			config.MgrType, "a", AppName, "ns")
 
-	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
-	podTemplate.Spec().Containers().RequireAdditionalEnvVars(
-		"ROOK_OPERATOR_NAMESPACE", "ROOK_CEPH_CLUSTER_CRD_VERSION",
-		"ROOK_CEPH_CLUSTER_CRD_NAME")
-	podTemplate.RunFullSuite(config.MgrType, "a", AppName, "ns", "ceph/ceph:myceph",
-		"200", "100", "500", "250", /* resources */
-		"my-priority-class")
-	assert.Equal(t, 2, len(d.Spec.Template.Annotations))
+		podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
+		podTemplate.Spec().Containers().RequireAdditionalEnvVars(
+			"ROOK_OPERATOR_NAMESPACE", "ROOK_CEPH_CLUSTER_CRD_VERSION",
+			"ROOK_CEPH_CLUSTER_CRD_NAME")
+		podTemplate.RunFullSuite(config.MgrType, "a", AppName, "ns", "ceph/ceph:myceph",
+			"200", "100", "500", "250", /* resources */
+			"my-priority-class")
+		assert.Equal(t, 2, len(d.Spec.Template.Annotations))
+		assert.Equal(t, 1, len(d.Spec.Template.Spec.Containers))
+		assert.Equal(t, 5, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
+	})
+
+	t.Run("deployment with multus with new sidecar proxy command container", func(t *testing.T) {
+		c.spec.Network.Provider = "multus"
+		d, err := c.makeDeployment(&mgrTestConfig)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(d.Spec.Template.Annotations))                                                                                                                              // Multus annotations
+		assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers))                                                                                                                          // mgr pod + sidecar
+		assert.Equal(t, CommandProxyInitContainerName, d.Spec.Template.Spec.Containers[1].Name)                                                                                           // sidecar pod
+		assert.Equal(t, 6, len(d.Spec.Template.Spec.Containers[1].VolumeMounts))                                                                                                          // + admin keyring
+		assert.Equal(t, "CEPH_ARGS", d.Spec.Template.Spec.Containers[1].Env[len(d.Spec.Template.Spec.Containers[1].Env)-1].Name)                                                          // connection info to the cluster
+		assert.Equal(t, "-m $(ROOK_CEPH_MON_HOST) -k /etc/ceph/admin-keyring-store/keyring", d.Spec.Template.Spec.Containers[1].Env[len(d.Spec.Template.Spec.Containers[1].Env)-1].Value) // connection info to the cluster
+	})
 }
 
 func TestServiceSpec(t *testing.T) {

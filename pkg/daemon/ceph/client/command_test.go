@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +31,7 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 	args := []string{"quorum_status"}
 	expectedArgs := []string{
 		"quorum_status",
-		"--connect-timeout=" + strconv.Itoa(int(CephCommandTimeout.Seconds())),
+		"--connect-timeout=" + strconv.Itoa(int(exec.CephCommandTimeout.Seconds())),
 		"--cluster=rook",
 		"--conf=/var/lib/rook/rook-ceph/rook/rook.config",
 		"--name=client.admin",

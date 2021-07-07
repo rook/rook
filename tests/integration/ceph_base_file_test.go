@@ -502,13 +502,13 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 	require.Nil(s.T(), err)
 	// Mount CephFS in toolbox and create /foo directory on it
 	logger.Info("Creating /foo directory on CephFS")
-	_, err = k8sh.Exec(settings.Namespace, client.RunAllCephCommandsInToolboxPod, "mkdir", []string{"-p", utils.TestMountPath})
+	_, err = k8sh.ExecRemote(settings.Namespace, "mkdir", []string{"-p", utils.TestMountPath})
 	require.Nil(s.T(), err)
-	_, err = k8sh.ExecWithRetry(10, settings.Namespace, client.RunAllCephCommandsInToolboxPod, "bash", []string{"-c", fmt.Sprintf("mount -t ceph -o mds_namespace=%s,name=admin,secret=$(grep key /etc/ceph/keyring | awk '{print $3}') $(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}'):/ %s", filesystemName, utils.TestMountPath)})
+	_, err = k8sh.ExecRemoteWithRetry(10, settings.Namespace, "bash", []string{"-c", fmt.Sprintf("mount -t ceph -o mds_namespace=%s,name=admin,secret=$(grep key /etc/ceph/keyring | awk '{print $3}') $(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}'):/ %s", filesystemName, utils.TestMountPath)})
 	require.Nil(s.T(), err)
-	_, err = k8sh.Exec(settings.Namespace, client.RunAllCephCommandsInToolboxPod, "mkdir", []string{"-p", fmt.Sprintf("%s/foo", utils.TestMountPath)})
+	_, err = k8sh.ExecRemote(settings.Namespace, "mkdir", []string{"-p", fmt.Sprintf("%s/foo", utils.TestMountPath)})
 	require.Nil(s.T(), err)
-	_, err = k8sh.Exec(settings.Namespace, client.RunAllCephCommandsInToolboxPod, "umount", []string{utils.TestMountPath})
+	_, err = k8sh.ExecRemote(settings.Namespace, "umount", []string{utils.TestMountPath})
 	require.Nil(s.T(), err)
 	logger.Info("Created /foo directory on CephFS")
 
@@ -522,7 +522,7 @@ func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *util
 		),
 	}
 	logger.Infof("ceph credentials command args: %s", commandArgs[1])
-	result, err := k8sh.Exec(settings.Namespace, client.RunAllCephCommandsInToolboxPod, "bash", commandArgs)
+	result, err := k8sh.ExecRemote(settings.Namespace, "bash", commandArgs)
 	logger.Infof("Ceph filesystem credentials output: %s", result)
 	logger.Info("Created Ceph credentials")
 	require.Nil(s.T(), err)
