@@ -20,7 +20,7 @@ HELM_CHARTS_DIR ?= $(ROOT_DIR)/cluster/charts
 HELM_OUTPUT_DIR ?= $(OUTPUT_DIR)/charts
 
 HELM_HOME := $(abspath $(CACHE_DIR)/helm)
-HELM_VERSION := v3.4.0
+HELM_VERSION := v3.6.2
 HELM := $(TOOLS_HOST_DIR)/helm-$(HELM_VERSION)
 HELM_INDEX := $(HELM_OUTPUT_DIR)/index.yaml
 export HELM_HOME

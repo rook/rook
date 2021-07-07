@@ -4,7 +4,7 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 temp="/tmp/rook-tests-scripts-helm"
 
 HELM="${temp}/helm"
-helm_version="${HELM_VERSION:-"v3.4.0"}"
+helm_version="${HELM_VERSION:-"v3.6.2"}"
 arch="${ARCH:-}"
 
 detectArch() {
