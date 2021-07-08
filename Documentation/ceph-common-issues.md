@@ -958,7 +958,7 @@ You need to create the CRDs found in `cluster/examples/kubernetes/ceph/pre-k8s-1
 ## Unexpected partitions created
 
 ### Symptoms
-**Rook versions v1.6.0-v1.6.7 may create unwanted OSDs on partitions that appear unexpectedly and
+**Rook versions v1.6.0-v1.6.8 may create unwanted OSDs on partitions that appear unexpectedly and
 seemingly randomly, which will corrupt existing OSDs.**
 
 Unexpected partitions are created on host disks that are used by Ceph OSDs. This happens more often
@@ -987,12 +987,12 @@ that can appear to the kernel as an Atari partition.
 You can see https://github.com/rook/rook/issues/7940 for more detailed information and discussion.
 
 ### Solution
-#### Recover from corruption (v1.6.0-v1.6.7)
-If you are using Rook v1.6, you must update to v1.6.7 or higher to avoid further incidents of OSD
+#### Recover from corruption (v1.6.0-v1.6.8)
+If you are using Rook v1.6, you must update to v1.6.8 or higher to avoid further incidents of OSD
 corruption caused by these Atari partitions.
 
 If there are already OSDs created on the unexpected partitions, OSD corruption has already occurred.
-To recover from this, immediately update to v1.6.7 or higher. After the update, no further OSD
+To recover from this, immediately update to v1.6.8 or higher. After the update, no further OSD
 corruption should occur. Next, to get back to a healthy Ceph cluster state, focus on one corruped
 disk at a time and [remove all OSDs on each corrupted disk](ceph-osd-mgmt.md#remove-an-osd) one disk
 at a time.
@@ -1006,10 +1006,10 @@ as well as a second corrupted disk `/dev/sde` with one unexpected partition (`/d
 4. Now Repeat steps 1-3 for `/dev/sde` and `/dev/sde1`, and continue for any other corruped disks.
 
 If your Rook-Ceph cluster does not have any critical data stored in it, it may be simpler to
-uninstall Rook completely and redeploy with v1.6.7 or higher.
+uninstall Rook completely and redeploy with v1.6.8 or higher.
 
-#### Handling randomly appearing partitions (v1.6.7+)
-If you are using Rook v1.6.7 or higher, it is safe to ignore these unexpected `atari` partitions.
+#### Handling randomly appearing partitions (v1.6.8+)
+If you are using Rook v1.6.8 or higher, it is safe to ignore these unexpected `atari` partitions.
 Rook will not create OSDs on them.
 
 Not all Linux distributions build kernel with Atari support enabled. If possible, we recommend
