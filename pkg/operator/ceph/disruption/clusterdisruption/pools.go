@@ -117,7 +117,7 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 
 		rgwCount := objectStore.Spec.Gateway.Instances
 		minAvailable := &intstr.IntOrString{IntVal: rgwCount - 1}
-		if minAvailable.IntVal <= 1 {
+		if minAvailable.IntVal < 1 {
 			break
 		}
 		blockOwnerDeletion := false
