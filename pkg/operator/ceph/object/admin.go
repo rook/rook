@@ -26,6 +26,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,6 +36,7 @@ import (
 type Context struct {
 	Context               *clusterd.Context
 	clusterInfo           *cephclient.ClusterInfo
+	CephClusterSpec       cephv1.ClusterSpec
 	Name                  string
 	UID                   string
 	Endpoint              string
@@ -90,13 +92,21 @@ func extractJSON(output string) (string, error) {
 
 // RunAdminCommandNoMultisite is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)
 // This function times out after a fixed interval if no response is received.
+// The function will return a Kubernetes error "NotFound" when exec fails when the pod does not exist
 func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (string, error) {
-	command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
+	var output, stderr string
+	var err error
 
-	// start the rgw admin command
-	output, err := c.Context.Executor.ExecuteCommandWithTimeout(cephclient.CephCommandTimeout, command, args...)
+	// If Multus is enabled we proxy all the command to the mgr sidecar
+	if c.CephClusterSpec.Network.IsMultus() {
+		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(mgr.AppName, mgr.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
+	} else {
+		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
+		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandTimeout, command, args...)
+	}
+
 	if err != nil {
-		return output, err
+		return fmt.Sprintf("%s. %s", output, stderr), err
 	}
 	if expectJSON {
 		match, err := extractJSON(output)
@@ -132,7 +142,7 @@ func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error
 	// installed in Rook operator and RGW version in Ceph cluster (#7573)
 	result, err := RunAdminCommandNoMultisite(c, expectJSON, args...)
 	if err != nil && isFifoFileIOError(err) {
-		logger.Debug("retrying 'radosgw-admin' command with OMAP backend to work around FIFO file I/O issue")
+		logger.Debugf("retrying 'radosgw-admin' command with OMAP backend to work around FIFO file I/O issue. %v", result)
 
 		// We can either run 'ceph --version' to determine the Ceph version running in the operator
 		// and then pick a flag to use, or we can just try to use both flags and return the one that
@@ -153,7 +163,7 @@ func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error
 func isFifoFileIOError(err error) bool {
 	exitCode, extractErr := exec.ExtractExitCode(err)
 	if extractErr != nil {
-		logger.Errorf("failed to determine return code of 'radosgw-admin' command. assuming this could be a FIFO file I/O issue. %#v", err)
+		logger.Errorf("failed to determine return code of 'radosgw-admin' command. assuming this could be a FIFO file I/O issue. %#v", extractErr)
 		return true
 	}
 	// exit code 5 (EIO) is returned when there is a FIFO file I/O issue
@@ -163,7 +173,7 @@ func isFifoFileIOError(err error) bool {
 func isInvalidFlagError(err error) bool {
 	exitCode, extractErr := exec.ExtractExitCode(err)
 	if extractErr != nil {
-		logger.Errorf("failed to determine return code of 'radosgw-admin' command. assuming this could be an invalid flag error. %#v", err)
+		logger.Errorf("failed to determine return code of 'radosgw-admin' command. assuming this could be an invalid flag error. %#v", extractErr)
 	}
 	// exit code 22 (EINVAL) is returned when there is an invalid flag
 	// it's also returned from some other failures, but this should be rare for Rook

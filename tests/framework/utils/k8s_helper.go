@@ -50,6 +50,7 @@ import (
 // K8sHelper is a helper for common kubectl commands
 type K8sHelper struct {
 	executor         *exec.CommandExecutor
+	remoteExecutor   *exec.RemotePodCommandExecutor
 	Clientset        *kubernetes.Clientset
 	RookClientset    *rookclient.Clientset
 	RunningInCluster bool
@@ -91,7 +92,12 @@ func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 		return nil, fmt.Errorf("failed to get rook clientset. %+v", err)
 	}
 
-	h := &K8sHelper{executor: executor, Clientset: clientset, RookClientset: rookClientset, T: t}
+	remoteExecutor := &exec.RemotePodCommandExecutor{
+		ClientSet:  clientset,
+		RestClient: config,
+	}
+
+	h := &K8sHelper{executor: executor, Clientset: clientset, RookClientset: rookClientset, T: t, remoteExecutor: remoteExecutor}
 	if strings.Contains(config.Host, "//10.") {
 		h.RunningInCluster = true
 	}
@@ -196,6 +202,28 @@ func getManifestFromURL(url string) (string, error) {
 
 func (k8sh *K8sHelper) Exec(namespace, podName, command string, commandArgs []string) (string, error) {
 	return k8sh.ExecWithRetry(1, namespace, podName, command, commandArgs)
+}
+
+func (k8sh *K8sHelper) ExecRemote(namespace, command string, commandArgs []string) (string, error) {
+	return k8sh.ExecRemoteWithRetry(1, namespace, command, commandArgs)
+}
+
+// ExecRemoteWithRetry will attempt to remotely (in toolbox) run a command "retries" times, waiting 3s between each call. Upon success, returns the output.
+func (k8sh *K8sHelper) ExecRemoteWithRetry(retries int, namespace, command string, commandArgs []string) (string, error) {
+	var err error
+	var output, stderr string
+	cliFinal := append([]string{command}, commandArgs...)
+	for i := 0; i < retries; i++ {
+		output, stderr, err = k8sh.remoteExecutor.ExecCommandInContainerWithFullOutput("rook-ceph-tools", "rook-ceph-tools", namespace, cliFinal...)
+		if err == nil {
+			return output, nil
+		}
+		if i < retries-1 {
+			logger.Warningf("remote command %v execution failed trying again... %v", cliFinal, kerrors.ReasonForError(err))
+			time.Sleep(3 * time.Second)
+		}
+	}
+	return "", fmt.Errorf("remote exec command %v failed on pod in namespace %s. %s. %s. %+v", cliFinal, namespace, output, stderr, err)
 }
 
 // ExecWithRetry will attempt to run a command "retries" times, waiting 3s between each call. Upon success, returns the output.

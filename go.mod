@@ -32,11 +32,11 @@ require (
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 	gopkg.in/ini.v1 v1.57.0
-	k8s.io/api v0.21.1
+	k8s.io/api v0.21.2
 	k8s.io/apiextensions-apiserver v0.21.1
-	k8s.io/apimachinery v0.21.1
+	k8s.io/apimachinery v0.21.2
 	k8s.io/apiserver v0.21.1
-	k8s.io/client-go v0.21.1
+	k8s.io/client-go v0.21.2
 	k8s.io/cloud-provider v0.21.1
 	k8s.io/component-helpers v0.21.1
 	k8s.io/kube-controller-manager v0.21.1
