@@ -119,6 +119,7 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_CEPHFS: "true"`, fmt.Sprintf(`ROOK_CSI_ENABLE_CEPHFS: "%t"`, s.UseCSI))
 	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_RBD: "true"`, fmt.Sprintf(`ROOK_CSI_ENABLE_RBD: "%t"`, s.UseCSI))
 	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))
+	manifest = strings.ReplaceAll(manifest, `ROOK_LOG_LEVEL: "INFO"`, `ROOK_LOG_LEVEL: "DEBUG"`)
 	return manifest
 }
 
