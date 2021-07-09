@@ -437,7 +437,7 @@ func (h *CephInstaller) installRookOperator() (bool, error) {
 	ctx := context.TODO()
 	var err error
 
-	startDiscovery := false
+	startDiscovery := h.settings.EnableDiscovery
 
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
