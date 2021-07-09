@@ -49,9 +49,17 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 		DisplayName: p.cephUserName,
 	}
 
-	u, err := p.adminOpsClient.CreateUser(context.TODO(), userConfig)
+	var u admin.User
+	u, err = p.adminOpsClient.GetUser(context.TODO(), userConfig)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "failed to create ceph user %q: %v", username, err)
+		if errors.Is(err, admin.ErrNoSuchUser) {
+			u, err = p.adminOpsClient.CreateUser(context.TODO(), userConfig)
+			if err != nil {
+				return "", "", errors.Wrapf(err, "failed to create ceph object user %v", userConfig.ID)
+			}
+		} else {
+			return "", "", errors.Wrapf(err, "failed to get ceph user %q", username)
+		}
 	}
 
 	logger.Infof("successfully created Ceph user %q with access keys", username)
