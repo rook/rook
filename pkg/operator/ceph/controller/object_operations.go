@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"reflect"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 
@@ -32,20 +33,25 @@ func CreateOrUpdateObject(client client.Client, obj client.Object) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get meta information of object")
 	}
+	objName := accessor.GetName()
+
+	// Somehow meta.TypeAccessor returns an empty string for the type name so using reflection instead
+	objType := reflect.TypeOf(obj)
 
 	err = client.Create(context.TODO(), obj)
 	if err != nil {
 		if kerrors.IsAlreadyExists(err) {
 			err = client.Update(context.TODO(), obj)
 			if err != nil {
-				return errors.Wrapf(err, "failed to update object %q", accessor.GetName())
+				return errors.Wrapf(err, "failed to update ceph %q object %q", objType, objName)
 			}
 
-			logger.Infof("updated ceph object %q", accessor.GetName())
+			logger.Infof("updated ceph %q object %q", objType, objName)
 			return nil
 		}
-		return errors.Wrapf(err, "failed to save ceph object %q", accessor.GetName())
+		return errors.Wrapf(err, "failed to create ceph %v object %q", objType, objName)
 	}
 
+	logger.Infof("created ceph %v object %q", objType, objName)
 	return nil
 }
