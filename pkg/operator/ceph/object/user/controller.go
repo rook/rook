@@ -311,6 +311,10 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 		return errors.Wrapf(err, "Multisite failed to set on object context for object store user")
 	}
 
+	// The object store context needs the CephCluster spec to read networkinfo
+	// Otherwise GetAdminOPSUserCredentials() will fail detecting the network provider when running RunAdminCommandNoMultisite()
+	objContext.CephClusterSpec = *r.cephClusterSpec
+
 	r.objContext = objContext
 	if store.Status == nil {
 		return errors.New("failed to initialize ceph object user because unknown object store status")
