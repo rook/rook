@@ -309,6 +309,11 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	if err != nil {
 		return errors.Wrapf(err, "Multisite failed to set on object context for object store user")
 	}
+
+	// The object store context needs the CephCluster spec to read networkinfo
+	// Otherwise GetAdminOPSUserCredentials() will fail detecting the network provider when running RunAdminCommandNoMultisite()
+	objContext.CephClusterSpec = *r.cephClusterSpec
+
 	opsContext, err := object.NewMultisiteAdminOpsContext(objContext, &store.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialized rgw admin ops client api")
