@@ -126,6 +126,10 @@ func (c *Config) DeleteSecret(secretName string) error {
 		}
 
 		k := buildKeyContext(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+
+		// Force removal of all the versions of the secret on K/V version 2
+		k[secrets.DestroySecret] = "true"
+
 		err = delete(v, GenerateOSDEncryptionSecretName(secretName), k)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete secret in vault")
