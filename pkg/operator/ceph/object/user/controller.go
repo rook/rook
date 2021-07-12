@@ -270,27 +270,28 @@ func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1
 
 func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectStoreUser) error {
 	logger.Infof("creating ceph object user %q in namespace %q", u.Name, u.Namespace)
+
+	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
 	var user admin.User
 	var err error
-	user, err = r.adminOpsAPI.CreateUser(context.TODO(), *r.userConfig)
+	user, err = r.adminOpsAPI.GetUser(context.TODO(), *r.userConfig)
 	if err != nil {
-		if errors.Is(err, admin.ErrUserExists) {
-			user, err = r.adminOpsAPI.GetUser(context.TODO(), *r.userConfig)
+		if errors.Is(err, admin.ErrNoSuchUser) {
+			user, err = r.adminOpsAPI.CreateUser(context.TODO(), *r.userConfig)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get details from ceph object user %v", &r.userConfig.ID)
+				return errors.Wrapf(err, "failed to create ceph object user %v", &r.userConfig.ID)
 			}
-
-			return nil
+			logCreateOrUpdate = fmt.Sprintf("created ceph object user %q", u.Name)
+		} else {
+			return errors.Wrapf(err, "failed to get details from ceph object user %q", u.Name)
 		}
-
-		return errors.Wrapf(err, "failed to create ceph object user %q", u.Name)
 	}
 
 	// Set access and secret key
 	r.userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
 	r.userConfig.Keys[0].SecretKey = user.Keys[0].SecretKey
 
-	logger.Infof("created ceph object user %q", u.Name)
+	logger.Info(logCreateOrUpdate)
 	return nil
 }
 
@@ -423,7 +424,6 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object user %q secret", secret.Name)
 	}
 
-	logger.Infof("created ceph object user secret %q", secret.Name)
 	return reconcile.Result{}, nil
 }
 

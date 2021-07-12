@@ -157,15 +157,15 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	// Create checker user
 	logger.Debugf("creating s3 user object %q for object store %q health check", userConfig.ID, c.namespacedName.Name)
 	var user admin.User
-	user, err = co.CreateUser(context.TODO(), userConfig)
+	user, err = co.GetUser(context.TODO(), userConfig)
 	if err != nil {
-		if errors.Is(err, admin.ErrUserExists) {
-			user, err = co.GetUser(context.TODO(), userConfig)
+		if errors.Is(err, admin.ErrNoSuchUser) {
+			user, err = co.CreateUser(context.TODO(), userConfig)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get details from ceph object user %q", userConfig.ID)
+				return errors.Wrapf(err, "failed to create from ceph object user %v", userConfig.ID)
 			}
 		} else {
-			return errors.Wrapf(err, "failed to create ceph object user %q", userConfig.ID)
+			return errors.Wrapf(err, "failed to get details from ceph object user %q", userConfig.ID)
 		}
 	}
 
