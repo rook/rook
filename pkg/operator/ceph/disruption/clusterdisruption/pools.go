@@ -118,7 +118,7 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 		rgwCount := objectStore.Spec.Gateway.Instances
 		minAvailable := &intstr.IntOrString{IntVal: rgwCount - 1}
 		if minAvailable.IntVal < 1 {
-			break
+			continue
 		}
 		blockOwnerDeletion := false
 		pdb := &policyv1beta1.PodDisruptionBudget{
@@ -167,7 +167,7 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 			minAvailable.IntVal++
 		}
 		if minAvailable.IntVal < 1 {
-			break
+			continue
 		}
 		blockOwnerDeletion := false
 		pdb := &policyv1beta1.PodDisruptionBudget{
