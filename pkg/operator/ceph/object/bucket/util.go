@@ -91,6 +91,19 @@ func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
 	return store, err
 }
 
+func (p *Provisioner) getCephCluster() (*cephv1.CephCluster, error) {
+	cephCluster, err := p.context.RookClientset.CephV1().CephClusters(p.clusterInfo.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list ceph clusters in namespace %q", p.clusterInfo.Namespace)
+	}
+	if len(cephCluster.Items) == 0 {
+		return nil, errors.Errorf("failed to find ceph cluster in namespace %q", p.clusterInfo.Namespace)
+	}
+
+	// This is a bit weak, but there will always be a single cluster per namespace anyway
+	return &cephCluster.Items[0], err
+}
+
 func randomString(n int) string {
 
 	var letterRunes = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

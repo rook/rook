@@ -630,6 +630,16 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 		return errors.Wrapf(err, "failed to get ceph object store %q", p.objectStoreName)
 	}
 
+	cephCluster, err := p.getCephCluster()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get ceph cluster in namespace %q", p.clusterInfo.Namespace)
+	}
+	if cephCluster == nil {
+		return errors.Errorf("failed to read ceph cluster in namespace %q, it's nil", p.clusterInfo.Namespace)
+	}
+	// Set the Ceph Cluster Spec so that we can fetch the admin ops key properly when multus is enabled
+	p.objectContext.CephClusterSpec = cephCluster.Spec
+
 	// Fetch the object store admin ops user
 	accessKey, secretKey, err := cephObject.GetAdminOPSUserCredentials(p.objectContext, &cephObjectStore.Spec)
 	if err != nil {
