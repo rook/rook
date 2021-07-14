@@ -215,7 +215,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 	}
 
 	// Should we use ceph-volume raw mode?
-	useRawMode, err := a.useRawMode(context, a.pvcBacked)
+	useRawMode, err := a.useRawMode(context, a.pvcBacked, devices)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to determine which ceph-volume mode to use")
 	}
@@ -495,7 +495,7 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 	return nil
 }
 
-func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, error) {
+func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool, devices *DeviceOsdMapping) (bool, error) {
 	if pvcBacked {
 		return a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion), nil
 	}
@@ -524,23 +524,36 @@ func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, 
 		useRawMode = false
 	}
 
-	// ceph-volume raw mode does not support more than one OSD per disk
-	osdsPerDeviceCountString := sanitizeOSDsPerDevice(a.storeConfig.OSDsPerDevice)
-	osdsPerDeviceCount, err := strconv.Atoi(osdsPerDeviceCountString)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to convert string %q to integer", osdsPerDeviceCountString)
-	}
-	if osdsPerDeviceCount > 1 {
-		logger.Debugf("won't use raw mode since osd per device is %d", osdsPerDeviceCount)
-		useRawMode = false
+	// gather node and device config values to verify is there anything to disable raw mode
+	osdsPerDeviceValues := []int{a.storeConfig.OSDsPerDevice}
+	metadataDeviceValues := []string{a.metadataDevice}
+	for _, device := range devices.Entries {
+		osdsPerDeviceValues = append(osdsPerDeviceValues, device.Config.OSDsPerDevice)
+		metadataDeviceValues = append(metadataDeviceValues, device.Config.MetadataDevice)
 	}
 
-	// ceph-volume raw mode mode does not support metadata device if not running on PVC because the user has specified a whole device
-	if a.metadataDevice != "" {
-		logger.Debugf("won't use raw mode since there is a metadata device %q", a.metadataDevice)
-		useRawMode = false
+	// ceph-volume raw mode does not support more than one OSD per disk, verify node and device configs
+	for _, osdsPerDevice := range osdsPerDeviceValues {
+		osdsPerDeviceCountString := sanitizeOSDsPerDevice(osdsPerDevice)
+		osdsPerDeviceCount, err := strconv.Atoi(osdsPerDeviceCountString)
+		if err != nil {
+			return false, errors.Wrapf(err, "failed to convert string %q to integer", osdsPerDeviceCountString)
+		}
+		if osdsPerDeviceCount > 1 {
+			logger.Debugf("won't use raw mode since osd per device is %d", osdsPerDeviceCount)
+			useRawMode = false
+		}
 	}
 
+	// ceph-volume raw mode mode does not support metadata device
+	// if not running on PVC because the user has specified a whole device,
+	// verify node and device configs
+	for _, metadataDevice := range metadataDeviceValues {
+		if metadataDevice != "" {
+			logger.Debugf("won't use raw mode since there is a metadata device %q", a.metadataDevice)
+			useRawMode = false
+		}
+	}
 	return useRawMode, nil
 }
 

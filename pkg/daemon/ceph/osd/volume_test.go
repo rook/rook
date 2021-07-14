@@ -1322,10 +1322,25 @@ func TestUseRawMode(t *testing.T) {
 		metadataDevice string
 		storeConfig    config.StoreConfig
 		pvcBacked      bool
+		deviceMapping  *DeviceOsdMapping
 	}
 	type args struct {
 		context   *clusterd.Context
 		pvcBacked bool
+	}
+	DevicesOsdsPerDevice := &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{
+			"osd1": {
+				Config: DesiredDevice{OSDsPerDevice: 2},
+			},
+		},
+	}
+	DevicesMetadataDevice := &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{
+			"osd1": {
+				Config: DesiredDevice{MetadataDevice: "/dev/sdd"},
+			},
+		},
 	}
 	tests := []struct {
 		name    string
@@ -1334,20 +1349,29 @@ func TestUseRawMode(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"on pvc with lvm", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}}, "", config.StoreConfig{}, true}, args{&clusterd.Context{}, true}, false, false},
-		{"on pvc with raw", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}}, "", config.StoreConfig{}, true}, args{&clusterd.Context{}, true}, true, false},
-		{"non-pvc with lvm nautilus", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 13}}, "", config.StoreConfig{}, false}, args{&clusterd.Context{}, false}, false, false},
-		{"non-pvc with lvm octopus", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 8}}, "", config.StoreConfig{}, false}, args{&clusterd.Context{}, false}, false, false},
-		{"non-pvc with raw nautilus simple scenario supported", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{}, false}, args{&clusterd.Context{}, false}, true, false},
-		{"non-pvc with raw octopus simple scenario supported", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{}, false}, args{&clusterd.Context{}, false}, true, false},
-		{"non-pvc with raw pacific simple scenario supported", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 1}}, "", config.StoreConfig{}, false}, args{&clusterd.Context{}, false}, true, false},
-		{"non-pvc with lvm nautilus complex scenario not supported: encrypted", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{EncryptedDevice: true}, false}, args{&clusterd.Context{}, false}, false, false},
-		{"non-pvc with lvm octopus complex scenario not supported: encrypted", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{EncryptedDevice: true}, false}, args{&clusterd.Context{}, false}, false, false},
-		{"non-pvc with lvm nautilus complex scenario not supported: osd per device > 1", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{OSDsPerDevice: 2}, false}, args{&clusterd.Context{}, false}, false, false},
-		{"non-pvc with lvm octopus complex scenario not supported: osd per device > 1", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{OSDsPerDevice: 2}, false}, args{&clusterd.Context{}, false}, false, false},
-		{"non-pvc with lvm nautilus complex scenario not supported: metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "/dev/sdb", config.StoreConfig{}, false}, args{&clusterd.Context{}, false}, false, false},
-		{"non-pvc with lvm octopus complex scenario not supported: metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "/dev/sdb", config.StoreConfig{}, false}, args{&clusterd.Context{}, false}, false, false},
-		{"non-pvc with lvm pacific complex scenario not supported: metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 1}}, "/dev/sdb", config.StoreConfig{}, false}, args{&clusterd.Context{}, false}, false, false},
+		{"on pvc with lvm", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}}, "", config.StoreConfig{}, true, &DeviceOsdMapping{}}, args{&clusterd.Context{}, true}, false, false},
+		{"on pvc with raw", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}}, "", config.StoreConfig{}, true, &DeviceOsdMapping{}}, args{&clusterd.Context{}, true}, true, false},
+		{"non-pvc with lvm nautilus", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 13}}, "", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm octopus", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 8}}, "", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with raw nautilus simple scenario supported", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, true, false},
+		{"non-pvc with raw octopus simple scenario supported", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, true, false},
+		{"non-pvc with raw pacific simple scenario supported", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 1}}, "", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, true, false},
+		{"non-pvc with lvm nautilus complex scenario not supported: encrypted", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{EncryptedDevice: true}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm octopus complex scenario not supported: encrypted", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{EncryptedDevice: true}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm nautilus complex scenario not supported: node config osd per device > 1", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{OSDsPerDevice: 2}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm nautilus complex scenario not supported: device config osd per device > 1", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{}, false, DevicesOsdsPerDevice}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm nautilus complex scenario not supported: node and device config osd per device > 1", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{OSDsPerDevice: 2}, false, DevicesOsdsPerDevice}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm octopus complex scenario not supported: node config osd per device > 1", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{OSDsPerDevice: 2}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm octopus complex scenario not supported: device config osd per device > 1", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{}, false, DevicesOsdsPerDevice}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm octopus complex scenario not supported: node and device config osd per device > 1", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{MetadataDevice: "/dev/sdd"}, false, DevicesOsdsPerDevice}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm nautilus complex scenario not supported: node config metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "/dev/sdb", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm nautilus complex scenario not supported: device config metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "", config.StoreConfig{}, false, DevicesMetadataDevice}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm nautilus complex scenario not supported: node and device config metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}}, "/dev/sdb", config.StoreConfig{}, false, DevicesMetadataDevice}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm octopus complex scenario not supported: node config metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "/dev/sdb", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm octopus complex scenario not supported: device config metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "", config.StoreConfig{}, false, DevicesMetadataDevice}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm octopus complex scenario not supported: node and device config metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}, "/dev/sdb", config.StoreConfig{}, false, DevicesMetadataDevice}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm pacific complex scenario not supported: metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 1}}, "/dev/sdb", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
+		{"non-pvc with lvm pacific complex scenario not supported: metadata dev", fields{&cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 1}}, "/dev/sdb", config.StoreConfig{}, false, &DeviceOsdMapping{}}, args{&clusterd.Context{}, false}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1357,7 +1381,7 @@ func TestUseRawMode(t *testing.T) {
 				storeConfig:    tt.fields.storeConfig,
 				pvcBacked:      tt.fields.pvcBacked,
 			}
-			got, err := a.useRawMode(tt.args.context, tt.args.pvcBacked)
+			got, err := a.useRawMode(tt.args.context, tt.args.pvcBacked, tt.fields.deviceMapping)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OsdAgent.useRawMode() error = %v, wantErr %v", err, tt.wantErr)
 				return
