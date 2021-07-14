@@ -31,6 +31,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -270,6 +271,16 @@ var cephVolumeRAWTestResult = `{
     }
 }
 `
+
+var cephVolumeRawPartitionTestResult = `{
+	"0": {
+        "ceph_fsid": "4bfe8b72-5e69-4330-b6c0-4d914db8ab89",
+        "device": "/dev/vdb1",
+        "osd_id": 0,
+        "osd_uuid": "c03d7353-96e5-4a41-98de-830dfff97d06",
+        "type": "bluestore"
+    }
+}`
 
 func createPVCAvailableDevices() *DeviceOsdMapping {
 	devices := &DeviceOsdMapping{
@@ -550,17 +561,16 @@ func TestConfigureCVDevices(t *testing.T) {
 	}
 
 	{
-		// Test case for a raw mode OSD
-		t.Log("Test case for a raw mode OSD")
+		t.Log("Test case for raw mode on partition")
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			// get lsblk for disks from cephVolumeRAWTestResult var
-			if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
-				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
+			if command == "lsblk" && (args[0] == "/dev/vdb1") {
+				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="part" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
 			}
 			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" {
-				return cephVolumeRAWTestResult, nil
+				return cephVolumeRawPartitionTestResult, nil
 			}
 			if args[1] == "ceph-volume" && args[4] == "lvm" && args[5] == "list" {
 				return `{}`, nil
@@ -589,13 +599,62 @@ func TestConfigureCVDevices(t *testing.T) {
 		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{DeviceClass: "myclass"}}
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"vdb": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/vdb"}},
+				"vdb1": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/vdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.PartType}},
 			},
 		}
 		_, err := agent.configureCVDevices(context, devices)
 		assert.Nil(t, err)
 		assert.True(t, deviceClassSet)
 	}
+
+	// disabled while raw mode is disabled for disks
+	// {
+	// 	// Test case for a raw mode OSD
+	// 	t.Log("Test case for a raw mode OSD")
+	// 	executor := &exectest.MockExecutor{}
+	// 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	// 		logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
+	// 		// get lsblk for disks from cephVolumeRAWTestResult var
+	// 		if command == "lsblk" && (args[0] == "/dev/vdb" || args[0] == "/dev/vdc") {
+	// 			return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="disk" PKNAME="" NAME="%s" KNAME="%s"`, args[0], args[0]), nil
+	// 		}
+	// 		if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" {
+	// 			return cephVolumeRAWTestResult, nil
+	// 		}
+	// 		if args[1] == "ceph-volume" && args[4] == "lvm" && args[5] == "list" {
+	// 			return `{}`, nil
+	// 		}
+	// 		if command == "sgdisk" {
+	// 			return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
+	// 		}
+	// 		return "", errors.Errorf("unknown command %s %s", command, args)
+	// 	}
+	// 	deviceClassSet := false
+	// 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	// 		logger.Infof("[MockExecuteCommandWithCombinedOutput] %s %v", command, args)
+	// 		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" {
+	// 			assert.Equal(t, "myclass", args[8])
+	// 			deviceClassSet = true
+	// 			return "", nil
+	// 		}
+	// 		return "", errors.Errorf("unknown command %s %s", command, args)
+	// 	}
+
+	// 	context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
+	// 	clusterInfo := &cephclient.ClusterInfo{
+	// 		CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 1}, // It supports raw mode OSD
+	// 		FSID:        clusterFSID,
+	// 	}
+	// 	agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{DeviceClass: "myclass"}}
+	// 	devices := &DeviceOsdMapping{
+	// 		Entries: map[string]*DeviceOsdIDEntry{
+	// 			"vdb": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/vdb"}},
+	// 		},
+	// 	}
+	// 	_, err := agent.configureCVDevices(context, devices)
+	// 	assert.Nil(t, err)
+	// 	assert.True(t, deviceClassSet)
+	// }
 }
 
 func testBaseArgs(args []string) error {

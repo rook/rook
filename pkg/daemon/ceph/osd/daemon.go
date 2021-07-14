@@ -324,21 +324,6 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 				continue
 			}
 
-			// raw disks or partitions provisioned with bluestore can sometimes appear to have
-			// Atari (AHDI) partitions created on them. These are phantom partitions that weren't
-			// actually created but appear because the Atari partition spec is too broad. If we
-			// detect an Atari partition, we ignore it because it is likely there is already an OSD
-			// provisioned and running on the disk. If we provision another, we will corrupt the
-			// already-running OSD.
-			isAtari, err := sys.PartitionIsAtari(context.Executor, device.Name)
-			if err != nil {
-				logger.Errorf("failed to determine if partition %q is Atari; skipping it to be safe. %v", device.Name, err)
-				continue
-			} else if isAtari {
-				logger.Infof("skipping Atari partition %q to avoid corrupting an already-running OSD", device.Name)
-				continue
-			}
-
 			device, err := clusterd.PopulateDeviceUdevInfo(device.Name, context.Executor, device)
 			if err != nil {
 				logger.Errorf("failed to get udev info of partition %q. %v", device.Name, err)
@@ -390,10 +375,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		var deviceInfo *DeviceOsdIDEntry
 		if agent.metadataDevice != "" && agent.metadataDevice == device.Name {
 			// current device is desired as the metadata device
-			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}}
+			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}, DeviceInfo: device}
 		} else if len(desiredDevices) == 1 && desiredDevices[0].Name == "all" {
 			// user has specified all devices, use the current one for data
-			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID}
+			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, DeviceInfo: device}
 		} else if len(desiredDevices) > 0 {
 			var matched bool
 			var matchedDevice DesiredDevice
@@ -460,18 +445,18 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			if err == nil && matched {
 				// the current device matches the user specifies filter/list, use it for data
 				logger.Infof("device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
-				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks)}
+				deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks), DeviceInfo: device}
 
 				// set that this is not an OSD but a metadata device
 				if device.Type == pvcMetadataTypeDevice {
 					logger.Infof("metadata device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
-					deviceInfo = &DeviceOsdIDEntry{Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks), Metadata: []int{1}}
+					deviceInfo = &DeviceOsdIDEntry{Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks), Metadata: []int{1}, DeviceInfo: device}
 				}
 
 				// set that this is not an OSD but a wal device
 				if device.Type == pvcWalTypeDevice {
 					logger.Infof("wal device %q is selected by the device filter/name %q", device.Name, matchedDevice.Name)
-					deviceInfo = &DeviceOsdIDEntry{Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks), Metadata: []int{2}}
+					deviceInfo = &DeviceOsdIDEntry{Config: matchedDevice, PersistentDevicePaths: strings.Fields(device.DevLinks), Metadata: []int{2}, DeviceInfo: device}
 				}
 			} else {
 				logger.Infof("skipping device %q that does not match the device filter/list (%v). %v", device.Name, desiredDevices, err)

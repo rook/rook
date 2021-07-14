@@ -472,38 +472,3 @@ func ListDevicesChild(executor exec.Executor, device string) ([]string, error) {
 
 	return strings.Split(childListRaw, "\n"), nil
 }
-
-// PartitionIsAtari returns true if the device partition is an Atari type.
-// Ceph bluestore raw disks can sometimes appear as though they have ATARI (AHDI)
-// partitions created on them when they don't in reality.
-// See: https://github.com/rook/rook/issues/7940
-func PartitionIsAtari(executor exec.Executor, device string) (bool, error) {
-	// the command error is not processed the same way as most Go errors. parted returns an error
-	// when the partition table type is unknown, so always process the raw output, even in the case
-	// of a command error
-	raw, cmdErr := executor.ExecuteCommandWithOutput("parted", "--machine", "--script", path.Join("/dev", device), "print")
-	// --machine gives machine-parseable output: https://alioth-lists.debian.net/pipermail/parted-devel/2006-December/000573.html
-	// HEADER-TYPE;
-	// DISK-FULL-PATH:...:PART-TABLE-TYPE:PART-TABLE-NAME:FLAGS-SET;
-	// FS INFO;
-	// always 6 fields or more and on the second line, but we only care about the 3rd to last field
-	raw = strings.TrimSpace(raw) // trim begin/end newlines if exist
-	lines := strings.Split(raw, "\n")
-	if len(lines) < 2 {
-		return true, fmt.Errorf("failed to get 'parted' info for device %q. expect at least two lines of output: %q. %v", device, raw, cmdErr)
-	}
-	rawInfo := lines[1]
-	if rawInfo[len(rawInfo)-1] != ';' {
-		// the last char should be a semicolon
-		return true, fmt.Errorf("failed to get 'parted' info for device %q. expect a semicolon at end: %q. %v", device, rawInfo, cmdErr)
-	}
-	rawInfo = strings.TrimRight(rawInfo, ";") // trim the right semicolon
-	items := strings.Split(rawInfo, ":")
-	if len(items) < 6 {
-		// expect at least 6 fields
-		return true, fmt.Errorf("failed to get 'parted' info for device %q. expect at least 6 fields: %q. %v", device, rawInfo, cmdErr)
-	}
-	pType := items[len(items)-3] // 3rd to last field
-
-	return pType == "atari", nil
-}

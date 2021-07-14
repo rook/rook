@@ -436,7 +436,8 @@ Below are the settings for host-based cluster. This type of cluster can specify 
   * `name`: The name of the device (e.g., `sda`), or full udev path (e.g. `/dev/disk/by-id/ata-ST4000DM004-XXXX` - this will not change after reboots).
   * `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
 
-Host-based cluster only supports raw device and partition.
+Host-based cluster only supports raw device and partition. Be sure to see the
+[Ceph quickstart doc prerequisites](ceph-quickstart.md#prerequisites) for additional considerations.
 
 Below are the settings for a PVC-based cluster.
 
