@@ -31,6 +31,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
 * [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 * [Failed to create CRDs](#failed-to-create-crds)
+* [Pod Using Ceph Block Storage `is still being used` Error](#pod-using-ceph-block-storage-is-still-being-used-error)
 
 See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
 
@@ -954,6 +955,81 @@ If you are using Kubernetes version is v1.15 or older, you will see an error lik
 >```
 You need to create the CRDs found in `cluster/examples/kubernetes/ceph/pre-k8s-1.16`. Note that these pre-1.16 `apiextensions.k8s.io/v1beta1` CRDs are deprecated in k8s v1.16 and will no longer be supported from k8s v1.22.
 
+## Pod Using Ceph Block Storage `is still being used` Error
+
+### Symptoms
+
+If you are using the CSI rbd plugin and you observe an error from a pod using
+Ceph for block storage that includes the error string `is still being used`.
+E.g.:
+```text
+MountVolume.MountDevice failed for volume "pvc-272a60b6-a51a-455a-b269-c794e9629b83" : rpc error: code = Internal desc = rbd image replicapool/csi-vol-e23bc868-8788-11eb-ab3c-1a1f46590305 is still being used
+```
+It likely indicates that the object is still mounted as an `rbd` device on a
+node other than where the pod is being scheduled.  One possible cause for this
+scenario is that the pod was successful provisioned with a mounted volume and
+then drained from the node is was originally schedule upon.
+
+### Solution
+
+The `rbd` device needs to be unmounted **from the node upon which it is mounted**.
+
+First, identify the `csi-rbdplugin` pod which is mounting the object.  As there
+should be only one of these pods scheduled per node, we do not need to
+determine the actual node name.
+
+The method below for achieving this was provided by @lipore in
+[issue#4772](https://github.com/rook/rook/issues/4772).
+
+```bash
+for pod in `kubectl -n rook-ceph get pods|grep rbdplugin|grep -v provisioner|awk '{print $1}'`; do
+  echo $pod
+  kubectl exec -it -n rook-ceph $pod -c csi-rbdplugin -- rbd device list
+done
+```
+
+The output should be similar to the following on example 3 node cluster with
+only one rbd device.
+
+```bash
+$ for pod in `kubectl -n rook-ceph get pods|grep dplugin|grep -v provisioner|awk '{print $1}'`; do   echo $pod;   kubectl exec -it -n rook-ceph $pod -c csi-rbdplugin -- rbd device list;  done
+csi-rbdplugin-78wss
+csi-rbdplugin-rspgd
+csi-rbdplugin-z7hx6
+id  pool         namespace  image                                         snap  device
+0   replicapool             csi-vol-8a723bf8-e590-11eb-bb07-6adacddf2e23  -     /dev/rbd0
+```
+
+If we were looking for the `csi-vol-8a723bf8-e590-11eb-bb07-6adacddf2e23`
+object, we can see that it's mount is visible in the `csi-rbdplugin-z7hx6`.
+
+Then enter into the appropriate `csi-rbdplugin` pod and umount or "unmap" the
+`rbd` device using the `rbd` utility. E.g.:
+
+```bash
+$ kubectl -n rook-ceph exec -ti csi-rbdplugin-z7hx6 -c csi-rbdplugin -- sh
+sh-4.4#
+sh-4.4# rbd device list
+id  pool         namespace  image                                         snap  device
+0   replicapool             csi-vol-8a723bf8-e590-11eb-bb07-6adacddf2e23  -     /dev/rbd0
+sh-4.4# rbd unmap /dev/rbd0
+sh-4.4# rbd device list
+sh-4.4#
+```
+
+If `rbd umap` returns the following error:
+
+```bash
+sh-4.4# rbd unmap /dev/rbd0
+rbd: sysfs write failed
+rbd: unmap failed: (16) Device or resource busy
+```
+
+It means that `rbd` device is likely still in use by an active pod.
+
+**Note that the even if the "toolbox pod" was scheduled on the node which has
+the active `rbd` mount, it does not commonly mount `/dev` from the host and
+will not be helpful in locating or resolving the undesired active mount.**
 
 ## Unexpected partitions created
 
