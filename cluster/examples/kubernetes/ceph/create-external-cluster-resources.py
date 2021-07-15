@@ -80,10 +80,12 @@ class DummyRados(object):
         self.cmd_names['fs ls'] = '''{"format": "json", "prefix": "fs ls"}'''
         self.cmd_names['quorum_status'] = '''{"format": "json", "prefix": "quorum_status"}'''
         self.cmd_names['caps_change_default_pool_prefix'] = '''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}'''
+        self.cmd_names['mgr services'] = '''{"format": "json", "prefix": "mgr services"}'''
         # all the commands and their output
         self.cmd_output_map[self.cmd_names['fs ls']
                             ] = '''[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":2,"data_pool_ids":[3],"data_pools":["myfs-data0"]}]'''
         self.cmd_output_map[self.cmd_names['quorum_status']] = '''{"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_leader_name":"a","quorum_age":14385,"features":{"quorum_con":"4540138292836696063","quorum_mon":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"]},"monmap":{"epoch":1,"fsid":"af4e1673-0b72-402d-990a-22d2919d0f1c","modified":"2020-05-07T03:36:39.918035Z","created":"2020-05-07T03:36:39.918035Z","min_mon_release":15,"min_mon_release_name":"octopus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.110.205.174:3300","nonce":0},{"type":"v1","addr":"10.110.205.174:6789","nonce":0}]},"addr":"10.110.205.174:6789/0","public_addr":"10.110.205.174:6789/0","priority":0,"weight":0}]}}'''
+        self.cmd_output_map[self.cmd_names['mgr services']] = '''{"dashboard":"https://ceph-dashboard:8443/","prometheus":"http://ceph-dashboard-db:9283/"}'''
         self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "profile rbd", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd","osd":"profile rbd"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
@@ -586,6 +588,16 @@ class RadosJSON:
                 "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
         return str(json_out[0]['key'])
 
+    def get_ceph_dashboard_link(self):
+        cmd_json = {"prefix": "mgr services", "format": "json"}
+        ret_val, json_out, _ = self._common_cmd_json_gen(cmd_json)
+        # if there is an unsuccessful attempt,
+        if ret_val != 0 or len(json_out) == 0:
+            return None
+        if not 'dashboard' in json_out:
+            return None
+        return json_out['dashboard']
+
     def create_rgw_admin_ops_user(self):
         cmd = ['radosgw-admin', 'user', 'create', '--uid', self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME, '--display-name',
                'Rook RGW Admin Ops user', '--caps', 'buckets=*;users=*;usage=read;metadata=read;zone=read']
@@ -642,6 +654,7 @@ class RadosJSON:
         self.out_map['ROOK_EXTERNAL_USERNAME'] = self.run_as_user
         self.out_map['ROOK_EXTERNAL_CEPH_MON_DATA'] = self.get_ceph_external_mon_data()
         self.out_map['ROOK_EXTERNAL_USER_SECRET'] = self.create_checkerKey()
+        self.out_map['ROOK_EXTERNAL_DASHBOARD_LINK'] = self.get_ceph_dashboard_link()
         self.out_map['CSI_RBD_NODE_SECRET_SECRET'] = self.create_cephCSIKeyring_RBDNode()
         self.out_map['CSI_RBD_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_RBDProvisioner()
         self.out_map['CEPHFS_POOL_NAME'] = self._arg_parser.cephfs_data_pool_name
@@ -728,6 +741,16 @@ class RadosJSON:
             }
         ]
 
+        # if 'ROOK_EXTERNAL_DASHBOARD_LINK' exists, then only add 'rook-ceph-dashboard-link' Secret
+        if self.out_map['ROOK_EXTERNAL_DASHBOARD_LINK']:
+            json_out.append({
+                "name": "rook-ceph-dashboard-link",
+                "kind": "Secret",
+                "data": {
+                    "userID": 'ceph-dashboard-link',
+                    "userKey": self.out_map['ROOK_EXTERNAL_DASHBOARD_LINK']
+                }
+            })
         # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
         if self.out_map['CSI_RBD_PROVISIONER_SECRET']:
             json_out.append({
