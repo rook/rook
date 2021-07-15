@@ -7558,8 +7558,22 @@ spec:
             spec:
               description: ObjectStoreUserSpec represent the spec of an Objectstoreuser
               properties:
+                caps:
+                  additionalProperties:
+                    type: string
+                  description: The additional capablities for the ceph user
+                  type: object
                 displayName:
                   description: The display name for the ceph users
+                  type: string
+                maxBuckets:
+                  description: The maximum bucket limit for the ceph user
+                  type: integer
+                maxObjects:
+                  description: The maximum object limit for the ceph user
+                  type: integer
+                maxSize:
+                  description: The maximum size limit for the ceph user
                   type: string
                 store:
                   description: The store the user will be created in
