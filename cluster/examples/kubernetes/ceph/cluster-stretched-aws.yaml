@@ -1,0 +1,136 @@
+#################################################################################################################
+# Define the settings for the rook-ceph cluster with common settings for a production cluster.
+# All nodes with available raw devices will be used for the Ceph cluster. At least three nodes are required
+# in this example. See the documentation for more details on storage settings available.
+
+# For example, to create the cluster:
+#   kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+#   kubectl create -f cluster-stretched.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph # namespace:cluster
+spec:
+  dataDirHostPath: /var/lib/rook
+  mon:
+    # Five mons must be created for stretch mode
+    count: 5
+    allowMultiplePerNode: false
+    stretchCluster:
+      # The ceph failure domain will be extracted from the label, which by default is the zone. The nodes running OSDs must have
+      # this label in order for the OSDs to be configured in the correct topology. For topology labels, see
+      # https://rook.github.io/docs/rook/master/ceph-cluster-crd.html#osd-topology.
+      failureDomainLabel: topology.kubernetes.io/zone
+      # The sub failure domain is the secondary level at which the data will be placed to maintain data durability and availability.
+      # The default is "host", which means that each OSD must be on a different node and you would need at least two nodes per zone.
+      # If the subFailureDomain is set to "osd", the OSDs would be allowed anywhere in the same zone including on the same node.
+      # If set to "rack" or some other intermediate failure domain, those labels would also need to be set on the nodes where
+      # the osds are started.
+      subFailureDomain: host
+      zones:
+        - name: us-east-2a
+          arbiter: true
+        - name: us-east-2b
+        - name: us-east-2c
+    volumeClaimTemplate:
+      spec:
+        storageClassName: gp2
+        resources:
+          requests:
+            storage: 10Gi
+  mgr:
+    count: 2
+  cephVersion:
+    # Stretch cluster support upstream is only available starting in Ceph Pacific
+    image: ceph/ceph:v16.2.2
+    allowUnsupported: true
+  skipUpgradeChecks: false
+  continueUpgradeAfterChecksEvenIfNotHealthy: false
+  dashboard:
+    enabled: true
+    ssl: true
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+    deviceFilter: ""
+    storageClassDeviceSets:
+      - name: set1
+        # The number of OSDs to create from this device set
+        count: 2
+        portable: true
+        placement:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values:
+                        - us-east-2b
+        preparePlacement:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values:
+                        - us-east-2b
+        volumeClaimTemplates:
+          - metadata:
+              name: data
+            spec:
+              resources:
+                requests:
+                  storage: 10Gi
+              storageClassName: gp2
+              volumeMode: Block
+              accessModes:
+                - ReadWriteOnce
+      - name: set2
+        # The number of OSDs to create from this device set
+        count: 2
+        portable: true
+        placement:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values:
+                        - us-east-2c
+        preparePlacement:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values:
+                        - us-east-2c
+        volumeClaimTemplates:
+          - metadata:
+              name: data
+            spec:
+              resources:
+                requests:
+                  storage: 10Gi
+              storageClassName: gp2
+              volumeMode: Block
+              accessModes:
+                - ReadWriteOnce
+  placement:
+    # The arbiter mon can have its own placement settings that will be different from the mons.
+    # If the arbiter section is not included in the placement, the arbiter will use the same placement
+    # settings as other mons. In this example, the arbiter has a toleration to run on a master node.
+    arbiter:
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+  disruptionManagement:
+    managePodBudgets: true

@@ -309,10 +309,6 @@ func (c *Cluster) startMons(targetCount int) error {
 }
 
 func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
-	if err := c.assignStretchMonsToZones(mons); err != nil {
-		return errors.Wrap(err, "failed to assign mons to zones")
-	}
-
 	// Enable the mon connectivity strategy
 	if err := cephclient.EnableStretchElectionStrategy(c.context, c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to enable stretch cluster")
@@ -340,45 +336,6 @@ func (c *Cluster) isArbiterZone(zone string) bool {
 		return false
 	}
 	return c.getArbiterZone() == zone
-}
-
-func (c *Cluster) assignStretchMonsToZones(mons []*monConfig) error {
-	arbiterZone := c.getArbiterZone()
-
-	// Get the mon dump to see if the zones are already applied to the mons
-	monDump, err := cephclient.GetMonDump(c.context, c.ClusterInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to detect if stretch mons are already assigned to zones")
-	}
-
-	// Set the location for each mon
-	domainName := c.stretchFailureDomainName()
-	for _, mon := range mons {
-		if mon.Zone == arbiterZone {
-			// remember the arbiter mon to be set later in the reconcile after the OSDs are configured
-			c.arbiterMon = mon.DaemonName
-		}
-		// Check if the zone is already set on the mon
-		alreadySet := false
-		for _, monInfo := range monDump.Mons {
-			if monInfo.Name == mon.DaemonName {
-				desiredLocation := fmt.Sprintf("{%s=%s}", domainName, mon.Zone)
-				if monInfo.CrushLocation == desiredLocation {
-					alreadySet = true
-				}
-				break
-			}
-		}
-		if alreadySet {
-			logger.Infof("mon %q stretch domain %q is already set to %q", mon.DaemonName, domainName, mon.Zone)
-			continue
-		}
-		logger.Infof("setting mon %q to stretch %s=%s", mon.DaemonName, domainName, mon.Zone)
-		if err := cephclient.SetMonStretchZone(c.context, c.ClusterInfo, mon.DaemonName, domainName, mon.Zone); err != nil {
-			return errors.Wrapf(err, "failed to set mon %q zone", mon.DaemonName)
-		}
-	}
-	return nil
 }
 
 func (c *Cluster) ConfigureArbiter() error {

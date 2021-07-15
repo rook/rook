@@ -82,28 +82,6 @@ func TestStretchElectionStrategy(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestStretchClusterSettings(t *testing.T) {
-	monName := "a"
-	failureDomain := "rack"
-	zone := "rack-x"
-	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
-		logger.Infof("Command: %s %v", command, args)
-		switch {
-		case args[0] == "mon" && args[1] == "set_location":
-			assert.Equal(t, monName, args[2])
-			assert.Equal(t, fmt.Sprintf("%s=%s", failureDomain, zone), args[3])
-			return "", nil
-		}
-		return "", errors.Errorf("unexpected ceph command %q", args)
-	}
-	context := &clusterd.Context{Executor: executor}
-	clusterInfo := AdminClusterInfo("mycluster")
-
-	err := SetMonStretchZone(context, clusterInfo, monName, failureDomain, zone)
-	assert.NoError(t, err)
-}
-
 func TestStretchClusterMonTiebreaker(t *testing.T) {
 	monName := "a"
 	failureDomain := "rack"
