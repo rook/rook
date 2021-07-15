@@ -32,7 +32,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -59,7 +59,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -129,7 +129,7 @@ spec:
       - name: c
   cephVersion:
     # Stretch cluster is supported in Ceph Pacific or newer.
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
     allowUnsupported: true
   # Either storageClassDeviceSets or the storage section can be specified for creating OSDs.
   # This example uses all devices for simplicity.
@@ -671,7 +671,7 @@ kubectl -n rook-ceph get CephCluster -o yaml
       deviceClasses:
       - name: hdd
     version:
-      image: ceph/ceph:v16.2.4
+      image: ceph/ceph:v16.2.5
       version: 16.2.4-0
     conditions:
     - lastHeartbeatTime: "2021-03-02T21:22:11Z"
@@ -733,7 +733,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -765,7 +765,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -805,7 +805,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -852,7 +852,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -958,7 +958,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -1004,7 +1004,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: ceph/ceph:v16.2.4
+    image: ceph/ceph:v16.2.5
     allowUnsupported: false
   dashboard:
     enabled: true
@@ -1462,7 +1462,7 @@ spec:
     enable: true
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: ceph/ceph:v16.2.4 # Should match external cluster version
+    image: ceph/ceph:v16.2.5 # Should match external cluster version
 ```
 
 ### Security
