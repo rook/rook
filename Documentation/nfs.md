@@ -25,7 +25,7 @@ First deploy the Rook NFS operator using the following commands:
 ```console
 $ git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/nfs
-kubectl create -f common.yaml
+kubectl create -f crds.yaml
 kubectl create -f operator.yaml
 ```
 
@@ -590,7 +590,7 @@ kubectl delete -f psp.yaml
 kubectl delete -f scc.yaml # if deployed
 kubectl delete -f operator.yaml
 kubectl delete -f webhook.yaml # if deployed
-kubectl delete -f common.yaml
+kubectl delete -f crds.yaml
 ```
 
 ## Troubleshooting

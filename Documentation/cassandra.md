@@ -23,6 +23,7 @@ First deploy the Rook Cassandra Operator using the following commands:
 ```console
 $ git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/cassandra
+kubectl apply -f crds.yaml
 kubectl apply -f operator.yaml
 ```
 
@@ -133,6 +134,7 @@ To clean up all resources associated with this walk-through, you can run the com
 ```console
 kubectl delete -f cluster.yaml
 kubectl delete -f operator.yaml
+kubectl delete -f crds.yaml
 ```
 
 ## Troubleshooting
