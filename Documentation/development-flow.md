@@ -144,7 +144,6 @@ rook
     │   └── utils
     ├── integration               # all test cases that will be invoked during integration testing
     ├── longhaul                  # longhaul tests
-    ├── pipeline                  # Jenkins pipeline
     └── scripts                   # scripts for setting up integration and manual testing environments
 
 ```

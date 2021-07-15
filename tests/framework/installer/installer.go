@@ -47,8 +47,7 @@ var (
 
 func SkipTestSuite(name string) bool {
 	testsToRun := testStorageProvider()
-	// jenkins passes "null" if the env var is not set.
-	if testsToRun == "" || testsToRun == "null" {
+	if testsToRun == "" {
 		// run all test suites
 		return false
 	}

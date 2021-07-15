@@ -111,7 +111,7 @@ clean.build:
 # Caching
 #
 
-# NOTE: in order to reduce built time especially on jenkins, we maintain a cache
+# NOTE: in order to reduce built time, we maintain a cache
 # of already built images. This cache contains images that can be used to help speed
 # future docker build commands using docker's content addressable schemes. And also
 # to avoid running builds like ceph when the contents have not changed.
