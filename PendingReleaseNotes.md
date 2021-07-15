@@ -34,3 +34,9 @@ v1.7...
 - Add support for Kubernetes TLS secret for referring TLS certs needed for ceph RGW server.
 - Stretch clusters are considered stable
   - Ceph v16.2.5 or greater is required for stretch clusters
+
+### Cassandra
+
+- CRDs converted from v1beta1 to v1
+  - Schema is generated from the internal types for more complete validation
+  - Minimum K8s version for the v1 CRDs is K8s 1.16

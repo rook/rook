@@ -52,8 +52,10 @@ const (
 type Cluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              ClusterSpec   `json:"spec"`
-	Status            ClusterStatus `json:"status"`
+	Spec              ClusterSpec `json:"spec"`
+	// +optional
+	// +nullable
+	Status ClusterStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -67,16 +69,25 @@ type ClusterList struct {
 // ClusterSpec is the desired state for a Cassandra Cluster.
 type ClusterSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations rook.Annotations `json:"annotations"`
+	// +optional
+	// +nullable
+	Annotations rook.Annotations `json:"annotations,omitempty"`
 	// Version of Cassandra to use.
 	Version string `json:"version"`
 	// Repository to pull the image from.
+	// +optional
+	// +nullable
 	Repository *string `json:"repository,omitempty"`
 	// Mode selects an operating mode.
+	// +optional
 	Mode ClusterMode `json:"mode,omitempty"`
 	// Datacenter that will make up this cluster.
-	Datacenter DatacenterSpec `json:"datacenter"`
+	// +optional
+	// +nullable
+	Datacenter DatacenterSpec `json:"datacenter,omitempty"`
 	// User-provided image for the sidecar that replaces default.
+	// +optional
+	// +nullable
 	SidecarImage *ImageSpec `json:"sidecarImage,omitempty"`
 }
 
@@ -102,17 +113,27 @@ type RackSpec struct {
 	// Members is the number of Cassandra instances in this rack.
 	Members int32 `json:"members"`
 	// User-provided ConfigMap applied to the specific statefulset.
+	// +optional
+	// +nullable
 	ConfigMapName *string `json:"configMapName,omitempty"`
 	// User-provided ConfigMap for jmx prometheus exporter
+	// +optional
+	// +nullable
 	JMXExporterConfigMapName *string `json:"jmxExporterConfigMapName,omitempty"`
 	// Storage describes the underlying storage that Cassandra will consume.
-	Storage StorageScopeSpec `json:"storage"`
+	Storage StorageScopeSpec `json:"storage,omitempty"`
 	// The annotations-related configuration to add/set on each Pod related object.
-	Annotations map[string]string `json:"annotations"`
+	// +optional
+	// +nullable
+	Annotations map[string]string `json:"annotations,omitempty"`
 	// Placement describes restrictions for the nodes Cassandra is scheduled on.
+	// +optional
+	// +nullable
 	Placement *Placement `json:"placement,omitempty"`
 	// Resources the Cassandra Pods will use.
-	Resources corev1.ResourceRequirements `json:"resources"`
+	// +optional
+	// +nullable
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // ImageSpec is the desired state for a container image.
@@ -120,7 +141,8 @@ type ImageSpec struct {
 	// Version of the image.
 	Version string `json:"version"`
 	// Repository to pull the image from.
-	Repository string `json:"repository"`
+	// +optional
+	Repository string `json:"repository,omitempty"`
 }
 
 // ClusterStatus is the status of a Cassandra Cluster
