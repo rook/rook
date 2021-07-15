@@ -324,21 +324,6 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 				continue
 			}
 
-			// raw disks or partitions provisioned with bluestore can sometimes appear to have
-			// Atari (AHDI) partitions created on them. These are phantom partitions that weren't
-			// actually created but appear because the Atari partition spec is too broad. If we
-			// detect an Atari partition, we ignore it because it is likely there is already an OSD
-			// provisioned and running on the disk. If we provision another, we will corrupt the
-			// already-running OSD.
-			isAtari, err := sys.PartitionIsAtari(context.Executor, device.Name)
-			if err != nil {
-				logger.Errorf("failed to determine if partition %q is Atari; skipping it to be safe. %v", device.Name, err)
-				continue
-			} else if isAtari {
-				logger.Infof("skipping Atari partition %q to avoid corrupting an already-running OSD", device.Name)
-				continue
-			}
-
 			device, err := clusterd.PopulateDeviceUdevInfo(device.Name, context.Executor, device)
 			if err != nil {
 				logger.Errorf("failed to get udev info of partition %q. %v", device.Name, err)
