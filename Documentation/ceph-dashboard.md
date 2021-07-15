@@ -48,7 +48,7 @@ in this example at `https://10.110.113.240:8443`.
 ### Login Credentials
 
 After you connect to the dashboard you will need to login for secure access. Rook creates a default user named
-`admin` and generates a secret called `rook-ceph-dashboard-admin-password` in the namespace where the Rook Ceph cluster is running.
+`admin` and generates a secret called `rook-ceph-dashboard-password` in the namespace where the Rook Ceph cluster is running.
 To retrieve the generated password, you can run the following:
 
 ```console
