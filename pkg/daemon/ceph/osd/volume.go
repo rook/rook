@@ -495,6 +495,7 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 	return nil
 }
 
+//nolint:ineffassign // ignore while raw mode is disabled
 func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, error) {
 	if pvcBacked {
 		return a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion), nil
@@ -540,6 +541,12 @@ func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, 
 		logger.Debugf("won't use raw mode since there is a metadata device %q", a.metadataDevice)
 		useRawMode = false
 	}
+
+	// TODO: when we re-enable raw mode, we cannot merely remove the below lines. we must handle
+	// device-specific configs which this function doesn't take into account.
+	// see: https://github.com/rook/rook/pull/8316#issuecomment-880816972
+	logger.Debugf("won't use raw mode to avoid possibility of phantom atari partitions per Rook issue #7940")
+	useRawMode = false
 
 	return useRawMode, nil
 }
