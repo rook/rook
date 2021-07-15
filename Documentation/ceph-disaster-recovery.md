@@ -108,7 +108,7 @@ kubectl -n rook-ceph patch deployment rook-ceph-mon-b  --type='json' -p '[{"op":
 kubectl -n rook-ceph patch deployment rook-ceph-mon-b -p '{"spec": {"template": {"spec": {"containers": [{"name": "mon", "command": ["sleep", "infinity"], "args": []}]}}}}'
 ```
 
-Connect to the pod of a healthy mon and run the following commands.
+Connect to the pod of a healthy mon (in this case to mon-b pod) and run the following commands.
 
 ```console
 kubectl -n rook-ceph exec -it <mon-pod> bash
