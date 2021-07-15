@@ -244,7 +244,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
-		logger.Errorf("enabling KMS failed %v", err)
+		logger.Errorf("failed to enable KMS. %v", err)
 		return v1.Container{}
 	}
 	if kmsEnabled {
@@ -444,11 +444,15 @@ func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 			return false, err
 		}
 		secretEngine := c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]
-		kvVers := c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey]
 
 		// currently RGW supports kv(version 2) and transit secret engines in vault
 		switch secretEngine {
 		case kms.VaultKVSecretEngineKey:
+			// Detect KV version
+			kvVers, err := kms.BackendVersion(c.store.Spec.Security.KeyManagementService.ConnectionDetails)
+			if err != nil {
+				return false, err
+			}
 			if kvVers != "v2" {
 				return false, errors.New("failed to validate vault kv version, only v2 is supported")
 			}

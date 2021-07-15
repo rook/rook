@@ -26,13 +26,13 @@ function install_helm {
 }
 
 if [[ "$(uname)" == "Linux" ]]; then
-    sudo apt-get install jq -y
-    install_helm
+  sudo apt-get install jq -y
+  install_helm
 fi
 
 function generate_vault_tls_config {
   openssl genrsa -out "${TMPDIR}"/vault.key 2048
-
+  
   cat <<EOF >"${TMPDIR}"/csr.conf
 [req]
 req_extensions = v3_req
@@ -50,11 +50,11 @@ DNS.3 = ${SERVICE}.${NAMESPACE}.svc
 DNS.4 = ${SERVICE}.${NAMESPACE}.svc.cluster.local
 IP.1 = 127.0.0.1
 EOF
-
+  
   openssl req -new -key "${TMPDIR}"/vault.key -subj "/CN=${SERVICE}.${NAMESPACE}.svc" -out "${TMPDIR}"/server.csr -config "${TMPDIR}"/csr.conf
-
+  
   export CSR_NAME=vault-csr
-
+  
   cat <<EOF >"${TMPDIR}"/csr.yaml
 apiVersion: certificates.k8s.io/v1beta1
 kind: CertificateSigningRequest
@@ -69,20 +69,20 @@ spec:
   - key encipherment
   - server auth
 EOF
-
+  
   kubectl create -f "${TMPDIR}/"csr.yaml
-
+  
   kubectl certificate approve ${CSR_NAME}
-
+  
   serverCert=$(kubectl get csr ${CSR_NAME} -o jsonpath='{.status.certificate}')
   echo "${serverCert}" | openssl base64 -d -A -out "${TMPDIR}"/vault.crt
   kubectl config view --raw --minify --flatten -o jsonpath='{.clusters[].cluster.certificate-authority-data}' | base64 -d > "${TMPDIR}"/vault.ca
   kubectl create secret generic ${SECRET_NAME} \
-          --namespace ${NAMESPACE} \
-          --from-file=vault.key="${TMPDIR}"/vault.key \
-          --from-file=vault.crt="${TMPDIR}"/vault.crt \
-          --from-file=vault.ca="${TMPDIR}"/vault.ca
-
+  --namespace ${NAMESPACE} \
+  --from-file=vault.key="${TMPDIR}"/vault.key \
+  --from-file=vault.crt="${TMPDIR}"/vault.crt \
+  --from-file=vault.ca="${TMPDIR}"/vault.ca
+  
   # for rook
   kubectl create secret generic vault-ca-cert --namespace ${ROOK_NAMESPACE} --from-file=cert="${TMPDIR}"/vault.ca
   kubectl create secret generic vault-client-cert --namespace ${ROOK_NAMESPACE} --from-file=cert="${TMPDIR}"/vault.crt
@@ -90,7 +90,7 @@ EOF
 }
 
 function vault_helm_tls {
-
+  
 cat <<EOF >"${TMPDIR}/"custom-values.yaml
 global:
   enabled: true
@@ -119,30 +119,30 @@ server:
         path = "/vault/data"
       }
 EOF
-
+  
 }
 
 function deploy_vault {
   # TLS config
   generate_vault_tls_config
   vault_helm_tls
-
+  
   # Install Vault with Helm
   helm repo add hashicorp https://helm.releases.hashicorp.com
   helm install vault hashicorp/vault --values "${TMPDIR}/"custom-values.yaml
   timeout 120 sh -c 'until kubectl get pods -l app.kubernetes.io/name=vault --field-selector=status.phase=Running|grep vault-0; do sleep 5; done'
-
+  
   # Unseal Vault
   VAULT_INIT_TEMP_DIR=$(mktemp)
   kubectl exec -ti vault-0 -- vault operator init -format "json" -ca-cert /vault/userconfig/vault-server-tls/vault.crt | tee -a "$VAULT_INIT_TEMP_DIR"
   for i in $(seq 0 2); do
-      kubectl exec -ti vault-0 -- vault operator unseal -ca-cert /vault/userconfig/vault-server-tls/vault.crt "$(jq -r ".unseal_keys_b64[$i]" "$VAULT_INIT_TEMP_DIR")"
+    kubectl exec -ti vault-0 -- vault operator unseal -ca-cert /vault/userconfig/vault-server-tls/vault.crt "$(jq -r ".unseal_keys_b64[$i]" "$VAULT_INIT_TEMP_DIR")"
   done
   kubectl get pods -l app.kubernetes.io/name=vault
-
+  
   # Wait for vault to be ready once unsealed
   while [[ $(kubectl get pods -l app.kubernetes.io/name=vault -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do echo "waiting vault to be ready" && sleep 1; done
-
+  
   # Configure Vault
   ROOT_TOKEN=$(jq -r '.root_token' "$VAULT_INIT_TEMP_DIR")
   kubectl exec -it vault-0 -- vault login -ca-cert /vault/userconfig/vault-server-tls/vault.crt "$ROOT_TOKEN"
@@ -151,7 +151,7 @@ function deploy_vault {
   kubectl exec -ti vault-0 -- vault secrets enable -ca-cert /vault/userconfig/vault-server-tls/vault.crt -path=rook/ver2 kv-v2
   kubectl exec -ti vault-0 -- vault kv list -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook/ver1 || true # failure is expected
   kubectl exec -ti vault-0 -- vault kv list -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook/ver2 || true # failure is expected
-
+  
   # Configure Vault Policy for Rook
   echo '
   path "rook/*" {
@@ -160,12 +160,12 @@ function deploy_vault {
   path "sys/mounts" {
   capabilities = ["read"]
   }'| kubectl exec -i vault-0 -- vault policy write -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook -
-
+  
   # Create a token for Rook
   ROOK_TOKEN=$(kubectl exec vault-0 -- vault token create -policy=rook -format json -ca-cert /vault/userconfig/vault-server-tls/vault.crt|jq -r '.auth.client_token'|base64)
-
+  
   # Configure cluster
-  sed -i "s|ROOK_TOKEN|$ROOK_TOKEN|" tests/manifests/test-kms-vault.yaml
+  sed -i "s|ROOK_TOKEN|${ROOK_TOKEN//[$'\t\r\n']}|" tests/manifests/test-kms-vault.yaml
 }
 
 function validate_rgw_token {
@@ -176,7 +176,7 @@ function validate_rgw_token {
   RGW_TOKEN_FILE=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep  "rgw-crypt-vault-token-file" | cut -f2- -d=)
   VAULT_PATH_PREFIX=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep  "rgw-crypt-vault-prefix" | cut -f2- -d=)
   VAULT_TOKEN=$(kubectl -n rook-ceph exec $RGW_POD -- cat $RGW_TOKEN_FILE)
-
+  
   #fetch key from vault server using token from RGW pod, P.S using -k for curl since custom ssl certs not yet to support in RGW
   FETCHED_KEY=$(kubectl -n rook-ceph exec $RGW_POD -- curl -k -X GET -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_SERVER""$VAULT_PATH_PREFIX"/"$RGW_BUCKET_KEY"|jq -r .data.data.key)
   if [[ "$ENCRYPTION_KEY" != "$FETCHED_KEY" ]]; then
@@ -196,7 +196,7 @@ function validate_rgw_deployment {
 function validate_osd_secret {
   NB_OSD_PVC=$(kubectl -n rook-ceph get pvc|grep -c set1)
   NB_VAULT_SECRET=$(kubectl -n default exec -ti vault-0 -- vault kv list -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook/ver1|grep -c set1)
-
+  
   if [ "$NB_OSD_PVC" -ne "$NB_VAULT_SECRET" ]; then
     echo "number of osd pvc is $NB_OSD_PVC and number of vault secret is $NB_VAULT_SECRET, mismatch"
     exit 1
@@ -210,14 +210,14 @@ function validate_osd_secret {
 case "$ACTION" in
   deploy)
     deploy_vault
-    ;;
+  ;;
   validate_osd)
     validate_osd_deployment
-    ;;
+  ;;
   validate_rgw)
     validate_rgw_deployment
   ;;
   *)
     echo "invalid action $ACTION" >&2
     exit 1
-  esac
+esac

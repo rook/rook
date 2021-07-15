@@ -34,7 +34,7 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 		return envVars[i].Name < envVars[j].Name
 	})
 	assert.True(t, areEnvVarsSorted)
-	assert.Equal(t, 4, len(envVars))
+	assert.Equal(t, 5, len(envVars))
 	assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "vault"})
 	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_ADDR", Value: "http://1.1.1.1:8200"})
 	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_TOKEN", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Key: "token"}}})
@@ -47,7 +47,7 @@ func TestVaultTLSEnvVarFromSecret(t *testing.T) {
 		return envVars[i].Name < envVars[j].Name
 	})
 	assert.True(t, areEnvVarsSorted)
-	assert.Equal(t, 5, len(envVars))
+	assert.Equal(t, 6, len(envVars))
 	assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "vault"})
 	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_ADDR", Value: "http://1.1.1.1:8200"})
 	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_CACERT", Value: "/etc/vault/vault.ca"})
