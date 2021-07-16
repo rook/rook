@@ -46,6 +46,10 @@ func TestStartMgr(t *testing.T) {
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+			logger.Infof("Execute: %s %v", command, args)
+			if args[0] == "mgr" && args[1] == "stat" {
+				return `{"active_name": "a"}`, nil
+			}
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
@@ -63,7 +67,7 @@ func TestStartMgr(t *testing.T) {
 		Clientset:                  clientset,
 		RequestCancelOrchestration: abool.New()}
 	ownerInfo := cephclient.NewMinimumOwnerInfo(t)
-	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo, CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Build: 5}}
 	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
 		Annotations:        map[rookv1.KeyType]rookv1.Annotations{cephv1.KeyMgr: {"my": "annotation"}},
@@ -99,13 +103,8 @@ func TestStartMgr(t *testing.T) {
 	assert.Nil(t, err)
 	err = c.Start()
 	assert.Nil(t, err)
-	// trigger the sidecar reconcile since the operator didn't do it so we can perform the full validation
-	err = c.reconcileService("a")
-	assert.Nil(t, err)
 	validateStart(t, c)
 
-	// the dashboard service is only deleted by the operator reconcile if the replicas are 1,
-	// otherwise the sidecar has the responsibility
 	c.spec.Mgr.Count = 1
 	c.spec.Dashboard.Enabled = false
 	// clean the previous deployments
@@ -201,7 +200,8 @@ func TestMgrSidecarReconcile(t *testing.T) {
 	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
 
 	// Update services according to the active mgr
-	err := c.ReconcileMultipleServices(activeMgr, false)
+	clusterInfo.CephVersion = cephver.CephVersion{Major: 15, Minor: 2, Build: 0}
+	err := c.ReconcileActiveMgrServices(activeMgr)
 	assert.NoError(t, err)
 	assert.False(t, calledMgrStat)
 	assert.True(t, calledMgrDump)
@@ -210,7 +210,8 @@ func TestMgrSidecarReconcile(t *testing.T) {
 
 	// nothing is created or updated when the requested mgr is not the active mgr
 	calledMgrDump = false
-	err = c.ReconcileMultipleServices("b", true)
+	clusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Build: 5}
+	err = c.ReconcileActiveMgrServices("b")
 	assert.NoError(t, err)
 	assert.True(t, calledMgrStat)
 	assert.False(t, calledMgrDump)
@@ -219,7 +220,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 
 	// nothing is updated when the requested mgr is not the active mgr
 	activeMgr = "b"
-	err = c.ReconcileMultipleServices("b", true)
+	err = c.ReconcileActiveMgrServices("b")
 	assert.NoError(t, err)
 	validateServices(t, c)
 	validateServiceMatches(t, c, "b")
