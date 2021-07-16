@@ -157,10 +157,10 @@ func TestExpandImage(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	clusterInfo := AdminClusterInfo("mycluster")
-	err := ExpandImage(context, clusterInfo, "error-name", "kube", "mon1,mon2,mon3", "/tmp/keyring", 1000000)
+	err := ExpandImage(context, clusterInfo, "error-name", "kube", "mon1,mon2,mon3", "/tmp/keyring", 1000000, 15*time.Second)
 	assert.Error(t, err)
 
-	err = ExpandImage(context, clusterInfo, "some-image", "kube", "mon1,mon2,mon3", "/tmp/keyring", 1000000)
+	err = ExpandImage(context, clusterInfo, "some-image", "kube", "mon1,mon2,mon3", "/tmp/keyring", 1000000, 15*time.Second)
 	assert.NoError(t, err)
 }
 

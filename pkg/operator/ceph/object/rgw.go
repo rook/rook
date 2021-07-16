@@ -32,6 +32,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -70,7 +71,7 @@ func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName s
 	}
 
 	objContext := NewContext(c.context, c.clusterInfo, c.store.Namespace)
-	err := enableRGWDashboard(objContext)
+	err := enableRGWDashboard(objContext, opcontroller.CephCommandsTimeout(c.context))
 	if err != nil {
 		logger.Warningf("failed to enable dashboard for rgw. %v", err)
 	}
@@ -240,7 +241,7 @@ func (c *clusterConfig) deleteStore() {
 
 		objContext.Endpoint = c.store.Status.Info["endpoint"]
 
-		go disableRGWDashboard(objContext)
+		go disableRGWDashboard(objContext, opcontroller.CephCommandsTimeout(c.context))
 
 		err = deleteRealmAndPools(objContext, c.store.Spec)
 		if err != nil {

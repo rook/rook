@@ -291,6 +291,8 @@ spec:
           value: "{{ .Values.enableFlexDriver }}"
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
           value: "{{ .Values.enableDiscoveryDaemon }}"
+        - name: ROOK_CEPH_COMMANDS_TIMEOUT
+          value: "{{ .Values.cephCommandsTimeout }}"
         - name: ROOK_OBC_WATCH_OPERATOR_NAMESPACE
           value: "{{ .Values.enableOBCWatchOperatorNamespace }}"
 

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -79,6 +80,16 @@ func DiscoveryDaemonEnabled(context *clusterd.Context) bool {
 	// Ignore the error. In the remote chance that the configmap fails to be read, we will default to disabling the discovery daemon
 	value, _ := k8sutil.GetOperatorSetting(context.Clientset, OperatorSettingConfigMapName, "ROOK_ENABLE_DISCOVERY_DAEMON", "false")
 	return value == "true"
+}
+
+// CephCommandsTimeout is the timeout value of Ceph commands which are executed from Rook
+func CephCommandsTimeout(context *clusterd.Context) time.Duration {
+	strTimeout, _ := k8sutil.GetOperatorSetting(context.Clientset, OperatorSettingConfigMapName, "ROOK_CEPH_COMMANDS_TIMEOUT", "15")
+	timeout, err := strconv.Atoi(strTimeout)
+	if err != nil || timeout < 1 {
+		return 15 * time.Second
+	}
+	return time.Duration(timeout) * time.Second
 }
 
 // CheckForCancelledOrchestration checks whether a cancellation has been requested

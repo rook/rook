@@ -18,6 +18,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -167,9 +168,9 @@ func Status(context *clusterd.Context, clusterInfo *ClusterInfo) (CephStatus, er
 	return status, nil
 }
 
-func StatusWithUser(context *clusterd.Context, clusterInfo *ClusterInfo) (CephStatus, error) {
+func StatusWithUser(context *clusterd.Context, clusterInfo *ClusterInfo, timeout time.Duration) (CephStatus, error) {
 	args := []string{"status", "--format", "json"}
-	command, args := FinalizeCephCommandArgs("ceph", clusterInfo, args, context.ConfigDir)
+	command, args := FinalizeCephCommandArgs("ceph", clusterInfo, timeout, args, context.ConfigDir)
 
 	buf, err := context.Executor.ExecuteCommandWithOutput(command, args...)
 	if err != nil {

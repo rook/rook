@@ -16,6 +16,7 @@ limitations under the License.
 package mgr
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -25,11 +26,20 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestOrchestratorModules(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	context := &clusterd.Context{Executor: executor}
+	clientset := fake.NewSimpleClientset()
+	ctx := context.TODO()
+	cm := &v1.ConfigMap{}
+	cm.Name = "rook-ceph-operator-config"
+	_, err := clientset.CoreV1().ConfigMaps("").Create(ctx, cm, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 	rookModuleEnabled := false
 	rookBackendSet := false
 	backendErrorCount := 0
@@ -66,7 +76,7 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 	orchestratorInitWaitTime = 0
 
-	err := c.configureOrchestratorModules()
+	err = c.configureOrchestratorModules()
 	assert.Error(t, err)
 	err = c.setRookOrchestratorBackend()
 	assert.NoError(t, err)

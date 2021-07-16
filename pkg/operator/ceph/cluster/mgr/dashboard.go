@@ -29,9 +29,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -179,7 +179,7 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	for i := 0; i < 5; i++ {
-		_, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandTimeout)
+		_, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(opcontroller.CephCommandsTimeout(c.context))
 		if err == context.DeadlineExceeded {
 			logger.Warning("cert creation timed out. trying again")
 			continue
@@ -253,7 +253,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 	}
 
 	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
-		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandTimeout)
+		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(opcontroller.CephCommandsTimeout(c.context))
 		return "set dashboard creds", output, err
 	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
 	if err != nil {

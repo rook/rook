@@ -9867,5 +9867,6 @@ spec:
   version: v1
   subresources:
     status: {}
+
 {{- end }}
 {{- end }}
