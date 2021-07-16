@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - master
+      - release-*
+    tags:
+      - v*
 
 defaults:
   run:
@@ -37,11 +40,13 @@ jobs:
           aws-region: us-east-1
 
       - name: unshallow
-        run: git fetch --prune --unshallow --tags
+        run: git fetch --prune --unshallow --tags --force
 
       # creating custom env var
       - name: set env
-        run: echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        run: |
+          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          echo "GITHUB_REF"=${GITHUB_REF} >> $GITHUB_ENV
 
       - name: build and release
         env:
@@ -49,4 +54,10 @@ jobs:
           BRANCH_NAME: ${{ env.BRANCH_NAME }}
           AWS_USR: ${{ secrets.AWS_USR }}
           AWS_PSW: ${{ secrets.AWS_PSW }}
-        run: tests/scripts/build-release.sh
+          GITHUB_REF: $ {{ env.GITHUB_REF }}
+        run: |
+          if [[ ${GITHUB_REF} =~ master|v ]]; then
+            tests/scripts/build-release.sh publish_and_promote
+          else
+            tests/scripts/build-release.sh publish
+          fi
