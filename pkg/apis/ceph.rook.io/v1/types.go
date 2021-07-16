@@ -251,7 +251,7 @@ type KeyManagementServiceSpec struct {
 
 // CephVersionSpec represents the settings for the Ceph version that Rook is orchestrating.
 type CephVersionSpec struct {
-	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v16.2.4
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v16.2.5
 	// +optional
 	Image string `json:"image,omitempty"`
 
