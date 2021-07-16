@@ -44,9 +44,7 @@ func TestReleaseName(t *testing.T) {
 	assert.Equal(t, unknownVersionString, ver.ReleaseName())
 }
 
-func extractVersionHelper(t *testing.T, text string,
-	major, minor, extra, build int,
-	commitID string) {
+func extractVersionHelper(t *testing.T, text string, major, minor, extra, build int, commitID string) {
 	v, err := ExtractCephVersion(text)
 	if assert.NoError(t, err) {
 		assert.Equal(t, *v, CephVersion{major, minor, extra, build, commitID})
@@ -93,6 +91,13 @@ ceph version Development (no_version) nautilus (rc)
 	v, err = ExtractCephVersion(v2d)
 	assert.Error(t, err)
 	assert.Nil(t, v)
+
+	// Test the round trip for serializing and deserializing the version
+	v3c := "ceph version 16.2.5-1 pacific"
+	v, err = ExtractCephVersion(v3c)
+	assert.NoError(t, err)
+	assert.NotNil(t, v)
+	assert.Equal(t, "16.2.5-1 pacific", v.String())
 }
 
 func TestSupported(t *testing.T) {

@@ -181,10 +181,20 @@ func (c *Cluster) Start() error {
 	// check if any extra mgrs need to be removed
 	c.removeExtraMgrs(daemonIDs)
 
-	if len(daemonIDs) == 1 {
-		// Only reconcile the mgr services in the operator if there is a single mgr.
-		// If there are multiple mgrs they will be managed by the mgr sidecar.
-		if err := c.reconcileService(daemonIDs[0]); err != nil {
+	activeMgr := daemonIDs[0]
+	if len(daemonIDs) > 1 {
+		// When multiple mgrs are running, the mgr sidecar for the active mgr
+		// will create the services. However, the sidecar will only reconcile all
+		// the services when the active mgr changes. Here as part of the regular reconcile
+		// we trigger reconciling all the services to ensure they are current.
+		activeMgr, err = c.getActiveMgr()
+		if err != nil || activeMgr == "" {
+			activeMgr = ""
+			logger.Infof("cannot reconcile mgr services, no active mgr found. err=%v", err)
+		}
+	}
+	if activeMgr != "" {
+		if err := c.reconcileServices(activeMgr); err != nil {
 			return errors.Wrap(err, "failed to enable mgr services")
 		}
 	}
@@ -223,9 +233,9 @@ func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
 	}
 }
 
-// ReconcileMultipleServices reconciles the services if the active mgr is the one running
+// ReconcileActiveMgrServices reconciles the services if the active mgr is the one running
 // in the sidecar
-func (c *Cluster) ReconcileMultipleServices(daemonNameToUpdate string, mgrStatSupported bool) error {
+func (c *Cluster) ReconcileActiveMgrServices(daemonNameToUpdate string) error {
 	// If the services are already set to this daemon, no need to attempt to update
 	svc, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), AppName, metav1.GetOptions{})
 	if err != nil {
@@ -239,23 +249,9 @@ func (c *Cluster) ReconcileMultipleServices(daemonNameToUpdate string, mgrStatSu
 		logger.Infof("mgr service currently set to %q, checking if need to update to %q", currentDaemon, daemonNameToUpdate)
 	}
 
-	var activeName string
-	// mgrStatSupported is a flag instead of calling c.clusterInfo.CephVersion.IsAtLeastPacific() directly since we're inside the sidecar
-	// where the cephVersion is not directly available
-	if mgrStatSupported {
-		// The preferred way to query the active mgr is "ceph mgr stat", which is only available in pacific
-		mgrStat, err := cephclient.CephMgrStat(c.context, c.clusterInfo)
-		if err != nil {
-			return errors.Wrap(err, "failed to get mgr stat for the active mgr")
-		}
-		activeName = mgrStat.ActiveName
-	} else {
-		// The legacy way to query the active mgr is with the verbose "ceph mgr dump"
-		mgrMap, err := cephclient.CephMgrMap(c.context, c.clusterInfo)
-		if err != nil {
-			return errors.Wrap(err, "failed to get mgr map for the active mgr")
-		}
-		activeName = mgrMap.ActiveName
+	activeName, err := c.getActiveMgr()
+	if err != nil {
+		return err
 	}
 	if activeName == "" {
 		return errors.New("active mgr not found")
@@ -265,11 +261,30 @@ func (c *Cluster) ReconcileMultipleServices(daemonNameToUpdate string, mgrStatSu
 		return nil
 	}
 
-	return c.reconcileService(activeName)
+	return c.reconcileServices(activeName)
+}
+
+func (c *Cluster) getActiveMgr() (string, error) {
+	// The preferred way to query the active mgr is "ceph mgr stat", which is only available in pacific or newer
+	if c.clusterInfo.CephVersion.IsAtLeastPacific() {
+		mgrStat, err := cephclient.CephMgrStat(c.context, c.clusterInfo)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get mgr stat for the active mgr")
+		}
+		return mgrStat.ActiveName, nil
+	}
+
+	// The legacy way to query the active mgr is with the verbose "ceph mgr dump"
+	mgrMap, err := cephclient.CephMgrMap(c.context, c.clusterInfo)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get mgr map for the active mgr")
+	}
+
+	return mgrMap.ActiveName, nil
 }
 
 // reconcile the services, if the active mgr is not detected, use the default mgr
-func (c *Cluster) reconcileService(activeDaemon string) error {
+func (c *Cluster) reconcileServices(activeDaemon string) error {
 	logger.Infof("setting services to point to mgr %q", activeDaemon)
 
 	if err := c.configureDashboardService(activeDaemon); err != nil {

@@ -226,7 +226,7 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 		{Name: "ROOK_MONITORING_ENABLED", Value: strconv.FormatBool(c.spec.Monitoring.Enabled)},
 		{Name: "ROOK_UPDATE_INTERVAL", Value: "15s"},
 		{Name: "ROOK_DAEMON_NAME", Value: mgrConfig.DaemonID},
-		{Name: "ROOK_MGR_STAT_SUPPORTED", Value: strconv.FormatBool(c.clusterInfo.CephVersion.IsAtLeastPacific())},
+		{Name: "ROOK_CEPH_VERSION", Value: "ceph version " + c.clusterInfo.CephVersion.String()},
 	}
 
 	return v1.Container{
