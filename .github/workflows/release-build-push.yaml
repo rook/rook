@@ -1,8 +1,8 @@
-name: Push Image Build
+name: Push Release Image Build
 on:
   push:
-    branches:
-      - master
+    tags:
+      - v*
 
 defaults:
   run:
@@ -37,7 +37,7 @@ jobs:
           aws-region: us-east-1
 
       - name: unshallow
-        run: git fetch --prune --unshallow --tags
+        run: git fetch --prune --unshallow --tags --force
 
       # creating custom env var
       - name: set env
@@ -49,4 +49,4 @@ jobs:
           BRANCH_NAME: ${{ env.BRANCH_NAME }}
           AWS_USR: ${{ secrets.AWS_USR }}
           AWS_PSW: ${{ secrets.AWS_PSW }}
-        run: tests/scripts/build-release.sh
+        run: tests/scripts/build-release.sh release_build_push
