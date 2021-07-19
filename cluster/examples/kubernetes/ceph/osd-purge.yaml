@@ -22,7 +22,7 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: rook-ceph-system
+      serviceAccountName: rook-ceph-purge-osd
       containers:
         - name: osd-removal
           image: rook/ceph:v1.6.7

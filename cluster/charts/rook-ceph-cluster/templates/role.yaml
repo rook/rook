@@ -1,0 +1,107 @@
+{{- if ne .Release.Namespace .Values.operatorNamespace }}
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-osd
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["ceph.rook.io"]
+    resources: ["cephclusters", "cephclusters/finalizers"]
+    verbs: ["get", "list", "create", "update", "delete"]
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-mgr
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - services
+      - pods/log
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - ceph.rook.io
+    resources:
+      - "*"
+    verbs:
+      - "*"
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-cmd-reporter
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "delete" ]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "delete" ]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["delete"]
+
+{{- if .Values.monitoring.enabled }}
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-monitoring
+rules:
+  - apiGroups:
+      - "monitoring.coreos.com"
+    resources:
+      - servicemonitors
+      - prometheusrules
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
+{{- end }}
+{{- end }}
