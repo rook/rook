@@ -118,4 +118,17 @@ roleRef:
   kind: Role
   name: rbd-external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-purge-osd
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: rook-ceph-purge-osd
+  apiGroup: rbac.authorization.k8s.io
 {{- end }}
