@@ -11,7 +11,7 @@ NFS allows remote hosts to mount filesystems over a network and interact with th
 
 ## Prerequisites
 
-1. A Kubernetes cluster is necessary to run the Rook NFS operator. To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](k8s-pre-reqs.md).
+1. A Kubernetes cluster (v1.16 or higher) is necessary to run the Rook NFS operator. To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](k8s-pre-reqs.md).
 2. The desired volume to export needs to be attached to the NFS server pod via a [PVC](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims).
 Any type of PVC can be attached and exported, such as Host Path, AWS Elastic Block Store, GCP Persistent Disk, CephFS, Ceph RBD, etc.
 The limitations of these volumes also apply while they are shared by NFS.
@@ -25,7 +25,7 @@ First deploy the Rook NFS operator using the following commands:
 ```console
 $ git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/nfs
-kubectl create -f common.yaml
+kubectl create -f crds.yaml
 kubectl create -f operator.yaml
 ```
 
@@ -590,7 +590,7 @@ kubectl delete -f psp.yaml
 kubectl delete -f scc.yaml # if deployed
 kubectl delete -f operator.yaml
 kubectl delete -f webhook.yaml # if deployed
-kubectl delete -f common.yaml
+kubectl delete -f crds.yaml
 ```
 
 ## Troubleshooting

@@ -28,6 +28,7 @@ CEPH_CRDS_FILE_PATH="${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/crds.yaml"
 CEPH_HELM_CRDS_FILE_PATH="${SCRIPT_ROOT}/cluster/charts/rook-ceph/templates/resources.yaml"
 CEPH_CRDS_BEFORE_1_16_FILE_PATH="${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/pre-k8s-1.16/crds.yaml"
 CASSANDRA_CRDS_DIR="${SCRIPT_ROOT}/cluster/examples/kubernetes/cassandra"
+NFS_CRDS_DIR="${SCRIPT_ROOT}/cluster/examples/kubernetes/nfs"
 
 #############
 # FUNCTIONS #
@@ -53,7 +54,9 @@ generating_crds_v1() {
 
   echo "Generating nfs crds"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/nfs.rook.io/v1alpha1" output:crd:artifacts:config="$NFS_CRDS_DIR"
-  mv $NFS_CRDS_DIR/nfs.rook.io_nfsservers.yaml  $NFS_CRDS_DIR/crds.yaml
+  # Format with yq for consistent whitespace
+  $YQ_BIN_PATH read $NFS_CRDS_DIR/nfs.rook.io_nfsservers.yaml > $NFS_CRDS_DIR/crds.yaml
+  rm -f $NFS_CRDS_DIR/nfs.rook.io_nfsservers.yaml
 }
 
 generating_crds_v1alpha2() {

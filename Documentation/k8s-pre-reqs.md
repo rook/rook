@@ -12,9 +12,10 @@ you can quickly set one up using [Minikube](#minikube), [Kubeadm](#kubeadm) or [
 
 ## Minimum Version
 
-Kubernetes **v1.11** or higher is supported by Rook.
+Kubernetes **v1.11** or higher is supported for the Ceph operator.
+Kubernetes **v1.16** or higher is supported for the Cassandra and NFS operators.
 
-**Important** If you are using K8s 1.15 or older, you will need to create a different version of the Rook CRDs. Create the `crds.yaml` found in the [pre-k8s-1.16](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/pre-k8s-1.16) subfolder of the example manifests.
+**Important** If you are using K8s 1.15 or older, you will need to create a different version of the Ceph CRDs. Create the `crds.yaml` found in the [pre-k8s-1.16](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/pre-k8s-1.16) subfolder of the example manifests.
 
 ## Ceph Prerequisites
 

@@ -40,3 +40,9 @@ v1.7...
 - CRDs converted from v1beta1 to v1
   - Schema is generated from the internal types for more complete validation
   - Minimum K8s version for the v1 CRDs is K8s 1.16
+
+### NFS
+
+- CRDs converted from v1beta1 to v1
+  - Schema is generated from the internal types for more complete validation
+  - Minimum K8s version for the v1 CRDs is K8s 1.16
