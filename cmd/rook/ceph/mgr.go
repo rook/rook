@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -40,7 +41,7 @@ var (
 	updateMgrServicesInterval string
 	daemonName                string
 	clusterSpec               cephv1.ClusterSpec
-	mgrStatSupported          bool
+	rawCephVersion            string
 )
 
 func init() {
@@ -55,7 +56,7 @@ func init() {
 	mgrSidecarCmd.Flags().StringVar(&ownerRefID, "cluster-id", "", "the UID of the cluster CR that owns this cluster")
 	mgrSidecarCmd.Flags().StringVar(&clusterName, "cluster-name", "", "the name of the cluster CR that owns this cluster")
 	mgrSidecarCmd.Flags().StringVar(&daemonName, "daemon-name", "", "the name of the local mgr daemon")
-	mgrSidecarCmd.Flags().BoolVar(&mgrStatSupported, "mgr-stat-supported", false, "whether the version of ceph supports mgr stat")
+	mgrSidecarCmd.Flags().StringVar(&rawCephVersion, "ceph-version", "", "the version of ceph")
 
 	flags.SetFlagsFromEnv(mgrCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(mgrSidecarCmd.Flags(), rook.RookEnvVarPrefix)
@@ -82,9 +83,15 @@ func runMgrSidecar(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(err)
 	}
 
+	version, err := cephver.ExtractCephVersion(rawCephVersion)
+	if err != nil {
+		rook.TerminateFatal(err)
+	}
+	clusterInfo.CephVersion = *version
+
 	m := mgr.New(context, &clusterInfo, clusterSpec, "")
 	for {
-		err := m.ReconcileMultipleServices(daemonName, mgrStatSupported)
+		err := m.ReconcileActiveMgrServices(daemonName)
 		if err != nil {
 			logger.Errorf("failed to reconcile services. %v", err)
 		} else {
