@@ -84,7 +84,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		Mons:              1,
 		UseCSI:            true,
 		SkipOSDCreation:   false,
-		RookVersion:       installer.Version1_5,
+		RookVersion:       installer.Version1_6,
 		CephVersion:       installer.NautilusPartitionVersion,
 	}
 
@@ -158,7 +158,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.True(s.T(), created)
 
 	// verify that we're actually running the right pre-upgrade image
-	s.verifyOperatorImage(installer.Version1_5)
+	s.verifyOperatorImage(installer.Version1_6)
 
 	message := "my simple message"
 	preFilename := "pre-upgrade-file"
@@ -177,30 +177,30 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.NotEqual(s.T(), 0, numOSDs)
 
 	//
-	// Upgrade Rook from v1.5 to master
+	// Upgrade Rook from v1.6 to master
 	//
-	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_5)
+	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_6)
 	s.gatherLogs(s.settings.OperatorNamespace, "_before_master_upgrade")
 	s.upgradeToMaster()
 
 	s.verifyOperatorImage(installer.VersionMaster)
+	s.verifyRookUpgrade(numOSDs)
 	err = s.installer.WaitForToolbox(s.namespace)
 	assert.NoError(s.T(), err)
 
-	s.verifyRookUpgrade(numOSDs)
-	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_5)
-	newFile := "post-upgrade-1_5-to-master-file"
+	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_6)
+	newFile := "post-upgrade-1_6-to-master-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
 
 	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true)
 
-	// should be Bound after upgrade to Rook v1.5+
+	// should be Bound after upgrade to Rook master
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
-	require.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
+	assert.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
 
-	logger.Infof("Verified upgrade from %s to master", installer.Version1_5)
+	logger.Infof("Verified upgrade from %s to master", installer.Version1_6)
 
 	//
 	// Upgrade from nautilus to octopus

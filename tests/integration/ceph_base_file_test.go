@@ -575,7 +575,7 @@ func waitForFilesystemActive(k8sh *utils.K8sHelper, clusterInfo *client.ClusterI
 
 	logger.Infof("waiting for filesystem %q to be active", filesystemName)
 	for i := 0; i < utils.RetryLoop; i++ {
-		// start the rgw admin command
+		// run the ceph fs status command
 		stat, err := k8sh.MakeContext().Executor.ExecuteCommandWithCombinedOutput(command, args...)
 		if err != nil {
 			logger.Warningf("failed to get filesystem %q status. %+v", filesystemName, err)
@@ -586,7 +586,7 @@ func waitForFilesystemActive(k8sh *utils.K8sHelper, clusterInfo *client.ClusterI
 			logger.Infof("done waiting for filesystem %q to be active", filesystemName)
 			return nil
 		}
-		logger.Infof("waiting for filesystem %q to be active", filesystemName)
+		logger.Infof("waiting for filesystem %q to be active. status=%s", filesystemName, stat)
 		time.Sleep(utils.RetryInterval * time.Second)
 	}
 	return fmt.Errorf("gave up waiting to get filesystem %q status [err: %+v] Status returned:\n%s", filesystemName, err, stat)
