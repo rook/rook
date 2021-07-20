@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/apis/rook.io"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
@@ -36,9 +37,8 @@ import (
 )
 
 const (
-	podIPEnvVar                   = "ROOK_POD_IP"
-	serviceMetricName             = "http-metrics"
-	CommandProxyInitContainerName = "cmd-proxy"
+	podIPEnvVar       = "ROOK_POD_IP"
+	serviceMetricName = "http-metrics"
 )
 
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error) {
@@ -241,7 +241,7 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Container {
 	_, adminKeyringVolMount := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
 	container := v1.Container{
-		Name:            CommandProxyInitContainerName,
+		Name:            client.CommandProxyInitContainerName,
 		Command:         []string{"sleep"},
 		Args:            []string{"infinity"},
 		Image:           c.spec.CephVersion.Image,

@@ -45,6 +45,10 @@ const (
 	CrushTool = "crushtool"
 	// DefaultPGCount will cause Ceph to use the internal default PG count
 	DefaultPGCount = "0"
+	// CommandProxyInitContainerName is the name of the init container for proxying ceph command when multus is used
+	CommandProxyInitContainerName = "cmd-proxy"
+	// ProxyAppLabel is the label used to identify the proxy container
+	ProxyAppLabel = "rook-ceph-mgr"
 )
 
 // CephConfFilePath returns the location to the cluster's config file in the operator container.
@@ -86,13 +90,14 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 }
 
 type CephToolCommand struct {
-	context     *clusterd.Context
-	clusterInfo *ClusterInfo
-	tool        string
-	args        []string
-	timeout     time.Duration
-	JsonOutput  bool
-	OutputFile  bool
+	context         *clusterd.Context
+	clusterInfo     *ClusterInfo
+	tool            string
+	args            []string
+	timeout         time.Duration
+	JsonOutput      bool
+	OutputFile      bool
+	RemoteExecution bool
 }
 
 func newCephToolCommand(tool string, context *clusterd.Context, clusterInfo *ClusterInfo, args []string) *CephToolCommand {
@@ -114,6 +119,12 @@ func NewRBDCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []s
 	cmd := newCephToolCommand(RBDTool, context, clusterInfo, args)
 	cmd.JsonOutput = false
 	cmd.OutputFile = false
+
+	// When Multus is enabled, the RBD tool should run inside the proxy container
+	if clusterInfo.NetworkSpec.IsMultus() {
+		cmd.RemoteExecution = true
+	}
+
 	return cmd
 }
 
@@ -128,7 +139,7 @@ func (c *CephToolCommand) run() ([]byte, error) {
 		}
 	}
 
-	var output string
+	var output, stderr string
 	var err error
 
 	if c.OutputFile {
@@ -149,7 +160,18 @@ func (c *CephToolCommand) run() ([]byte, error) {
 			}
 		}
 	} else {
-		if c.timeout == 0 {
+		// NewRBDCommand does not use the --out-file option so we only check for remote execution here
+		// Still forcing the check for the command if the behavior changes in the future
+		if command == RBDTool {
+			if c.RemoteExecution {
+				output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
+				output = fmt.Sprintf("%s.%s", output, stderr)
+			} else if c.timeout == 0 {
+				output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
+			} else {
+				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
+			}
+		} else if c.timeout == 0 {
 			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
 		} else {
 			output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)

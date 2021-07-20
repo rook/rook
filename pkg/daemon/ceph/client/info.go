@@ -45,6 +45,7 @@ type ClusterInfo struct {
 	// If the CR name is needed, access it through the NamespacedName() method.
 	name              string
 	OsdUpgradeTimeout time.Duration
+	NetworkSpec       cephv1.NetworkSpec
 }
 
 // MonInfo is a collection of information about a Ceph mon.
