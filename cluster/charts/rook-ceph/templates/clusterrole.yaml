@@ -183,6 +183,7 @@ rules:
   - configmaps
   - nodes
   - nodes/proxy
+  - persistentvolumes
   verbs:
   - get
   - list
@@ -196,6 +197,14 @@ rules:
   - patch
   - list
   - get
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
   - watch
 ---
 # Aspects of ceph-mgr that require access to the system namespace
