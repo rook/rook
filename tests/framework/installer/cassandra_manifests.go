@@ -18,6 +18,7 @@ package installer
 
 import (
 	"fmt"
+	"strings"
 
 	cassandrav1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
 )
@@ -25,151 +26,15 @@ import (
 type CassandraManifests struct{}
 
 func (i *CassandraManifests) GetCassandraCRDs() string {
-	return `apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: clusters.cassandra.rook.io
-spec:
-  group: cassandra.rook.io
-  names:
-    kind: Cluster
-    listKind: ClusterList
-    plural: clusters
-    singular: cluster
-  scope: Namespaced
-  version: v1alpha1`
+	manifest := readManifest("cassandra", "crds.yaml")
+	return manifest
 }
 
 func (i *CassandraManifests) GetCassandraOperator(namespace string) string {
+	manifest := readManifest("cassandra", "operator.yaml")
+	manifest = strings.ReplaceAll(manifest, "rook-cassandra-system # namespace:operator", namespace)
 
-	return fmt.Sprintf(`
-# Namespace where Cassandra Operator will live
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: %[1]s
-
----
-# ClusterRole for cassandra-operator.
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: rook-cassandra-operator
-rules:
-  - apiGroups:
-    - ""
-    resources:
-      - pods
-    verbs:
-      - get
-      - list
-      - watch
-      - delete
-  - apiGroups:
-      - ""
-    resources:
-      - services
-      - serviceaccounts
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-  - apiGroups:
-      - ""
-    resources:
-      - persistentvolumes
-      - persistentvolumeclaims
-    verbs:
-      - get
-      - delete
-  - apiGroups:
-      - ""
-    resources:
-      - nodes
-    verbs:
-      - get
-  - apiGroups:
-      - apps
-    resources:
-      - statefulsets
-    verbs:
-      - "*"
-  - apiGroups:
-      - policy
-    resources:
-      - poddisruptionbudgets
-    verbs:
-      - create
-  - apiGroups:
-      - cassandra.rook.io
-    resources:
-      - "*"
-    verbs:
-      - "*"
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - create
-      - update
-      - patch
----
-# ServiceAccount for cassandra-operator. Serves as its authorization identity.
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-cassandra-operator
-  namespace: %[1]s
----
-# Bind cassandra-operator ServiceAccount with ClusterRole.
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-cassandra-operator
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-cassandra-operator
-subjects:
-- kind: ServiceAccount
-  name: rook-cassandra-operator
-  namespace: %[1]s
----
-# cassandra-operator StatefulSet.
- apiVersion: apps/v1
- kind: StatefulSet
- metadata:
-   name: rook-cassandra-operator
-   namespace: %[1]s
- spec:
-   replicas: 1
-   serviceName: "non-existent-service"
-   selector:
-     matchLabels:
-       app: rook-cassandra-operator
-   template:
-     metadata:
-       labels:
-         app: rook-cassandra-operator
-     spec:
-       serviceAccountName: rook-cassandra-operator
-       containers:
-       - name: rook-cassandra-operator
-         image: rook/cassandra:master
-         imagePullPolicy: "IfNotPresent"
-         args: ["cassandra", "operator"]
-         env:
-         - name: POD_NAME
-           valueFrom:
-             fieldRef:
-               fieldPath: metadata.name
-         - name: POD_NAMESPACE
-           valueFrom:
-             fieldRef:
-               fieldPath: metadata.namespace
-`, namespace)
+	return manifest
 }
 
 func (i *CassandraManifests) GetCassandraCluster(namespace string, count int, mode cassandrav1alpha1.ClusterMode) string {

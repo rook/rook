@@ -2,83 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook-cassandra-system
-
----
-# Cassandra Cluster CRD
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: clusters.cassandra.rook.io
-spec:
-  group: cassandra.rook.io
-  names:
-    kind: Cluster
-    listKind: ClusterList
-    plural: clusters
-    singular: cluster
-  scope: Namespaced
-  version: v1alpha1
-  validation:
-    openAPIV3Schema:
-      properties:
-        spec:
-          type: object
-          properties:
-            version:
-              type: string
-              description: "Version of Cassandra"
-            datacenter:
-              type: object
-              properties:
-                name:
-                  type: string
-                  description: "Datacenter Name"
-                racks:
-                  type: array
-                  properties:
-                    name:
-                      type: string
-                    members:
-                      type: integer
-                    configMapName:
-                      type: string
-                    jmxExporterConfigMapName:
-                      type: string
-                    storage:
-                      type: object
-                      properties:
-                        volumeClaimTemplates:
-                          type: object
-                          # TODO: Check if we can ref the already existing schema
-                      required:
-                        - "volumeClaimTemplates"
-                    placement:
-                      type: object
-                    resources:
-                      type: object
-                      properties:
-                        # TODO: Check if we can ref the already existing schema
-                        cassandra:
-                          type: object
-                        sidecar:
-                          type: object
-                      required:
-                        - "cassandra"
-                        - "sidecar"
-                    sidecarImage:
-                      type: object
-                  required:
-                    - "name"
-                    - "members"
-                    - "storage"
-                    - "resources"
-              required:
-                - "name"
-          required:
-            - "version"
-            - "datacenter"
-
+  name: rook-cassandra-system # namespace:operator
 ---
 # ClusterRole for cassandra-operator.
 apiVersion: rbac.authorization.k8s.io/v1
@@ -147,7 +71,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-cassandra-operator
-  namespace: rook-cassandra-system
+  namespace: rook-cassandra-system # namespace:operator
 ---
 # Bind cassandra-operator ServiceAccount with ClusterRole.
 kind: ClusterRoleBinding
@@ -161,14 +85,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-cassandra-operator
-    namespace: rook-cassandra-system
+    namespace: rook-cassandra-system # namespace:operator
 ---
 # cassandra-operator StatefulSet.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: rook-cassandra-operator
-  namespace: rook-cassandra-system
+  namespace: rook-cassandra-system # namespace:operator
   labels:
     app: rook-cassandra-operator
 spec:
