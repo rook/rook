@@ -105,6 +105,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	clusterInfo.OwnerInfo = c.ownerInfo
 	clusterInfo.SetName(c.namespacedName.Name)
 	c.ClusterInfo = clusterInfo
+	c.ClusterInfo.NetworkSpec = spec.Network
 
 	// The cluster Identity must be established at this point
 	if !c.ClusterInfo.IsInitialized(true) {
