@@ -241,6 +241,12 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 		return errors.Wrap(err, "failed the ceph version check")
 	}
 
+	if cluster.Spec.IsStretchCluster() {
+		if !cephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Build: 5}) {
+			return errors.Errorf("stretch clusters minimum ceph version is v16.2.5, but is running %s", cephVersion.String())
+		}
+	}
+
 	// Set the value of isUpgrade based on the image discovery done by detectAndValidateCephVersion()
 	cluster.isUpgrade = isUpgrade
 	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")

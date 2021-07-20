@@ -426,14 +426,7 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Assign to a zone if a stretch cluster
 	if c.spec.IsStretchCluster() {
-		updateArbiter := false
 		if name == c.arbiterMon {
-			updateArbiter = true
-		}
-		if err := c.assignStretchMonsToZones([]*monConfig{m}); err != nil {
-			return errors.Wrap(err, "failed to assign mons to zones")
-		}
-		if updateArbiter {
 			// Update the arbiter mon for the stretch cluster if it changed
 			if err := c.ConfigureArbiter(); err != nil {
 				return errors.Wrap(err, "failed to configure stretch arbiter")

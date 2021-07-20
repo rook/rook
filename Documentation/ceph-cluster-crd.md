@@ -94,8 +94,6 @@ For a more advanced scenario, such as adding a dedicated device you can refer to
 
 ## Stretch Cluster
 
-**Experimental Mode**
-
 For environments that only have two failure domains available where data can be replicated, consider
 the case where one failure domain is down and the data is still fully available in the
 remaining failure domain. To support this scenario, Ceph has recently integrated support for "stretch" clusters.

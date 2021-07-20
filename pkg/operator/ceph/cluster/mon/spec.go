@@ -317,6 +317,15 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		WorkingDir:    config.VarLogCephDir,
 	}
 
+	if monConfig.Zone != "" {
+		desiredLocation := fmt.Sprintf("%s=%s", c.stretchFailureDomainName(), monConfig.Zone)
+		container.Args = append(container.Args, []string{"--set-crush-location", desiredLocation}...)
+		if monConfig.Zone == c.getArbiterZone() {
+			// remember the arbiter mon to be set later in the reconcile after the OSDs are configured
+			c.arbiterMon = monConfig.DaemonName
+		}
+	}
+
 	// If the liveness probe is enabled
 	container = config.ConfigureLivenessProbe(cephv1.KeyMon, container, c.spec.HealthCheck)
 
