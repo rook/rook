@@ -29,6 +29,7 @@ import (
 	rookv1 "github.com/rook/rook/pkg/apis/rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	cephkey "github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -80,6 +81,9 @@ OSD_STORE_FLAG="%s"
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 CV_MODE=%s
 DEVICE="$%s"
+
+# create new keyring
+ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
 
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
@@ -483,7 +487,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
 	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd, osdProps)
 	if !osdProps.onPVC() {
-		volumes = append(volumes, activateOSDVolume)
+		volumes = append(volumes, activateOSDVolume...)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
 	}
 
@@ -759,8 +763,9 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 }
 
 // This container runs all the actions needed to activate an OSD before we can run the OSD process
-func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string, osdInfo OSDInfo, osdProps osdProperties) (v1.Volume, *v1.Container) {
+func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string, osdInfo OSDInfo, osdProps osdProperties) ([]v1.Volume, *v1.Container) {
 	// We need to use hostPath because the same reason as written in the comment of getDataBridgeVolumeSource()
+
 	hostPathType := v1.HostPathDirectoryOrCreate
 	source := v1.VolumeSource{
 		HostPath: &v1.HostPathVolumeSource{
@@ -772,10 +777,16 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 			Type: &hostPathType,
 		},
 	}
-	volume := v1.Volume{
-		Name:         activateOSDVolumeName,
-		VolumeSource: source,
+	volume := []v1.Volume{
+		{
+			Name:         activateOSDVolumeName,
+			VolumeSource: source,
+		},
 	}
+
+	adminKeyringVol, adminKeyringVolMount := cephkey.Volume().Admin(), cephkey.VolumeMount().Admin()
+	volume = append(volume, adminKeyringVol)
+
 	envVars := append(
 		osdActivateEnvVar(),
 		blockPathEnvVariable(osdInfo.BlockPath),
@@ -793,6 +804,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		{Name: "devices", MountPath: "/dev"},
 		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
 	}
+	volMounts = append(volMounts, adminKeyringVolMount)
 
 	if osdProps.onPVC() {
 		volMounts = append(volMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
