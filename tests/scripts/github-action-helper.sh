@@ -29,8 +29,8 @@ INTERNAL_ERROR="INTERNAL_ERROR"
 #############
 
 function install_deps() {
-  sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-  sudo chmod +x /usr/bin/yq
+  sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+  sudo chmod +x /usr/local/bin/yq
 }
 
 function print_k8s_cluster_status() {
