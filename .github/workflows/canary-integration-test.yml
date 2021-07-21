@@ -136,8 +136,8 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -236,8 +236,8 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
         sudo apt-get install -y gdisk
 
     - name: setup minikube
@@ -328,8 +328,8 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
         sudo apt-get install -y gdisk
 
     - name: setup minikube
@@ -435,8 +435,8 @@ jobs:
 
     - name: install yq
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
 
     - name: use local disk and create partitions for osds
       run: |
@@ -510,8 +510,8 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
         sudo apt-get install -y gdisk
 
     - name: setup minikube
@@ -602,8 +602,8 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
         sudo apt-get install -y gdisk
 
     - name: setup minikube
@@ -709,8 +709,8 @@ jobs:
 
     - name: install yq
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
 
     - name: use local disk and create partitions for osds
       run: |
@@ -804,8 +804,8 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
@@ -902,8 +902,8 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
+        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
