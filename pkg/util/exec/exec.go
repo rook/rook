@@ -46,8 +46,6 @@ type Executor interface {
 	ExecuteCommandWithEnv(env []string, command string, arg ...string) error
 	ExecuteCommandWithOutput(command string, arg ...string) (string, error)
 	ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error)
-	ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error)
-	ExecuteCommandWithOutputFileTimeout(timeout time.Duration, command, outfileArg string, arg ...string) (string, error)
 	ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error)
 }
 

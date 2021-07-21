@@ -162,6 +162,12 @@ func mergeDefaultConfigWithRookConfigOverride(clusterdContext *clusterd.Context,
 		return errors.Wrapf(err, "failed to load config data from %q", k8sutil.ConfigOverrideName)
 	}
 
+	// Remove any debug message setting from the config file
+	// Debug messages will be printed on stdout, rendering the output of each command unreadable, especially json output
+	// This call is idempotent and will not fail if the debug message is not present
+	configFile.Section("global").DeleteKey("debug_ms")
+	configFile.Section("global").DeleteKey("debug ms")
+
 	return nil
 }
 

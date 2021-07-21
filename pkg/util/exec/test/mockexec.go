@@ -23,14 +23,12 @@ import (
 
 // MockExecutor mocks all the exec commands
 type MockExecutor struct {
-	MockExecuteCommand                      func(command string, arg ...string) error
-	MockExecuteCommandWithEnv               func(env []string, command string, arg ...string) error
-	MockStartExecuteCommand                 func(command string, arg ...string) (*exec.Cmd, error)
-	MockExecuteCommandWithOutput            func(command string, arg ...string) (string, error)
-	MockExecuteCommandWithCombinedOutput    func(command string, arg ...string) (string, error)
-	MockExecuteCommandWithOutputFile        func(command, outfileArg string, arg ...string) (string, error)
-	MockExecuteCommandWithOutputFileTimeout func(timeout time.Duration, command, outfileArg string, arg ...string) (string, error)
-	MockExecuteCommandWithTimeout           func(timeout time.Duration, command string, arg ...string) (string, error)
+	MockExecuteCommand                   func(command string, arg ...string) error
+	MockExecuteCommandWithEnv            func(env []string, command string, arg ...string) error
+	MockStartExecuteCommand              func(command string, arg ...string) (*exec.Cmd, error)
+	MockExecuteCommandWithOutput         func(command string, arg ...string) (string, error)
+	MockExecuteCommandWithCombinedOutput func(command string, arg ...string) (string, error)
+	MockExecuteCommandWithTimeout        func(timeout time.Duration, command string, arg ...string) (string, error)
 }
 
 // ExecuteCommand mocks ExecuteCommand
@@ -74,24 +72,6 @@ func (e *MockExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command 
 func (e *MockExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithCombinedOutput != nil {
 		return e.MockExecuteCommandWithCombinedOutput(command, arg...)
-	}
-
-	return "", nil
-}
-
-// ExecuteCommandWithOutputFile mocks ExecuteCommandWithOutputFile
-func (e *MockExecutor) ExecuteCommandWithOutputFile(command, outfileArg string, arg ...string) (string, error) {
-	if e.MockExecuteCommandWithOutputFile != nil {
-		return e.MockExecuteCommandWithOutputFile(command, outfileArg, arg...)
-	}
-
-	return "", nil
-}
-
-// ExecuteCommandWithOutputFileTimeout mocks ExecuteCommandWithOutputFileTimeout
-func (e *MockExecutor) ExecuteCommandWithOutputFileTimeout(timeout time.Duration, command, outfileArg string, arg ...string) (string, error) {
-	if e.MockExecuteCommandWithOutputFileTimeout != nil {
-		return e.MockExecuteCommandWithOutputFileTimeout(timeout, command, outfileArg, arg...)
 	}
 
 	return "", nil

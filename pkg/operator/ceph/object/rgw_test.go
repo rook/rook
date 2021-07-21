@@ -43,10 +43,10 @@ func TestStartRGW(t *testing.T) {
 	ctx := context.TODO()
 	clientset := testop.New(t, 3)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
-			return `{"key":"mysecurekey"}`, nil
-		},
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return `{"key":"mysecurekey"}`, nil
+			}
 			return `{"id":"test-id"}`, nil
 		},
 	}
@@ -83,23 +83,22 @@ func validateStart(ctx context.Context, t *testing.T, c *clusterConfig, clientse
 
 func TestCreateObjectStore(t *testing.T) {
 	commandWithOutputFunc := func(command string, args ...string) (string, error) {
-		return `{"realms": []}`, nil
+		logger.Infof("Command: %s %v", command, args)
+		if command == "ceph" {
+			if args[1] == "erasure-code-profile" {
+				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
+			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return `{"key":"mykey"}`, nil
+			}
+		} else {
+			return `{"realms": []}`, nil
+		}
+		return "", nil
 	}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithCombinedOutput: commandWithOutputFunc,
 		MockExecuteCommandWithOutput:         commandWithOutputFunc,
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
-			logger.Infof("Command: %s %v", command, args)
-			if command == "ceph" {
-				if args[1] == "erasure-code-profile" {
-					return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
-				}
-				if args[0] == "auth" && args[1] == "get-or-create-key" {
-					return `{"key":"mykey"}`, nil
-				}
-			}
-			return "", nil
-		},
 	}
 
 	store := simpleStore()

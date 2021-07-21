@@ -71,7 +71,6 @@ func TestEnableReleaseOSDFunctionality(t *testing.T) {
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		assert.Equal(t, "osd", args[0])
 		assert.Equal(t, "require-osd-release", args[1])
-		assert.Equal(t, 3, len(args))
 		return "", nil
 	}
 	context := &clusterd.Context{Executor: executor}
@@ -306,7 +305,7 @@ func TestOSDUpdateShouldCheckOkToStop(t *testing.T) {
 	treeOutput := ""
 	context := &clusterd.Context{
 		Executor: &exectest.MockExecutor{
-			MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				t.Logf("command: %s %v", command, args)
 				if command != "ceph" || args[0] != "osd" {
 					panic("not a 'ceph osd' call")

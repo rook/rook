@@ -45,7 +45,7 @@ import (
 func TestCreatePool(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" && args[1] == "erasure-code-profile" {
 				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
@@ -75,31 +75,24 @@ func TestDeletePool(t *testing.T) {
 	failOnDelete := false
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
-			if command == "ceph" && args[1] == "lspools" {
-				return `[{"poolnum":1,"poolname":"mypool"}]`, nil
-			} else if command == "ceph" && args[1] == "pool" && args[2] == "get" {
-				return `{"pool": "mypool","pool_id": 1,"size":1}`, nil
-			}
-
-			return "", nil
-		},
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
 			p := "{\"images\":{\"count\":1,\"provisioned_bytes\":1024,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
 			logger.Infof("Command: %s %v", command, args)
-
-			if args[0] == "pool" {
+			if command == "ceph" && args[1] == "lspools" {
+				return `[{"poolnum":1,"poolname":"mypool"}]`, nil
+			} else if command == "ceph" && args[1] == "pool" && args[2] == "get" {
+				return `{"pool": "mypool","pool_id": 1,"size":1}`, nil
+			} else if command == "ceph" && args[1] == "pool" && args[2] == "delete" {
+				return "", nil
+			} else if args[0] == "pool" {
 				if args[1] == "stats" {
 					if !failOnDelete {
 						return emptyPool, nil
 					}
-
 					return p, nil
-
 				}
 				return "", errors.Errorf("rbd: error opening pool %q: (2) No such file or directory", args[3])
-
 			}
 			return "", errors.Errorf("unexpected rbd command %q", args)
 		},
@@ -171,7 +164,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
@@ -275,7 +268,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	c.Client = cl
 
 	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
@@ -406,7 +399,7 @@ func TestConfigureRBDStats(t *testing.T) {
 	)
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			switch {
 			case args[0] == "config" && args[1] == "set" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools" && args[4] != "":
@@ -470,7 +463,7 @@ func TestConfigureRBDStats(t *testing.T) {
 	// Case 5: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
 	// SetConfig returns an error
 	context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			return "", errors.New("mock error to simulate failure of SetConfig() function")
 		},

@@ -43,26 +43,20 @@ func TestOSDHealthCheck(t *testing.T) {
 
 	var execCount = 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
-			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
+			execCount++
+			if args[1] == "dump" {
+				// Mock executor for OSD Dump command, returning an osd in Down state
+				return `{"OSDs": [{"OSD": 0, "Up": 0, "In": 0}]}`, nil
+			} else if args[1] == "safe-to-destroy" {
+				// Mock executor for OSD Dump command, returning an osd in Down state
+				return `{"safe_to_destroy":[0],"active":[],"missing_stats":[],"stored_pgs":[]}`, nil
+			} else if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
+			}
+			return "", nil
 		},
-	}
-	executor.MockExecuteCommandWithOutputFile = func(command string, outFileArg string, args ...string) (string, error) {
-		logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
-		execCount++
-		if args[1] == "dump" {
-			// Mock executor for OSD Dump command, returning an osd in Down state
-			return `{"OSDs": [{"OSD": 0, "Up": 0, "In": 0}]}`, nil
-		} else if args[1] == "safe-to-destroy" {
-			// Mock executor for OSD Dump command, returning an osd in Down state
-			return `{"safe_to_destroy":[0],"active":[],"missing_stats":[],"stored_pgs":[]}`, nil
-		}
-		return "", nil
-	}
-
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-		logger.Infof("ExecuteCommandWithOutput: %s %v", command, args)
-		return "", nil
 	}
 
 	// Setting up objects needed to create OSD
@@ -146,11 +140,11 @@ func TestDeviceClasses(t *testing.T) {
 
 	var execCount = 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
 	}
-	executor.MockExecuteCommandWithOutputFile = func(command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
 		execCount++
 		if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {

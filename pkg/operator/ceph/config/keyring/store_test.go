@@ -37,7 +37,7 @@ func TestGenerateKey(t *testing.T) {
 	var generateKey = ""
 	var failGenerateKey = false
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if failGenerateKey {
 				return "", errors.New("test error")
 			}

@@ -45,7 +45,7 @@ func TestStartMgr(t *testing.T) {
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Execute: %s %v", command, args)
 			if args[0] == "mgr" && args[1] == "stat" {
 				return `{"active_name": "a"}`, nil
@@ -176,7 +176,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 		},
 	}
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outFile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[1] == "dump" {
 				calledMgrDump = true
@@ -245,7 +245,7 @@ func TestConfigureModules(t *testing.T) {
 	configSettings := map[string]string{}
 	lastModuleConfigured := ""
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" && len(args) > 3 {
 				if args[0] == "mgr" && args[1] == "module" {

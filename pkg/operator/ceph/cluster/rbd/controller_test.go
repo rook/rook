@@ -82,7 +82,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 	}
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
@@ -92,15 +92,6 @@ func TestCephRBDMirrorController(t *testing.T) {
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil
 			}
-			if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
-				return `{"mode":"image","site_name":"39074576-5884-4ef3-8a4d-8a0c5ed33031","peers":[{"uuid":"4a6983c0-3c9d-40f5-b2a9-2334a4659827","direction":"rx-tx","site_name":"ocs","mirror_uuid":"","client_name":"client.rbd-mirror-peer"}]}`, nil
-			}
-			if args[0] == "mirror" && args[1] == "pool" && args[2] == "status" {
-				return `{"summary":{"health":"WARNING","daemon_health":"OK","image_health":"WARNING","states":{"unknown":1}}}`, nil
-			}
-			return "", nil
-		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
 				return `{"mode":"image","site_name":"39074576-5884-4ef3-8a4d-8a0c5ed33031","peers":[{"uuid":"4a6983c0-3c9d-40f5-b2a9-2334a4659827","direction":"rx-tx","site_name":"ocs","mirror_uuid":"","client_name":"client.rbd-mirror-peer"}]}`, nil
 			}

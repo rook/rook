@@ -53,7 +53,7 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 	}
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -112,7 +112,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	compressionModeCreated := false
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -232,7 +232,7 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 	poolName := "mypool"
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 
 		if args[2] == "set" {
@@ -249,7 +249,7 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 	assert.NoError(t, err)
 
 	// TEST POOL SIZE 1 AND RequireSafeReplicaSize True
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 
 		if args[2] == "set" {
@@ -297,10 +297,6 @@ func testCreateStretchCrushRule(t *testing.T, alreadyExists bool) {
 				return "", nil
 			}
 		}
-		return "", errors.Errorf("unexpected ceph command %q", args)
-	}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
-		logger.Infof("Command (file): %s %v", command, args)
 		if args[0] == "osd" && args[1] == "crush" && args[2] == "dump" {
 			return testCrushMap, nil
 		}
@@ -343,7 +339,7 @@ func testCreatePoolWithReplicasPerFailureDomain(t *testing.T, failureDomain, cru
 	}
 
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		assert.Equal(t, command, "ceph")
 		assert.Equal(t, args[0], "osd")
@@ -425,10 +421,6 @@ func testCreateHybridCrushRule(t *testing.T, alreadyExists bool) {
 				return "", nil
 			}
 		}
-		return "", errors.Errorf("unexpected ceph command %q", args)
-	}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
-		logger.Infof("Command (file): %s %v", command, args)
 		if args[0] == "osd" && args[1] == "crush" && args[2] == "dump" {
 			return testCrushMap, nil
 		}

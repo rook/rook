@@ -96,7 +96,6 @@ type CephToolCommand struct {
 	args            []string
 	timeout         time.Duration
 	JsonOutput      bool
-	OutputFile      bool
 	RemoteExecution bool
 }
 
@@ -107,7 +106,6 @@ func newCephToolCommand(tool string, context *clusterd.Context, clusterInfo *Clu
 		clusterInfo: clusterInfo,
 		args:        args,
 		JsonOutput:  true,
-		OutputFile:  true,
 	}
 }
 
@@ -118,7 +116,6 @@ func NewCephCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []
 func NewRBDCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []string) *CephToolCommand {
 	cmd := newCephToolCommand(RBDTool, context, clusterInfo, args)
 	cmd.JsonOutput = false
-	cmd.OutputFile = false
 
 	// When Multus is enabled, the RBD tool should run inside the proxy container
 	if clusterInfo.NetworkSpec.IsMultus() {
@@ -142,40 +139,21 @@ func (c *CephToolCommand) run() ([]byte, error) {
 	var output, stderr string
 	var err error
 
-	if c.OutputFile {
-		if command == Kubectl {
-			// Kubectl commands targeting the toolbox container generate a temp
-			// file in the wrong place, so we will instead capture the output
-			// from stdout for the tests
-			if c.timeout == 0 {
-				output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
-			} else {
-				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
-			}
-		} else {
-			if c.timeout == 0 {
-				output, err = c.context.Executor.ExecuteCommandWithOutputFile(command, "--out-file", args...)
-			} else {
-				output, err = c.context.Executor.ExecuteCommandWithOutputFileTimeout(c.timeout, command, "--out-file", args...)
-			}
-		}
-	} else {
-		// NewRBDCommand does not use the --out-file option so we only check for remote execution here
-		// Still forcing the check for the command if the behavior changes in the future
-		if command == RBDTool {
-			if c.RemoteExecution {
-				output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
-				output = fmt.Sprintf("%s.%s", output, stderr)
-			} else if c.timeout == 0 {
-				output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
-			} else {
-				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
-			}
+	// NewRBDCommand does not use the --out-file option so we only check for remote execution here
+	// Still forcing the check for the command if the behavior changes in the future
+	if command == RBDTool {
+		if c.RemoteExecution {
+			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
+			output = fmt.Sprintf("%s.%s", output, stderr)
 		} else if c.timeout == 0 {
 			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
 		} else {
 			output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
 		}
+	} else if c.timeout == 0 {
+		output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
+	} else {
+		output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
 	}
 
 	return []byte(output), err

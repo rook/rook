@@ -29,7 +29,6 @@ func AuthGetOrCreate(context *clusterd.Context, clusterInfo *ClusterInfo, name, 
 	args := append([]string{"auth", "get-or-create", name, "-o", keyringPath}, caps...)
 	cmd := NewCephCommand(context, clusterInfo, args)
 	cmd.JsonOutput = false
-	cmd.OutputFile = false
 	_, err := cmd.Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to auth get-or-create for %s", name)

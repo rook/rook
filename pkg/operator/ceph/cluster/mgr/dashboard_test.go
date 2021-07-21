@@ -83,30 +83,31 @@ func TestStartSecureDashboard(t *testing.T) {
 	moduleRetries := 0
 	exitCodeResponse := 0
 	clientset := test.New(t, 3)
-	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
-			logger.Infof("command: %s %v", command, args)
-			exitCodeResponse = 0
-			if args[1] == "module" {
-				if args[2] == "enable" {
-					enables++
-				} else if args[2] == "disable" {
-					disables++
-				}
+	mockFN := func(command string, args ...string) (string, error) {
+		logger.Infof("command: %s %v", command, args)
+		exitCodeResponse = 0
+		if args[1] == "module" {
+			if args[2] == "enable" {
+				enables++
+			} else if args[2] == "disable" {
+				disables++
 			}
-			if args[0] == "dashboard" && args[1] == "create-self-signed-cert" {
-				if moduleRetries < 2 {
-					logger.Infof("simulating retry...")
-					exitCodeResponse = invalidArgErrorCode
-					moduleRetries++
-					return "", errors.New("test failure")
-				}
+		}
+		if args[0] == "dashboard" && args[1] == "create-self-signed-cert" {
+			if moduleRetries < 2 {
+				logger.Infof("simulating retry...")
+				exitCodeResponse = invalidArgErrorCode
+				moduleRetries++
+				return "", errors.New("test failure")
 			}
-			return "", nil
-		},
+		}
+		return "", nil
 	}
-	executor.MockExecuteCommandWithOutputFileTimeout = func(timeout time.Duration, command, outfileArg string, arg ...string) (string, error) {
-		return executor.MockExecuteCommandWithOutputFile(command, outfileArg, arg...)
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: mockFN,
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+			return mockFN(command, arg...)
+		},
 	}
 
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()

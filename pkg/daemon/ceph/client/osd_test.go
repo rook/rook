@@ -64,7 +64,7 @@ var (
 func TestHostTree(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	emptyTreeResult := false
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
 		case args[0] == "osd" && args[1] == "tree":
@@ -92,7 +92,7 @@ func TestHostTree(t *testing.T) {
 func TestOsdListNum(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	emptyOsdListNumResult := false
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
 		case args[0] == "osd" && args[1] == "ls":
@@ -116,7 +116,7 @@ func TestOsdListNum(t *testing.T) {
 
 func TestOSDDeviceClasses(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
 		case args[0] == "osd" && args[1] == "crush" && args[2] == "get-device-class" && len(args) > 3:
@@ -147,7 +147,7 @@ func TestOSDOkToStop(t *testing.T) {
 	seenArgs := []string{}
 
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
 		case args[0] == "osd" && args[1] == "ok-to-stop":
