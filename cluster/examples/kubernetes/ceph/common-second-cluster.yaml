@@ -126,3 +126,44 @@ kind: ServiceAccount
 metadata:
   name: rook-ceph-osd
   namespace: $NAMESPACE
+---
+# Aspects of ceph osd purge job that require access to the operator/cluster namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd
+  namespace: $NAMESPACE
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["delete"]
+---
+# Allow the osd purge job to run in this namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-purge-osd
+  namespace: $NAMESPACE
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-purge-osd
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-purge-osd
+    namespace: $NAMESPACE
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-purge-osd
+  namespace: $NAMESPACE
