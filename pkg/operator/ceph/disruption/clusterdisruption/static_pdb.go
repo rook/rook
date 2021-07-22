@@ -20,28 +20,40 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func (r *ReconcileClusterDisruption) createStaticPDB(pdb *policyv1beta1.PodDisruptionBudget) error {
+func (r *ReconcileClusterDisruption) createStaticPDB(pdb client.Object) error {
 	err := r.client.Create(context.TODO(), pdb)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create pdb %q", pdb.Name)
+		return errors.Wrapf(err, "failed to create pdb %q", pdb.GetName())
 	}
 	return nil
 }
 
-func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.NamespacedName, pdb *policyv1beta1.PodDisruptionBudget) error {
-	existingPDB := &policyv1beta1.PodDisruptionBudget{}
-	err := r.client.Get(context.TODO(), request, existingPDB)
+func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.NamespacedName, pdb client.Object) error {
+	var existingPDB client.Object
+	usePDBV1Beta1, err := k8sutil.UsePDBV1Beta1Version(r.context.ClusterdContext.Clientset)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch pdb version")
+	}
+	if usePDBV1Beta1 {
+		existingPDB = &policyv1beta1.PodDisruptionBudget{}
+	} else {
+		existingPDB = &policyv1.PodDisruptionBudget{}
+	}
+	err = r.client.Get(context.TODO(), request, existingPDB)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return r.createStaticPDB(pdb)
 		}
-		return errors.Wrapf(err, "failed to get pdb %q", pdb.Name)
+		return errors.Wrapf(err, "failed to get pdb %q", pdb.GetName())
 	}
 
 	return nil
