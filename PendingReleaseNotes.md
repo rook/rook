@@ -10,6 +10,10 @@ v1.7...
 
 ### Ceph
 
+- The Operator configuration option `ROOK_ALLOW_MULTIPLE_FILESYSTEMS` has been removed in favor of simply verifying the Ceph version is at least Pacific.
+Multiple filesystems are stable since Ceph Pacific.
+So users who had `ROOK_ALLOW_MULTIPLE_FILESYSTEMS` enabled will need to update their Ceph version to Pacific.
+
 ## Features
 
 ### Core

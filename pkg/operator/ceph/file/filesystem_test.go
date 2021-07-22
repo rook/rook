@@ -376,21 +376,6 @@ func TestCreateFilesystem(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, fmt.Sprintf("failed to create filesystem %q: multiple filesystems are only supported as of ceph pacific", fsName), err.Error())
 
-	// It works since the op env var is specified even if we don't run on pacific
-	os.Setenv(cephclient.MultiFsEnv, "true")
-	fsName = "myfs2"
-	fs = fsTest(fsName)
-	executor = fsExecutor(t, fsName, configDir, true)
-	clusterInfo.CephVersion = version.Pacific
-	context = &clusterd.Context{
-		Executor:  executor,
-		ConfigDir: configDir,
-		Clientset: clientset,
-	}
-	err = createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
-	assert.NoError(t, err)
-	os.Unsetenv(cephclient.MultiFsEnv)
-
 	// It works since the Ceph version is Pacific
 	fsName = "myfs3"
 	fs = fsTest(fsName)

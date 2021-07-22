@@ -230,7 +230,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 	}
 	// This check prevents from concurrent CephFilesystem CRD trying to create a filesystem
 	// Whoever gets to create the Filesystem first wins the race, then we fail if that cluster is not Ceph Pacific and one Filesystem is present
-	if len(fslist) > 0 && !clusterInfo.CephVersion.IsAtLeastPacific() && !cephclient.IsMultiFSEnabled() {
+	if len(fslist) > 0 && !clusterInfo.CephVersion.IsAtLeastPacific() {
 		return errors.New("multiple filesystems are only supported as of ceph pacific")
 	}
 
