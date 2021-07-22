@@ -31,6 +31,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
 * [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 * [Failed to create CRDs](#failed-to-create-crds)
+* [Unexpected partitions created](#unexpected-partitions-created)
 
 See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
 
