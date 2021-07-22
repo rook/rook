@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -71,7 +72,8 @@ func (c *clusterConfig) portString() string {
 			portString = fmt.Sprintf("ssl_port=%d ssl_certificate=%s",
 				c.store.Spec.Gateway.SecurePort, certPath)
 		}
-		if c.store.Spec.GetServiceServingCert() != "" {
+		secretType, _ := c.rgwTLSSecretType()
+		if c.store.Spec.GetServiceServingCert() != "" || secretType == v1.SecretTypeTLS {
 			privateKey := path.Join(certDir, certKeyFileName)
 			portString = fmt.Sprintf("%s ssl_private_key=%s", portString, privateKey)
 		}

@@ -20,12 +20,14 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
 
-func newConfig() *clusterConfig {
+func newConfig(t *testing.T) *clusterConfig {
 	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
 	}
@@ -41,17 +43,18 @@ func newConfig() *clusterConfig {
 			}},
 		clusterInfo: clusterInfo,
 		clusterSpec: clusterSpec,
+		context:     &clusterd.Context{Clientset: test.New(t, 3)},
 	}
 }
 
 func TestPortString(t *testing.T) {
 	// No port or secure port on beast
-	cfg := newConfig()
+	cfg := newConfig(t)
 	result := cfg.portString()
 	assert.Equal(t, "", result)
 
 	// Insecure port on beast
-	cfg = newConfig()
+	cfg = newConfig(t)
 	// Set host networking
 	cfg.clusterSpec.Network.HostNetwork = true
 	cfg.store.Spec.Gateway.Port = 80
@@ -59,14 +62,14 @@ func TestPortString(t *testing.T) {
 	assert.Equal(t, "port=80", result)
 
 	// Secure port on beast
-	cfg = newConfig()
+	cfg = newConfig(t)
 	cfg.store.Spec.Gateway.SecurePort = 443
 	cfg.store.Spec.Gateway.SSLCertificateRef = "some-k8s-key-secret"
 	result = cfg.portString()
 	assert.Equal(t, "ssl_port=443 ssl_certificate=/etc/ceph/private/rgw-cert.pem", result)
 
 	// Both ports on beast
-	cfg = newConfig()
+	cfg = newConfig(t)
 	// Set host networking
 	cfg.clusterSpec.Network.HostNetwork = true
 	cfg.store.Spec.Gateway.Port = 80
@@ -76,13 +79,13 @@ func TestPortString(t *testing.T) {
 	assert.Equal(t, "port=80 ssl_port=443 ssl_certificate=/etc/ceph/private/rgw-cert.pem", result)
 
 	// Secure port requires the cert on beast
-	cfg = newConfig()
+	cfg = newConfig(t)
 	cfg.store.Spec.Gateway.SecurePort = 443
 	result = cfg.portString()
 	assert.Equal(t, "", result)
 
 	// Using SDN, no host networking so the rgw port internal is not the same
-	cfg = newConfig()
+	cfg = newConfig(t)
 	cfg.store.Spec.Gateway.Port = 80
 	result = cfg.portString()
 	assert.Equal(t, "port=8080", result)
