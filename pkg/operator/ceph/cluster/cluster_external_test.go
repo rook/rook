@@ -29,7 +29,7 @@ func TestValidateExternalClusterSpec(t *testing.T) {
 	err := validateExternalClusterSpec(c)
 	assert.NoError(t, err)
 
-	c.Spec.CephVersion.Image = "ceph/ceph:v15"
+	c.Spec.CephVersion.Image = "quay.io/ceph/ceph:v15"
 	err = validateExternalClusterSpec(c)
 	assert.Error(t, err)
 

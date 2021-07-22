@@ -16,6 +16,8 @@ v1.7...
 
 ### Ceph
 
+- Official Ceph images have moved from docker.io to quay.io. Users running tags like `v14.2`, `v15.2`, `v16.2` must change the registry URL.
+So the CephCLuster spec field `image` must be updated to point to quay, like `image: quay.io/ceph/ceph:v16.2`.
 - Add user data protection when deleting Rook-Ceph Custom Resources
   - A CephCluster will not be deleted if there are any other Rook-Ceph Custom resources referencing
     it with the assumption that they are using the underlying Ceph cluster.

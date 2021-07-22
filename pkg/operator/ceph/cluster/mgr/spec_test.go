@@ -39,7 +39,7 @@ func TestPodSpec(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo}
 	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
-		CephVersion:        cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
+		CephVersion:        cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:myceph"},
 		Dashboard:          cephv1.DashboardSpec{Port: 1234},
 		PriorityClassNames: map[rook.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
 		DataDirHostPath:    "/var/lib/rook/",
@@ -75,7 +75,7 @@ func TestPodSpec(t *testing.T) {
 		podTemplate.Spec().Containers().RequireAdditionalEnvVars(
 			"ROOK_OPERATOR_NAMESPACE", "ROOK_CEPH_CLUSTER_CRD_VERSION",
 			"ROOK_CEPH_CLUSTER_CRD_NAME")
-		podTemplate.RunFullSuite(config.MgrType, "a", AppName, "ns", "ceph/ceph:myceph",
+		podTemplate.RunFullSuite(config.MgrType, "a", AppName, "ns", "quay.io/ceph/ceph:myceph",
 			"200", "100", "500", "250", /* resources */
 			"my-priority-class")
 		assert.Equal(t, 2, len(d.Spec.Template.Annotations))

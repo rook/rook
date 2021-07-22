@@ -52,7 +52,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		&sync.Mutex{},
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
-	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
+	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:myceph"}
 	c.spec.Resources = map[string]v1.ResourceRequirements{}
 	c.spec.Resources["mon"] = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
@@ -86,7 +86,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		config.MonType, monID, AppName, "ns")
 
 	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
-	podTemplate.RunFullSuite(config.MonType, monID, AppName, "ns", "ceph/ceph:myceph",
+	podTemplate.RunFullSuite(config.MonType, monID, AppName, "ns", "quay.io/ceph/ceph:myceph",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
 }
@@ -102,7 +102,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 		&sync.Mutex{},
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
-	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"}
+	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:myceph"}
 	c.spec.Resources = map[string]v1.ResourceRequirements{}
 	c.spec.Resources["mon"] = v1.ResourceRequirements{
 		Limits: v1.ResourceList{

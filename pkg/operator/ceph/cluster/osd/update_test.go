@@ -482,7 +482,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 
 func Test_getOSDUpdateInfo(t *testing.T) {
 	namespace := "rook-ceph"
-	cephImage := "ceph/ceph:v15"
+	cephImage := "quay.io/ceph/ceph:v15"
 
 	// NOTE: all tests share the same clientset
 	clientset := fake.NewSimpleClientset()

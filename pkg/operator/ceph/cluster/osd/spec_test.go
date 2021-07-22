@@ -94,7 +94,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{
-		CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
+		CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v15"},
 		Storage: cephv1.StorageScopeSpec{
 			Selection: cephv1.Selection{UseAllDevices: &allDevices, DeviceFilter: deviceName},
 			Nodes:     []cephv1.Node{{Name: "node1"}},
@@ -164,7 +164,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
-	assert.Equal(t, "ceph/ceph:v15", initCont.Image)
+	assert.Equal(t, "quay.io/ceph/ceph:v15", initCont.Image)
 	assert.Equal(t, "activate", initCont.Name)
 	assert.Equal(t, 4, len(initCont.VolumeMounts))
 

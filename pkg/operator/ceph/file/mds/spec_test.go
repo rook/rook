@@ -68,7 +68,7 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		clusterInfo,
 		&clusterd.Context{Clientset: clientset},
 		&cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:testversion"},
 			Network:     network,
 		},
 		fs,
@@ -96,7 +96,7 @@ func TestPodSpecs(t *testing.T) {
 		config.MdsType, "myfs-a", "rook-ceph-mds", "ns")
 
 	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
-	podTemplate.RunFullSuite(config.MdsType, "myfs-a", "rook-ceph-mds", "ns", "ceph/ceph:testversion",
+	podTemplate.RunFullSuite(config.MdsType, "myfs-a", "rook-ceph-mds", "ns", "quay.io/ceph/ceph:testversion",
 		"500", "250", "4337", "2169", /* resources */
 		"my-priority-class")
 

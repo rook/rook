@@ -201,7 +201,7 @@ func testOSDIntegration(t *testing.T) {
 	}
 	spec := cephv1.ClusterSpec{
 		CephVersion: cephv1.CephVersionSpec{
-			Image: "ceph/ceph:v16.2.0",
+			Image: "quay.io/ceph/ceph:v16.2.0",
 		},
 		DataDirHostPath: context.ConfigDir,
 		// This storage spec should... (see inline)

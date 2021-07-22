@@ -43,14 +43,14 @@ import (
 
 const (
 	// test with the latest nautilus build
-	nautilusTestImage = "ceph/ceph:v14"
+	nautilusTestImage = "quay.io/ceph/ceph:v14"
 	// nautilusTestImagePartition is the image that contains working ceph-volume code to deploy OSDs on partitions
 	// currently only used for the upgrade test from 1.5 to 1.6, this cannot be changed to v14 since ceph-volume will fail to deploy OSD on partition on Rook 1.5
-	nautilusTestImagePartition = "ceph/ceph:v14.2.12"
+	nautilusTestImagePartition = "quay.io/ceph/ceph:v14.2.12"
 	// test with the latest octopus build
-	octopusTestImage = "ceph/ceph:v15"
+	octopusTestImage = "quay.io/ceph/ceph:v15"
 	// test with the latest pacific build
-	pacificTestImage = "ceph/ceph:v16"
+	pacificTestImage = "quay.io/ceph/ceph:v16"
 	// test with the latest master image
 	masterTestImage    = "ceph/daemon-base:latest-master-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
