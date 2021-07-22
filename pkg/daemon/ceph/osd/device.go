@@ -18,6 +18,8 @@ package osd
 
 import (
 	"encoding/json"
+
+	"github.com/rook/rook/pkg/util/sys"
 )
 
 const (
@@ -58,6 +60,7 @@ type DeviceOsdIDEntry struct {
 	Metadata              []int         // OSD IDs (multiple) that have metadata stored here
 	Config                DesiredDevice // Device specific config options
 	PersistentDevicePaths []string
+	DeviceInfo            *sys.LocalDisk // low-level info about the device
 }
 
 func (m *DeviceOsdMapping) String() string {

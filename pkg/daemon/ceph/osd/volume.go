@@ -234,20 +234,9 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			return nil, errors.Wrap(err, "failed to initialize devices on PVC")
 		}
 	} else {
-		// Initialize block device OSD without LVM
-		if useRawMode {
-			logger.Info("initializing osd disk with raw mode")
-			err := a.initializeDevicesRawMode(context, devices)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to initialize raw based osd")
-			}
-		} else {
-			// Initialize block device OSD with LVM
-			logger.Info("initializing osd disk with lvm mode")
-			err := a.initializeDevicesLVMMode(context, devices)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to initialize lvm based osd")
-			}
+		err := a.initializeDevices(context, devices, useRawMode)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to initialize osd")
 		}
 	}
 
@@ -544,6 +533,46 @@ func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, 
 	return useRawMode, nil
 }
 
+func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping, allowRawMode bool) error {
+	// it's a little strange to split this into parts, looping here and in the init functions, but
+	// the LVM mode init requires the ability to loop over all the devices looking for metadata.
+	rawDevices := &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{},
+	}
+	lvmDevices := &DeviceOsdMapping{
+		Entries: map[string]*DeviceOsdIDEntry{},
+	}
+
+	for name, device := range devices.Entries {
+		// Even if we can use raw mode, do NOT use raw mode on disks. Ceph bluestore disks can
+		// sometimes appear as though they have "phantom" Atari (AHDI) partitions created on them
+		// when they don't in reality. This is due to a series of bugs in the Linux kernel when it
+		// is built with Atari support enabled. This behavior does not appear for raw mode OSDs on
+		// partitions, and we need the raw mode to create partition-based OSDs. We cannot merely
+		// skip creating OSDs on "phantom" partitions due to a bug in `ceph-volume raw inventory`
+		// which reports only the phantom partitions (and malformed OSD info) when they exist and
+		// ignores the original (correct) OSDs created on the raw disk.
+		// See: https://github.com/rook/rook/issues/7940
+		if device.DeviceInfo.Type != sys.DiskType && allowRawMode {
+			rawDevices.Entries[name] = device
+			continue
+		}
+		lvmDevices.Entries[name] = device
+	}
+
+	err := a.initializeDevicesRawMode(context, rawDevices)
+	if err != nil {
+		return err
+	}
+
+	err = a.initializeDevicesLVMMode(context, lvmDevices)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
 	baseCommand := "stdbuf"
 	cephVolumeMode := "raw"
@@ -552,7 +581,7 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 	for name, device := range devices.Entries {
 		deviceArg := path.Join("/dev", name)
 		if device.Data == -1 {
-			logger.Infof("configuring new device %q", deviceArg)
+			logger.Infof("configuring new raw device %q", deviceArg)
 
 			immediateExecuteArgs := append(baseArgs, []string{
 				"--data",
@@ -612,7 +641,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				continue
 			}
 
-			logger.Infof("configuring new device %s", name)
+			logger.Infof("configuring new LVM device %s", name)
 			deviceArg := path.Join("/dev", name)
 			// ceph-volume prefers to use /dev/mapper/<name> if the device has this kind of alias
 			for _, devlink := range device.PersistentDevicePaths {
