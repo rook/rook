@@ -37,3 +37,10 @@ function publish() {
     git diff &
     build/run make -C build/release publish BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=true AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_API_TOKEN}
 }
+
+selected_function="$1"
+if [ "$selected_function" = "publish_and_promote" ]; then
+    publish_and_promote
+elif [ "$selected_function" = "publish" ]; then
+    publish
+fi
