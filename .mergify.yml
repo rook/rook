@@ -16,6 +16,14 @@ pull_request_rules:
       label:
         add:
           - cassandra
+  - name: auto nfs label pr storage backend
+    conditions:
+      - title~=^nfs
+      - base=master
+    actions:
+      label:
+        add:
+          - nfs
 
   # if there is a conflict in a backport PR, ping the author to send a proper backport PR
   - name: ping author on conflicts
