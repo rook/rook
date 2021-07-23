@@ -118,7 +118,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor},
 		spec: cephv1.ClusterSpec{
 			Dashboard:   cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true},
-			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v15"},
 		},
 	}
 	c.exitCode = func(err error) (int, bool) {

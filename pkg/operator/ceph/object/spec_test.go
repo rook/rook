@@ -60,7 +60,7 @@ func TestPodSpecs(t *testing.T) {
 		store:       store,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v15"},
 			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
@@ -85,7 +85,7 @@ func TestPodSpecs(t *testing.T) {
 		s.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchLabels)
 
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
-	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "quay.io/ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
 }
@@ -119,7 +119,7 @@ func TestSSLPodSpec(t *testing.T) {
 		context:     context,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v15"},
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v15"},
 			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
@@ -156,7 +156,7 @@ func TestSSLPodSpec(t *testing.T) {
 	s, err := c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
 	podTemplate := cephtest.NewPodTemplateSpecTester(t, &s)
-	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "quay.io/ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
 	// TLS Secret
@@ -180,7 +180,7 @@ func TestSSLPodSpec(t *testing.T) {
 	s, err = c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
 	podTemplate = cephtest.NewPodTemplateSpecTester(t, &s)
-	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "quay.io/ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
 	// Using service serving cert
@@ -192,7 +192,7 @@ func TestSSLPodSpec(t *testing.T) {
 	s, err = c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
 	podTemplate = cephtest.NewPodTemplateSpecTester(t, &s)
-	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "ceph/ceph:myversion",
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "quay.io/ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
 

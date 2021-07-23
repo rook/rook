@@ -101,7 +101,7 @@ func TestDeploymentSpec(t *testing.T) {
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
-				Image: "ceph/ceph:v15",
+				Image: "quay.io/ceph/ceph:v15",
 			},
 		},
 	}

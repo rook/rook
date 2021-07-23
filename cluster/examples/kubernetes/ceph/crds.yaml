@@ -495,7 +495,7 @@ spec:
                       description: Whether to allow unsupported versions (do not set to true in production)
                       type: boolean
                     image:
-                      description: Image is the container image used to launch the ceph daemons, such as ceph/ceph:v16.2.5
+                      description: Image is the container image used to launch the ceph daemons, such as quay.io/ceph/ceph:<tag> The full list of images can be found at https://quay.io/repository/ceph/ceph?tab=tags
                       type: string
                   type: object
                 cleanupPolicy:

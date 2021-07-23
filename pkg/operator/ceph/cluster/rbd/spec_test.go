@@ -48,7 +48,7 @@ func TestPodSpec(t *testing.T) {
 		},
 		Spec: cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
-				Image: "ceph/ceph:v15",
+				Image: "quay.io/ceph/ceph:v15",
 			},
 		},
 	}
@@ -96,7 +96,7 @@ func TestPodSpec(t *testing.T) {
 		config.RbdMirrorType, "a", AppName, "ns")
 
 	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
-	podTemplate.RunFullSuite(config.RbdMirrorType, "a", AppName, "ns", "ceph/ceph:myceph",
+	podTemplate.RunFullSuite(config.RbdMirrorType, "a", AppName, "ns", "quay.io/ceph/ceph:myceph",
 		"200", "100", "600", "300", /* resources */
 		"my-priority-class")
 }
