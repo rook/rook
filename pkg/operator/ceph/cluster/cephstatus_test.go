@@ -164,7 +164,7 @@ func TestConfigureHealthSettings(t *testing.T) {
 	getGlobalIDReclaim := false
 	setGlobalIDReclaim := false
 	c.context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "config" && args[3] == "auth_allow_insecure_global_id_reclaim" {
 				if args[1] == "get" {

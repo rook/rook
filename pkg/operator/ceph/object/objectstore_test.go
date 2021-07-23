@@ -106,8 +106,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executor := &exectest.MockExecutor{}
 	deletedRootPool := false
 	deletedErasureCodeProfile := false
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
-		//logger.Infof("command: %s %v", command, args)
+	mockExecutorFuncOutput := func(command string, args ...string) (string, error) {
 		if args[0] == "osd" {
 			if args[1] == "pool" {
 				if args[2] == "get" {
@@ -141,10 +140,6 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 				}
 			}
 		}
-		return "", errors.Errorf("unexpected ceph command %q", args)
-	}
-
-	mockExecutorFuncOutput := func(command string, args ...string) (string, error) {
 		if args[0] == "realm" {
 			if args[1] == "delete" {
 				realmDeleted = true
@@ -249,7 +244,7 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 func TestDashboard(t *testing.T) {
 	storeName := "myobject"
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			return "", nil
 		},
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
@@ -269,7 +264,7 @@ func TestDashboard(t *testing.T) {
 	err = enableRGWDashboard(objContext)
 	assert.Nil(t, err)
 	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "dashboard" && args[1] == "get-rgw-api-access-key" {
 				return access_key, nil
 			}
@@ -289,7 +284,7 @@ func TestDashboard(t *testing.T) {
 	err = enableRGWDashboard(objContext)
 	assert.Nil(t, err)
 	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "dashboard" && args[1] == "get-rgw-api-access-key" {
 				return access_key, nil
 			}

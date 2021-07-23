@@ -33,7 +33,7 @@ func TestOSDBootstrap(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}

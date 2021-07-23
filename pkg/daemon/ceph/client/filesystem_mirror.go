@@ -57,7 +57,6 @@ func EnableFilesystemSnapshotMirror(context *clusterd.Context, clusterInfo *Clus
 	// Build command
 	args := []string{"fs", "snapshot", "mirror", "enable", filesystem}
 	cmd := NewCephCommand(context, clusterInfo, args)
-	cmd.OutputFile = false
 
 	// Run command
 	output, err := cmd.Run()
@@ -76,7 +75,6 @@ func DisableFilesystemSnapshotMirror(context *clusterd.Context, clusterInfo *Clu
 	// Build command
 	args := []string{"fs", "snapshot", "mirror", "disable", filesystem}
 	cmd := NewCephCommand(context, clusterInfo, args)
-	cmd.OutputFile = false
 
 	// Run command
 	output, err := cmd.Run()
@@ -213,7 +211,6 @@ func GetFSMirrorDaemonStatus(context *clusterd.Context, clusterInfo *ClusterInfo
 	// Build command
 	args := []string{"fs", "snapshot", "mirror", "daemon", "status", fsName}
 	cmd := NewCephCommand(context, clusterInfo, args)
-	cmd.OutputFile = false
 
 	// Run command
 	output, err := cmd.Run()

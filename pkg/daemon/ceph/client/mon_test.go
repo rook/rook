@@ -67,7 +67,7 @@ func TestCephArgs(t *testing.T) {
 
 func TestStretchElectionStrategy(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "mon" && args[1] == "set" && args[2] == "election_strategy" {
 			assert.Equal(t, "connectivity", args[3])
@@ -86,7 +86,7 @@ func TestStretchClusterMonTiebreaker(t *testing.T) {
 	monName := "a"
 	failureDomain := "rack"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
 		case args[0] == "mon" && args[1] == "enable_stretch_mode":
@@ -106,7 +106,7 @@ func TestStretchClusterMonTiebreaker(t *testing.T) {
 
 func TestMonDump(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutputFile = func(command, outputFile string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
 		case args[0] == "mon" && args[1] == "dump":

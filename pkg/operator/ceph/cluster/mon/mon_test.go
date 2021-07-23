@@ -88,12 +88,9 @@ func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monRe
 			if strings.Contains(command, "ceph-authtool") {
 				err := clienttest.CreateConfigDir(path.Join(configDir, namespace))
 				return "", errors.Wrap(err, "failed testing of start cluster without quorum response")
+			} else {
+				return monResponse()
 			}
-			return "", nil
-		},
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
-			// mock quorum health check because a second `Start()` triggers a health check
-			return monResponse()
 		},
 	}
 	return &clusterd.Context{
@@ -654,9 +651,6 @@ func TestCheckIfArbiterReady(t *testing.T) {
 	balanced := true
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			return "", fmt.Errorf("unrecognized output command: %s %v", command, args)
-		},
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
 			switch {
 			case args[0] == "osd" && args[1] == "crush" && args[2] == "dump":
 				crushBuckets := `

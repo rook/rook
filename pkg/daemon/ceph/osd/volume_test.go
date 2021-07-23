@@ -343,9 +343,6 @@ func TestConfigureCVDevices(t *testing.T) {
 	{
 		t.Log("Test case for creating new raw mode OSD on LV-backed PVC")
 		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutputFile = func(command string, outFileArg string, args ...string) (string, error) {
-			return "{\"key\":\"mysecurekey\"}", nil
-		}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			if command == "lsblk" && args[0] == mountedDev {
@@ -356,6 +353,9 @@ func TestConfigureCVDevices(t *testing.T) {
 			}
 			if contains(args, "lvm") && contains(args, "list") {
 				return `{}`, nil
+			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
 			}
 			if contains(args, "raw") && contains(args, "list") {
 				return fmt.Sprintf(`{

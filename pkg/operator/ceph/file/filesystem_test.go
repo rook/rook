@@ -125,7 +125,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool) *exectest.
 
 	if multiFS {
 		return &exectest.MockExecutor{
-			MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				if contains(args, "fs") && contains(args, "get") {
 					if firstGet {
 						firstGet = false
@@ -168,23 +168,19 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool) *exectest.
 							},
 						})
 					return string(versionStr), nil
-				}
-				assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
-				return "", nil
-			},
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-				if strings.Contains(command, "ceph-authtool") {
+				} else if strings.Contains(command, "ceph-authtool") {
 					err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
 					assert.Nil(t, err)
 				}
 
+				assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
 				return "", nil
 			},
 		}
 	}
 
 	return &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if contains(args, "fs") && contains(args, "get") {
 				if firstGet {
 					firstGet = false
@@ -225,16 +221,11 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool) *exectest.
 						},
 					})
 				return string(versionStr), nil
-			}
-			assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
-			return "", nil
-		},
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if strings.Contains(command, "ceph-authtool") {
+			} else if strings.Contains(command, "ceph-authtool") {
 				err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
 				assert.Nil(t, err)
 			}
-
+			assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
 			return "", nil
 		},
 	}
@@ -298,7 +289,7 @@ func TestCreateFilesystem(t *testing.T) {
 	addDataOnePoolCount := 0
 	createdFsResponse := fmt.Sprintf(`{"fs_name": "%s", "metadata_pool": 2, "data_pools":[3]}`, fsName)
 	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if contains(args, "fs") && contains(args, "get") {
 				return createdFsResponse, nil
 			} else if isBasePoolOperation(fsName, command, args) {
@@ -350,7 +341,7 @@ func TestCreateFilesystem(t *testing.T) {
 	// Output to check multiple filesystem creation
 	fses := `[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":4,"data_pool_ids":[5],"data_pools":["myfs-data0"]},{"name":"myfs2","metadata_pool":"myfs2-metadata","metadata_pool_id":6,"data_pool_ids":[7],"data_pools":["myfs2-data0"]},{"name":"leseb","metadata_pool":"cephfs.leseb.meta","metadata_pool_id":8,"data_pool_ids":[9],"data_pools":["cephfs.leseb.data"]}]`
 	executorMultiFS := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if contains(args, "ls") {
 				return fses, nil
 			} else if contains(args, "versions") {
@@ -452,7 +443,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 	}
 	createdFsResponse, _ := json.Marshal(mdsmap)
 	firstGet := false
-	executor.MockExecuteCommandWithOutputFile = func(command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		if contains(args, "fs") && contains(args, "get") {
 			if firstGet {
 				firstGet = false
@@ -514,16 +505,14 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	clientset := testop.New(t, 3)
 	configDir, _ := ioutil.TempDir("", "")
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command string, outFileArg string, args ...string) (string, error) {
-			return "{\"key\":\"mysecurekey\"}", nil
-		},
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
 				assert.Nil(t, err)
+			} else {
+				return "{\"key\":\"mysecurekey\"}", nil
 			}
-
-			return "", nil
+			return "", errors.New("unknown command error")
 		},
 	}
 	defer os.RemoveAll(configDir)
