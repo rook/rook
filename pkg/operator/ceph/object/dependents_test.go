@@ -46,7 +46,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 	ns := "test-ceph-object-store-dependents"
 	var c *clusterd.Context
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(command, outputFile string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "osd" {
 				if args[1] == "lspools" {
@@ -124,7 +124,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 
 	t.Run("no objectstore users and no buckets", func(t *testing.T) {
 		executor = &exectest.MockExecutor{
-			MockExecuteCommandWithOutputFile: func(command, outputFile string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[0] == "osd" {
 					if args[1] == "lspools" {
@@ -152,7 +152,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 
 	t.Run("one objectstore users but wrong store and no buckets", func(t *testing.T) {
 		executor = &exectest.MockExecutor{
-			MockExecuteCommandWithOutputFile: func(command, outputFile string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[0] == "osd" {
 					if args[1] == "lspools" {
@@ -182,7 +182,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 
 	t.Run("one objectstore users and no buckets", func(t *testing.T) {
 		executor = &exectest.MockExecutor{
-			MockExecuteCommandWithOutputFile: func(command, outputFile string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[0] == "osd" {
 					if args[1] == "lspools" {
@@ -213,7 +213,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 
 	t.Run("no objectstore users and buckets", func(t *testing.T) {
 		executor = &exectest.MockExecutor{
-			MockExecuteCommandWithOutputFile: func(command, outputFile string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[0] == "osd" {
 					if args[1] == "lspools" {
