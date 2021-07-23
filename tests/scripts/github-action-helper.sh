@@ -120,7 +120,7 @@ function build_rook() {
   tests/scripts/validate_modified_files.sh build
   docker images
   if [[ "$build_type" == "build" ]]; then
-    docker tag $(docker images | awk '/build-/ {print $1}') rook/ceph:master
+    docker tag $(docker images | awk '/build-/ {print $1}') rook/ceph:v1.7.0-beta.0
   fi
 }
 
