@@ -270,7 +270,17 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 				return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to get latest CephObjectStore %q", request.NamespacedName.String())
 			}
 
-			deps, err := CephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore)
+			objCtx, err := NewMultisiteContext(r.context, r.clusterInfo, cephObjectStore)
+			if err != nil {
+				return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to check for object buckets. failed to get object context")
+			}
+
+			opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
+			if err != nil {
+				return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to check for object buckets. failed to get admin ops API context")
+			}
+
+			deps, err := CephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
 			if err != nil {
 				return reconcile.Result{}, cephObjectStore, err
 			}

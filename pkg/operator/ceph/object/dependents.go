@@ -37,6 +37,8 @@ func CephObjectStoreDependents(
 	clusterdCtx *clusterd.Context,
 	clusterInfo *client.ClusterInfo,
 	store *v1.CephObjectStore,
+	objCtx *Context,
+	opsCtx *AdminOpsContext,
 ) (*dependents.DependentList, error) {
 	nsName := fmt.Sprintf("%s/%s", store.Namespace, store.Name)
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephObjectStore %q", nsName)
@@ -45,7 +47,7 @@ func CephObjectStoreDependents(
 
 	// NOTE: we should still check for buckets when the RGW connection is external since we have no
 	// way of knowing if the bucket was created due to an ObjectBucketClaim or COSI Bucket.
-	err := getBucketDependents(deps, clusterdCtx, clusterInfo, store)
+	err := getBucketDependents(deps, clusterdCtx, clusterInfo, store, objCtx, opsCtx)
 	if err != nil {
 		return deps, errors.Wrapf(err, baseErrMsg)
 	}
@@ -71,13 +73,10 @@ func getBucketDependents(
 	clusterdCtx *clusterd.Context,
 	clusterInfo *client.ClusterInfo,
 	store *v1.CephObjectStore,
+	objCtx *Context,
+	opsCtx *AdminOpsContext,
 ) error {
 	nsName := fmt.Sprintf("%s/%s", store.Namespace, store.Name)
-
-	objCtx, err := NewMultisiteContext(clusterdCtx, clusterInfo, store)
-	if err != nil {
-		return errors.Wrapf(err, "failed to check for object buckets. failed to get object context")
-	}
 
 	missingPools, err := missingPools(objCtx)
 	if err != nil {
@@ -91,11 +90,6 @@ func getBucketDependents(
 		// we can assume it is safe for deletion to proceed
 		logger.Infof("skipping check for bucket dependents of CephObjectStore %q. some pools are missing: %v", nsName, missingPools)
 		return nil
-	}
-
-	opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &store.Spec)
-	if err != nil {
-		return errors.Wrapf(err, "failed to check for object buckets. failed to get admin ops API context")
 	}
 
 	// buckets (including lib-bucket-provisioner buckets and COSI buckets)

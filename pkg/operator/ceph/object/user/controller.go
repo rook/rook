@@ -53,6 +53,9 @@ const (
 	controllerName = "ceph-object-store-user-controller"
 )
 
+// newMultisiteAdminOpsCtxFunc help us mocking the admin ops API client in unit test
+var newMultisiteAdminOpsCtxFunc = object.NewMultisiteAdminOpsContext
+
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
 var cephObjectStoreUserKind = reflect.TypeOf(cephv1.CephObjectStoreUser{}).Name()
@@ -314,7 +317,7 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	// Otherwise GetAdminOPSUserCredentials() will fail detecting the network provider when running RunAdminCommandNoMultisite()
 	objContext.CephClusterSpec = *r.cephClusterSpec
 
-	opsContext, err := object.NewMultisiteAdminOpsContext(objContext, &store.Spec)
+	opsContext, err := newMultisiteAdminOpsCtxFunc(objContext, &store.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialized rgw admin ops client api")
 	}
