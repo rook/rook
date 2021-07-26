@@ -73,6 +73,13 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer", daemonType)
 		}
+
+		// Add additional information to the peer token
+		boostrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, name, boostrapToken)
+		if err != nil {
+			return ImmediateRetryResult, errors.Wrap(err, "failed to add extra information to rbd-mirror bootstrap peer")
+		}
+
 	case *cephv1.CephFilesystem:
 		ns = objectType.Namespace
 		name = objectType.Name
@@ -178,4 +185,38 @@ func ValidatePeerToken(object client.Object, data map[string][]byte) error {
 	}
 
 	return nil
+}
+
+func expandBootstrapPeerToken(ctx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, poolName string, token []byte) ([]byte, error) {
+	// First decode the token, it's base64 encoded
+	decodedToken, err := base64.StdEncoding.DecodeString(string(token))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode bootstrap peer token")
+	}
+
+	// Unmarshal the decoded value to a Go type
+	var decodedTokenToGo cephclient.PeerToken
+	err = json.Unmarshal(decodedToken, &decodedTokenToGo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal decoded token")
+	}
+
+	// Fetch the pool ID
+	poolDetails, err := cephclient.GetPoolDetails(ctx, clusterInfo, poolName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get pool %q details", poolName)
+	}
+
+	// Add extra details to the token
+	decodedTokenToGo.PoolID = poolDetails.Number
+	decodedTokenToGo.Namespace = clusterInfo.Namespace
+
+	// Marshal the Go type back to JSON
+	decodedTokenBackToJSON, err := json.Marshal(decodedTokenToGo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to encode go type back to json")
+	}
+
+	// Return the base64 encoded token
+	return []byte(base64.StdEncoding.EncodeToString(decodedTokenBackToJSON)), nil
 }

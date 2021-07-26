@@ -18,10 +18,15 @@ limitations under the License.
 package controller
 
 import (
+	"encoding/base64"
 	"reflect"
 	"testing"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -72,4 +77,26 @@ func TestGenerateStatusInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExpandBootstrapPeerToken(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if reflect.DeepEqual(args[0:5], []string{"osd", "pool", "get", "pool", "all"}) {
+				return `{"pool_id":13}`, nil
+			}
+
+			return "", errors.Errorf("unknown command args: %s", args[0:5])
+		},
+	}
+	c := &clusterd.Context{
+		Executor: executor,
+	}
+
+	newToken, err := expandBootstrapPeerToken(c, cephclient.AdminClusterInfo("mu-cluster"), "pool", []byte(`eyJmc2lkIjoiYzZiMDg3ZjItNzgyOS00ZGJiLWJjZmMtNTNkYzM0ZTBiMzVkIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBV1lsWmZVQ1Q2RGhBQVBtVnAwbGtubDA5YVZWS3lyRVV1NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMTExLjEwOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTA6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjEyOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTI6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjExOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTE6Njc4OV0ifQ==`))
+	assert.NoError(t, err)
+	newTokenDecoded, err := base64.StdEncoding.DecodeString(string(newToken))
+	assert.NoError(t, err)
+	assert.Contains(t, string(newTokenDecoded), "pool_id")
+	assert.Contains(t, string(newTokenDecoded), "namespace")
 }
