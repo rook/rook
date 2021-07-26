@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -eEuo pipefail
+
+# sed is NOT portable across OSes
+
+# sed -i '' does in-place on Mac, BSD, and other POSIX-compliant OSes
+# sed -i '' does not work with GNU sed, but sed -i (without small quotes) does
+
+# assume that sed is not GNU sed initially
+SED=(sed -i '')
+
+if sed --help &>/dev/null; then
+  # if sed doesn't have help text, it isn't GNU sed
+  if [[ $(sed --help 2>&1) == *GNU* ]]; then
+    SED=(sed -i)
+  fi
+fi
+
+# sed -e is required on Mac/BSD if the -i option is used
+# sed -e is not required but is supported by GNU sed
+# Therefore, this script supplies -e it unless the first argument to this script is a flag
+if [[ $1 != -* ]]; then
+  SED+=(-e)
+fi
+
+"${SED[@]}" "${@}"

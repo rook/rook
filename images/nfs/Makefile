@@ -42,7 +42,7 @@ do.build:
 	@echo === container build $(NFS_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
-	@cd $(TEMP) && $(SED_CMD) 's|NFS_BASEIMAGE|$(NFS_BASEIMAGE)|g' Dockerfile
+	@cd $(TEMP) && $(SED_IN_PLACE) 's|NFS_BASEIMAGE|$(NFS_BASEIMAGE)|g' Dockerfile
 	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		-t $(NFS_IMAGE) \
 		$(TEMP)
