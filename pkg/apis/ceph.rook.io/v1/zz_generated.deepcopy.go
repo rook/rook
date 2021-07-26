@@ -2067,6 +2067,11 @@ func (in *MirroringSpec) DeepCopyInto(out *MirroringSpec) {
 		*out = make([]SnapshotScheduleSpec, len(*in))
 		copy(*out, *in)
 	}
+	if in.Peers != nil {
+		in, out := &in.Peers, &out.Peers
+		*out = new(MirroringPeerSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

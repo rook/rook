@@ -208,6 +208,8 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
   * `snapshotSchedules`: schedule(s) snapshot at the **pool** level. **Only** supported as of Ceph Octopus release. One or more schedules are supported.
     * `interval`: frequency of the snapshots. The interval can be specified in days, hours, or minutes using d, h, m suffix respectively.
     * `startTime`: optional, determines at what time the snapshot process starts, specified using the ISO 8601 time format.
+  * `peers`: to configure mirroring peers
+    * `secretNames`:  a list of peers to connect to. Currently (Ceph Octopus release) **only a single** peer is supported where a peer represents a Ceph cluster.
 
 * `statusCheck`: Sets up pool mirroring status
   * `mirror`: displays the mirroring status

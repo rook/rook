@@ -83,6 +83,8 @@ func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.
 	ctx := context.TODO()
 	// List all the peers secret, we can have more than one peer we might want to configure
 	// For each, get the Kubernetes Secret and import the "peer token" so that we can configure the mirroring
+
+	logger.Warning("(DEPRECATED) use of peer secret names in CephRBDMirror is deprecated. Please use CephBlockPool CR to configure peer secret names and import peers.")
 	for _, peerSecret := range cephRBDMirror.Spec.Peers.SecretNames {
 		logger.Debugf("fetching bootstrap peer kubernetes secret %q", peerSecret)
 		s, err := r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Get(ctx, peerSecret, metav1.GetOptions{})
