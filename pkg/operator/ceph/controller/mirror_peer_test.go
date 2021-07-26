@@ -33,7 +33,7 @@ import (
 
 func TestValidatePeerToken(t *testing.T) {
 	// Error: map is empty
-	b := &cephv1.CephBlockPool{}
+	b := &cephv1.CephRBDMirror{}
 	data := map[string][]byte{}
 	err := ValidatePeerToken(b, data)
 	assert.Error(t, err)
@@ -48,13 +48,18 @@ func TestValidatePeerToken(t *testing.T) {
 	err = ValidatePeerToken(b, data)
 	assert.Error(t, err)
 
-	// Success CephBlockPool
+	// Success CephRBDMirror
 	data["pool"] = []byte("foo")
 	err = ValidatePeerToken(b, data)
 	assert.NoError(t, err)
 
 	// Success CephFilesystem
-	data["pool"] = []byte("foo")
+	// "pool" is not required here
+	delete(data, "pool")
+	err = ValidatePeerToken(&cephv1.CephFilesystemMirror{}, data)
+	assert.NoError(t, err)
+
+	// Success CephFilesystem
 	err = ValidatePeerToken(&cephv1.CephFilesystemMirror{}, data)
 	assert.NoError(t, err)
 }

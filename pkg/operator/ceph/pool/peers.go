@@ -52,7 +52,7 @@ func (r *ReconcileCephBlockPool) reconcileAddBoostrapPeer(pool *cephv1.CephBlock
 		}
 
 		// Import bootstrap peer
-		err = client.ImportRBDMirrorBootstrapPeer(r.context, r.clusterInfo, string(s.Data["pool"]), string(s.Data["direction"]), s.Data["token"])
+		err = client.ImportRBDMirrorBootstrapPeer(r.context, r.clusterInfo, pool.Name, string(s.Data["direction"]), s.Data["token"])
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to import bootstrap peer token")
 		}

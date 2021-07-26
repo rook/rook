@@ -367,6 +367,7 @@ func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster,
 		// It's a new cluster so let's populate the struct
 		cluster = newCluster(clusterObj, c.context, c.csiConfigMutex, ownerInfo)
 	}
+	cluster.namespacedName = c.namespacedName
 
 	// Pass down the client to interact with Kubernetes objects
 	// This will be used later down by spec code to create objects like deployment, services etc
