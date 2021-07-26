@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
        # docker/setup-qemu action installs QEMU static binaries, which are used to run builders for architectures other than the host.
       - name: set up QEMU
@@ -56,8 +58,4 @@ jobs:
           AWS_PSW: ${{ secrets.AWS_PSW }}
           GITHUB_REF: $ {{ env.GITHUB_REF }}
         run: |
-          if [[ ${GITHUB_REF} =~ master|v ]]; then
-            tests/scripts/build-release.sh publish_and_promote
-          else
-            tests/scripts/build-release.sh publish
-          fi
+          tests/scripts/build-release.sh
