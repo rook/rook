@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -495,6 +496,12 @@ func (c *Cluster) removeMon(daemonName string) error {
 
 	if err := c.saveMonConfig(); err != nil {
 		return errors.Wrapf(err, "failed to save mon config after failing over mon %s", daemonName)
+	}
+
+	// Update cluster-wide RBD bootstrap peer token since Monitors have changed
+	_, err := controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.ClusterInfo.NamespacedName().Name, Namespace: c.Namespace}}, c.ownerInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to update cluster rbd bootstrap peer token")
 	}
 
 	return nil
