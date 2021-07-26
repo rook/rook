@@ -16,6 +16,14 @@ pull_request_rules:
       label:
         add:
           - cassandra
+  - name: auto nfs label pr storage backend
+    conditions:
+      - title~=^nfs
+      - base=master
+    actions:
+      label:
+        add:
+          - nfs
 
   # if there is a conflict in a backport PR, ping the author to send a proper backport PR
   - name: ping author on conflicts
@@ -77,21 +85,6 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
-  # automerge backports if CI successfully ran
-  # release-1.3 branch
-  - name: automerge backport release-1.3
-    conditions:
-      - author=mergify[bot]
-      - base=release-1.3
-      - label!=do-not-merge
-      - 'status-success=DCO'
-      - 'status-success=continuous-integration/jenkins/pr-head'
-    actions:
-      merge:
-        method: merge
-        strict: false
-      dismiss_reviews: {}
-      delete_head_branch: {}
   # release-1.4 branch
   - name: automerge backport release-1.4
     conditions:
@@ -106,6 +99,7 @@ pull_request_rules:
         strict: false
       dismiss_reviews: {}
       delete_head_branch: {}
+
   # release-1.5 branch
   - name: automerge backport release-1.5
     conditions:
@@ -120,6 +114,7 @@ pull_request_rules:
         strict: false
       dismiss_reviews: {}
       delete_head_branch: {}
+
   # release-1.6 branch
   - name: automerge backport release-1.6
     conditions:
@@ -153,15 +148,38 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
-  # Trigger backport PRs based on label
-  # release-1.3 branch
-  - actions:
-      backport:
-        branches:
-          - release-1.3
+  # release-1.7 branch
+  - name: automerge backport release-1.7
     conditions:
-      - label=backport-release-1.3
-    name: backport release-1.3
+      - author=mergify[bot]
+      - base=release-1.7
+      - label!=do-not-merge
+      - 'status-success=DCO'
+      - 'check-success=canary'
+      - 'check-success=unittests'
+      - 'check-success=golangci-lint'
+      - 'check-success=codegen'
+      - 'check-success=lint'
+      - 'check-success=modcheck'
+      - 'check-success=pvc'
+      - 'check-success=pvc-db'
+      - 'check-success=pvc-db-wal'
+      - 'check-success=encryption-pvc'
+      - 'check-success=encryption-pvc-db'
+      - 'check-success=encryption-pvc-db-wal'
+      - 'check-success=encryption-pvc-kms-vault-token-auth'
+      - 'check-success=TestCephSmokeSuite (v1.15.12)'
+      - 'check-success=TestCephSmokeSuite (v1.21.0)'
+      - 'check-success=TestCephHelmSuite (v1.15.12)'
+      - 'check-success=TestCephHelmSuite (v1.21.0)'
+      - 'check-success=TestCephMultiClusterDeploySuite (v1.21.0)'
+      - 'check-success=TestCephUpgradeSuite (v1.21.0)'
+    actions:
+      merge:
+        method: merge
+        strict: false
+      dismiss_reviews: {}
+      delete_head_branch: {}
 
   # release-1.4 branch
   - actions:
@@ -189,3 +207,12 @@ pull_request_rules:
     conditions:
       - label=backport-release-1.6
     name: backport release-1.6
+
+  # release-1.7 branch
+  - actions:
+      backport:
+        branches:
+          - release-1.7
+    conditions:
+      - label=backport-release-1.7
+    name: backport release-1.7
