@@ -873,6 +873,11 @@ type MirroringSpec struct {
 	// SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
 	// +optional
 	SnapshotSchedules []SnapshotScheduleSpec `json:"snapshotSchedules,omitempty"`
+
+	// Peers represents the peers spec
+	// +nullable
+	// +optional
+	Peers *MirroringPeerSpec `json:"peers,omitempty"`
 }
 
 // SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool

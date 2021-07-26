@@ -40,6 +40,7 @@ So the CephCLuster spec field `image` must be updated to point to quay, like `im
 - Add support for Kubernetes TLS secret for referring TLS certs needed for ceph RGW server.
 - Stretch clusters are considered stable
   - Ceph v16.2.5 or greater is required for stretch clusters
+- The use of peer secret names in CephRBDMirror is deprecated. Please use CephBlockPool CR to configure peer secret names and import peers. Checkout the `mirroring` section in the CephBlockPool [spec](Documentation/ceph-pool-crd.md#spec) for more details.
 
 ### Cassandra
 

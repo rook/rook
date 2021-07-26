@@ -684,6 +684,10 @@ spec:
                   enum:
                   - image
                   - pool
+                peers:
+                  properties:
+                    secretNames:
+                      type: array
                 snapshotSchedules:
                   type: object
                   properties:

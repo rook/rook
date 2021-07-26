@@ -41,9 +41,6 @@ If any setting is unspecified, a suitable default will be used automatically.
 ### RBDMirror Settings
 
 * `count`: The number of rbd mirror instance to run.
-* `peers`: to configure mirroring peers
-  * `secretNames`:  a list of peers to connect to. Currently (Ceph Octopus release) **only a single** peer is supported where a peer represents a Ceph cluster.
-  However, if you want to enable mirroring of multiple pools, you would have to have **one Secret per pool**, but the token (the peer identity) must be the same.
 * `placement`: The rbd mirror pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml).
 * `annotations`: Key value pair list of annotations to add.
 * `labels`: Key value pair list of labels to add.

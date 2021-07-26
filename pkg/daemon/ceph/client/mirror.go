@@ -59,6 +59,7 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 		return errors.Wrapf(err, "failed to add rbd-mirror peer token for pool %q. %s", poolName, output)
 	}
 
+	logger.Infof("successfully added rbd-mirror peer token for pool %q", poolName)
 	return nil
 }
 
