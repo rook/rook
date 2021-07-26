@@ -229,6 +229,8 @@ spec:
 #      config: # configuration can be specified at the node level which overrides the cluster level config
 #    - name: "172.17.4.301"
 #      deviceFilter: "^sd."
+    # when onlyApplyOSDPlacement is false, will merge both placement.All() and placement.osd
+    onlyApplyOSDPlacement: false
   # The section for configuring management of daemon disruptions during upgrade or fencing.
   disruptionManagement:
     # If true, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically

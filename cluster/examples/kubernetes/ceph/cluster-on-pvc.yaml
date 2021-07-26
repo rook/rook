@@ -158,6 +158,8 @@ spec:
         #       - ReadWriteOnce
         # Scheduler name for OSD pod placement
         # schedulerName: osd-scheduler
+    # when onlyApplyOSDPlacement is false, will merge both placement.All() and storageClassDeviceSets.Placement.
+    onlyApplyOSDPlacement: false
   resources:
   #  prepareosd:
   #    limits:

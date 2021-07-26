@@ -231,6 +231,8 @@ spec:
               volumeMode: Block
               accessModes:
                 - ReadWriteOnce
+    # when onlyApplyOSDPlacement is false, will merge both placement.All() and storageClassDeviceSets.Placement
+    onlyApplyOSDPlacement: false
   resources:
   #  prepareosd:
   #    limits:
