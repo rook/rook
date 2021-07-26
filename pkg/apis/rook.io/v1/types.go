@@ -32,6 +32,8 @@ type StorageScopeSpec struct {
 	Nodes []Node `json:"nodes,omitempty"`
 	// +optional
 	UseAllNodes bool `json:"useAllNodes,omitempty"`
+	// +optional
+	OnlyApplyOSDPlacement bool `json:"onlyApplyOSDPlacement,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional

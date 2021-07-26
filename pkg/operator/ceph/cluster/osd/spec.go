@@ -698,17 +698,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	if osdProps.onPVC() {
-		// the "all" placement is applied separately so it will have lower priority.
-		// We want placement from the storageClassDeviceSet to be applied and override
-		// the "all" placement if there are any overlapping placement settings.
-		c.spec.Placement.All().ApplyToPodSpec(&deployment.Spec.Template.Spec)
-		// apply storageClassDeviceSet Placement
-		// If nodeAffinity is specified both in the device set and "all" placement,
-		// they will be merged.
+		c.applyAllPlacementIfNeeded(&deployment.Spec.Template.Spec)
+		// apply storageClassDeviceSets.Placement
 		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	} else {
-		p := cephv1.GetOSDPlacement(c.spec.Placement)
-		p.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+		c.applyAllPlacementIfNeeded(&deployment.Spec.Template.Spec)
+		// apply c.spec.Placement.osd
+		c.spec.Placement[cephv1.KeyOSD].ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	}
 
 	// portable OSDs must have affinity to the topology where the osd prepare job was executed
@@ -726,6 +722,22 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	return deployment, nil
+}
+
+// applyAllPlacementIfNeeded apply spec.placement.all if OnlyApplyOSDPlacement set to false
+func (c *Cluster) applyAllPlacementIfNeeded(d *v1.PodSpec) {
+	// The placement for OSDs is computed from several different places:
+	// - For non-PVCs: `placement.all` and `placement.osd`
+	// - For PVCs: `placement.all` and inside the storageClassDeviceSet from the `placement` or `preparePlacement`
+
+	// The placement from these sources will be merged by default (if onlyApplyOSDPlacement is false) in case of NodeAffinity,
+	// in case of other placement rule like PodAffinity, PodAntiAffinity... it will override last placement with the current placement applied,
+	// See ApplyToPodSpec().
+
+	// apply spec.placement.all when spec.Storage.OnlyApplyOSDPlacement is false
+	if !c.spec.Storage.OnlyApplyOSDPlacement {
+		c.spec.Placement.All().ApplyToPodSpec(d)
+	}
 }
 
 func applyTopologyAffinity(spec *v1.PodSpec, osd OSDInfo) error {
