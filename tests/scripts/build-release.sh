@@ -23,7 +23,7 @@ function publish() {
 function promote() {
     # automatically promote the master builds
     echo "Promoting from branch ${BRANCH_NAME}"
-    build/run make -C build/release promote BRANCH_NAME=${BRANCH_NAME} CHANNEL=${CHANNEL} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}
+    build/run make -C build/release promote BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} CHANNEL=${CHANNEL} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}
 }
 
 #############
