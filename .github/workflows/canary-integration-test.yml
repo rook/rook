@@ -23,6 +23,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -100,6 +102,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -178,6 +182,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -243,6 +249,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -312,6 +320,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -380,6 +390,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -448,6 +460,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -518,6 +532,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -605,6 +621,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -668,6 +686,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
