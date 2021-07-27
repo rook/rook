@@ -663,19 +663,35 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 					md = device.Config.MetadataDevice
 				}
 				logger.Infof("using %s as metadataDevice for device %s and let ceph-volume lvm batch decide how to create volumes", md, deviceArg)
+				dc := a.storeConfig.DeviceClass
+                if device.Config.DeviceClass != "" {
+                    dc = device.Config.DeviceClass
+                }
+                if dc == "" {
+                    dc = "deviceClass"
+                }
 				if _, ok := metadataDevices[md]; ok {
-					// Fail when two devices using the same metadata device have different values for osdsPerDevice
-					metadataDevices[md]["devices"] += " " + deviceArg
-					if deviceOSDCount != metadataDevices[md]["osdsperdevice"] {
-						return errors.Errorf("metadataDevice (%s) has more than 1 osdsPerDevice value set: %s != %s", md, deviceOSDCount, metadataDevices[md]["osdsperdevice"])
+					if _, ok := metadataDevices[md][dc]; ok {
+						metadataDevices[md][dc]["devices"] += " " + deviceArg
+						if deviceOSDCount != metadataDevices[md][dc]["osdsperdevice"] {
+							return errors.Errorf("metadataDevice (%s) has more than 1 osdsPerDevice value set: %s != %s", md, deviceOSDCount, metadataDevices[md][dc]["osdsperdevice"])
+						}
+					} else {
+						metadataDevices[md][dc] = make(map[string]string)
+						metadataDevices[md][dc]["osdsperdevice"] = deviceOSDCount
+						if device.Config.DeviceClass != "" {
+							metadataDevices[md][dc]["deviceclass"] = device.Config.DeviceClass
+						}
+						metadataDevices[md][dc]["devices"] = deviceArg
 					}
 				} else {
-					metadataDevices[md] = make(map[string]string)
-					metadataDevices[md]["osdsperdevice"] = deviceOSDCount
+					metadataDevices[md] = make(map[string]map[string]string)
+					metadataDevices[md][dc] = make(map[string]string)
+					metadataDevices[md][dc]["osdsperdevice"] = deviceOSDCount
 					if device.Config.DeviceClass != "" {
-						metadataDevices[md]["deviceclass"] = device.Config.DeviceClass
+						metadataDevices[md][dc]["deviceclass"] = device.Config.DeviceClass
 					}
-					metadataDevices[md]["devices"] = deviceArg
+					metadataDevices[md][dc]["devices"] = deviceArg
 				}
 				deviceDBSizeMB := getDatabaseSize(a.storeConfig.DatabaseSizeMB, device.Config.DatabaseSizeMB)
 				if storeFlag == "--bluestore" && deviceDBSizeMB > 0 {
@@ -684,12 +700,12 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 						logger.Infof("skipping databaseSizeMB setting (%d). For it should be larger than %dMB.", deviceDBSizeMB, cephVolumeMinDBSize)
 					} else {
 						dbSizeString := strconv.FormatUint(display.MbTob(uint64(deviceDBSizeMB)), 10)
-						if _, ok := metadataDevices[md]["databasesizemb"]; ok {
-							if metadataDevices[md]["databasesizemb"] != dbSizeString {
+						if _, ok := metadataDevices[md][dc]["databasesizemb"]; ok {
+							if metadataDevices[md][dc]["databasesizemb"] != dbSizeString {
 								return errors.Errorf("metadataDevice (%s) has more than 1 databaseSizeMB value set: %s != %s", md, metadataDevices[md]["databasesizemb"], dbSizeString)
 							}
 						} else {
-							metadataDevices[md]["databasesizemb"] = dbSizeString
+							metadataDevices[md][dc]["databasesizemb"] = dbSizeString
 						}
 					}
 				}
@@ -731,93 +747,96 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 		}
 	}
 
-	for md, conf := range metadataDevices {
+	logger.Infof("initializeDevices get metadataDevices:%v", metadataDevices)
+	for md, md_conf := range metadataDevices {
+		for dc, conf := range md_conf {
 
-		mdArgs := batchArgs
-		if _, ok := conf["osdsperdevice"]; ok {
-			mdArgs = append(mdArgs, []string{
-				osdsPerDeviceFlag,
-				conf["osdsperdevice"],
-			}...)
-		}
-		if _, ok := conf["deviceclass"]; ok {
-			mdArgs = append(mdArgs, []string{
-				crushDeviceClassFlag,
-				conf["deviceclass"],
-			}...)
-		}
-		if _, ok := conf["databasesizemb"]; ok {
-			mdArgs = append(mdArgs, []string{
-				databaseSizeFlag,
-				conf["databasesizemb"],
-			}...)
-		}
-		mdArgs = append(mdArgs, strings.Split(conf["devices"], " ")...)
-
-		// Do not change device names if udev persistent names are passed
-		mdPath := md
-		if !strings.HasPrefix(mdPath, "/dev") {
-			mdPath = path.Join("/dev", md)
-		}
-
-		mdArgs = append(mdArgs, []string{
-			dbDeviceFlag,
-			mdPath,
-		}...)
-
-		// Reporting
-		reportArgs := append(mdArgs, []string{
-			"--report",
-		}...)
-
-		if err := context.Executor.ExecuteCommand(baseCommand, reportArgs...); err != nil {
-			return errors.Wrap(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
-		}
-
-		reportArgs = append(reportArgs, []string{
-			"--format",
-			"json",
-		}...)
-
-		cvOut, err := context.Executor.ExecuteCommandWithOutput(baseCommand, reportArgs...)
-		if err != nil {
-			return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
-		}
-
-		logger.Debugf("ceph-volume reports: %+v", cvOut)
-
-		// ceph version v14.2.13 and v15.2.8 changed the changed output format of `lvm batch --prepare --report`
-		// use previous logic if ceph version does not fall into this range
-		if !isNewStyledLvmBatch(a.clusterInfo.CephVersion) {
-			var cvReport cephVolReport
-			if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
-				return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
+            mdArgs := batchArgs
+            if _, ok := conf["osdsperdevice"]; ok {
+                mdArgs = append(mdArgs, []string{
+                    osdsPerDeviceFlag,
+                    conf["osdsperdevice"],
+                }...)
+            }
+			if dc != "deviceClass" {
+				mdArgs = append(mdArgs, []string{
+					crushDeviceClassFlag,
+					dc,
+				}...)
 			}
+            if _, ok := conf["databasesizemb"]; ok {
+                mdArgs = append(mdArgs, []string{
+                    databaseSizeFlag,
+                    conf["databasesizemb"],
+                }...)
+            }
+            mdArgs = append(mdArgs, strings.Split(conf["devices"], " ")...)
 
-			if mdPath != cvReport.Vg.Devices {
-				return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", mdPath)
-			}
-		} else {
-			var cvReports []cephVolReportV2
-			if err = json.Unmarshal([]byte(cvOut), &cvReports); err != nil {
-				return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
-			}
+            // Do not change device names if udev persistent names are passed
+            mdPath := md
+            if !strings.HasPrefix(mdPath, "/dev") {
+                mdPath = path.Join("/dev", md)
+            }
 
-			if len(strings.Split(conf["devices"], " ")) != len(cvReports) {
-				return errors.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
-			}
+            mdArgs = append(mdArgs, []string{
+                dbDeviceFlag,
+                mdPath,
+            }...)
 
-			for _, report := range cvReports {
-				if report.BlockDB != mdPath {
-					return errors.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
-				}
-			}
-		}
+            // Reporting
+            reportArgs := append(mdArgs, []string{
+                "--report",
+            }...)
 
-		// execute ceph-volume batching up multiple devices
-		if err := context.Executor.ExecuteCommand(baseCommand, mdArgs...); err != nil {
-			return errors.Wrap(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
-		}
+            if err := context.Executor.ExecuteCommand(baseCommand, reportArgs...); err != nil {
+                return errors.Wrap(err, "failed ceph-volume report") // fail return here as validation provided by ceph-volume
+            }
+
+            reportArgs = append(reportArgs, []string{
+                "--format",
+                "json",
+            }...)
+
+            cvOut, err := context.Executor.ExecuteCommandWithOutput(baseCommand, reportArgs...)
+            if err != nil {
+                return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
+            }
+
+		    logger.Debugf("ceph-volume reports: %+v", cvOut)
+
+            // ceph version v14.2.13 and v15.2.8 changed the changed output format of `lvm batch --prepare --report`
+            // use previous logic if ceph version does not fall into this range
+            if !isNewStyledLvmBatch(a.clusterInfo.CephVersion) {
+                var cvReport cephVolReport
+                if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
+                    return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
+                }
+
+                if mdPath != cvReport.Vg.Devices {
+                    return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", mdPath)
+                }
+            } else {
+                var cvReports []cephVolReportV2
+                if err = json.Unmarshal([]byte(cvOut), &cvReports); err != nil {
+                    return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
+                }
+
+                if len(strings.Split(conf["devices"], " ")) != len(cvReports) {
+                    return errors.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
+                }
+
+                for _, report := range cvReports {
+                    if report.BlockDB != mdPath {
+                        return errors.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
+                    }
+                }
+            }
+
+            // execute ceph-volume batching up multiple devices
+            if err := context.Executor.ExecuteCommand(baseCommand, mdArgs...); err != nil {
+                return errors.Wrap(err, "failed ceph-volume") // fail return here as validation provided by ceph-volume
+            }
+	    }
 	}
 
 	return nil
