@@ -18,9 +18,11 @@ package client
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,6 +31,7 @@ func TestCephArgs(t *testing.T) {
 	// cluster a under /etc
 	args := []string{}
 	clusterInfo := AdminClusterInfo("a")
+	exec.CephCommandsTimeout = 15 * time.Second
 	command, args := FinalizeCephCommandArgs(CephTool, clusterInfo, args, "/etc")
 	assert.Equal(t, CephTool, command)
 	assert.Equal(t, 5, len(args))

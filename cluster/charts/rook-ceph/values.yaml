@@ -292,6 +292,7 @@ csi:
 
 enableFlexDriver: false
 enableDiscoveryDaemon: false
+cephCommandsTimeoutSeconds: "15"
 
 # enable the ability to have multiple Ceph filesystems in the same cluster
 # WARNING: Experimental feature in Ceph Releases Octopus (v15) and Nautilus (v14)
