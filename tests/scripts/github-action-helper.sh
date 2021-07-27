@@ -142,6 +142,7 @@ function create_cluster_prerequisites() {
 
 function deploy_cluster() {
   cd cluster/examples/kubernetes/ceph
+  sed -i 's|ROOK_LOG_LEVEL: "INFO"|ROOK_LOG_LEVEL: "DEBUG"|g' operator.yaml
   kubectl create -f operator.yaml
   sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-test.yaml
   kubectl create -f cluster-test.yaml

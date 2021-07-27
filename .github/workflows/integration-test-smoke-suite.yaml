@@ -51,7 +51,7 @@ jobs:
 
     - name: Artifact
       uses: actions/upload-artifact@v2
-      if: failure()
+      if: always()
       with:
         name: ceph-smoke-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/

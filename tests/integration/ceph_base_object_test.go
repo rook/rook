@@ -60,15 +60,15 @@ var (
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
-	storeName := "teststore"
+	storeName := "tlsteststore"
+	logger.Info("Object Storage End To End Integration Test with TLS enabled - Create Object Store, User,Bucket and read/write to bucket")
+	createCephObjectStore(s, helper, k8sh, namespace, storeName, 3, true)
+	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
+
+	storeName = "teststore"
 	logger.Info("Object Storage End To End Integration Test without TLS - Create Object Store, User,Bucket and read/write to bucket")
 	logger.Info("Running on Rook Cluster %s", namespace)
 	createCephObjectStore(s, helper, k8sh, namespace, storeName, 3, false)
-	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
-
-	storeName = "tlsteststore"
-	logger.Info("Object Storage End To End Integration Test with TLS enabled - Create Object Store, User,Bucket and read/write to bucket")
-	createCephObjectStore(s, helper, k8sh, namespace, storeName, 3, true)
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
 }
 
@@ -168,6 +168,7 @@ func createCephObjectStore(s suite.Suite, helper *clients.TestClient, k8sh *util
 		assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running"))
 		logger.Info("RGW pods are running")
 		logger.Infof("Object store %q created successfully", storeName)
+		logger.Info("objectstore status is")
 	})
 }
 
@@ -200,6 +201,8 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 				continue
 			}
 			assert.Equal(s.T(), cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
+			logger.Info("objectstore status is", objectStore.Status)
+			logger.Info("cephobjectstore status is", objectStore.Status.BucketStatus.Health)
 			// Info field has the endpoint in it
 			assert.NotEmpty(s.T(), objectStore.Status.Info)
 			assert.NotEmpty(s.T(), objectStore.Status.Info["endpoint"])
