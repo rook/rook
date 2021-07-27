@@ -290,6 +290,7 @@ rules:
       - configmaps
       - nodes
       - nodes/proxy
+      - persistentvolumes
     verbs:
       - get
       - list
@@ -303,6 +304,14 @@ rules:
       - patch
       - list
       - get
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
       - watch
 ---
 kind: ClusterRole
