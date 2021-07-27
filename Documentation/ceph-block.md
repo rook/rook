@@ -83,6 +83,10 @@ parameters:
 
 # Delete the rbd volume when a PVC is deleted
 reclaimPolicy: Delete
+
+# Optional, if you want to add dynamic resize for PVC. Works for Kubernetes 1.14+
+# For now only ext3, ext4, xfs resize support provided, like in Kubernetes itself.
+allowVolumeExpansion: true
 ```
 
 If you've deployed the Rook operator in a namespace other than "rook-ceph",

@@ -553,6 +553,19 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 		time.Sleep(5 * time.Second)
 	}
 
+	if h.settings.UseHelm {
+		logger.Infof("Confirming ceph cluster installed correctly")
+		if err := h.ConfirmHelmClusterInstalledCorrectly(); err != nil {
+			return false, errors.Wrap(err, "the ceph cluster storage CustomResources did not install correctly")
+		}
+		if !h.settings.RetainHelmDefaultStorageCRs {
+			err = h.RemoveRookCephClusterHelmDefaultCustomResources()
+			if err != nil {
+				return false, errors.Wrap(err, "failed to remove the default helm CustomResources")
+			}
+		}
+	}
+
 	logger.Infof("installed rook operator and cluster %s on k8s %s", h.settings.Namespace, h.k8sVersion)
 
 	return true, nil
@@ -621,6 +634,13 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 		}
 
 		if h.settings.UseHelm {
+			// helm rook-ceph-cluster cleanup
+			if h.settings.RetainHelmDefaultStorageCRs {
+				err = h.RemoveRookCephClusterHelmDefaultCustomResources()
+				if err != nil {
+					assert.Fail(h.T(), "failed to remove the default helm CustomResources")
+				}
+			}
 			err = h.helmHelper.DeleteLocalRookHelmChart(namespace, CephClusterChartName)
 			checkError(h.T(), err, fmt.Sprintf("cannot uninstall helm chart %s", CephClusterChartName))
 		} else {
@@ -650,7 +670,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 			}
 		}
 
-		// helm cleanup
+		// helm operator cleanup
 		if h.settings.UseHelm {
 			err = h.helmHelper.DeleteLocalRookHelmChart(namespace, OperatorChartName)
 			checkError(h.T(), err, fmt.Sprintf("cannot uninstall helm chart %s", OperatorChartName))

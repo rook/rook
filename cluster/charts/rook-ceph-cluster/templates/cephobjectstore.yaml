@@ -1,0 +1,23 @@
+{{- $root := . -}}
+{{- range $objectstore := .Values.cephObjectStores -}}
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: {{ $objectstore.name }}
+spec:
+{{ toYaml $objectstore.spec | indent 2 }}
+---
+{{- if default false $objectstore.storageClass.enabled }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ $objectstore.storageClass.name }}
+provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
+reclaimPolicy: {{ default "Delete" $objectstore.storageClass.reclaimPolicy }}
+parameters:
+  objectStoreName: {{ $objectstore.name }}
+  objectStoreNamespace: {{ $root.Release.Namespace }}
+{{ toYaml $objectstore.storageClass.parameters | indent 2 }}
+{{ end }}
+{{ end }}
