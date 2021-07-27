@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"sync"
 	"testing"
-	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -440,25 +439,20 @@ func TestAddOrRemoveExternalMonitor(t *testing.T) {
 
 func TestNewHealthChecker(t *testing.T) {
 	c := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{}}}
-	time10s, _ := time.ParseDuration("10s")
-	c10s := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: time10s}}}}}}
 
 	type args struct {
 		monCluster *Cluster
 	}
-	tests := []struct {
+	tests := struct {
 		name string
 		args args
 		want *HealthChecker
 	}{
-		{"default-interval", args{c}, &HealthChecker{c, HealthCheckInterval}},
-		{"10s-interval", args{c10s}, &HealthChecker{c10s, time10s}},
+		"default-interval", args{c}, &HealthChecker{c, HealthCheckInterval},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewHealthChecker(tt.args.monCluster); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewHealthChecker() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	t.Run(tests.name, func(t *testing.T) {
+		if got := NewHealthChecker(tests.args.monCluster); !reflect.DeepEqual(got, tests.want) {
+			t.Errorf("NewHealthChecker() = %v, want %v", got, tests.want)
+		}
+	})
 }
