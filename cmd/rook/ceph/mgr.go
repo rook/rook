@@ -17,6 +17,7 @@ limitations under the License.
 package ceph
 
 import (
+	"strings"
 	"time"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -51,6 +52,7 @@ func init() {
 	mgrCmd.AddCommand(mgrSidecarCmd)
 
 	mgrSidecarCmd.Flags().BoolVar(&clusterSpec.Dashboard.Enabled, "dashboard-enabled", false, "whether the dashboard is enabled")
+	mgrSidecarCmd.Flags().StringVar(&dashboardExternalIps, "dashboard-external-ips", "", "external ips of a specific service")
 	mgrSidecarCmd.Flags().BoolVar(&clusterSpec.Monitoring.Enabled, "monitoring-enabled", false, "whether the monitoring is enabled")
 	mgrSidecarCmd.Flags().StringVar(&updateMgrServicesInterval, "update-interval", "", "the interval at which to update the mgr services")
 	mgrSidecarCmd.Flags().StringVar(&ownerRefID, "cluster-id", "", "the UID of the cluster CR that owns this cluster")
@@ -66,6 +68,15 @@ func init() {
 // Start the mgr daemon sidecar
 func runMgrSidecar(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
+
+	logger.Infof("runMgrSidecar get ExternalIps:%s", dashboardExternalIps)
+	if dashboardExternalIps != "" {
+		for _, ip := range strings.Split(dashboardExternalIps, ",") {
+			if ip != "" {
+				clusterSpec.Dashboard.ExternalIps = append(clusterSpec.Dashboard.ExternalIps, ip)
+			}
+		}
+	}
 
 	context := createContext()
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)

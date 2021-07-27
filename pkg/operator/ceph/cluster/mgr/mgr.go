@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -243,6 +244,13 @@ func (c *Cluster) ReconcileActiveMgrServices(daemonNameToUpdate string) error {
 	} else {
 		currentDaemon := svc.Spec.Selector[controller.DaemonIDLabel]
 		if currentDaemon == daemonNameToUpdate {
+			if corev1.ServiceTypeClusterIP == svc.Spec.Type {
+				logger.Infof("config ExternalIps:%s, service get ExternalIPs:%s", c.spec.Dashboard.ExternalIps, svc.Spec.ExternalIPs)
+				if corev1.ServiceTypeClusterIP == svc.Spec.Type && reflect.DeepEqual(c.spec.Dashboard.ExternalIps, svc.Spec.ExternalIPs) {
+					logger.Infof("mgr dashboard services already set to daemon %q, dashboard service type is already ClusterIP and externalIps is already %s. no need to update", daemonNameToUpdate, svc.Spec.ExternalIPs)
+					return nil
+				}
+			}
 			logger.Infof("mgr services already set to daemon %q, no need to update", daemonNameToUpdate)
 			return nil
 		}

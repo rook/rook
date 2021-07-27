@@ -217,6 +217,11 @@ type ClusterSpec struct {
 	// +optional
 	// +nullable
 	LogCollector LogCollectorSpec `json:"logCollector,omitempty"`
+
+	// specify externalIPs
+	// +optional
+	// +nullalbe
+	ExternalIps []string `json:"externalIPs,omitempty"`
 }
 
 // LogCollectorSpec is the logging spec

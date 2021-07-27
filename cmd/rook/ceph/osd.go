@@ -70,6 +70,7 @@ var (
 	blockPath               string
 	lvBackedPV              bool
 	osdIDsToRemove          string
+	dashboardExternalIps    string
 )
 
 func addOSDFlags(command *cobra.Command) {

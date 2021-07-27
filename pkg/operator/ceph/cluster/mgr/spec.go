@@ -205,6 +205,16 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 }
 
 func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
+
+	logger.Infof("config ExternalIps:%s", c.spec.Dashboard.ExternalIps)
+	var externalIps string
+	for _, ip := range c.spec.Dashboard.ExternalIps {
+		if ip != "" {
+			externalIps += "," + ip
+		}
+	}
+	logger.Infof("makeMgrSidecarContainer get externalIps:%s", externalIps)
+
 	envVars := []v1.EnvVar{
 		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerInfo.GetUID())},
 		{Name: "ROOK_CLUSTER_NAME", Value: string(c.clusterInfo.NamespacedName().Name)},
@@ -223,6 +233,7 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 		}},
 		{Name: "ROOK_DASHBOARD_ENABLED", Value: strconv.FormatBool(c.spec.Dashboard.Enabled)},
+		{Name: "ROOK_DASHBOARD_EXTERNAL_IPS", Value: externalIps},
 		{Name: "ROOK_MONITORING_ENABLED", Value: strconv.FormatBool(c.spec.Monitoring.Enabled)},
 		{Name: "ROOK_UPDATE_INTERVAL", Value: "15s"},
 		{Name: "ROOK_DAEMON_NAME", Value: mgrConfig.DaemonID},
@@ -323,6 +334,7 @@ func (c *Cluster) makeDashboardService(name, activeDaemon string) (*v1.Service, 
 					Protocol: v1.ProtocolTCP,
 				},
 			},
+			ExternalIPs: c.spec.Dashboard.ExternalIps,
 		},
 	}
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(svc)
