@@ -26,27 +26,28 @@ import (
 
 // TestCephSettings struct for handling panic and test suite tear down
 type TestCephSettings struct {
-	DataDirHostPath           string
-	ClusterName               string
-	Namespace                 string
-	OperatorNamespace         string
-	StorageClassName          string
-	UseHelm                   bool
-	UsePVC                    bool
-	Mons                      int
-	UseCrashPruner            bool
-	MultipleMgrs              bool
-	SkipOSDCreation           bool
-	UseCSI                    bool
-	EnableDiscovery           bool
-	EnableAdmissionController bool
-	IsExternal                bool
-	SkipClusterCleanup        bool
-	SkipCleanupPolicy         bool
-	DirectMountToolbox        bool
-	EnableVolumeReplication   bool
-	RookVersion               string
-	CephVersion               cephv1.CephVersionSpec
+	DataDirHostPath             string
+	ClusterName                 string
+	Namespace                   string
+	OperatorNamespace           string
+	StorageClassName            string
+	UseHelm                     bool
+	RetainHelmDefaultStorageCRs bool
+	UsePVC                      bool
+	Mons                        int
+	UseCrashPruner              bool
+	MultipleMgrs                bool
+	SkipOSDCreation             bool
+	UseCSI                      bool
+	EnableDiscovery             bool
+	EnableAdmissionController   bool
+	IsExternal                  bool
+	SkipClusterCleanup          bool
+	SkipCleanupPolicy           bool
+	DirectMountToolbox          bool
+	EnableVolumeReplication     bool
+	RookVersion                 string
+	CephVersion                 cephv1.CephVersionSpec
 }
 
 func (s *TestCephSettings) ApplyEnvVars() {

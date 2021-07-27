@@ -1,4 +1,5 @@
 {{- if .Values.configOverride }}
+---
 kind: ConfigMap
 apiVersion: v1
 metadata:
