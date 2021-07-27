@@ -119,13 +119,15 @@ If you want to remove OSDs by hand, continue with the following sections. Howeve
 
 If the OSD purge job fails or you need fine-grained control of the removal, here are the individual commands that can be run from the toolbox.
 
-1. Mark the OSD as `out` if not already marked as such by Ceph. This signals Ceph to start moving (backfilling) the data that was on that OSD to another OSD.
+1. Detach the OSD PVC from Rook
+   - `kubectl -n rook-ceph label pvc <orphaned-pvc> ceph.rook.io/DeviceSetPVCId-`
+2. Mark the OSD as `out` if not already marked as such by Ceph. This signals Ceph to start moving (backfilling) the data that was on that OSD to another OSD.
    - `ceph osd out osd.<ID>` (for example if the OSD ID is 23 this would be `ceph osd out osd.23`)
-2. Wait for the data to finish backfilling to other OSDs.
+3. Wait for the data to finish backfilling to other OSDs.
    - `ceph status` will indicate the backfilling is done when all of the PGs are `active+clean`. If desired, it's safe to remove the disk after that.
-3. Remove the OSD from the Ceph cluster
+4. Remove the OSD from the Ceph cluster
    - `ceph osd purge <ID> --yes-i-really-mean-it`
-4. Verify the OSD is removed from the node in the CRUSH map
+5. Verify the OSD is removed from the node in the CRUSH map
    - `ceph osd tree`
 
 The operator can automatically remove OSD deployments that are considered "safe-to-destroy" by Ceph.
