@@ -66,7 +66,7 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 
 	// we could use a slice and iterate over it but since we have only 3 elements
 	// I don't think this is worth a loop
-	timeout := strconv.Itoa(int(exec.CephCommandTimeout.Seconds()))
+	timeout := strconv.Itoa(int(exec.CephCommandsTimeout.Seconds()))
 	if command != "rbd" && command != "crushtool" && command != "radosgw-admin" {
 		args = append(args, "--connect-timeout="+timeout)
 	}
@@ -174,7 +174,7 @@ func (c *CephToolCommand) RunWithTimeout(timeout time.Duration) ([]byte, error) 
 // configured its arguments. It is future work to integrate this case into the
 // generalization.
 func ExecuteRBDCommandWithTimeout(context *clusterd.Context, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(exec.CephCommandTimeout, RBDTool, args...)
+	output, err := context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, RBDTool, args...)
 	return output, err
 }
 

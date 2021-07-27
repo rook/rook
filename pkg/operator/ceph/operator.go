@@ -126,6 +126,7 @@ func (o *Operator) Run() error {
 		return errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %q", k8sutil.PodNamespaceEnvVar)
 	}
 
+	opcontroller.SetCephCommandsTimeout(o.context)
 	// creating a context
 	stopContext, stopFunc := context.WithCancel(context.Background())
 	defer stopFunc()

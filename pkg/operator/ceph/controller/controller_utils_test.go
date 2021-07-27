@@ -17,10 +17,17 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func CreateTestClusterFromStatusDetails(details map[string]cephv1.CephHealthMessage) cephv1.CephCluster {
@@ -69,4 +76,31 @@ func TestCanIgnoreHealthErrStatusInReconcile(t *testing.T) {
 		},
 	})
 	assert.False(t, canIgnoreHealthErrStatusInReconcile(cluster, "controller"))
+}
+
+func TestSetCephCommandsTimeout(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	ctx := context.TODO()
+	cm := &v1.ConfigMap{}
+	cm.Name = "rook-ceph-operator-config"
+	_, err := clientset.CoreV1().ConfigMaps("").Create(ctx, cm, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	context := &clusterd.Context{Clientset: clientset}
+
+	SetCephCommandsTimeout(context)
+	assert.Equal(t, 15*time.Second, exec.CephCommandsTimeout)
+
+	exec.CephCommandsTimeout = 0
+	cm.Data = map[string]string{"ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS": "0"}
+	_, err = clientset.CoreV1().ConfigMaps("").Update(ctx, cm, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+	SetCephCommandsTimeout(context)
+	assert.Equal(t, 15*time.Second, exec.CephCommandsTimeout)
+
+	exec.CephCommandsTimeout = 0
+	cm.Data = map[string]string{"ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS": "1"}
+	_, err = clientset.CoreV1().ConfigMaps("").Update(ctx, cm, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+	SetCephCommandsTimeout(context)
+	assert.Equal(t, 1*time.Second, exec.CephCommandsTimeout)
 }
