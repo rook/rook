@@ -57,24 +57,29 @@ jobs:
 
   linux-build-all:
     runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version : ['1.16', '1.17']
     steps:
     - name: checkout
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
 
-    - name: setup golang
+    - name: setup golang ${{ matrix.go-version }}
       uses: actions/setup-go@v2
       with:
-        go-version: 1.16
+        go-version: ${{ matrix.go-version }}
 
     - name: set up QEMU
       uses: docker/setup-qemu-action@master
       with:
         platforms: all
 
-    - name: build.all rook
-      run: tests/scripts/github-action-helper.sh build_rook_all
+    - name: build.all rook with go ${{ matrix.go-version }}
+      run: |
+        tests/scripts/github-action-helper.sh build_rook_all
 
     - name: setup tmate session for debugging
       if: failure()
