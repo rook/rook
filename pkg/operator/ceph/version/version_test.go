@@ -53,24 +53,24 @@ func extractVersionHelper(t *testing.T, text string, major, minor, extra, build 
 
 func TestExtractVersion(t *testing.T) {
 	// release build
-	v0c := "ceph version 13.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) mimic (stable)"
+	v0c := "ceph version 16.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) pacific (stable)"
 	v0d := `
 root@7a97f5a78bc6:/# ceph --version
-ceph version 13.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) mimic (stable)
+ceph version 16.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) pacific (stable)
 `
-	extractVersionHelper(t, v0c, 13, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
-	extractVersionHelper(t, v0d, 13, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
+	extractVersionHelper(t, v0c, 16, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
+	extractVersionHelper(t, v0d, 16, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
 
 	// development build
-	v1c := "ceph version 14.1.33-403-g7ba6bece41 (7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) nautilus (rc)"
+	v1c := "ceph version 16.1.33-403-g7ba6bece41 (7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) pacific (rc)"
 	v1d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
-ceph version 14.1.33-403-g7ba6bece41
+ceph version 16.1.33-403-g7ba6bece41
 (7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) nautilus (rc)
 `
-	extractVersionHelper(t, v1c, 14, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
-	extractVersionHelper(t, v1d, 14, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
+	extractVersionHelper(t, v1c, 16, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
+	extractVersionHelper(t, v1d, 16, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
 
 	// build without git version info. it is possible to build the ceph tree
 	// without a version number, but none of the container builds do this.
@@ -78,7 +78,7 @@ ceph version 14.1.33-403-g7ba6bece41
 	// explicitly adding fine-grained versioning to avoid issues with
 	// release granularity. adding the reverse name-to-version is easy
 	// enough if this ever becomes a need.
-	v2c := "ceph version Development (no_version) nautilus (rc)"
+	v2c := "ceph version Development (no_version) pacific (rc)"
 	v2d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***

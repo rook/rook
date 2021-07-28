@@ -17,7 +17,7 @@ spec:
       requireSafeReplicaSize: true
     parameters:
       # Inline compression mode for the data pool
-      # Further reference: https://docs.ceph.com/docs/nautilus/rados/configuration/bluestore-config-ref/#inline-compression
+      # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
       compression_mode:
         none
         # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
@@ -33,7 +33,7 @@ spec:
         requireSafeReplicaSize: true
       parameters:
         # Inline compression mode for the data pool
-        # Further reference: https://docs.ceph.com/docs/nautilus/rados/configuration/bluestore-config-ref/#inline-compression
+        # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
         compression_mode:
           none
           # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool

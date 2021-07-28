@@ -37,7 +37,7 @@ monitoring:
 cephClusterSpec:
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
-    # v13 is mimic, v14 is nautilus, and v15 is octopus.
+    # v14 is nautilus, v15 is octopus, and v16 is pacific.
     # RECOMMENDATION: In production, use a specific version tag instead of the general v14 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
     # If you want to be more precise, you can always use a timestamp tag such quay.io/ceph/ceph:v15.2.11-20200419
