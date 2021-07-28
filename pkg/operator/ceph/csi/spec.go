@@ -18,6 +18,7 @@ package csi
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"strconv"
 	"strings"
@@ -87,13 +88,6 @@ var (
 	CephFSDriverName string
 	RBDDriverName    string
 
-	// template paths
-	RBDPluginTemplatePath         string
-	RBDProvisionerDepTemplatePath string
-
-	CephFSPluginTemplatePath         string
-	CephFSProvisionerDepTemplatePath string
-
 	// configuration map for csi
 	ConfigName = "rook-ceph-csi-config"
 	ConfigKey  = "csi-cluster-config-json"
@@ -115,6 +109,22 @@ var (
 	DefaultSnapshotterImage       = "k8s.gcr.io/sig-storage/csi-snapshotter:v4.1.1"
 	DefaultResizerImage           = "k8s.gcr.io/sig-storage/csi-resizer:v1.2.0"
 	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.1.0"
+
+	// Local package template path for RBD
+	//go:embed template/rbd/csi-rbdplugin.yaml
+	RBDPluginTemplatePath string
+	//go:embed template/rbd/csi-rbdplugin-provisioner-dep.yaml
+	RBDProvisionerDepTemplatePath string
+	//go:embed template/rbd/csi-rbdplugin-svc.yaml
+	RBDPluginServiceTemplatePath string
+
+	// Local package template path for CephFS
+	//go:embed template/cephfs/csi-cephfsplugin.yaml
+	CephFSPluginTemplatePath string
+	//go:embed template/cephfs/csi-cephfsplugin-provisioner-dep.yaml
+	CephFSProvisionerDepTemplatePath string
+	//go:embed template/cephfs/csi-cephfsplugin-svc.yaml
+	CephFSPluginServiceTemplatePath string
 )
 
 const (
@@ -154,15 +164,6 @@ const (
 	// kubelet directory path
 	DefaultKubeletDirPath = "/var/lib/kubelet"
 
-	// template
-	DefaultRBDPluginTemplatePath         = "/etc/ceph-csi/rbd/csi-rbdplugin.yaml"
-	DefaultRBDProvisionerDepTemplatePath = "/etc/ceph-csi/rbd/csi-rbdplugin-provisioner-dep.yaml"
-	DefaultRBDPluginServiceTemplatePath  = "/etc/ceph-csi/rbd/csi-rbdplugin-svc.yaml"
-
-	DefaultCephFSPluginTemplatePath         = "/etc/ceph-csi/cephfs/csi-cephfsplugin.yaml"
-	DefaultCephFSProvisionerDepTemplatePath = "/etc/ceph-csi/cephfs/csi-cephfsplugin-provisioner-dep.yaml"
-	DefaultCephFSPluginServiceTemplatePath  = "/etc/ceph-csi/cephfs/csi-cephfsplugin-svc.yaml"
-
 	// grpc metrics and liveness port for cephfs  and rbd
 	DefaultCephFSGRPCMerticsPort     uint16 = 9091
 	DefaultCephFSLivenessMerticsPort uint16 = 9081
@@ -191,7 +192,6 @@ func CSIEnabled() bool {
 }
 
 func validateCSIParam() error {
-
 	if len(CSIParam.CSIPluginImage) == 0 {
 		return errors.New("missing csi rbd plugin image")
 	}
@@ -205,23 +205,6 @@ func validateCSIParam() error {
 		return errors.New("missing csi attacher image")
 	}
 
-	if EnableRBD {
-		if len(RBDPluginTemplatePath) == 0 {
-			return errors.New("missing rbd plugin template path")
-		}
-		if len(RBDProvisionerDepTemplatePath) == 0 {
-			return errors.New("missing rbd provisioner template path")
-		}
-	}
-
-	if EnableCephFS {
-		if len(CephFSPluginTemplatePath) == 0 {
-			return errors.New("missing cephfs plugin template path")
-		}
-		if len(CephFSProvisionerDepTemplatePath) == 0 {
-			return errors.New("missing ceph provisioner template path")
-		}
-	}
 	return nil
 }
 
@@ -430,7 +413,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 		}
 
-		rbdService, err = templateToService("rbd-service", DefaultRBDPluginServiceTemplatePath, tp)
+		rbdService, err = templateToService("rbd-service", RBDPluginServiceTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbd plugin service template")
 		}
@@ -448,7 +431,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 		}
 
-		cephfsService, err = templateToService("cephfs-service", DefaultCephFSPluginServiceTemplatePath, tp)
+		cephfsService, err = templateToService("cephfs-service", CephFSPluginServiceTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load cephfs plugin service template")
 		}

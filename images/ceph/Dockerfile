@@ -23,7 +23,6 @@ RUN curl --fail -sSL -o /tini https://github.com/krallin/tini/releases/download/
     chmod +x /tini
 
 COPY rook rookflex toolbox.sh set-ceph-debug-level /usr/local/bin/
-COPY ceph-csi /etc/ceph-csi
 COPY ceph-monitoring /etc/ceph-monitoring
 COPY rook-external /etc/rook-external/
 COPY ceph-csv-templates /etc/ceph-csv-templates

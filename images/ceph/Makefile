@@ -60,7 +60,6 @@ do.build:
 	@cp set-ceph-debug-level $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
-	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
 	@cp -r ../../cluster/examples/kubernetes/ceph/monitoring $(TEMP)/ceph-monitoring
 	@mkdir -p $(TEMP)/rook-external/test-data
 	@cp ../../cluster/examples/kubernetes/ceph/create-external-cluster-resources.* $(TEMP)/rook-external/

@@ -108,7 +108,7 @@ func (d beta1CsiDriver) deleteCSIDriverInfo(ctx context.Context, clientset kuber
 	err := clientset.StorageV1beta1().CSIDrivers().Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Debug("%q CSIDriver not found; skipping deletion.", name)
+			logger.Debugf("%q CSIDriver not found; skipping deletion.", name)
 			return nil
 		}
 	}

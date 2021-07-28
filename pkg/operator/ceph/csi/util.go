@@ -18,8 +18,6 @@ package csi
 
 import (
 	"bytes"
-	"io/ioutil"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -34,15 +32,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func loadTemplate(name, templatePath string, p templateParam) (string, error) {
-	b, err := ioutil.ReadFile(filepath.Clean(templatePath))
-	if err != nil {
-		return "", err
-	}
-	data := string(b)
+func loadTemplate(name, templateData string, p templateParam) (string, error) {
 	var writer bytes.Buffer
 	t := template.New(name)
-	t, err = t.Parse(data)
+	t, err := t.Parse(templateData)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to parse template %v", name)
 	}
@@ -50,9 +43,9 @@ func loadTemplate(name, templatePath string, p templateParam) (string, error) {
 	return writer.String(), err
 }
 
-func templateToService(name, templatePath string, p templateParam) (*corev1.Service, error) {
+func templateToService(name, templateData string, p templateParam) (*corev1.Service, error) {
 	var svc corev1.Service
-	t, err := loadTemplate(name, templatePath, p)
+	t, err := loadTemplate(name, templateData, p)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load service template")
 	}
@@ -64,9 +57,9 @@ func templateToService(name, templatePath string, p templateParam) (*corev1.Serv
 	return &svc, nil
 }
 
-func templateToDaemonSet(name, templatePath string, p templateParam) (*apps.DaemonSet, error) {
+func templateToDaemonSet(name, templateData string, p templateParam) (*apps.DaemonSet, error) {
 	var ds apps.DaemonSet
-	t, err := loadTemplate(name, templatePath, p)
+	t, err := loadTemplate(name, templateData, p)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load daemonset template")
 	}
@@ -78,18 +71,18 @@ func templateToDaemonSet(name, templatePath string, p templateParam) (*apps.Daem
 	return &ds, nil
 }
 
-func templateToDeployment(name, templatePath string, p templateParam) (*apps.Deployment, error) {
-	var ds apps.Deployment
-	t, err := loadTemplate(name, templatePath, p)
+func templateToDeployment(name, templateData string, p templateParam) (*apps.Deployment, error) {
+	var dep apps.Deployment
+	t, err := loadTemplate(name, templateData, p)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load deployment template")
 	}
 
-	err = yaml.Unmarshal([]byte(t), &ds)
+	err = yaml.Unmarshal([]byte(t), &dep)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal deployment template")
+		return nil, errors.Wrap(err, "failed to unmarshal deployment template")
 	}
-	return &ds, nil
+	return &dep, nil
 }
 
 func applyResourcesToContainers(clientset kubernetes.Interface, key string, podspec *corev1.PodSpec) {
