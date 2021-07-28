@@ -1,0 +1,26 @@
+{{- $root := . -}}
+{{- range $blockpool := .Values.cephBlockPools -}}
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: {{ $blockpool.name }}
+spec:
+{{ toYaml $blockpool.spec | indent 2 }}
+---
+{{- if default false $blockpool.storageClass.enabled }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ $blockpool.storageClass.name }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "{{ if default false $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
+provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+parameters:
+  pool: {{ $blockpool.name }}
+  clusterID: {{ $root.Release.Namespace }}
+{{ toYaml $blockpool.storageClass.parameters | indent 2 }}
+reclaimPolicy: {{ default "Delete" $blockpool.storageClass.reclaimPolicy }}
+allowVolumeExpansion: {{ default "true" $blockpool.storageClass.allowVolumeExpansion }}
+{{ end }}
+{{ end }}

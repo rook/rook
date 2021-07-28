@@ -1,0 +1,24 @@
+{{- $root := . -}}
+{{- range $filesystem := .Values.cephFileSystems -}}
+---
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: {{ $filesystem.name }}
+spec:
+{{ toYaml $filesystem.spec | indent 2 }}
+---
+{{- if default false $filesystem.storageClass.enabled }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ $filesystem.storageClass.name }}
+provisioner: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
+parameters:
+  fsName: {{ $filesystem.name }}
+  pool: {{ $filesystem.name }}-data0
+  clusterID: {{ $root.Release.Namespace }}
+{{ toYaml $filesystem.storageClass.parameters | indent 2 }}
+reclaimPolicy: {{ default "Delete" $filesystem.storageClass.reclaimPolicy }}
+{{ end }}
+{{ end }}
