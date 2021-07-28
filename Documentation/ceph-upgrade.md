@@ -75,6 +75,9 @@ As exemplified above, it is a good practice to update Rook-Ceph common resources
 manifests before any update. The common resources and CRDs might not be updated with every
 release, but K8s will only apply updates to the ones that changed.
 
+Also update optional resources like Prometheus monitoring noted more fully in the
+[upgrade section below](#updates-for-optional-resources).
+
 ## Helm
 
 * The minimum supported Helm version is **v3.2.0**
@@ -308,6 +311,13 @@ errors.
 ```sh
 kubectl replace -f crds.yaml
 kubectl apply -f crds.yaml
+```
+
+### Updates for optional resources
+If you have [Prometheus monitoring](ceph-monitoring.md) enabled, follow the
+step to upgrade the Prometheus RBAC resources as well.
+```sh
+kubectl apply -f cluster/examples/kubernetes/ceph/monitoring/rbac.yaml
 ```
 
 ## 2. Update Ceph CSI versions
