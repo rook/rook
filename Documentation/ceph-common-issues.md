@@ -25,12 +25,12 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
 * [Set debug log level for all Ceph daemons](#set-debug-log-level-for-all-ceph-daemons)
 * [Activate log to file for a particular Ceph daemon](#activate-log-to-file-for-a-particular-ceph-daemon)
-* [Flex storage class versus Ceph CSI storage class](#flex-storage-class-versus-ceph-csi-storage-class)
 * [A worker node using RBD devices hangs up](#a-worker-node-using-rbd-devices-hangs-up)
 * [Too few PGs per OSD warning is shown](#too-few-pgs-per-osd-warning-is-shown)
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
 * [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 * [Failed to create CRDs](#failed-to-create-crds)
+* [Unexpected partitions created](#unexpected-partitions-created)
 
 See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
 
@@ -824,7 +824,6 @@ They are cases where looking at Kubernetes logs is not enough for diverse reason
 
 So for each daemon, `dataDirHostPath` is used to store logs, if logging is activated.
 Rook will bindmount `dataDirHostPath` for every pod.
-As of Ceph Nautilus 14.2.1, it is possible to enable logging for a particular daemon on the fly.
 Let's say you want to enable logging for `mon.a`, but only for this daemon.
 Using the toolbox or from inside the operator run:
 
@@ -836,24 +835,6 @@ This will activate logging on the filesystem, you will be able to find logs in `
 You don't need to restart the pod, the effect will be immediate.
 
 To disable the logging on file, simply set `log_to_file` to `false`.
-
-For Ceph Luminous/Mimic releases, `mon_cluster_log_file` and `cluster_log_file` can be set to
-`/var/log/ceph/XXXX` in the config override ConfigMap to enable logging. See the (Advanced
-Documentation)[Documentation/advanced-configuration.md#kubernetes] for information about how to use
-the config override ConfigMap.
-
-For Ceph Luminous/Mimic releases, `mon_cluster_log_file` and `cluster_log_file` can be set to `/var/log/ceph/XXXX` in the config override ConfigMap to enable logging. See the [Advanced Documentation](#custom-cephconf-settings) for information about how to use the config override ConfigMap.
-
-## Flex storage class versus Ceph CSI storage class
-
-Since Rook 1.1, Ceph CSI has become stable and moving forward is the ultimate replacement over the Flex driver.
-However, not all Flex storage classes are available through Ceph CSI since it's basically catching up on features.
-Ceph CSI in its 1.2 version (with Rook 1.1) does not support the Erasure coded pools storage class.
-
-So, if you are looking at using such storage class you should enable the Flex driver by setting `ROOK_ENABLE_FLEX_DRIVER: true` in your `operator.yaml`.
-Also, if you are in the need of specific features and wonder if CSI is capable of handling them, you should read [the ceph-csi support matrix](https://github.com/ceph/ceph-csi#support-matrix).
-
-See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
 
 ## A worker node using RBD devices hangs up
 

@@ -29,11 +29,7 @@ of OSDs the user expects to have backing each pool. The Ceph [OSD and Pool confi
 docs](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#a-preselection-of-pg-num)
 provide detailed information about how to tune these parameters: `osd_pool_default_pg_num` and `osd_pool_default_pgp_num`.
 
-Pools created prior to v1.1 will have a default PG count of 100. Pools created after v1.1
-will have Ceph's default PG count.
-
-An easier option exists for Rook-Ceph clusters running Ceph Nautilus (v14.2.x) or newer. Nautilus
-[introduced the PG auto-scaler mgr module](https://ceph.com/rados/new-in-nautilus-pg-merging-and-autotuning/)
+Nautilus [introduced the PG auto-scaler mgr module](https://ceph.com/rados/new-in-nautilus-pg-merging-and-autotuning/)
 capable of automatically managing PG and PGP values for pools. Please see
 [Ceph New in Nautilus: PG merging and autotuning](https://ceph.io/rados/new-in-nautilus-pg-merging-and-autotuning/)
 for more information about this module.
@@ -49,7 +45,7 @@ spec:
       enabled: true
 ```
 
-In Octopus (v15.2.x), this module is enabled by default without the above-mentioned setting.
+In Octopus (v15.2.x) and newer, this module is enabled by default without the above-mentioned setting.
 
 With that setting, the autoscaler will be enabled for all new pools. If you do not desire to have
 the autoscaler enabled for all new pools, you will need to use the Rook toolbox to enable the module
