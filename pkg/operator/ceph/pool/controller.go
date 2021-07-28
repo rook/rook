@@ -301,6 +301,13 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			}
 		}
 
+		// Add bootstrap peer if any
+		logger.Debug("reconciling ceph bootstrap peers import")
+		reconcileResponse, err = r.reconcileAddBoostrapPeer(cephBlockPool, request.NamespacedName)
+		if err != nil {
+			return reconcileResponse, errors.Wrap(err, "failed to add ceph rbd mirror peer")
+		}
+
 		// Set Ready status, we are done reconciling
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephBlockPool))
 

@@ -87,6 +87,16 @@ spec:
                     mode:
                       description: 'Mode is the mirroring mode: either pool or image'
                       type: string
+                    peers:
+                      description: Peers represents the peers spec
+                      nullable: true
+                      properties:
+                        secretNames:
+                          description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
+                          items:
+                            type: string
+                          type: array
+                      type: object
                     snapshotSchedules:
                       description: SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
                       items:
@@ -4497,6 +4507,16 @@ spec:
                           mode:
                             description: 'Mode is the mirroring mode: either pool or image'
                             type: string
+                          peers:
+                            description: Peers represents the peers spec
+                            nullable: true
+                            properties:
+                              secretNames:
+                                description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
+                                items:
+                                  type: string
+                                type: array
+                            type: object
                           snapshotSchedules:
                             description: SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
                             items:
@@ -4655,6 +4675,16 @@ spec:
                         mode:
                           description: 'Mode is the mirroring mode: either pool or image'
                           type: string
+                        peers:
+                          description: Peers represents the peers spec
+                          nullable: true
+                          properties:
+                            secretNames:
+                              description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
+                              items:
+                                type: string
+                              type: array
+                          type: object
                         snapshotSchedules:
                           description: SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
                           items:
@@ -6406,6 +6436,16 @@ spec:
                         mode:
                           description: 'Mode is the mirroring mode: either pool or image'
                           type: string
+                        peers:
+                          description: Peers represents the peers spec
+                          nullable: true
+                          properties:
+                            secretNames:
+                              description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
+                              items:
+                                type: string
+                              type: array
+                          type: object
                         snapshotSchedules:
                           description: SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
                           items:
@@ -7331,6 +7371,16 @@ spec:
                         mode:
                           description: 'Mode is the mirroring mode: either pool or image'
                           type: string
+                        peers:
+                          description: Peers represents the peers spec
+                          nullable: true
+                          properties:
+                            secretNames:
+                              description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
+                              items:
+                                type: string
+                              type: array
+                          type: object
                         snapshotSchedules:
                           description: SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
                           items:
@@ -7750,6 +7800,16 @@ spec:
                         mode:
                           description: 'Mode is the mirroring mode: either pool or image'
                           type: string
+                        peers:
+                          description: Peers represents the peers spec
+                          nullable: true
+                          properties:
+                            secretNames:
+                              description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
+                              items:
+                                type: string
+                              type: array
+                          type: object
                         snapshotSchedules:
                           description: SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
                           items:
@@ -7906,6 +7966,16 @@ spec:
                         mode:
                           description: 'Mode is the mirroring mode: either pool or image'
                           type: string
+                        peers:
+                          description: Peers represents the peers spec
+                          nullable: true
+                          properties:
+                            secretNames:
+                              description: SecretNames represents the Kubernetes Secret names to add rbd-mirror or cephfs-mirror peers
+                              items:
+                                type: string
+                              type: array
+                          type: object
                         snapshotSchedules:
                           description: SnapshotSchedules is the scheduling of snapshot for mirrored images/pools
                           items:
@@ -9777,6 +9847,10 @@ spec:
                   enum:
                   - image
                   - pool
+                peers:
+                  properties:
+                    secretNames:
+                      type: array
                 snapshotSchedules:
                   type: object
                   properties:

@@ -147,6 +147,9 @@ func TestCephBlockPoolController(t *testing.T) {
 			Replicated: cephv1.ReplicatedSpec{
 				Size: replicas,
 			},
+			Mirroring: cephv1.MirroringSpec{
+				Peers: &cephv1.MirroringPeerSpec{},
+			},
 			StatusCheck: cephv1.MirrorHealthCheckSpec{
 				Mirror: cephv1.HealthCheckSpec{
 					Disabled: true,
@@ -345,6 +348,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 
 	pool.Spec.Mirroring.Mode = "image"
+	pool.Spec.Mirroring.Peers.SecretNames = []string{}
 	err = r.client.Update(context.TODO(), pool)
 	assert.NoError(t, err)
 	for i := 0; i < 5; i++ {
@@ -370,7 +374,47 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 
 	//
-	// TEST 6: Mirroring disabled
+	// TEST 6: Import peer token
+
+	// Create a fake client to mock API calls.
+	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r = &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolChannels: make(map[string]*blockPoolHealth),
+	}
+
+	peerSecretName := "peer-secret"
+	pool.Spec.Mirroring.Peers.SecretNames = []string{peerSecretName}
+	err = r.client.Update(context.TODO(), pool)
+	assert.NoError(t, err)
+	res, err = r.Reconcile(ctx, req)
+	// assert reconcile failure because peer token secert was not created
+	assert.Error(t, err)
+	assert.True(t, res.Requeue)
+
+	bootstrapPeerToken := `eyJmc2lkIjoiYzZiMDg3ZjItNzgyOS00ZGJiLWJjZmMtNTNkYzM0ZTBiMzVkIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBV1lsWmZVQ1Q2RGhBQVBtVnAwbGtubDA5YVZWS3lyRVV1NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMTExLjEwOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTA6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjEyOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTI6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjExOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTE6Njc4OV0ifQ==` //nolint:gosec // This is just a var name, not a real token
+	peerSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      peerSecretName,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{"token": []byte(bootstrapPeerToken), "pool": []byte("goo")},
+		Type: k8sutil.RookType,
+	}
+	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, peerSecret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	res, err = r.Reconcile(ctx, req)
+	assert.NoError(t, err)
+	assert.False(t, res.Requeue)
+	err = r.client.Get(context.TODO(), req.NamespacedName, pool)
+	assert.NoError(t, err)
+
+	//
+	// TEST 7: Mirroring disabled
 	r = &ReconcileCephBlockPool{
 		client:            cl,
 		scheme:            s,

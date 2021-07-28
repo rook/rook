@@ -779,7 +779,7 @@ jobs:
 
     - name: add block mirror peer secret to the other cluster
       run: |
-        kubectl -n rook-ceph-secondary patch cephrbdmirror my-rbd-mirror --type merge -p '{"spec":{"peers": {"secretNames": ["pool-peer-token-replicapool-config"]}}}'
+        kubectl -n rook-ceph-secondary patch cephblockpool replicapool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["pool-peer-token-replicapool-config"]}}}}'
 
     - name: verify image has been mirrored
       run: |
