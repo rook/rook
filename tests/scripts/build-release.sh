@@ -6,8 +6,7 @@ set -ex
 #############
 
 function  build() {
-    # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-    build/run make VERSION=0 build.all
+    build/run make build.all
     # quick check that go modules are tidied
     build/run make mod.check
 }

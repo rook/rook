@@ -22,6 +22,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -71,6 +73,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -125,6 +129,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -175,6 +181,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -224,6 +232,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -273,6 +283,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -292,8 +304,7 @@ jobs:
 
     - name: build rook
       run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='cassandra' VERSION=0 build
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='cassandra' build
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/cassandra:master
 
@@ -323,6 +334,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -342,8 +355,7 @@ jobs:
 
     - name: build rook
       run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='nfs' VERSION=0 build
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='nfs' build
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/nfs:master
 

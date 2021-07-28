@@ -94,9 +94,8 @@ function build_rook() {
     build_type=$1
   fi
   GOPATH=$(go env GOPATH) make clean
-  # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
   for _ in $(seq 1 3); do
-    if ! o=$(make -j"$(nproc)" IMAGES='ceph' VERSION=0 "$build_type"); then
+    if ! o=$(make -j"$(nproc)" IMAGES='ceph' "$build_type"); then
       case "$o" in
         *"$NETWORK_ERROR"*)
           echo "network failure occurred, retrying..."
