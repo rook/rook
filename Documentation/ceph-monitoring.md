@@ -144,6 +144,18 @@ The following Grafana dashboards are available:
 * [Ceph - OSD (Single)](https://grafana.com/dashboards/5336)
 * [Ceph - Pools](https://grafana.com/dashboards/5342)
 
+## Updates and Upgrades
+
+When updating Rook, there may be updates to RBAC for monitoring. It is easy to apply the changes
+with each update or upgrade. This should be done at the same time you update Rook common resources
+like `common.yaml`.
+
+```console
+kubectl apply -f cluster/examples/kubernetes/ceph/monitoring/rbac.yaml
+```
+
+> This is updated automatically if you are upgrading via the helm chart
+
 ## Teardown
 
 To clean up all the artifacts created by the monitoring walk-through, copy/paste the entire block below (note that errors about resources "not found" can be ignored):
@@ -197,3 +209,4 @@ labels:
   monitoring:
     prometheus: k8s
 [...]
+```
