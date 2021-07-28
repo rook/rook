@@ -34,27 +34,27 @@ func TestPreClusterStartValidation(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"no settings", args{&cluster{Spec: &cephv1.ClusterSpec{}}}, false},
-		{"even mons", args{&cluster{Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 2}}}}, true},
-		{"missing stretch zones", args{&cluster{Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"no settings", args{&cluster{Spec: &cephv1.ClusterSpec{}, context: &clusterd.Context{Clientset: testop.New(t, 3)}}}, false},
+		{"even mons", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 2}}}}, true},
+		{"missing stretch zones", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a"},
 		}}}}}}, true},
-		{"missing arbiter", args{&cluster{Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"missing arbiter", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a"},
 			{Name: "b"},
 			{Name: "c"},
 		}}}}}}, true},
-		{"missing zone name", args{&cluster{Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"missing zone name", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Arbiter: true},
 			{Name: "b"},
 			{Name: "c"},
 		}}}}}}, true},
-		{"valid stretch cluster", args{&cluster{Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 3, StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"valid stretch cluster", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 3, StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a", Arbiter: true},
 			{Name: "b"},
 			{Name: "c"},
 		}}}}}}, false},
-		{"not enough stretch nodes", args{&cluster{Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 5, StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"not enough stretch nodes", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 5, StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a", Arbiter: true},
 			{Name: "b"},
 			{Name: "c"},
@@ -62,12 +62,7 @@ func TestPreClusterStartValidation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &ClusterController{
-				context: &clusterd.Context{
-					Clientset: testop.New(t, 3),
-				},
-			}
-			if err := c.preClusterStartValidation(tt.args.cluster); (err != nil) != tt.wantErr {
+			if err := preClusterStartValidation(tt.args.cluster); (err != nil) != tt.wantErr {
 				t.Errorf("ClusterController.preClusterStartValidation() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
