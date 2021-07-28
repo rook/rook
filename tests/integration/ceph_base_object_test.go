@@ -60,15 +60,16 @@ var (
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
-	storeName := "teststore"
-	logger.Info("Object Storage End To End Integration Test without TLS - Create Object Store, User,Bucket and read/write to bucket")
-	logger.Info("Running on Rook Cluster %s", namespace)
-	createCephObjectStore(s, helper, k8sh, namespace, storeName, 3, false)
+	storeName := "tlsteststore"
+	logger.Info("Object Storage End To End Integration Test with TLS enabled - Create Object Store, User,Bucket and read/write to bucket")
+	logger.Infof("Running on Rook Cluster %s", namespace)
+	createCephObjectStore(s, helper, k8sh, namespace, storeName, 3, true)
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
 
-	storeName = "tlsteststore"
-	logger.Info("Object Storage End To End Integration Test with TLS enabled - Create Object Store, User,Bucket and read/write to bucket")
-	createCephObjectStore(s, helper, k8sh, namespace, storeName, 3, true)
+	storeName = "teststore"
+	logger.Info("Object Storage End To End Integration Test without TLS - Create Object Store, User,Bucket and read/write to bucket")
+	logger.Infof("Running on Rook Cluster %s", namespace)
+	createCephObjectStore(s, helper, k8sh, namespace, storeName, 3, false)
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
 }
 
@@ -191,12 +192,16 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 	// Check object store status
 	t.Run("verify CephObjectStore status", func(t *testing.T) {
 		i := 0
-		for i = 0; i < 4; i++ {
+		for i = 0; i < 10; i++ {
 			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
 			assert.Nil(s.T(), err)
 			if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
 				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...", i)
 				time.Sleep(5 * time.Second)
+				continue
+			}
+			logger.Info("objectstore status is", objectStore.Status)
+			if objectStore.Status.BucketStatus.Health == cephv1.ConditionFailure {
 				continue
 			}
 			assert.Equal(s.T(), cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
@@ -205,7 +210,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 			assert.NotEmpty(s.T(), objectStore.Status.Info["endpoint"])
 			break
 		}
-		assert.NotEqual(t, 4, i)
+		assert.NotEqual(t, 10, i)
 	})
 
 	context := k8sh.MakeContext()

@@ -434,7 +434,7 @@ spec:
   healthCheck:
     bucket:
       disabled: false
-      interval: 10s
+      interval: 5s
 `
 }
 
