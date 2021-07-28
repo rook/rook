@@ -88,7 +88,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 	}
 }
 
-func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVersion, spec *cephv1.ClusterSpec) error {
+func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.CephVersion) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
 	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerInfo)
@@ -105,7 +105,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	clusterInfo.OwnerInfo = c.ownerInfo
 	clusterInfo.SetName(c.namespacedName.Name)
 	c.ClusterInfo = clusterInfo
-	c.ClusterInfo.NetworkSpec = spec.Network
+	c.ClusterInfo.NetworkSpec = c.Spec.Network
 
 	// The cluster Identity must be established at this point
 	if !c.ClusterInfo.IsInitialized(true) {
@@ -135,7 +135,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	// Start Ceph manager
 	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mgr(s)")
-	mgrs := mgr.New(c.context, c.ClusterInfo, *spec, rookImage)
+	mgrs := mgr.New(c.context, c.ClusterInfo, *c.Spec, rookImage)
 	err = mgrs.Start()
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph mgr")
@@ -143,7 +143,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 
 	// Start the OSDs
 	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph OSDs")
-	osds := osd.New(c.context, c.ClusterInfo, *spec, rookImage)
+	osds := osd.New(c.context, c.ClusterInfo, *c.Spec, rookImage)
 	err = osds.Start()
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph osds")
@@ -169,10 +169,7 @@ func (c *cluster) doOrchestration(rookImage string, cephVersion cephver.CephVers
 	return nil
 }
 
-func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *cephv1.CephCluster) error {
-	ctx := context.TODO()
-	cluster.Spec = &clusterObj.Spec
-
+func (c *ClusterController) initializeCluster(cluster *cluster) error {
 	// Check if the dataDirHostPath is located in the disallowed paths list
 	cleanDataDirHostPath := path.Clean(cluster.Spec.DataDirHostPath)
 	for _, b := range disallowedHostDirectories {
@@ -203,7 +200,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 		// Test if the cluster has already been configured if the mgr deployment has been created.
 		// If the mgr does not exist, the mons have never been verified to be in quorum.
 		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
-		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(ctx, opts)
+		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(context.TODO(), opts)
 		if err == nil && len(mgrDeployments.Items) > 0 && cluster.ClusterInfo != nil {
 			c.configureCephMonitoring(cluster, clusterInfo)
 		}
@@ -225,14 +222,10 @@ func (c *ClusterController) initializeCluster(cluster *cluster, clusterObj *ceph
 
 func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	// Cluster Spec validation
-	err := c.preClusterStartValidation(cluster)
+	err := preClusterStartValidation(cluster)
 	if err != nil {
 		return errors.Wrap(err, "failed to perform validation before cluster creation")
 	}
-
-	// Pass down the client to interact with Kubernetes objects
-	// This will be used later down by spec code to create objects like deployment, services etc
-	cluster.context.Client = c.client
 
 	// Run image validation job
 	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Detecting Ceph version")
@@ -240,6 +233,8 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	if err != nil {
 		return errors.Wrap(err, "failed the ceph version check")
 	}
+	// Set the value of isUpgrade based on the image discovery done by detectAndValidateCephVersion()
+	cluster.isUpgrade = isUpgrade
 
 	if cluster.Spec.IsStretchCluster() {
 		if !cephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Build: 5}) {
@@ -247,12 +242,10 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 		}
 	}
 
-	// Set the value of isUpgrade based on the image discovery done by detectAndValidateCephVersion()
-	cluster.isUpgrade = isUpgrade
 	controller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
 
 	// Run the orchestration
-	err = cluster.doOrchestration(c.rookImage, *cephVersion, cluster.Spec)
+	err = cluster.reconcileCephDaemons(c.rookImage, *cephVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to create cluster")
 	}
@@ -351,7 +344,7 @@ func (c *cluster) notifyChildControllerOfUpgrade() error {
 }
 
 // Validate the cluster Specs
-func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
+func preClusterStartValidation(cluster *cluster) error {
 	ctx := context.TODO()
 	if cluster.Spec.Mon.Count == 0 {
 		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
@@ -362,7 +355,7 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 	}
 	if !cluster.Spec.Mon.AllowMultiplePerNode {
 		// Check that there are enough nodes to have a chance of starting the requested number of mons
-		nodes, err := c.context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+		nodes, err := cluster.context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 		if err == nil && len(nodes.Items) < cluster.Spec.Mon.Count {
 			return errors.Errorf("cannot start %d mons on %d node(s) when allowMultiplePerNode is false", cluster.Spec.Mon.Count, len(nodes.Items))
 		}
@@ -390,7 +383,7 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 			}
 
 			// Get network attachment definition
-			_, err := c.context.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(ctx, nad, metav1.GetOptions{})
+			_, err := cluster.context.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(ctx, nad, metav1.GetOptions{})
 			if err != nil {
 				if kerrors.IsNotFound(err) {
 					return errors.Wrapf(err, "specified network attachment definition for selector %q does not exist", selector)
@@ -403,7 +396,7 @@ func (c *ClusterController) preClusterStartValidation(cluster *cluster) error {
 	// Validate on-PVC cluster encryption KMS settings
 	if cluster.Spec.Storage.IsOnPVCEncrypted() && cluster.Spec.Security.KeyManagementService.IsEnabled() {
 		// Validate the KMS details
-		err := kms.ValidateConnectionDetails(c.context, cluster.Spec.Security, cluster.Namespace)
+		err := kms.ValidateConnectionDetails(cluster.context, cluster.Spec.Security, cluster.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate kms connection details")
 		}

@@ -269,7 +269,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 
 	// Do reconcile here!
 	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
-	if err := r.clusterController.onAdd(cephCluster, ownerInfo); err != nil {
+	if err := r.clusterController.reconcileCephCluster(cephCluster, ownerInfo); err != nil {
 		return reconcile.Result{}, cephCluster, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
 	}
 
@@ -356,7 +356,7 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 	}
 }
 
-func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ownerInfo *k8sutil.OwnerInfo) error {
+func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster, ownerInfo *k8sutil.OwnerInfo) error {
 	if clusterObj.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
 		logger.Infof("skipping orchestration for cluster object %q in namespace %q because its cleanup policy is set", clusterObj.Name, clusterObj.Namespace)
 		return nil
@@ -367,6 +367,13 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ownerInfo *k8s
 		// It's a new cluster so let's populate the struct
 		cluster = newCluster(clusterObj, c.context, c.csiConfigMutex, ownerInfo)
 	}
+
+	// Pass down the client to interact with Kubernetes objects
+	// This will be used later down by spec code to create objects like deployment, services etc
+	cluster.context.Client = c.client
+
+	// Set the spec
+	cluster.Spec = &clusterObj.Spec
 
 	// Note that this lock is held through the callback process, as this creates CSI resources, but we must lock in
 	// this scope as the clusterMap is authoritative on cluster count and thus involved in the check for CSI resource
@@ -383,7 +390,7 @@ func (c *ClusterController) onAdd(clusterObj *cephv1.CephCluster, ownerInfo *k8s
 	c.csiConfigMutex.Unlock()
 
 	// Start the main ceph cluster orchestration
-	return c.initializeCluster(cluster, clusterObj)
+	return c.initializeCluster(cluster)
 }
 
 func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (reconcile.Result, error) {
