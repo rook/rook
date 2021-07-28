@@ -340,6 +340,9 @@ Based on the configuration, the operator will do the following:
 
 \* Internal cluster traffic includes OSD heartbeats, data replication, and data recovery
 
+Only OSD pods will have both Public and Cluster networks attached. The rest of the Ceph component pods and CSI pods will only have the Public network attached.
+Rook Ceph Operator will not have any networks attached as it proxies the required commands via a [sidecar container](https://github.com/rook/rook/pull/8272) in the mgr pod.
+
 In order to work, each selector value must match a `NetworkAttachmentDefinition` object name in Multus.
 
 For `multus` network provider, an already working cluster with Multus networking is required. Network attachment definition that later will be attached to the cluster needs to be created before the Cluster CRD.
