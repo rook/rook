@@ -67,6 +67,7 @@ spec:
             - "--metricsport={{ .RBDGRPCMetricsPort }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
+            - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/pv/"
           env:
             - name: POD_IP
               valueFrom:
