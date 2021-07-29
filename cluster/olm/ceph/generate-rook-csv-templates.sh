@@ -12,13 +12,13 @@ if [ -f "Dockerfile" ]; then
     cd ../../
 fi
 
-OLM_CATALOG_DIR=cluster/olm/ceph
+: "${OLM_CATALOG_DIR:=cluster/olm/ceph}"
 DEPLOY_DIR="$OLM_CATALOG_DIR/deploy"
 CRDS_DIR="$DEPLOY_DIR/crds"
 
 TEMPLATES_DIR="$OLM_CATALOG_DIR/templates"
 
-SED=${SED_CMD:-"sed -i'' -e"}
+: "${SED_IN_PLACE:="build/sed-in-place"}"
 
 function generate_template() {
     local provider=$1
@@ -32,7 +32,7 @@ function generate_template() {
     mv $tmp_csv_gen_file $csv_template_file
 
     # replace the placeholder with the templated value
-    $SED "s/9999.9999.9999/{{.RookOperatorCsvVersion}}/g" $csv_template_file
+    $SED_IN_PLACE "s/9999.9999.9999/{{.RookOperatorCsvVersion}}/g" $csv_template_file
 
     echo "Template stored at $csv_template_file"
 }
