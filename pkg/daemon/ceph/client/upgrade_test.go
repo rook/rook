@@ -141,8 +141,8 @@ func TestDaemonMapEntry(t *testing.T) {
 	dummyVersionsRaw := []byte(`
 	{
 		"mon": {
-			"ceph version 13.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) mimic (stable)": 1,
-			"ceph version 14.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 2
+			"ceph version 16.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) pacific (stable)": 1,
+			"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
 		}
 	}`)
 

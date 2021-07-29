@@ -26,10 +26,10 @@ spec:
     # The name of the failure domain to place further down replicas
     # subFailureDomain: host
   # Ceph CRUSH root location of the rule
-  # For reference: https://docs.ceph.com/docs/nautilus/rados/operations/crush-map/#types-and-buckets
+  # For reference: https://docs.ceph.com/docs/master/rados/operations/crush-map/#types-and-buckets
   #crushRoot: my-root
   # The Ceph CRUSH device class associated with the CRUSH replicated rule
-  # For reference: https://docs.ceph.com/docs/nautilus/rados/operations/crush-map/#device-classes
+  # For reference: https://docs.ceph.com/docs/master/rados/operations/crush-map/#device-classes
   #deviceClass: my-class
   # Enables collecting RBD per-image IO statistics by enabling dynamic OSD performance counters. Defaults to false.
   # For reference: https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics
@@ -38,7 +38,7 @@ spec:
   # see https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values
   parameters:
     # Inline compression mode for the data pool
-    # Further reference: https://docs.ceph.com/docs/nautilus/rados/configuration/bluestore-config-ref/#inline-compression
+    # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
     compression_mode: none
     # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
     # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
