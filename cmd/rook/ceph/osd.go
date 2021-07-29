@@ -70,6 +70,7 @@ var (
 	blockPath               string
 	lvBackedPV              bool
 	osdIDsToRemove          string
+	preservePVC             bool
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -98,6 +99,7 @@ func addOSDFlags(command *cobra.Command) {
 
 	// flags for removing OSDs that are unhealthy or otherwise should be purged from the cluster
 	osdRemoveCmd.Flags().StringVar(&osdIDsToRemove, "osd-ids", "", "OSD IDs to remove from the cluster")
+	osdRemoveCmd.Flags().BoolVar(&preservePVC, "preserve-pvc", false, "Whether PVCs for OSDs will be deleted")
 
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
@@ -260,7 +262,7 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 	context := createContext()
 
 	// Run OSD remove sequence
-	err := osddaemon.RemoveOSDs(context, &clusterInfo, strings.Split(osdIDsToRemove, ","))
+	err := osddaemon.RemoveOSDs(context, &clusterInfo, strings.Split(osdIDsToRemove, ","), preservePVC)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
