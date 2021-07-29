@@ -20,6 +20,10 @@ package v1
 
 type CephBlockPoolExpansion interface{}
 
+type CephBucketNotificationExpansion interface{}
+
+type CephBucketTopicExpansion interface{}
+
 type CephClientExpansion interface{}
 
 type CephClusterExpansion interface{}

@@ -49,11 +49,23 @@ func (b *BucketOperation) CreateObc(obcName string, storageClassName string, buc
 	return b.k8sh.ResourceOperation("create", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
+func (b *BucketOperation) CreateObcNotification(obcName string, storageClassName string, bucketName string, notification string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("create", b.manifests.GetOBCNotification(obcName, storageClassName, bucketName, notification, createBucket))
+}
+
 func (b *BucketOperation) DeleteObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
 	return b.k8sh.ResourceOperation("delete", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
 func (b *BucketOperation) UpdateObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
+}
+
+func (b *BucketOperation) UpdateObcNotificationAdd(obcName string, storageClassName string, bucketName string, notification string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBCNotification(obcName, storageClassName, bucketName, notification, createBucket))
+}
+
+func (b *BucketOperation) UpdateObcNotificationRemove(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
 	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 

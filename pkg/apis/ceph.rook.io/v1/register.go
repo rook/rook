@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	cephrookio "github.com/rook/rook/pkg/apis/ceph.rook.io"
 )
 
@@ -74,11 +75,22 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephObjectZoneGroupList{},
 		&CephObjectZone{},
 		&CephObjectZoneList{},
+		&CephBucketTopic{},
+		&CephBucketTopicList{},
+		&CephBucketNotification{},
+		&CephBucketNotificationList{},
 		&CephRBDMirror{},
 		&CephRBDMirrorList{},
 		&CephFilesystemMirror{},
 		&CephFilesystemMirrorList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+	scheme.AddKnownTypes(bktv1alpha1.SchemeGroupVersion,
+		&bktv1alpha1.ObjectBucketClaim{},
+		&bktv1alpha1.ObjectBucketClaimList{},
+		&bktv1alpha1.ObjectBucket{},
+		&bktv1alpha1.ObjectBucketList{},
+	)
+	metav1.AddToGroupVersion(scheme, bktv1alpha1.SchemeGroupVersion)
 	return nil
 }

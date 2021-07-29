@@ -390,6 +390,21 @@ spec:
     maxObjects: "` + maxObject + `"`
 }
 
+//GetOBCNotification returns the manifest to create object bucket claim
+func (m *CephManifestsV1_6) GetOBCNotification(claimName string, storageClassName string, objectBucketName string, notificationName string, varBucketName bool) string {
+  panic("bucket notifications are not supported in rook v1.6")
+}
+
+//GetBucketNotification returns the manifest to create ceph bucket notification
+func (m *CephManifestsV1_6) GetBucketNotification(notificationName string, topicName string) string {
+  panic("bucket notifications are not supported in rook v1.6")
+}
+
+//GetBucketTopic returns the manifest to create ceph bucket topic
+func (m *CephManifestsV1_6) GetBucketTopic(topicName string, storeName string, httpEndpointService string) string {
+  panic("bucket notifications are not supported in rook v1.6")
+}
+
 func (m *CephManifestsV1_6) GetClient(claimName string, caps map[string]string) string {
 	clientCaps := []string{}
 	for name, cap := range caps {

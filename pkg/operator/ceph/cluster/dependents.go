@@ -44,6 +44,8 @@ var (
 		"CephObjectRealmList",
 		"CephNFSList",
 		"CephClientList",
+		"CephBucketTopic",
+		"CephBucketNotification",
 	}
 )
 

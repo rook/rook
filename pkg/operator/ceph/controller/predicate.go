@@ -24,6 +24,7 @@ import (
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/google/go-cmp/cmp"
+	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -51,15 +52,15 @@ const (
 func WatchControllerPredicate() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			logger.Debug("create event from a CR")
+			logger.Debugf("create event from a CR: %q", e.Object.GetName())
 			return true
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			logger.Debug("delete event from a CR")
+			logger.Debugf("delete event from a CR: %q", e.Object.GetName())
 			return true
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			logger.Debug("update event from a CR")
+			logger.Debugf("update event from a CR: %q", e.ObjectOld.GetName())
 			// resource.Quantity has non-exportable fields, so we use its comparator method
 			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
 
@@ -313,8 +314,76 @@ func WatchControllerPredicate() predicate.Funcs {
 				if isUpgrade {
 					return true
 				}
-			}
 
+			case *cephv1.CephBucketTopic:
+				objNew := e.ObjectNew.(*cephv1.CephBucketTopic)
+				logger.Debug("update event on CephBucketTopic CR")
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", objNew.Name, DoNotReconcileLabelName)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					return true
+				} else if objectToBeDeleted(objOld, objNew) {
+					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+				}
+				// Handling upgrades
+				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
+				if isUpgrade {
+					return true
+				}
+
+			case *cephv1.CephBucketNotification:
+				objNew := e.ObjectNew.(*cephv1.CephBucketNotification)
+				logger.Debug("update event on CephBucketNotification CR")
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", objNew.Name, DoNotReconcileLabelName)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CR has changed for %q. diff=%s", objNew.Name, diff)
+					return true
+				} else if objectToBeDeleted(objOld, objNew) {
+					logger.Debugf("CR %q is going be deleted", objNew.Name)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
+				}
+				// Handling upgrades
+				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
+				if isUpgrade {
+					return true
+				}
+
+			case *bktv1alpha1.ObjectBucketClaim:
+				objNew := e.ObjectNew.(*bktv1alpha1.ObjectBucketClaim)
+				logger.Debug("update event on ObjectBucketClaim CR")
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", objNew.Name, DoNotReconcileLabelName)
+					return false
+				}
+				diff := cmp.Diff(objOld.Labels, objNew.Labels, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CR labels has changed for %q. diff=%s", objNew.Name, diff)
+					return true
+				} else if objOld.Spec.ObjectBucketName != objNew.Spec.ObjectBucketName {
+					logger.Infof("CR %q bucket name changed from %q to %q", objNew.Name, objOld.Spec.ObjectBucketName, objNew.Spec.ObjectBucketName)
+					return true
+				}
+				logger.Debugf("no change in CR %q", objNew.Name)
+			}
 			return false
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
