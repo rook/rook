@@ -373,6 +373,34 @@ At this point, your Rook operator should be running version `rook/ceph:v1.7.3`.
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
+### **6. Update CephRBDMirror and CephBlockPool configs**
+
+If you are not using a `CephRBDMirror` in your Rook cluster, you may disregard this section.
+
+Otherwise, please note that the location of the `CephRBDMirror` `spec.peers` config has moved to
+`CephBlockPool` `spec.mirroring.peers` in Rook v1.7. This change allows each pool to have its own
+peer and enables pools to re-use an existing peer secret if it points to the same cluster peer.
+
+You may wish to see the [CephBlockPool spec Documentation](ceph-pool-crd.md#spec) for the latest
+configuration advice.
+
+The pre-existing config location in `CephRBDMirror` `spec.peers` will continue to be supported, but
+users are still encouraged to migrate this setting from `CephRBDMirror` to relevant `CephBlockPool`
+resources.
+
+To migrate the setting, follow these steps:
+1. Stop the Rook-Ceph operator by downscaling the Deployment to zero replicas.
+   ```sh
+   kubectl -n $ROOK_OPERATOR_NAMESPACE scale deployment rook-ceph-operator --replicas=0
+   ```
+2. Copy the `spec.peers` config from `CephRBDMirror` to every `CephBlockPool` in your cluster that
+   has mirroring enabled.
+3. Remove the `peers` spec from the `CephRBDMirror` resource.
+4. Resume the Rook-Ceph operator by scaling the Deployment back to one replica.
+   ```sh
+   kubectl -n $ROOK_OPERATOR_NAMESPACE scale deployment rook-ceph-operator --replicas=1
+   ```
+
 
 ## Ceph Version Upgrades
 
