@@ -25,15 +25,20 @@ import (
 )
 
 var (
-	//minimum supported version is 2.0.0
-	minimum = CephCSIVersion{2, 0, 0}
+	//minimum supported version is 3.0.0
+	minimum = CephCSIVersion{3, 0, 0}
 	//supportedCSIVersions are versions that rook supports
-	releaseV210          = CephCSIVersion{2, 1, 0}
-	releasev300          = CephCSIVersion{3, 0, 0}
 	releasev310          = CephCSIVersion{3, 1, 0}
 	releasev320          = CephCSIVersion{3, 2, 0}
 	releasev330          = CephCSIVersion{3, 3, 0}
-	supportedCSIVersions = []CephCSIVersion{minimum, releaseV210, releasev300, releasev310, releasev320, releasev330}
+	releasev340          = CephCSIVersion{3, 4, 0}
+	supportedCSIVersions = []CephCSIVersion{
+		minimum,
+		releasev310,
+		releasev320,
+		releasev330,
+		releasev340,
+	}
 	// omap generator is supported in v3.2.0+
 	omapSupportedVersions = releasev320
 	// for parsing the output of `cephcsi`
