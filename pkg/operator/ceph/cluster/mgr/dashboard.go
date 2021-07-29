@@ -174,7 +174,7 @@ func (c *Cluster) initializeSecureDashboard() (bool, error) {
 }
 
 func (c *Cluster) createSelfSignedCert() (bool, error) {
-	// create a self-signed cert for the https connections required in mimic
+	// create a self-signed cert for the https connections
 	args := []string{"dashboard", "create-self-signed-cert"}
 
 	// retry a few times in the case that the mgr module is not ready to accept commands

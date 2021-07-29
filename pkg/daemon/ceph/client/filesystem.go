@@ -284,8 +284,7 @@ func FailMDS(context *clusterd.Context, clusterInfo *ClusterInfo, gid int) error
 }
 
 // FailFilesystem efficiently brings down the filesystem by marking the filesystem as down
-// and failing the MDSes using a single Ceph command. This works only from nautilus version
-// of Ceph onwards.
+// and failing the MDSes using a single Ceph command.
 func FailFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) error {
 	args := []string{"fs", "fail", fsName}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
