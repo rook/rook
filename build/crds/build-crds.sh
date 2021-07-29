@@ -17,18 +17,26 @@
 set -o errexit
 set -o pipefail
 
+# set BUILD_CRDS_INTO_DIR to build the CRD results into the given dir instead of in-place
+: "${BUILD_CRDS_INTO_DIR:=}"
+
 SCRIPT_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd -P)
 CONTROLLER_GEN_BIN_PATH=$1
 YQ_BIN_PATH=$2
 : "${MAX_DESC_LEN:=-1}"
 # allowDangerousTypes is used to accept float64
 CRD_OPTIONS="crd:maxDescLen=$MAX_DESC_LEN,trivialVersions=true,generateEmbeddedObjectMeta=true,allowDangerousTypes=true"
-OLM_CATALOG_DIR="${SCRIPT_ROOT}/cluster/olm/ceph/deploy/crds"
-CEPH_CRDS_FILE_PATH="${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/crds.yaml"
-CEPH_HELM_CRDS_FILE_PATH="${SCRIPT_ROOT}/cluster/charts/rook-ceph/templates/resources.yaml"
-CEPH_CRDS_BEFORE_1_16_FILE_PATH="${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/pre-k8s-1.16/crds.yaml"
-CASSANDRA_CRDS_DIR="${SCRIPT_ROOT}/cluster/examples/kubernetes/cassandra"
-NFS_CRDS_DIR="${SCRIPT_ROOT}/cluster/examples/kubernetes/nfs"
+
+DESTINATION_ROOT="$SCRIPT_ROOT"
+if [[ -n "$BUILD_CRDS_INTO_DIR" ]]; then
+  echo "Generating CRDs into dir $BUILD_CRDS_INTO_DIR"
+  DESTINATION_ROOT="$BUILD_CRDS_INTO_DIR"
+fi
+OLM_CATALOG_DIR="${DESTINATION_ROOT}/cluster/olm/ceph/deploy/crds"
+CEPH_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/examples/kubernetes/ceph/crds.yaml"
+CEPH_HELM_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/charts/rook-ceph/templates/resources.yaml"
+CASSANDRA_CRDS_DIR="${DESTINATION_ROOT}/cluster/examples/kubernetes/cassandra"
+NFS_CRDS_DIR="${DESTINATION_ROOT}/cluster/examples/kubernetes/nfs"
 
 #############
 # FUNCTIONS #
@@ -44,7 +52,7 @@ generating_crds_v1() {
   echo "Generating ceph crds"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
   # the csv upgrade is failing on the volumeClaimTemplate.metadata.annotations.crushDeviceClass unless we preserve the annotations as an unknown field
-  $YQ_BIN_PATH w -i cluster/olm/ceph/deploy/crds/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.properties.annotations.x-kubernetes-preserve-unknown-fields true
+  $YQ_BIN_PATH w -i "${OLM_CATALOG_DIR}"/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.properties.annotations.x-kubernetes-preserve-unknown-fields true
 
   echo "Generating cassandra crds"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/cassandra.rook.io/v1alpha1" output:crd:artifacts:config="$CASSANDRA_CRDS_DIR"
@@ -98,7 +106,7 @@ build_helm_resources() {
     echo "{{- else }}"
 
     # add footer
-    cat "$CEPH_CRDS_BEFORE_1_16_FILE_PATH"
+    cat "${SCRIPT_ROOT}/cluster/examples/kubernetes/ceph/pre-k8s-1.16/crds.yaml"
     # DO NOT REMOVE the empty line, it is necessary
     echo ""
     echo "{{- end }}"

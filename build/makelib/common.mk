@@ -64,10 +64,6 @@ CXX := $(CROSS_TRIPLE)-g++
 export CC CXX
 endif
 
-# sed -i'' -e works on both UNIX (MacOS) and GNU (Linux) versions of sed
-SED_CMD ?= sed -i'' -e
-export SED_CMD
-
 # set the version number. you should not need to do this
 # for the majority of scenarios.
 ifeq ($(origin VERSION), undefined)
@@ -105,6 +101,9 @@ endif
 ifeq ($(BUILD_REGISTRY),build-)
 $(error Failed to get unique ID for host+dir. Check that '$(SHA256CMD)' functions or override SHA256CMD)
 endif
+
+SED_IN_PLACE = $(ROOT_DIR)/build/sed-in-place
+export SED_IN_PLACE
 
 # This is a neat little target that prints any variable value from the Makefile
 # Usage: make echo.IMAGES echo.PLATFORM
