@@ -28,6 +28,17 @@ INTERNAL_ERROR="INTERNAL_ERROR"
 # FUNCTIONS #
 #############
 
+function minikube_deps() {
+  cd
+  curl -LO https://storage.googleapis.com/minikube/releases/v1.9.0/minikube-linux-amd64
+  sudo install minikube-linux-amd64 /usr/local/bin/minikube
+  cp /usr/local/bin/minikube /home/runner/work/_temp/
+  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+  curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+  echo "$(<kubectl.sha256) kubectl" | sha256sum --check
+  sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+}
+
 function install_deps() {
   sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
   sudo chmod +x /usr/local/bin/yq
