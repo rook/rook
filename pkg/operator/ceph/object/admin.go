@@ -19,6 +19,8 @@ package object
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httputil"
 	"regexp"
 
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -53,6 +55,38 @@ type AdminOpsContext struct {
 	AdminOpsUserAccessKey string
 	AdminOpsUserSecretKey string
 	AdminOpsClient        *admin.API
+}
+
+type debugHTTPClient struct {
+	client admin.HTTPClient
+	logger *capnslog.PackageLogger
+}
+
+// NewDebugHTTPClient helps us mutating the HTTP client to debug the request/response
+func NewDebugHTTPClient(client admin.HTTPClient, logger *capnslog.PackageLogger) *debugHTTPClient {
+	return &debugHTTPClient{client, logger}
+}
+
+func (c *debugHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	dump, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		return nil, err
+	}
+	c.logger.Debugf("\n%s\n", string(dump))
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	dump, err = httputil.DumpResponse(resp, true)
+	if err != nil {
+		return nil, err
+	}
+	c.logger.Debugf("\n%s\n", string(dump))
+
+	return resp, nil
 }
 
 const (
@@ -120,13 +154,21 @@ func NewMultisiteAdminOpsContext(
 	if err != nil {
 		return nil, err
 	}
-	client, err := admin.New(objContext.Endpoint, accessKey, secretKey, httpClient)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build admin ops API connection")
-	}
+
+	// If DEBUG level is set we will mutate the HTTP client for printing request and response
+	var client *admin.API
 	if logger.LevelAt(capnslog.DEBUG) {
-		client.Debug = true
+		client, err = admin.New(objContext.Endpoint, accessKey, secretKey, NewDebugHTTPClient(httpClient, logger))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build admin ops API connection")
+		}
+	} else {
+		client, err = admin.New(objContext.Endpoint, accessKey, secretKey, httpClient)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build admin ops API connection")
+		}
 	}
+
 	return &AdminOpsContext{
 		Context:               *objContext,
 		TlsCert:               tlsCert,
