@@ -265,10 +265,6 @@ if applicable.
 
 Let's get started!
 
-> **IMPORTANT** If your CephCluster has specified `driveGroups` in the spec, you must follow the
-> instructions to [migrate the Drive Group spec](#migrate-the-drive-group-spec) before performing
-> any of the upgrade steps below.
-
 ### **1. Update common resources and CRDs**
 
 > Automatically updated if you are upgrading via the helm chart
@@ -302,21 +298,11 @@ Then apply the latest changes.
 kubectl apply -f common.yaml -f crds.yaml
 ```
 
-> **NOTE:** If your Rook-Ceph cluster was initially installed with rook v1.4 or lower, the above
-> command will return errors due to updates from Kubernetes' v1beta1 Custom Resource Definitions.
-> The error will contain text similar to `... spec.preserveUnknownFields: Invalid value...`.
-
-If you experience this error applying the latest changes to CRDs, use `kubectl`'s `replace` command
-to replace the resources followed by `apply` to verify that the resources are updated without other
-errors.
-```sh
-kubectl replace -f crds.yaml
-kubectl apply -f crds.yaml
-```
-
 #### **Updates for optional resources**
+
 If you have [Prometheus monitoring](ceph-monitoring.md) enabled, follow the
 step to upgrade the Prometheus RBAC resources as well.
+
 ```sh
 kubectl apply -f cluster/examples/kubernetes/ceph/monitoring/rbac.yaml
 ```
