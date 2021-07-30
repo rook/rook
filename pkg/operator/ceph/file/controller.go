@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -289,9 +290,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	// Enable mirroring if needed
-	// TODO: change me to 16.2.5 once it's out, in the mean this allows us to run the CI and validate the code
-	// if r.clusterInfo.CephVersion.IsAtLeast(mirror.PeerAdditionMinVersion) {
-	if r.clusterInfo.CephVersion.IsAtLeastPacific() {
+	if r.clusterInfo.CephVersion.IsAtLeast(mirror.PeerAdditionMinVersion) {
 		// Disable mirroring on that filesystem if needed
 		if cephFilesystem.Spec.Mirroring != nil {
 			if !cephFilesystem.Spec.Mirroring.Enabled {
