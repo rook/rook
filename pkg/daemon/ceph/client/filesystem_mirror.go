@@ -79,6 +79,10 @@ func DisableFilesystemSnapshotMirror(context *clusterd.Context, clusterInfo *Clu
 	// Run command
 	output, err := cmd.Run()
 	if err != nil {
+		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOTSUP) {
+			logger.Debug("filesystem mirroring is not enabled, nothing to disable")
+			return nil
+		}
 		return errors.Wrapf(err, "failed to disable ceph filesystem snapshot mirror for filesystem %q. %s", filesystem, output)
 	}
 
