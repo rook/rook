@@ -60,6 +60,10 @@ var (
 
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
+
+	// Signals to watch for to terminate the operator gracefully
+	// Using os.Interrupt is more portable across platforms instead of os.SIGINT
+	shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
 )
 
 // Operator type for managing storage
@@ -127,8 +131,9 @@ func (o *Operator) Run() error {
 	}
 
 	opcontroller.SetCephCommandsTimeout(o.context)
-	// creating a context
-	stopContext, stopFunc := context.WithCancel(context.Background())
+
+	// Initialize signal handler and context
+	stopContext, stopFunc := signal.NotifyContext(context.Background(), shutdownSignals...)
 	defer stopFunc()
 
 	rookDiscover := discover.New(o.context.Clientset)
@@ -152,10 +157,8 @@ func (o *Operator) Run() error {
 		return errors.Wrap(err, "failed to get server version")
 	}
 
-	// Initialize signal handler
-	signalChan := make(chan os.Signal, 1)
+	// Initialize stop channel for watchers
 	stopChan := make(chan struct{})
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// For Flex Driver, run volume provisioner for each of the supported configurations
 	if opcontroller.FlexDriverEnabled(o.context) {
@@ -191,8 +194,8 @@ func (o *Operator) Run() error {
 	// Signal handler to stop the operator
 	for {
 		select {
-		case <-signalChan:
-			logger.Info("shutdown signal received, exiting...")
+		case <-stopContext.Done():
+			logger.Infof("shutdown signal received, exiting... %v", stopContext.Err())
 			o.cleanup(stopChan)
 			return nil
 		case err := <-mgrErrorChan:
