@@ -398,6 +398,8 @@ until all the daemons have been updated.
 ### **Ceph images**
 
 Official Ceph container images can be found on [Quay](https://quay.io/repository/ceph/ceph?tab=tags).
+Prior to August 2021, official images were on docker.io. While those images will remain on Docker Hub, all new images are being pushed to Quay.
+
 These images are tagged in a few ways:
 
 * The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v16.2.5-20210708`).
