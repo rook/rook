@@ -63,14 +63,13 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 		}
 
 		// Add additional information to the peer token
-		boostrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, name, boostrapToken)
+		boostrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, boostrapToken)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrap(err, "failed to add extra information to rbd-mirror bootstrap peer")
 		}
 
 	case *cephv1.CephCluster:
 		ns = objectType.Namespace
-		name = "" // We pass an empty name because this is not a pool
 		daemonType = "cluster-rbd"
 		// Create rbd mirror bootstrap peer token
 		boostrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo)
@@ -79,7 +78,7 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 		}
 
 		// Add additional information to the peer token
-		boostrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, name, boostrapToken)
+		boostrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, boostrapToken)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrap(err, "failed to add extra information to rbd-mirror bootstrap peer")
 		}
@@ -198,7 +197,7 @@ func ValidatePeerToken(object client.Object, data map[string][]byte) error {
 	return nil
 }
 
-func expandBootstrapPeerToken(ctx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, poolName string, token []byte) ([]byte, error) {
+func expandBootstrapPeerToken(ctx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, token []byte) ([]byte, error) {
 	// First decode the token, it's base64 encoded
 	decodedToken, err := base64.StdEncoding.DecodeString(string(token))
 	if err != nil {
@@ -210,17 +209,6 @@ func expandBootstrapPeerToken(ctx *clusterd.Context, clusterInfo *cephclient.Clu
 	err = json.Unmarshal(decodedToken, &decodedTokenToGo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal decoded token")
-	}
-
-	// Fetch the pool ID
-	if poolName != "" {
-		poolDetails, err := cephclient.GetPoolDetails(ctx, clusterInfo, poolName)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get pool %q details", poolName)
-		}
-
-		// Add extra details to the token
-		decodedTokenToGo.PoolID = poolDetails.Number
 	}
 
 	decodedTokenToGo.Namespace = clusterInfo.Namespace
