@@ -29,6 +29,7 @@ var (
 	testReleaseV320        = CephCSIVersion{3, 2, 0}
 	testReleaseV321        = CephCSIVersion{3, 2, 1}
 	testReleaseV330        = CephCSIVersion{3, 3, 0}
+	testReleaseV340        = CephCSIVersion{3, 4, 0}
 	testVersionUnsupported = CephCSIVersion{4, 0, 0}
 )
 
@@ -82,6 +83,11 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testReleaseV330.isAtLeast(&testReleaseV300)
 	assert.Equal(t, true, ret)
 
+	// Test for 3.4.0
+	// Test version which is lesser
+	ret = testReleaseV340.isAtLeast(&testReleaseV330)
+	assert.Equal(t, true, ret)
+
 	// Test version which is greater (minor)
 	version = CephCSIVersion{3, 1, 1}
 	ret = testReleaseV300.isAtLeast(&version)
@@ -96,13 +102,13 @@ func TestIsAtLeast(t *testing.T) {
 func TestSupported(t *testing.T) {
 	AllowUnsupported = false
 	ret := testMinVersion.Supported()
-	assert.Equal(t, true, ret)
-
-	ret = testMinVersion.Supported()
-	assert.Equal(t, true, ret)
+	assert.Equal(t, false, ret)
 
 	ret = testVersionUnsupported.Supported()
 	assert.Equal(t, false, ret)
+
+	ret = testReleaseV340.Supported()
+	assert.Equal(t, true, ret)
 }
 
 func TestSupportOMAPController(t *testing.T) {
