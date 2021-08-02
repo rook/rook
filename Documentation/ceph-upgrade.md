@@ -408,7 +408,7 @@ These images are tagged in a few ways:
 
 **Ceph containers other than the official images from the registry above will not be supported.**
 
-### **Example upgrade to Ceph Octopus**
+### **Example upgrade to Ceph Pacific**
 
 #### **1. Update the main Ceph daemons**
 
