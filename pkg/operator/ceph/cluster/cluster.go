@@ -214,6 +214,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 
 	// Populate ClusterInfo with the last value
 	cluster.mons.ClusterInfo = cluster.ClusterInfo
+	cluster.mons.ClusterInfo.SetName(c.namespacedName.Name)
 
 	// Start the monitoring if not already started
 	c.configureCephMonitoring(cluster, cluster.ClusterInfo)
@@ -570,6 +571,12 @@ func (c *cluster) postMonStartupActions() error {
 		if err := c.replaceDefaultCrushMap(crushRoot); err != nil {
 			return errors.Wrap(err, "failed to remove default CRUSH map")
 		}
+	}
+
+	// Create cluster-wide RBD bootstrap peer token
+	_, err = controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.namespacedName.Name, Namespace: c.Namespace}}, c.ownerInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}
 
 	return nil

@@ -49,6 +49,10 @@ func TestCheckHealth(t *testing.T) {
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("executing command: %s %+v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
@@ -154,7 +158,13 @@ func TestEvictMonOnSameNode(t *testing.T) {
 	clientset := test.New(t, 1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: &exectest.MockExecutor{}, RequestCancelOrchestration: abool.New()}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("executing command: %s %+v", command, args)
+			return "{\"key\":\"mysecurekey\"}", nil
+		},
+	}
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: executor, RequestCancelOrchestration: abool.New()}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0}, "myversion")
@@ -245,6 +255,10 @@ func TestCheckHealthNotFound(t *testing.T) {
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("executing command: %s %+v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}
@@ -304,6 +318,10 @@ func TestAddRemoveMons(t *testing.T) {
 	monQuorumResponse := clienttest.MonInQuorumResponse()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("executing command: %s %+v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
 			return monQuorumResponse, nil
 		},
 	}
