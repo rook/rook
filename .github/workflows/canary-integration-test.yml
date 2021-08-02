@@ -755,41 +755,77 @@ jobs:
         yq w -i pool-test.yaml spec.mirroring.enabled true
         yq w -i pool-test.yaml spec.mirroring.mode image
         kubectl create -f pool-test.yaml
-        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool to created" && sleep 1; done'
+        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to created on cluster 1" && sleep 1; done'
+
+    - name: create replicated mirrored pool 2 on cluster 1
+      run: |
+        cd cluster/examples/kubernetes/ceph/
+        yq w -i pool-test.yaml metadata.name replicapool2
+        kubectl create -f pool-test.yaml
+        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to created on cluster 2" && sleep 1; done'
+        yq w -i pool-test.yaml metadata.name replicapool
 
     - name: create replicated mirrored pool on cluster 2
       run: |
         cd cluster/examples/kubernetes/ceph/
         yq w -i pool-test.yaml metadata.namespace rook-ceph-secondary
         kubectl create -f pool-test.yaml
-        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool to created" && sleep 1; done'
+        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to created on cluster 1" && sleep 1; done'
 
-    - name: create image in the pool
+    - name: create replicated mirrored pool 2 on cluster 2
+      run: |
+        cd cluster/examples/kubernetes/ceph/
+        yq w -i pool-test.yaml metadata.name replicapool2
+        kubectl create -f pool-test.yaml
+        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to created on cluster 2" && sleep 1; done'
+
+    - name: create images in the pools
       run: |
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -ti -- rbd -p replicapool create test -s 1G
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool/test snapshot
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
+        kubectl exec -n rook-ceph deploy/rook-ceph-tools -ti -- rbd -p replicapool2 create test -s 1G
+        kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool2/test snapshot
+        kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool2 info test
 
-    - name: copy block mirror peer secret into the other cluster
+    - name: copy block mirror peer secret into the other cluster for replicapool
       run: |
         kubectl -n rook-ceph get secret pool-peer-token-replicapool -o yaml |\
         sed 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g; s/name: pool-peer-token-replicapool/name: pool-peer-token-replicapool-config/g' |\
         kubectl create --namespace=rook-ceph-secondary -f -
 
-    - name: add block mirror peer secret to the other cluster
+    - name: copy block mirror peer secret into the other cluster for replicapool2 (using cluster global peer)
+      run: |
+        kubectl -n rook-ceph get secret cluster-peer-token-my-cluster -o yaml |\
+        sed 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g; s/name: cluster-peer-token-my-cluster/name: cluster-peer-token-my-cluster-config/g' |\
+        kubectl create --namespace=rook-ceph-secondary -f -
+
+    - name: add block mirror peer secret to the other cluster for replicapool
       run: |
         kubectl -n rook-ceph-secondary patch cephblockpool replicapool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["pool-peer-token-replicapool-config"]}}}}'
 
-    - name: verify image has been mirrored
+    - name: add block mirror peer secret to the other cluster for replicapool2 (using cluster global peer)
+      run: |
+        kubectl -n rook-ceph-secondary patch cephblockpool replicapool2 --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["cluster-peer-token-my-cluster-config"]}}}}'
+
+    - name: verify image has been mirrored for replicapool
       run: |
         # let's wait a bit for the image to be present
-        timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored" && sleep 1; done'
+        timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool" && sleep 1; done'
+
+    - name: verify image has been mirrored for replicapool2
+      run: |
+        # let's wait a bit for the image to be present
+        timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool2 ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool2" && sleep 1; done'
 
     - name: display cephblockpool and image status
       run: |
-        timeout 80 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.mirroringStatus.summary.daemon_health}'|grep -c OK)" -eq 1 ]; do echo "waiting for mirroring status to be updated" && sleep 1; done'
-        kubectl -n rook-ceph-secondary get cephblockpool -o yaml
+        timeout 80 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.mirroringStatus.summary.daemon_health}'|grep -c OK)" -eq 1 ]; do echo "waiting for mirroring status to be updated in replicapool" && sleep 1; done'
+        timeout 80 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool2 -o jsonpath='{.status.mirroringStatus.summary.daemon_health}'|grep -c OK)" -eq 1 ]; do echo "waiting for mirroring status to be updated in replicapool2" && sleep 1; done'
+        kubectl -n rook-ceph-secondary get cephblockpool replicapool -o yaml
+        kubectl -n rook-ceph-secondary get cephblockpool replicapool2 -o yaml
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
+        kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool2 info test
 
     - name: create replicated mirrored filesystem on cluster 1
       run: |

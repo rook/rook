@@ -62,5 +62,6 @@ func CreateTestClusterInfo(monCount int) *client.ClusterInfo {
 			Endpoint: fmt.Sprintf("1.2.3.%d:6789", (i + 1)),
 		}
 	}
+	c.SetName(c.Namespace)
 	return c
 }
