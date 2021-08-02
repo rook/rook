@@ -86,6 +86,8 @@ spec:
     replicated:
       size: 3
   dataPools:
+    - replicated:
+        size: 3
     - erasureCoded:
         dataChunks: 2
         codingChunks: 1
@@ -93,6 +95,8 @@ spec:
     activeCount: 1
     activeStandby: true
 ```
+
+**IMPORTANT**: For erasure coded pools, we have to create a replicated pool as the default data pool and an erasure-coded pool as a secondary pool.
 
 (These definitions can also be found in the [`filesystem-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/filesystem-ec.yaml) file.
 Also see an example in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/csi/cephfs/storageclass-ec.yaml) for how to configure the volume.)

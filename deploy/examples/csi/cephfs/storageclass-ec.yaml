@@ -14,7 +14,10 @@ parameters:
 
   # Ceph pool into which the volume shall be created
   # Required for provisionVolume: "true"
-  pool: myfs-ec-data0
+
+  # For erasure coded pools, we have to create a replicated pool as the default data pool and an erasure-coded
+  # pool as a secondary pool.
+  pool: myfs-ec-data1
 
   # The secrets contain Ceph admin credentials. These are generated automatically by the operator
   # in the same namespace as the cluster.
