@@ -29,6 +29,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -327,4 +328,40 @@ func TestMgrDaemons(t *testing.T) {
 	require.Equal(t, 2, len(daemons))
 	assert.Equal(t, "a", daemons[0])
 	assert.Equal(t, "b", daemons[1])
+}
+
+func TestApplyMonitoringLabels(t *testing.T) {
+	clusterSpec := cephv1.ClusterSpec{
+		Labels: cephv1.LabelsSpec{},
+	}
+	c := &Cluster{spec: clusterSpec}
+	sm := &monitoringv1.ServiceMonitor{Spec: monitoringv1.ServiceMonitorSpec{
+		Endpoints: []monitoringv1.Endpoint{{}}}}
+
+	// Service Monitor RelabelConfigs updated when 'rook.io/managedBy' monitoring label is found
+	monitoringLabels := cephv1.LabelsSpec{
+		cephv1.KeyMonitoring: map[string]string{
+			"rook.io/managedBy": "storagecluster"},
+	}
+	c.spec.Labels = monitoringLabels
+	applyMonitoringLabels(c, sm)
+	fmt.Printf("Hello1")
+	assert.Equal(t, "managedBy", sm.Spec.Endpoints[0].RelabelConfigs[0].TargetLabel)
+	assert.Equal(t, "storagecluster", sm.Spec.Endpoints[0].RelabelConfigs[0].Replacement)
+
+	// Service Monitor RelabelConfigs not updated when the required monitoring label is not found
+	monitoringLabels = cephv1.LabelsSpec{
+		cephv1.KeyMonitoring: map[string]string{
+			"wrongLabelKey": "storagecluster"},
+	}
+	c.spec.Labels = monitoringLabels
+	sm.Spec.Endpoints[0].RelabelConfigs = nil
+	applyMonitoringLabels(c, sm)
+	assert.Nil(t, sm.Spec.Endpoints[0].RelabelConfigs)
+
+	// Service Monitor RelabelConfigs not updated when no monitoring labels are found
+	c.spec.Labels = cephv1.LabelsSpec{}
+	sm.Spec.Endpoints[0].RelabelConfigs = nil
+	applyMonitoringLabels(c, sm)
+	assert.Nil(t, sm.Spec.Endpoints[0].RelabelConfigs)
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -467,6 +468,9 @@ func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 	}
 	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{c.clusterInfo.Namespace}
 	serviceMonitor.Spec.Selector.MatchLabels = c.selectorLabels(activeDaemon)
+
+	applyMonitoringLabels(c, serviceMonitor)
+
 	if _, err = k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
 	}
@@ -505,4 +509,25 @@ func IsModuleInSpec(modules []cephv1.Module, moduleName string) bool {
 	}
 
 	return false
+}
+
+// ApplyMonitoringLabels function adds the name of the resource that manages
+// cephcluster, as a label on the ceph metrics
+func applyMonitoringLabels(c *Cluster, serviceMonitor *monitoringv1.ServiceMonitor) {
+	if c.spec.Labels != nil {
+		if monitoringLabels, ok := c.spec.Labels["monitoring"]; ok {
+			if managedBy, ok := monitoringLabels["rook.io/managedBy"]; ok {
+				relabelConfig := monitoringv1.RelabelConfig{
+					TargetLabel: "managedBy",
+					Replacement: managedBy,
+				}
+				serviceMonitor.Spec.Endpoints[0].RelabelConfigs = append(
+					serviceMonitor.Spec.Endpoints[0].RelabelConfigs, &relabelConfig)
+			} else {
+				logger.Info("rook.io/managedBy not specified in monitoring labels")
+			}
+		} else {
+			logger.Info("monitoring labels not specified")
+		}
+	}
 }
