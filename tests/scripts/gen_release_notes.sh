@@ -3,31 +3,13 @@ set -e
 
 function help() {
   print="
-  suppose we want release note for v1.6.8, we'll check the list of pr merged in upstream/release-1.6 but not present in v1.6.7
-  EXAMPLE command:
-  ./tests/scripts/gen_release_notes.sh <rook/rook remote name>/release-1.6 v1.6.7
+  To run this command,
+  1. verify you are selecting right branch from GitHub UI dropdown menu
+  2. enter the tag you want to create
   "
   echo "$print"
   exit 1
 }
-
-FROM_BRANCH=$1 # example branch name, "upstream/release-1.6"
-TO_TAG=$2 # example tag, "v1.6.7"
-
-if [[ $# -ne 2 ]]; then
-  echo "requires exactly 2 arguments"
-  help
-fi
-
-REMOTE=$(git remote show $(echo $1 | cut -d / -f1)|grep -oh $(echo $1 | cut -d / -f2-)|uniq >/dev/null 2>&1)
-if ! $REMOTE ; then
-  echo "remote doesn't exist" $REMOTE
-  exit 1
-fi
-
-if ! git show-ref --tags $2 -q; then
-  echo "tag doesn't exist" $2
-fi
 
 if [ -z "${GITHUB_USER}" ] || [ -z "${GITHUB_TOKEN}" ]; then
   echo "requires both GITHUB_USER and GITHUB_TOKEN to be set as env variable"
