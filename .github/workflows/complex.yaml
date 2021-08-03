@@ -1,0 +1,120 @@
+name: Complex test environment
+# complex test environment with multiple k8s nodes, disks, and network options
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+jobs:
+  complex:
+    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    runs-on: macos-10.15
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: install prerequisites
+      run: |
+        brew install coreutils docker minikube tree virtualbox
+
+    # manusa/actions-setup-minikube only works in ubuntu, but macos is the only github runner that
+    # supports nested virtualization
+    # macos VM specs: 3 cores of CPU, 14G RAM, 14G SSD space
+    - name: setup minikube cluster
+      run: |
+        NUM_DISKS_PER_VM=3
+        EXTRA_DISK_SIZE_MB=10000
+
+        time minikube start --driver=virtualbox --memory=6g --nodes=3
+        minikube stop
+
+        pushd $HOME
+
+        mkdir -p $HOME/vms
+        net_name="$(VBoxManage hostonlyif create --machinereadable)"
+        echo === created new host-only network ${net_name} ===
+        # get just VM names from output formatted like: "<vm-name>" {<vm-UUID>}
+        vms="$(VBoxManage list vms | awk '{print $1}' | tr -d '"')"
+        for vm in ${vms}; do
+          echo === modifying VM ${vm} ===
+          vm_path="$HOME/vms/${vm}"
+          mkdir -p ${vm_path}
+          # Add a SAS controller b/c there is already a SATA controller created. VBox can't have
+          # multiple of the same controller, but it's easiest to attach extra disks to a new controller
+          echo   === adding SAS controller to ${vm} ===
+          disk_ctrl="SAS"
+          VBoxManage storagectl ${vm} --name="${disk_ctrl}" --add=sas --controller=LsiLogicSAS
+          echo   === adding ${NUM_DISKS_PER_VM} disks to ${vm} ===
+          for i in $(seq 1 $NUM_DISKS_PER_VM); do
+            disk_file=${vm_path}/extra-disk-${i}.vdi
+            VBoxManage createmedium disk --format=VDI --size=${EXTRA_DISK_SIZE_MB} --filename="${disk_file}"
+            VBoxManage storageattach ${vm} --storagectl=${disk_ctrl} --port=${i} --device=0 --type=hdd --medium=${disk_file}
+          done
+          # find the first unused NIC (identified by 'nic<num>="none"')
+          nic="$(VBoxManage showvminfo --machinereadable ${vm} | grep -E 'nic.*"none"'| sort | head -1 | cut -d"=" -f1)"
+          nic_id="${nic#nic}" # extract nic number from nic (e.g., nic3 -> 3)
+          echo   === attaching ${vm} ${nic} to host-only network ${net_name} ===
+          VBoxManage modifyvm ${vm} --${nic} hostonly --hostonlyadapter${nic_id}=${net_name}
+        done
+        tree $HOME/vms
+
+        time minikube start
+
+        popd
+
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: build rook
+      run: |
+        export BLOCK="" # don't need block on macos
+        tests/scripts/github-action-helper.sh build_rook
+
+    - name: load image into minikube
+      run: minikube image load rook/ceph:master
+
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+    - name: deploy cluster
+      run: |
+        pushd cluster/examples/kubernetes/ceph
+        # don't need to use *-test.yaml manifests for the complex tests
+        kubectl create -f operator.yaml
+        kubectl create -f cluster.yaml
+        popd
+
+    - name: wait for prepare pod
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+    - name: wait for ceph to be ready
+      run: |
+        # expect 9 OSDs, 3 on each node
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 9
+        kubectl -n rook-ceph get pods
+        kubectl -n rook-ceph get secrets
+
+    - name: Upload complex test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: complex
+        path: test
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 120
