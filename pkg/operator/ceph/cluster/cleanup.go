@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -30,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
+	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -207,10 +209,10 @@ func (c *ClusterController) waitForCephDaemonCleanUp(stopCleanupCh chan struct{}
 // getCephHosts returns a list of host names where ceph daemon pods are running
 func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 	ctx := context.TODO()
-	cephPodCount := map[string]int{}
-	cephAppNames := []string{mon.AppName, mgr.AppName, osd.AppName, object.AppName, mds.AppName, rbd.AppName}
+	cephAppNames := []string{mon.AppName, mgr.AppName, osd.AppName, object.AppName, mds.AppName, rbd.AppName, mirror.AppName}
 	nodeNameList := util.NewSet()
 	hostNameList := []string{}
+	var b strings.Builder
 
 	// get all the node names where ceph daemons are running
 	for _, app := range cephAppNames {
@@ -225,10 +227,10 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 				nodeNameList.Add(podNodeName)
 			}
 		}
-		cephPodCount[app] = len(podList.Items)
+		fmt.Fprintf(&b, "%s: %d. ", app, len(podList.Items))
 	}
-	logger.Infof("existing ceph daemons in the namespace %q: rook-ceph-mon: %d, rook-ceph-osd: %d, rook-ceph-mds: %d, rook-ceph-rgw: %d, rook-ceph-mgr: %d, rook-ceph-rbd-mirror: %d",
-		namespace, cephPodCount["rook-ceph-mon"], cephPodCount["rook-ceph-osd"], cephPodCount["rook-ceph-mds"], cephPodCount["rook-ceph-rgw"], cephPodCount["rook-ceph-mgr"], cephPodCount["rook-ceph-rbd-mirror"])
+
+	logger.Infof("existing ceph daemons in the namespace %q. %s", namespace, b.String())
 
 	for nodeName := range nodeNameList.Iter() {
 		podHostName, err := k8sutil.GetNodeHostName(c.context.Clientset, nodeName)
