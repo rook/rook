@@ -46,27 +46,30 @@ var (
 )
 
 // ImportRBDMirrorBootstrapPeer add a mirror peer in the rbd-mirror configuration
-func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, direction string, token []byte) error {
+func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string, direction string, token []byte) error {
 	logger.Infof("add rbd-mirror bootstrap peer token for pool %q", poolName)
 
 	// Token file
-	// TODO: use mktemp?
-	tokenFilePath := fmt.Sprintf("/tmp/rbd-mirror-token-%s", poolName)
+	tokenFilePattern := fmt.Sprintf("rbd-mirror-token-%s", poolName)
+	tokenFilePath, err := ioutil.TempFile("/tmp", tokenFilePattern)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create temporary token file for pool %q", poolName)
+	}
 
 	// Write token into a file
-	err := ioutil.WriteFile(tokenFilePath, token, 0400)
+	err = ioutil.WriteFile(tokenFilePath.Name(), token, 0400)
 	if err != nil {
-		return errors.Wrapf(err, "failed to write token to file %q", tokenFilePath)
+		return errors.Wrapf(err, "failed to write token to file %q", tokenFilePath.Name())
 	}
 
 	// Remove token once we exit, we don't need it anymore
 	defer func() error {
-		err := os.Remove(tokenFilePath)
+		err := os.Remove(tokenFilePath.Name())
 		return err
 	}() //nolint // we don't want to return here
 
 	// Build command
-	args := []string{"mirror", "pool", "peer", "bootstrap", "import", poolName, tokenFilePath}
+	args := []string{"mirror", "pool", "peer", "bootstrap", "import", poolName, tokenFilePath.Name()}
 	if direction != "" {
 		args = append(args, "--direction", direction)
 	}
