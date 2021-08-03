@@ -37,7 +37,6 @@ type PeerToken struct {
 	Key         string `json:"key"`
 	MonHost     string `json:"mon_host"`
 	// These fields are added by Rook and NOT part of the output of client.CreateRBDMirrorBootstrapPeer()
-	PoolID    int    `json:"pool_id"`
 	Namespace string `json:"namespace"`
 }
 
