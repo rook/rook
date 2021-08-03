@@ -107,7 +107,6 @@ func TestImportRBDMirrorBootstrapPeer(t *testing.T) {
 			assert.Equal(t, "bootstrap", args[3])
 			assert.Equal(t, "import", args[4])
 			assert.Equal(t, pool, args[5])
-			assert.Equal(t, "/tmp/rbd-mirror-token-pool-test", args[6])
 			assert.Equal(t, 11, len(args))
 			return mirrorStatus, nil
 		}
@@ -125,7 +124,6 @@ func TestImportRBDMirrorBootstrapPeer(t *testing.T) {
 			assert.Equal(t, "bootstrap", args[3])
 			assert.Equal(t, "import", args[4])
 			assert.Equal(t, pool, args[5])
-			assert.Equal(t, "/tmp/rbd-mirror-token-pool-test", args[6])
 			assert.Equal(t, "--direction", args[7])
 			assert.Equal(t, "rx-tx", args[8])
 			assert.Equal(t, 13, len(args))
