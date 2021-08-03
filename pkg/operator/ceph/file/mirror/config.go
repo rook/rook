@@ -41,8 +41,7 @@ const (
 
 var (
 	// PeerAdditionMinVersion This version includes a number of fixes for snapshots and mirror status
-	// TODO change me to 16.2.5
-	PeerAdditionMinVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 2}
+	PeerAdditionMinVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 5}
 )
 
 // daemonConfig for a single rbd-mirror
