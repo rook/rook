@@ -36,7 +36,7 @@ func Retry(maxRetries int, delay time.Duration, f func() error) error {
 
 		tries++
 		if tries > maxRetries {
-			return fmt.Errorf("max retries exceeded, last err: %+v", err)
+			return fmt.Errorf("max retries exceeded, last err: %v", err)
 		}
 
 		logger.Infof("retrying after %v, last error: %v", delay, err)
