@@ -42,19 +42,12 @@ import (
 // Read more about how Managers, Controllers, and their Watches, Handlers, Predicates, etc work here:
 // https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg
 func Add(mgr manager.Manager, context *controllerconfig.Context) error {
-
-	// Add the cephv1 scheme to the manager scheme
-	mgrScheme := mgr.GetScheme()
-	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "failed to add ceph scheme to manager scheme")
-	}
-
 	// This will be used to associate namespaces and cephclusters.
 	sharedClusterMap := &ClusterMap{}
 
 	reconcileClusterDisruption := &ReconcileClusterDisruption{
 		client:     mgr.GetClient(),
-		scheme:     mgrScheme,
+		scheme:     mgr.GetScheme(),
 		context:    context,
 		clusterMap: sharedClusterMap,
 	}

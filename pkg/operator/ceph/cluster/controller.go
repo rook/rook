@@ -113,12 +113,6 @@ func Add(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterC
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterController) reconcile.Reconciler {
-	// Add the cephv1 scheme to the manager scheme so that the controller knows about it
-	mgrScheme := mgr.GetScheme()
-	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
-		panic(err)
-	}
-
 	// add "rook-" prefix to the controller name to make sure it is clear to all reading the events
 	// that they are coming from Rook. The controller name already has context that it is for Ceph
 	// and from the cluster controller.
@@ -126,7 +120,7 @@ func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController
 
 	return &ReconcileCephCluster{
 		client:            mgr.GetClient(),
-		scheme:            mgrScheme,
+		scheme:            mgr.GetScheme(),
 		context:           ctx,
 		clusterController: clusterController,
 	}

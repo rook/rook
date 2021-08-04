@@ -92,14 +92,9 @@ func Add(mgr manager.Manager, context *clusterd.Context) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
-	// Add the cephv1 scheme to the manager scheme so that the controller knows about it
-	mgrScheme := mgr.GetScheme()
-	if err := cephv1.AddToScheme(mgr.GetScheme()); err != nil {
-		panic(err)
-	}
 	return &ReconcileCephRBDMirror{
 		client:  mgr.GetClient(),
-		scheme:  mgrScheme,
+		scheme:  mgr.GetScheme(),
 		context: context,
 		peers:   make(map[string]*peerSpec),
 	}
