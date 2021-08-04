@@ -279,7 +279,7 @@ needed by the Operator. Also update the Custom Resource Definitions (CRDs).
 
 First get the latest common resources manifests that contain the latest changes.
 ```sh
-git clone --single-branch --depth=1 --branch v1.7.0-beta.1 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.7.0 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/ceph
 ```
 
