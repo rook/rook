@@ -49,7 +49,6 @@ type config struct {
 	location           string
 	cephConfigOverride string
 	storeConfig        osdconfig.StoreConfig
-	networkInfo        clusterd.NetworkInfo
 	monEndpoints       string
 	nodeName           string
 	pvcBacked          bool
@@ -69,13 +68,10 @@ func createContext() *clusterd.Context {
 	context := rook.NewContext()
 	context.ConfigDir = cfg.dataDir
 	context.ConfigFileOverride = cfg.cephConfigOverride
-	context.NetworkInfo = cfg.NetworkInfo()
 	return context
 }
 
 func addCephFlags(command *cobra.Command) {
-	command.Flags().StringVar(&cfg.networkInfo.PublicAddr, "public-ip", "", "public IP address for this machine")
-	command.Flags().StringVar(&cfg.networkInfo.ClusterAddr, "private-ip", "", "private IP address for this machine")
 	command.Flags().StringVar(&clusterInfo.FSID, "fsid", "", "the cluster uuid")
 	command.Flags().StringVar(&clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
 	command.Flags().StringVar(&clusterInfo.CephCred.Username, "ceph-username", "", "ceph username")
@@ -85,13 +81,4 @@ func addCephFlags(command *cobra.Command) {
 	command.Flags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
 
 	clusterInfo.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
-
-	// deprecated ipv4 format address
-	// TODO: remove these legacy flags in the future
-	command.Flags().StringVar(&cfg.networkInfo.PublicAddrIPv4, "public-ipv4", "", "public IPv4 address for this machine")
-	command.Flags().StringVar(&cfg.networkInfo.ClusterAddrIPv4, "private-ipv4", "", "private IPv4 address for this machine")
-}
-
-func (c *config) NetworkInfo() clusterd.NetworkInfo {
-	return c.networkInfo.Simplify()
 }
