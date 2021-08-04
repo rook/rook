@@ -493,7 +493,7 @@ func TestGetOSDInfo(t *testing.T) {
 	})
 }
 
-func TestOSDPlacement(t *testing.T) {
+func TestGetPreparePlacement(t *testing.T) {
 	// no placement
 	prop := osdProperties{}
 	result := prop.getPreparePlacement()
