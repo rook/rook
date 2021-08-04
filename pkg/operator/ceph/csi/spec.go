@@ -612,7 +612,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		if err != nil {
 			// logging a warning and intentionally continuing with the default
 			// log level
-			logger.Warningf("failed to parse CSI_CEPHFS_FSGROUPPOLICY. Defaulting to %q. %v", k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy, err)
+			logger.Warningf("failed to parse CSI_CEPHFS_FSGROUPPOLICY. Defaulting to %q. %v", k8scsi.NoneFSGroupPolicy, err)
 		}
 		err = csiDriverobj.createCSIDriverInfo(ctx, clientset, CephFSDriverName, fsGroupPolicyForCephFS)
 		if err != nil {
