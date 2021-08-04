@@ -66,9 +66,6 @@ type Context struct {
 	// The full path to a config file that can be used to override generated settings
 	ConfigFileOverride string
 
-	// Information about the network for this machine and its cluster
-	NetworkInfo NetworkInfo
-
 	// NetworkClient is a connection to the CNI plugin API
 	NetworkClient netclient.K8sCniCncfIoV1Interface
 

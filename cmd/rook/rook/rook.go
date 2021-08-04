@@ -102,10 +102,9 @@ func NewContext() *clusterd.Context {
 	var err error
 
 	context := &clusterd.Context{
-		Executor:    &exec.CommandExecutor{},
-		NetworkInfo: clusterd.NetworkInfo{},
-		ConfigDir:   k8sutil.DataDir,
-		LogLevel:    Cfg.LogLevel,
+		Executor:  &exec.CommandExecutor{},
+		ConfigDir: k8sutil.DataDir,
+		LogLevel:  Cfg.LogLevel,
 	}
 
 	// Try to read config from in-cluster env

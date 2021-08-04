@@ -19,7 +19,6 @@ package ceph
 import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	operator "github.com/rook/rook/pkg/operator/ceph"
 	cluster "github.com/rook/rook/pkg/operator/ceph/cluster"
@@ -70,7 +69,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	logger.Info("starting Rook-Ceph operator")
 	context := createContext()
-	context.NetworkInfo = clusterd.NetworkInfo{}
 	context.ConfigDir = k8sutil.DataDir
 	volumeAttachment, err := attachment.New(context)
 	if err != nil {
