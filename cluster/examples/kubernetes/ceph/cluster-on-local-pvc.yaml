@@ -193,6 +193,18 @@ spec:
         tuneDeviceClass: true
         tuneFastDeviceClass: false
         encrypted: false
+        placement:
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - rook-ceph-osd
+                      - rook-ceph-osd-prepare
         preparePlacement:
           podAntiAffinity:
             preferredDuringSchedulingIgnoredDuringExecution:
@@ -208,6 +220,7 @@ spec:
                         operator: In
                         values:
                           - rook-ceph-osd-prepare
+                  topologyKey: kubernetes.io/hostname
         resources:
         # These are the OSD daemon limits. For OSD prepare limits, see the separate section below for "prepareosd" resources
         #   limits:
