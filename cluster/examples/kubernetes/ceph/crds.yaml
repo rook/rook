@@ -6552,6 +6552,10 @@ spec:
                       nullable: true
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    caBundleRef:
+                      description: The name of the secret that stores custom ca-bundle with root and intermediate certificates.
+                      nullable: true
+                      type: string
                     externalRgwEndpoints:
                       description: ExternalRgwEndpoints points to external rgw endpoint(s)
                       items:
