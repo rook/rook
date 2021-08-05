@@ -1319,6 +1319,11 @@ type GatewaySpec struct {
 	// +optional
 	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
 
+	// The name of the secret that stores custom ca-bundle with root and intermediate certificates.
+	// +nullable
+	// +optional
+	CaBundleRef string `json:"caBundleRef,omitempty"`
+
 	// The affinity to place the rgw pods (default is to place on any available node)
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
