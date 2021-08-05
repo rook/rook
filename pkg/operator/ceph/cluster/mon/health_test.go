@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -472,5 +473,50 @@ func TestNewHealthChecker(t *testing.T) {
 		if got := NewHealthChecker(tests.args.monCluster); !reflect.DeepEqual(got, tests.want) {
 			t.Errorf("NewHealthChecker() = %v, want %v", got, tests.want)
 		}
+	})
+}
+
+func TestUpdateMonTimeout(t *testing.T) {
+	t.Run("using default mon timeout", func(t *testing.T) {
+		m := &Cluster{}
+		updateMonTimeout(m)
+		assert.Equal(t, time.Minute*10, MonOutTimeout)
+	})
+	t.Run("using env var mon timeout", func(t *testing.T) {
+		os.Setenv("ROOK_MON_OUT_TIMEOUT", "10s")
+		defer os.Unsetenv("ROOK_MON_OUT_TIMEOUT")
+		m := &Cluster{}
+		updateMonTimeout(m)
+		assert.Equal(t, time.Second*10, MonOutTimeout)
+	})
+	t.Run("using spec mon timeout", func(t *testing.T) {
+		m := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Timeout: "1m"}}}}}
+		updateMonTimeout(m)
+		assert.Equal(t, time.Minute, MonOutTimeout)
+	})
+}
+
+func TestUpdateMonInterval(t *testing.T) {
+	t.Run("using default mon interval", func(t *testing.T) {
+		m := &Cluster{}
+		h := &HealthChecker{m, HealthCheckInterval}
+		updateMonInterval(m, h)
+		assert.Equal(t, time.Second*45, HealthCheckInterval)
+	})
+	t.Run("using env var mon timeout", func(t *testing.T) {
+		os.Setenv("ROOK_MON_HEALTHCHECK_INTERVAL", "10s")
+		defer os.Unsetenv("ROOK_MON_HEALTHCHECK_INTERVAL")
+		m := &Cluster{}
+		h := &HealthChecker{m, HealthCheckInterval}
+		updateMonInterval(m, h)
+		assert.Equal(t, time.Second*10, h.interval)
+	})
+	t.Run("using spec mon timeout", func(t *testing.T) {
+		tm, err := time.ParseDuration("1m")
+		assert.NoError(t, err)
+		m := &Cluster{spec: cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Interval: &metav1.Duration{Duration: tm}}}}}}
+		h := &HealthChecker{m, HealthCheckInterval}
+		updateMonInterval(m, h)
+		assert.Equal(t, time.Minute, h.interval)
 	})
 }
