@@ -471,12 +471,3 @@ rules:
   verbs:
   - use
 {{- end }}
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-admission-controller-role
-rules:
-  - apiGroups: ["ceph.rook.io"]
-    resources: ["*"]
-    verbs: ["get", "watch", "list"]
