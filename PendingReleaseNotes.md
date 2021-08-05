@@ -41,6 +41,7 @@ So the CephCLuster spec field `image` must be updated to point to quay, like `im
 - Stretch clusters are considered stable
   - Ceph v16.2.5 or greater is required for stretch clusters
 - The use of peer secret names in CephRBDMirror is deprecated. Please use CephBlockPool CR to configure peer secret names and import peers. Checkout the `mirroring` section in the CephBlockPool [spec](Documentation/ceph-pool-crd.md#spec) for more details.
+- Update Ceph CSI to `v3.4.0` for more details read the [official release note](https://github.com/ceph/ceph-csi/releases/tag/v3.4.0)
 
 ### Cassandra
 

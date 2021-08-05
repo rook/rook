@@ -66,9 +66,9 @@ parameters:
   # in hyperconverged settings where the volume is mounted on the same node as the osds.
   csi.storage.k8s.io/fstype: ext4
 # uncomment the following to use rbd-nbd as mounter on supported nodes
-# **IMPORTANT**: If you are using rbd-nbd as the mounter, during upgrade you will be hit a ceph-csi
-# issue that causes the mount to be disconnected. You will need to follow special upgrade steps
-# to restart your application pods. Therefore, this option is not recommended.
+# **IMPORTANT**: CephCSI v3.4.0 onwards a volume healer functionality is added to reattach
+# the PVC to application pod if nodeplugin pod restart.
+# Its still in Alpha support. Therefore, this option is not recommended for production use.
 #mounter: rbd-nbd
 allowVolumeExpansion: true
 reclaimPolicy: Delete
