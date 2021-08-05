@@ -1,0 +1,34 @@
+---
+name: All in One Linter
+
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+jobs:
+  Lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+        with:
+          # Full git history is needed to get a proper list of changed files within `super-linter`
+          fetch-depth: 0
+
+      - name: Lint Code Base
+        uses: github/super-linter@v4
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_GO: true  # This will enable golanci linter
+          VALIDATE_YAML: true # This will enable yaml lint
+          DEFAULT_BRANCH: master
+
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
