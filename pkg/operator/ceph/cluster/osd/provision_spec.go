@@ -157,17 +157,13 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	if osdProps.onPVC() {
-		// The "all" placement is applied separately so it will have lower priority.
-		// We want placement from the storageClassDeviceSet to be applied and override
-		// the "all" placement if there are any overlapping placement settings.
-		c.spec.Placement.All().ApplyToPodSpec(&podSpec)
-		// Apply storageClassDeviceSet PreparePlacement
-		// If nodeAffinity is specified both in the device set and "all" placement,
-		// they will be merged.
+		c.applyAllPlacementIfNeeded(&podSpec)
+		// apply storageClassDeviceSets.preparePlacement
 		osdProps.getPreparePlacement().ApplyToPodSpec(&podSpec)
 	} else {
-		p := cephv1.GetOSDPlacement(c.spec.Placement)
-		p.ApplyToPodSpec(&podSpec)
+		c.applyAllPlacementIfNeeded(&podSpec)
+		// apply spec.placement.prepareosd
+		c.spec.Placement[cephv1.KeyOSDPrepare].ApplyToPodSpec(&podSpec)
 	}
 
 	k8sutil.RemoveDuplicateEnvVars(&podSpec)
