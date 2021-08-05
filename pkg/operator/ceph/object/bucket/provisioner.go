@@ -554,8 +554,8 @@ func (p *Provisioner) deleteOBCResourceLogError(bucketname string) {
 // Check for additional options mentioned in OBC and set them accordingly
 func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error {
 	quotaEnabled := true
-	maxObjects := MaxObjectQuota(options)
-	maxSize := MaxSizeQuota(options)
+	maxObjects := MaxObjectQuota(options.ObjectBucketClaim.Spec.AdditionalConfig)
+	maxSize := MaxSizeQuota(options.ObjectBucketClaim.Spec.AdditionalConfig)
 	if maxObjects == "" && maxSize == "" {
 		return nil
 	}
@@ -664,4 +664,70 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	}
 
 	return nil
+}
+func (p Provisioner) updateAdditionalSettings(ob *bktv1alpha1.ObjectBucket) error {
+	var maxObjectsInt64 int64
+	var maxSizeInt64 int64
+	var err error
+	var quotaEnabled bool
+	maxObjects := MaxObjectQuota(ob.Spec.Endpoint.AdditionalConfigData)
+	maxSize := MaxSizeQuota(ob.Spec.Endpoint.AdditionalConfigData)
+	if maxObjects != "" {
+		maxObjectsInt, err := strconv.Atoi(maxObjects)
+		if err != nil {
+			return errors.Wrap(err, "failed to convert maxObjects to integer")
+		}
+		maxObjectsInt64 = int64(maxObjectsInt)
+	}
+	if maxSize != "" {
+		maxSizeInt64, err = maxSizeToInt64(maxSize)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse maxSize quota for user %q", p.cephUserName)
+		}
+	}
+	objectUser, err := p.adminOpsClient.GetUser(context.TODO(), admin.User{ID: ob.Spec.Connection.AdditionalState[cephUser]})
+	if err != nil {
+		return errors.Wrapf(err, "failed to fetch user %q", p.cephUserName)
+	}
+	if *objectUser.UserQuota.Enabled &&
+		(maxObjects == "" || maxObjectsInt64 < 0) &&
+		(maxSize == "" || maxSizeInt64 < 0) {
+		quotaEnabled = false
+		err = p.adminOpsClient.SetUserQuota(context.TODO(), admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
+		if err != nil {
+			return errors.Wrapf(err, "failed to disable quota to user %q", p.cephUserName)
+		}
+		return nil
+	}
+
+	quotaEnabled = true
+	quotaSpec := admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled}
+
+	//MaxObject is modified
+	if maxObjects != "" && (maxObjectsInt64 != *objectUser.UserQuota.MaxObjects) {
+		quotaSpec.MaxObjects = &maxObjectsInt64
+	}
+
+	//MaxSize is modified
+	if maxSize != "" && (maxSizeInt64 != *objectUser.UserQuota.MaxSize) {
+		quotaSpec.MaxSize = &maxSizeInt64
+	}
+	err = p.adminOpsClient.SetUserQuota(context.TODO(), quotaSpec)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update quota to user %q", p.cephUserName)
+	}
+
+	return nil
+}
+
+// Update is sent when only there is modification to AdditionalConfig field in OBC
+func (p Provisioner) Update(ob *bktv1alpha1.ObjectBucket) error {
+	logger.Debugf("Update event for OB: %+v", ob)
+
+	err := p.initializeDeleteOrRevoke(ob)
+	if err != nil {
+		return err
+	}
+
+	return p.updateAdditionalSettings(ob)
 }
