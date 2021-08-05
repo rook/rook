@@ -23,7 +23,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner"
-	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	"github.com/pkg/errors"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -117,10 +116,10 @@ func randomString(n int) string {
 	return string(b)
 }
 
-func MaxObjectQuota(options *apibkt.BucketOptions) string {
-	return options.ObjectBucketClaim.Spec.AdditionalConfig["maxObjects"]
+func MaxObjectQuota(AdditionalConfig map[string]string) string {
+	return AdditionalConfig["maxObjects"]
 }
 
-func MaxSizeQuota(options *apibkt.BucketOptions) string {
-	return options.ObjectBucketClaim.Spec.AdditionalConfig["maxSize"]
+func MaxSizeQuota(AdditionalConfig map[string]string) string {
+	return AdditionalConfig["maxSize"]
 }
