@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -33,7 +33,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.21.0'
+        minikube version: 'v1.22.0'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -125,7 +125,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -140,7 +140,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.21.0'
+        minikube version: 'v1.22.0'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -177,7 +177,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -192,7 +192,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.21.0'
+        minikube version: 'v1.22.0'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -228,7 +228,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -243,7 +243,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.21.0'
+        minikube version: 'v1.22.0'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -279,7 +279,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.21.0']
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -294,7 +294,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.21.0'
+        minikube version: 'v1.22.0'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -330,7 +330,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.21.0']
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -345,7 +345,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.21.0'
+        minikube version: 'v1.22.0'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
