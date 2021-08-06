@@ -18,7 +18,6 @@ package machinedisruption
 
 import (
 	healthchecking "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1"
-	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -32,17 +31,9 @@ import (
 // Read more about how Managers, Controllers, and their Watches, Handlers, Predicates, etc work here:
 // https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg
 func Add(mgr manager.Manager, ctx *controllerconfig.Context) error {
-	mgrScheme := mgr.GetScheme()
-	if err := healthchecking.AddToScheme(mgrScheme); err != nil {
-		return errors.Wrap(err, "failed to add to healthchecking scheme")
-	}
-	if err := cephv1.AddToScheme(mgrScheme); err != nil {
-		return errors.Wrap(err, "failed to add to ceph scheme")
-	}
-
 	reconcileMachineDisruption := &MachineDisruptionReconciler{
 		client:  mgr.GetClient(),
-		scheme:  mgrScheme,
+		scheme:  mgr.GetScheme(),
 		context: ctx,
 	}
 

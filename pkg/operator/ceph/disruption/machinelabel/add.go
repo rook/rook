@@ -19,7 +19,6 @@ package machinelabel
 import (
 	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
 	"github.com/pkg/errors"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,17 +40,9 @@ const (
 // Read more about how Managers, Controllers, and their Watches, Handlers, Predicates, etc work here:
 // https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg
 func Add(mgr manager.Manager, context *controllerconfig.Context) error {
-	mgrScheme := mgr.GetScheme()
-	if err := cephv1.AddToScheme(mgrScheme); err != nil {
-		return errors.Wrap(err, "failed to add scheme to ceph")
-	}
-	if err := mapiv1.AddToScheme(mgrScheme); err != nil {
-		return errors.Wrap(err, "failed to add scheme to map")
-	}
-
 	reconcileMachineLabel := &ReconcileMachineLabel{
 		client:  mgr.GetClient(),
-		scheme:  mgrScheme,
+		scheme:  mgr.GetScheme(),
 		options: context,
 	}
 
