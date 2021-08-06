@@ -3,12 +3,16 @@ title: Helm Charts
 weight: 10000
 ---
 
+{% include_relative branch.liquid %}
+
 # Helm Charts
 
-Rook has published a Helm chart for the [operator](helm-operator.md). Other Helm charts will also be potentially developed for each of the
-CRDs for all Rook storage backends.
+Rook has published the following Helm charts for the Ceph storage provider:
 
-* [Rook Ceph Operator](helm-operator.md): Installs the Ceph Operator
-* [Rook Ceph Cluster](helm-ceph-cluster.md): Configures resources necessary to run a Ceph cluster
+* [Rook Ceph Operator](helm-operator.md): Starts the Ceph Operator, which will watch for Ceph CRs (custom resources)
+* [Rook Ceph Cluster](helm-ceph-cluster.md): Creates Ceph CRs that the operator will use to configure the cluster
 
-Contributions are welcome to create our other Helm charts!
+The Helm charts are intended to simplify deployment and upgrades.
+Configuring the Rook resources without Helm is also fully supported by creating the
+[manifests](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes)
+directly.
