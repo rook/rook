@@ -445,8 +445,8 @@ func generateRgwTlsCertSecret(s suite.Suite, helper *clients.TestClient, k8sh *u
 	tlscertdir, err := ioutil.TempDir(root, "tlscertdir")
 	require.NoError(s.T(), err, "failed to create directory for TLS certs")
 	defer os.RemoveAll(tlscertdir)
-	cmdArgs := utils.CommandArgs{Command: filepath.Join(root, "tests/scripts/github-action-helper.sh"),
-		CmdArgs: []string{"generate_tls_config", tlscertdir, rgwServiceName, namespace}}
+	cmdArgs := utils.CommandArgs{Command: filepath.Join(root, "tests/scripts/generate-tls-config.sh"),
+		CmdArgs: []string{tlscertdir, rgwServiceName, namespace}}
 	cmdOut := utils.ExecuteCommand(cmdArgs)
 	require.NoError(s.T(), cmdOut.Err)
 	tlsKeyIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".key"))

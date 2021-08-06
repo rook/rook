@@ -1,2 +1,0 @@
-#!/bin/sh
-DOCKER_HOST=unix:///opt/outer-docker.sock /usr/bin/docker run --rm -v /sys:/sys --net=host --privileged=true ceph/base rbd "$@"

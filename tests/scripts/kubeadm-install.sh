@@ -1,7 +1,6 @@
 #!/bin/bash +e
 
 KUBE_VERSION=${1:-"v1.15.12"}
-ARCH=$(dpkg --print-architecture)
 null_str=
 KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00
 
@@ -17,7 +16,7 @@ wait_for_dpkg_unlock() {
     retryInterval=10
     until [ ${retry} -ge ${maxRetries} ]
     do
-        if [[ `sudo lsof /var/lib/dpkg/lock|wc -l` -le 0 ]]; then
+        if [[ $(sudo lsof /var/lib/dpkg/lock|wc -l) -le 0 ]]; then
             break
         fi
         ((++retry))
@@ -25,7 +24,7 @@ wait_for_dpkg_unlock() {
         sleep ${retryInterval}
     done
 
-    if [ ${retry} -ge ${maxRetries} ]; then
+    if [ "${retry}" -ge ${maxRetries} ]; then
         echo "Failed after ${maxRetries} attempts! - cannot install kubeadm"
         exit 1
     fi
@@ -39,9 +38,7 @@ wait_for_dpkg_unlock
 
 sudo apt-get install -y apt-transport-https
 sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-sudo cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
-deb http://apt.kubernetes.io/ kubernetes-xenial main
-EOF
+echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
 
 sudo apt-get update
 wait_for_dpkg_unlock

@@ -5,10 +5,10 @@ set -eEo pipefail
 
 function cleanup() {
   set +e
-  kubectl -n rook-ceph delete validatingwebhookconfigurations $WEBHOOK_CONFIG_NAME
+  kubectl -n rook-ceph delete validatingwebhookconfigurations "$WEBHOOK_CONFIG_NAME"
   kubectl -n rook-ceph delete certificate rook-admission-controller-cert
   kubectl -n rook-ceph delete issuers selfsigned-issuer
-  kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/$CERT_VERSION/cert-manager.yaml
+  kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/"$CERT_VERSION"/cert-manager.yaml
   set -e
 }
 
@@ -17,23 +17,23 @@ function error_log() {
   kubectl -n rook-ceph get issuer
   kubectl -n rook-ceph get certificate
   kubectl -n rook-ceph get secret | grep rook-ceph-admission-controller
-  kubectl -n rook-ceph get validatingwebhookconfigurations.admissionregistration.k8s.io 
-  kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io cert-manager-webhook 
-  kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io rook-ceph-webhook 
+  kubectl -n rook-ceph get validatingwebhookconfigurations.admissionregistration.k8s.io
+  kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io cert-manager-webhook
+  kubectl describe validatingwebhookconfigurations.admissionregistration.k8s.io rook-ceph-webhook
   kubectl -n cert-manager logs deploy/cert-manager-webhook --tail=10
   kubectl -n cert-manager logs deploy/cert-manager-cainjector --tail=10
  set -e +x
  cleanup
 }
 
-trap cleanup SIGINT 
+trap cleanup SIGINT
 trap error_log ERR
 
 # Minimum 1.16.0 kubernetes version is required to start the admission controller
 SERVER_VERSION=$(kubectl version --short | awk -F  "."  '/Server Version/ {print $2}')
 MINIMUM_VERSION=16
 
-if [ ${SERVER_VERSION} -lt ${MINIMUM_VERSION} ]; then
+if [ "${SERVER_VERSION}" -lt ${MINIMUM_VERSION} ]; then
     echo "required minimum kubernetes version 1.$MINIMUM_VERSION.0"
     exit
 fi
@@ -51,10 +51,33 @@ echo "$BASE_DIR"
 
 echo "Deploying cert-manager"
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/$CERT_VERSION/cert-manager.yaml
-timeout 150 sh -c 'until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running|grep -c ^cert-) -eq 3 ]; do sleep 1 && echo "waiting for cert-manager pods to be in running state"; done'
-timeout 20 sh -c 'until [ $(kubectl -n cert-manager get pods -o custom-columns=READY:status.containerStatuses[*].ready | grep -c true) -eq 3 ]; do sleep 1 && echo "waiting for the pods to be in ready state"; done'
-timeout 25 sh -c 'until [ $(kubectl get validatingwebhookconfigurations cert-manager-webhook -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | wc -c) -gt 1 ]; do sleep 1 && echo "waiting for caInjector to inject in caBundle for cert-manager validating webhook"; done'
-timeout 25 sh -c 'until [ $(kubectl get mutatingwebhookconfigurations cert-manager-webhook -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | wc -c) -gt 1 ]; do sleep 1 && echo "waiting for caInjector to inject in caBundle for cert-managers mutating webhook"; done'
+timeout 150 bash <<-'EOF'
+    until [ $(kubectl -n cert-manager get pods --field-selector=status.phase=Running | grep -c ^cert-) -eq 3 ]; do
+      echo "waiting for cert-manager pods to be in running state"
+      sleep 1
+    done
+EOF
+
+timeout 20 bash <<-'EOF'
+    until [ $(kubectl -n cert-manager get pods -o custom-columns=READY:status.containerStatuses[*].ready | grep -c true) -eq 3 ]; do
+      echo "waiting for the pods to be in ready state"
+      sleep 1
+    done
+EOF
+
+timeout 25 bash <<-'EOF'
+    until [ $(kubectl get validatingwebhookconfigurations cert-manager-webhook -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | wc -c) -gt 1 ]; do
+      echo "waiting for caInjector to inject in caBundle for cert-manager validating webhook"
+      sleep 1
+    done
+EOF
+
+timeout 25 bash <<-'EOF'
+    until [ $(kubectl get mutatingwebhookconfigurations cert-manager-webhook -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | wc -c) -gt 1 ]; do
+      echo "waiting for caInjector to inject in caBundle for cert-managers mutating webhook"
+      sleep 1
+    done
+EOF
 
 echo "Successfully deployed cert-manager"
 
@@ -87,7 +110,7 @@ EOF
 echo "Successfully created Issuer and Certificate"
 
 echo "Deploying webhook config"
-cat ${BASE_DIR}/webhook-config.yaml | \
+< "${BASE_DIR}"/webhook-config.yaml \
         "${BASE_DIR}"/webhook-patch-ca-bundle.sh | \
         sed -e "s|\${NAMESPACE}|${NAMESPACE}|g" | \
         sed -e "s|\${WEBHOOK_CONFIG_NAME}|${WEBHOOK_CONFIG_NAME}|g" | \

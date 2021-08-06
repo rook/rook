@@ -37,7 +37,7 @@ sudo test ! -b "${test_scratch_device}" && echo "invalid scratch device, not a b
 function prepare_node() {
   sudo rm -rf /var/lib/rook/rook-integration-test
   sudo mkdir -p /var/lib/rook/rook-integration-test/mon1 /var/lib/rook/rook-integration-test/mon2 /var/lib/rook/rook-integration-test/mon3
-  node_name=$(kubectl get nodes -o jsonpath={.items[*].metadata.name})
+  node_name=$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}')
   kubectl label nodes "${node_name}" rook.io/has-disk=true
   kubectl delete pv -l type=local
 }
@@ -124,14 +124,14 @@ eof
 function create_osd_pvc() {
   local osd_count=$1
   local storage=6Gi
-  
+
   for osd in $(seq 1 "$osd_count"); do
     path=${test_scratch_device}${osd}
     if [ "$osd_count" -eq 1 ]; then
       path=$test_scratch_device
       storage=10Gi
     fi
-    
+
     cat <<eof | kubectl apply -f -
 ---
 apiVersion: v1

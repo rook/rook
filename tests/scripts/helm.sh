@@ -1,9 +1,7 @@
 #!/bin/bash +e
 
-scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 temp="/tmp/rook-tests-scripts-helm"
 
-HELM="${temp}/helm"
 helm_version="${HELM_VERSION:-"v3.6.2"}"
 arch="${ARCH:-}"
 
@@ -29,16 +27,12 @@ detectArch() {
 
 install() {
     # Download and unpack helm
-    if [ -x "${TEST_HELM_PATH}" ]; then
-        HELM="${TEST_HELM_PATH}"
-    else
-        local dist
-        dist="$(uname -s)"
-        dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
-        mkdir -p "${temp}"
-        wget "https://get.helm.sh/helm-${helm_version}-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
-        tar -C "${temp}" -xvf "${temp}/helm.tar.gz" --strip-components 1
-    fi
+    local dist
+    dist="$(uname -s)"
+    dist=$(echo "${dist}" | tr "[:upper:]" "[:lower:]")
+    mkdir -p "${temp}"
+    wget "https://get.helm.sh/helm-${helm_version}-${dist}-${arch}.tar.gz" -O "${temp}/helm.tar.gz"
+    tar -C "${temp}" -xvf "${temp}/helm.tar.gz" --strip-components 1
 }
 
 if [ -z "${arch}" ]; then

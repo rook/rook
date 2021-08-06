@@ -3,7 +3,7 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 tarname=image.tar
-tarfile="${WORK_DIR}/tests/${tarname}"
+export tarfile="${WORK_DIR}/tests/${tarname}"
 
 export KUBE_VERSION=${KUBE_VERSION:-"v1.15.12"}
 
@@ -38,10 +38,10 @@ usage(){
 #install k8s master node
 install_master(){
 
-    sudo kubeadm init $skippreflightcheck --kubernetes-version ${KUBE_VERSION}
+    sudo kubeadm init $skippreflightcheck --kubernetes-version "${KUBE_VERSION}"
 
-    sudo cp /etc/kubernetes/admin.conf $HOME/
-    sudo chown $(id -u):$(id -g) $HOME/admin.conf
+    sudo cp /etc/kubernetes/admin.conf "$HOME"/
+    sudo chown "$(id -u)":"$(id -g)" "$HOME"/admin.conf
     export KUBECONFIG=$HOME/admin.conf
 
     kubectl taint nodes --all node-role.kubernetes.io/master-
@@ -50,7 +50,7 @@ install_master(){
     echo "wait for K8s master node to be Ready"
     INC=0
     while [[ $INC -lt 20 ]]; do
-        kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[?(@.reason == "KubeletReady")].status}')
+        kube_ready=$(kubectl get node -o jsonpath='{.items['"$count"'].status.conditions[?(@.reason == "KubeletReady")].status}')
         if [ "${kube_ready}" == "True" ]; then
             break
         fi
@@ -71,7 +71,7 @@ install_master(){
 install_node(){
     echo "inside install node function"
     echo "kubeadm join ${1} ${2} ${3} ${4} ${5} $skippreflightcheck"
-    sudo kubeadm join ${1} ${2} ${3} ${4} ${5} $skippreflightcheck || true
+    sudo kubeadm join "${1}" "${2}" "${3}" "${4}" "${5}" $skippreflightcheck || true
 }
 
 #wait for all nodes in the cluster to be ready status
@@ -79,8 +79,8 @@ wait_for_ready(){
     #expect 3 node cluster by default
     local numberOfNode=${1:-3}
     local count=0
-    sudo cp /etc/kubernetes/admin.conf $HOME/
-    sudo chown $(id -u):$(id -g) $HOME/admin.conf
+    sudo cp /etc/kubernetes/admin.conf "$HOME"/
+    sudo chown "$(id -u)":"$(id -g)" "$HOME"/admin.conf
     export KUBECONFIG=$HOME/admin.conf
 
     until [[ $count -eq $numberOfNode ]]; do
@@ -113,8 +113,8 @@ wait_for_ready(){
 kubeadm_reset() {
     kubectl delete -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
     sudo kubeadm reset --force $skippreflightcheck
-    rm $HOME/admin.conf
-    rm -rf $HOME/.kube
+    rm "$HOME"/admin.conf
+    rm -rf "$HOME"/.kube
     sudo apt-get -y remove kubelet
     sudo apt-get -y remove kubeadm
     sudo swapon -a
@@ -125,7 +125,7 @@ case "${1:-}" in
     up)
         sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}"
         install_master
-        ${scriptdir}/makeTestImages.sh tag ${arch} || true
+        "${scriptdir}"/makeTestImages.sh tag ${arch} || true
         ;;
     clean)
         kubeadm_reset
@@ -143,7 +143,7 @@ case "${1:-}" in
                 ;;
             node)
                 if [ "$#" -eq 5 ] || [ "$#" -eq 7 ]; then
-                    install_node $3 $4 $5 $6 $7
+                    install_node "$3" "$4" "$5" "$6" "$7"
                 else
                     echo "invalid arguments for install node"
                     usage
@@ -159,7 +159,7 @@ case "${1:-}" in
         ;;
     wait)
         if [ "$#" -eq 2 ]; then
-            wait_for_ready $2
+            wait_for_ready "$2"
         else
             echo "invalid number of arguments for wait"
             usage
