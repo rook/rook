@@ -19,6 +19,7 @@ package mon
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -52,24 +53,50 @@ type HealthChecker struct {
 }
 
 func updateMonTimeout(monCluster *Cluster) {
-	monCRDTimeoutSetting := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Timeout
-	if monCRDTimeoutSetting != "" {
-		if monTimeout, err := time.ParseDuration(monCRDTimeoutSetting); err == nil {
-			if monTimeout == timeZero {
-				logger.Warning("monitor failover is disabled")
+	// If the env was passed by the operator config, use that value
+	// This is an old behavior where we maintain backward compatibility
+	monTimeoutEnv := os.Getenv("ROOK_MON_OUT_TIMEOUT")
+	if monTimeoutEnv != "" {
+		parsedInterval, err := time.ParseDuration(monTimeoutEnv)
+		// We ignore the error here since the default is 10min and it's unlikely to be a problem
+		if err == nil {
+			MonOutTimeout = parsedInterval
+		}
+		// No env var, let's use the CR value if any
+	} else {
+		monCRDTimeoutSetting := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Timeout
+		if monCRDTimeoutSetting != "" {
+			if monTimeout, err := time.ParseDuration(monCRDTimeoutSetting); err == nil {
+				if monTimeout == timeZero {
+					logger.Warning("monitor failover is disabled")
+				}
+				MonOutTimeout = monTimeout
 			}
-			MonOutTimeout = monTimeout
 		}
 	}
+	// A third case is when the CRD is not set, in which case we use the default from MonOutTimeout
 }
 
 func updateMonInterval(monCluster *Cluster, h *HealthChecker) {
-	checkInterval := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Interval
-	// allow overriding the check interval
-	if checkInterval != nil {
-		logger.Debugf("ceph mon status in namespace %q check interval %q", monCluster.Namespace, checkInterval.Duration.String())
-		h.interval = checkInterval.Duration
+	// If the env was passed by the operator config, use that value
+	// This is an old behavior where we maintain backward compatibility
+	healthCheckIntervalEnv := os.Getenv("ROOK_MON_HEALTHCHECK_INTERVAL")
+	if healthCheckIntervalEnv != "" {
+		parsedInterval, err := time.ParseDuration(healthCheckIntervalEnv)
+		// We ignore the error here since the default is 45s and it's unlikely to be a problem
+		if err == nil {
+			h.interval = parsedInterval
+		}
+		// No env var, let's use the CR value if any
+	} else {
+		checkInterval := monCluster.spec.HealthCheck.DaemonHealth.Monitor.Interval
+		// allow overriding the check interval
+		if checkInterval != nil {
+			logger.Debugf("ceph mon status in namespace %q check interval %q", monCluster.Namespace, checkInterval.Duration.String())
+			h.interval = checkInterval.Duration
+		}
 	}
+	// A third case is when the CRD is not set, in which case we use the default from HealthCheckInterval
 }
 
 // NewHealthChecker creates a new HealthChecker object
