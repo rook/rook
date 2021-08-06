@@ -40,6 +40,7 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: true
+    onlyApplyOSDPlacement: false
 ```
 
 ## PVC-based Cluster
@@ -88,6 +89,7 @@ spec:
           volumeMode: Block
           accessModes:
             - ReadWriteOnce
+    onlyApplyOSDPlacement: false
 ```
 
 For a more advanced scenario, such as adding a dedicated device you can refer to the [dedicated metadata device for OSD on PVC section](#dedicated-metadata-and-wal-device-for-osd-on-pvc).
@@ -218,7 +220,9 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `config`: Config settings applied to all OSDs on the node unless overridden by `devices`. See the [config settings](#osd-configuration-settings) below.
   * [storage selection settings](#storage-selection-settings)
   * [Storage Class Device Sets](#storage-class-device-sets)
-* `disruptionManagement`: The section for configuring management of daemon disruptions
+  * `onlyApplyOSDPlacement`: Whether the placement specific for OSDs is merged with the `all` placement. If `false`, the OSD placement will be merged with the `all` placement. If true, the `OSD placement will be applied` and the `all` placement will be ignored. The placement for OSDs is computed from several different places depending on the type of OSD:
+    - For non-PVCs: `placement.all` and `placement.osd`
+    - For PVCs: `placement.all` and inside the storageClassDeviceSet from the `placement` or `preparePlacement`
   * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
   * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
   * `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
