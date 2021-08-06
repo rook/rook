@@ -21,8 +21,12 @@ metadata:
   namespace: rook-ceph-secondary
 spec:
   # This endpoint in this section needs is an endpoint from the master zone in the master zone group of realm-a. See object-multisite.md for more details.
+  # This value must include http(s):// at the beginning
+  # ex:
+  #   pull:
+  #     endpoint: http://10.103.133.16:80
   pull:
-    endpoint: http://10.103.133.16:80
+    endpoint: <endpoint>
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectZoneGroup
