@@ -82,7 +82,7 @@ func TestGetOperatorSetting(t *testing.T) {
 	defaultValue := ""
 
 	// ConfigMap is not found
-	setting, err := GetOperatorSetting(k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
+	setting, err := GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
 	assert.NoError(t, err)
 
 	// Env Var doesn't exist
@@ -90,7 +90,7 @@ func TestGetOperatorSetting(t *testing.T) {
 	// Env Var exists
 	err = os.Setenv(nodeAffinity, envSettingValue)
 	assert.NoError(t, err)
-	setting, err = GetOperatorSetting(k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
+	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
 	assert.NoError(t, err)
 	assert.Equal(t, envSettingValue, setting)
 
@@ -100,7 +100,7 @@ func TestGetOperatorSetting(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Setting exists in ConfigMap
-	setting, err = GetOperatorSetting(k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
+	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
 	assert.NoError(t, err)
 	// Env Var exists
 	assert.Equal(t, cmSettingValue, setting)
@@ -110,14 +110,14 @@ func TestGetOperatorSetting(t *testing.T) {
 	assert.Equal(t, cmSettingValue, setting)
 
 	// Setting doesn't exist in ConfigMap
-	setting, err = GetOperatorSetting(k8s, operatorSettingConfigMapName, podAffinity, defaultValue)
+	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, podAffinity, defaultValue)
 	assert.NoError(t, err)
 	// Env Var doesn't exist
 	assert.Equal(t, defaultValue, setting)
 	// Env Var exists
 	err = os.Setenv(podAffinity, envSettingValue)
 	assert.NoError(t, err)
-	setting, err = GetOperatorSetting(k8s, operatorSettingConfigMapName, podAffinity, defaultValue)
+	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, podAffinity, defaultValue)
 	assert.NoError(t, err)
 	assert.Equal(t, envSettingValue, setting)
 }

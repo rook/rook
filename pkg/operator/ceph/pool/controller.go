@@ -70,27 +70,30 @@ type ReconcileCephBlockPool struct {
 	scheme            *runtime.Scheme
 	context           *clusterd.Context
 	clusterInfo       *cephclient.ClusterInfo
-	blockPoolChannels map[string]*blockPoolHealth
+	blockPoolContexts map[string]*blockPoolHealth
+	opManagerContext  context.Context
 }
 
 type blockPoolHealth struct {
-	stopChan          chan struct{}
-	monitoringRunning bool
+	internalCtx    context.Context
+	internalCancel context.CancelFunc
+	started        bool
 }
 
 // Add creates a new CephBlockPool Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, context *clusterd.Context) error {
-	return add(mgr, newReconciler(mgr, context))
+func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(mgr, newReconciler(mgr, context, opManagerContext))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context) reconcile.Reconciler {
 	return &ReconcileCephBlockPool{
 		client:            mgr.GetClient(),
 		scheme:            mgr.GetScheme(),
 		context:           context,
-		blockPoolChannels: make(map[string]*blockPoolHealth),
+		blockPoolContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:  opManagerContext,
 	}
 }
 
@@ -141,7 +144,7 @@ func (r *ReconcileCephBlockPool) Reconcile(context context.Context, request reco
 func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CephBlockPool instance
 	cephBlockPool := &cephv1.CephBlockPool{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephBlockPool)
+	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephBlockPool)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
@@ -185,7 +188,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Populate clusterInfo during each reconcile
-	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -195,11 +198,12 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	// Initialize the channel for this pool
 	// This allows us to track multiple CephBlockPool in the same namespace
 	blockPoolChannelKey := fmt.Sprintf("%s-%s", cephBlockPool.Namespace, cephBlockPool.Name)
-	_, poolChannelExists := r.blockPoolChannels[blockPoolChannelKey]
-	if !poolChannelExists {
-		r.blockPoolChannels[blockPoolChannelKey] = &blockPoolHealth{
-			stopChan:          make(chan struct{}),
-			monitoringRunning: false,
+	_, blockPoolContextsExists := r.blockPoolContexts[blockPoolChannelKey]
+	if !blockPoolContextsExists {
+		internalCtx, internalCancel := context.WithCancel(r.opManagerContext)
+		r.blockPoolContexts[blockPoolChannelKey] = &blockPoolHealth{
+			internalCtx:    internalCtx,
+			internalCancel: internalCancel,
 		}
 	}
 
@@ -207,7 +211,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
 		// If the ceph block pool is still in the map, we must remove it during CR deletion
 		// We must remove it first otherwise the checker will panic since the status/info will be nil
-		if poolChannelExists {
+		if blockPoolContextsExists {
 			r.cancelMirrorMonitoring(blockPoolChannelKey)
 		}
 
@@ -292,11 +296,11 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// Run the goroutine to update the mirroring status
 		if !cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
 			// Start monitoring of the pool
-			if r.blockPoolChannels[blockPoolChannelKey].monitoringRunning {
+			if r.blockPoolContexts[blockPoolChannelKey].started {
 				logger.Debug("pool monitoring go routine already running!")
 			} else {
-				r.blockPoolChannels[blockPoolChannelKey].monitoringRunning = true
-				go checker.checkMirroring(r.blockPoolChannels[blockPoolChannelKey].stopChan)
+				go checker.checkMirroring(r.blockPoolContexts[blockPoolChannelKey].internalCtx)
+				r.blockPoolContexts[blockPoolChannelKey].started = true
 			}
 		}
 
@@ -322,7 +326,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, nil)
 
 		// Stop monitoring the mirroring status of this pool
-		if poolChannelExists && r.blockPoolChannels[blockPoolChannelKey].monitoringRunning {
+		if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
 			r.cancelMirrorMonitoring(blockPoolChannelKey)
 			// Reset the MirrorHealthCheckSpec
 			checker.updateStatusMirroring(nil, nil, nil, "")
@@ -405,9 +409,9 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 }
 
 func (r *ReconcileCephBlockPool) cancelMirrorMonitoring(cephBlockPoolName string) {
-	// Close the channel to stop the mirroring status
-	close(r.blockPoolChannels[cephBlockPoolName].stopChan)
+	// Cancel the context to stop the go routine
+	r.blockPoolContexts[cephBlockPoolName].internalCancel()
 
 	// Remove ceph block pool from the map
-	delete(r.blockPoolChannels, cephBlockPoolName)
+	delete(r.blockPoolContexts, cephBlockPoolName)
 }

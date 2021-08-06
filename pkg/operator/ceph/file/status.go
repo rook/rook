@@ -18,7 +18,6 @@ limitations under the License.
 package file
 
 import (
-	"context"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -29,9 +28,9 @@ import (
 )
 
 // updateStatus updates a fs CR with the given status
-func updateStatus(client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
+func (r *ReconcileCephFilesystem) updateStatus(client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
 	fs := &cephv1.CephFilesystem{}
-	err := client.Get(context.TODO(), namespacedName, fs)
+	err := client.Get(r.opManagerContext, namespacedName, fs)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
@@ -57,7 +56,7 @@ func updateStatus(client client.Client, namespacedName types.NamespacedName, sta
 // updateStatusBucket updates an object with a given status
 func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMirroringInfo, snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec, details string) {
 	fs := &cephv1.CephFilesystem{}
-	if err := c.client.Get(context.TODO(), c.namespacedName, fs); err != nil {
+	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, fs); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
 			return

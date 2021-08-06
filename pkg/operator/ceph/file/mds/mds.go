@@ -95,7 +95,6 @@ var UpdateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start starts or updates a Ceph mds cluster in Kubernetes.
 func (c *Cluster) Start() error {
-	ctx := context.TODO()
 	// Validate pod's memory if specified
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyMDS, c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
 	if err != nil {
@@ -135,7 +134,7 @@ func (c *Cluster) Start() error {
 	desiredDeployments := map[string]bool{} // improvised set
 	// Create/update deployments
 	for i := 0; i < int(replicas); i++ {
-		deployment, err := c.startDeployment(ctx, k8sutil.IndexToName(i))
+		deployment, err := c.startDeployment(c.clusterInfo.Context, k8sutil.IndexToName(i))
 		if err != nil {
 			return errors.Wrapf(err, "failed to start deployment for MDS %q for filesystem %q", k8sutil.IndexToName(i), c.fs.Name)
 		}
@@ -287,7 +286,7 @@ func (c *Cluster) upgradeMDS() error {
 	}
 
 	// 5. upgrade current active deployment and wait for it come back
-	_, err = c.startDeployment(context.TODO(), daemonLetterID)
+	_, err = c.startDeployment(c.clusterInfo.Context, daemonLetterID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to upgrade mds %q", daemonName)
 	}

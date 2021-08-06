@@ -60,6 +60,8 @@ func SetLoggingFlags(flags *pflag.FlagSet) {
 	//and not to a file by default
 	flags.AddGoFlagSet(flag.CommandLine)
 	if err := flags.Set("logtostderr", "true"); err != nil {
+		// TODO: fix me
+		// 2021-09-02 09:41:29.645366 I | op-flags: failed to set flag "logtostderr". no such flag -logtostderr
 		logger.Infof("failed to set flag %q. %v", "logtostderr", err)
 	}
 	if err := flags.Parse(nil); err != nil {

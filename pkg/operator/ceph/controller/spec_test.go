@@ -249,15 +249,12 @@ func TestExtractMgrIP(t *testing.T) {
 }
 
 func TestConfigureExternalMetricsEndpoint(t *testing.T) {
+	clusterInfo := cephclient.AdminClusterInfo("rook-ceph")
 	t.Run("spec and current active mgr endpoint identical with no existing endpoint object", func(t *testing.T) {
 		monitoringSpec := cephv1.MonitoringSpec{
 			Enabled:              true,
 			RulesNamespace:       "rook-ceph",
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
-		}
-		clusterInfo := &cephclient.ClusterInfo{
-			FSID:      "id",
-			Namespace: "rook-ceph",
 		}
 		executor := &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -289,10 +286,6 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 			RulesNamespace:       "rook-ceph",
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
-		clusterInfo := &cephclient.ClusterInfo{
-			FSID:      "id",
-			Namespace: "rook-ceph",
-		}
 		executor := &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
@@ -321,10 +314,6 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 			Enabled:              true,
 			RulesNamespace:       "rook-ceph",
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
-		}
-		clusterInfo := &cephclient.ClusterInfo{
-			FSID:      "id",
-			Namespace: "rook-ceph",
 		}
 		executor := &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -359,10 +348,6 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 			Enabled:              true,
 			RulesNamespace:       "rook-ceph",
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
-		}
-		clusterInfo := &cephclient.ClusterInfo{
-			FSID:      "id",
-			Namespace: "rook-ceph",
 		}
 		executor := &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {

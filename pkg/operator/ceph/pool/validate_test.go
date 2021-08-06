@@ -181,7 +181,7 @@ func TestValidatePool(t *testing.T) {
 func TestValidateCrushProperties(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
+	clusterInfo := cephclient.AdminClusterInfo("mycluster")
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "crush" && args[2] == "dump" {
@@ -267,7 +267,7 @@ func TestValidateDeviceClasses(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
+			clusterInfo := cephclient.AdminClusterInfo("mycluster")
 			executor := &exectest.MockExecutor{}
 			context := &clusterd.Context{Executor: executor}
 			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {

@@ -33,7 +33,6 @@ import (
 	"github.com/rook/rook/pkg/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/tevino/abool"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -170,8 +169,6 @@ func NewContext() *clusterd.Context {
 	context.NetworkClient, err = netclient.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create network clientset")
 
-	context.RequestCancelOrchestration = abool.New()
-
 	return context
 }
 
@@ -228,23 +225,21 @@ func TerminateOnError(err error, msg string) {
 // TerminateFatal terminates the process with an exit code of 1
 // and writes the given reason to stderr and the termination log file.
 func TerminateFatal(reason error) {
-	fmt.Fprintln(os.Stderr, reason)
-
 	file, err := os.OpenFile(terminationLog, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
+		fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %v", err))
 	} else {
 		// #nosec G307 Calling defer to close the file without checking the error return is not a risk for a simple file open and close
 		defer file.Close()
 		if _, err = file.WriteString(reason.Error()); err != nil {
-			fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
+			fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %v", err))
 		}
 		if err := file.Close(); err != nil {
-			logger.Errorf("failed to close file. %v", err)
+			logger.Fatalf("failed to close file. %v", err)
 		}
 	}
 
-	os.Exit(1)
+	logger.Fatalln(reason)
 }
 
 // GetOperatorBaseImageCephVersion returns the Ceph version of the operator image

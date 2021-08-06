@@ -17,6 +17,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -382,11 +383,12 @@ func TestConfigureCVDevices(t *testing.T) {
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 
-		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
 		clusterInfo := &cephclient.ClusterInfo{
 			CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 8},
 			FSID:        clusterFSID,
+			Context:     context.TODO(),
 		}
+		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
 		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true, storeConfig: config.StoreConfig{DeviceClass: "myds"}}
 		devices := createPVCAvailableDevices()
 		deviceOSDs, err := agent.configureCVDevices(context, devices)

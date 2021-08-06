@@ -16,6 +16,7 @@ limitations under the License.
 package mgr
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -30,7 +31,6 @@ import (
 
 func TestOrchestratorModules(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	context := &clusterd.Context{Executor: executor}
 	rookModuleEnabled := false
 	rookBackendSet := false
 	backendErrorCount := 0
@@ -60,7 +60,9 @@ func TestOrchestratorModules(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.Nautilus,
+		Context:     context.TODO(),
 	}
+	context := &clusterd.Context{Executor: executor}
 
 	c := &Cluster{clusterInfo: clusterInfo, context: context}
 	c.exitCode = func(err error) (int, bool) {

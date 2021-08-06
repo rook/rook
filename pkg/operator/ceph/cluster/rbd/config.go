@@ -17,7 +17,6 @@ limitations under the License.
 package rbd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -51,7 +50,6 @@ type daemonConfig struct {
 }
 
 func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo, daemonConfig *daemonConfig) (string, error) {
-	ctx := context.TODO()
 	user := fullDaemonName(daemonConfig.DaemonID)
 	access := []string{"mon", "profile rbd-mirror", "osd", "profile rbd"}
 	s := keyring.GetSecretStore(r.context, clusterInfo, daemonConfig.ownerInfo)
@@ -62,7 +60,7 @@ func (r *ReconcileCephRBDMirror) generateKeyring(clusterInfo *client.ClusterInfo
 	}
 
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
-	err = r.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Delete(ctx, daemonConfig.ResourceName, metav1.DeleteOptions{})
+	err = r.context.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Delete(r.opManagerContext, daemonConfig.ResourceName, metav1.DeleteOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("legacy rbd-mirror key %q is already removed", daemonConfig.ResourceName)
@@ -80,14 +78,13 @@ func fullDaemonName(daemonID string) string {
 }
 
 func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.CephRBDMirror, namespacedName types.NamespacedName) (reconcile.Result, error) {
-	ctx := context.TODO()
 	// List all the peers secret, we can have more than one peer we might want to configure
 	// For each, get the Kubernetes Secret and import the "peer token" so that we can configure the mirroring
 
 	logger.Warning("(DEPRECATED) use of peer secret names in CephRBDMirror is deprecated. Please use CephBlockPool CR to configure peer secret names and import peers.")
 	for _, peerSecret := range cephRBDMirror.Spec.Peers.SecretNames {
 		logger.Debugf("fetching bootstrap peer kubernetes secret %q", peerSecret)
-		s, err := r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Get(ctx, peerSecret, metav1.GetOptions{})
+		s, err := r.context.Clientset.CoreV1().Secrets(r.clusterInfo.Namespace).Get(r.opManagerContext, peerSecret, metav1.GetOptions{})
 		// We don't care about IsNotFound here, we still need to fail
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to fetch kubernetes secret %q bootstrap peer", peerSecret)

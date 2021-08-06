@@ -320,7 +320,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			// If we detect a partition we have to make sure that ceph-volume will be able to consume it
 			// ceph-volume version 14.2.8 has the right code to support partitions
 			if !agent.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
-				logger.Infof("skipping device %q because it is a partition and ceph version is too old, you need at least ceph %q", device.Name, cephVolumeRawModeMinCephVersion.String())
+				logger.Infof("skipping device %q because it is a partition and ceph version is too old %q, you need at least ceph %q", device.Name, agent.clusterInfo.CephVersion.String(), cephVolumeRawModeMinCephVersion.String())
 				continue
 			}
 

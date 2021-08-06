@@ -18,8 +18,6 @@ limitations under the License.
 package mirror
 
 import (
-	"context"
-
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -43,7 +41,6 @@ var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // Start begins the process of running filesystem mirroring daemons.
 func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesystemMirror) error {
-	ctx := context.TODO()
 	// Validate pod's memory if specified
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyFilesystemMirror, filesystemMirror.Spec.Resources, cephFilesystemMirrorPodMinimumMemory)
 	if err != nil {
@@ -57,7 +54,7 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		ownerInfo:    ownerInfo,
 	}
 
-	_, err = r.generateKeyring(r.clusterInfo, daemonConf)
+	_, err = r.generateKeyring(daemonConf)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate keyring for %q", AppName)
 	}
@@ -80,7 +77,7 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 	}
 
-	if _, err := r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Create(ctx, d, metav1.CreateOptions{}); err != nil {
+	if _, err := r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Create(r.opManagerContext, d, metav1.CreateOptions{}); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create %q deployment", d.Name)
 		}
@@ -89,11 +86,11 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.FilesystemMirrorType, AppName, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 			// fail could be an issue updating label selector (immutable), so try del and recreate
 			logger.Debugf("updateDeploymentAndWait failed for filesystem-mirror %q. Attempting del-and-recreate. %v", d.Name, err)
-			err = r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Delete(ctx, filesystemMirror.Name, metav1.DeleteOptions{})
+			err = r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Delete(r.opManagerContext, filesystemMirror.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return errors.Wrapf(err, "failed to delete filesystem-mirror deployment %q during del-and-recreate update attempt", d.Name)
 			}
-			if _, err := r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Create(ctx, d, metav1.CreateOptions{}); err != nil {
+			if _, err := r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Create(r.opManagerContext, d, metav1.CreateOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to recreate filesystem-mirror deployment %q during del-and-recreate update attempt", d.Name)
 			}
 		}

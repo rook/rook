@@ -28,7 +28,8 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -45,13 +46,7 @@ var (
 	name                      = "my-nfs"
 	namespace                 = "rook-ceph"
 	nfsCephAuthGetOrCreateKey = `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`
-	dummyVersionsRaw          = `
-	{
-		"mon": {
-			"ceph version 14.2.8 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 3
-		}
-	}`
-	poolDetails = `{
+	poolDetails               = `{
 		"pool": "foo",
 		"pool_id": 1,
 		"size": 3,
@@ -111,9 +106,6 @@ func TestCephNFSController(t *testing.T) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
-			if args[0] == "versions" {
-				return dummyVersionsRaw, nil
-			}
 			return "", nil
 		},
 	}
@@ -132,7 +124,7 @@ func TestCephNFSController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephNFS object with the scheme and fake client.
-	r := &ReconcileCephNFS{client: cl, scheme: s, context: c}
+	r := &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -142,17 +134,7 @@ func TestCephNFSController(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
-	logger.Info("STARTING PHASE 1")
-	res, err := r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, res.Requeue)
-	logger.Info("PHASE 1 DONE")
 
-	//
-	// TEST 2:
-	//
-	// FAILURE we have a cluster but it's not ready
-	//
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace,
@@ -165,95 +147,96 @@ func TestCephNFSController(t *testing.T) {
 			},
 		},
 	}
-	object = append(object, cephCluster)
-	// Create a fake client to mock API calls.
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	// Create a ReconcileCephNFS object with the scheme and fake client.
-	r = &ReconcileCephNFS{client: cl, scheme: s, context: c}
-	logger.Info("STARTING PHASE 2")
-	res, err = r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, res.Requeue)
-	logger.Info("PHASE 2 DONE")
 
-	//
-	// TEST 3:
-	//
-	// SUCCESS! The CephCluster is ready
-	//
-
-	// Mock clusterInfo
-	secrets := map[string][]byte{
-		"fsid":         []byte(name),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
+	currentAndDesiredCephVersion = func(rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
+		return &version.Octopus, &version.Octopus, nil
 	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-mon",
-			Namespace: namespace,
-		},
-		Data: secrets,
-		Type: k8sutil.RookType,
-	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
 
-	// Add ready status to the CephCluster
-	cephCluster.Status.Phase = k8sutil.ReadyStatus
-	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
+	t.Run("error - no ceph cluster", func(t *testing.T) {
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+	})
 
-	// Create a fake client to mock API calls.
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	t.Run("error - ceph cluster not ready", func(t *testing.T) {
+		object = append(object, cephCluster)
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		// Create a ReconcileCephNFS object with the scheme and fake client.
+		r = &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx}
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+	})
 
-	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if args[0] == "status" {
-				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			if args[0] == "auth" && args[1] == "get-or-create-key" {
-				return nfsCephAuthGetOrCreateKey, nil
-			}
-			if args[0] == "versions" {
-				return dummyVersionsRaw, nil
-			}
-			if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
-				return poolDetails, nil
-			}
-			return "", errors.New("unknown command")
-		},
-		MockExecuteCommand: func(command string, args ...string) error {
-			if command == "rados" {
-				logger.Infof("mock execute. %s. %s", command, args)
-				assert.Equal(t, "stat", args[6])
-				assert.Equal(t, "conf-my-nfs.a", args[7])
-				return nil
-			}
-			return errors.New("unknown command")
-		},
-		MockExecuteCommandWithEnv: func(env []string, command string, args ...string) error {
-			if command == "ganesha-rados-grace" {
-				logger.Infof("mock execute. %s. %s", command, args)
-				assert.Equal(t, "add", args[4])
-				assert.Len(t, env, 1)
-				return nil
-			}
-			return errors.New("unknown command")
-		},
-	}
-	c.Executor = executor
+	t.Run("success - nfs running", func(t *testing.T) {
+		// Mock clusterInfo
+		secrets := map[string][]byte{
+			"fsid":         []byte(name),
+			"mon-secret":   []byte("monsecret"),
+			"admin-secret": []byte("adminsecret"),
+		}
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-mon",
+				Namespace: namespace,
+			},
+			Data: secrets,
+			Type: k8sutil.RookType,
+		}
+		_, err := c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		assert.NoError(t, err)
 
-	// Create a ReconcileCephNFS object with the scheme and fake client.
-	r = &ReconcileCephNFS{client: cl, scheme: s, context: c}
+		// Add ready status to the CephCluster
+		cephCluster.Status.Phase = k8sutil.ReadyStatus
+		cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
-	logger.Info("STARTING PHASE 3")
-	res, err = r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, cephNFS)
-	assert.NoError(t, err)
-	assert.Equal(t, "Ready", cephNFS.Status.Phase, cephNFS)
-	logger.Info("PHASE 3 DONE")
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "status" {
+					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+				}
+				if args[0] == "auth" && args[1] == "get-or-create-key" {
+					return nfsCephAuthGetOrCreateKey, nil
+				}
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+					return poolDetails, nil
+				}
+				return "", errors.New("unknown command")
+			},
+			MockExecuteCommand: func(command string, args ...string) error {
+				if command == "rados" {
+					logger.Infof("mock execute. %s. %s", command, args)
+					assert.Equal(t, "stat", args[6])
+					assert.Equal(t, "conf-nfs.my-nfs", args[7])
+					return nil
+				}
+				return errors.New("unknown command")
+			},
+			MockExecuteCommandWithEnv: func(env []string, command string, args ...string) error {
+				if command == "ganesha-rados-grace" {
+					logger.Infof("mock execute. %s. %s", command, args)
+					assert.Equal(t, "add", args[4])
+					assert.Len(t, env, 1)
+					return nil
+				}
+				return errors.New("unknown command")
+			},
+		}
+		c.Executor = executor
+
+		// Create a ReconcileCephNFS object with the scheme and fake client.
+		r = &ReconcileCephNFS{client: cl, scheme: s, context: c, opManagerContext: ctx}
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		err = r.client.Get(context.TODO(), req.NamespacedName, cephNFS)
+		assert.NoError(t, err)
+		assert.Equal(t, "Ready", cephNFS.Status.Phase, cephNFS)
+	})
 }
 
 func TestGetGaneshaConfigObject(t *testing.T) {
@@ -266,15 +249,15 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 	nodeid := "a"
 	expectedName := "conf-nfs.my-nfs"
 
-	res := getGaneshaConfigObject(cephNFS, cephver.CephVersion{Major: 16}, nodeid)
+	res := getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 16}, nodeid)
 	logger.Infof("Config Object for Pacific is %s", res)
 	assert.Equal(t, expectedName, res)
 
-	res = getGaneshaConfigObject(cephNFS, cephver.CephVersion{Major: 15, Minor: 2, Extra: 1}, nodeid)
+	res = getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 15, Minor: 2, Extra: 1}, nodeid)
 	logger.Infof("Config Object for Octopus is %s", res)
 	assert.Equal(t, expectedName, res)
 
-	res = getGaneshaConfigObject(cephNFS, cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}, nodeid)
+	res = getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 14, Minor: 2, Extra: 5}, nodeid)
 	logger.Infof("Config Object for Nautilus is %s", res)
 	assert.Equal(t, "conf-my-nfs.a", res)
 }

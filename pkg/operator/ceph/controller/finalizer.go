@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -74,6 +75,10 @@ func AddFinalizerIfNotPresent(client client.Client, obj client.Object) error {
 
 // RemoveFinalizer removes a finalizer from an object
 func RemoveFinalizer(client client.Client, obj client.Object) error {
+	err := client.Get(context.TODO(), types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj)
+	if err != nil {
+		return errors.Wrap(err, "failed to get the latest version of the object")
+	}
 	objectFinalizer := buildFinalizerName(obj.GetObjectKind().GroupVersionKind().Kind)
 	accessor, err := meta.Accessor(obj)
 	if err != nil {

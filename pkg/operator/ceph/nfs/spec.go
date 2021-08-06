@@ -17,8 +17,6 @@ limitations under the License.
 package nfs
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -71,7 +69,6 @@ func (r *ReconcileCephNFS) generateCephNFSService(nfs *cephv1.CephNFS, cfg daemo
 }
 
 func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonConfig) error {
-	ctx := context.TODO()
 	s := r.generateCephNFSService(nfs, cfg)
 
 	// Set owner ref to the parent object
@@ -80,7 +77,7 @@ func (r *ReconcileCephNFS) createCephNFSService(nfs *cephv1.CephNFS, cfg daemonC
 		return errors.Wrapf(err, "failed to set owner reference to ceph nfs %q", s)
 	}
 
-	svc, err := r.context.Clientset.CoreV1().Services(nfs.Namespace).Create(ctx, s, metav1.CreateOptions{})
+	svc, err := r.context.Clientset.CoreV1().Services(nfs.Namespace).Create(r.opManagerContext, s, metav1.CreateOptions{})
 	if err != nil {
 		if !kerrors.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create ganesha service")

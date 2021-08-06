@@ -109,14 +109,14 @@ func NewHealthChecker(monCluster *Cluster) *HealthChecker {
 }
 
 // Check periodically checks the health of the monitors
-func (hc *HealthChecker) Check(stopCh chan struct{}) {
+func (hc *HealthChecker) Check(context context.Context) {
 	for {
 		// Update Mon Timeout with CR details
 		updateMonTimeout(hc.monCluster)
 		// Update Mon Interval with CR details
 		updateMonInterval(hc.monCluster, hc)
 		select {
-		case <-stopCh:
+		case <-context.Done():
 			logger.Infof("stopping monitoring of mons in namespace %q", hc.monCluster.Namespace)
 			return
 
@@ -351,7 +351,6 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
 }
 
 func (c *Cluster) removeOrphanMonResources() {
-	ctx := context.TODO()
 	if c.spec.Mon.VolumeClaimTemplate == nil {
 		logger.Debug("skipping check for orphaned mon pvcs since using the host path")
 		return
@@ -360,7 +359,7 @@ func (c *Cluster) removeOrphanMonResources() {
 	logger.Info("checking for orphaned mon resources")
 
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)}
-	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(ctx, opts)
+	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(c.ClusterInfo.Context, opts)
 	if err != nil {
 		logger.Infof("failed to check for orphaned mon pvcs. %v", err)
 		return
@@ -369,7 +368,7 @@ func (c *Cluster) removeOrphanMonResources() {
 	for _, pvc := range pvcs.Items {
 		logger.Debugf("checking if pvc %q is orphaned", pvc.Name)
 
-		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(ctx, pvc.Name, metav1.GetOptions{})
+		_, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, pvc.Name, metav1.GetOptions{})
 		if err == nil {
 			logger.Debugf("skipping pvc removal since the mon daemon %q still requires it", pvc.Name)
 			continue
@@ -383,7 +382,7 @@ func (c *Cluster) removeOrphanMonResources() {
 		var gracePeriod int64 // delete immediately
 		propagation := metav1.DeletePropagationForeground
 		options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-		err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(ctx, pvc.Name, *options)
+		err = c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(c.ClusterInfo.Context, pvc.Name, *options)
 		if err != nil {
 			logger.Warningf("failed to delete orphaned monitor pvc %q. %v", pvc.Name, err)
 		}
@@ -391,9 +390,8 @@ func (c *Cluster) removeOrphanMonResources() {
 }
 
 func (c *Cluster) updateMonDeploymentReplica(name string, enabled bool) error {
-	ctx := context.TODO()
 	// get the existing deployment
-	d, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(ctx, resourceName(name), metav1.GetOptions{})
+	d, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, resourceName(name), metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to get mon %q", name)
 	}
@@ -408,7 +406,7 @@ func (c *Cluster) updateMonDeploymentReplica(name string, enabled bool) error {
 
 	// update the deployment
 	logger.Infof("scaling the mon %q deployment to replica %d", name, desiredReplicas)
-	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Update(ctx, d, metav1.UpdateOptions{})
+	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Update(c.ClusterInfo.Context, d, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to update mon %q replicas from %d to %d", name, originalReplicas, desiredReplicas)
 	}
@@ -493,7 +491,6 @@ func (c *Cluster) failoverMon(name string) error {
 
 // make a best effort to remove the mon and all its resources
 func (c *Cluster) removeMon(daemonName string) error {
-	ctx := context.TODO()
 	logger.Infof("ensuring removal of unhealthy monitor %s", daemonName)
 
 	resourceName := resourceName(daemonName)
@@ -502,7 +499,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Delete(ctx, resourceName, *options); err != nil {
+	if err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, *options); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("dead mon %s was already gone", resourceName)
 		} else {
@@ -519,7 +516,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 	delete(c.mapping.Schedule, daemonName)
 
 	// Remove the service endpoint
-	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(ctx, resourceName, *options); err != nil {
+	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, *options); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("dead mon service %s was already gone", resourceName)
 		} else {
@@ -528,7 +525,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 	}
 
 	// Remove the PVC backing the mon if it existed
-	if err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(ctx, resourceName, metav1.DeleteOptions{}); err != nil {
+	if err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, metav1.DeleteOptions{}); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("mon pvc did not exist %q", resourceName)
 		} else {
@@ -666,7 +663,7 @@ func (c *Cluster) evictMonIfMultipleOnSameNode() error {
 
 	// Get all the mon pods
 	label := fmt.Sprintf("app=%s", AppName)
-	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: label})
+	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(c.ClusterInfo.Context, metav1.ListOptions{LabelSelector: label})
 	if err != nil {
 		return errors.Wrap(err, "failed to list mon pods")
 	}

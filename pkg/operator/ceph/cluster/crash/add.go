@@ -17,6 +17,7 @@ limitations under the License.
 package crash
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,16 +49,18 @@ const (
 )
 
 // Add adds a new Controller based on nodedrain.ReconcileNode and registers the relevant watches and handlers
-func Add(mgr manager.Manager, context *clusterd.Context) error {
-	return add(mgr, newReconciler(mgr, context))
+func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileNode{
-		client:  mgr.GetClient(),
-		scheme:  mgr.GetScheme(),
-		context: context,
+		client:           mgr.GetClient(),
+		scheme:           mgr.GetScheme(),
+		context:          context,
+		opManagerContext: opManagerContext,
+		opConfig:         opConfig,
 	}
 }
 

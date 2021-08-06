@@ -87,9 +87,9 @@ func monEndpoints(mons map[string]*cephclient.MonInfo) []string {
 	return endpoints
 }
 
-// UpdateCsiClusterConfig returns a json-formatted string containing
+// updateCsiClusterConfig returns a json-formatted string containing
 // the cluster-to-mon mapping required to configure ceph csi.
-func UpdateCsiClusterConfig(
+func updateCsiClusterConfig(
 	curr, clusterKey string, mons map[string]*cephclient.MonInfo) (string, error) {
 
 	var (
@@ -158,8 +158,6 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerI
 func SaveClusterConfig(
 	clientset kubernetes.Interface, clusterNamespace string,
 	clusterInfo *cephclient.ClusterInfo, l sync.Locker) error {
-	ctx := context.TODO()
-
 	if !CSIEnabled() {
 		return nil
 	}
@@ -173,7 +171,7 @@ func SaveClusterConfig(
 	logger.Debugf("Using %+v for CSI ConfigMap Namespace", csiNamespace)
 
 	// fetch current ConfigMap contents
-	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(ctx,
+	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(clusterInfo.Context,
 		ConfigName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current csi config map")
@@ -184,7 +182,7 @@ func SaveClusterConfig(
 	if currData == "" {
 		currData = "[]"
 	}
-	newData, err := UpdateCsiClusterConfig(
+	newData, err := updateCsiClusterConfig(
 		currData, clusterNamespace, clusterInfo.Monitors)
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi config map data")
@@ -192,7 +190,7 @@ func SaveClusterConfig(
 	configMap.Data[ConfigKey] = newData
 
 	// update ConfigMap with new contents
-	if _, err := clientset.CoreV1().ConfigMaps(csiNamespace).Update(ctx, configMap, metav1.UpdateOptions{}); err != nil {
+	if _, err := clientset.CoreV1().ConfigMaps(csiNamespace).Update(clusterInfo.Context, configMap, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrapf(err, "failed to update csi config map")
 	}
 

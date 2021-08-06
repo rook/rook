@@ -72,24 +72,26 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileObjectRealm reconciles a ObjectRealm object
 type ReconcileObjectRealm struct {
-	client      client.Client
-	scheme      *runtime.Scheme
-	context     *clusterd.Context
-	clusterInfo *cephclient.ClusterInfo
+	client           client.Client
+	scheme           *runtime.Scheme
+	context          *clusterd.Context
+	clusterInfo      *cephclient.ClusterInfo
+	opManagerContext context.Context
 }
 
 // Add creates a new CephObjectRealm Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, context *clusterd.Context) error {
-	return add(mgr, newReconciler(mgr, context))
+func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(mgr, newReconciler(mgr, context, opManagerContext))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context) reconcile.Reconciler {
 	return &ReconcileObjectRealm{
-		client:  mgr.GetClient(),
-		scheme:  mgr.GetScheme(),
-		context: context,
+		client:           mgr.GetClient(),
+		scheme:           mgr.GetScheme(),
+		context:          context,
+		opManagerContext: opManagerContext,
 	}
 }
 
@@ -127,7 +129,7 @@ func (r *ReconcileObjectRealm) Reconcile(context context.Context, request reconc
 func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CephObjectRealm instance
 	cephObjectRealm := &cephv1.CephObjectRealm{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephObjectRealm)
+	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectRealm)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectRealm resource not found. Ignoring since object must be deleted.")
@@ -139,7 +141,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 
 	// The CR was just created, initializing status fields
 	if cephObjectRealm.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -162,7 +164,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -170,12 +172,12 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	// validate the realm settings
 	err = validateRealmCR(cephObjectRealm)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid CephObjectRealm CR %q", cephObjectRealm.Name)
 	}
 
 	// Start object reconciliation, updating status for this
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
+	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
 
 	// Create/Pull Ceph Realm
 	if cephObjectRealm.Spec.IsPullRealm() {
@@ -197,7 +199,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Set Ready status, we are done reconciling
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("realm done reconciling")
@@ -251,7 +253,6 @@ func (r *ReconcileObjectRealm) createCephRealm(realm *cephv1.CephObjectRealm) (r
 }
 
 func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
-	ctx := context.TODO()
 	logger.Debugf("generating access and secret keys for new realm %q", realm.Name)
 
 	// the realm's secret key and access key are randomly generated and then encoded to base64
@@ -288,7 +289,7 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of rgw secret %q", secret.Name)
 	}
 
-	if _, err = r.context.Clientset.CoreV1().Secrets(realm.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	if _, err = r.context.Clientset.CoreV1().Secrets(realm.Namespace).Create(r.opManagerContext, secret, metav1.CreateOptions{}); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save rgw secrets")
 	}
 	logger.Infof("secrets for keys have been created for realm %q", realm.Name)
@@ -308,14 +309,14 @@ func validateRealmCR(u *cephv1.CephObjectRealm) error {
 }
 
 func (r *ReconcileObjectRealm) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
+	r.updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
 	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
 }
 
 // updateStatus updates an realm with a given status
-func updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileObjectRealm) updateStatus(client client.Client, name types.NamespacedName, status string) {
 	objectRealm := &cephv1.CephObjectRealm{}
-	if err := client.Get(context.TODO(), name, objectRealm); err != nil {
+	if err := client.Get(r.opManagerContext, name, objectRealm); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectRealm resource not found. Ignoring since object must be deleted.")
 			return

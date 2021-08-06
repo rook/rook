@@ -429,7 +429,8 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 
 		store := &cephv1.CephObjectStore{}
 		i := 0
-		for i = 0; i < 4; i++ {
+		retry := 10
+		for i = 0; i < retry; i++ {
 			storeStr, err := k8sh.GetResource("-n", namespace, "CephObjectStore", storeName, "-o", "json")
 			assert.NoError(t, err)
 			logger.Infof("store: \n%s", storeStr)
@@ -438,13 +439,15 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 			assert.NoError(t, err)
 
 			cond := cephv1.FindStatusCondition(store.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
-			if cond.Status == v1.ConditionFalse {
+			if cond.Status == v1.ConditionFalse && cond.Reason == cephv1.ObjectHasNoDependentsReason {
+				// Let's give some time to the object to be updated
+				time.Sleep(5 * time.Second)
 				break
 			}
 			logger.Info("waiting 3 more seconds for CephObjectStore to be unblocked by dependents")
 			time.Sleep(3 * time.Second)
 		}
-		assert.NotEqual(t, 4, i)
+		assert.NotEqual(t, retry, i)
 
 		assert.Equal(t, cephv1.ConditionDeleting, store.Status.Phase) // phase == "Deleting"
 		// verify deletion is NOT blocked b/c object has dependents

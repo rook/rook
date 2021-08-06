@@ -18,14 +18,12 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -196,13 +194,12 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 	errs *provisionErrors, // add errors here
 ) (shouldRestart bool, err error) {
 	cmClient := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace)
-	ctx := context.TODO()
 	selector := statusConfigMapSelector()
 
 	listOptions := metav1.ListOptions{
 		LabelSelector: selector,
 	}
-	configMapList, err := cmClient.List(ctx, listOptions)
+	configMapList, err := cmClient.List(c.clusterInfo.Context, listOptions)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to list OSD provisioning status ConfigMaps")
 	}
@@ -218,7 +215,7 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 		Watch:           true,
 		ResourceVersion: configMapList.ResourceVersion,
 	}
-	watcher, err := cmClient.Watch(ctx, watchOptions)
+	watcher, err := cmClient.Watch(c.clusterInfo.Context, watchOptions)
 	defer watcher.Stop()
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to start watching OSD provisioning status ConfigMaps")
@@ -269,9 +266,8 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 			updateConfig.updateExistingOSDs(errs)
 
 		case <-minuteTicker.C:
-			// Check whether we need to cancel the orchestration
-			if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
-				return false, err
+			if c.clusterInfo.Context.Err() != nil {
+				return false, c.clusterInfo.Context.Err()
 			}
 			// Log progress
 			c, cExp := createConfig.progress()
@@ -350,19 +346,18 @@ func (c *Cluster) deleteStatusConfigMap(nodeOrPVCName string) {
 }
 
 func (c *Cluster) deleteAllStatusConfigMaps() {
-	ctx := context.TODO()
 	listOpts := metav1.ListOptions{
 		LabelSelector: statusConfigMapSelector(),
 	}
 	cmClientset := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace)
-	cms, err := cmClientset.List(ctx, listOpts)
+	cms, err := cmClientset.List(c.clusterInfo.Context, listOpts)
 	if err != nil {
 		logger.Warningf("failed to clean up any dangling OSD prepare status configmaps. failed to list OSD prepare status configmaps. %v", err)
 		return
 	}
 	for _, cm := range cms.Items {
 		logger.Debugf("cleaning up dangling OSD prepare status configmap %q", cm.Name)
-		err := cmClientset.Delete(ctx, cm.Name, metav1.DeleteOptions{})
+		err := cmClientset.Delete(c.clusterInfo.Context, cm.Name, metav1.DeleteOptions{})
 		if err != nil {
 			logger.Warningf("failed to clean up dangling OSD prepare status configmap %q. %v", cm.Name, err)
 		}

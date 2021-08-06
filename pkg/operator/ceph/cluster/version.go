@@ -18,19 +18,23 @@ limitations under the License.
 package cluster
 
 import (
-	"time"
-
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	daemonclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
 )
 
 func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster) (*cephver.CephVersion, bool, error) {
-	version, err := cluster.detectCephVersion(c.rookImage, cluster.Spec.CephVersion.Image, detectCephVersionTimeout)
+	version, err := controller.DetectCephVersion(
+		c.rookImage,
+		cluster.Namespace,
+		detectVersionName,
+		cluster.ownerInfo,
+		c.context.Clientset,
+		cluster.Spec,
+	)
 	if err != nil {
 		return nil, false, err
 	}
@@ -113,44 +117,6 @@ func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion,
 	return false, nil
 }
 
-// detectCephVersion loads the ceph version from the image and checks that it meets the version requirements to
-// run in the cluster
-func (c *cluster) detectCephVersion(rookImage, cephImage string, timeout time.Duration) (*cephver.CephVersion, error) {
-	logger.Infof("detecting the ceph image version for image %s...", cephImage)
-	versionReporter, err := cmdreporter.New(
-		c.context.Clientset, c.ownerInfo,
-		detectVersionName, detectVersionName, c.Namespace,
-		[]string{"ceph"}, []string{"--version"},
-		rookImage, cephImage)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to set up ceph version job")
-	}
-
-	job := versionReporter.Job()
-	job.Spec.Template.Spec.ServiceAccountName = "rook-ceph-cmd-reporter"
-
-	// Apply the same placement for the ceph version detection as the mon daemons except for PodAntiAffinity
-	cephv1.GetMonPlacement(c.Spec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)
-	job.Spec.Template.Spec.Affinity.PodAntiAffinity = nil
-
-	stdout, stderr, retcode, err := versionReporter.Run(timeout)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to complete ceph version job")
-	}
-	if retcode != 0 {
-		return nil, errors.Errorf(`ceph version job returned failure with retcode %d.
-  stdout: %s
-  stderr: %s`, retcode, stdout, stderr)
-	}
-
-	version, err := cephver.ExtractCephVersion(stdout)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to extract ceph version")
-	}
-	logger.Infof("detected ceph image version: %q", version)
-	return version, nil
-}
-
 func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	if !c.Spec.External.Enable {
 		if !version.IsAtLeast(cephver.Minimum) {
@@ -175,8 +141,9 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	// state we are in and if we should upgrade or not
 
 	// Try to load clusterInfo so we can compare the running version with the one from the spec image
-	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.Namespace)
+	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.ClusterInfo.Context, c.Namespace)
 	if err == nil {
+		clusterInfo.Context = c.ClusterInfo.Context
 		// Write connection info (ceph config file and keyring) for ceph commands
 		err = mon.WriteConnectionConfig(c.context, clusterInfo)
 		if err != nil {

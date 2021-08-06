@@ -275,7 +275,7 @@ var mockExecutor = &exectest.MockExecutor{
 }
 
 func TestSinglePeerMappings(t *testing.T) {
-	clusterInfo := &cephclient.ClusterInfo{Namespace: ns}
+	clusterInfo := cephclient.AdminClusterInfo(ns)
 	fakeContext := &clusterd.Context{
 		Executor:  mockExecutor,
 		Clientset: test.New(t, 3),
@@ -299,7 +299,7 @@ func TestSinglePeerMappings(t *testing.T) {
 }
 
 func TestMultiPeerMappings(t *testing.T) {
-	clusterInfo := &cephclient.ClusterInfo{Namespace: ns}
+	clusterInfo := cephclient.AdminClusterInfo(ns)
 	fakeContext := &clusterd.Context{
 		Executor:  mockExecutor,
 		Clientset: test.New(t, 3),
@@ -358,41 +358,8 @@ func TestDecodePeerToken(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func fakeOperatorPod() *corev1.Pod {
-	p := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: ns,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					Kind: "ReplicaSet",
-					Name: "testReplicaSet",
-				},
-			},
-		},
-		Spec: corev1.PodSpec{},
-	}
-	return p
-}
-
-func fakeReplicaSet() *appsv1.ReplicaSet {
-	r := &appsv1.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "testReplicaSet",
-			Namespace: ns,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					Kind: "Deployment",
-				},
-			},
-		},
-	}
-
-	return r
-}
-
 func TestCreateOrUpdateConfig(t *testing.T) {
-	os.Setenv("POD_NAME", "test")
+	os.Setenv("POD_NAME", "rook-ceph-operator")
 	defer os.Setenv("POD_NAME", "")
 	os.Setenv("POD_NAMESPACE", ns)
 	defer os.Setenv("POD_NAMESPACE", "")
@@ -414,11 +381,11 @@ func TestCreateOrUpdateConfig(t *testing.T) {
 	}
 
 	// Create fake pod
-	_, err = fakeContext.Clientset.CoreV1().Pods(ns).Create(context.TODO(), fakeOperatorPod(), metav1.CreateOptions{})
+	_, err = fakeContext.Clientset.CoreV1().Pods(ns).Create(context.TODO(), test.FakeOperatorPod(ns), metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Create fake replicaset
-	_, err = fakeContext.Clientset.AppsV1().ReplicaSets(ns).Create(context.TODO(), fakeReplicaSet(), metav1.CreateOptions{})
+	_, err = fakeContext.Clientset.AppsV1().ReplicaSets(ns).Create(context.TODO(), test.FakeReplicaSet(ns), metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	// Create empty ID mapping configMap

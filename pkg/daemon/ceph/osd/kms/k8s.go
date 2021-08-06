@@ -17,7 +17,6 @@ limitations under the License.
 package kms
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -42,14 +41,13 @@ const (
 
 // storeSecretInKubernetes stores the dmcrypt key in a Kubernetes Secret
 func (c *Config) storeSecretInKubernetes(pvcName, key string) error {
-	ctx := context.TODO()
 	s, err := generateOSDEncryptedKeySecret(pvcName, key, c.clusterInfo)
 	if err != nil {
 		return err
 	}
 
 	// Create the Kubernetes Secret
-	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(ctx, s, metav1.CreateOptions{})
+	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(c.clusterInfo.Context, s, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to save ceph osd encryption key as a secret for pvc %q", pvcName)
 	}

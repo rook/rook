@@ -101,6 +101,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		clusterInfo := &cephclient.ClusterInfo{
 			Namespace:   namespace,
 			CephVersion: cephver.Pacific,
+			Context:     context.TODO(),
 		}
 		clusterInfo.SetName("mycluster")
 		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

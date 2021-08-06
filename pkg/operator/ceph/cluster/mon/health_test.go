@@ -36,7 +36,6 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,10 +60,9 @@ func TestCheckHealth(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Clientset:                  clientset,
-		ConfigDir:                  configDir,
-		Executor:                   executor,
-		RequestCancelOrchestration: abool.New(),
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})
@@ -94,6 +92,7 @@ func TestCheckHealth(t *testing.T) {
 		return SchedulingResult{Node: node}, nil
 	}
 
+	c.ClusterInfo.Context = ctx
 	err = c.checkHealth()
 	assert.Nil(t, err)
 	logger.Infof("mons after checkHealth: %v", c.ClusterInfo.Monitors)
@@ -165,7 +164,7 @@ func TestEvictMonOnSameNode(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: executor, RequestCancelOrchestration: abool.New()}
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: executor}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0}, "myversion")
@@ -195,6 +194,7 @@ func TestEvictMonOnSameNode(t *testing.T) {
 	assert.Equal(t, 2, c.maxMonID)
 
 	// Should evict either mon a or mon c since they are on the same node and failover to mon d
+	c.ClusterInfo.Context = ctx
 	err = c.evictMonIfMultipleOnSameNode()
 	assert.NoError(t, err)
 	_, err = clientset.AppsV1().Deployments(c.Namespace).Get(ctx, "rook-ceph-mon-d", metav1.GetOptions{})
@@ -267,10 +267,9 @@ func TestCheckHealthNotFound(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Clientset:                  clientset,
-		ConfigDir:                  configDir,
-		Executor:                   executor,
-		RequestCancelOrchestration: abool.New(),
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})
@@ -330,10 +329,9 @@ func TestAddRemoveMons(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Clientset:                  clientset,
-		ConfigDir:                  configDir,
-		Executor:                   executor,
-		RequestCancelOrchestration: abool.New(),
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})

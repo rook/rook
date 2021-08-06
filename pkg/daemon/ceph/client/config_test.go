@@ -108,6 +108,7 @@ func TestGenerateConfigFile(t *testing.T) {
 		},
 		CephVersion: cephver.Nautilus,
 		CephCred:    CephCred{Username: "admin", Secret: "mysecret"},
+		Context:     ctx,
 	}
 
 	isInitialized := clusterInfo.IsInitialized(true)

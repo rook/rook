@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -35,6 +34,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+// OperatorConfig represents the configuration of the operator
+type OperatorConfig struct {
+	OperatorNamespace string
+	Image             string
+	ServiceAccount    string
+	NamespaceToWatch  string
+	Parameters        map[string]string
+}
+
 const (
 	// OperatorSettingConfigMapName refers to ConfigMap that configures rook ceph operator
 	OperatorSettingConfigMapName string = "rook-ceph-operator-config"
@@ -45,9 +53,6 @@ const (
 
 	// OperatorNotInitializedMessage is the message we print when the Operator is not ready to reconcile, typically the ceph.conf has not been generated yet
 	OperatorNotInitializedMessage = "skipping reconcile since operator is still initializing"
-
-	// CancellingOrchestrationMessage is the message to indicate a reconcile was cancelled
-	CancellingOrchestrationMessage = "CANCELLING CURRENT ORCHESTRATION"
 )
 
 var (
@@ -61,6 +66,9 @@ var (
 	// WaitForRequeueIfCephClusterNotReady waits for the CephCluster to be ready
 	WaitForRequeueIfCephClusterNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
+	// WaitForRequeueIfCephClusterIsUpgrading waits until the upgrade is complete
+	WaitForRequeueIfCephClusterIsUpgrading = reconcile.Result{Requeue: true, RequeueAfter: time.Minute}
+
 	// WaitForRequeueIfFinalizerBlocked waits for resources to be cleaned up before the finalizer can be removed
 	WaitForRequeueIfFinalizerBlocked = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
@@ -71,39 +79,29 @@ var (
 	OperatorCephBaseImageVersion string
 )
 
-func FlexDriverEnabled(context *clusterd.Context) bool {
-	// Ignore the error. In the remote chance that the configmap fails to be read, we will default to disabling the flex driver
-	value, _ := k8sutil.GetOperatorSetting(context.Clientset, OperatorSettingConfigMapName, "ROOK_ENABLE_FLEX_DRIVER", "false")
+func FlexDriverEnabled(ctx *clusterd.Context) bool {
+	// Ignore the error. In the remote chance that the configmap fails to be read, we will default
+	// to disabling the flex driver
+	// It's ok to use a TODO context here since FlexDriverEnabled is called by a manager which
+	// already has a context
+	context := context.TODO()
+	value, _ := k8sutil.GetOperatorSetting(context, ctx.Clientset, OperatorSettingConfigMapName, "ROOK_ENABLE_FLEX_DRIVER", "false")
 	return value == "true"
 }
 
-func DiscoveryDaemonEnabled(context *clusterd.Context) bool {
-	// Ignore the error. In the remote chance that the configmap fails to be read, we will default to disabling the discovery daemon
-	value, _ := k8sutil.GetOperatorSetting(context.Clientset, OperatorSettingConfigMapName, "ROOK_ENABLE_DISCOVERY_DAEMON", "false")
-	return value == "true"
+func DiscoveryDaemonEnabled(data map[string]string) bool {
+	return k8sutil.GetValue(data, "ROOK_ENABLE_DISCOVERY_DAEMON", "false") == "true"
 }
 
 // SetCephCommandsTimeout sets the timeout value of Ceph commands which are executed from Rook
-func SetCephCommandsTimeout(context *clusterd.Context) {
-	strTimeoutSeconds, _ := k8sutil.GetOperatorSetting(context.Clientset, OperatorSettingConfigMapName, "ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS", "15")
+func SetCephCommandsTimeout(data map[string]string) {
+	strTimeoutSeconds := k8sutil.GetValue(data, "ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS", "15")
 	timeoutSeconds, err := strconv.Atoi(strTimeoutSeconds)
 	if err != nil || timeoutSeconds < 1 {
 		logger.Warningf("ROOK_CEPH_COMMANDS_TIMEOUT is %q but it should be >= 1, set the default value 15", strTimeoutSeconds)
 		timeoutSeconds = 15
 	}
 	exec.CephCommandsTimeout = time.Duration(timeoutSeconds) * time.Second
-}
-
-// CheckForCancelledOrchestration checks whether a cancellation has been requested
-func CheckForCancelledOrchestration(context *clusterd.Context) error {
-	defer context.RequestCancelOrchestration.UnSet()
-
-	// Check whether we need to cancel the orchestration
-	if context.RequestCancelOrchestration.IsSet() {
-		return errors.New(CancellingOrchestrationMessage)
-	}
-
-	return nil
 }
 
 // canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.

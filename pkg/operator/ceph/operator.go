@@ -21,41 +21,23 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strings"
+	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/csi"
-	"github.com/rook/rook/pkg/operator/ceph/csi/peermap"
-	"github.com/rook/rook/pkg/operator/ceph/provisioner"
-	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
-)
-
-// volume provisioner constant
-const (
-	provisionerName       = "ceph.rook.io/block"
-	provisionerNameLegacy = "rook.io/block"
 )
 
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "operator")
-
-	// The supported configurations for the volume provisioner
-	provisionerConfigs = map[string]string{
-		provisionerName:       flexvolume.FlexvolumeVendor,
-		provisionerNameLegacy: flexvolume.FlexvolumeVendorLegacy,
-	}
 
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
@@ -63,23 +45,24 @@ var (
 	// Signals to watch for to terminate the operator gracefully
 	// Using os.Interrupt is more portable across platforms instead of os.SIGINT
 	shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
+
+	// Placeholder for the CRD manager life cycle, first we have the context to manage cancellation
+	// of the manager.
+	// Then we have the cancel function that we can call anything to terminate the context
+	// Finally the channel to receive errors from the manager from within the go routine
+	opManagerContext context.Context
+	opManagerStop    context.CancelFunc
+	mgrCRDErrorChan  chan error
 )
 
 // Operator type for managing storage
 type Operator struct {
 	context   *clusterd.Context
 	resources []k8sutil.CustomResource
-	config    *Config
+	config    *opcontroller.OperatorConfig
 	// The custom resource that is global to the kubernetes cluster.
 	// The cluster is global because you create multiple clusters in k8s
-	clusterController     *cluster.ClusterController
-	delayedDaemonsStarted bool
-}
-
-type Config struct {
-	OperatorNamespace string
-	Image             string
-	ServiceAccount    string
+	clusterController *cluster.ClusterController
 }
 
 // New creates an operator instance
@@ -89,192 +72,90 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 	o := &Operator{
 		context:   context,
 		resources: schemes,
-		config: &Config{
+		config: &opcontroller.OperatorConfig{
 			OperatorNamespace: os.Getenv(k8sutil.PodNamespaceEnvVar),
 			Image:             rookImage,
 			ServiceAccount:    serviceAccount,
 		},
 	}
-	operatorConfigCallbacks := []func() error{
-		o.updateDrivers,
-		o.updateOperatorLogLevel,
-	}
-	addCallbacks := []func() error{
-		o.startDrivers,
-	}
-	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper, operatorConfigCallbacks, addCallbacks)
+	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper)
 	return o
-}
-
-func (o *Operator) cleanup(stopCh chan struct{}) {
-	close(stopCh)
-	o.clusterController.StopWatch()
-}
-
-func (o *Operator) updateOperatorLogLevel() error {
-	rookLogLevel, err := k8sutil.GetOperatorSetting(o.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_LOG_LEVEL", "INFO")
-	if err != nil {
-		logger.Warningf("failed to load ROOK_LOG_LEVEL. Defaulting to INFO. %v", err)
-		rookLogLevel = "INFO"
-	}
-
-	logLevel, err := capnslog.ParseLevel(strings.ToUpper(rookLogLevel))
-	if err != nil {
-		return errors.Wrapf(err, "failed to load ROOK_LOG_LEVEL %q.", rookLogLevel)
-	}
-
-	capnslog.SetGlobalLogLevel(logLevel)
-	return nil
 }
 
 // Run the operator instance
 func (o *Operator) Run() error {
+	// Initialize signal handler and context for the operator process life cycle
+	// This context is used to handle the graceful termination of the operator
+	operatorContext, operatorStop := signal.NotifyContext(context.Background(), shutdownSignals...)
+	defer operatorStop()
 
-	if o.config.OperatorNamespace == "" {
-		return errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %q", k8sutil.PodNamespaceEnvVar)
-	}
+	// Start the CRD manager
+	o.runCRDManager()
 
-	// TODO: needs a callback?
-	opcontroller.SetCephCommandsTimeout(o.context)
+	// Used to watch for operator's config changes
+	configChan := make(chan os.Signal, 1)
+	signal.Notify(configChan, syscall.SIGHUP)
 
-	// Initialize signal handler and context
-	stopContext, stopFunc := signal.NotifyContext(context.Background(), shutdownSignals...)
-	defer stopFunc()
-
-	rookDiscover := discover.New(o.context.Clientset)
-	if opcontroller.DiscoveryDaemonEnabled(o.context) {
-		if err := rookDiscover.Start(o.config.OperatorNamespace, o.config.Image, o.config.ServiceAccount, true); err != nil {
-			return errors.Wrap(err, "failed to start device discovery daemonset")
-		}
-	} else {
-		if err := rookDiscover.Stop(stopContext, o.config.OperatorNamespace); err != nil {
-			return errors.Wrap(err, "failed to stop device discovery daemonset")
-		}
-	}
-
-	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
-	if err != nil {
-		return errors.Wrap(err, "failed to get server version")
-	}
-
-	// Initialize stop channel for watchers
-	stopChan := make(chan struct{})
-
-	// For Flex Driver, run volume provisioner for each of the supported configurations
-	if opcontroller.FlexDriverEnabled(o.context) {
-		for name, vendor := range provisionerConfigs {
-			volumeProvisioner := provisioner.New(o.context, vendor)
-			pc := controller.NewProvisionController(
-				o.context.Clientset,
-				name,
-				volumeProvisioner,
-				serverVersion.GitVersion,
-			)
-			go pc.Run(stopContext)
-			logger.Infof("rook-provisioner %q started using %q flex vendor dir", name, vendor)
-		}
-	}
-
-	var namespaceToWatch string
-	if os.Getenv("ROOK_CURRENT_NAMESPACE_ONLY") == "true" {
-		logger.Infof("watching the current namespace for a ceph cluster CR")
-		namespaceToWatch = o.config.OperatorNamespace
-	} else {
-		logger.Infof("watching all namespaces for ceph cluster CRs")
-		namespaceToWatch = v1.NamespaceAll
-	}
-
-	// Start the controller-runtime Manager.
-	mgrErrorChan := make(chan error)
-	go o.startManager(stopContext, namespaceToWatch, mgrErrorChan)
-
-	// Start the operator setting watcher
-	go o.clusterController.StartOperatorSettingsWatch(stopChan)
-
-	// Signal handler to stop the operator
+	// Main infinite loop to watch for channel events
 	for {
 		select {
-		case <-stopContext.Done():
-			logger.Infof("shutdown signal received, exiting... %v", stopContext.Err())
-			o.cleanup(stopChan)
+		case <-operatorContext.Done():
+			// Terminate the operator CRD manager, we cannot use "defer opManagerStop()" since
+			// earlier in this code the function has not been populated yet. So explicitly calling
+			// it here during the main context termination.
+			opManagerStop()
+
+			logger.Infof("shutdown signal received, exiting... %v", operatorContext.Err())
 			return nil
 
-		case err := <-mgrErrorChan:
-			o.cleanup(stopChan)
-			return err
+		case <-configChan:
+			logger.Info("reloading operator's CRDs manager, cancelling all orchestrations!")
+
+			// Stop the operator CRD manager
+			opManagerStop()
+
+			// Run the operator CRD manager again
+			o.runCRDManager()
+
+		case err := <-mgrCRDErrorChan:
+			return errors.Wrapf(err, "gave up to run the operator manager")
 		}
 	}
 }
 
-func (o *Operator) startDrivers() error {
-	if o.delayedDaemonsStarted {
-		return nil
-	}
+func (o *Operator) runCRDManager() {
+	// Create the error channel so that the go routine can return an error
+	mgrCRDErrorChan = make(chan error)
 
-	o.delayedDaemonsStarted = true
-	if err := o.updateDrivers(); err != nil {
-		o.delayedDaemonsStarted = false // unset because failed to updateDrivers
-		return err
-	}
+	// Create the context and the cancellation function
+	opManagerContext, opManagerStop = context.WithCancel(context.Background())
 
-	return nil
+	// The operator config manager is also watching for changes here so if the operator config map
+	// content changes for ROOK_CURRENT_NAMESPACE_ONLY we must reload the operator CRD manager
+	o.namespaceToWatch(opManagerContext)
+
+	// Pass the parent context to the cluster controller so that the monitoring go routines can
+	// consume it to terminate gracefully
+	o.clusterController.OpManagerCtx = opManagerContext
+
+	// Run the operator CRD manager
+	go o.startCRDManager(opManagerContext, mgrCRDErrorChan)
+
+	// Run an informative go routine that prints the number of goroutines
+	go func() {
+		// Let's wait a bit to make sure most of the reconcilers are done
+		time.Sleep(time.Minute)
+		logger.Debugf("number of goroutines %d", runtime.NumGoroutine())
+	}()
 }
 
-func (o *Operator) updateDrivers() error {
-	var err error
-
-	// Skipping CSI driver update since the first cluster hasn't been started yet
-	if !o.delayedDaemonsStarted {
-		return nil
+func (o *Operator) namespaceToWatch(context context.Context) {
+	currentNamespaceOnly, _ := k8sutil.GetOperatorSetting(opManagerContext, o.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_CURRENT_NAMESPACE_ONLY", "true")
+	if currentNamespaceOnly == "true" {
+		o.config.NamespaceToWatch = o.config.OperatorNamespace
+		logger.Infof("watching the current namespace %q for a Ceph CRs", o.config.OperatorNamespace)
+	} else {
+		o.config.NamespaceToWatch = v1.NamespaceAll
+		logger.Infof("watching all namespaces for Ceph CRs")
 	}
-
-	if o.config.OperatorNamespace == "" {
-		return errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
-	}
-
-	if opcontroller.FlexDriverEnabled(o.context) {
-		rookAgent := agent.New(o.context.Clientset)
-		if err := rookAgent.Start(o.config.OperatorNamespace, o.config.Image, o.config.ServiceAccount); err != nil {
-			return errors.Wrap(err, "error starting agent daemonset")
-		}
-	}
-
-	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
-	if err != nil {
-		return errors.Wrap(err, "error getting server version")
-	}
-
-	if serverVersion.Major < csi.KubeMinMajor || serverVersion.Major == csi.KubeMinMajor && serverVersion.Minor < csi.ProvDeploymentSuppVersion {
-		logger.Infof("CSI drivers only supported in K8s 1.14 or newer. version=%s", serverVersion.String())
-		// disable csi control variables to disable other csi functions
-		csi.EnableRBD = false
-		csi.EnableCephFS = false
-		return nil
-	}
-
-	operatorPodName := os.Getenv(k8sutil.PodNameEnvVar)
-	ownerRef, err := k8sutil.GetDeploymentOwnerReference(o.context.Clientset, operatorPodName, o.config.OperatorNamespace)
-	if err != nil {
-		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
-	}
-	if ownerRef != nil {
-		blockOwnerDeletion := false
-		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
-	}
-
-	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, o.config.OperatorNamespace)
-	// create an empty config map. config map will be filled with data
-	// later when clusters have mons
-	err = csi.CreateCsiConfigMap(o.config.OperatorNamespace, o.context.Clientset, ownerInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed creating csi config map")
-	}
-
-	err = peermap.CreateOrUpdateConfig(o.context, &peermap.PeerIDMappings{})
-	if err != nil {
-		return errors.Wrap(err, "failed to create pool ID mapping config map")
-	}
-
-	go csi.ValidateAndConfigureDrivers(o.context, o.config.OperatorNamespace, o.config.Image, o.config.ServiceAccount, serverVersion, ownerInfo)
-	return nil
 }

@@ -21,8 +21,28 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/agent"
+	"github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/clusterdisruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/machinedisruption"
+	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
+	"github.com/rook/rook/pkg/operator/ceph/file"
+	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
+	"github.com/rook/rook/pkg/operator/ceph/nfs"
+	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
+	"github.com/rook/rook/pkg/operator/ceph/object/realm"
+	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
+	"github.com/rook/rook/pkg/operator/ceph/object/zone"
+	"github.com/rook/rook/pkg/operator/ceph/object/zonegroup"
+	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
@@ -52,7 +72,86 @@ var (
 	webhookResources = []webhook.Validator{&cephv1.CephCluster{}, &cephv1.CephBlockPool{}, &cephv1.CephObjectStore{}}
 )
 
-func (o *Operator) startManager(context context.Context, namespaceToWatch string, mgrErrorCh chan error) {
+var (
+	// EnableMachineDisruptionBudget checks whether machine disruption budget is enabled
+	EnableMachineDisruptionBudget bool
+)
+
+// AddToManagerFuncsMaintenance is a list of functions to add all Controllers to the Manager (entrypoint for controller)
+var AddToManagerFuncsMaintenance = []func(manager.Manager, *controllerconfig.Context) error{
+	clusterdisruption.Add,
+}
+
+// MachineDisruptionBudgetAddToManagerFuncs is a list of fencing related functions to add all Controllers to the Manager (entrypoint for controller)
+var MachineDisruptionBudgetAddToManagerFuncs = []func(manager.Manager, *controllerconfig.Context) error{
+	machinelabel.Add,
+	machinedisruption.Add,
+}
+
+// AddToManagerFuncs is a list of functions to add all Controllers to the Manager (entrypoint for controller)
+var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Context, opcontroller.OperatorConfig) error{
+	crash.Add,
+	pool.Add,
+	objectuser.Add,
+	realm.Add,
+	zonegroup.Add,
+	zone.Add,
+	object.Add,
+	file.Add,
+	nfs.Add,
+	rbd.Add,
+	client.Add,
+	mirror.Add,
+	Add,
+	csi.Add,
+	agent.Add,
+	bucket.Add,
+}
+
+// AddToManagerOpFunc is a list of functions to add all Controllers to the Manager (entrypoint for
+// controller)
+// var AddToManagerOpFunc = []func(manager.Manager, *clusterd.Context, opcontroller.OperatorConfig) error{}
+
+// AddToManager adds all the registered controllers to the passed manager.
+// each controller package will have an Add method listed in AddToManagerFuncs
+// which will setup all the necessary watch
+func (o *Operator) addToManager(m manager.Manager, c *controllerconfig.Context, opManagerContext context.Context) error {
+	if c == nil {
+		return errors.New("nil context passed")
+	}
+
+	// Run CephCluster CR
+	if err := cluster.Add(m, c.ClusterdContext, o.clusterController, opManagerContext); err != nil {
+		return err
+	}
+
+	// Add Ceph child CR controllers
+	for _, f := range AddToManagerFuncs {
+		if err := f(m, c.ClusterdContext, opManagerContext, *o.config); err != nil {
+			return err
+		}
+	}
+
+	// Add maintenance controllers
+	for _, f := range AddToManagerFuncsMaintenance {
+		if err := f(m, c); err != nil {
+			return err
+		}
+	}
+
+	// If machine disruption budget is enabled let's add the controllers
+	if EnableMachineDisruptionBudget {
+		for _, f := range MachineDisruptionBudgetAddToManagerFuncs {
+			if err := f(m, c); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan error) {
 	logger.Info("setting up schemes")
 	// Setup Scheme for all resources
 	scheme := runtime.NewScheme()
@@ -67,7 +166,7 @@ func (o *Operator) startManager(context context.Context, namespaceToWatch string
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
-		Namespace:      namespaceToWatch,
+		Namespace:      o.config.NamespaceToWatch,
 		Scheme:         scheme,
 		CertDir:        certDir,
 	}
@@ -79,23 +178,7 @@ func (o *Operator) startManager(context context.Context, namespaceToWatch string
 		return
 	}
 
-	// options to pass to the controllers
-	controllerOpts := &controllerconfig.Context{
-		RookImage:         o.config.Image,
-		ClusterdContext:   o.context,
-		OperatorNamespace: o.config.OperatorNamespace,
-		ReconcileCanaries: &controllerconfig.LockingBool{},
-	}
-
-	// Add the registered controllers to the manager (entrypoint for controllers)
-	err = cluster.AddToManager(mgr, controllerOpts, o.clusterController)
-	if err != nil {
-		mgrErrorCh <- errors.Wrap(err, "failed to add controllers to controller-runtime manager")
-		return
-	}
-
-	// Add Webhooks
-	// TODO: this needs a callback with a watcher for this secret so we can quickly enable the webhook if it changes
+	// Add webhook if needed
 	isPresent, err := isSecretPresent(context, o.context)
 	if err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to retrieve admission webhook secret")
@@ -117,9 +200,25 @@ func (o *Operator) startManager(context context.Context, namespaceToWatch string
 		}
 	}
 
+	// options to pass to the controllers
+	controllerOpts := &controllerconfig.Context{
+		ClusterdContext:   o.context,
+		ReconcileCanaries: &controllerconfig.LockingBool{},
+		OpManagerContext:  context,
+	}
+
+	// Add the registered controllers to the manager (entrypoint for controllers)
+	err = o.addToManager(mgr, controllerOpts, context)
+	if err != nil {
+		mgrErrorCh <- errors.Wrap(err, "failed to add controllers to controller-runtime manager")
+		return
+	}
+
 	logger.Info("starting the controller-runtime manager")
 	if err := mgr.Start(context); err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to run the controller-runtime manager")
 		return
 	}
+
+	logger.Info("successfully started the controller-runtime manager")
 }

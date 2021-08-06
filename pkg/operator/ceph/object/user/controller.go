@@ -68,27 +68,29 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileObjectStoreUser reconciles a ObjectStoreUser object
 type ReconcileObjectStoreUser struct {
-	client          client.Client
-	scheme          *runtime.Scheme
-	context         *clusterd.Context
-	objContext      *object.AdminOpsContext
-	userConfig      *admin.User
-	cephClusterSpec *cephv1.ClusterSpec
-	clusterInfo     *cephclient.ClusterInfo
+	client           client.Client
+	scheme           *runtime.Scheme
+	context          *clusterd.Context
+	objContext       *object.AdminOpsContext
+	userConfig       *admin.User
+	cephClusterSpec  *cephv1.ClusterSpec
+	clusterInfo      *cephclient.ClusterInfo
+	opManagerContext context.Context
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, context *clusterd.Context) error {
-	return add(mgr, newReconciler(mgr, context))
+func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(mgr, newReconciler(mgr, context, opManagerContext))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context) reconcile.Reconciler {
 	return &ReconcileObjectStoreUser{
-		client:  mgr.GetClient(),
-		scheme:  mgr.GetScheme(),
-		context: context,
+		client:           mgr.GetClient(),
+		scheme:           mgr.GetScheme(),
+		context:          context,
+		opManagerContext: opManagerContext,
 	}
 }
 
@@ -135,7 +137,7 @@ func (r *ReconcileObjectStoreUser) Reconcile(context context.Context, request re
 func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CephObjectStoreUser instance
 	cephObjectStoreUser := &cephv1.CephObjectStoreUser{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephObjectStoreUser)
+	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectStoreUser)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
@@ -153,7 +155,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// The CR was just created, initializing status fields
 	if cephObjectStoreUser.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -180,7 +182,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	r.cephClusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -200,7 +202,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		}
 		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
 			request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
-		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, nil
 	}
 
@@ -229,26 +231,26 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// validate the user settings
 	err = r.validateUser(cephObjectStoreUser)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
 	}
 
 	// CREATE/UPDATE CEPH USER
 	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, err
 	}
 
 	// CREATE/UPDATE KUBERNETES SECRET
 	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, err
 	}
 
 	// Set Ready status, we are done reconciling
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -270,10 +272,10 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
 	var user admin.User
 	var err error
-	user, err = r.objContext.AdminOpsClient.GetUser(context.TODO(), *r.userConfig)
+	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, *r.userConfig)
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
-			user, err = r.objContext.AdminOpsClient.CreateUser(context.TODO(), *r.userConfig)
+			user, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *r.userConfig)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create ceph object user %v", &r.userConfig.ID)
 			}
@@ -283,7 +285,7 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 		}
 	} else if *user.MaxBuckets != *r.userConfig.MaxBuckets {
 		// TODO: handle update for user capabilities, depends on https://github.com/ceph/go-ceph/pull/571
-		user, err = r.objContext.AdminOpsClient.ModifyUser(context.TODO(), *r.userConfig)
+		user, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *r.userConfig)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create ceph object user %v", &r.userConfig.ID)
 		}
@@ -309,7 +311,7 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 		MaxSize:    &maxSize,
 		MaxObjects: &maxObjects,
 	}
-	err = r.objContext.AdminOpsClient.SetUserQuota(context.TODO(), userQuota)
+	err = r.objContext.AdminOpsClient.SetUserQuota(r.opManagerContext, userQuota)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
 	}
@@ -477,7 +479,7 @@ func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *c
 func (r *ReconcileObjectStoreUser) getObjectStore(storeName string) (*cephv1.CephObjectStore, error) {
 	// check if CephObjectStore CR is created
 	objectStores := &cephv1.CephObjectStoreList{}
-	err := r.client.List(context.TODO(), objectStores)
+	err := r.client.List(r.opManagerContext, objectStores)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil, errors.Wrapf(err, "CephObjectStore %q could not be found", storeName)
@@ -505,7 +507,7 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 		client.MatchingLabels(labelsForRgw(cephObjectStoreUser.Spec.Store)),
 	}
 
-	err := r.client.List(context.TODO(), pods, listOpts...)
+	err := r.client.List(r.opManagerContext, pods, listOpts...)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return pods, errors.Wrap(err, "no rgw pod could not be found")
@@ -518,7 +520,7 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 
 // Delete the user
 func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
-	err := r.objContext.AdminOpsClient.RemoveUser(context.TODO(), admin.User{ID: u.Name})
+	err := r.objContext.AdminOpsClient.RemoveUser(r.opManagerContext, admin.User{ID: u.Name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			logger.Warningf("user %q does not exist, nothing to remove", u.Name)
@@ -552,9 +554,9 @@ func labelsForRgw(name string) map[string]string {
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileObjectStoreUser) updateStatus(client client.Client, name types.NamespacedName, status string) {
 	user := &cephv1.CephObjectStoreUser{}
-	if err := client.Get(context.TODO(), name, user); err != nil {
+	if err := client.Get(r.opManagerContext, name, user); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
 			return

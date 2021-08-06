@@ -43,11 +43,10 @@ func DeleteConfigMap(clientset kubernetes.Interface, cmName, namespace string, o
 
 // GetOperatorSetting gets the operator setting from ConfigMap or Env Var
 // returns defaultValue if setting is not found
-func GetOperatorSetting(clientset kubernetes.Interface, configMapName, settingName, defaultValue string) (string, error) {
+func GetOperatorSetting(context context.Context, clientset kubernetes.Interface, configMapName, settingName, defaultValue string) (string, error) {
 	// config must be in operator pod namespace
 	namespace := os.Getenv(PodNamespaceEnvVar)
-	ctx := context.TODO()
-	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, configMapName, metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(context, configMapName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if settingValue, ok := os.LookupEnv(settingName); ok {
@@ -59,13 +58,18 @@ func GetOperatorSetting(clientset kubernetes.Interface, configMapName, settingNa
 		}
 		return defaultValue, fmt.Errorf("error reading ConfigMap %q. %v", configMapName, err)
 	}
-	if settingValue, ok := cm.Data[settingName]; ok {
+
+	return GetValue(cm.Data, settingName, defaultValue), nil
+}
+
+func GetValue(data map[string]string, settingName, defaultValue string) string {
+	if settingValue, ok := data[settingName]; ok {
 		logger.Infof("%s=%q (configmap)", settingName, settingValue)
-		return settingValue, nil
+		return settingValue
 	} else if settingValue, ok := os.LookupEnv(settingName); ok {
 		logger.Infof("%s=%q (env var)", settingName, settingValue)
-		return settingValue, nil
+		return settingValue
 	}
 	logger.Infof("%s=%q (default)", settingName, defaultValue)
-	return defaultValue, nil
+	return defaultValue
 }

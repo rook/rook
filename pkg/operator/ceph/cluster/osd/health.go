@@ -69,7 +69,7 @@ func NewOSDHealthMonitor(context *clusterd.Context, clusterInfo *client.ClusterI
 }
 
 // Start runs monitoring logic for osds status at set intervals
-func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
+func (m *OSDHealthMonitor) Start(context context.Context) {
 
 	for {
 		select {
@@ -77,8 +77,8 @@ func (m *OSDHealthMonitor) Start(stopCh chan struct{}) {
 			logger.Debug("checking osd processes status.")
 			m.checkOSDHealth()
 
-		case <-stopCh:
-			logger.Infof("Stopping monitoring of OSDs in namespace %q", m.clusterInfo.Namespace)
+		case <-context.Done():
+			logger.Infof("stopping monitoring of OSDs in namespace %q", m.clusterInfo.Namespace)
 			return
 		}
 	}
@@ -192,7 +192,7 @@ func (m *OSDHealthMonitor) updateCephStatus(devices []string) {
 	for _, device := range devices {
 		cephClusterStorage.DeviceClasses = append(cephClusterStorage.DeviceClasses, cephv1.DeviceClasses{Name: device})
 	}
-	err := m.context.Client.Get(context.TODO(), m.clusterInfo.NamespacedName(), cephCluster)
+	err := m.context.Client.Get(m.clusterInfo.Context, m.clusterInfo.NamespacedName(), cephCluster)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")

@@ -67,25 +67,27 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileObjectZone reconciles a ObjectZone object
 type ReconcileObjectZone struct {
-	client      client.Client
-	scheme      *runtime.Scheme
-	context     *clusterd.Context
-	clusterInfo *cephclient.ClusterInfo
-	clusterSpec *cephv1.ClusterSpec
+	client           client.Client
+	scheme           *runtime.Scheme
+	context          *clusterd.Context
+	clusterInfo      *cephclient.ClusterInfo
+	clusterSpec      *cephv1.ClusterSpec
+	opManagerContext context.Context
 }
 
 // Add creates a new CephObjectZone Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, context *clusterd.Context) error {
-	return add(mgr, newReconciler(mgr, context))
+func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(mgr, newReconciler(mgr, context, opManagerContext))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context) reconcile.Reconciler {
 	return &ReconcileObjectZone{
-		client:  mgr.GetClient(),
-		scheme:  mgr.GetScheme(),
-		context: context,
+		client:           mgr.GetClient(),
+		scheme:           mgr.GetScheme(),
+		context:          context,
+		opManagerContext: opManagerContext,
 	}
 }
 
@@ -123,7 +125,7 @@ func (r *ReconcileObjectZone) Reconcile(context context.Context, request reconci
 func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CephObjectZone instance
 	cephObjectZone := &cephv1.CephObjectZone{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephObjectZone)
+	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectZone)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectZone resource not found. Ignoring since object must be deleted.")
@@ -135,7 +137,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 
 	// The CR was just created, initializing status fields
 	if cephObjectZone.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -160,7 +162,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -168,12 +170,12 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	// validate the zone settings
 	err = r.validateZoneCR(cephObjectZone)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid CephObjectZone CR %q", cephObjectZone.Name)
 	}
 
 	// Start object reconciliation, updating status for this
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
+	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
 
 	// Make sure an ObjectZoneGroup is present
 	realmName, reconcileResponse, err := r.reconcileObjectZoneGroup(cephObjectZone)
@@ -194,7 +196,7 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Set Ready status, we are done reconciling
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("zone done reconciling")
@@ -287,7 +289,7 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 func (r *ReconcileObjectZone) reconcileObjectZoneGroup(zone *cephv1.CephObjectZone) (string, reconcile.Result, error) {
 	// empty zoneGroup gets filled by r.client.Get()
 	zoneGroup := &cephv1.CephObjectZoneGroup{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: zone.Spec.ZoneGroup, Namespace: zone.Namespace}, zoneGroup)
+	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: zone.Spec.ZoneGroup, Namespace: zone.Namespace}, zoneGroup)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return "", waitForRequeueIfObjectZoneGroupNotReady, err
@@ -338,14 +340,14 @@ func (r *ReconcileObjectZone) validateZoneCR(z *cephv1.CephObjectZone) error {
 }
 
 func (r *ReconcileObjectZone) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
+	r.updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
 	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
 }
 
 // updateStatus updates an zone with a given status
-func updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileObjectZone) updateStatus(client client.Client, name types.NamespacedName, status string) {
 	objectZone := &cephv1.CephObjectZone{}
-	if err := client.Get(context.TODO(), name, objectZone); err != nil {
+	if err := client.Get(r.opManagerContext, name, objectZone); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectZone resource not found. Ignoring since object must be deleted.")
 			return

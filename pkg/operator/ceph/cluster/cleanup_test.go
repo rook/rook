@@ -49,19 +49,7 @@ func TestCleanupJobSpec(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
 	}
-	operatorConfigCallbacks := []func() error{
-		func() error {
-			logger.Infof("test success callback")
-			return nil
-		},
-	}
-	addCallbacks := []func() error{
-		func() error {
-			logger.Infof("test success callback")
-			return nil
-		},
-	}
-	controller := NewClusterController(context, "", &attachment.MockAttachment{}, operatorConfigCallbacks, addCallbacks)
+	controller := NewClusterController(context, "", &attachment.MockAttachment{})
 	podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster, "monSecret", "28b87851-8dc1-46c8-b1ec-90ec51a47c89")
 	assert.Equal(t, expectedHostPath, podTemplateSpec.Spec.Containers[0].Env[0].Value)
 	assert.Equal(t, expectedNamespace, podTemplateSpec.Spec.Containers[0].Env[1].Value)

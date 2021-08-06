@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -53,6 +54,7 @@ func CreateTestClusterInfo(monCount int) *client.ClusterInfo {
 		},
 		Monitors:  map[string]*client.MonInfo{},
 		OwnerInfo: ownerInfo,
+		Context:   context.TODO(),
 	}
 	mons := []string{"a", "b", "c", "d", "e"}
 	for i := 0; i < monCount; i++ {

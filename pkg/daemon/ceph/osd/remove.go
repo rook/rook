@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 
@@ -68,7 +67,6 @@ func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds
 }
 
 func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int, preservePVC bool) {
-	ctx := context.TODO()
 	// Get the host where the OSD is found
 	hostName, err := client.GetCrushHostName(clusterdContext, clusterInfo, osdID)
 	if err != nil {
@@ -84,7 +82,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 
 	// Remove the OSD deployment
 	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdID)
-	deployment, err := clusterdContext.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	deployment, err := clusterdContext.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Get(clusterInfo.Context, deploymentName, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to fetch the deployment %q. %v", deploymentName, err)
 	} else {
@@ -97,7 +95,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 		}
 		if pvcName, ok := deployment.GetLabels()[osd.OSDOverPVCLabelKey]; ok {
 			labelSelector := fmt.Sprintf("%s=%s", osd.OSDOverPVCLabelKey, pvcName)
-			prepareJobList, err := clusterdContext.Clientset.BatchV1().Jobs(clusterInfo.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+			prepareJobList, err := clusterdContext.Clientset.BatchV1().Jobs(clusterInfo.Namespace).List(clusterInfo.Context, metav1.ListOptions{LabelSelector: labelSelector})
 			if err != nil && !kerrors.IsNotFound(err) {
 				logger.Errorf("failed to list osd prepare jobs with pvc %q. %v ", pvcName, err)
 			}
@@ -114,20 +112,20 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 			if preservePVC {
 				// Detach the OSD PVC from Rook. We will continue OSD deletion even if failed to remove PVC label
 				logger.Infof("detach the OSD PVC %q from Rook", pvcName)
-				if pvc, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Get(ctx, pvcName, metav1.GetOptions{}); err != nil {
+				if pvc, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Get(clusterInfo.Context, pvcName, metav1.GetOptions{}); err != nil {
 					logger.Errorf("failed to get pvc for OSD %q. %v", pvcName, err)
 				} else {
 					labels := pvc.GetLabels()
 					delete(labels, osd.CephDeviceSetPVCIDLabelKey)
 					pvc.SetLabels(labels)
-					if _, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Update(ctx, pvc, metav1.UpdateOptions{}); err != nil {
+					if _, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Update(clusterInfo.Context, pvc, metav1.UpdateOptions{}); err != nil {
 						logger.Errorf("failed to remove label %q from pvc for OSD %q. %v", osd.CephDeviceSetPVCIDLabelKey, pvcName, err)
 					}
 				}
 			} else {
 				// Remove the OSD PVC
 				logger.Infof("removing the OSD PVC %q", pvcName)
-				if err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Delete(ctx, pvcName, metav1.DeleteOptions{}); err != nil {
+				if err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Delete(clusterInfo.Context, pvcName, metav1.DeleteOptions{}); err != nil {
 					if err != nil {
 						// Continue deleting the OSD PVC even if PVC deletion fails
 						logger.Errorf("failed to delete pvc for OSD %q. %v", pvcName, err)

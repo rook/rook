@@ -31,9 +31,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 const (
@@ -186,7 +183,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executor.MockExecuteCommandWithTimeout = executorFuncWithTimeout
 	executor.MockExecuteCommandWithOutput = executorFunc
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc
-	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: &client.ClusterInfo{Namespace: "ns"}}
+	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: client.AdminClusterInfo("mycluster")}
 
 	// Delete an object store without deleting the pools
 	spec := cephv1.ObjectStoreSpec{}
@@ -217,35 +214,20 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 }
 
 func TestGetObjectBucketProvisioner(t *testing.T) {
-	ctx := context.TODO()
-	k8s := fake.NewSimpleClientset()
-	operatorSettingConfigMapName := "rook-ceph-operator-config"
 	testNamespace := "test-namespace"
-	watchOperatorNamespace := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "true"}
-	ignoreOperatorNamespace := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "false"}
-	context := &clusterd.Context{Clientset: k8s}
 	os.Setenv(k8sutil.PodNamespaceEnvVar, testNamespace)
 
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      operatorSettingConfigMapName,
-			Namespace: testNamespace,
-		},
-		Data: watchOperatorNamespace,
-	}
+	t.Run("watch single namespace", func(t *testing.T) {
+		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "true"}
+		bktprovisioner := GetObjectBucketProvisioner(data, testNamespace)
+		assert.Equal(t, fmt.Sprintf("%s.%s", testNamespace, bucketProvisionerName), bktprovisioner)
+	})
 
-	_, err := k8s.CoreV1().ConfigMaps(testNamespace).Create(ctx, cm, metav1.CreateOptions{})
-	assert.NoError(t, err)
-
-	bktprovisioner := GetObjectBucketProvisioner(context, testNamespace)
-	assert.Equal(t, fmt.Sprintf("%s.%s", testNamespace, bucketProvisionerName), bktprovisioner)
-
-	cm.Data = ignoreOperatorNamespace
-	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Update(ctx, cm, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-
-	bktprovisioner = GetObjectBucketProvisioner(context, testNamespace)
-	assert.Equal(t, bucketProvisionerName, bktprovisioner)
+	t.Run("watch all namespaces", func(t *testing.T) {
+		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "false"}
+		bktprovisioner := GetObjectBucketProvisioner(data, testNamespace)
+		assert.Equal(t, bucketProvisionerName, bktprovisioner)
+	})
 }
 
 func TestDashboard(t *testing.T) {
@@ -261,10 +243,13 @@ func TestDashboard(t *testing.T) {
 			return "", nil
 		},
 	}
-	context := &clusterd.Context{Executor: executor}
-	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster",
-		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}},
+	objContext := NewContext(&clusterd.Context{Executor: executor}, &client.ClusterInfo{
+		Namespace:   "mycluster",
+		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9},
+		Context:     context.TODO(),
+	},
 		storeName)
+
 	checkdashboard, err := checkDashboardUser(objContext)
 	assert.NoError(t, err)
 	assert.False(t, checkdashboard)
@@ -284,9 +269,11 @@ func TestDashboard(t *testing.T) {
 	assert.True(t, checkdashboard)
 	disableRGWDashboard(objContext)
 
-	context = &clusterd.Context{Executor: executor}
-	objContext = NewContext(context, &client.ClusterInfo{Namespace: "mycluster",
-		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10}},
+	objContext = NewContext(&clusterd.Context{Executor: executor}, &client.ClusterInfo{
+		Namespace:   "mycluster",
+		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10},
+		Context:     context.TODO(),
+	},
 		storeName)
 	err = enableRGWDashboard(objContext)
 	assert.Nil(t, err)

@@ -168,7 +168,7 @@ func getClusterPoolIDMap(clusterContext *clusterd.Context, clusterInfo *cephclie
 	logger.Debugf("pool details of local cluster %+v", localPoolDetails)
 
 	for _, peerSecret := range pool.Spec.Mirroring.Peers.SecretNames {
-		s, err := clusterContext.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(context.TODO(), peerSecret, metav1.GetOptions{})
+		s, err := clusterContext.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(clusterInfo.Context, peerSecret, metav1.GetOptions{})
 		if err != nil {
 			return mappings, errors.Wrapf(err, "failed to fetch kubernetes secret %q bootstrap peer", peerSecret)
 		}

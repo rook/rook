@@ -64,24 +64,26 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileCephClient reconciles a CephClient object
 type ReconcileCephClient struct {
-	client      client.Client
-	scheme      *runtime.Scheme
-	context     *clusterd.Context
-	clusterInfo *cephclient.ClusterInfo
+	client           client.Client
+	scheme           *runtime.Scheme
+	context          *clusterd.Context
+	clusterInfo      *cephclient.ClusterInfo
+	opManagerContext context.Context
 }
 
 // Add creates a new CephClient Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, context *clusterd.Context) error {
-	return add(mgr, newReconciler(mgr, context))
+func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(mgr, newReconciler(mgr, context, opManagerContext))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context) reconcile.Reconciler {
 	return &ReconcileCephClient{
-		client:  mgr.GetClient(),
-		scheme:  mgr.GetScheme(),
-		context: context,
+		client:           mgr.GetClient(),
+		scheme:           mgr.GetScheme(),
+		context:          context,
+		opManagerContext: opManagerContext,
 	}
 }
 
@@ -128,7 +130,7 @@ func (r *ReconcileCephClient) Reconcile(context context.Context, request reconci
 func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CephClient instance
 	cephClient := &cephv1.CephClient{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephClient)
+	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephClient)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("cephClient resource not found. Ignoring since object must be deleted.")
@@ -146,7 +148,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 	// The CR was just created, initializing status fields
 	if cephClient.Status == nil {
-		updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
+		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -172,10 +174,11 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
+	r.clusterInfo.Context = r.opManagerContext
 
 	// DELETE: the CR was deleted
 	if !cephClient.GetDeletionTimestamp().IsZero() {
@@ -208,12 +211,12 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
 		}
-		updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
+		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update client %q", cephClient.Name)
 	}
 
 	// Success! Let's update the status
-	updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady)
+	r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -222,7 +225,6 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 // Create the client
 func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient) error {
-	ctx := context.TODO()
 	logger.Infof("creating client %s in namespace %s", cephClient.Name, cephClient.Namespace)
 
 	// Generate the CephX details
@@ -261,11 +263,11 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 	}
 
 	// Create or Update Kubernetes Secret
-	_, err = r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
+	_, err = r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Get(r.clusterInfo.Context, secret.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("creating secret for %q", secret.Name)
-			if _, err := r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+			if _, err := r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Create(r.clusterInfo.Context, secret, metav1.CreateOptions{}); err != nil {
 				return errors.Wrapf(err, "failed to create secret for %q", secret.Name)
 			}
 			logger.Infof("created client %q", cephClient.Name)
@@ -274,7 +276,7 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 		return errors.Wrapf(err, "failed to get secret for %q", secret.Name)
 	}
 	logger.Debugf("updating secret for %s", secret.Name)
-	_, err = r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
+	_, err = r.context.Clientset.CoreV1().Secrets(cephClient.Namespace).Update(r.clusterInfo.Context, secret, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to update secret for %q", secret.Name)
 	}
@@ -332,9 +334,9 @@ func generateClientName(name string) string {
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
+func (r *ReconcileCephClient) updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
 	cephClient := &cephv1.CephClient{}
-	if err := client.Get(context.TODO(), name, cephClient); err != nil {
+	if err := client.Get(r.opManagerContext, name, cephClient); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephClient resource not found. Ignoring since object must be deleted.")
 			return

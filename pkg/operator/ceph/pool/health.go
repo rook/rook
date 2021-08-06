@@ -17,6 +17,7 @@ limitations under the License.
 package pool
 
 import (
+	"context"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -63,7 +64,7 @@ func newMirrorChecker(context *clusterd.Context, client client.Client, clusterIn
 }
 
 // checkMirroring periodically checks the health of the cluster
-func (c *mirrorChecker) checkMirroring(stopCh chan struct{}) {
+func (c *mirrorChecker) checkMirroring(context context.Context) {
 	// check the mirroring health immediately before starting the loop
 	err := c.checkMirroringHealth()
 	if err != nil {
@@ -73,7 +74,7 @@ func (c *mirrorChecker) checkMirroring(stopCh chan struct{}) {
 
 	for {
 		select {
-		case <-stopCh:
+		case <-context.Done():
 			logger.Infof("stopping monitoring pool mirroring status %q", c.namespacedName.Name)
 			return
 

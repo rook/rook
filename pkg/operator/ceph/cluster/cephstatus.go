@@ -84,13 +84,13 @@ func newCephStatusChecker(context *clusterd.Context, clusterInfo *cephclient.Clu
 }
 
 // checkCephStatus periodically checks the health of the cluster
-func (c *cephStatusChecker) checkCephStatus(stopCh chan struct{}) {
+func (c *cephStatusChecker) checkCephStatus(context context.Context) {
 	// check the status immediately before starting the loop
 	c.checkStatus()
 
 	for {
 		select {
-		case <-stopCh:
+		case <-context.Done():
 			logger.Infof("stopping monitoring of ceph status")
 			return
 
@@ -174,7 +174,7 @@ func (c *cephStatusChecker) configureHealthSettings(status cephclient.CephStatus
 // updateStatus updates an object with a given status
 func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, condition cephv1.ConditionType, reason cephv1.ConditionReason, message string, conditionStatus v1.ConditionStatus) {
 	clusterName := c.clusterInfo.NamespacedName()
-	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(context.TODO(), clusterName.Name, metav1.GetOptions{})
+	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(clusterName.Namespace).Get(c.clusterInfo.Context, clusterName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
@@ -241,10 +241,9 @@ func formatTime(t time.Time) string {
 }
 
 func (c *ClusterController) updateClusterCephVersion(image string, cephVersion cephver.CephVersion) {
-	ctx := context.TODO()
 	logger.Infof("cluster %q: version %q detected for image %q", c.namespacedName.Namespace, cephVersion.String(), image)
 
-	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(c.namespacedName.Namespace).Get(ctx, c.namespacedName.Name, metav1.GetOptions{})
+	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(c.namespacedName.Namespace).Get(c.OpManagerCtx, c.namespacedName.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
@@ -324,7 +323,7 @@ func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
 	listOpts := metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("spec.nodeName=%s", node),
 	}
-	pods, err := c.context.Clientset.CoreV1().Pods(clusterName.Namespace).List(context.TODO(), listOpts)
+	pods, err := c.context.Clientset.CoreV1().Pods(clusterName.Namespace).List(c.clusterInfo.Context, listOpts)
 	if err != nil {
 		return podsOnNode, errors.Wrapf(err, "failed to get pods on node %q", node)
 	}

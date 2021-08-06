@@ -17,7 +17,6 @@ limitations under the License.
 package crash
 
 import (
-	"context"
 	"fmt"
 	"path"
 
@@ -123,7 +122,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		return nil
 	}
 
-	return controllerutil.CreateOrUpdate(context.TODO(), r.client, deploy, mutateFunc)
+	return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, deploy, mutateFunc)
 }
 
 // createOrUpdateCephCron is a wrapper around controllerutil.CreateOrUpdate
@@ -164,7 +163,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 	// minimum k8s version required for v1 cronJob is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 cronJob.
 	if useCronJobV1 {
 		// delete v1beta1 cronJob if it already exists
-		err := r.client.Delete(context.TODO(), &v1beta1.CronJob{ObjectMeta: objectMeta})
+		err := r.client.Delete(r.opManagerContext, &v1beta1.CronJob{ObjectMeta: objectMeta})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return controllerutil.OperationResultNone, errors.Wrapf(err, "failed to delete CronJob v1Beta1 %q", prunerName)
 		}
@@ -183,7 +182,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 			return nil
 		}
 
-		return controllerutil.CreateOrUpdate(context.TODO(), r.client, cronJob, mutateFunc)
+		return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, cronJob, mutateFunc)
 	}
 	cronJob := &v1beta1.CronJob{ObjectMeta: objectMeta}
 	err := controllerutil.SetControllerReference(&cephCluster, cronJob, r.scheme)
@@ -200,7 +199,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 		return nil
 	}
 
-	return controllerutil.CreateOrUpdate(context.TODO(), r.client, cronJob, mutateFunc)
+	return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, cronJob, mutateFunc)
 }
 
 func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {

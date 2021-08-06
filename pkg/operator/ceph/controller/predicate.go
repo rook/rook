@@ -18,7 +18,9 @@ package controller
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
+	"syscall"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/google/go-cmp/cmp"
@@ -310,58 +312,6 @@ func WatchControllerPredicate() predicate.Funcs {
 				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
 				if isUpgrade {
 					return true
-				}
-			}
-
-			return false
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return false
-		},
-	}
-}
-
-// WatchCephClusterPredicate is a predicate used by child controllers such as Filesystem or Object
-// It watch for CR changes on the CephCluster object and reconciles if this needs to be propagated
-// For instance the logCollector option from the CephCluster spec affects the configuration of rgw pods
-// So if it changes we must update the deployment
-func WatchCephClusterPredicate() predicate.Funcs {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			logger.Debug("create event from a CR")
-			return true
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			logger.Debug("delete event from a CR")
-			return true
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			// resource.Quantity has non-exportable fields, so we use its comparator method
-			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
-
-			switch objOld := e.ObjectOld.(type) {
-			case *cephv1.CephCluster:
-				objNew := e.ObjectNew.(*cephv1.CephCluster)
-				logger.Debug("update event on CephCluster CR")
-				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
-				isDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
-				if isDoNotReconcile {
-					logger.Debugf("object %q matched on update but %q label is set, doing nothing", DoNotReconcileLabelName, objNew.Name)
-					return false
-				}
-				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
-				if diff != "" {
-					// The image change (upgrade) is being taking care by watchControllerPredicate() in the cluster package
-					if objOld.Spec.CephVersion.Image != objNew.Spec.CephVersion.Image {
-						return false
-					}
-					// If the log collector setting changes let's reconcile the child controllers
-					if !cmp.Equal(objOld.Spec.LogCollector, objNew.Spec.LogCollector) {
-						logger.Debug("log collector option changed, reconciling")
-						return true
-					}
-				} else if objOld.GetGeneration() != objNew.GetGeneration() {
-					logger.Debugf("skipping resource %q update with unchanged spec", objNew.Name)
 				}
 			}
 
@@ -674,4 +624,9 @@ func IsDoNotReconcile(labels map[string]string) bool {
 	}
 
 	return false
+}
+
+func ReloadManager() {
+	p, _ := os.FindProcess(os.Getpid())
+	_ = p.Signal(syscall.SIGHUP)
 }

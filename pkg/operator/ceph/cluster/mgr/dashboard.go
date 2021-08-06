@@ -56,7 +56,6 @@ var (
 )
 
 func (c *Cluster) configureDashboardService(activeDaemon string) error {
-	ctx := context.TODO()
 	dashboardService, err := c.makeDashboardService(AppName, activeDaemon)
 	if err != nil {
 		return err
@@ -68,7 +67,7 @@ func (c *Cluster) configureDashboardService(activeDaemon string) error {
 		}
 	} else {
 		// delete the dashboard service if it exists
-		err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(ctx, dashboardService.Name, metav1.DeleteOptions{})
+		err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, dashboardService.Name, metav1.DeleteOptions{})
 		if err != nil && !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "failed to delete dashboard service")
 		}
@@ -253,8 +252,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 }
 
 func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
-	ctx := context.TODO()
-	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(ctx, dashboardPasswordName, metav1.GetOptions{})
+	secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, dashboardPasswordName, metav1.GetOptions{})
 	if err == nil {
 		logger.Info("the dashboard secret was already generated")
 		return decodeSecret(secret)
@@ -286,7 +284,7 @@ func (c *Cluster) getOrGenerateDashboardPassword() (string, error) {
 		return "", errors.Wrapf(err, "failed to set owner reference to dashboard secret %q", secret.Name)
 	}
 
-	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(c.clusterInfo.Context, secret, metav1.CreateOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to save dashboard secret")
 	}

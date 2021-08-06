@@ -28,6 +28,8 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -281,11 +283,6 @@ func TestCephObjectStoreController(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
-	//
-	// TEST 1 SETUP
-	//
-	// FAILURE because no CephCluster
-	//
 	// A Pool resource with metadata and spec.
 	objectStore := &cephv1.CephObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
@@ -306,9 +303,6 @@ func TestCephObjectStoreController(t *testing.T) {
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			if args[0] == "versions" {
-				return dummyVersionsRaw, nil
 			}
 			return "", nil
 		},
@@ -332,8 +326,9 @@ func TestCephObjectStoreController(t *testing.T) {
 		client:              cl,
 		scheme:              s,
 		context:             c,
-		objectStoreChannels: make(map[string]*objectStoreHealth),
+		objectStoreContexts: make(map[string]*objectStoreHealth),
 		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
+		opManagerContext:    context.TODO(),
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -344,17 +339,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
-	logger.Info("STARTING PHASE 1")
-	res, err := r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, res.Requeue)
-	logger.Info("PHASE 1 DONE")
 
-	//
-	// TEST 2:
-	//
-	// FAILURE we have a cluster but it's not ready
-	//
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace,
@@ -367,68 +352,74 @@ func TestCephObjectStoreController(t *testing.T) {
 			},
 		},
 	}
-	object = append(object, cephCluster)
-	// Create a fake client to mock API calls.
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	// Create a ReconcileCephObjectStore object with the scheme and fake client.
-	r = &ReconcileCephObjectStore{
-		client:              cl,
-		scheme:              s,
-		context:             c,
-		objectStoreChannels: make(map[string]*objectStoreHealth),
-		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
+
+	currentAndDesiredCephVersion = func(rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
+		return &cephver.Pacific, &cephver.Pacific, nil
 	}
-	logger.Info("STARTING PHASE 2")
-	res, err = r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, res.Requeue)
-	logger.Info("PHASE 2 DONE")
 
-	//
-	// TEST 3:
-	//
-	// SUCCESS! The CephCluster is ready
-	//
+	t.Run("error - no ceph cluster", func(t *testing.T) {
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+	})
 
-	// Mock clusterInfo
-	secrets := map[string][]byte{
-		"fsid":         []byte(name),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-mon",
-			Namespace: namespace,
-		},
-		Data: secrets,
-		Type: k8sutil.RookType,
-	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	t.Run("error - ceph cluster not ready", func(t *testing.T) {
+		object = append(object, cephCluster)
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		// Create a ReconcileCephObjectStore object with the scheme and fake client.
+		r = &ReconcileCephObjectStore{
+			client:              cl,
+			scheme:              s,
+			context:             c,
+			objectStoreContexts: make(map[string]*objectStoreHealth),
+			recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
+			opManagerContext:    context.TODO(),
+		}
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+	})
 
-	// Add ready status to the CephCluster
-	cephCluster.Status.Phase = k8sutil.ReadyStatus
-	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
+	t.Run("success - object store is running", func(t *testing.T) {
+		secrets := map[string][]byte{
+			"fsid":         []byte(name),
+			"mon-secret":   []byte("monsecret"),
+			"admin-secret": []byte("adminsecret"),
+		}
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-mon",
+				Namespace: namespace,
+			},
+			Data: secrets,
+			Type: k8sutil.RookType,
+		}
+		_, err := c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		assert.NoError(t, err)
 
-	// Create a fake client to mock API calls.
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		// Add ready status to the CephCluster
+		cephCluster.Status.Phase = k8sutil.ReadyStatus
+		cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
-	// Override executor with the new ceph status and more content
-	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if args[0] == "status" {
-				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			if args[0] == "auth" && args[1] == "get-or-create-key" {
-				return rgwCephAuthGetOrCreateKey, nil
-			}
-			if args[0] == "versions" {
-				return dummyVersionsRaw, nil
-			}
-			if args[0] == "osd" && args[1] == "lspools" {
-				// ceph actually outputs this all on one line, but this parses the same
-				return `[
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+		// Override executor with the new ceph status and more content
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "status" {
+					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+				}
+				if args[0] == "auth" && args[1] == "get-or-create-key" {
+					return rgwCephAuthGetOrCreateKey, nil
+				}
+				if args[0] == "versions" {
+					return dummyVersionsRaw, nil
+				}
+				if args[0] == "osd" && args[1] == "lspools" {
+					// ceph actually outputs this all on one line, but this parses the same
+					return `[
 						{"poolnum":1,"poolname":"replicapool"},
 						{"poolnum":2,"poolname":"device_health_metrics"},
 						{"poolnum":3,"poolname":".rgw.root"},
@@ -439,49 +430,50 @@ func TestCephObjectStoreController(t *testing.T) {
 						{"poolnum":8,"poolname":"my-store.rgw.meta"},
 						{"poolnum":9,"poolname":"my-store.rgw.buckets.data"}
 					]`, nil
-			}
-			return "", nil
-		},
-		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
-			if args[0] == "realm" && args[1] == "list" {
-				return realmListJSON, nil
-			}
-			if args[0] == "realm" && args[1] == "get" {
-				return realmGetJSON, nil
-			}
-			if args[0] == "zonegroup" && args[1] == "get" {
-				return zoneGroupGetJSON, nil
-			}
-			if args[0] == "zone" && args[1] == "get" {
-				return zoneGetJSON, nil
-			}
-			if args[0] == "user" {
-				return userCreateJSON, nil
-			}
-			return "", nil
-		},
-	}
-	c.Executor = executor
+				}
+				return "", nil
+			},
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "realm" && args[1] == "list" {
+					return realmListJSON, nil
+				}
+				if args[0] == "realm" && args[1] == "get" {
+					return realmGetJSON, nil
+				}
+				if args[0] == "zonegroup" && args[1] == "get" {
+					return zoneGroupGetJSON, nil
+				}
+				if args[0] == "zone" && args[1] == "get" {
+					return zoneGetJSON, nil
+				}
+				if args[0] == "user" {
+					return userCreateJSON, nil
+				}
+				return "", nil
+			},
+		}
+		c.Executor = executor
 
-	// Create a ReconcileCephObjectStore object with the scheme and fake client.
-	r = &ReconcileCephObjectStore{
-		client:              cl,
-		scheme:              s,
-		context:             c,
-		objectStoreChannels: make(map[string]*objectStoreHealth),
-		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
-	}
+		// Create a ReconcileCephObjectStore object with the scheme and fake client.
+		r = &ReconcileCephObjectStore{
+			client:              cl,
+			scheme:              s,
+			context:             c,
+			objectStoreContexts: make(map[string]*objectStoreHealth),
+			recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
+			opManagerContext:    context.TODO(),
+		}
 
-	logger.Info("STARTING PHASE 3")
-	res, err = r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
-	assert.NoError(t, err)
-	assert.Equal(t, cephv1.ConditionProgressing, objectStore.Status.Phase, objectStore)
-	assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
-	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
-	logger.Info("PHASE 3 DONE")
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ConditionProgressing, objectStore.Status.Phase, objectStore)
+		assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
+		assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
+	})
+
 }
 
 func TestCephObjectStoreControllerMultisite(t *testing.T) {
@@ -635,8 +627,9 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		client:              cl,
 		scheme:              s,
 		context:             c,
-		objectStoreChannels: make(map[string]*objectStoreHealth),
+		objectStoreContexts: make(map[string]*objectStoreHealth),
 		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
+		opManagerContext:    context.TODO(),
 	}
 
 	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})

@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"testing"
@@ -46,6 +47,14 @@ type ClusterInfo struct {
 	name              string
 	OsdUpgradeTimeout time.Duration
 	NetworkSpec       cephv1.NetworkSpec
+	// A context to cancel the context it is used to determine whether the reconcile loop should
+	// exist (if the context has been cancelled). This cannot be in main clusterd context since this
+	// is a pointer passed through the entire life cycle or the operator. If the context is
+	// cancelled it will immedialy be re-created, thus existing reconciles loops will not be
+	// cancelled.
+	// Whereas if passed through clusterInfo, we don't have that problem since clusterInfo is
+	// re-hydrated when a context is cancelled.
+	Context context.Context
 }
 
 // MonInfo is a collection of information about a Ceph mon.
@@ -90,6 +99,7 @@ func AdminClusterInfo(namespace string) *ClusterInfo {
 		},
 		name:      "testing",
 		OwnerInfo: ownerInfo,
+		Context:   context.TODO(),
 	}
 }
 
@@ -119,6 +129,10 @@ func (c *ClusterInfo) IsInitialized(logError bool) bool {
 	} else if c.CephCred.Secret == "" {
 		if logError {
 			logger.Error("ceph secret is empty")
+		}
+	} else if c.Context == nil {
+		if logError {
+			logger.Error("nil context")
 		}
 	} else {
 		isInitialized = true
