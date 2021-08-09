@@ -25,6 +25,7 @@ import (
 	"runtime"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "util")
@@ -59,4 +60,20 @@ func PathToProjectRoot() string {
 	pkg := filepath.Dir(util)          // <root>/pkg
 	root := filepath.Dir(pkg)          // <root>
 	return root
+}
+
+// CreateTempFile creates a temporary file with content passed as an argument
+func CreateTempFile(content string) (*os.File, error) {
+	// Generate a temp file
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate temp file")
+	}
+
+	// Write content into file
+	err = ioutil.WriteFile(file.Name(), []byte(content), 0440)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to write content into file")
+	}
+	return file, nil
 }

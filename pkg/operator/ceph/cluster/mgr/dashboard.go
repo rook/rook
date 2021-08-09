@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"syscall"
@@ -32,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -217,21 +217,6 @@ func FileBasedPasswordSupported(c *client.ClusterInfo) bool {
 	return false
 }
 
-func CreateTempPasswordFile(password string) (*os.File, error) {
-	// Generate a temp file
-	file, err := ioutil.TempFile("", "")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate temp file")
-	}
-
-	// Write password into file
-	err = ioutil.WriteFile(file.Name(), []byte(password), 0440)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to write dashboard password into file")
-	}
-	return file, nil
-}
-
 func (c *Cluster) setLoginCredentials(password string) error {
 	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
 	logger.Infof("setting ceph dashboard %q login creds", dashboardUsername)
@@ -240,7 +225,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 	// for latest Ceph versions
 	if FileBasedPasswordSupported(c.clusterInfo) {
 		// Generate a temp file
-		file, err := CreateTempPasswordFile(password)
+		file, err := util.CreateTempFile(password)
 		if err != nil {
 			return errors.Wrap(err, "failed to create a temporary dashboard password file")
 		}
