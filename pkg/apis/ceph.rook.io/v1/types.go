@@ -1619,7 +1619,9 @@ type CephNFSList struct {
 // NFSGaneshaSpec represents the spec of an nfs ganesha server
 type NFSGaneshaSpec struct {
 	// RADOS is the Ganesha RADOS specification
-	RADOS GaneshaRADOSSpec `json:"rados"`
+	// +nullable
+	// +optional
+	RADOS GaneshaRADOSSpec `json:"rados,omitempty"`
 
 	// Server is the Ganesha Server specification
 	Server GaneshaServerSpec `json:"server"`
