@@ -33,12 +33,11 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/csi/peermap"
 	"github.com/rook/rook/pkg/operator/ceph/provisioner"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 )
@@ -253,7 +252,8 @@ func (o *Operator) updateDrivers() error {
 		return nil
 	}
 
-	ownerRef, err := getDeploymentOwnerReference(o.context.Clientset, o.config.OperatorNamespace)
+	operatorPodName := os.Getenv(k8sutil.PodNameEnvVar)
+	ownerRef, err := k8sutil.GetDeploymentOwnerReference(o.context.Clientset, operatorPodName, o.config.OperatorNamespace)
 	if err != nil {
 		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
 	}
@@ -270,35 +270,11 @@ func (o *Operator) updateDrivers() error {
 		return errors.Wrap(err, "failed creating csi config map")
 	}
 
+	err = peermap.CreateOrUpdateConfig(o.context, &peermap.PeerIDMappings{})
+	if err != nil {
+		return errors.Wrap(err, "failed to create pool ID mapping config map")
+	}
+
 	go csi.ValidateAndConfigureDrivers(o.context, o.config.OperatorNamespace, o.config.Image, o.config.ServiceAccount, serverVersion, ownerInfo)
 	return nil
-}
-
-// getDeploymentOwnerReference returns an OwnerReference to the rook-ceph-operator deployment
-func getDeploymentOwnerReference(clientset kubernetes.Interface, namespace string) (*metav1.OwnerReference, error) {
-	ctx := context.TODO()
-	var deploymentRef *metav1.OwnerReference
-	podName := os.Getenv(k8sutil.PodNameEnvVar)
-	pod, err := clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not find pod %q to find deployment owner reference", podName)
-	}
-	for _, podOwner := range pod.OwnerReferences {
-		if podOwner.Kind == "ReplicaSet" {
-			replicaset, err := clientset.AppsV1().ReplicaSets(namespace).Get(ctx, podOwner.Name, metav1.GetOptions{})
-			if err != nil {
-				return nil, errors.Wrapf(err, "could not find replicaset %q to find deployment owner reference", podOwner.Name)
-			}
-			for _, replicasetOwner := range replicaset.OwnerReferences {
-				if replicasetOwner.Kind == "Deployment" {
-					localreplicasetOwner := replicasetOwner
-					deploymentRef = &localreplicasetOwner
-				}
-			}
-		}
-	}
-	if deploymentRef == nil {
-		return nil, errors.New("could not find owner reference for rook-ceph deployment")
-	}
-	return deploymentRef, nil
 }
