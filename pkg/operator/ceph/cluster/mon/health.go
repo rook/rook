@@ -262,7 +262,10 @@ func (c *Cluster) checkHealth() error {
 		retriesBeforeNodeDrainFailover = 1
 
 		logger.Warningf("mon %q NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
-		c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name)
+		if !c.failMon(len(quorumStatus.MonMap.Mons), desiredMonCount, mon.Name) {
+			// The failover was skipped, so we continue to see if another mon needs to failover
+			continue
+		}
 
 		// only deal with one unhealthy mon per health check
 		return nil
@@ -311,13 +314,24 @@ func (c *Cluster) checkHealth() error {
 }
 
 // failMon compares the monCount against desiredMonCount
-func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
+// Returns whether the failover request was attempted. If false,
+// the operator should check for other mons to failover.
+func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
 	if monCount > desiredMonCount {
 		// no need to create a new mon since we have an extra
 		if err := c.removeMon(name); err != nil {
 			logger.Errorf("failed to remove mon %q. %v", name, err)
 		}
 	} else {
+		if c.spec.IsStretchCluster() && name == c.arbiterMon {
+			// Ceph does not currently support updating the arbiter mon
+			// or else the mons in the two datacenters will not be aware anymore
+			// of the arbiter mon. Thus, disabling failover until the arbiter
+			// mon can be updated in ceph.
+			logger.Warningf("refusing to failover arbiter mon %q on a stretched cluster", name)
+			return false
+		}
+
 		// prevent any voluntary mon drain while failing over
 		if err := c.blockMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
 			logger.Errorf("failed to block mon drain. %v", err)
@@ -333,6 +347,7 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) {
 			logger.Errorf("failed to allow mon drain. %v", err)
 		}
 	}
+	return true
 }
 
 func (c *Cluster) removeOrphanMonResources() {
