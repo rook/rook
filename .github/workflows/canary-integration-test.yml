@@ -94,7 +94,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   pvc:
     runs-on: ubuntu-18.04
@@ -174,7 +174,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   pvc-db:
     runs-on: ubuntu-18.04
@@ -241,7 +241,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   pvc-db-wal:
     runs-on: ubuntu-18.04
@@ -312,7 +312,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   encryption-pvc:
     runs-on: ubuntu-18.04
@@ -382,7 +382,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   encryption-pvc-db:
     runs-on: ubuntu-18.04
@@ -452,7 +452,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-18.04
@@ -523,8 +523,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
-
+      timeout-minutes: 60
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-18.04
@@ -612,7 +611,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   lvm-pvc:
     runs-on: ubuntu-18.04
@@ -677,7 +676,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   multi-cluster-mirroring:
     runs-on: ubuntu-18.04
@@ -876,4 +875,4 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
