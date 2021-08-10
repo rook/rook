@@ -19,6 +19,8 @@ areas:
     - satoru-takeuchi
     reviewers:
     - Madhu-1
+    - sp98
+    - subhamkrai
   cassandra:
     approvers:
     - yanniszark
