@@ -6315,6 +6315,7 @@ spec:
                   description: PullSpec represents the pulling specification of a Ceph Object Storage Gateway Realm
                   properties:
                     endpoint:
+                      pattern: ^https*://
                       type: string
                   required:
                     - endpoint
