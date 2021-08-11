@@ -131,6 +131,27 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
+	// Check custom caBundle provided
+	if c.store.Spec.Gateway.CaBundleRef != "" {
+		customCaBundleVolSrc, err := c.generateVolumeSourceWithCaBundleSecret()
+		if err != nil {
+			return v1.PodTemplateSpec{}, err
+		}
+		customCaBundleVol := v1.Volume{
+			Name: caBundleVolumeName,
+			VolumeSource: v1.VolumeSource{
+				Secret: customCaBundleVolSrc,
+			}}
+		podSpec.Volumes = append(podSpec.Volumes, customCaBundleVol)
+		updatedCaBundleVol := v1.Volume{
+			Name: caBundleUpdatedVolumeName,
+			VolumeSource: v1.VolumeSource{
+				EmptyDir: &v1.EmptyDirVolumeSource{},
+			}}
+		podSpec.Volumes = append(podSpec.Volumes, updatedCaBundleVol)
+		podSpec.InitContainers = append(podSpec.InitContainers,
+			c.createCaBundleUpdateInitContainer(rgwConfig))
+	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
 		return v1.PodTemplateSpec{}, err
@@ -168,6 +189,26 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	}
 
 	return podTemplateSpec, nil
+}
+
+func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) v1.Container {
+	caBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: caBundleSourceCustomDir, ReadOnly: true}
+	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), caBundleMount)
+	updatedCaBundleDir := "/tmp/new-ca-bundle/"
+	updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: updatedCaBundleDir, ReadOnly: false}
+	volumeMounts = append(volumeMounts, updatedBundleMount)
+	return v1.Container{
+		Name:    "update-ca-bundle-initcontainer",
+		Command: []string{"/bin/bash", "-c"},
+		// copy all content of caBundleExtractedDir to avoid directory mount itself
+		Args: []string{
+			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
+		},
+		Image:           c.clusterSpec.CephVersion.Image,
+		VolumeMounts:    volumeMounts,
+		Resources:       c.store.Spec.Gateway.Resources,
+		SecurityContext: controller.PodSecurityContext(),
+	}
 }
 
 // The vault token is passed as Secret for rgw container. So it is mounted as read only.
@@ -241,6 +282,10 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		// Add a volume mount for the ssl certificate
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
+	}
+	if c.store.Spec.Gateway.CaBundleRef != "" {
+		updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: caBundleExtractedDir, ReadOnly: true}
+		container.VolumeMounts = append(container.VolumeMounts, updatedBundleMount)
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
@@ -511,7 +556,7 @@ func (c *clusterConfig) generateVolumeSourceWithTLSSecret() (*v1.SecretVolumeSou
 		secretVolSrc = &v1.SecretVolumeSource{
 			SecretName: c.store.Spec.Gateway.SSLCertificateRef,
 		}
-		secretType, err := c.rgwTLSSecretType()
+		secretType, err := c.rgwTLSSecretType(c.store.Spec.Gateway.SSLCertificateRef)
 		if err != nil {
 			return nil, err
 		}
@@ -540,8 +585,28 @@ func (c *clusterConfig) generateVolumeSourceWithTLSSecret() (*v1.SecretVolumeSou
 	return secretVolSrc, nil
 }
 
-func (c *clusterConfig) rgwTLSSecretType() (v1.SecretType, error) {
-	rgwTlsSecret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(context.TODO(), c.store.Spec.Gateway.SSLCertificateRef, metav1.GetOptions{})
+func (c *clusterConfig) generateVolumeSourceWithCaBundleSecret() (*v1.SecretVolumeSource, error) {
+	// Keep the ca-bundle as secure as possible in the container. Give only user read perms.
+	// Same as above for generateVolumeSourceWithTLSSecret function.
+	userReadOnly := int32(0400)
+	caBundleVolSrc := &v1.SecretVolumeSource{
+		SecretName: c.store.Spec.Gateway.CaBundleRef,
+	}
+	secretType, err := c.rgwTLSSecretType(c.store.Spec.Gateway.CaBundleRef)
+	if err != nil {
+		return nil, err
+	}
+	if secretType != v1.SecretTypeOpaque {
+		return nil, errors.New("CaBundle secret should be 'Opaque' type")
+	}
+	caBundleVolSrc.Items = []v1.KeyToPath{
+		{Key: caBundleKeyName, Path: caBundleFileName, Mode: &userReadOnly},
+	}
+	return caBundleVolSrc, nil
+}
+
+func (c *clusterConfig) rgwTLSSecretType(secretName string) (v1.SecretType, error) {
+	rgwTlsSecret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if rgwTlsSecret != nil {
 		return rgwTlsSecret.Type, nil
 	}
