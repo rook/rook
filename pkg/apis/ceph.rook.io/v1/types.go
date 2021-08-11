@@ -1469,6 +1469,7 @@ type ObjectRealmSpec struct {
 
 // PullSpec represents the pulling specification of a Ceph Object Storage Gateway Realm
 type PullSpec struct {
+	// +kubebuilder:validation:Pattern=`^https*://`
 	Endpoint string `json:"endpoint"`
 }
 
