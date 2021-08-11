@@ -189,6 +189,24 @@ func TestSSLPodSpec(t *testing.T) {
 	secretVolSrc, err = c.generateVolumeSourceWithTLSSecret()
 	assert.NoError(t, err)
 	assert.Equal(t, secretVolSrc.SecretName, "rgw-cert")
+	// Using caBundleRef
+	// Opaque Secret
+	c.store.Spec.Gateway.CaBundleRef = "mycabundle"
+	cabundlesecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      c.store.Spec.Gateway.CaBundleRef,
+			Namespace: c.store.Namespace,
+		},
+		Data: map[string][]byte{
+			"cabundle": []byte("cabundletesting"),
+		},
+		Type: v1.SecretTypeOpaque,
+	}
+	_, err = c.context.Clientset.CoreV1().Secrets(store.Namespace).Create(ctx, cabundlesecret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	caBundleVolSrc, err := c.generateVolumeSourceWithCaBundleSecret()
+	assert.NoError(t, err)
+	assert.Equal(t, caBundleVolSrc.SecretName, "mycabundle")
 	s, err = c.makeRGWPodSpec(rgwConfig)
 	assert.NoError(t, err)
 	podTemplate = cephtest.NewPodTemplateSpecTester(t, &s)

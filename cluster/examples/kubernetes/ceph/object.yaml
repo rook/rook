@@ -46,6 +46,8 @@ spec:
   gateway:
     # A reference to the secret in the rook namespace where the ssl certificate is stored
     # sslCertificateRef:
+    # A reference to the secret in the rook namespace where the ca bundle is stored
+    # caBundleRef:
     # The port that RGW pods will listen on (http)
     port: 80
     # The port that RGW pods will listen on (https). An ssl certificate is required.
