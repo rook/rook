@@ -189,63 +189,6 @@ function create_LV_on_disk() {
   kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 }
 
-function generate_tls_config {
-DIR=$1
-SERVICE=$2
-NAMESPACE=$3
-IP=$4
-if [ -z "${IP}" ]; then
-    IP=127.0.0.1
-fi
-
-  openssl genrsa -out "${DIR}"/"${SERVICE}".key 2048
-
-  cat <<EOF >"${DIR}"/csr.conf
-[req]
-req_extensions = v3_req
-distinguished_name = req_distinguished_name
-[req_distinguished_name]
-[ v3_req ]
-basicConstraints = CA:FALSE
-keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-extendedKeyUsage = serverAuth
-subjectAltName = @alt_names
-[alt_names]
-DNS.1 = ${SERVICE}
-DNS.2 = ${SERVICE}.${NAMESPACE}
-DNS.3 = ${SERVICE}.${NAMESPACE}.svc
-DNS.4 = ${SERVICE}.${NAMESPACE}.svc.cluster.local
-IP.1  = ${IP}
-EOF
-
-  openssl req -new -key "${DIR}"/"${SERVICE}".key -subj "/CN=${SERVICE}.${NAMESPACE}.svc" -out "${DIR}"/server.csr -config "${DIR}"/csr.conf
-
-  export CSR_NAME=${SERVICE}-csr
-
-  cat <<EOF >"${DIR}"/csr.yaml
-apiVersion: certificates.k8s.io/v1beta1
-kind: CertificateSigningRequest
-metadata:
-  name: ${CSR_NAME}
-spec:
-  groups:
-  - system:authenticated
-  request: $(cat ${DIR}/server.csr | base64 | tr -d '\n')
-  usages:
-  - digital signature
-  - key encipherment
-  - server auth
-EOF
-
-  kubectl create -f "${DIR}/"csr.yaml
-
-  kubectl certificate approve ${CSR_NAME}
-
-  serverCert=$(kubectl get csr ${CSR_NAME} -o jsonpath='{.status.certificate}')
-  echo "${serverCert}" | openssl base64 -d -A -out "${DIR}"/"${SERVICE}".crt
-  kubectl config view --raw --minify --flatten -o jsonpath='{.clusters[].cluster.certificate-authority-data}' | base64 -d > "${DIR}"/"${SERVICE}".ca
-}
-
 function deploy_first_rook_cluster() {
   BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
   cd cluster/examples/kubernetes/ceph/
@@ -281,22 +224,23 @@ function write_object_to_cluster1_read_from_cluster2() {
   CLUSTER_1_IP_ADDR=$(kubectl -n rook-ceph get svc rook-ceph-rgw-multisite-store -o jsonpath="{.spec.clusterIP}")
   BASE64_ACCESS_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.access-key}")
   BASE64_SECRET_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.secret-key}")
-  ACCESS_KEY=$(echo ${BASE64_ACCESS_KEY} | base64 --decode)
-  SECRET_KEY=$(echo ${BASE64_SECRET_KEY} | base64 --decode)
-  s3cmd --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_1_IP_ADDR} mb s3://bkt
-  s3cmd --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_1_IP_ADDR} put ./1M.dat s3://bkt
+  ACCESS_KEY=$(echo "${BASE64_ACCESS_KEY}" | base64 --decode)
+  SECRET_KEY=$(echo "${BASE64_SECRET_KEY}" | base64 --decode)
+  s3cmd --config=s3cfg --access_key="${ACCESS_KEY}" --secret_key="${SECRET_KEY}" --host="${CLUSTER_1_IP_ADDR}" mb s3://bkt
+  s3cmd --config=s3cfg --access_key="${ACCESS_KEY}" --secret_key="${SECRET_KEY}" --host="${CLUSTER_1_IP_ADDR}" put ./1M.dat s3://bkt
   CLUSTER_2_IP_ADDR=$(kubectl -n rook-ceph-secondary get svc rook-ceph-rgw-zone-b-multisite-store -o jsonpath="{.spec.clusterIP}")
-  s3cmd --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_2_IP_ADDR} get s3://bkt/1M.dat 1M-get.dat --force
+  s3cmd --config=s3cfg --access_key="${ACCESS_KEY}" --secret_key="${SECRET_KEY}" --host="${CLUSTER_2_IP_ADDR}" get s3://bkt/1M.dat 1M-get.dat --force
   diff 1M.dat 1M-get.dat
 }
 
 selected_function="$1"
 if [ "$selected_function" = "generate_tls_config" ]; then
-    $selected_function $2 $3 $4 $5
+  scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+  bash "${scriptdir}"/generate-tls-config.sh "$2" "$3" "$4" "$5"
 elif [ "$selected_function" = "wait_for_ceph_to_be_ready" ]; then
-     $selected_function $2 $3
+  $selected_function "$2" "$3"
 elif [ "$selected_function" = "wait_for_rgw_pods" ]; then
-     $selected_function $2
+  $selected_function "$2"
 else
   $selected_function
 fi
