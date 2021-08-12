@@ -14,7 +14,7 @@ defaults:
 jobs:
   Create-Tag:
     runs-on: ubuntu-18.04
-    if: {{ github.repository == 'rook/rook' }}
+    if: github.repository == 'rook/rook'
     steps:
       - name: checkout
         uses: actions/checkout@v2
