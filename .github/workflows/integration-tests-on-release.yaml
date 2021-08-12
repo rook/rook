@@ -1,0 +1,380 @@
+name: Integration tests on master/release
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+jobs:
+  TestCephFlexSuite:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.15.12','v1.18.15','v1.21.0']
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.4.2
+      with:
+        minikube version: 'v1.21.0'
+        kubernetes version: ${{ matrix.kubernetes-versions }}
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: use local disk
+      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+    - name: build rook
+      run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: TestCephFlexSuite
+      run: |
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+       go test -v -timeout 1800s -run CephFlexSuite github.com/rook/rook/tests/integration
+
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: ceph-flex-suite-artifact
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
+
+  TestCephHelmSuite:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.3.1
+      with:
+        minikube version: 'v1.18.1'
+        kubernetes version: ${{ matrix.kubernetes-versions }}
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: remove read permission from kube config file
+      run: sudo chmod go-r ~/.kube/config
+
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: use local disk
+      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+    - name: build rook
+      run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: TestCephHelmSuite
+      run: |
+        tests/scripts/minikube.sh helm
+        tests/scripts/helm.sh up
+        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+        SKIP_TEST_CLEANUP=false SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephHelmSuite github.com/rook/rook/tests/integration
+
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: ceph-helm-suite-artifact
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
+
+  TestCephMultiClusterDeploySuite:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.4.2
+      with:
+        minikube version: 'v1.21.0'
+        kubernetes version: ${{ matrix.kubernetes-versions }}
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: use local disk
+      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+    - name: build rook
+      run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: TestCephMultiClusterDeploySuite
+      run: |
+        export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
+        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+        go test -v -timeout 1800s -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
+
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: ceph-multi-cluster-deploy-suite-artifact
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
+
+  TestCephSmokeSuite:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.4.2
+      with:
+        minikube version: 'v1.21.0'
+        kubernetes version: ${{ matrix.kubernetes-versions }}
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: use local disk
+      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+    - name: build rook
+      run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: TestCephSmokeSuite
+      run: |
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+       SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
+
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: ceph-smoke-suite-artifact
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
+
+  TestCephUpgradeSuite:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.4.2
+      with:
+        minikube version: 'v1.21.0'
+        kubernetes version: ${{ matrix.kubernetes-versions }}
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: use local disk
+      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+    - name: build rook
+      run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: TestCephUpgradeSuite
+      run: |
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+       go test -v -timeout 1800s -run CephUpgradeSuite github.com/rook/rook/tests/integration
+
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: ceph-upgrade-suite-artifact
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
+
+  TestCassandraSuite:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.21.0']
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.4.2
+      with:
+        minikube version: 'v1.21.0'
+        kubernetes version: ${{ matrix.kubernetes-versions }}
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: check k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: build rook
+      run: |
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='cassandra' build
+        docker images
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/cassandra:master
+
+    - name: TestCassandraSuite
+      run: |
+       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+       SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CassandraSuite github.com/rook/rook/tests/integration
+
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: cassandra-suite-artifact
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
+
+  TestNFSSuite:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.16.15','v1.18.15','v1.20.5','v1.21.0']
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.4.2
+      with:
+        minikube version: 'v1.21.0'
+        kubernetes version: ${{ matrix.kubernetes-versions }}
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: check k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: build rook
+      run: |
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='nfs' build
+        docker images
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/nfs:v1.7.0
+
+    - name: install nfs-common
+      run: |
+        sudo apt-get update
+        sudo apt-get install nfs-common
+
+    - name: TestNFSSuite
+      run: go test -v -timeout 1800s -run NfsSuite github.com/rook/rook/tests/integration
+
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: nfs-suite-artifact
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30

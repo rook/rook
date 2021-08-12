@@ -1,22 +1,82 @@
-name: Build
+name: Builds
 on:
   pull_request:
-    # paths-ignore means we run the action when files have changed and no one them are Golang files.
-    paths-ignore:
-    - '**.go'
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
 
 jobs:
-  build:
-    runs-on: ubuntu-18.04
+  macos-build:
+    runs-on: macos-10.15
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - uses: actions/setup-go@v2
       with:
         go-version: 1.16
 
+    - name: copy working directory to GOPATH
+      run: sudo mkdir -p /Users/runner/go/src/github.com && sudo cp -a /Users/runner/work/rook /Users/runner/go/src/github.com/
+
     - name: build rook
+      working-directory: /Users/runner/go/src/github.com/rook/rook
       run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
+
+    - name: run codegen
+      working-directory: /Users/runner/go/src/github.com/rook/rook
+      run: GOPATH=$(go env GOPATH) make codegen
+
+    - name: validate codegen
+      working-directory: /Users/runner/go/src/github.com/rook/rook
+      run: tests/scripts/validate_modified_files.sh codegen
+
+    - name: run mod check
+      run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
+
+    - name: validate modcheck
+      run: tests/scripts/validate_modified_files.sh modcheck
+
+    - name: run crds-gen
+      working-directory: /Users/runner/go/src/github.com/rook/rook
+      run: make csv-clean && GOPATH=$(go env GOPATH) make crds
+
+    - name: validate crds-gen
+      working-directory: /Users/runner/go/src/github.com/rook/rook
+      run: tests/scripts/validate_modified_files.sh crd
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60
+
+  linux-build-all:
+    runs-on: ubuntu-18.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: set up QEMU
+      uses: docker/setup-qemu-action@master
+      with:
+        platforms: all
+
+    - name: build.all rook
+      run: GOPATH=$(go env GOPATH) make clean && make -j"$(nproc)" IMAGES='ceph' build.all
+
+    - name: setup tmate session for debugging
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60

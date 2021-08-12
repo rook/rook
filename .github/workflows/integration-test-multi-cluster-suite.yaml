@@ -1,12 +1,9 @@
 name: Integration test CephMultiClusterDeploySuite
 on:
-  push:
-    tags:
-      - v*
+  pull_request:
     branches:
       - master
       - release-*
-  pull_request:
 
 jobs:
   TestCephMultiClusterDeploySuite:
@@ -72,8 +69,9 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-multi-cluster-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60
 
   TestCephMultiClusterDeploySuite-Master:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'

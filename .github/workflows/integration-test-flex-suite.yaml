@@ -1,12 +1,9 @@
 name: Integration test CephFlexSuite
 on:
-  push:
-    tags:
-      - v*
+  pull_request:
     branches:
       - master
       - release-*
-  pull_request:
 
 jobs:
   TestCephFlexSuite:
@@ -67,8 +64,9 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-flex-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
 
   TestCephFlexSuite-Master:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
@@ -129,3 +127,4 @@ jobs:
     - name: setup tmate session for debugging
       if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-flex-suite')
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
