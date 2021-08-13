@@ -176,7 +176,7 @@ EXPORT {
 
 	nfsGaneshaAdditionalConfig := `
 NFS_Core_Param {
-	fsid_device = true;
+	fsid_device = false;
 }
 `
 
