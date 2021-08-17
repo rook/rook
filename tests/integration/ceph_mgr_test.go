@@ -100,6 +100,7 @@ func (s *CephMgrSuite) SetupSuite() {
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, cephMasterSuiteMinimalTestVersion)
 	s.waitForOrchestrationModule()
+	s.prepareLocalStorageClass("local-storage")
 }
 
 func (s *CephMgrSuite) AfterTest(suiteName, testName string) {
@@ -107,12 +108,37 @@ func (s *CephMgrSuite) AfterTest(suiteName, testName string) {
 }
 
 func (s *CephMgrSuite) TearDownSuite() {
+	_ = s.k8sh.DeleteResource("sc", "local-storage")
 	s.installer.UninstallRook()
 }
 
 func (s *CephMgrSuite) execute(command []string) (error, string) {
 	orchCommand := append([]string{"orch"}, command...)
 	return s.installer.Execute("ceph", orchCommand, s.namespace)
+}
+
+func (s *CephMgrSuite) prepareLocalStorageClass(storageClassName string) {
+	// Rook orchestrator use PVs based in this storage class to create OSDs
+	// It is also needed to list "devices"
+	localStorageClass := `
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: ` + storageClassName + `
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+`
+	err := s.k8sh.ResourceOperation("apply", localStorageClass)
+	if err == nil {
+		err, _ = s.installer.Execute("ceph", []string{"config", "set", "mgr", "mgr/rook/storage_class", storageClassName}, s.namespace)
+		if err == nil {
+			logger.Infof("Storage class %q set in manager config", storageClassName)
+		} else {
+			assert.Fail(s.T(), fmt.Sprintf("Error configuring local storage class in manager config: %q", err))
+		}
+	} else {
+		assert.Fail(s.T(), fmt.Sprintf("Error creating local storage class: %q ", err))
+	}
 }
 
 func (s *CephMgrSuite) enableOrchestratorModule() {
