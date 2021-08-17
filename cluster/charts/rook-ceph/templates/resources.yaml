@@ -1859,6 +1859,7 @@ spec:
                           config:
                             additionalProperties:
                               type: string
+                            nullable: true
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
                           fullpath:
@@ -1893,6 +1894,7 @@ spec:
                                 config:
                                   additionalProperties:
                                     type: string
+                                  nullable: true
                                   type: object
                                   x-kubernetes-preserve-unknown-fields: true
                                 fullpath:
