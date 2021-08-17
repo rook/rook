@@ -1936,6 +1936,7 @@ type Device struct {
 	// +optional
 	FullPath string `json:"fullpath,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
 	// +optional
 	Config map[string]string `json:"config,omitempty"`
 }
