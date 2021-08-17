@@ -18,7 +18,7 @@ spec:
         {{ $key }}: "{{ $value }}"
         {{ end }}
     spec:
-      serviceAccount: rook-csi-cephfs-plugin-sa
+      serviceAccountName: rook-csi-cephfs-plugin-sa
       hostNetwork: {{ .EnableCSIHostNetwork }}
       {{ if .PluginPriorityClassName }}
       priorityClassName: {{ .PluginPriorityClassName }}

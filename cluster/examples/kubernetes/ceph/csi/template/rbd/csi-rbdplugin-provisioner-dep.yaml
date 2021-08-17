@@ -17,7 +17,7 @@ spec:
         {{ $key }}: "{{ $value }}"
         {{ end }}
     spec:
-      serviceAccount: rook-csi-rbd-provisioner-sa
+      serviceAccountName: rook-csi-rbd-provisioner-sa
       {{ if .ProvisionerPriorityClassName }}
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
