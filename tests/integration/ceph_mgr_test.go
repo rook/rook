@@ -107,6 +107,7 @@ func (s *CephMgrSuite) SetupSuite() {
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, cephMasterSuiteMinimalTestVersion)
 	s.waitForOrchestrationModule()
+	s.prepareLocalStorageClass("local-storage")
 }
 
 func (s *CephMgrSuite) AfterTest(suiteName, testName string) {
@@ -114,6 +115,7 @@ func (s *CephMgrSuite) AfterTest(suiteName, testName string) {
 }
 
 func (s *CephMgrSuite) TearDownSuite() {
+	_ = s.k8sh.DeleteResource("sc", "local-storage")
 	s.installer.UninstallRook()
 }
 
@@ -122,6 +124,50 @@ func (s *CephMgrSuite) execute(command []string) (error, string) {
 	return s.installer.Execute("ceph", orchCommand, s.namespace)
 }
 
+<<<<<<< HEAD
+=======
+func (s *CephMgrSuite) prepareLocalStorageClass(storageClassName string) {
+	// Rook orchestrator use PVs based in this storage class to create OSDs
+	// It is also needed to list "devices"
+	localStorageClass := `
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: ` + storageClassName + `
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+`
+	err := s.k8sh.ResourceOperation("apply", localStorageClass)
+	if err == nil {
+		err, _ = s.installer.Execute("ceph", []string{"config", "set", "mgr", "mgr/rook/storage_class", storageClassName}, s.namespace)
+		if err == nil {
+			logger.Infof("Storage class %q set in manager config", storageClassName)
+		} else {
+			assert.Fail(s.T(), fmt.Sprintf("Error configuring local storage class in manager config: %q", err))
+		}
+	} else {
+		assert.Fail(s.T(), fmt.Sprintf("Error creating local storage class: %q ", err))
+	}
+}
+
+func (s *CephMgrSuite) enableOrchestratorModule() {
+	logger.Info("Enabling Rook orchestrator module: <ceph mgr module enable rook --force>")
+	err, output := s.installer.Execute("ceph", []string{"mgr", "module", "enable", "rook", "--force"}, s.namespace)
+	logger.Infof("output: %s", output)
+	if err != nil {
+		logger.Infof("Failed to enable rook orchestrator module: %q", err)
+		return
+	}
+
+	logger.Info("Setting orchestrator backend to Rook .... <ceph orch set backend rook>")
+	err, output = s.execute([]string{"set", "backend", "rook"})
+	logger.Infof("output: %s", output)
+	if err != nil {
+		logger.Infof("Not possible to set rook as backend orchestrator module: %q", err)
+	}
+}
+
+>>>>>>> 6ff5a5b86 (ceph: fix error in <ceph orch device ls> test)
 func (s *CephMgrSuite) waitForOrchestrationModule() {
 	var err error
 	for timeout := 0; timeout < 30; timeout++ {
