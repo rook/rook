@@ -1,12 +1,9 @@
 name: Integration test CephHelmSuite
 on:
-  push:
-    tags:
-      - v*
+  pull_request:
     branches:
       - master
       - release-*
-  pull_request:
 
 jobs:
   TestCephHelmSuite:
@@ -73,8 +70,9 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-helm-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60
 
   TestCephHelmSuite-Master:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
@@ -135,5 +133,6 @@ jobs:
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging
-      if: failure() && contains(github.event.pull_request.labels.*.name, 'debug-helm-suite')
+      if: failure()
       uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60
