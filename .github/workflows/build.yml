@@ -53,7 +53,7 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
 
   linux-build-all:
     runs-on: ubuntu-18.04
@@ -79,4 +79,4 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 120
+      timeout-minutes: 60
