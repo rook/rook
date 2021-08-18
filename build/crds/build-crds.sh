@@ -97,7 +97,7 @@ build_helm_resources() {
   {
     # add header
     echo "{{- if .Values.crds.enabled }}"
-    echo "{{- if semverCompare \">=1.16.0\" .Capabilities.KubeVersion.GitVersion }}"
+    echo "{{- if semverCompare \">=1.16.0-0\" .Capabilities.KubeVersion.GitVersion }}"
 
     # Add helm annotations to all CRDS and skip the first 4 lines of crds.yaml
     "$YQ_BIN_PATH" w -d'*' "$CEPH_CRDS_FILE_PATH" "metadata.annotations[helm.sh/resource-policy]" keep | tail -n +5
