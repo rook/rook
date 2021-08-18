@@ -42,7 +42,7 @@ function copy_images() {
 }
 
 # configure minikube
-MEMORY=${MEMORY:-"3000"}
+MEMORY=${MEMORY:-"6000"}
 
 # use vda1 instead of sda1 when running with the libvirt driver
 VM_DRIVER=$(minikube config get driver 2>/dev/null || echo "virtualbox")

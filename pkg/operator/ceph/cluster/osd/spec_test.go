@@ -866,3 +866,10 @@ func TestOSDPlacement(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(job.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions))
 }
+
+func TestParseCrimsonEnv(t *testing.T) {
+	vars := parseCrimsonEnvVars("foo=bar=0")
+	assert.Equal(t, 1, len(vars))
+	assert.Equal(t, "foo", vars[0].Name)
+	assert.Equal(t, "bar=0", vars[0].Value)
+}

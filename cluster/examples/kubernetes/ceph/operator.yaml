@@ -22,7 +22,8 @@ metadata:
   # should be in the namespace of the operator
   namespace: rook-ceph # namespace:operator
 data:
-  # The logging level for the operator: ERROR | WARNING | INFO | DEBUG
+  #CRIMSON_OSD_ARGS: "--smp 1 --cpuset 0 --prometheus_port 0"
+  # The logging level for the operator: INFO | DEBUG
   ROOK_LOG_LEVEL: "INFO"
 
   # Enable the CSI driver.
@@ -354,7 +355,7 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
-          image: rook/ceph:master
+          image: travisn/ceph:crimson-oct-25
           args: ["ceph", "operator"]
           volumeMounts:
             - mountPath: /var/lib/rook
@@ -422,7 +423,11 @@ spec:
             # Disable automatic orchestration when new devices are discovered
             - name: ROOK_DISABLE_DEVICE_HOTPLUG
               value: "false"
-
+            - name: CRIMSON_OSD_ARGS
+              value: ""
+              #value: "--smp 1 --cpuset 0 --prometheus_port 0 --mon_host_override $(ROOK_CEPH_MON_HOST)"
+            - name: CRIMSON_OSD_PREPARE_ENV_VARS
+              value: "ASAN_OPTIONS=verify_asan_link_order=0"
             # Provide customised regex as the values using comma. For eg. regex for rbd based volume, value will be like "(?i)rbd[0-9]+".
             # In case of more than one regex, use comma to separate between them.
             # Default regex will be "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"

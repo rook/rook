@@ -17,9 +17,11 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
@@ -230,6 +232,12 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	if osdProps.metadataDevice != "" {
 		envVars = append(envVars, metadataDeviceEnvVar(osdProps.metadataDevice))
 	}
+	crimsonEnvVarsValue, err := k8sutil.GetOperatorSetting(context.TODO(), c.context.Clientset, controller.OperatorSettingConfigMapName, "CRIMSON_OSD_PREPARE_ENV_VARS", "")
+	if err != nil {
+		logger.Warningf("failed to get crimson env vars for osd prepare. %v", err)
+	} else if crimsonEnvVarsValue != "" {
+		envVars = append(envVars, parseCrimsonEnvVars(crimsonEnvVarsValue)...)
+	}
 
 	volumeMounts := append(controller.CephVolumeMounts(provisionConfig.DataPathMap, true), []v1.VolumeMount{
 		{Name: "devices", MountPath: "/dev"},
@@ -315,4 +323,21 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	}
 
 	return osdProvisionContainer, nil
+}
+
+func parseCrimsonEnvVars(vars string) []v1.EnvVar {
+	crimsonVars := strings.Split(vars, ";")
+	var envVars []v1.EnvVar
+	for _, crimsonVar := range crimsonVars {
+		endNameIndex := strings.Index(crimsonVar, "=")
+		if endNameIndex < 0 {
+			logger.Infof("Invalid crimson var: %s", crimsonVar)
+			continue
+		}
+		name := crimsonVar[:endNameIndex]
+		val := crimsonVar[endNameIndex+1:]
+		envVars = append(envVars, v1.EnvVar{Name: name, Value: val})
+	}
+	logger.Infof("crimson additional args: %v", envVars)
+	return envVars
 }

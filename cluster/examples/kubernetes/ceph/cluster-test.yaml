@@ -28,7 +28,8 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/ceph:v16.2.6
+    #image: quay.io/ceph/ceph:v16
+    image: quay.ceph.io/ceph-ci/ceph:199ea0e13bda6fc6f71f1b690d163bd96bc014cb-crimson
     allowUnsupported: true
   mon:
     count: 1
@@ -43,7 +44,7 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: true
-    #deviceFilter:
+    deviceFilter: sdb
   healthCheck:
     daemonHealth:
       mon:

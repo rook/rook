@@ -18,10 +18,12 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
@@ -372,6 +374,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"--setgroup", "ceph",
 			fmt.Sprintf("--crush-location=%s", osd.Location),
 		}
+	}
+	if crimsonArgsValue, err := k8sutil.GetOperatorSetting(context.TODO(), c.context.Clientset, controller.OperatorSettingConfigMapName, "CRIMSON_OSD_ARGS", ""); err != nil {
+		logger.Warningf("failed to get crimson args. %v", err)
+	} else if crimsonArgsValue != "" {
+		crimsonArgs := strings.Split(crimsonArgsValue, " ")
+		logger.Infof("crimson additional args: %v", crimsonArgs)
+		args = append(args, crimsonArgs...)
 	}
 
 	// Ceph expects initial weight as float value in tera-bytes units
