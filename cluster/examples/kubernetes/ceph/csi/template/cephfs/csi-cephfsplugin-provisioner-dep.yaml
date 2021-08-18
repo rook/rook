@@ -17,7 +17,7 @@ spec:
         {{ $key }}: "{{ $value }}"
         {{ end }}
     spec:
-      serviceAccount: rook-csi-cephfs-provisioner-sa
+      serviceAccountName: rook-csi-cephfs-provisioner-sa
       {{ if .ProvisionerPriorityClassName }}
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
