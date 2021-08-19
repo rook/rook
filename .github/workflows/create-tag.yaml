@@ -14,7 +14,7 @@ defaults:
 jobs:
   Create-Tag:
     runs-on: ubuntu-18.04
-    if: github.repository == 'rook/rook' && contains(secrets.RELEASE_ADMINS, github.actor)
+    if: github.repository == 'rook/rook' && contains('travisn,leseb,BlaineEXE,jbw976,galexrt,satoru-takeuchi', github.actor)
     steps:
       - name: checkout
         uses: actions/checkout@v2
