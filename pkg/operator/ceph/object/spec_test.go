@@ -384,61 +384,123 @@ func TestDefaultReadinessProbe(t *testing.T) {
 }
 
 func TestCheckRGWKMS(t *testing.T) {
-	ctx := context.TODO()
-	// Placeholder
-	context := &clusterd.Context{Clientset: test.New(t, 3)}
-	store := simpleStore()
-	store.Spec.Security = &cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}
-	c := &clusterConfig{
-		context: context,
-		store:   store,
+	setupTest := func() *clusterConfig {
+		context := &clusterd.Context{Clientset: test.New(t, 3)}
+		store := simpleStore()
+		store.Spec.Security = &cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}
+		return &clusterConfig{
+			context: context,
+			store:   store,
+		}
+	}
+	configureKMS := func(c *clusterConfig) {
+		c.store.Spec.Security.KeyManagementService.TokenSecretName = "vault-token"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["KMS_PROVIDER"] = "vault"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
+		s := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      c.store.Spec.Security.KeyManagementService.TokenSecretName,
+				Namespace: c.store.Namespace,
+			},
+			Data: map[string][]byte{
+				"token": []byte("myt-otkenbenvqrev"),
+			},
+		}
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+		assert.NoError(t, err)
 	}
 
-	// without KMS
-	b, err := c.CheckRGWKMS()
-	assert.False(t, b)
-	assert.NoError(t, err)
+	t.Run("KMS is disabled", func(t *testing.T) {
+		c := setupTest()
+		b, err := c.CheckRGWKMS()
+		assert.False(t, b)
+		assert.NoError(t, err)
+	})
 
-	// setting KMS configurations
-	c.store.Spec.Security.KeyManagementService.TokenSecretName = "vault-token"
-	c.store.Spec.Security.KeyManagementService.ConnectionDetails["KMS_PROVIDER"] = "vault"
-	c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
-	s := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store.Spec.Security.KeyManagementService.TokenSecretName,
-			Namespace: store.Namespace,
-		},
-		Data: map[string][]byte{
-			"token": []byte("myt-otkenbenvqrev"),
-		},
-	}
-	_, err = context.Clientset.CoreV1().Secrets(store.Namespace).Create(ctx, s, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	t.Run("Vault Secret Engine is missing", func(t *testing.T) {
+		c := setupTest()
+		configureKMS(c)
+		b, err := c.CheckRGWKMS()
+		assert.False(t, b)
+		assert.Error(t, err)
+	})
 
-	// no secret engine set, will fail
-	b, err = c.CheckRGWKMS()
-	assert.False(t, b)
-	assert.Error(t, err)
+	t.Run("Vault Secret Engine is kv with v1", func(t *testing.T) {
+		c := setupTest()
+		configureKMS(c)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
+		b, err := c.CheckRGWKMS()
+		assert.False(t, b)
+		assert.Error(t, err)
+	})
 
-	// kv engine version v1, will fail
-	c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
-	c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v1"
-	b, err = c.CheckRGWKMS()
-	assert.False(t, b)
-	assert.Error(t, err)
+	t.Run("Vault Secret Engine is kv with v2", func(t *testing.T) {
+		c := setupTest()
+		configureKMS(c)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v2"
+		b, err := c.CheckRGWKMS()
+		assert.True(t, b)
+		assert.NoError(t, err)
+	})
 
-	// kv engine version v2, will pass
-	c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v2"
-	b, err = c.CheckRGWKMS()
-	assert.True(t, b)
-	assert.NoError(t, err)
+	t.Run("Vault Secret Engine is transit", func(t *testing.T) {
+		c := setupTest()
+		configureKMS(c)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		b, err := c.CheckRGWKMS()
+		assert.True(t, b)
+		assert.NoError(t, err)
+	})
 
-	// transit engine, will pass
-	c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
-	c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = ""
-	b, err = c.CheckRGWKMS()
-	assert.True(t, b)
-	assert.NoError(t, err)
+	t.Run("TLS is configured but secrets do not exist", func(t *testing.T) {
+		c := setupTest()
+		configureKMS(c)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		b, err := c.CheckRGWKMS()
+		assert.False(t, b)
+		assert.Error(t, err, "")
+		assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection details k8s secret \"vault-ca-secret\"")
+	})
+
+	t.Run("TLS secret exists but empty key", func(t *testing.T) {
+		c := setupTest()
+		configureKMS(c)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		tlsSecret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vault-ca-secret",
+				Namespace: c.store.Namespace,
+			},
+		}
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		b, err := c.CheckRGWKMS()
+		assert.False(t, b)
+		assert.Error(t, err, "")
+		assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection key \"cert\" for \"VAULT_CACERT\" in k8s secret \"vault-ca-secret\"")
+	})
+
+	t.Run("TLS config is valid", func(t *testing.T) {
+		c := setupTest()
+		configureKMS(c)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		tlsSecret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vault-ca-secret",
+				Namespace: c.store.Namespace,
+			},
+		}
+		tlsSecret.Data = map[string][]byte{"cert": []byte("envnrevbnbvsbjkrtn")}
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		b, err := c.CheckRGWKMS()
+		assert.True(t, b)
+		assert.NoError(t, err, "")
+	})
 }
 
 func TestGetDaemonName(t *testing.T) {

@@ -123,7 +123,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 			if c.spec.Security.KeyManagementService.IsEnabled() {
 				kmsProvider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
 				if kmsProvider == secrets.TypeVault {
-					volumeTLS, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+					volumeTLS, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
 					volumes = append(volumes, volumeTLS)
 				}
 			}
@@ -282,7 +282,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			if c.spec.Security.KeyManagementService.IsEnabled() {
 				kmsProvider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
 				if kmsProvider == secrets.TypeVault {
-					_, volumeMountsTLS := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+					_, volumeMountsTLS := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
 					volumeMounts = append(volumeMounts, volumeMountsTLS)
 					envVars = append(envVars, kms.VaultConfigToEnvVar(c.spec)...)
 				}

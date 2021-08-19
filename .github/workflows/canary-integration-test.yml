@@ -422,7 +422,7 @@ jobs:
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
         yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
-        sed -i 's/ver1/ver2/g' tests/manifests/test-object.yaml
+        yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
         kubectl create -f tests/manifests/test-object.yaml
         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 

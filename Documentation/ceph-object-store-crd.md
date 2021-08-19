@@ -212,7 +212,7 @@ For RGW, please note the following:
 $ vault kv put rook/<mybucketkey> key=$(openssl rand -base64 32) # kv engine
 $ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 
-* TLS authentication with custom certs between Vault and RGW are yet to be supported.
+* TLS authentication with custom certificates between Vault and CephObjectStore RGWs are supported from ceph v16.2.6 onwards
 
 ## Deleting a CephObjectStore
 

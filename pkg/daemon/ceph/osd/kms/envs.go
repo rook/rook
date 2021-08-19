@@ -49,7 +49,7 @@ func vaultTokenEnvVarFromSecret(tokenSecretName string) v1.EnvVar {
 }
 
 // vaultTLSEnvVarFromSecret translates TLS env var which are set to k8s secret name to their actual path on the fs once mounted as volume
-// See: TLSSecretVolumeAndMount() for more details
+// See: VaultSecretVolumeAndMount() for more details
 func vaultTLSEnvVarFromSecret(kmsConfig map[string]string) []v1.EnvVar {
 	vaultTLSEnvVar := []v1.EnvVar{}
 
