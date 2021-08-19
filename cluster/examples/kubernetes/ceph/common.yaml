@@ -529,6 +529,20 @@ rules:
       - "*"
     verbs:
       - "*"
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/scale
+      - deployments
+    verbs:
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - delete
 # OLM: END CLUSTER ROLE
 # OLM: BEGIN CMD REPORTER ROLE
 ---
