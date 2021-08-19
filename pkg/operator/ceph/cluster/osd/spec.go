@@ -747,7 +747,7 @@ func (c *Cluster) applyAllPlacementIfNeeded(d *v1.PodSpec) {
 	// - For non-PVCs: `placement.all` and `placement.osd`
 	// - For PVCs: `placement.all` and inside the storageClassDeviceSet from the `placement` or `preparePlacement`
 
-	// The placement from these sources will be merged by default (if onlyApplyOSDPlacement is false) in case of NodeAffinity,
+	// The placement from these sources will be merged by default (if onlyApplyOSDPlacement is false) in case of NodeAffinity and toleration,
 	// in case of other placement rule like PodAffinity, PodAntiAffinity... it will override last placement with the current placement applied,
 	// See ApplyToPodSpec().
 
