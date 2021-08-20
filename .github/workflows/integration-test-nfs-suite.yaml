@@ -1,4 +1,4 @@
-name: Integration test CephMultiClusterDeploySuite
+name: Integration test NFSSuite
 on:
   pull_request:
     branches:
@@ -11,13 +11,13 @@ defaults:
     shell: bash --noprofile --norc -eo pipefail -x {0}
 
 jobs:
-  TestCephMultiClusterDeploySuite:
-    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+  TestNfsSuite:
+    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && contains(github.event.pull_request.labels.*.name, 'nfs')}}
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.21.0']
+        kubernetes-versions : ['v1.17.17', 'v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -40,27 +40,25 @@ jobs:
     - name: print k8s cluster status
       run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
-    - name: use local disk
-      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-
     - name: build rook
       run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='nfs' build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/nfs:master
 
-    - name: TestCephMultiClusterDeploySuite
+    - name: install nfs-common
       run: |
-       export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-       go test -v -timeout 1800s -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
+        sudo apt-get update
+        sudo apt-get install nfs-common
+
+    - name: TestNFSSuite
+      run: go test -v -timeout 1800s -run NfsSuite github.com/rook/rook/tests/integration
 
     - name: Artifact
       uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: ceph-multi-cluster-deploy-suite-artifact
+        name: nfs-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging

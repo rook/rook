@@ -1,21 +1,30 @@
 name: Canary integration tests
 on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
   pull_request:
-    paths:
-    - '**.go'
-    - '**.sh'
-    - '**.py'
-    - 'build/**'
-    - 'tests/**'
-    - 'images/**'
-    - '.github/workflows/**'
+    branches:
+      - master
+      - release-*
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
 
 jobs:
   canary:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -23,30 +32,20 @@ jobs:
         go-version: 1.16
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run:  tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
-        sudo lsblk
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
 
     - name: build rook
       run: |
@@ -55,35 +54,17 @@ jobs:
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
 
-
     - name: validate-yaml
-      run: |
-        cd cluster/examples/kubernetes/ceph/
-        kubectl create -f crds.yaml -f common.yaml
-        # skipping folders and some yamls that are only for openshift.
-        kubectl create  $(ls -I scc.yaml -I "*-openshift.yaml"  -I "*.sh" -I "*.py" -p | grep -v / | awk ' { print " -f " $1 } ') --dry-run
+      run: tests/scripts/github-action-helper.sh validate_yaml
 
-    - name: deploy rook
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
-        sed -i "s|#deviceFilter:|deviceFilter: $(lsblk|awk '/14G/ {print $1}'| head -1)|g" cluster/examples/kubernetes/ceph/cluster-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/cluster-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/object-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/pool-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/filesystem-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/rbdmirror.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/nfs-test.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+    - name: deploy cluster
+      run: tests/scripts/github-action-helper.sh deploy_cluster
 
     - name: wait for prepare pod
-      run: |
-        timeout 300 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'
+      run: timeout 300 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'
 
     - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh all 2
-        kubectl -n rook-ceph get pods
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
 
     - name: test external script create-external-cluster-resources.py
       run: |
@@ -95,7 +76,7 @@ jobs:
         kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
         kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/test-data/ceph-status-out $toolbox:/etc/ceph/test-data/
         kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/create-external-cluster-resources.py $toolbox:/etc/ceph
-        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
+        timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
 
     - name: run external script create-external-cluster-resources.py unit tests
       run: |
@@ -104,12 +85,8 @@ jobs:
         # copy the test file
         # execute the test file
 
-    - name: run kubectl-check-ownerreferences
-      run: |
-        curl -L https://github.com/kubernetes-sigs/kubectl-check-ownerreferences/releases/download/v0.2.0/kubectl-check-ownerreferences-linux-amd64.tar.gz -o kubectl-check-ownerreferences-linux-amd64.tar.gz
-        tar xzvf kubectl-check-ownerreferences-linux-amd64.tar.gz
-        chmod +x kubectl-check-ownerreferences
-        ./kubectl-check-ownerreferences -n rook-ceph
+    - name: check-ownerreferences
+      run: tests/scripts/github-action-helper.sh check_ownerreferences
 
     - name: Upload canary test result
       uses: actions/upload-artifact@v2
@@ -125,9 +102,12 @@ jobs:
 
   pvc:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -135,35 +115,23 @@ jobs:
         go-version: 1.16
 
     - name: install deps
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
-        sudo chmod +x /usr/local/bin/yq
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
-        sudo lsblk
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       run: |
@@ -172,14 +140,13 @@ jobs:
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
 
-    - name: rook prerequisites
+    - name: create cluster prerequisites
       run: |
         BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
         tests/scripts/localPathPV.sh "$BLOCK"
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
@@ -200,17 +167,10 @@ jobs:
         kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
 
     - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 2
-        kubectl -n rook-ceph get pods
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
-    - name: run kubectl-check-ownerreferences
-      run: |
-        curl -L https://github.com/kubernetes-sigs/kubectl-check-ownerreferences/releases/download/v0.2.0/kubectl-check-ownerreferences-linux-amd64.tar.gz -o kubectl-check-ownerreferences-linux-amd64.tar.gz
-        tar xzvf kubectl-check-ownerreferences-linux-amd64.tar.gz
-        chmod +x kubectl-check-ownerreferences
-        ./kubectl-check-ownerreferences -n rook-ceph
+    - name: check-ownerreferences
+      run: tests/scripts/github-action-helper.sh check_ownerreferences
 
     - name: Upload  pvc test result
       uses: actions/upload-artifact@v2
@@ -226,9 +186,12 @@ jobs:
 
   pvc-db:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -236,41 +199,25 @@ jobs:
         go-version: 1.16
 
     - name: install deps
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
-        sudo chmod +x /usr/local/bin/yq
-        sudo apt-get install -y gdisk
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
     - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"2
-        DB_PART="$BLOCK"1
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       run: |
@@ -279,12 +226,10 @@ jobs:
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
 
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
@@ -293,17 +238,10 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
-        kubectl -n rook-ceph get pods
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
 
     - name: Upload pvc-db test result
       uses: actions/upload-artifact@v2
@@ -319,9 +257,12 @@ jobs:
 
   pvc-db-wal:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -330,41 +271,25 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
-        sudo chmod +x /usr/local/bin/yq
+        tests/scripts/github-action-helper.sh install_deps
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
-    - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"3
-        DB_PART="$BLOCK"1
-        WAL_PART="$BLOCK"2
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
+    - name: create bluestore partitions and PVCs for wal
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       run: |
@@ -373,10 +298,8 @@ jobs:
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
 
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy rook
       run: |
@@ -388,16 +311,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
         kubectl -n rook-ceph get pods
 
     - name: Upload pvc-db-wal test result
@@ -414,9 +332,12 @@ jobs:
 
   encryption-pvc:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -424,35 +345,23 @@ jobs:
         go-version: 1.16
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
-    - name: install yq
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
-        sudo chmod +x /usr/local/bin/yq
+    - name: install deps
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: use local disk and create partitions for osds
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
-        sudo lsblk
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
 
     - name: build rook
       run: |
@@ -461,13 +370,12 @@ jobs:
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
 
-    - name: rook prerequisites
+    - name: create cluster prerequisites
       run: |
         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
@@ -476,16 +384,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 2
-        kubectl -n rook-ceph get pods
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
         kubectl -n rook-ceph get secrets
         sudo lsblk
 
@@ -503,9 +406,12 @@ jobs:
 
   encryption-pvc-db:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -514,40 +420,25 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
-        sudo chmod +x /usr/local/bin/yq
+        tests/scripts/github-action-helper.sh install_deps
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
     - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"2
-        DB_PART="$BLOCK"1
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       run: |
@@ -556,12 +447,10 @@ jobs:
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
 
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
@@ -569,16 +458,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
 
@@ -596,9 +480,12 @@ jobs:
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -607,41 +494,25 @@ jobs:
 
     - name: install deps
       run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
-        sudo chmod +x /usr/local/bin/yq
+        tests/scripts/github-action-helper.sh install_deps
         sudo apt-get install -y gdisk
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
-    - name: create bluestore partitions and PVCs
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_PART="$BLOCK"3
-        DB_PART="$BLOCK"1
-        WAL_PART="$BLOCK"2
-        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
-        tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
+    - name: create bluestore partitions and PVCs for wal
+      run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       run: |
@@ -650,10 +521,8 @@ jobs:
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
 
-    - name: rook prerequisites
-      run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+    - name: create cluster prerequisites
+      run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy rook
       run: |
@@ -664,16 +533,11 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
 
@@ -712,12 +576,10 @@ jobs:
       run: |
         kubectl cluster-info
         kubectl get pods -n kube-system
-
     - name: install yq
       run: |
         sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
         sudo chmod +x /usr/local/bin/yq
-
     - name: use local disk and create partitions for osds
       run: |
         BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
@@ -730,24 +592,20 @@ jobs:
         sudo lsblk
         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
-
     - name: build rook
       run: |
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
-
     - name: rook prereq
       run: |
         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
         kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
-
     - name: deploy vault
       run: |
         tests/scripts/deploy-validate-vault.sh deploy
-
     - name: deploy rook
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
@@ -761,14 +619,12 @@ jobs:
         sed -i 's/VAULT_BACKEND: v1/VAULT_BACKEND: v2/g' tests/manifests/test-object.yaml
         kubectl create -f tests/manifests/test-object.yaml
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
-
     - name: wait for prepare pod
       run: |
         timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
         timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
         kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
         kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
-
     - name: wait for ceph to be ready
       run: |
         mkdir test
@@ -776,16 +632,13 @@ jobs:
         tests/scripts/validate_cluster.sh rgw
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
-
     - name: validate osd vault
       run: |
         tests/scripts/deploy-validate-vault.sh validate_osd
         sudo lsblk
-
     - name: validate rgw vault
       run: |
         tests/scripts/deploy-validate-vault.sh validate_rgw
-
     - name: Upload encryption-pvc-kms-vault-token-auth test result
       uses: actions/upload-artifact@v2
       if: always()
@@ -800,9 +653,12 @@ jobs:
 
   lvm-pvc:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -810,32 +666,21 @@ jobs:
         go-version: 1.16
 
     - name: install deps
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
-        sudo chmod +x /usr/local/bin/yq
+      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.13.1'
+        minikube version: 'v1.21.0'
         kubernetes version: 'v1.19.2'
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
-      run: |
-        BLOCK_DATA_PART=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
-        sudo lsblk
+      run: tests/scripts/github-action-helper.sh use_local_disk
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       run: |
@@ -845,19 +690,9 @@ jobs:
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.8
 
     - name: create LV on disk
-      run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        sudo sgdisk --zap-all "${BLOCK}"
-        VG=test-rook-vg
-        LV=test-rook-lv
-        sudo pvcreate "$BLOCK"
-        sudo vgcreate "$VG" "$BLOCK"
-        sudo lvcreate -l 100%FREE -n "${LV}" "${VG}"
-        tests/scripts/localPathPV.sh /dev/"${VG}"/${LV}
-        kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+      run: tests/scripts/github-action-helper.sh create_LV_on_disk
 
-    - name: deploy rook
+    - name: deploy cluster
       run: |
         kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
@@ -865,24 +700,13 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
-        kubectl -n rook-ceph get pods
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
 
-    - name: run kubectl-check-ownerreferences
-      run: |
-        curl -L https://github.com/kubernetes-sigs/kubectl-check-ownerreferences/releases/download/v0.2.0/kubectl-check-ownerreferences-linux-amd64.tar.gz -o kubectl-check-ownerreferences-linux-amd64.tar.gz
-        tar xzvf kubectl-check-ownerreferences-linux-amd64.tar.gz
-        chmod +x kubectl-check-ownerreferences
-        ./kubectl-check-ownerreferences -n rook-ceph
+    - name: check-ownerreferences
+      run: tests/scripts/github-action-helper.sh check_ownerreferences
 
     - name: Upload pvc test result
       uses: actions/upload-artifact@v2
@@ -912,7 +736,6 @@ jobs:
       run: |
         sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
         sudo chmod +x /usr/local/bin/yq
-
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
       with:
@@ -932,14 +755,12 @@ jobs:
         sudo wipefs --all --force "$BLOCK_DATA_PART"
         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
-
     - name: build rook
       run: |
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
-
     - name: deploy first cluster rook
       run: |
         BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
@@ -950,7 +771,6 @@ jobs:
         yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter ${BLOCK}1
         yq w -i -d1 cluster-test.yaml spec.cephVersion.image ceph/daemon-base:latest-pacific-devel
         kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f filesystem-mirror.yaml -f toolbox.yaml
-
     - name: deploy second cluster rook
       run: |
         BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
@@ -961,13 +781,11 @@ jobs:
         yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
         yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
         kubectl create -f cluster-test.yaml -f rbdmirror.yaml -f filesystem-mirror.yaml -f toolbox.yaml
-
     - name: wait for ceph cluster 1 to be ready
       run: |
         mkdir test
         tests/scripts/validate_cluster.sh osd 1
         kubectl -n rook-ceph get pods
-
     - name: create replicated mirrored pool on cluster 1
       run: |
         cd cluster/examples/kubernetes/ceph/
@@ -975,41 +793,34 @@ jobs:
         yq w -i pool-test.yaml spec.mirroring.mode image
         kubectl create -f pool-test.yaml
         timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool to created" && sleep 1; done'
-
     - name: create replicated mirrored pool on cluster 2
       run: |
         cd cluster/examples/kubernetes/ceph/
         yq w -i pool-test.yaml metadata.namespace rook-ceph-secondary
         kubectl create -f pool-test.yaml
         timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool to created" && sleep 1; done'
-
     - name: create image in the pool
       run: |
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -ti -- rbd -p replicapool create test -s 1G
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool/test snapshot
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
-
     - name: copy peer secret into the other cluster
       run: |
         kubectl -n rook-ceph get secret pool-peer-token-replicapool -o yaml |\
         sed 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g; s/name: pool-peer-token-replicapool/name: pool-peer-token-replicapool-config/g' |\
         kubectl create --namespace=rook-ceph-secondary -f -
-
     - name: add peer secret to the other cluster
       run: |
         kubectl -n rook-ceph-secondary patch cephrbdmirror my-rbd-mirror --type merge -p '{"spec":{"peers": {"secretNames": ["pool-peer-token-replicapool-config"]}}}'
-
     - name: verify image has been mirrored
       run: |
         # let's wait a bit for the image to be present
         timeout 30 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored" && sleep 1; done'
-
     - name: display cephblockpool and image status
       run: |
         timeout 80 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.mirroringStatus.summary.daemon_health}'|grep -c OK)" -eq 1 ]; do echo "waiting for mirroring status to be updated" && sleep 1; done'
         kubectl -n rook-ceph-secondary get cephblockpool -o yaml
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
-
     - name: upload test result
       uses: actions/upload-artifact@v2
       if: always()

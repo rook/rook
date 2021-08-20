@@ -5,17 +5,24 @@ on:
       - master
       - release-*
 
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
 jobs:
   TestCassandraSuite:
-    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' }}
+    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && contains(github.event.pull_request.labels.*.name, 'cassandra')}}
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.15.12', 'v1.21.0']
+        kubernetes-versions : ['v1.17.17', 'v1.22.0']
     steps:
     - name: checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
 
     - name: setup golang
       uses: actions/setup-go@v2
@@ -23,22 +30,19 @@ jobs:
         go-version: 1.16
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
+      uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.22.0'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='cassandra' VERSION=0 build
+        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='cassandra' build
         docker images
         docker tag $(docker images|awk '/build-/ {print $1}') rook/cassandra:master
 
@@ -56,57 +60,4 @@ jobs:
     - name: setup tmate session for debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 30
-
-  TestCassandraSuite-Master:
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/tags/release-*'
-    runs-on: ubuntu-18.04
-    strategy:
-      fail-fast: false
-      matrix:
-        kubernetes-versions : ['v1.15.12','v1.18.15','v1.20.5','v1.21.0']
-    steps:
-    - name: checkout
-      uses: actions/checkout@v2
-
-    - name: setup golang
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.15
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.3.1
-      with:
-        minikube version: 'v1.18.1'
-        kubernetes version: ${{ matrix.kubernetes-versions }}
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: check k8s cluster status
-      run: |
-        kubectl cluster-info
-        kubectl get pods -n kube-system
-
-    - name: build rook
-      run: |
-        # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='cassandra' VERSION=0 build
-        docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/cassandra:master
-
-    - name: TestCassandraSuite
-      run: |
-       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-       SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CassandraSuite github.com/rook/rook/tests/integration
-
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: cassandra-suite-artifact
-        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-    - name: setup tmate session for debugging
-      if: failure()
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 30
+      timeout-minutes: 60
