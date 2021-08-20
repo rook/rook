@@ -27,7 +27,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // PeerToken is the content of the peer token
@@ -362,16 +362,16 @@ func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterI
 	}
 	logger.Infof("successfully created rbd-mirror bootstrap peer token for cluster %q", clusterInfo.NamespacedName().Name)
 
-	mons := util.NewSet()
+	mons := sets.NewString()
 	for _, mon := range clusterInfo.Monitors {
-		mons.Add(mon.Endpoint)
+		mons.Insert(mon.Endpoint)
 	}
 
 	peerToken := PeerToken{
 		ClusterFSID: clusterInfo.FSID,
 		ClientID:    rbdMirrorPeerKeyringID,
 		Key:         key,
-		MonHost:     strings.Join(mons.ToSlice(), ","),
+		MonHost:     strings.Join(mons.UnsortedList(), ","),
 		Namespace:   clusterInfo.Namespace,
 	}
 
