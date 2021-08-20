@@ -34,10 +34,10 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -210,7 +210,7 @@ func (c *ClusterController) waitForCephDaemonCleanUp(stopCleanupCh chan struct{}
 func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 	ctx := context.TODO()
 	cephAppNames := []string{mon.AppName, mgr.AppName, osd.AppName, object.AppName, mds.AppName, rbd.AppName, mirror.AppName}
-	nodeNameList := util.NewSet()
+	nodeNameList := sets.NewString()
 	hostNameList := []string{}
 	var b strings.Builder
 
@@ -223,8 +223,8 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 		}
 		for _, cephPod := range podList.Items {
 			podNodeName := cephPod.Spec.NodeName
-			if podNodeName != "" && !nodeNameList.Contains(podNodeName) {
-				nodeNameList.Add(podNodeName)
+			if podNodeName != "" && !nodeNameList.Has(podNodeName) {
+				nodeNameList.Insert(podNodeName)
 			}
 		}
 		fmt.Fprintf(&b, "%s: %d. ", app, len(podList.Items))
@@ -232,7 +232,7 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 
 	logger.Infof("existing ceph daemons in the namespace %q. %s", namespace, b.String())
 
-	for nodeName := range nodeNameList.Iter() {
+	for nodeName := range nodeNameList {
 		podHostName, err := k8sutil.GetNodeHostName(c.context.Clientset, nodeName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get hostname from node %q", nodeName)
