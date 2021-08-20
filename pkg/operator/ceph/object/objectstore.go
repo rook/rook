@@ -33,12 +33,12 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -685,14 +685,14 @@ func missingPools(context *Context) ([]string, error) {
 	if err != nil {
 		return []string{}, errors.Wrapf(err, "failed to determine if pools are missing. failed to list pools")
 	}
-	existingPools := util.NewSet()
+	existingPools := sets.NewString()
 	for _, summary := range existingPoolSummaries {
-		existingPools.Add(summary.Name)
+		existingPools.Insert(summary.Name)
 	}
 
 	missingPools := []string{}
 	for _, objPool := range allObjectPools(context.Name) {
-		if !existingPools.Contains(objPool) {
+		if !existingPools.Has(objPool) {
 			missingPools = append(missingPools, objPool)
 		}
 	}

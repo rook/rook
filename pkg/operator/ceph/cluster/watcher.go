@@ -25,9 +25,9 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -39,7 +39,7 @@ type clientCluster struct {
 	context   *clusterd.Context
 }
 
-var nodesCheckedForReconcile = util.NewSet()
+var nodesCheckedForReconcile = sets.NewString()
 
 func newClientCluster(client client.Client, namespace string, context *clusterd.Context) *clientCluster {
 	return &clientCluster{
@@ -64,7 +64,7 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		return false
 	}
 	// skip reconcile if node is already checked in a previous reconcile
-	if nodesCheckedForReconcile.Contains(node.Name) {
+	if nodesCheckedForReconcile.Has(node.Name) {
 		return false
 	}
 	// Get CephCluster
@@ -81,7 +81,7 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 	}
 
 	if !checkStorageForNode(cluster) {
-		nodesCheckedForReconcile.Add(node.Name)
+		nodesCheckedForReconcile.Insert(node.Name)
 		return false
 	}
 
@@ -92,7 +92,7 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 	}
 
 	logger.Debugf("node %q is ready, checking if it can run OSDs", node.Name)
-	nodesCheckedForReconcile.Add(node.Name)
+	nodesCheckedForReconcile.Insert(node.Name)
 	valid, _ := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement))
 	if valid {
 		nodeName := node.Name
