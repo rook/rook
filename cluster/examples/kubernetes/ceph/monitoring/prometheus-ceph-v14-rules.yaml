@@ -121,7 +121,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        (ceph_osd_metadata * on (ceph_daemon) group_right(device_class) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.80
+        (ceph_osd_metadata * on (ceph_daemon) group_right(hostname,device_class) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.80
       for: 40s
       labels:
         severity: critical
@@ -147,7 +147,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ceph_osd_metadata * on (ceph_daemon) group_right(device_class) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.75
+        (ceph_osd_metadata * on (ceph_daemon) group_right(hostname,device_class) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.75
       for: 40s
       labels:
         severity: warning
