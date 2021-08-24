@@ -445,13 +445,16 @@ func TestConfigureRBDStats(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
-			switch {
-			case args[0] == "config" && args[1] == "set" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools" && args[4] != "":
-				return "", nil
-			case args[0] == "config" && args[1] == "get" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools":
-				return "", nil
-			case args[0] == "config" && args[1] == "rm" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools":
-				return "", nil
+			if args[0] == "config" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools" {
+				if args[1] == "set" && args[4] != "" {
+					return "", nil
+				}
+				if args[1] == "get" {
+					return "", nil
+				}
+				if args[1] == "rm" {
+					return "", nil
+				}
 			}
 			return "", errors.Errorf("unexpected arguments %q", args)
 		},
@@ -509,7 +512,7 @@ func TestConfigureRBDStats(t *testing.T) {
 	context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
-			return "", errors.New("mock error to simulate failure of SetConfig() function")
+			return "", errors.New("mock error to simulate failure of mon store Set() function")
 		},
 	}
 	err = configureRBDStats(context, clusterInfo)

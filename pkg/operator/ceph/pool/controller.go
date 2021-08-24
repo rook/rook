@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
@@ -382,7 +383,12 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 		}
 	}
 	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
-	_, err = cephclient.SetConfig(clusterContext, clusterInfo, "mgr.", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","), false)
+	monStore := config.GetMonStore(clusterContext, clusterInfo)
+	if len(enableStatsForPools) == 0 {
+		err = monStore.Delete("mgr.", "mgr/prometheus/rbd_stats_pools")
+	} else {
+		err = monStore.Set("mgr.", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","))
+	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable rbd_stats_pools")
 	}
