@@ -15,7 +15,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/vault/api v1.0.5-0.20200902155336-f9d5ce5a171a
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210311161930-4bea5edaff58
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210818162813-3eee31c01875
 	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
