@@ -22,7 +22,6 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	operator "github.com/rook/rook/pkg/operator/ceph"
 	cluster "github.com/rook/rook/pkg/operator/ceph/cluster"
-	"github.com/rook/rook/pkg/operator/ceph/csi"
 
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -42,14 +41,6 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	// csi deployment templates
-	operatorCmd.Flags().StringVar(&csi.RBDPluginTemplatePath, "csi-rbd-plugin-template-path", csi.DefaultRBDPluginTemplatePath, "path to ceph-csi rbd plugin template")
-
-	operatorCmd.Flags().StringVar(&csi.RBDProvisionerDepTemplatePath, "csi-rbd-provisioner-dep-template-path", csi.DefaultRBDProvisionerDepTemplatePath, "path to ceph-csi rbd provisioner deployment template")
-
-	operatorCmd.Flags().StringVar(&csi.CephFSPluginTemplatePath, "csi-cephfs-plugin-template-path", csi.DefaultCephFSPluginTemplatePath, "path to ceph-csi cephfs plugin template")
-	operatorCmd.Flags().StringVar(&csi.CephFSProvisionerDepTemplatePath, "csi-cephfs-provisioner-dep-template-path", csi.DefaultCephFSProvisionerDepTemplatePath, "path to ceph-csi cephfs provisioner deployment template")
-
 	operatorCmd.Flags().BoolVar(&cluster.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
