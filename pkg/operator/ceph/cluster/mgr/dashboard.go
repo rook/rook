@@ -29,6 +29,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -111,17 +112,19 @@ func (c *Cluster) configureDashboardModules() error {
 }
 
 func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error) {
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+
 	daemonID = fmt.Sprintf("mgr.%s", daemonID)
 
 	// url prefix
-	hasChanged, err := client.SetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix, false)
+	hasChanged, err := monStore.SetIfChanged(daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix)
 	if err != nil {
 		return false, err
 	}
 
 	// ssl support
 	ssl := strconv.FormatBool(c.spec.Dashboard.SSL)
-	changed, err := client.SetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/ssl", ssl, false)
+	changed, err := monStore.SetIfChanged(daemonID, "mgr/dashboard/ssl", ssl)
 	if err != nil {
 		return false, err
 	}
@@ -129,7 +132,7 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// server port
 	port := strconv.Itoa(c.dashboardPort())
-	changed, err = client.SetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/server_port", port, false)
+	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/server_port", port)
 	if err != nil {
 		return false, err
 	}
@@ -137,7 +140,7 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// SSL enabled. Needed to set specifically the ssl port setting
 	if c.spec.Dashboard.SSL {
-		changed, err = client.SetConfig(c.context, c.clusterInfo, daemonID, "mgr/dashboard/ssl_server_port", port, false)
+		changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/ssl_server_port", port)
 		if err != nil {
 			return false, err
 		}
