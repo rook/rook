@@ -1,3 +1,4 @@
+//go:build crds
 // +build crds
 
 /*
