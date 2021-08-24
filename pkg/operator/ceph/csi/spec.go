@@ -418,7 +418,6 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			return errors.Wrap(err, "failed to load rbd plugin service template")
 		}
 		rbdService.Namespace = namespace
-		logger.Info("successfully started CSI Ceph RBD")
 	}
 	if EnableCephFS {
 		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath, tp)
@@ -436,7 +435,6 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			return errors.Wrap(err, "failed to load cephfs plugin service template")
 		}
 		cephfsService.Namespace = namespace
-		logger.Info("successfully started CSI CephFS driver")
 	}
 
 	// get common provisioner tolerations and node affinity
@@ -499,6 +497,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			return errors.Wrapf(err, "failed to start rbd provisioner deployment: %+v", rbdProvisionerDeployment)
 		}
 		k8sutil.AddRookVersionLabelToDeployment(rbdProvisionerDeployment)
+		logger.Info("successfully started CSI Ceph RBD driver")
 	}
 
 	if rbdService != nil {
@@ -567,6 +566,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 			return errors.Wrapf(err, "failed to start cephfs provisioner deployment: %+v", cephfsProvisionerDeployment)
 		}
 		k8sutil.AddRookVersionLabelToDeployment(cephfsProvisionerDeployment)
+		logger.Info("successfully started CSI CephFS driver")
 	}
 	if cephfsService != nil {
 		err = ownerInfo.SetControllerReference(cephfsService)
