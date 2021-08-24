@@ -90,18 +90,16 @@ func (d beta1CsiDriver) createCSIDriverInfo(ctx context.Context, clientset kuber
 }
 
 func (d beta1CsiDriver) reCreateCSIDriverInfo(ctx context.Context) error {
-	csiDriver := d.csiDriver
-	csiClient := d.csiClient
-	err := csiClient.Delete(ctx, csiDriver.Name, metav1.DeleteOptions{})
+	err := d.csiClient.Delete(ctx, d.csiDriver.Name, metav1.DeleteOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete CSIDriver object for driver %q", csiDriver.Name)
+		return errors.Wrapf(err, "failed to delete CSIDriver object for driver %q", d.csiDriver.Name)
 	}
-	logger.Infof("CSIDriver object deleted for driver %q", csiDriver.Name)
-	_, err = csiClient.Create(ctx, csiDriver, metav1.CreateOptions{})
+	logger.Infof("CSIDriver object deleted for driver %q", d.csiDriver.Name)
+	_, err = d.csiClient.Create(ctx, d.csiDriver, metav1.CreateOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "failed to recreate CSIDriver object for driver %q", csiDriver.Name)
+		return errors.Wrapf(err, "failed to recreate CSIDriver object for driver %q", d.csiDriver.Name)
 	}
-	logger.Infof("CSIDriver object recreated for driver %q", csiDriver.Name)
+	logger.Infof("CSIDriver object recreated for driver %q", d.csiDriver.Name)
 	return nil
 }
 
