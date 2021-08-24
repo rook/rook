@@ -155,11 +155,11 @@ go.vet:
 	@CGO_ENABLED=0 $(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
 
 .PHONY: go.fmt
+# ignore deepcopy generated files since the tool hardcoded the header with a "// +build" which in Golang 1.17 makes it fail gofmt since "////go:build" is preferred
+# see: https://github.com/kubernetes/gengo/blob/master/examples/deepcopy-gen/generators/deepcopy.go#L136
+# https://github.com/kubernetes/gengo/pull/210
 go.fmt: $(GOFMT)
-	# ignore deepcopy generated files since the tool hardcoded the header with a "// +build" which in Golang 1.17 makes it fail gofmt since "////go:build" is preferred
-	# see: https://github.com/kubernetes/gengo/blob/master/examples/deepcopy-gen/generators/deepcopy.go#L136
-	# https://github.com/kubernetes/gengo/pull/210
-	@gofmt_out=$$(find . -name "*.go" -not -name "*.deepcopy.go" | xargs $(GOFMT) -s -d -e 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
+	@gofmt_out=$$(find $(GO_SUBDIRS) -name "*.go" -not -name "*.deepcopy.go" | xargs $(GOFMT) -s -d -e 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
 
 go.validate: go.vet go.fmt
 
