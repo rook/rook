@@ -25,17 +25,17 @@ import (
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/version"
 )
 
 type createConfig struct {
 	cluster                  *Cluster
 	provisionConfig          *provisionConfig
-	awaitingStatusConfigMaps *util.Set      // These status configmaps were created for OSD prepare jobs
-	finishedStatusConfigMaps *util.Set      // Status configmaps are added here as provisioning is completed for them
+	awaitingStatusConfigMaps sets.String    // These status configmaps were created for OSD prepare jobs
+	finishedStatusConfigMaps sets.String    // Status configmaps are added here as provisioning is completed for them
 	deployments              *existenceList // these OSDs have existing deployments
 }
 
@@ -49,27 +49,27 @@ var (
 
 func (c *Cluster) newCreateConfig(
 	provisionConfig *provisionConfig,
-	awaitingStatusConfigMaps *util.Set,
+	awaitingStatusConfigMaps sets.String,
 	deployments *existenceList,
 ) *createConfig {
 	if awaitingStatusConfigMaps == nil {
-		awaitingStatusConfigMaps = util.NewSet()
+		awaitingStatusConfigMaps = sets.NewString()
 	}
 	return &createConfig{
 		c,
 		provisionConfig,
 		awaitingStatusConfigMaps,
-		util.NewSet(),
+		sets.NewString(),
 		deployments,
 	}
 }
 
 func (c *createConfig) progress() (completed, initial int) {
-	return c.finishedStatusConfigMaps.Count(), c.awaitingStatusConfigMaps.Count()
+	return c.finishedStatusConfigMaps.Len(), c.awaitingStatusConfigMaps.Len()
 }
 
 func (c *createConfig) doneCreating() bool {
-	return c.awaitingStatusConfigMaps.Count() == c.finishedStatusConfigMaps.Count()
+	return c.awaitingStatusConfigMaps.Len() == c.finishedStatusConfigMaps.Len()
 }
 
 func (c *createConfig) createNewOSDsFromStatus(
@@ -77,13 +77,13 @@ func (c *createConfig) createNewOSDsFromStatus(
 	nodeOrPVCName string,
 	errs *provisionErrors,
 ) {
-	if !c.awaitingStatusConfigMaps.Contains(statusConfigMapName(nodeOrPVCName)) {
+	if !c.awaitingStatusConfigMaps.Has(statusConfigMapName(nodeOrPVCName)) {
 		// If there is a dangling OSD prepare configmap from another reconcile, don't process it
 		logger.Infof("not creating deployments for OSD prepare results found in ConfigMap %q which was not created for the latest storage spec", statusConfigMapName(nodeOrPVCName))
 		return
 	}
 
-	if c.finishedStatusConfigMaps.Contains(statusConfigMapName(nodeOrPVCName)) {
+	if c.finishedStatusConfigMaps.Has(statusConfigMapName(nodeOrPVCName)) {
 		// If we have already processed this configmap, don't process it again
 		logger.Infof("not creating deployments for OSD prepare results found in ConfigMap %q which was already processed", statusConfigMapName(nodeOrPVCName))
 		return
@@ -115,7 +115,7 @@ func (c *createConfig) createNewOSDsFromStatus(
 
 // Call this if createNewOSDsFromStatus() isn't going to be called (like for a failed status)
 func (c *createConfig) doneWithStatus(nodeOrPVCName string) {
-	c.finishedStatusConfigMaps.Add(statusConfigMapName(nodeOrPVCName))
+	c.finishedStatusConfigMaps.Insert(statusConfigMapName(nodeOrPVCName))
 }
 
 // Returns a set of all the awaitingStatusConfigMaps that will be updated by provisioning jobs.
@@ -124,34 +124,34 @@ func (c *createConfig) doneWithStatus(nodeOrPVCName string) {
 //
 // Creation of prepare jobs is most directly related to creating new OSDs. And we want to keep all
 // usage of awaitingStatusConfigMaps in this file.
-func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provisionErrors) (*util.Set, error) {
+func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provisionErrors) (sets.String, error) {
 	// Parsing storageClassDeviceSets and parsing it to volume sources
 	c.prepareStorageClassDeviceSets(errs)
 
 	// no valid VolumeSource is ready to run an osd
 	if len(c.deviceSets) == 0 {
 		logger.Info("no storageClassDeviceSets defined to configure OSDs on PVCs")
-		return util.NewSet(), nil
+		return sets.NewString(), nil
 	}
 
 	// Check k8s version
 	k8sVersion, err := k8sutil.GetK8SVersion(c.context.Clientset)
 	if err != nil {
 		errs.addError("failed to provision OSDs on PVCs. user has specified storageClassDeviceSets, but the Kubernetes version could not be determined. minimum Kubernetes version required: 1.13.0. %v", err)
-		return util.NewSet(), nil
+		return sets.NewString(), nil
 	}
 	if !k8sVersion.AtLeast(version.MustParseSemantic("v1.13.0")) {
 		errs.addError("failed to provision OSDs on PVCs. user has specified storageClassDeviceSets, but the Kubernetes version is not supported. user must update Kubernetes version. minimum Kubernetes version required: 1.13.0. version detected: %s", k8sVersion.String())
-		return util.NewSet(), nil
+		return sets.NewString(), nil
 	}
 
 	existingDeployments, err := c.getExistingOSDDeploymentsOnPVCs()
 	if err != nil {
 		errs.addError("failed to provision OSDs on PVCs. failed to query existing OSD deployments on PVCs. %v", err)
-		return util.NewSet(), nil
+		return sets.NewString(), nil
 	}
 
-	awaitingStatusConfigMaps := util.NewSet()
+	awaitingStatusConfigMaps := sets.NewString()
 	for _, volume := range c.deviceSets {
 		// Check whether we need to cancel the orchestration
 		if err := opcontroller.CheckForCancelledOrchestration(c.context); err != nil {
@@ -233,7 +233,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 		}
 
 		// Skip OSD prepare if deployment already exists for the PVC
-		if existingDeployments.Contains(dataSource.ClaimName) {
+		if existingDeployments.Has(dataSource.ClaimName) {
 			logger.Debugf("skipping OSD prepare job creation for PVC %q because OSD daemon using the PVC already exists", osdProps.crushHostname)
 			continue
 		}
@@ -251,7 +251,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 		// record the name of the status configmap that will eventually receive results from the
 		// OSD provisioning job we just created. This will help us determine when we are done
 		// processing the results of provisioning jobs.
-		awaitingStatusConfigMaps.Add(cmName)
+		awaitingStatusConfigMaps.Insert(cmName)
 	}
 
 	return awaitingStatusConfigMaps, nil
@@ -263,10 +263,10 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 //
 // Creation of prepare jobs is most directly related to creating new OSDs. And we want to keep all
 // usage of awaitingStatusConfigMaps in this file.
-func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *provisionErrors) (*util.Set, error) {
+func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *provisionErrors) (sets.String, error) {
 	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 {
 		logger.Info("no nodes are defined for configuring OSDs on raw devices")
-		return util.NewSet(), nil
+		return sets.NewString(), nil
 	}
 
 	if c.spec.Storage.UseAllNodes {
@@ -278,7 +278,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 		hostnameMap, err := k8sutil.GetNodeHostNames(c.context.Clientset)
 		if err != nil {
 			errs.addError("failed to provision OSDs on nodes. failed to get node hostnames. %v", err)
-			return util.NewSet(), nil
+			return sets.NewString(), nil
 		}
 		c.spec.Storage.Nodes = nil
 		for _, hostname := range hostnameMap {
@@ -300,15 +300,15 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 	// no valid node is ready to run an osd
 	if len(validNodes) == 0 {
 		logger.Warningf("no valid nodes available to run osds on nodes in namespace %q", c.clusterInfo.Namespace)
-		return util.NewSet(), nil
+		return sets.NewString(), nil
 	}
 
 	if len(c.spec.DataDirHostPath) == 0 {
 		errs.addError("failed to provision OSDs on nodes. user has specified valid nodes for storage, but dataDirHostPath is empty. user must set CephCluster dataDirHostPath")
-		return util.NewSet(), nil
+		return sets.NewString(), nil
 	}
 
-	awaitingStatusConfigMaps := util.NewSet()
+	awaitingStatusConfigMaps := sets.NewString()
 	for _, node := range c.ValidStorage.Nodes {
 		// Check whether we need to cancel the orchestration
 		if err := opcontroller.CheckForCancelledOrchestration(c.context); err != nil {
@@ -353,7 +353,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 		// record the name of the status configmap that will eventually receive results from the
 		// OSD provisioning job we just created. This will help us determine when we are done
 		// processing the results of provisioning jobs.
-		awaitingStatusConfigMaps.Add(cmName)
+		awaitingStatusConfigMaps.Insert(cmName)
 	}
 
 	return awaitingStatusConfigMaps, nil
