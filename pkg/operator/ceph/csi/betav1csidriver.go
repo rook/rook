@@ -72,6 +72,8 @@ func (d beta1CsiDriver) createCSIDriverInfo(ctx context.Context, clientset kuber
 	// As FSGroupPolicy field is immutable, should be set only during create time.
 	// if the request is to change the FSGroupPolicy, we are deleting the CSIDriver object and creating it.
 	if driver.Spec.FSGroupPolicy != nil && csiDriver.Spec.FSGroupPolicy != nil && *driver.Spec.FSGroupPolicy != *csiDriver.Spec.FSGroupPolicy {
+		d.csiClient = csidrivers
+		d.csiDriver = csiDriver
 		return d.reCreateCSIDriverInfo(ctx)
 	}
 
