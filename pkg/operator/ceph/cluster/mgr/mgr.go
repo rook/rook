@@ -193,6 +193,14 @@ func (c *Cluster) Start() error {
 			activeMgr = ""
 			logger.Infof("cannot reconcile mgr services, no active mgr found. err=%v", err)
 		}
+
+		// reconcile mgr PDB
+		if err := c.reconcileMgrPDB(); err != nil {
+			return errors.Wrap(err, "failed to reconcile mgr PDB")
+		}
+	} else {
+		// delete MGR PDB as the count is less than 2
+		c.deleteMgrPDB()
 	}
 	if activeMgr != "" {
 		if err := c.reconcileServices(activeMgr); err != nil {

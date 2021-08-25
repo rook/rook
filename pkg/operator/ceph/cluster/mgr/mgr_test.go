@@ -25,9 +25,11 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/apis/rook.io"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
@@ -37,6 +39,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -61,12 +65,20 @@ func TestStartMgr(t *testing.T) {
 
 	clientset := testop.New(t, 3)
 	configDir, _ := ioutil.TempDir("", "")
+	scheme := scheme.Scheme
+	err := policyv1.AddToScheme(scheme)
+	assert.NoError(t, err)
+	err = policyv1beta1.AddToScheme(scheme)
+	assert.NoError(t, err)
+	cl := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects().Build()
+
 	defer os.RemoveAll(configDir)
 	ctx := &clusterd.Context{
 		Executor:                   executor,
 		ConfigDir:                  configDir,
 		Clientset:                  clientset,
-		RequestCancelOrchestration: abool.New()}
+		RequestCancelOrchestration: abool.New(),
+		Client:                     cl}
 	ownerInfo := cephclient.NewMinimumOwnerInfo(t)
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo, CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Build: 5}}
 	clusterInfo.SetName("test")
@@ -82,7 +94,7 @@ func TestStartMgr(t *testing.T) {
 	defer os.RemoveAll(c.spec.DataDirHostPath)
 
 	// start a basic service
-	err := c.Start()
+	err = c.Start()
 	assert.Nil(t, err)
 	validateStart(t, c)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
