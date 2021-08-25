@@ -37,11 +37,11 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
@@ -199,21 +199,21 @@ func (c *Cluster) Start() error {
 	updateConfig := c.newUpdateConfig(config, updateQueue, deployments)
 
 	// prepare for creating new OSDs
-	statusConfigMaps := util.NewSet()
+	statusConfigMaps := sets.NewString()
 
 	logger.Info("start provisioning the OSDs on PVCs, if needed")
 	pvcConfigMaps, err := c.startProvisioningOverPVCs(config, errs)
 	if err != nil {
 		return err
 	}
-	statusConfigMaps.AddSet(pvcConfigMaps)
+	statusConfigMaps = statusConfigMaps.Union(pvcConfigMaps)
 
 	logger.Info("start provisioning the OSDs on nodes, if needed")
 	nodeConfigMaps, err := c.startProvisioningOverNodes(config, errs)
 	if err != nil {
 		return err
 	}
-	statusConfigMaps.AddSet(nodeConfigMaps.Copy())
+	statusConfigMaps = statusConfigMaps.Union(nodeConfigMaps)
 
 	createConfig := c.newCreateConfig(config, statusConfigMaps, deployments)
 
@@ -239,7 +239,7 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
-func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (*util.Set, error) {
+func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.String, error) {
 	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
 
@@ -248,10 +248,10 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (*util.Set, error) {
 		return nil, errors.Wrap(err, "failed to query existing OSD deployments")
 	}
 
-	result := util.NewSet()
+	result := sets.NewString()
 	for _, deployment := range deployments.Items {
 		if pvcID, ok := deployment.Labels[OSDOverPVCLabelKey]; ok {
-			result.Add(pvcID)
+			result.Insert(pvcID)
 		}
 	}
 
