@@ -52,6 +52,22 @@ type Option struct {
 	Value string
 }
 
+func (m *MonStore) SetIfChanged(who, option, value string) (bool, error) {
+	currentVal, err := m.Get(who, option)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get value %q", option)
+	}
+	if currentVal == value {
+		// no need to update the setting
+		return false, nil
+	}
+
+	if err := m.Set(who, option, value); err != nil {
+		return false, errors.Wrapf(err, "failed to set value %s=%s", option, value)
+	}
+	return true, nil
+}
+
 // Set sets a config in the centralized mon configuration database.
 // https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
 func (m *MonStore) Set(who, option, value string) error {
