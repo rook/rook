@@ -75,7 +75,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	op := operator.New(context, volumeAttachment, rookImage, serviceAccountName)
 	err = op.Run()
 	if err != nil {
-		rook.TerminateFatal(errors.Wrap(err, "failed to run operator\n"))
+		rook.TerminateFatal(errors.Wrap(err, "failed to run operator"))
 	}
 
 	return nil

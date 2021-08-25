@@ -27,6 +27,8 @@ import (
 )
 
 // StartOperatorSettingsWatch starts the operator settings watcher
+// TODO: use controller runtime, so we can use a Context to cancel the watch instead of using another channel
+// The cache package mentions that it'd be nice to use a Context for cancellation too
 func (c *ClusterController) StartOperatorSettingsWatch(stopCh chan struct{}) {
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	// watch for "rook-ceph-operator-config" ConfigMap

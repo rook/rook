@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
@@ -28,9 +27,15 @@ import (
 
 	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
 	healthchecking "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+)
+
+const (
+	certDir = "/etc/webhook"
 )
 
 var (
@@ -43,7 +48,11 @@ var (
 	}
 )
 
-func (o *Operator) startManager(namespaceToWatch string, context context.Context, mgrErrorCh chan error) {
+var (
+	webhookResources = []webhook.Validator{&cephv1.CephCluster{}, &cephv1.CephBlockPool{}, &cephv1.CephObjectStore{}}
+)
+
+func (o *Operator) startManager(context context.Context, namespaceToWatch string, mgrErrorCh chan error) {
 	logger.Info("setting up schemes")
 	// Setup Scheme for all resources
 	scheme := runtime.NewScheme()
@@ -60,16 +69,11 @@ func (o *Operator) startManager(namespaceToWatch string, context context.Context
 		LeaderElection: false,
 		Namespace:      namespaceToWatch,
 		Scheme:         scheme,
+		CertDir:        certDir,
 	}
 
 	logger.Info("setting up the controller-runtime manager")
-	kubeConfig, err := config.GetConfig()
-	if err != nil {
-		mgrErrorCh <- errors.Wrap(err, "failed to get client config for controller-runtime manager")
-		return
-	}
-
-	mgr, err := manager.New(kubeConfig, mgrOpts)
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOpts)
 	if err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to set up overall controller-runtime manager")
 		return
@@ -77,16 +81,40 @@ func (o *Operator) startManager(namespaceToWatch string, context context.Context
 
 	// options to pass to the controllers
 	controllerOpts := &controllerconfig.Context{
-		RookImage:         o.rookImage,
+		RookImage:         o.config.Image,
 		ClusterdContext:   o.context,
-		OperatorNamespace: o.operatorNamespace,
+		OperatorNamespace: o.config.OperatorNamespace,
 		ReconcileCanaries: &controllerconfig.LockingBool{},
 	}
+
 	// Add the registered controllers to the manager (entrypoint for controllers)
 	err = cluster.AddToManager(mgr, controllerOpts, o.clusterController)
 	if err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to add controllers to controller-runtime manager")
 		return
+	}
+
+	// Add Webhooks
+	// TODO: this needs a callback with a watcher for this secret so we can quickly enable the webhook if it changes
+	isPresent, err := isSecretPresent(context, o.context)
+	if err != nil {
+		mgrErrorCh <- errors.Wrap(err, "failed to retrieve admission webhook secret")
+		return
+	}
+	if isPresent {
+		err := createWebhookService(o.context)
+		if err != nil {
+			mgrErrorCh <- errors.Wrap(err, "failed to create admission webhook service")
+			return
+		}
+		logger.Info("setting up admission webhooks")
+		for _, resource := range webhookResources {
+			err = ctrl.NewWebhookManagedBy(mgr).For(resource).Complete()
+			if err != nil {
+				mgrErrorCh <- errors.Wrapf(err, "failed to register webhook for %q", resource.GetObjectKind().GroupVersionKind().Kind)
+				return
+			}
+		}
 	}
 
 	logger.Info("starting the controller-runtime manager")

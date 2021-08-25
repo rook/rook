@@ -466,14 +466,6 @@ func (h *CephInstaller) installRookOperator() (bool, error) {
 		return false, err
 	}
 
-	// disable admission controller test for Kubernetes version older than v1.16.0
-	if h.settings.EnableAdmissionController && !utils.IsPlatformOpenShift() && h.k8shelper.VersionAtLeast("v1.16.0") {
-		if !h.k8shelper.IsPodInExpectedState("rook-ceph-admission-controller", h.settings.OperatorNamespace, "Running") {
-			assert.Fail(h.T(), "admission controller is not running")
-			return false, errors.Errorf("admission controller is not running")
-		}
-	}
-
 	discovery, err := h.k8shelper.Clientset.AppsV1().DaemonSets(h.settings.OperatorNamespace).Get(ctx, "rook-discover", metav1.GetOptions{})
 	if startDiscovery {
 		assert.NoError(h.T(), err)

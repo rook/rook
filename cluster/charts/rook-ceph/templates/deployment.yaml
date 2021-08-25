@@ -313,20 +313,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-{{- if .Values.admissionController }}
-{{- if .Values.admissionController.tolerations }}
-        - name: ADMISSION_CONTROLLER_TOLERATIONS
-          value: {{ toYaml .Values.admissionController.tolerations | quote }}
-{{- end }}
-{{- if .Values.admissionController.nodeAffinity }}
-        - name: ADMISSION_CONTROLLER_NODE_AFFINITY
-          value: {{ .Values.admissionController.nodeAffinity }}
-{{- end }}
-{{- end }}
-{{- if .Values.unreachableNodeTolerationSeconds }}
-        - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
-          value: {{ .Values.unreachableNodeTolerationSeconds | quote }}
-{{- end }}
 {{- if .Values.resources }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
