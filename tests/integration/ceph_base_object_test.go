@@ -48,10 +48,12 @@ var (
 	ObjectKey1             = "rookObj1"
 	ObjectKey2             = "rookObj2"
 	ObjectKey3             = "rookObj3"
+	ObjectKey4             = "rookObj4"
 	contentType            = "plain/text"
 	obcName                = "smoke-delete-bucket"
 	region                 = "us-east-1"
 	maxObject              = "2"
+	newMaxObject           = "3"
 	bucketStorageClassName = "rook-smoke-delete-bucket"
 )
 
@@ -280,10 +282,26 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 			assert.Error(s.T(), poErr)
 		})
 
+		t.Run("test update quota on OBC bucket", func(t *testing.T) {
+			poErr := helper.BucketClient.UpdateObc(obcName, bucketStorageClassName, bucketname, newMaxObject, true)
+			assert.Nil(s.T(), poErr)
+			updated := utils.Retry(5, 2*time.Second, "OBC is updated", func() bool {
+				return helper.BucketClient.CheckOBMaxObject(obcName, newMaxObject)
+			})
+			assert.True(s.T(), updated)
+			logger.Infof("Testing the updated object limit")
+			_, poErr = s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey3, contentType)
+			assert.NoError(s.T(), poErr)
+			_, poErr = s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey4, contentType)
+			assert.Error(s.T(), poErr)
+		})
+
 		t.Run("delete objects on OBC bucket", func(t *testing.T) {
 			_, delobjErr := s3client.DeleteObjectInBucket(bucketname, ObjectKey1)
 			assert.Nil(s.T(), delobjErr)
 			_, delobjErr = s3client.DeleteObjectInBucket(bucketname, ObjectKey2)
+			assert.Nil(s.T(), delobjErr)
+			_, delobjErr = s3client.DeleteObjectInBucket(bucketname, ObjectKey3)
 			assert.Nil(s.T(), delobjErr)
 			logger.Info("Objects deleted on bucket successfully")
 		})

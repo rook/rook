@@ -53,6 +53,10 @@ func (b *BucketOperation) DeleteObc(obcName string, storageClassName string, buc
 	return b.k8sh.ResourceOperation("delete", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
 }
 
+func (b *BucketOperation) UpdateObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
+}
+
 // CheckOBC, returns true if the obc, secret and configmap are all in the "check" state,
 // and returns false if any of these resources are not in the "check" state.
 // Check state values:
@@ -122,4 +126,11 @@ func (b *BucketOperation) GetSecretKey(obcName string) (string, error) {
 	decode, _ := b64.StdEncoding.DecodeString(SecretKey)
 	return string(decode), nil
 
+}
+
+// Checks whether MaxObject is updated for ob
+func (b *BucketOperation) CheckOBMaxObject(obcName, maxobject string) bool {
+	obName, _ := b.k8sh.GetResource("obc", obcName, "--output", "jsonpath={.spec.objectBucketName}")
+	fetchMaxObject, _ := b.k8sh.GetResource("ob", obName, "--output", "jsonpath={.spec.endpoint.additionalConfig.maxObjects}")
+	return maxobject == fetchMaxObject
 }
