@@ -1,15 +1,16 @@
 #!/bin/bash -e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# source=build/common.sh
 source "${scriptdir}/../../build/common.sh"
 
 function wait_for_ssh() {
     local tries=100
-    while (( ${tries} > 0 )) ; do
-        if `minishift ssh echo connected &> /dev/null` ; then
+    while (( tries > 0 )) ; do
+        if minishift ssh echo connected &> /dev/null ; then
             return 0
         fi
-        tries=$(( ${tries} - 1 ))
+        (( tries-- ))
         sleep 0.1
     done
     echo ERROR: ssh did not come up >&2
@@ -19,7 +20,7 @@ function wait_for_ssh() {
 function copy_image_to_cluster() {
     local build_image=$1
     local final_image=$2
-    docker save ${build_image} | (eval $(minishift docker-env --shell bash) && docker load && docker tag ${build_image} ${final_image})
+    docker save "${build_image}" | (eval "$(minishift docker-env --shell bash)" && docker load && docker tag "${build_image}" "${final_image}")
 }
 
 # current kubectl context == minishift, returns boolean
@@ -37,12 +38,12 @@ MEMORY=${MEMORY:-"3000"}
 case "${1:-}" in
   up)
     echo "starting minishift"
-    minishift start --memory=${MEMORY} --vm-driver=virtualbox --iso-url centos
+    minishift start --memory="${MEMORY}" --vm-driver=virtualbox --iso-url centos
     wait_for_ssh
 
     # create a link so the default dataDirHostPath will work for this environment
     #minishift ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"
-    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:master
+    copy_image_to_cluster "${BUILD_REGISTRY}"/ceph-amd64 rook/ceph:master
     ;;
   down)
     minishift delete -f
@@ -53,7 +54,7 @@ case "${1:-}" in
     ;;
   update)
     echo "updating the rook images"
-    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:master
+    copy_image_to_cluster "${BUILD_REGISTRY}"/ceph-amd64 rook/ceph:master
     ;;
   restart)
     if check_context; then
@@ -73,8 +74,8 @@ case "${1:-}" in
     ;;
   helm)
     echo " copying rook image for helm"
-    helm_tag="`cat _output/version`"
-    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:${helm_tag}
+    helm_tag="cat _output/version"
+    copy_image_to_cluster "${BUILD_REGISTRY}"/rook-amd64 rook/rook:"${helm_tag}"
     ;;
   clean)
     minishift delete -f
