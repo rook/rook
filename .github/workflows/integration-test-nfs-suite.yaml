@@ -44,7 +44,7 @@ jobs:
       run: |
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='nfs' build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/nfs:v1.7.1
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/nfs:v1.7.2
 
     - name: install nfs-common
       run: |
