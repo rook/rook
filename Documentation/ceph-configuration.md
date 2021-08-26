@@ -34,18 +34,17 @@ capable of automatically managing PG and PGP values for pools. Please see
 [Ceph New in Nautilus: PG merging and autotuning](https://ceph.io/rados/new-in-nautilus-pg-merging-and-autotuning/)
 for more information about this module.
 
-In Nautilus, This module is not enabled by default, but can be enabled by the following setting
-in the [CephCluster CR](ceph-cluster-crd.md#mgr-settings):
+In Octopus (v15.2.x) and newer, module `pg_autoscaler` is enabled by default without the above-mentioned setting.
+
+To disable this module, in the [CephCluster CR](ceph-cluster-crd.md#mgr-settings):
 
 ```yaml
 spec:
   mgr:
     modules:
     - name: pg_autoscaler
-      enabled: true
+      enabled: false
 ```
-
-In Octopus (v15.2.x) and newer, this module is enabled by default without the above-mentioned setting.
 
 With that setting, the autoscaler will be enabled for all new pools. If you do not desire to have
 the autoscaler enabled for all new pools, you will need to use the Rook toolbox to enable the module

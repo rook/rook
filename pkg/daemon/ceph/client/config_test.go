@@ -44,7 +44,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6789"},
 		},
-		CephVersion: cephver.Nautilus,
+		CephVersion: cephver.Octopus,
 	}
 
 	// start with INFO level logging
@@ -100,7 +100,7 @@ func TestGenerateConfigFile(t *testing.T) {
 		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
-		CephVersion: cephver.Nautilus,
+		CephVersion: cephver.Octopus,
 		CephCred:    CephCred{Username: "admin", Secret: "mysecret"},
 		Context:     ctx,
 	}

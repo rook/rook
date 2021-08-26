@@ -18,7 +18,6 @@ allowHostNetwork: false
 allowHostPorts: false
 priority:
 allowedCapabilities: []
-allowHostPID: true # remove this once we drop support for Nautilus
 allowHostIPC: true
 readOnlyRootFilesystem: false
 requiredDropCapabilities: []

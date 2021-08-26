@@ -170,9 +170,9 @@ Settings can be specified at the global level to apply to the cluster as a whole
   * `image`: The image used for running the ceph daemons. For example, `quay.io/ceph/ceph:v15.2.12` or `v16.2.6`. For more details read the [container images section](#ceph-container-images).
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
   To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
-  Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v14` will be updated each time a new nautilus build is released.
-  Using the `v14` or similar tag is not recommended in production because it may lead to inconsistent versions of the image running across different nodes in the cluster.
-  * `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently `nautilus`, `octopus`, and `pacific` are supported. Future versions such as `quincy` would require this to be set to `true`. Should be set to `false` in production.
+  Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v15` will be updated each time a new Octopus build is released.
+  Using the `v15` or similar tag is not recommended in production because it may lead to inconsistent versions of the image running across different nodes in the cluster.
+  * `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently `octopus` and `pacific` are supported. Future versions such as `quincy` would require this to be set to `true`. Should be set to `false` in production.
 * `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted. Following paths and any of their subpaths **must not be used**: `/etc/ceph`, `/rook` or `/var/log/ceph`.
   * On **Minikube** environments, use `/data/rook`. Minikube boots into a tmpfs but it provides some [directories](https://github.com/kubernetes/minikube/blob/master/site/content/en/docs/handbook/persistent_volumes.md#a-note-on-mounts-persistence-and-minikube-hosts) where files can be persisted across reboots. Using one of these directories will ensure that Rook's data and configuration files are persisted and that enough storage space is available.
   * **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
@@ -238,10 +238,10 @@ These are general purpose Ceph container with all necessary daemons and dependen
 
 | TAG                  | MEANING                                                   |
 | -------------------- | --------------------------------------------------------- |
-| vRELNUM              | Latest release in this series (e.g., *v14* = Nautilus)    |
-| vRELNUM.Y            | Latest stable release in this stable series (e.g., v14.2) |
-| vRELNUM.Y.Z          | A specific release (e.g., v14.2.5)                        |
-| vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v14.2.5-20191203)                 |
+| vRELNUM              | Latest release in this series (e.g., *v15* = Octopus)    |
+| vRELNUM.Y            | Latest stable release in this stable series (e.g., v15.2) |
+| vRELNUM.Y.Z          | A specific release (e.g., v15.2.5)                        |
+| vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v15.2.11-20200419)                 |
 
 A specific will contain a specific release of Ceph as well as security fixes from the Operating System.
 

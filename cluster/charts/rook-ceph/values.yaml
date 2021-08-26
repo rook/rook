@@ -299,7 +299,7 @@ enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 
 # enable the ability to have multiple Ceph filesystems in the same cluster
-# WARNING: Experimental feature in Ceph Releases Octopus (v15) and Nautilus (v14)
+# WARNING: Experimental feature in Ceph Releases Octopus (v15)
 # https://docs.ceph.com/en/octopus/cephfs/experimental-features/#multiple-file-systems-within-a-ceph-cluster
 allowMultipleFilesystems: false
 

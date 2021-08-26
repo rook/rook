@@ -75,7 +75,7 @@ func TestEnableReleaseOSDFunctionality(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := EnableReleaseOSDFunctionality(context, AdminClusterInfo("mycluster"), "nautilus")
+	err := EnableReleaseOSDFunctionality(context, AdminClusterInfo("mycluster"), "octopus")
 	assert.NoError(t, err)
 }
 

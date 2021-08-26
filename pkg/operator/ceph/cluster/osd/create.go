@@ -193,8 +193,8 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 
 		if osdProps.encrypted {
 			// If the deviceSet template has "encrypted" but the Ceph version is not compatible
-			if !c.isCephVolumeRawModeSupported() {
-				errMsg := fmt.Sprintf("failed to validate storageClassDeviceSet %q. min required ceph version to support encryption is %q or %q", volume.Name, cephVolumeRawEncryptionModeMinNautilusCephVersion.String(), cephVolumeRawEncryptionModeMinOctopusCephVersion.String())
+			if !c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinOctopusCephVersion) {
+				errMsg := fmt.Sprintf("failed to validate storageClassDeviceSet %q. min required ceph version to support encryption is %q", volume.Name, cephVolumeRawEncryptionModeMinOctopusCephVersion.String())
 				errs.addError(errMsg)
 				continue
 			}

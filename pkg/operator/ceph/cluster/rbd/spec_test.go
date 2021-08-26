@@ -75,7 +75,7 @@ func TestPodSpec(t *testing.T) {
 		TypeMeta: controllerTypeMeta,
 	}
 	clusterInfo := &cephclient.ClusterInfo{
-		CephVersion: cephver.Nautilus,
+		CephVersion: cephver.Octopus,
 	}
 	s := scheme.Scheme
 	object := []runtime.Object{rbdMirror}

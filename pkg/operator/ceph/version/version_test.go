@@ -24,7 +24,6 @@ import (
 )
 
 func TestToString(t *testing.T) {
-	assert.Equal(t, "14.0.0-0 nautilus", Nautilus.String())
 	assert.Equal(t, "15.0.0-0 octopus", Octopus.String())
 	received := CephVersion{-1, 0, 0, 0, ""}
 
@@ -33,12 +32,10 @@ func TestToString(t *testing.T) {
 }
 
 func TestCephVersionFormatted(t *testing.T) {
-	assert.Equal(t, "ceph version 14.0.0-0 nautilus", Nautilus.CephVersionFormatted())
 	assert.Equal(t, "ceph version 15.0.0-0 octopus", Octopus.CephVersionFormatted())
 }
 
 func TestReleaseName(t *testing.T) {
-	assert.Equal(t, "nautilus", Nautilus.ReleaseName())
 	assert.Equal(t, "octopus", Octopus.ReleaseName())
 	ver := CephVersion{-1, 0, 0, 0, ""}
 	assert.Equal(t, unknownVersionString, ver.ReleaseName())
@@ -67,7 +64,7 @@ ceph version 16.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) pacific (stable)
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
 ceph version 16.1.33-403-g7ba6bece41
-(7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) nautilus (rc)
+(7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) pacific (rc)
 `
 	extractVersionHelper(t, v1c, 16, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
 	extractVersionHelper(t, v1d, 16, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
@@ -82,7 +79,7 @@ ceph version 16.1.33-403-g7ba6bece41
 	v2d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
-ceph version Development (no_version) nautilus (rc)
+ceph version Development (no_version) octopus (rc)
 `
 	v, err := ExtractCephVersion(v2c)
 	assert.Error(t, err)
@@ -107,33 +104,23 @@ func TestSupported(t *testing.T) {
 }
 
 func TestIsRelease(t *testing.T) {
-	assert.True(t, Nautilus.isRelease(Nautilus))
 	assert.True(t, Octopus.isRelease(Octopus))
 	assert.True(t, Pacific.isRelease(Pacific))
 	assert.True(t, Quincy.isRelease(Quincy))
 
-	assert.False(t, Octopus.isRelease(Nautilus))
+	assert.False(t, Pacific.isRelease(Octopus))
 
 	OctopusUpdate := Octopus
 	OctopusUpdate.Minor = 33
 	OctopusUpdate.Extra = 4
 	assert.True(t, OctopusUpdate.isRelease(Octopus))
-
-	NautilusUpdate := Nautilus
-	NautilusUpdate.Minor = 33
-	NautilusUpdate.Extra = 4
-	assert.True(t, NautilusUpdate.isRelease(Nautilus))
 }
 
 func TestIsReleaseX(t *testing.T) {
-	assert.True(t, Nautilus.IsNautilus())
-	assert.False(t, Octopus.IsNautilus())
+	assert.False(t, Pacific.IsOctopus())
 }
 
 func TestVersionAtLeast(t *testing.T) {
-	assert.True(t, Nautilus.IsAtLeast(Nautilus))
-	assert.False(t, Nautilus.IsAtLeast(Octopus))
-	assert.True(t, Octopus.IsAtLeast(Nautilus))
 	assert.True(t, Octopus.IsAtLeast(Octopus))
 
 	assert.True(t, (&CephVersion{1, 0, 0, 0, ""}).IsAtLeast(CephVersion{0, 0, 0, 0, ""}))
@@ -147,31 +134,28 @@ func TestVersionAtLeast(t *testing.T) {
 
 func TestVersionAtLeastX(t *testing.T) {
 	assert.True(t, Octopus.IsAtLeastOctopus())
-	assert.True(t, Octopus.IsAtLeastNautilus())
-	assert.True(t, Nautilus.IsAtLeastNautilus())
 	assert.True(t, Pacific.IsAtLeastPacific())
-	assert.False(t, Nautilus.IsAtLeastOctopus())
-	assert.False(t, Nautilus.IsAtLeastPacific())
+	assert.False(t, Octopus.IsAtLeastPacific())
 }
 
 func TestIsIdentical(t *testing.T) {
-	assert.True(t, IsIdentical(CephVersion{14, 2, 2, 0, ""}, CephVersion{14, 2, 2, 0, ""}))
-	assert.False(t, IsIdentical(CephVersion{14, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
+	assert.True(t, IsIdentical(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
+	assert.False(t, IsIdentical(CephVersion{16, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
 }
 
 func TestIsSuperior(t *testing.T) {
-	assert.False(t, IsSuperior(CephVersion{14, 2, 2, 0, ""}, CephVersion{14, 2, 2, 0, ""}))
-	assert.False(t, IsSuperior(CephVersion{14, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
-	assert.True(t, IsSuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{14, 2, 2, 0, ""}))
+	assert.False(t, IsSuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
+	assert.False(t, IsSuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{16, 2, 2, 0, ""}))
+	assert.True(t, IsSuperior(CephVersion{16, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
 	assert.True(t, IsSuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 1, 3, 0, ""}))
 	assert.True(t, IsSuperior(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 2, 1, 0, ""}))
 	assert.True(t, IsSuperior(CephVersion{15, 2, 2, 1, ""}, CephVersion{15, 2, 1, 0, ""}))
 }
 
 func TestIsInferior(t *testing.T) {
-	assert.False(t, IsInferior(CephVersion{14, 2, 2, 0, ""}, CephVersion{14, 2, 2, 0, ""}))
-	assert.False(t, IsInferior(CephVersion{15, 2, 2, 0, ""}, CephVersion{14, 2, 2, 0, ""}))
-	assert.True(t, IsInferior(CephVersion{14, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
+	assert.False(t, IsInferior(CephVersion{15, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
+	assert.False(t, IsInferior(CephVersion{16, 2, 2, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
+	assert.True(t, IsInferior(CephVersion{15, 2, 2, 0, ""}, CephVersion{16, 2, 2, 0, ""}))
 	assert.True(t, IsInferior(CephVersion{15, 1, 3, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
 	assert.True(t, IsInferior(CephVersion{15, 2, 1, 0, ""}, CephVersion{15, 2, 2, 0, ""}))
 	assert.True(t, IsInferior(CephVersion{15, 2, 1, 0, ""}, CephVersion{15, 2, 2, 1, ""}))
@@ -179,33 +163,33 @@ func TestIsInferior(t *testing.T) {
 
 func TestValidateCephVersionsBetweenLocalAndExternalClusters(t *testing.T) {
 	// TEST 1: versions are identical
-	localCephVersion := CephVersion{Major: 14, Minor: 2, Extra: 1}
-	externalCephVersion := CephVersion{Major: 14, Minor: 2, Extra: 1}
+	localCephVersion := CephVersion{Major: 15, Minor: 2, Extra: 1}
+	externalCephVersion := CephVersion{Major: 15, Minor: 2, Extra: 1}
 	err := ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.NoError(t, err)
 
 	// TEST 2: local cluster version major is lower than external cluster version
-	localCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 1}
-	externalCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
+	localCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
+	externalCephVersion = CephVersion{Major: 16, Minor: 2, Extra: 1}
 	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.NoError(t, err)
 
 	// TEST 3: local cluster version major is higher than external cluster version
-	localCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
-	externalCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 1}
+	localCephVersion = CephVersion{Major: 16, Minor: 2, Extra: 1}
+	externalCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
 	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.Error(t, err)
 
 	// TEST 4: local version is > but from a minor release
 	// local version must never be higher
-	localCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 2}
-	externalCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 1}
+	localCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 2}
+	externalCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
 	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.Error(t, err)
 
 	// TEST 5: external version is > but from a minor release
-	localCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 1}
-	externalCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 2}
+	localCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
+	externalCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 2}
 	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.NoError(t, err)
 }
@@ -222,11 +206,11 @@ func TestCephVersion_Unsupported(t *testing.T) {
 		fields fields
 		want   bool
 	}{
-		{"supported", fields{Major: 14, Minor: 2, Extra: 1, Build: 0}, false},
-		{"supported", fields{Major: 14, Minor: 2, Extra: 12, Build: 0}, false},
+		{"supported", fields{Major: 16, Minor: 2, Extra: 1, Build: 0}, false},
 		{"supported", fields{Major: 15, Minor: 2, Extra: 1, Build: 0}, false},
 		{"supported", fields{Major: 15, Minor: 2, Extra: 6, Build: 0}, false},
 		{"unsupported", fields{Major: 14, Minor: 2, Extra: 13, Build: 0}, true},
+		{"unsupported", fields{Major: 17, Minor: 2, Extra: 0, Build: 0}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

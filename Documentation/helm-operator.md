@@ -147,7 +147,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `csi.volumeReplication.image`       | Volume Replication Controller image.                                                                                        | `quay.io/csiaddons/volumereplication-operator:v0.1.0`     |
 | `admissionController.tolerations`   | Array of tolerations in YAML format which will be added to admission controller deployment.                                 | <none>                                                    |
 | `admissionController.nodeAffinity`  | The node labels for affinity of the admission controller deployment (***)                                                   | <none>                                                    |
-| `allowMultipleFilesystems`          | **(experimental)** Allows multiple filesystems to be deployed to a Ceph cluster. Octopus (v15) or Nautilus (v14)            | `false`                                                   |
+| `allowMultipleFilesystems`          | **(experimental in  Octopus (v15))** Allows multiple filesystems to be deployed to a Ceph cluster.                          | `false`                                                   |
 
 &ast; &ast; &ast; `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 

@@ -258,10 +258,6 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 	res = getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 15, Minor: 2, Extra: 1}, nodeid)
 	logger.Infof("Config Object for Octopus is %s", res)
 	assert.Equal(t, expectedName, res)
-
-	res = getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 14, Minor: 2, Extra: 5}, nodeid)
-	logger.Infof("Config Object for Nautilus is %s", res)
-	assert.Equal(t, "conf-my-nfs.a", res)
 }
 
 func TestFetchOrCreatePool(t *testing.T) {

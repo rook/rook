@@ -385,8 +385,8 @@ func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclien
 	activeMDSCount := fs.Spec.MetadataServer.ActiveCount
 	logger.Debugf("restoring filesystem %s from daemon upgrade", fsName)
 	logger.Debugf("bringing num active MDS daemons for fs %s back to %d", fsName, activeMDSCount)
-	// TODO: Unknown (Apr 2020) if this can be removed once Rook no longer supports Nautilus.
-	// upgrade guide according to nautilus https://docs.ceph.com/docs/nautilus/cephfs/upgrading/#upgrading-the-mds-cluster
+	// TODO: Unknown (Aug 2021) if this can be removed once Rook no longer supports Octopus.
+	// upgrade guide according to octopus https://docs.ceph.com/en/octopus/cephfs/upgrading/
 	if err := cephclient.SetNumMDSRanks(context, clusterInfo, fsName, activeMDSCount); err != nil {
 		return errors.Wrapf(err, "Failed to restore filesystem %s following daemon upgrade", fsName)
 	}

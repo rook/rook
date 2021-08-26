@@ -76,14 +76,3 @@ func generateDmCryptKey() (string, error) {
 
 	return base64.StdEncoding.EncodeToString(key), nil
 }
-
-func (c *Cluster) isCephVolumeRawModeSupported() bool {
-	if c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinNautilusCephVersion) && !c.clusterInfo.CephVersion.IsOctopus() {
-		return true
-	}
-	if c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinOctopusCephVersion) {
-		return true
-	}
-
-	return false
-}
