@@ -29,6 +29,7 @@ OPERATOR_SDK_VERSION = v0.17.1
 # TODO: update to yq v4 - v3 end of life in Aug 2021 ; v4 removes the 'yq delete' cmd and changes syntax
 YQ_VERSION = 3.3.0
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
+MANIFESTS_DIR=../../cluster/examples/kubernetes/ceph
 
 TEMP := $(shell mktemp -d)
 
@@ -60,11 +61,13 @@ do.build:
 	@cp set-ceph-debug-level $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
-	@cp -r ../../cluster/examples/kubernetes/ceph/csi/template $(TEMP)/ceph-csi
-	@cp -r ../../cluster/examples/kubernetes/ceph/monitoring $(TEMP)/ceph-monitoring
+	@cp -r $(MANIFESTS_DIR)/csi/template $(TEMP)/ceph-csi
+	@cp -r $(MANIFESTS_DIR)/monitoring $(TEMP)/ceph-monitoring
 	@mkdir -p $(TEMP)/rook-external/test-data
-	@cp ../../cluster/examples/kubernetes/ceph/create-external-cluster-resources.* $(TEMP)/rook-external/
-	@cp ../../cluster/examples/kubernetes/ceph/test-data/ceph-status-out $(TEMP)/rook-external/test-data/
+	@cp $(MANIFESTS_DIR)/create-external-cluster-resources.* $(TEMP)/rook-external/
+	@cp $(MANIFESTS_DIR)/test-data/ceph-status-out $(TEMP)/rook-external/test-data/
+	@$(MAKE) list-image
+
 ifeq ($(INCLUDE_CSV_TEMPLATES),true)
 	@$(MAKE) CSV_TEMPLATE_DIR=$(TEMP) generate-csv-templates
 	@cp -r $(TEMP)/cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates
@@ -91,7 +94,7 @@ generate-csv-templates: $(OPERATOR_SDK) $(YQ) ## Generate CSV templates for OLM 
 	@mkdir -p $(CSV_TEMPLATE_DIR)
 	@cp -a ../../cluster $(CSV_TEMPLATE_DIR)/cluster
 	@set -eE;\
-	BEFORE_GEN_CRD_SIZE=$$(wc -l < ../../cluster/examples/kubernetes/ceph/crds.yaml);\
+	BEFORE_GEN_CRD_SIZE=$$(wc -l < $(MANIFESTS_DIR)/crds.yaml);\
 	$(MAKE) -C ../.. NO_OB_OBC_VOL_GEN=true MAX_DESC_LEN=0 BUILD_CRDS_INTO_DIR=$(CSV_TEMPLATE_DIR) crds;\
 	AFTER_GEN_CRD_SIZE=$$(wc -l < $(CSV_TEMPLATE_DIR)/cluster/examples/kubernetes/ceph/crds.yaml);\
 	if [ "$$BEFORE_GEN_CRD_SIZE" -le "$$AFTER_GEN_CRD_SIZE" ]; then\
@@ -122,3 +125,15 @@ csv: $(OPERATOR_SDK) $(YQ) ## Generate a CSV file for OLM.
 
 csv-clean: $(OPERATOR_SDK) $(YQ) ## Remove existing OLM files.
 	@rm -fr ../../cluster/olm/ceph/deploy/* ../../cluster/olm/ceph/templates/*
+
+# list-image creates list of images for offline installation
+list-image:
+	@echo "producing list of images for offline installation";\
+	# remove the file if already exists
+	rm -f $(MANIFESTS_DIR)/images.txt;\
+	awk '/image:/ {print $2}' $(MANIFESTS_DIR)/operator.yaml $(MANIFESTS_DIR)/cluster.yaml | \
+	cut -d: -f2- |\
+	tee -a $(MANIFESTS_DIR)/images.txt && \
+	awk '/quay.io/ || /k8s.gcr.io/ {print $3}' $(MANIFESTS_DIR)/operator.yaml | \
+	cut -d: -f2- |\
+	tr -d '"' | tee -a $(MANIFESTS_DIR)/images.txt
