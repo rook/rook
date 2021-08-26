@@ -161,22 +161,17 @@ func TestConfigureHealthSettings(t *testing.T) {
 		context:     &clusterd.Context{},
 		clusterInfo: cephclient.AdminClusterInfo("ns"),
 	}
-	getGlobalIDReclaim := false
 	setGlobalIDReclaim := false
 	c.context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "config" && args[3] == "auth_allow_insecure_global_id_reclaim" {
-				if args[1] == "get" {
-					getGlobalIDReclaim = true
-					return "", nil
-				}
 				if args[1] == "set" {
 					setGlobalIDReclaim = true
 					return "", nil
 				}
 			}
-			return "", errors.New("mock error to simulate failure of SetConfig() function")
+			return "", errors.New("mock error to simulate failure of mon store config")
 		},
 	}
 	noActionOneWarningStatus := cephclient.CephStatus{
@@ -224,24 +219,21 @@ func TestConfigureHealthSettings(t *testing.T) {
 
 	type args struct {
 		status                     cephclient.CephStatus
-		expectedGetGlobalIDSetting bool
 		expectedSetGlobalIDSetting bool
 	}
 	tests := []struct {
 		name string
 		args args
 	}{
-		{"no-warnings", args{cephclient.CephStatus{}, false, false}},
-		{"no-action-one-warning", args{noActionOneWarningStatus, false, false}},
-		{"disable-insecure-global-id", args{disableInsecureGlobalIDStatus, true, true}},
-		{"no-disable-insecure-global-id", args{noDisableInsecureGlobalIDStatus, false, false}},
+		{"no-warnings", args{cephclient.CephStatus{}, false}},
+		{"no-action-one-warning", args{noActionOneWarningStatus, false}},
+		{"disable-insecure-global-id", args{disableInsecureGlobalIDStatus, true}},
+		{"no-disable-insecure-global-id", args{noDisableInsecureGlobalIDStatus, false}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			getGlobalIDReclaim = false
 			setGlobalIDReclaim = false
 			c.configureHealthSettings(tt.args.status)
-			assert.Equal(t, tt.args.expectedGetGlobalIDSetting, getGlobalIDReclaim)
 			assert.Equal(t, tt.args.expectedSetGlobalIDSetting, setGlobalIDReclaim)
 		})
 	}
