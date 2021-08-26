@@ -165,7 +165,6 @@ func TestPlacementApplyToPodSpec(t *testing.T) {
 		TopologySpreadConstraints: tc,
 	}
 	ps = &v1.PodSpec{
-		Tolerations:               placementTestGetTolerations("bar", "baz"),
 		TopologySpreadConstraints: placementTestGetTopologySpreadConstraints("rack"),
 	}
 	p.ApplyToPodSpec(ps)
@@ -182,6 +181,17 @@ func TestPlacementApplyToPodSpec(t *testing.T) {
 	}
 	p.ApplyToPodSpec(ps)
 	assert.Equal(t, 2, len(ps.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution))
+
+	p = Placement{NodeAffinity: na, PodAntiAffinity: antiaffinity}
+	to = placementTestGetTolerations("foo", "bar")
+	ps = &v1.PodSpec{
+		Tolerations: to,
+	}
+	p.ApplyToPodSpec(ps)
+	assert.Equal(t, 1, len(ps.Tolerations))
+	p = Placement{Tolerations: to, NodeAffinity: na, PodAntiAffinity: antiaffinity}
+	p.ApplyToPodSpec(ps)
+	assert.Equal(t, 2, len(ps.Tolerations))
 }
 
 func TestPlacementMerge(t *testing.T) {
@@ -218,9 +228,25 @@ func TestPlacementMerge(t *testing.T) {
 		Tolerations:               to,
 		TopologySpreadConstraints: tc,
 	}
+	var ts int64 = 10
 	expected = Placement{
-		NodeAffinity:              na,
-		Tolerations:               to,
+		NodeAffinity: na,
+		Tolerations: []v1.Toleration{
+			{
+				Key:               "bar",
+				Operator:          v1.TolerationOpExists,
+				Value:             "baz",
+				Effect:            v1.TaintEffectNoSchedule,
+				TolerationSeconds: &ts,
+			},
+			{
+				Key:               "foo",
+				Operator:          v1.TolerationOpExists,
+				Value:             "bar",
+				Effect:            v1.TaintEffectNoSchedule,
+				TolerationSeconds: &ts,
+			},
+		},
 		TopologySpreadConstraints: tc,
 	}
 	merged = original.Merge(with)
@@ -301,4 +327,34 @@ func placementTestGenerateNodeAffinity() *v1.NodeAffinity {
 			},
 		},
 	}
+}
+
+func TestMergeToleration(t *testing.T) {
+	// placement is nil
+	p := Placement{}
+	result := p.mergeTolerations(nil)
+	assert.Nil(t, result)
+
+	placementToleration := []v1.Toleration{
+		{
+			Key:      "foo",
+			Operator: v1.TolerationOpEqual,
+		},
+	}
+
+	p.Tolerations = placementToleration
+	result = p.mergeTolerations(nil)
+	assert.Equal(t, p.Tolerations, result)
+
+	newToleration := []v1.Toleration{
+		{
+			Key:      "new",
+			Operator: v1.TolerationOpExists,
+		},
+	}
+
+	result = p.mergeTolerations(newToleration)
+	assert.Equal(t, 2, len(result))
+	assert.Equal(t, placementToleration[0].Key, result[0].Key)
+	assert.Equal(t, newToleration[0].Key, result[1].Key)
 }

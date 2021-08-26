@@ -15,7 +15,9 @@ limitations under the License.
 */
 package v1
 
-import v1 "k8s.io/api/core/v1"
+import (
+	v1 "k8s.io/api/core/v1"
+)
 
 func (p PlacementSpec) All() Placement {
 	return p[KeyAll]
@@ -36,7 +38,7 @@ func (p Placement) ApplyToPodSpec(t *v1.PodSpec) {
 		t.Affinity.PodAntiAffinity = p.PodAntiAffinity.DeepCopy()
 	}
 	if p.Tolerations != nil {
-		t.Tolerations = p.Tolerations
+		t.Tolerations = p.mergeTolerations(t.Tolerations)
 	}
 	if p.TopologySpreadConstraints != nil {
 		t.TopologySpreadConstraints = p.TopologySpreadConstraints
@@ -90,6 +92,15 @@ func (p Placement) mergeNodeAffinity(nodeAffinity *v1.NodeAffinity) *v1.NodeAffi
 	return result
 }
 
+func (p Placement) mergeTolerations(tolerations []v1.Toleration) []v1.Toleration {
+	// no toleration is specified yet, return placement's toleration
+	if tolerations == nil {
+		return p.Tolerations
+	}
+
+	return append(p.Tolerations, tolerations...)
+}
+
 // Merge returns a Placement which results from merging the attributes of the
 // original Placement with the attributes of the supplied one. The supplied
 // Placement's attributes will override the original ones if defined.
@@ -105,7 +116,7 @@ func (p Placement) Merge(with Placement) Placement {
 		ret.PodAntiAffinity = with.PodAntiAffinity
 	}
 	if with.Tolerations != nil {
-		ret.Tolerations = with.Tolerations
+		ret.Tolerations = ret.mergeTolerations(with.Tolerations)
 	}
 	if with.TopologySpreadConstraints != nil {
 		ret.TopologySpreadConstraints = with.TopologySpreadConstraints
