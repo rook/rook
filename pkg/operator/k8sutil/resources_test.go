@@ -142,3 +142,24 @@ func TestValidateController(t *testing.T) {
 	err = newOwnerInfo.validateController(object)
 	assert.Error(t, err)
 }
+
+func TestSetOwnerReference(t *testing.T) {
+	info := OwnerInfo{
+		ownerRef: &metav1.OwnerReference{Name: "test-id"},
+	}
+	object := v1.ConfigMap{}
+	err := info.SetOwnerReference(&object)
+	assert.NoError(t, err)
+	assert.Equal(t, object.GetOwnerReferences(), []metav1.OwnerReference{*info.ownerRef})
+
+	err = info.SetOwnerReference(&object)
+	assert.NoError(t, err)
+	assert.Equal(t, object.GetOwnerReferences(), []metav1.OwnerReference{*info.ownerRef})
+
+	info2 := OwnerInfo{
+		ownerRef: &metav1.OwnerReference{Name: "test-id-2"},
+	}
+	err = info2.SetOwnerReference(&object)
+	assert.NoError(t, err)
+	assert.Equal(t, object.GetOwnerReferences(), []metav1.OwnerReference{*info.ownerRef, *info2.ownerRef})
+}
