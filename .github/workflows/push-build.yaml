@@ -4,8 +4,9 @@ on:
     branches:
       - master
       - release-*
-    tags:
-      - v*
+  workflow_run:
+    workflows: ["Tag"]
+    types: [completed]
 
 defaults:
   run:
@@ -15,7 +16,12 @@ defaults:
 jobs:
   push-image-to-container-registry:
     runs-on: ubuntu-18.04
-    if: github.repository == 'rook/rook'
+    # github.repository == 'rook/rook': for running the test only in 'rook/rook' repo
+    # github.event_name == 'push': This is for any push to master or release branches
+    # github.event.workflow_run.conclusion == 'success': For the tagged workflow completion
+    if: |
+      github.repository == 'rook/rook' &&
+      (github.event_name == 'push' || github.event.workflow_run.conclusion == 'success')
     steps:
       - name: checkout
         uses: actions/checkout@v2
