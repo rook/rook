@@ -242,7 +242,7 @@ spec:
         memory: 4Gi
   storage:
     ...
-    storageClassDeviceSet:
+    storageClassDeviceSets:
     - name: cluster1-set1
       count: 3
       placement:
@@ -408,7 +408,7 @@ spec:
   ...
   storage:
     ...
-    storageClassDeviceSet:
+    storageClassDeviceSets:
     - name: cluster1-set1
       count: 3
       volumeClaimTemplates:
@@ -443,7 +443,7 @@ spec:
   ...
   storage:
     ...
-    storageClassDeviceSet:
+    storageClassDeviceSets:
     - name: cluster1-set1
       count: 3
       config:
@@ -486,7 +486,7 @@ spec:
   ...
   storage:
     ...
-    storageClassDeviceSet:
+    storageClassDeviceSets:
     - name: cluster1-set1
       count: 3
       config:
