@@ -284,6 +284,8 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		return reconcileResponse, err
 	}
 
+	statusUpdated := false
+
 	// Enable mirroring if needed
 	if r.clusterInfo.CephVersion.IsAtLeast(mirror.PeerAdditionMinVersion) {
 		// Disable mirroring on that filesystem if needed
@@ -316,6 +318,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 				// Set Ready status, we are done reconciling
 				updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem))
+				statusUpdated = true
 
 				// Run go routine check for mirroring status
 				if !cephFilesystem.Spec.StatusCheck.Mirror.Disabled {
@@ -330,7 +333,8 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 				}
 			}
 		}
-	} else {
+	}
+	if !statusUpdated {
 		// Set Ready status, we are done reconciling
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, nil)
 	}
