@@ -21,6 +21,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/vault"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/test"
@@ -33,7 +35,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 	ctx := context.TODO()
 	// Placeholder
 	context := &clusterd.Context{Clientset: test.New(t, 3)}
-	securitySpec := cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}
+	securitySpec := &cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}
 	ns := "rook-ceph"
 
 	// Error: no token in spec
@@ -69,7 +71,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 	assert.EqualError(t, err, "failed to read k8s kms secret \"token\" key \"vault-token\" (not found or empty)")
 
 	// Success: token content is ok
-	s.Data["token"] = []byte("myt-otkenbenvqrev")
+	s.Data["token"] = []byte("token")
 	_, err = context.Clientset.CoreV1().Secrets(ns).Update(ctx, s, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, securitySpec, ns)
@@ -84,7 +86,6 @@ func TestValidateConnectionDetails(t *testing.T) {
 
 	// Error: connection details are correct but the token secret does not exist
 	securitySpec.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
-	securitySpec.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v1"
 
 	// Error: TLS is configured but secrets do not exist
 	securitySpec.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
@@ -111,6 +112,39 @@ func TestValidateConnectionDetails(t *testing.T) {
 	assert.NoError(t, err)
 	err = ValidateConnectionDetails(context, securitySpec, ns)
 	assert.NoError(t, err, "")
+
+	// test with vauult server
+	t.Run("success - auto detect kv version and set it", func(t *testing.T) {
+		cluster := fakeVaultServer(t)
+		cluster.Start()
+		defer cluster.Cleanup()
+		core := cluster.Cores[0].Core
+		vault.TestWaitActive(t, core)
+		client := cluster.Cores[0].Client
+		// Mock the client here
+		vaultClient = func(secretConfig map[string]string) (*api.Client, error) { return client, nil }
+		if err := client.Sys().Mount("rook/", &api.MountInput{
+			Type:    "kv-v2",
+			Options: map[string]string{"version": "2"},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		securitySpec := &cephv1.SecuritySpec{
+			KeyManagementService: cephv1.KeyManagementServiceSpec{
+				ConnectionDetails: map[string]string{
+					"VAULT_SECRET_ENGINE": "kv",
+					"KMS_PROVIDER":        "vault",
+					"VAULT_ADDR":          client.Address(),
+					"VAULT_BACKEND_PATH":  "rook",
+				},
+				TokenSecretName: "vault-token",
+			},
+		}
+		err = ValidateConnectionDetails(context, securitySpec, ns)
+		assert.NoError(t, err, "")
+		assert.Equal(t, securitySpec.KeyManagementService.ConnectionDetails["VAULT_BACKEND"], "v2")
+	})
+
 }
 
 func TestSetTokenToEnvVar(t *testing.T) {

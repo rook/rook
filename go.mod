@@ -3,7 +3,7 @@ module github.com/rook/rook
 go 1.16
 
 require (
-	github.com/aws/aws-sdk-go v1.35.24
+	github.com/aws/aws-sdk-go v1.37.19
 	github.com/banzaicloud/k8s-objectmatcher v1.1.0
 	github.com/ceph/go-ceph v0.10.1-0.20210729101705-11f319727ffb
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
@@ -13,7 +13,10 @@ require (
 	github.com/go-ini/ini v1.51.1
 	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v1.1.2
-	github.com/hashicorp/vault/api v1.0.5-0.20200902155336-f9d5ce5a171a
+	github.com/hashicorp/vault v1.8.2
+	github.com/hashicorp/vault-plugin-secrets-kv v0.9.0
+	github.com/hashicorp/vault/api v1.1.2-0.20210713235431-1fc8af4c041f
+	github.com/hashicorp/vault/sdk v0.2.2-0.20210825150427-9b1f4d486f5d
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210818162813-3eee31c01875
 	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec
@@ -27,7 +30,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tevino/abool v1.2.0
 	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
-	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/ini.v1 v1.57.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.2
