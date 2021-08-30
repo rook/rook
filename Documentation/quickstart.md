@@ -17,5 +17,3 @@ Rook provides a growing number of storage providers to a Kubernetes cluster, eac
 | Storage Provider           | Status      | Description                                                                                                                                            |
 | -------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [Ceph](ceph-quickstart.md) | Stable / V1 | Ceph is a highly scalable distributed storage solution for block storage, object storage, and shared filesystems with years of production deployments. |
-| [Cassandra](cassandra.md)  | Alpha       | Cassandra is a highly available NoSQL database featuring lightning fast performance, tunable consistency and massive scalability.                      |
-| [NFS](nfs.md)              | Alpha       | NFS allows remote hosts to mount filesystems over a network and interact with those filesystems as though they are mounted locally.                    |

@@ -38,16 +38,10 @@ cd rook
 
 ### Build
 
+Building Rook-Ceph is simple.
+
 ```console
-# build all rook storage providers
 make
-
-# build a single storage provider, where the IMAGES can be a subdirectory of the "images" folder:
-# "cassandra", "ceph", or "nfs"
-make IMAGES="cassandra" build
-
-# multiple storage providers can also be built
-make IMAGES="cassandra ceph" build
 ```
 
 If you want to use `podman` instead of `docker` then uninstall `docker` packages from your machine, make will automatically pick up `podman`.
@@ -119,8 +113,6 @@ rook
 │   ├── apis
 │   │   ├── ceph.rook.io          # ceph specific specs for cluster, file, object
 │   │   │   ├── v1
-│   │   ├── nfs.rook.io           # nfs server specific specs
-│   │   │   └── v1alpha1
 │   │   └── rook.io               # rook.io API group of common types
 │   │       └── v1alpha2
 │   ├── client                    # auto-generated strongly typed client code to access Rook APIs
@@ -132,7 +124,6 @@ rook
 │   │   ├── ceph
 │   │   ├── discover
 │   │   ├── k8sutil
-│   │   ├── nfs
 │   │   └── test
 │   ├── test
 │   ├── util
@@ -272,12 +263,10 @@ Signed-off-by: First Name Last Name <email address>
 The `component` **MUST** be one of the following:
 - bot
 - build
-- cassandra
 - ceph
 - ci
 - core
 - docs
-- nfs
 - test
 
 Note: sometimes you will feel like there is not so much to say, for instance if you are fixing a typo in a text.
