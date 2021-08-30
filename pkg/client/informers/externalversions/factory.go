@@ -24,10 +24,8 @@ import (
 	time "time"
 
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
-	cassandrarookio "github.com/rook/rook/pkg/client/informers/externalversions/cassandra.rook.io"
 	cephrookio "github.com/rook/rook/pkg/client/informers/externalversions/ceph.rook.io"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	nfsrookio "github.com/rook/rook/pkg/client/informers/externalversions/nfs.rook.io"
 	rookio "github.com/rook/rook/pkg/client/informers/externalversions/rook.io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -175,22 +173,12 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Cassandra() cassandrarookio.Interface
 	Ceph() cephrookio.Interface
-	Nfs() nfsrookio.Interface
 	Rook() rookio.Interface
-}
-
-func (f *sharedInformerFactory) Cassandra() cassandrarookio.Interface {
-	return cassandrarookio.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Ceph() cephrookio.Interface {
 	return cephrookio.New(f, f.namespace, f.tweakListOptions)
-}
-
-func (f *sharedInformerFactory) Nfs() nfsrookio.Interface {
-	return nfsrookio.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Rook() rookio.Interface {

@@ -8,7 +8,6 @@ require (
 	github.com/ceph/go-ceph v0.10.1-0.20210729101705-11f319727ffb
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/csi-addons/volume-replication-operator v0.1.1-0.20210525040814-ab575a2879fb
-	github.com/davecgh/go-spew v1.1.1
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-ini/ini v1.51.1
 	github.com/google/go-cmp v0.5.5
@@ -29,21 +28,17 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/tevino/abool v1.2.0
-	github.com/yanniszark/go-nodetool v0.0.0-20191206125106-cd8f91fa16be
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/ini.v1 v1.57.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.2
 	k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery v0.21.2
-	k8s.io/apiserver v0.21.1
 	k8s.io/client-go v0.21.2
 	k8s.io/cloud-provider v0.21.1
-	k8s.io/component-helpers v0.21.1
 	k8s.io/kube-controller-manager v0.21.1
 	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
 	sigs.k8s.io/controller-runtime v0.9.0
-	sigs.k8s.io/kustomize/kyaml v0.10.17
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v6 v6.1.0
 )
 
