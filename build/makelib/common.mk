@@ -110,7 +110,7 @@ export SED_IN_PLACE
 echo.%: ; @echo $* = $($*)
 
 # Select which images (backends) to make; default to all possible images
-IMAGES ?= ceph nfs cassandra
+IMAGES ?= ceph
 
 COMMA := ,
 SPACE :=
