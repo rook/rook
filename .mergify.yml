@@ -8,14 +8,6 @@ pull_request_rules:
       label:
         add:
           - ceph
-  - name: auto cassandra label pr storage backend
-    conditions:
-      - title~=^cassandra
-      - base=master
-    actions:
-      label:
-        add:
-          - cassandra
 
   # if there is a conflict in a backport PR, ping the author to send a proper backport PR
   - name: ping author on conflicts

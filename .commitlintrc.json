@@ -9,12 +9,10 @@
       [
         "build",
         "bot",
-        "cassandra",
         "ceph",
         "ci",
         "core",
         "docs",
-        "nfs",
         "test"
       ]
     ],
