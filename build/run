@@ -19,11 +19,6 @@ source "${scriptdir}/common.sh"
 
 check_git
 
-if [ ! -z $DOCKER_HOST ]; then
-    echo ERROR: we only support the case where docker is running locally for now.
-    exit 1
-fi
-
 # build the the container if we've not done so already
 if [ "`uname -m`" != "x86_64" ]; then
     echo ERROR: we only support the cross container build on amd64 host.
@@ -44,13 +39,10 @@ EOF
 USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g )"
 BUILDER_HOME=/home/rook
 
+KUBE_ARGS=""
 # setup kubectl from the host if available
 if [ -d ${HOME}/.kube ]; then
 KUBE_ARGS="-v ${HOME}/.kube:${BUILDER_HOME}/.kube"
-fi
-
-if [ -x ${KUBEADM_DIND_DIR}/kubectl ]; then
-KUBEADM_DIND_ARGS="-v ${KUBEADM_DIND_DIR}/kubectl:/usr/bin/kubectl"
 fi
 
 if [ "`uname -s`" != "Linux" ]; then
@@ -90,7 +82,7 @@ if [ "`uname -s`" != "Linux" ]; then
         --filter="- /.vscode/" \
         --filter="- index.lock"
 
-    MOUNT_OPTS="${MOUNT_OPTS} -v ${CROSS_IMAGE_VOLUME}:${BUILDER_HOME}"
+    MOUNT_OPTS="-v ${CROSS_IMAGE_VOLUME}:${BUILDER_HOME}"
 
 else
 
@@ -106,7 +98,7 @@ else
     #       /pkg (bind mounted to <source>/.work/cross_pkg)
     #       /src/github.com/rook/rook (bind mounted to <source>)
 
-    MOUNT_OPTS="${MOUNT_OPTS} \
+    MOUNT_OPTS="\
         -v ${scriptdir}/../.work/cross_pkg:${BUILDER_HOME}/go/pkg
         -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${BUILD_REPO}"
 fi
@@ -118,16 +110,10 @@ if [[ -n "${CACHE_DIR}" ]]; then
         -v ${CACHE_DIR}:${BUILDER_HOME}/go/src/${BUILD_REPO}/.cache"
 fi
 
-# we copy credential files for github access
-[[ -f ${HOME}/.netrc ]] && NETRC_ARGS="-v ${HOME}/.netrc:${BUILDER_HOME}/.netrc"
-
 tty -s && TTY_ARGS=-ti || TTY_ARGS=
 
-# docker seems more reliable when running with net=host.
-if [ -z "${DISABLE_HOST_NETWORK}" ]; then
-    NET_ARGS="--net=host"
-fi
-
+DISABLE_NESTED_DOCKER=""
+DOCKER_NESTED_ARGS=""
 # BUGBUG: new docker clients switch to using OSX keychain. how do we copy creds?
 # sometimes we run docker inside docker. bind the docker config and socket
 if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
@@ -165,13 +151,10 @@ ${DOCKERCMD} run \
     -v ${PWD}/_output:${BUILDER_HOME}/go/bin \
     ${TTY_ARGS} \
     ${KUBE_ARGS} \
-    ${KUBEADM_DIND_ARGS} \
     ${DOWNLOAD_ARGS} \
-    ${NETRC_ARGS} \
     ${AWS_ARGS} \
     ${USER_ARGS} \
     ${DOCKER_NESTED_ARGS} \
-    ${NET_ARGS} \
     ${MOUNT_OPTS} \
     -w ${BUILDER_HOME}/go/src/${BUILD_REPO} \
     ${CROSS_IMAGE} \
