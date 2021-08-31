@@ -604,22 +604,22 @@ class RadosJSON:
         try:
             output = subprocess.check_output(cmd,
                                              stderr=subprocess.PIPE)
-        except subprocess.CalledProcessError as exec:
+        except subprocess.CalledProcessError as execErr:
             # if the user already exists, we just query it
-            if exec.returncode == errno.EEXIST:
+            if execErr.returncode == errno.EEXIST:
                 cmd = ['radosgw-admin', 'user', 'info',
                        '--uid', self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME
                        ]
                 try:
                     output = subprocess.check_output(cmd,
                                                      stderr=subprocess.PIPE)
-                except subprocess.CalledProcessError as exec:
+                except subprocess.CalledProcessError as execErr:
                     err_msg = "failed to execute command %s. Output: %s. Code: %s. Error: %s" % (
-                        cmd, exec.output, exec.returncode, exec.stderr)
+                        cmd, execErr.output, execErr.returncode, execErr.stderr)
                     raise Exception(err_msg)
             else:
                 err_msg = "failed to execute command %s. Output: %s. Code: %s. Error: %s" % (
-                    cmd, exec.output, exec.returncode, exec.stderr)
+                    cmd, execErr.output, execErr.returncode, execErr.stderr)
                 raise Exception(err_msg)
 
         jsonoutput = json.loads(output)
