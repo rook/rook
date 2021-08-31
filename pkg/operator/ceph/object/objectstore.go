@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"golang.org/x/sync/errgroup"
 	v1 "k8s.io/api/core/v1"
@@ -875,7 +876,7 @@ func enableRGWDashboard(context *Context) error {
 
 	// for latest Ceph versions
 	if mgr.FileBasedPasswordSupported(context.clusterInfo) {
-		accessFile, err := mgr.CreateTempPasswordFile(*u.AccessKey)
+		accessFile, err := util.CreateTempFile(*u.AccessKey)
 		if err != nil {
 			return errors.Wrap(err, "failed to create a temporary dashboard access-key file")
 		}
@@ -887,7 +888,7 @@ func enableRGWDashboard(context *Context) error {
 			}
 		}()
 
-		secretFile, err = mgr.CreateTempPasswordFile(*u.SecretKey)
+		secretFile, err = util.CreateTempFile(*u.SecretKey)
 		if err != nil {
 			return errors.Wrap(err, "failed to create a temporary dashboard secret-key file")
 		}

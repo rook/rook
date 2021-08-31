@@ -124,6 +124,11 @@ func GetPoolDetails(context *clusterd.Context, clusterInfo *ClusterInfo, name st
 		return CephStoragePoolDetails{}, errors.Wrapf(err, "failed to get pool %s details. %s", name, string(output))
 	}
 
+	return ParsePoolDetails(output)
+}
+
+func ParsePoolDetails(in []byte) (CephStoragePoolDetails, error) {
+
 	// The response for osd pool get when passing var=all is actually malformed JSON similar to:
 	// {"pool":"rbd","size":1}{"pool":"rbd","min_size":2}...
 	// Note the multiple top level entities, one for each property returned.  To workaround this,
@@ -132,7 +137,7 @@ func GetPoolDetails(context *clusterd.Context, clusterInfo *ClusterInfo, name st
 	// Since previously set fields remain intact if they are not overwritten, the result is the JSON
 	// unmarshalling of all properties in the response.
 	var poolDetails CephStoragePoolDetails
-	poolDetailsUnits := strings.Split(string(output), "}{")
+	poolDetailsUnits := strings.Split(string(in), "}{")
 	for i := range poolDetailsUnits {
 		pdu := poolDetailsUnits[i]
 		if !strings.HasPrefix(pdu, "{") {
@@ -143,7 +148,7 @@ func GetPoolDetails(context *clusterd.Context, clusterInfo *ClusterInfo, name st
 		}
 		err := json.Unmarshal([]byte(pdu), &poolDetails)
 		if err != nil {
-			return CephStoragePoolDetails{}, errors.Wrapf(err, "unmarshal failed raw buffer response %s", string(output))
+			return CephStoragePoolDetails{}, errors.Wrapf(err, "unmarshal failed raw buffer response %s", string(in))
 		}
 	}
 
