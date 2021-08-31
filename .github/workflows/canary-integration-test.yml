@@ -817,6 +817,20 @@ jobs:
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool info test
         kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd -p replicapool2 info test
 
+    - name: copy block mirror peer secret into the primary cluster for replicapool
+      run: |
+        kubectl -n rook-ceph-secondary get secret pool-peer-token-replicapool -o yaml |\
+        sed 's/namespace: rook-ceph-secondary/namespace: rook-ceph/g; s/name: pool-peer-token-replicapool/name: pool-peer-token-replicapool-config/g' |\
+        kubectl create --namespace=rook-ceph -f -
+
+    - name: add block mirror peer secret to the primary cluster for replicapool
+      run: |
+        kubectl -n rook-ceph patch cephblockpool replicapool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["pool-peer-token-replicapool-config"]}}}}'
+
+    - name: wait for rook-ceph-csi-mapping-config to be updated with cluster ID
+      run: |
+        timeout 60 sh -c 'until [ "$(kubectl get cm -n rook-ceph rook-ceph-csi-mapping-config  -o jsonpath='{.data.csi-mapping-config-json}' | grep -c "rook-ceph-secondary")" -eq 1 ]; do echo "waiting for rook-ceph-csi-mapping-config to be created with cluster ID mappings" && sleep 1; done'
+
     - name: create replicated mirrored filesystem on cluster 1
       run: |
         PRIMARY_YAML=cluster/examples/kubernetes/ceph/filesystem-test-primary.yaml

@@ -33,6 +33,8 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/tevino/abool"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -346,6 +348,42 @@ func TestCephBlockPoolController(t *testing.T) {
 		context:           c,
 		blockPoolChannels: make(map[string]*blockPoolHealth),
 	}
+
+	os.Setenv("POD_NAME", "test")
+	defer os.Setenv("POD_NAME", "")
+	os.Setenv("POD_NAMESPACE", namespace)
+	defer os.Setenv("POD_NAMESPACE", "")
+	p := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "ReplicaSet",
+					Name: "testReplicaSet",
+				},
+			},
+		},
+	}
+	// Create fake pod
+	_, err = r.context.Clientset.CoreV1().Pods(namespace).Create(context.TODO(), p, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	replicaSet := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testReplicaSet",
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "Deployment",
+				},
+			},
+		},
+	}
+
+	// Create fake replicaset
+	_, err = r.context.Clientset.AppsV1().ReplicaSets(namespace).Create(context.TODO(), replicaSet, metav1.CreateOptions{})
+	assert.NoError(t, err)
 
 	pool.Spec.Mirroring.Mode = "image"
 	pool.Spec.Mirroring.Peers.SecretNames = []string{}

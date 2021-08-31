@@ -100,7 +100,7 @@ spec:
             - mountPath: /lib/modules
               name: lib-modules
               readOnly: true
-            - name: ceph-csi-config
+            - name: ceph-csi-configs
               mountPath: /etc/ceph-csi-config/
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
@@ -154,12 +154,21 @@ spec:
         - name: lib-modules
           hostPath:
             path: /lib/modules
-        - name: ceph-csi-config
-          configMap:
-            name: rook-ceph-csi-config
-            items:
-              - key: csi-cluster-config-json
-                path: config.json
+        - name: ceph-csi-configs
+          projected:
+            sources:
+              - name: ceph-csi-config
+                configMap:
+                  name: rook-ceph-csi-config
+                  items:
+                    - key: csi-cluster-config-json
+                      path: config.json
+              - name: ceph-csi-mapping-config
+                configMap:
+                  name: rook-ceph-csi-mapping-config
+                  items:
+                    - key: csi-mapping-config-json
+                      path: cluster-mapping.json
         - name: keys-tmp-dir
           emptyDir: {
             medium: "Memory"
