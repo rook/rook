@@ -35,8 +35,6 @@ fi
 OLM_CATALOG_DIR="${DESTINATION_ROOT}/cluster/olm/ceph/deploy/crds"
 CEPH_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/examples/kubernetes/ceph/crds.yaml"
 CEPH_HELM_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/charts/rook-ceph/templates/resources.yaml"
-CASSANDRA_CRDS_DIR="${DESTINATION_ROOT}/cluster/examples/kubernetes/cassandra"
-NFS_CRDS_DIR="${DESTINATION_ROOT}/cluster/examples/kubernetes/nfs"
 
 #############
 # FUNCTIONS #
@@ -53,18 +51,6 @@ generating_crds_v1() {
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
   # the csv upgrade is failing on the volumeClaimTemplate.metadata.annotations.crushDeviceClass unless we preserve the annotations as an unknown field
   $YQ_BIN_PATH w -i "${OLM_CATALOG_DIR}"/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.properties.annotations.x-kubernetes-preserve-unknown-fields true
-
-  echo "Generating cassandra crds"
-  "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/cassandra.rook.io/v1alpha1" output:crd:artifacts:config="$CASSANDRA_CRDS_DIR"
-  # Format with yq for consistent whitespace
-  $YQ_BIN_PATH read $CASSANDRA_CRDS_DIR/cassandra.rook.io_clusters.yaml > $CASSANDRA_CRDS_DIR/crds.yaml
-  rm -f $CASSANDRA_CRDS_DIR/cassandra.rook.io_clusters.yaml
-
-  echo "Generating nfs crds"
-  "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/nfs.rook.io/v1alpha1" output:crd:artifacts:config="$NFS_CRDS_DIR"
-  # Format with yq for consistent whitespace
-  $YQ_BIN_PATH read $NFS_CRDS_DIR/nfs.rook.io_nfsservers.yaml > $NFS_CRDS_DIR/crds.yaml
-  rm -f $NFS_CRDS_DIR/nfs.rook.io_nfsservers.yaml
 }
 
 generating_crds_v1alpha2() {
