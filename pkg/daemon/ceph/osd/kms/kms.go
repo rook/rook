@@ -149,7 +149,7 @@ func GetParam(kmsConfig map[string]string, param string) string {
 }
 
 // ValidateConnectionDetails validates mandatory KMS connection details
-func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec cephv1.SecuritySpec, ns string) error {
+func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec *cephv1.SecuritySpec, ns string) error {
 	ctx := context.TODO()
 	// A token must be specified
 	if !securitySpec.KeyManagementService.IsTokenAuthEnabled() {

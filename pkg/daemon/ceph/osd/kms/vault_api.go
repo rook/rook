@@ -33,6 +33,9 @@ const (
 	kvVersion2   = "kv-v2"
 )
 
+// vaultClient returns a vault client, also used in unit tests to mock the client
+var vaultClient = newVaultClient
+
 // newVaultClient returns a vault client, there is no need for any secretConfig validation
 // Since this is called after an already validated call InitVault()
 func newVaultClient(secretConfig map[string]string) (*api.Client, error) {
@@ -88,7 +91,7 @@ func BackendVersion(secretConfig map[string]string) (string, error) {
 		return v2, nil
 	default:
 		// Initialize Vault client
-		vaultClient, err := newVaultClient(secretConfig)
+		vaultClient, err := vaultClient(secretConfig)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to initialize vault client")
 		}
