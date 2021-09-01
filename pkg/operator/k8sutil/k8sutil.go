@@ -185,6 +185,18 @@ func RookVersionLabelMatchesCurrent(labels map[string]string) (bool, error) {
 	return (v == expectedVersion), nil
 }
 
+// ReplaceInvalidResourceNameChars replaces all invalid chars in the given name with '-' to make the
+// name valid for a Kubernetes resource object. This does NOT validate that the resource is less
+// than the requisite 254 chars.
+func SanitizeMetadataNameChars(name string) string {
+	// must be lower case alphanumeric or '-', and must begin and end in alphanum
+	re := regexp.MustCompile("[^-a-z0-9]")
+	sanitized := re.ReplaceAllLiteralString(name, "-") // restrict name to valid character set
+	sanitized = strings.Trim(sanitized, "-")           // ensure name begins and ends with alphanum
+
+	return sanitized
+}
+
 // validateLabelValue replaces any invalid characters
 // in the input string with a replacement character,
 // and enforces other limitations for k8s label values.

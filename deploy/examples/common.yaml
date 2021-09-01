@@ -377,6 +377,11 @@ rules:
       - update
       - delete
       - deletecollection
+  # allow pkg/operator/ceph/csi/network.go getExistingHolderDaemonset() to list daemonsets
+  # because the controller-runtime manager is cluster-scoped, this must be a clusterrole
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["list", "watch"]
   - apiGroups:
       - healthchecking.openshift.io
     resources:
@@ -786,6 +791,7 @@ spec:
   allowedCapabilities:
     # required by CSI
     - SYS_ADMIN
+    - NET_ADMIN
     - MKNOD
   fsGroup:
     rule: RunAsAny
@@ -1045,6 +1051,16 @@ rules:
     verbs:
       - delete
 ---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-csi-multus-mover
+  namespace: rook-ceph # namespace:operator
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -1255,6 +1271,20 @@ subjects:
     name: rook-ceph-system
     namespace: rook-ceph # namespace:operator
 ---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-csi-multus-mover
+  namespace: rook-ceph # namespace:operator
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-multus-mover
+    namespace: rook-ceph # namespace:operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-csi-multus-mover
+---
 # Service account for the job that reports the Ceph version in an image
 apiVersion: v1
 kind: ServiceAccount
@@ -1330,6 +1360,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-provisioner-sa
+  namespace: rook-ceph # namespace:operator
+# imagePullSecrets:
+#   - name: my-registry-secret
+---
+# Service account for multus actions related to the csi
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-multus-mover
   namespace: rook-ceph # namespace:operator
 # imagePullSecrets:
 #   - name: my-registry-secret

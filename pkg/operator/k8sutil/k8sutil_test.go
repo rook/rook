@@ -88,3 +88,28 @@ func TestValidateLabelValue(t *testing.T) {
 		assert.Equal(t, result, validateLabelValue(input))
 	}
 }
+
+func TestSanitizeMetadataNameChars(t *testing.T) {
+	tests := []struct {
+		testName      string
+		functionInput string
+		want          string
+	}{
+		{"empty name", "", ""},
+		{"one char name", "a", "a"},
+		{"one char name (number)", "0", "0"},
+		{"name with trailing dash", "a-", "a"},
+		{"name with leading dash", "-a", "a"},
+		{"name with trailing and leading dashes", "-a-", "a"},
+		{"name with trailing and leading invalid chars", "/a/", "a"},
+		{"name with invalid chars",
+			"a/b_c.d\\e*f$g^h~i#j@k&l+m=n-o[p]q{r}s|t'u<v>w?x,y",
+			"a-b-c-d-e-f-g-h-i-j-k-l-m-n-o-p-q-r-s-t-u-v-w-x-y"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.testName, func(t *testing.T) {
+			got := SanitizeMetadataNameChars(tt.functionInput)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

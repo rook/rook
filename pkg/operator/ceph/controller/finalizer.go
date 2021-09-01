@@ -50,7 +50,7 @@ func remove(list []string, s string) []string {
 	return list
 }
 
-// AddFinalizerIfNotPresent adds a finalizer an object to avoid instant deletion
+// AddFinalizerIfNotPresent adds a finalizer on an object to avoid instant deletion
 // of the object without finalizing it.
 func AddFinalizerIfNotPresent(ctx context.Context, client client.Client, obj client.Object) error {
 	objectFinalizer := buildFinalizerName(obj.GetObjectKind().GroupVersionKind().Kind)

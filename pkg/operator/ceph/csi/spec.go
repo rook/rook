@@ -59,6 +59,7 @@ type Param struct {
 	EnableCephFSSnapshotter        bool
 	EnableVolumeReplicationSideCar bool
 	EnableCSIAddonsSideCar         bool
+	EnableMultusHolderMover        bool
 	LogLevel                       uint8
 	CephFSGRPCMetricsPort          uint16
 	CephFSLivenessMetricsPort      uint16
@@ -68,6 +69,20 @@ type Param struct {
 	ProvisionerReplicas            int32
 	CSICephFSPodLabels             map[string]string
 	CSIRBDPodLabels                map[string]string
+
+	// RookCephOperatorImage is the image being run by the controlling Rook-Ceph operator
+	RookCephOperatorImage string
+	// MultusPauseImage is the pause image to use in the multus container. Must provide '/pause' binary.
+	MultusPauseImage string
+	// MultusName is the name of a multus DaemonSet
+	MultusName string
+	// MultusNetworkName is the name of the multus network (e.g., my-public, or default/public)
+	MultusNetworkName string
+	// MultusNetworkNameHash is the hashed name of the multus network that is k8s label compatible.
+	// The value MUST be a stable hash. The multus network name can be extremely long and can
+	// contain characters incompatible with some K8s resource types (e.g., labels). For those types,
+	// this hash can be used.
+	MultusNetworkNameHash string
 }
 
 type templateParam struct {
@@ -109,6 +124,7 @@ var (
 	DefaultResizerImage           = "k8s.gcr.io/sig-storage/csi-resizer:v1.4.0"
 	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.3.0"
 	DefaultCSIAddonsImage         = "quay.io/csiaddons/k8s-sidecar:v0.2.1"
+	DefaultMultusPauseImage       = "k8s.gcr.io/pause"
 
 	// Local package template path for RBD
 	//go:embed template/rbd/csi-rbdplugin.yaml
@@ -427,9 +443,15 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset %q", rbdPlugin.Name)
 		}
 		if multusApplied {
-			rbdPlugin.Spec.Template.Spec.HostNetwork = false
+			if CSIParam.EnableMultusHolderMover {
+				// multus holder-mover pattern requires nodeplugin to be in host network mode
+				rbdPlugin.Spec.Template.Spec.HostNetwork = true
+			} else {
+				// otherwise, multus requires the multus network to be used
+				rbdPlugin.Spec.Template.Spec.HostNetwork = false
+			}
 		}
-		err = k8sutil.CreateDaemonSet(r.opManagerContext, csiRBDPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
+		err = k8sutil.CreateOrUpdateDaemonSet(r.opManagerContext, csiRBDPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbdplugin daemonset %q", rbdPlugin.Name)
 		}
@@ -495,9 +517,15 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin daemonset %q", cephfsPlugin.Name)
 		}
 		if multusApplied {
-			cephfsPlugin.Spec.Template.Spec.HostNetwork = false
+			if CSIParam.EnableMultusHolderMover {
+				// multus holder-mover pattern requires nodeplugin to be in host network mode
+				cephfsPlugin.Spec.Template.Spec.HostNetwork = true
+			} else {
+				// otherwise, multus requires the multus network to be used
+				cephfsPlugin.Spec.Template.Spec.HostNetwork = false
+			}
 		}
-		err = k8sutil.CreateDaemonSet(r.opManagerContext, csiCephFSPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, cephfsPlugin)
+		err = k8sutil.CreateOrUpdateDaemonSet(r.opManagerContext, csiCephFSPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, cephfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs plugin daemonset %q", cephfsPlugin.Name)
 		}

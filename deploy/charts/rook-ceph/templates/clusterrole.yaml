@@ -201,6 +201,11 @@ rules:
   - update
   - delete
   - deletecollection
+# allow pkg/operator/ceph/csi/network.go getExistingHolderDaemonset() to list daemonsets
+# because the controller-runtime manager is cluster-scoped, this must be a clusterrole
+- apiGroups: ["apps"]
+  resources: ["daemonsets"]
+  verbs: ["list", "watch"]
 - apiGroups:
   - healthchecking.openshift.io
   resources:

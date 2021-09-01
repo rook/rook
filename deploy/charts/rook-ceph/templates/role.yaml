@@ -93,4 +93,14 @@ rules:
     resources: ["csiaddonsnodes"]
     verbs: ["create"]
   {{- end }}
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-csi-multus-mover
+  namespace: {{ .Release.Namespace }} # namespace:operator
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
 {{- end }}

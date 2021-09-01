@@ -105,6 +105,10 @@ not become blocked. The Rook-Ceph Operator's CSI controller should set the Daemo
 strategy to `OnDelete` so that the pods do not get deleted if the DaemonSet is updated while also
 ensuring that the pods will be updated on the next node reboot (or node drain).
 
+The holder pods use a standard pause image to keep resource usage low. This image can be overridden
+with the option `ROOK_CSI_MULTUS_PAUSE_IMAGE` (default: `k8s.gcr.io/pause`) in the Rook-Ceph
+operator's config.
+
 #### Mover DaemonSet and Pods
 The Rook-Ceph Operator's CSI controller also creates a second DaemonSet configured to use host
 networking. This DaemonSet also runs on all nodes that will have CSI plugin pods (and holder pods).
@@ -195,6 +199,14 @@ will be disabled by default and enabled optionally by the
 A previous version of the CSI proposal had the holder Pods creating "setup" and "teardown"
 Kubernetes Jobs for migrating/un-migrating the multus networks. This design was rejected since new
 Jobs wouldn't be able to be created if the Kubernetes namespace were in "Terminating" state.
+
+**Supported configurations:**
+- multus with "macvlan" plugin and "whereabouts" for IPAM
+- a single CephCluster
+- Kubernets is using the Cri-O runtime
+
+If your setup does not meet the supported configurations, do not set
+`ROOK_CSI_MULTUS_USE_HOLDER_MOVER_PATTERN=true`
 
 ## Accepted proposal
 

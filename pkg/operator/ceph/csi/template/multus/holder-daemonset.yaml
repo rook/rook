@@ -1,0 +1,36 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: {{ .MultusName }}
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: csi-multus-holder
+      rook.io/csi-multus-holder-network: {{ .MultusNetworkNameHash }}
+  updateStrategy:
+    type: OnDelete
+  template:
+    metadata:
+      labels:
+        # there can be multiple holder daemonsets, so make sure each can be identified uniquely by labels
+        app: csi-multus-holder
+        rook.io/csi-multus-holder-network: {{ .MultusNetworkNameHash }}
+      annotations:
+        k8s.v1.cni.cncf.io/networks: {{ .MultusNetworkName }}
+        do-not-delete-this-pod: |
+          Deleting this pod will block all I/O to Rook-Ceph storage on this node indefinitely.
+          Reboot the node to update this pod or recover from blocked I/O.
+    spec:
+      # serviceAccount: rook-csi-multus # TODO: this has basically no privileges; should we give a
+      # super under-privileged SA for this so it doesn't get the default that has privileges?
+      priorityClassName: system-node-critical
+      containers:
+        - name: multus-holder
+          image: {{ .MultusPauseImage }}
+          command: ["/pause"]
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace

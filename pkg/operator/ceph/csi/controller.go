@@ -88,7 +88,6 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler, opCon
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -118,22 +117,32 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to list ceph clusters")
 	}
 
-	// // Do not nothing if no ceph cluster is present
+	// Do nothing if no ceph cluster is present
 	if len(cephClusters.Items) == 0 {
 		logger.Debug("no ceph cluster found not deploying ceph csi driver")
 		return reconcile.Result{}, nil
-	} else {
-		for _, cluster := range cephClusters.Items {
-			if !cluster.DeletionTimestamp.IsZero() {
-				logger.Debug("ceph cluster is being deleting, no need to reconcile the csi driver")
-				return reconcile.Result{}, nil
-			}
+	}
 
-			if !cluster.Spec.External.Enable && cluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
-				logger.Debug("ceph cluster has cleanup policy, the cluster will soon go away, no need to reconcile the csi driver")
-				return reconcile.Result{}, nil
-			}
+	var cluster cephv1.CephCluster
+	for _, tmpCluster := range cephClusters.Items {
+		if tmpCluster.ObjectMeta.Namespace == request.NamespacedName.Namespace {
+			cluster = tmpCluster
+			break
 		}
+	}
+
+	if !cluster.DeletionTimestamp.IsZero() {
+		err = r.teardownCSINetwork(cluster)
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to clean up csi network")
+		}
+		logger.Debug("ceph cluster is being deleted, no need to reconcile the csi driver")
+		return reconcile.Result{}, nil
+	}
+
+	if !cluster.Spec.External.Enable && cluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
+		logger.Debug("ceph cluster has cleanup policy, the cluster will soon go away, no need to reconcile the csi driver")
+		return reconcile.Result{}, nil
 	}
 
 	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
@@ -180,6 +189,22 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	err = peermap.CreateOrUpdateConfig(r.opManagerContext, r.context, &peermap.PeerIDMappings{})
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create pool ID mapping config map")
+	}
+
+	if err = r.setParams(); err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to configure CSI parameters")
+	}
+
+	if err = validateCSIParam(); err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to validate CSI parameters")
+	}
+
+	if CSIEnabled() {
+		if err := r.setupCSINetwork(cluster); err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure network for csi")
+		}
+	} else {
+		logger.Debug("CSI not enabled")
 	}
 
 	err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)

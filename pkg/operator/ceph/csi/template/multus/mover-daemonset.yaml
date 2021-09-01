@@ -1,0 +1,53 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: {{ .MultusName }}
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: csi-multus-mover
+  updateStrategy:
+    type: OnDelete
+  template:
+    metadata:
+      labels:
+        app: csi-multus-mover
+      annotations:
+        do-not-delete-this-pod: |
+          Deleting this pod will block I/O to Rook-Ceph storage on this node until the new pod is running successfully.
+          Only delete this pod if applications can tolerate a period of lost I/O to the storage cluster.
+    spec:
+      serviceAccount: rook-csi-multus-mover
+      priorityClassName: system-node-critical
+      hostNetwork: true
+      containers:
+        - name: multus-mover
+          image: {{ .RookCephOperatorImage }}
+          args: ["ceph", "multus-mover"]
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                # Needed for ip and link configuration
+                - NET_ADMIN
+                # Needed for network namespace operations
+                - SYS_ADMIN
+          volumeMounts:
+            - name: netns
+              mountPath: /var/run/netns
+              # see: https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation
+              mountPropagation: HostToContainer
+      volumes:
+        - name: netns
+          hostPath:
+            path: /var/run/netns

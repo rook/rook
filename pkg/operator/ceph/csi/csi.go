@@ -30,14 +30,6 @@ func (r *ReconcileCSI) validateAndConfigureDrivers(serverVersion *version.Info, 
 		err error
 	)
 
-	if err = r.setParams(); err != nil {
-		return errors.Wrapf(err, "failed to configure CSI parameters")
-	}
-
-	if err = validateCSIParam(); err != nil {
-		return errors.Wrapf(err, "failed to validate CSI parameters")
-	}
-
 	if !AllowUnsupported && CSIEnabled() {
 		if v, err = r.validateCSIVersion(ownerInfo); err != nil {
 			return errors.Wrapf(err, "invalid csi version")
@@ -85,6 +77,11 @@ func (r *ReconcileCSI) setParams() error {
 
 	if CSIParam.EnableCSIHostNetwork, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true")); err != nil {
 		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
+	}
+
+	CSIParam.EnableMultusHolderMover, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_MULTUS_USE_HOLDER_MOVER_PATTERN", "false"))
+	if err != nil {
+		return errors.Wrap(err, "failed to parse value for 'ROOK_CSI_MULTUS_USE_HOLDER_MOVER_PATTERN'")
 	}
 
 	CSIParam.CSIPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
