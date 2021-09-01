@@ -1,4 +1,6 @@
 #!/bin/bash -e
+set -e
+set -x
 
 # Copyright 2016 The Rook Authors. All rights reserved.
 #
