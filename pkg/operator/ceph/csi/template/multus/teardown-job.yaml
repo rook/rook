@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "multus-teardown-{{ .MultusNodeName }}"
+  namespace: {{ .Namespace }}
+spec:
+  template:
+    metadata:
+      name: multus-teardown
+    spec:
+      containers:
+      - name: multus-migration
+        image: {{ .MultusImage }}
+        args: ["ceph", "multus-teardown"]
+        env:
+        - name: MULTUSIP
+          value: "{{ .MultusMultusIP }}"
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              # Needed for ip and link configuration
+              - NET_ADMIN
+              # Needed for network namespace operations
+              - SYS_ADMIN
+      serviceAccount: rook-ceph-multus
+      nodeName: "{{ .MultusNodeName }}"
+      hostNetwork: true
+      restartPolicy: Never

@@ -47,6 +47,9 @@ func (r *ReconcileCSI) validateAndConfigureDrivers(serverVersion *version.Info, 
 	}
 
 	if CSIEnabled() {
+		if err = r.setupCSINetwork(); err != nil {
+			return errors.Wrap(err, "failed to configure network for csi")
+		}
 		maxRetries := 3
 		for i := 0; i < maxRetries; i++ {
 			if err = r.startDrivers(serverVersion, ownerInfo, v); err != nil {

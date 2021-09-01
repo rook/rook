@@ -92,6 +92,7 @@ users:
   - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator
+  - system:serviceaccount:rook-ceph:rook-ceph-multus
 ---
 # Rook Ceph Operator Config
 # Use this ConfigMap to override operator configurations

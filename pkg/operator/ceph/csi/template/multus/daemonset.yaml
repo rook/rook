@@ -1,0 +1,27 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-multus
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    matchLabels:
+      name: rook-ceph-multus
+  updateStrategy:
+    type: OnDelete
+  template:
+    metadata:
+      labels:
+        name: rook-ceph-multus
+        app: rook-ceph-multus
+      annotations:
+        k8s.v1.cni.cncf.io/networks: {{ .MultusNetwork }}
+    spec:
+      serviceAccount: rook-ceph-multus
+      priorityClassName: system-node-critical
+      containers:
+      - name: if-holder
+        command:
+          - sleep
+          - infinity
+        image: {{ .MultusImage }}

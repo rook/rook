@@ -59,6 +59,8 @@ func init() {
 		operatorCmd,
 		osdCmd,
 		mgrCmd,
+		multusSetupCmd,
+		multusTeardownCmd,
 		configCmd)
 }
 
