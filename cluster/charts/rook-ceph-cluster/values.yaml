@@ -70,7 +70,8 @@ cephClusterSpec:
   waitTimeoutForHealthyOSDInMinutes: 10
 
   mon:
-    # Set the number of mons to be started. Must be an odd number, and is generally recommended to be 3.
+    # Set the number of mons to be started. Generally recommended to be 3.
+    # For highest availability, an odd number of mons should be specified.
     count: 3
     # The mons should be on unique nodes. For production, at least 3 nodes are recommended for this reason.
     # Mons should only be allowed on the same node for test environments where data loss is acceptable.
@@ -328,14 +329,14 @@ cephBlockPools:
         # For nbd options refer
         # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
         # mapOptions: lock_on_read,queue_depth=1024
-  
+
         # (optional) unmapOptions is a comma-separated list of unmap options.
         # For krbd options refer
         # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
         # For nbd options refer
         # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
         # unmapOptions: force
-  
+
         # RBD image format. Defaults to "2".
         imageFormat: "2"
         # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.

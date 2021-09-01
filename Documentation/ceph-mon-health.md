@@ -34,9 +34,9 @@ quorum and perform operations in the cluster. If the majority of mons are not ru
 Most commonly a cluster will have three mons. This would mean that one mon could go down and allow the cluster to remain healthy.
 You would still have 2/3 mons running to give you consensus in the cluster for any operation.
 
-You will always want an odd number of mons. Fifty percent of mons will not be sufficient to maintain quorum. If you had two mons and one
+For highest availability, an odd number of mons is required. Fifty percent of mons will not be sufficient to maintain quorum. If you had two mons and one
 of them went down, you would have 1/2 of quorum. Since that is not a super-majority, the cluster would have to wait until the second mon is up again.
-Therefore, Rook prohibits an even number of mons.
+Rook allows an even number of mons for higher durability. See the [disaster recovery guide](ceph-disaster-recovery.md#restoring-mon-quorum) if quorum is lost and to recover mon quorum from a single mon.
 
 The number of mons to create in a cluster depends on your tolerance for losing a node. If you have 1 mon zero nodes can be lost
 to maintain quorum. With 3 mons one node can be lost, and with 5 mons two nodes can be lost. Because the Rook operator will automatically

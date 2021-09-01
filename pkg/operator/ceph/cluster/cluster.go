@@ -351,9 +351,6 @@ func preClusterStartValidation(cluster *cluster) error {
 		logger.Warningf("mon count should be at least 1, will use default value of %d", mon.DefaultMonCount)
 		cluster.Spec.Mon.Count = mon.DefaultMonCount
 	}
-	if cluster.Spec.Mon.Count%2 == 0 {
-		return errors.Errorf("mon count %d cannot be even, must be odd to support a healthy quorum", cluster.Spec.Mon.Count)
-	}
 	if !cluster.Spec.Mon.AllowMultiplePerNode {
 		// Check that there are enough nodes to have a chance of starting the requested number of mons
 		nodes, err := cluster.context.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
