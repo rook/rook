@@ -1255,3 +1255,18 @@ kind: ServiceAccount
 metadata:
   name: rook-ceph-purge-osd
   namespace: rook-ceph # namespace:cluster
+---
+# The rook system service account used to set up multus connectivity.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-multus
+  namespace: rook-ceph # namespace:operator
+  labels:
+    operator: rook
+    storage-backend: ceph
+# imagePullSecrets:
+# - name: my-registry-secret
+
+# OLM: END SERVICE ACCOUNT SYSTEM
+# OLM: BEGIN OPERATOR ROLEBINDING

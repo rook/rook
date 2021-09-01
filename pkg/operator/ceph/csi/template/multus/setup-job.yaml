@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "multus-migration-{{ .MultusNodeName }}"
+  namespace: {{ .Namespace }}
+spec:
+  template:
+    metadata:
+      name: multus-migration
+    spec:
+      containers:
+      - name: multus-migration
+        image: {{ .MultusImage }}
+        args: ["ceph", "multus-setup"]
+        env:
+        - name: HOLDERIP
+          value: "{{ .MultusPodIP }}"
+        - name: MULTUSIP
+          value: "{{ .MultusMultusIP }}"
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              # Needed for ip and link configuration
+              - NET_ADMIN
+              # Needed for network namespace operations
+              - SYS_ADMIN
+        volumeMounts:
+          - name: netns
+            mountPath: /var/run/netns
+      serviceAccount: rook-ceph-multus
+      nodeName: "{{ .MultusNodeName }}"
+      hostNetwork: true
+      volumes:
+        - name: netns
+          hostPath:
+            path: /var/run/netns
+      restartPolicy: Never
