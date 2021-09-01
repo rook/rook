@@ -22,6 +22,7 @@ storage cluster.
 * [OSD Dedicated Network](#osd-dedicated-network)
 * [Phantom OSD Removal](#phantom-osd-removal)
 * [Change Failure Domain](#change-failure-domain)
+* [Auto Expansion of OSDs](#auto-expansion-of-OSDs)
 
 ## Prerequisites
 
@@ -590,3 +591,39 @@ ceph osd pool get replicapool crush_rule
 If the cluster's health was `HEALTH_OK` when we performed this change, immediately, the new rule is applied to the cluster transparently without service disruption.
 
 Exactly the same approach can be used to change from `host` back to `osd`.
+
+## Auto Expansion of OSDs
+
+### Prerequisites
+
+1) A [PVC-based cluster](ceph-cluster-crd.md#pvc-based-cluster) deployed in dynamic provisioning environment with a `storageClassDeviceSet`.
+
+2) Create the Rook [Toolbox](ceph-toolbox.md).
+
+>Note: [Prometheus Operator](ceph-monitoring.md#prometheus-operator) and [Prometheus Instances](ceph-monitoring.md#prometheus-instances) are Prerequisites that are created by the auto-grow-storage script.
+
+### To scale OSDs Vertically
+
+Run the following script to auto-grow the size of OSDs on a PVC-based Rook-Ceph cluster whenever the OSDs have reached the storage near-full threshold.
+```console
+tests/scripts/auto-grow-storage.sh size  --max maxSize --growth-rate percent 
+```
+>growth-rate percentage represents the percent increase you want in the OSD capacity and maxSize represent the maximum disk size.
+
+For example, if you need to increase the size of OSD by 30% and max disk size is 1Ti
+```console
+./auto-grow-storage.sh size  --max 1Ti --growth-rate 30 
+```
+
+### To scale OSDs Horizontally
+
+Run the following script to auto-grow the number of OSDs on a PVC-based Rook-Ceph cluster whenever the OSDs have reached the storage near-full threshold.
+```console
+tests/scripts/auto-grow-storage.sh count --max maxCount --count rate
+```
+>Count of OSD represents the number of OSDs you need to add and maxCount represents the number of disks a storage cluster will support.
+
+For example, if you need to increase the number of OSDs by 3 and maxCount is 10
+```console
+./auto-grow-storage.sh count --max 10 --count 3
+```
