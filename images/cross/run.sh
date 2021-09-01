@@ -33,4 +33,4 @@ export HOME=/home/${BUILDER_USER}
 echo "127.0.0.1 $(cat /etc/hostname)" >> /etc/hosts
 [[ -S /var/run/docker.sock ]] && chmod 666 /var/run/docker.sock
 chown -R "$BUILDER_UID":"$BUILDER_GID" "$HOME"
-exec chpst -u :"$BUILDER_UID":"$BUILDER_GID" "${ARGS[0]}"
+exec chpst -u :"$BUILDER_UID":"$BUILDER_GID" "${ARGS[@]}"
