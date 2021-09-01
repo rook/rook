@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -85,9 +86,30 @@ func (info *OwnerInfo) SetOwnerReference(object metav1.Object) error {
 	if err != nil {
 		return err
 	}
-	ownerRefs := append(object.GetOwnerReferences(), *info.ownerRef)
+	ownerRefs := object.GetOwnerReferences()
+	for _, v := range ownerRefs {
+		if referSameObject(v, *info.ownerRef) {
+			return nil
+		}
+	}
+	ownerRefs = append(ownerRefs, *info.ownerRef)
 	object.SetOwnerReferences(ownerRefs)
 	return nil
+}
+
+// The original code is in https://github.com/kubernetes-sigs/controller-runtime/blob/a905949b9040084f0c6d2a27ec70e77c3c5c0931/pkg/controller/controllerutil/controllerutil.go#L160
+func referSameObject(a, b metav1.OwnerReference) bool {
+	groupVersionA, err := schema.ParseGroupVersion(a.APIVersion)
+	if err != nil {
+		return false
+	}
+
+	groupVersionB, err := schema.ParseGroupVersion(b.APIVersion)
+	if err != nil {
+		return false
+	}
+
+	return groupVersionA.Group == groupVersionB.Group && a.Kind == b.Kind && a.Name == b.Name
 }
 
 // SetControllerReference set the controller reference of object
