@@ -238,7 +238,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 			Message:      err.Error(),
 			PvcBackedOSD: cfg.pvcBacked,
 		}
-		oposd.UpdateNodeStatus(kv, cfg.nodeName, status)
+		oposd.UpdateNodeOrPVCStatus(kv, cfg.nodeName, status)
 
 		rook.TerminateFatal(err)
 	}
