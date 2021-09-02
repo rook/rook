@@ -99,7 +99,7 @@ func (e *provisionErrors) asMessages() string {
 
 // return name of status ConfigMap
 func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) string {
-	return UpdateNodeStatus(c.kv, node, status)
+	return UpdateNodeOrPVCStatus(c.kv, node, status)
 }
 
 func statusConfigMapLabels(node string) map[string]string {
@@ -110,14 +110,14 @@ func statusConfigMapLabels(node string) map[string]string {
 	}
 }
 
-// UpdateNodeStatus updates the status ConfigMap for the OSD on the given node. It returns the name
+// UpdateNodeOrPVCStatus updates the status ConfigMap for the OSD on the given node or PVC. It returns the name
 // the ConfigMap used.
-func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status OrchestrationStatus) string {
-	labels := statusConfigMapLabels(node)
+func UpdateNodeOrPVCStatus(kv *k8sutil.ConfigMapKVStore, nodeOrPVC string, status OrchestrationStatus) string {
+	labels := statusConfigMapLabels(nodeOrPVC)
 
 	// update the status map with the given status now
 	s, _ := json.Marshal(status)
-	cmName := statusConfigMapName(node)
+	cmName := statusConfigMapName(nodeOrPVC)
 	if err := kv.SetValueWithLabels(
 		cmName,
 		orchestrationStatusKey,
@@ -125,7 +125,7 @@ func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status Orchestr
 		labels,
 	); err != nil {
 		// log the error, but allow the orchestration to continue even if the status update failed
-		logger.Errorf("failed to set node %q status to %q for osd orchestration. %s", node, status.Status, status.Message)
+		logger.Errorf("failed to set node or PVC %q status to %q for osd orchestration. %s", nodeOrPVC, status.Status, status.Message)
 	}
 	return cmName
 }
@@ -133,7 +133,7 @@ func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status Orchestr
 func (c *Cluster) handleOrchestrationFailure(errors *provisionErrors, nodeName, message string, args ...interface{}) {
 	errors.addError(message, args...)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
-	UpdateNodeStatus(c.kv, nodeName, status)
+	UpdateNodeOrPVCStatus(c.kv, nodeName, status)
 }
 
 func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
