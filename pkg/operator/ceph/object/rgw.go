@@ -139,7 +139,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		if err != nil {
 			return nil
 		}
-		logger.Infof("object store %q deployment %q started", c.store.Name, deployment.Name)
+		logger.Infof("object store %q deployment %q created", c.store.Name, deployment.Name)
 
 		// Set owner ref to cephObjectStore object
 		err = c.ownerInfo.SetControllerReference(deployment)

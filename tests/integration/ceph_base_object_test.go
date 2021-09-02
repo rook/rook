@@ -178,7 +178,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 	ctx := context.TODO()
 	clusterInfo := client.AdminClusterInfo(namespace)
 	t := s.T()
-	t.Run("create CephObjectStoreUser", func(t *testing.T) {
+	t.Run(fmt.Sprintf("create CephObjectStoreUser %q", storeName), func(t *testing.T) {
 		createCephObjectUser(s, helper, k8sh, namespace, storeName, userid, true)
 		i := 0
 		for i = 0; i < 4; i++ {
@@ -192,18 +192,21 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 	})
 
 	// Check object store status
-	t.Run("verify CephObjectStore status", func(t *testing.T) {
+	t.Run(fmt.Sprintf("verify ceph object store %q status", storeName), func(t *testing.T) {
+		retryCount := 30
 		i := 0
-		for i = 0; i < 10; i++ {
+		for i = 0; i < retryCount; i++ {
 			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
 			assert.Nil(s.T(), err)
 			if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
-				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...", i)
+				logger.Infof("(%d) object status check sleeping for 5 seconds ...%+v", i, objectStore.Status)
 				time.Sleep(5 * time.Second)
 				continue
 			}
 			logger.Info("objectstore status is", objectStore.Status)
 			if objectStore.Status.BucketStatus.Health == cephv1.ConditionFailure {
+				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...%+v", i, objectStore.Status.BucketStatus)
+				time.Sleep(5 * time.Second)
 				continue
 			}
 			assert.Equal(s.T(), cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
@@ -212,7 +215,9 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 			assert.NotEmpty(s.T(), objectStore.Status.Info["endpoint"])
 			break
 		}
-		assert.NotEqual(t, 10, i)
+		if i == retryCount {
+			t.Fatal("bucket status check failed. status is not connected")
+		}
 	})
 
 	context := k8sh.MakeContext()
