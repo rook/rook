@@ -1644,7 +1644,6 @@ type NetworkSpec struct {
 
 	// IPFamily is the single stack IPv6 or IPv4 protocol
 	// +kubebuilder:validation:Enum=IPv4;IPv6
-	// +kubebuilder:default=IPv4
 	// +nullable
 	// +optional
 	IPFamily IPFamilyType `json:"ipFamily,omitempty"`
