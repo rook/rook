@@ -19,11 +19,13 @@ package cluster
 
 import (
 	"context"
+	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -107,6 +109,10 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		clusterInfo := cephclient.AdminClusterInfo(cluster.Namespace)
 		osds, err := cephclient.GetOSDOnHost(c.context, clusterInfo, nodeName)
 		if err != nil {
+			if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+				logger.Debug(opcontroller.OperatorNotInitializedMessage)
+				return false
+			}
 			// If it fails, this might be due to the the operator just starting and catching an add event for that node
 			logger.Debugf("failed to get osds on node %q, assume reconcile is necessary", nodeName)
 			return true
