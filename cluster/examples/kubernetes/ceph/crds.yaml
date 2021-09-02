@@ -1244,7 +1244,6 @@ spec:
                       description: HostNetwork to enable host network
                       type: boolean
                     ipFamily:
-                      default: IPv4
                       description: IPFamily is the single stack IPv6 or IPv4 protocol
                       enum:
                         - IPv4
