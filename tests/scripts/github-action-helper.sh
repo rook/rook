@@ -258,6 +258,7 @@ function create_LV_on_disk() {
   kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
 }
 
+<<<<<<< HEAD
 function generate_tls_config {
 DIR=$1
 SERVICE=$2
@@ -286,6 +287,51 @@ DNS.3 = ${SERVICE}.${NAMESPACE}.svc
 DNS.4 = ${SERVICE}.${NAMESPACE}.svc.cluster.local
 IP.1  = ${IP}
 EOF
+=======
+function deploy_first_rook_cluster() {
+  BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+  create_cluster_prerequisites
+  cd cluster/examples/kubernetes/ceph/
+
+  deploy_manifest_with_local_build operator.yaml
+  yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
+  yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
+  yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"1
+  kubectl create -f cluster-test.yaml
+  deploy_manifest_with_local_build toolbox.yaml
+}
+
+function deploy_second_rook_cluster() {
+  BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+  cd cluster/examples/kubernetes/ceph/
+  NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
+  sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
+  yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"2
+  yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
+  kubectl create -f cluster-test.yaml
+  yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
+  deploy_manifest_with_local_build toolbox.yaml toolbox.yaml
+}
+
+function wait_for_rgw() {
+  for _ in {1..120}; do
+    if [ "$(kubectl -n "$1" get pod -l app=rook-ceph-rgw --no-headers --field-selector=status.phase=Running|wc -l)" -ge 1 ] ; then
+        echo "rgw pod is found"
+        break
+    fi
+    echo "waiting for rgw pods"
+    sleep 5
+  done
+  for _ in {1..120}; do
+    if [ "$(kubectl -n "$1" get deployment -l app=rook-ceph-rgw -o yaml | yq read - 'items[0].status.readyReplicas')" -ge 1 ] ; then
+        echo "rgw is ready"
+        break
+    fi
+    echo "waiting for rgw becomes ready"
+    sleep 5
+  done
+}
+>>>>>>> 536b59ef0 (rgw: change the way to livenessProbe and introduce readinessProbe)
 
   openssl req -new -key "${DIR}"/"${SERVICE}".key -subj "/CN=${SERVICE}.${NAMESPACE}.svc" -out "${DIR}"/server.csr -config "${DIR}"/csr.conf
 

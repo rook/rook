@@ -44,7 +44,7 @@ func ConfigureLivenessProbe(daemon rook.KeyType, container v1.Container, healthC
 			// If the spec value is not empty, let's apply it along with default when some fields are not specified
 			if probe != nil {
 				// Set the liveness probe on the container to overwrite the default probe created by Rook
-				container.LivenessProbe = GetLivenessProbeWithDefaults(probe, container.LivenessProbe)
+				container.LivenessProbe = GetProbeWithDefaults(probe, container.LivenessProbe)
 			}
 		}
 	}
@@ -52,7 +52,7 @@ func ConfigureLivenessProbe(daemon rook.KeyType, container v1.Container, healthC
 	return container
 }
 
-func GetLivenessProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
+func GetProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
 	newProbe := *desiredProbe
 
 	// Do not replace the handler with the previous one!
