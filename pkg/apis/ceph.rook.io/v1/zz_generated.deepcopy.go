@@ -89,6 +89,11 @@ func (in *BucketHealthCheckSpec) DeepCopyInto(out *BucketHealthCheckSpec) {
 		*out = new(ProbeSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ReadinessProbe != nil {
+		in, out := &in.ReadinessProbe, &out.ReadinessProbe
+		*out = new(ProbeSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
