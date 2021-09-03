@@ -352,7 +352,7 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
-          image: rook/ceph:master
+          image: retinadata/rook:v1.7.2-retina
           args: ["ceph", "operator"]
           volumeMounts:
             - mountPath: /var/lib/rook
