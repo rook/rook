@@ -597,10 +597,6 @@ func (c *Cluster) addOrRemoveExternalMonitor(status cephclient.MonStatusResponse
 	logger.Debugf("ClusterInfo is now Empty, refilling it from status.MonMap.Mons")
 
 	monCount := len(status.MonMap.Mons)
-	if monCount%2 == 0 {
-		logger.Warningf("external cluster mon count is even (%d), should be uneven, continuing.", monCount)
-	}
-
 	if monCount == 1 {
 		logger.Warning("external cluster mon count is 1, consider adding new monitors.")
 	}

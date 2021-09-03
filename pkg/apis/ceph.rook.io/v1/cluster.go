@@ -55,10 +55,6 @@ func (c *CephCluster) ValidateDelete() error {
 }
 
 func validateUpdatedCephCluster(updatedCephCluster *CephCluster, found *CephCluster) error {
-	if updatedCephCluster.Spec.Mon.Count > 0 && updatedCephCluster.Spec.Mon.Count%2 == 0 {
-		return errors.Errorf("mon count %d cannot be even, must be odd to support a healthy quorum", updatedCephCluster.Spec.Mon.Count)
-	}
-
 	if updatedCephCluster.Spec.DataDirHostPath != found.Spec.DataDirHostPath {
 		return errors.Errorf("invalid update: DataDirHostPath change from %q to %q is not allowed", found.Spec.DataDirHostPath, updatedCephCluster.Spec.DataDirHostPath)
 	}

@@ -35,7 +35,7 @@ func TestPreClusterStartValidation(t *testing.T) {
 		wantErr bool
 	}{
 		{"no settings", args{&cluster{Spec: &cephv1.ClusterSpec{}, context: &clusterd.Context{Clientset: testop.New(t, 3)}}}, false},
-		{"even mons", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 2}}}}, true},
+		{"even mons", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 2}}}}, false},
 		{"missing stretch zones", args{&cluster{context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a"},
 		}}}}}}, true},
