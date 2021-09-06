@@ -35,7 +35,7 @@ func Test_validateUpdatedCephCluster(t *testing.T) {
 	}{
 		{"everything is ok", args{&CephCluster{}, &CephCluster{}}, false},
 		{"good mon count", args{&CephCluster{Spec: ClusterSpec{Mon: MonSpec{Count: 1}}}, &CephCluster{}}, false},
-		{"even mon count", args{&CephCluster{Spec: ClusterSpec{Mon: MonSpec{Count: 2}}}, &CephCluster{}}, true},
+		{"even mon count", args{&CephCluster{Spec: ClusterSpec{Mon: MonSpec{Count: 2}}}, &CephCluster{}}, false},
 		{"good mon count", args{&CephCluster{Spec: ClusterSpec{Mon: MonSpec{Count: 3}}}, &CephCluster{}}, false},
 		{"changed DataDirHostPath", args{&CephCluster{Spec: ClusterSpec{DataDirHostPath: "foo"}}, &CephCluster{Spec: ClusterSpec{DataDirHostPath: "bar"}}}, true},
 		{"changed HostNetwork", args{&CephCluster{Spec: ClusterSpec{Network: NetworkSpec{HostNetwork: false}}}, &CephCluster{Spec: ClusterSpec{Network: NetworkSpec{HostNetwork: true}}}}, true},
