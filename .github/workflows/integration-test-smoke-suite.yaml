@@ -46,10 +46,11 @@ jobs:
     - name: build rook
       run: tests/scripts/github-action-helper.sh build_rook
 
+       
     - name: TestCephSmokeSuite
       run: |
        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-       SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
+       SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -failfast -run CephSmokeSuite github.com/rook/rook/tests/integration
 
     - name: Artifact
       uses: actions/upload-artifact@v2
