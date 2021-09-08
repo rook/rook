@@ -80,7 +80,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        count(ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) <= ((count(ceph_mon_metadata{job="rook-ceph-mgr"}) % 2) + 1)
+        count(ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) <= (floor(count(ceph_mon_metadata{job="rook-ceph-mgr"}) / 2) + 1)
       for: 15m
       labels:
         severity: critical
@@ -350,3 +350,4 @@ spec:
       for: 1m
       labels:
         severity: critical
+
