@@ -57,7 +57,14 @@ const (
     "system": "true",
     "temp_url_keys": [],
     "type": "rgw",
-    "mfa_ids": []
+    "mfa_ids": [],
+	"user_quota": {
+		"enabled": false,
+		"check_on_raw": false,
+		"max_size": -1,
+		"max_size_kb": 0,
+		"max_objects": -1
+	}
 }`
 	access_key = "VFKF8SSU9L3L2UR03Z8C"
 )

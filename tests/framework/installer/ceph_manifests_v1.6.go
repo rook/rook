@@ -363,7 +363,7 @@ spec:
 `
 }
 
-func (m *CephManifestsV1_6) GetObjectStoreUser(name string, displayName string, store string) string {
+func (m *CephManifestsV1_6) GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephObjectStoreUser
 metadata:

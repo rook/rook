@@ -281,13 +281,44 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 		} else {
 			return errors.Wrapf(err, "failed to get details from ceph object user %q", u.Name)
 		}
+	} else if *user.MaxBuckets != *r.userConfig.MaxBuckets {
+		// TODO handle update for user capabilities
+		user, err = r.objContext.AdminOpsClient.ModifyUser(context.TODO(), *r.userConfig)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create ceph object user %v", &r.userConfig.ID)
+		}
+		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
+	}
+
+	var quotaEnabled = false
+	var maxSize int64 = -1
+	var maxObjects int64 = -1
+	if u.Spec.Quotas != nil {
+		if u.Spec.Quotas.MaxObjects != nil {
+			maxObjects = *u.Spec.Quotas.MaxObjects
+			quotaEnabled = true
+		}
+		if u.Spec.Quotas.MaxSize != nil {
+			maxSize = u.Spec.Quotas.MaxSize.Value()
+			quotaEnabled = true
+		}
+	}
+	userQuota := admin.QuotaSpec{
+		UID:        u.Name,
+		Enabled:    &quotaEnabled,
+		MaxSize:    &maxSize,
+		MaxObjects: &maxObjects,
+	}
+	err = r.objContext.AdminOpsClient.SetUserQuota(context.TODO(), userQuota)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
 	}
 
 	// Set access and secret key
 	r.userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
 	r.userConfig.Keys[0].SecretKey = user.Keys[0].SecretKey
-
 	logger.Info(logCreateOrUpdate)
+
 	return nil
 }
 
@@ -332,6 +363,30 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 		ID:          user.Name,
 		DisplayName: displayName,
 		Keys:        make([]admin.UserKeySpec, 1),
+	}
+
+	defaultMaxBuckets := 1000
+	userConfig.MaxBuckets = &defaultMaxBuckets
+	if user.Spec.Quotas != nil && user.Spec.Quotas.MaxBuckets != nil {
+		userConfig.MaxBuckets = user.Spec.Quotas.MaxBuckets
+	}
+
+	if user.Spec.Capabilities != nil {
+		if user.Spec.Capabilities.User != "" {
+			userConfig.UserCaps += fmt.Sprintf("users=%s;", user.Spec.Capabilities.User)
+		}
+		if user.Spec.Capabilities.Bucket != "" {
+			userConfig.UserCaps += fmt.Sprintf("buckets=%s;", user.Spec.Capabilities.Bucket)
+		}
+		if user.Spec.Capabilities.MetaData != "" {
+			userConfig.UserCaps += fmt.Sprintf("metadata=%s;", user.Spec.Capabilities.MetaData)
+		}
+		if user.Spec.Capabilities.Usage != "" {
+			userConfig.UserCaps += fmt.Sprintf("usage=%s;", user.Spec.Capabilities.Usage)
+		}
+		if user.Spec.Capabilities.Zone != "" {
+			userConfig.UserCaps += fmt.Sprintf("zone=%s;", user.Spec.Capabilities.Zone)
+		}
 	}
 
 	return userConfig
