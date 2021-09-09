@@ -1,6 +1,8 @@
 {{- if .Values.ingress.dashboard.host }}
 ---
-{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1beta1" }}
+{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1" }}
+apiVersion: networking.k8s.io/v1
+{{ else if .Capabilities.APIVersions.Has "networking.k8s.io/v1beta1" }}
 apiVersion: networking.k8s.io/v1beta1
 {{ else }}
 apiVersion: extensions/v1beta1
@@ -16,10 +18,18 @@ spec:
     - host: {{ .Values.ingress.dashboard.host.name }}
       http:
         paths:
-          - path: {{ .Values.ingress.dashboard.host.path }}
+          - path: {{ .Values.ingress.dashboard.host.path | default "/" }}
             backend:
+{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1" }}
+              service:
+                name: rook-ceph-mgr-dashboard
+                port:
+                  name: http-dashboard
+            pathType: Prefix
+{{- else }}
               serviceName: rook-ceph-mgr-dashboard
               servicePort: http-dashboard
+{{- end }}
   {{- if .Values.ingress.dashboard.tls }}
   tls: {{- toYaml .Values.ingress.dashboard.tls | nindent 4 }}
   {{- end }}
