@@ -206,15 +206,21 @@ Rebasing is a very powerful feature of Git. You need to understand how it works 
 
 ## Submitting a Pull Request
 
-Once you have implemented the feature or bug fix in your branch, you will open a PR to the upstream rook repo. Before opening the PR ensure you have added unit tests, are passing the integration tests, cleaned your commit history, and have rebased on the latest upstream.
+Once you have implemented the feature or bug fix in your branch, you will open a Pull Request (PR)
+to the [upstream Rook repository](https://github.com/rook/rook). Before opening the PR ensure you
+have added unit tests and all unit tests are passing. Please clean your commit history and rebase on
+the latest upstream changes.
+
+See [Unit Tests](#unit-tests) below for instructions on how to run unit tests.
 
 In order to open a pull request (PR) it is required to be up to date with the latest changes upstream. If other commits are pushed upstream before your PR is merged, you will also need to rebase again before it will be merged.
 
 ### Regression Testing
 
-All pull requests must pass the unit and integration tests before they can be merged. These tests automatically
-run as a part of the build process. The results of these tests along with code reviews and other criteria determine whether
-your request will be accepted into the `rook/rook` repo. It is prudent to run all tests locally on your development box prior to submitting a pull request to the `rook/rook` repo.
+All pull requests must pass the unit and integration tests before they can be merged. These tests
+automatically run against every pull request as a part of Rook's continuous integration (CI)
+process. The results of these tests along with code reviews and other criteria determine whether
+your request will be accepted into the `rook/rook` repo.
 
 #### Unit Tests
 
@@ -231,10 +237,38 @@ go test -coverprofile=coverage.out
 go tool cover -html=coverage.out -o coverage.html
 ```
 
+#### Writing unit tests
+
+There is no one-size-fits-all approach to unit testing, but we attempt to provide good tips for
+writing unit tests for Rook below.
+
+Unit tests should help people reading and reviewing the code understand the intended behavior of the
+code.
+
+Good unit tests start with easily testable code. Small chunks ("units") of code can be easily tested
+for every possible input. Higher-level code units that are built from smaller, already-tested units
+can more easily verify that the units are combined together correctly.
+
+Common cases that may need tests:
+* the feature is enabled
+* the feature is disabled
+* the feature is only partially enabled, for every possible way it can be partially enabled
+* every error that can be encountered during execution of the feature
+* the feature can be disabled (including partially) after it was enabled
+* the feature can be modified (including partially) after it was enabled
+* if there is a slice/array involved, test length = 0, length = 1, length = 3, length == max, length > max
+* an input is not specified, for each input
+* an input is specified incorrectly, for each input
+* a resource the code relies on doesn't exist, for each dependency
+
+
 #### Running the Integration Tests
 
-For instructions on how to execute the end to end smoke test suite,
-follow the [test instructions](https://github.com/rook/rook/blob/master/tests/README.md).
+Rook's upstream continuous integration (CI) tests will run integration tests against your changes
+automatically.
+
+You do not need to run these tests locally, but you may if you like. For instructions on how to do
+so, follow the [test instructions](https://github.com/rook/rook/blob/master/tests/README.md).
 
 ### Commit structure
 
