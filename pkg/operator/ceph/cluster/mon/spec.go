@@ -370,7 +370,7 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.
 			err := client.OkToContinue(context, clusterInfo, deployment.Name, daemonType, daemonName)
 			if err != nil {
 				if continueUpgradeAfterChecksEvenIfNotHealthy {
-					logger.Infof("The %s daemon %s is not ok-to-stop but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing...", daemonType, daemonName)
+					logger.Infof("The %s daemon %s is not ok-to-continue but 'continueUpgradeAfterChecksEvenIfNotHealthy' is true, so continuing...", daemonType, daemonName)
 					return nil
 				}
 				return errors.Wrapf(err, "failed to check if we can %s the deployment %s", action, deployment.Name)
