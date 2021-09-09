@@ -50,7 +50,7 @@ If the `FSTYPE` field is not empty, there is a filesystem on top of the correspo
 If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands and [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph). For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 
 ```console
-$ git clone --single-branch --branch v1.7.2 https://github.com/rook/rook.git
+$ git clone --single-branch --branch v1.7.3 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/ceph
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 kubectl create -f cluster.yaml

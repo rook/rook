@@ -53,12 +53,12 @@ With this upgrade guide, there are a few notes to consider:
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
 another are as simple as updating the common resources and the image of the Rook operator. For
-example, when Rook v1.7.2 is released, the process of updating from v1.7.0 is as simple as running
+example, when Rook v1.7.3 is released, the process of updating from v1.7.0 is as simple as running
 the following:
 
 First get the latest common resources manifests that contain the latest changes for Rook v1.7.
 ```sh
-git clone --single-branch --depth=1 --branch v1.7.2 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.7.3 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/ceph
 ```
 
@@ -69,7 +69,7 @@ section for instructions on how to change the default namespaces in `common.yaml
 Then apply the latest changes from v1.7 and update the Rook Operator image.
 ```console
 kubectl apply -f common.yaml -f crds.yaml
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.7.2
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.7.3
 ```
 
 As exemplified above, it is a good practice to update Rook-Ceph common resources from the example
@@ -249,7 +249,7 @@ Any pod that is using a Rook volume should also remain healthy:
 ## Rook Operator Upgrade Process
 
 In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.6.8` to
-the version `v1.7.2`. This upgrade should work from any official patch release of Rook v1.6 to any
+the version `v1.7.3`. This upgrade should work from any official patch release of Rook v1.6 to any
 official patch release of v1.7.
 
 **Rook release from `master` are expressly unsupported.** It is strongly recommended that you use
@@ -279,7 +279,7 @@ needed by the Operator. Also update the Custom Resource Definitions (CRDs).
 
 First get the latest common resources manifests that contain the latest changes.
 ```sh
-git clone --single-branch --depth=1 --branch v1.7.2 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.7.3 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/ceph
 ```
 
@@ -325,7 +325,7 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```sh
-kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.7.2
+kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.7.3
 ```
 
 ### **4. Wait for the upgrade to complete**
@@ -341,16 +341,16 @@ watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=
 ```
 
 As an example, this cluster is midway through updating the OSDs. When all deployments report `1/1/1`
-availability and `rook-version=v1.7.2`, the Ceph cluster's core components are fully updated.
+availability and `rook-version=v1.7.3`, the Ceph cluster's core components are fully updated.
 
 >```
 >Every 2.0s: kubectl -n rook-ceph get deployment -o j...
 >
->rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.7.2
->rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.7.2
->rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.7.2
->rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.7.2
->rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.7.2
+>rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.7.3
+>rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.7.3
+>rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.7.3
+>rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.7.3
+>rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.7.3
 >rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.6.8
 >rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.6.8
 >```
@@ -362,14 +362,14 @@ An easy check to see if the upgrade is totally finished is to check that there i
 # kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
   rook-version=v1.6.8
-  rook-version=v1.7.2
+  rook-version=v1.7.3
 This cluster is finished:
-  rook-version=v1.7.2
+  rook-version=v1.7.3
 ```
 
 ### **5. Verify the updated cluster**
 
-At this point, your Rook operator should be running version `rook/ceph:v1.7.2`.
+At this point, your Rook operator should be running version `rook/ceph:v1.7.3`.
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
 
