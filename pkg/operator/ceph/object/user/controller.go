@@ -282,7 +282,7 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 			return errors.Wrapf(err, "failed to get details from ceph object user %q", u.Name)
 		}
 	} else if *user.MaxBuckets != *r.userConfig.MaxBuckets {
-		// TODO handle update for user capabilities
+		// TODO: handle update for user capabilities, depends on https://github.com/ceph/go-ceph/pull/571
 		user, err = r.objContext.AdminOpsClient.ModifyUser(context.TODO(), *r.userConfig)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create ceph object user %v", &r.userConfig.ID)
