@@ -25,7 +25,7 @@ OSD_COUNT=$2
 #############
 # FUNCTIONS #
 #############
-EXEC_COMMAND="kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- ceph --connect-timeout 3"
+EXEC_COMMAND="kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}') -- ceph --connect-timeout 3"
 
 trap display_status SIGINT ERR
 

@@ -160,9 +160,13 @@ function deploy_cluster() {
 
 function wait_for_prepare_pod() {
   timeout 180 bash <<-'EOF'
-    until kubectl -n rook-ceph logs --follow job/$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='.items[0].metadata.name}') || true; do
+    while true; do
+      if [[ "$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare --field-selector=status.phase=Running)" -gt 1 ]]; then
+        break
+      fi
       sleep 5
     done
+    kubectl -n rook-ceph logs --follow pod/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[0].metadata.name}')
 EOF
   timeout 60 bash <<-'EOF'
   until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers || true; do
@@ -213,7 +217,7 @@ function deploy_first_rook_cluster() {
 
 function wait_for_rgw_pods() {
   for _ in {1..120}; do
-    if kubectl -n "$1" get pod -l app=rook-ceph-rgw -o jsonpath='{.items[0].metadata.name}'; then
+    if [ "$(kubectl -n "$1" get pod -l app=rook-ceph-rgw --field-selector=status.phase=Running|wc -l)" -gt 1 ] ; then
         echo "rgw pods found"
         break
     fi
