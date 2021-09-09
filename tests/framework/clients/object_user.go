@@ -74,10 +74,10 @@ func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, u
 }
 
 // ObjectUserCreate Function to create a object store user in rook
-func (o *ObjectUserOperation) Create(namespace string, userid string, displayName string, store string) error {
+func (o *ObjectUserOperation) Create(userid, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) error {
 
 	logger.Infof("creating the object store user via CRD")
-	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStoreUser(userid, displayName, store)); err != nil {
+	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStoreUser(userid, displayName, store, usercaps, maxsize, maxbuckets, maxobjects)); err != nil {
 		return err
 	}
 	return nil

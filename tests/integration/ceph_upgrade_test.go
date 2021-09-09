@@ -135,7 +135,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	logger.Infof("Initializing object user before the upgrade")
 	objectUserID := "upgraded-user"
-	createCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, false)
+	createCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, false, false)
 
 	logger.Info("Initializing object bucket claim before the upgrade")
 	bucketStorageClassName := "rook-smoke-delete-bucket"
@@ -194,7 +194,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
 
-	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true)
+	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true, false)
 
 	// should be Bound after upgrade to Rook master
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
@@ -213,7 +213,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from nautilus to octopus")
 
-	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true)
+	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true, false)
 
 	//
 	// Upgrade from octopus to pacific
@@ -226,7 +226,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from octopus to pacific")
 
-	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true)
+	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true, false)
 }
 
 func (s *UpgradeSuite) gatherLogs(systemNamespace, testSuffix string) {

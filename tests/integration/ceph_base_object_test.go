@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -55,6 +56,9 @@ var (
 	maxObject              = "2"
 	newMaxObject           = "3"
 	bucketStorageClassName = "rook-smoke-delete-bucket"
+	maxBucket              = 1
+	maxSize                = "100000"
+	userCap                = "read"
 )
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
@@ -111,11 +115,11 @@ func objectStoreCleanUp(s suite.Suite, helper *clients.TestClient, k8sh *utils.K
 func createCephObjectUser(
 	s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
 	namespace, storeName, userID string,
-	checkPhase bool,
-) {
+	checkPhase, checkQuotaAndCaps bool) {
 	s.T().Helper()
-
-	cosuErr := helper.ObjectUserClient.Create(namespace, userID, userdisplayname, storeName)
+	maxObjectInt, err := strconv.Atoi(maxObject)
+	assert.Nil(s.T(), err)
+	cosuErr := helper.ObjectUserClient.Create(userID, userdisplayname, storeName, userCap, maxSize, maxBucket, maxObjectInt)
 	assert.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 5 seconds for the object user to be created")
 	time.Sleep(5 * time.Second)
@@ -125,13 +129,13 @@ func createCephObjectUser(
 		time.Sleep(5 * time.Second)
 	}
 
-	checkCephObjectUser(s, helper, k8sh, namespace, storeName, userID, checkPhase)
+	checkCephObjectUser(s, helper, k8sh, namespace, storeName, userID, checkPhase, checkQuotaAndCaps)
 }
 
 func checkCephObjectUser(
 	s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
 	namespace, storeName, userID string,
-	checkPhase bool,
+	checkPhase, checkQuotaAndCaps bool,
 ) {
 	s.T().Helper()
 
@@ -148,6 +152,17 @@ func checkCephObjectUser(
 		phase, err := k8sh.GetResource("--namespace", namespace, "cephobjectstoreuser", userID, "--output", "jsonpath={.status.phase}")
 		assert.NoError(s.T(), err)
 		assert.Equal(s.T(), k8sutil.ReadyStatus, phase)
+	}
+	if checkQuotaAndCaps {
+		// following fields in CephObjectStoreUser CRD doesn't exist before Rook v1.7
+		maxObjectInt, err := strconv.Atoi(maxObject)
+		assert.Nil(s.T(), err)
+		maxSizeInt, err := strconv.Atoi(maxSize)
+		assert.Nil(s.T(), err)
+		assert.Equal(s.T(), maxBucket, userInfo.MaxBuckets)
+		assert.Equal(s.T(), int64(maxObjectInt), *userInfo.UserQuota.MaxObjects)
+		assert.Equal(s.T(), int64(maxSizeInt), *userInfo.UserQuota.MaxSize)
+		assert.Equal(s.T(), userCap, userInfo.Caps[0].Perm)
 	}
 }
 
@@ -179,7 +194,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 	clusterInfo := client.AdminClusterInfo(namespace)
 	t := s.T()
 	t.Run(fmt.Sprintf("create CephObjectStoreUser %q", storeName), func(t *testing.T) {
-		createCephObjectUser(s, helper, k8sh, namespace, storeName, userid, true)
+		createCephObjectUser(s, helper, k8sh, namespace, storeName, userid, true, true)
 		i := 0
 		for i = 0; i < 4; i++ {
 			if helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) {
