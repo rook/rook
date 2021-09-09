@@ -113,9 +113,9 @@ function build_rook() {
           # valid failure
           exit 1
       esac
-      # no errors so we break the loop after the first iteration
-      break
     fi
+    # no errors so we break the loop after the first iteration
+    break
   done
   # validate build
   tests/scripts/validate_modified_files.sh build
