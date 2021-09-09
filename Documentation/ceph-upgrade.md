@@ -159,7 +159,7 @@ The Rook toolbox contains the Ceph tools that can give you status details of the
 `ceph status` command. Let's look at an output sample and review some of the details:
 
 ```sh
-TOOLS_POD=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')
+TOOLS_POD=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[*].metadata.name}')
 kubectl -n $ROOK_CLUSTER_NAMESPACE exec -it $TOOLS_POD -- ceph status
 ```
 
