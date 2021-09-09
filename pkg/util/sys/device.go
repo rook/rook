@@ -221,6 +221,7 @@ func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map
 			return map[string]string{}, nil
 		}
 
+		logger.Errorf("failed to execute lsblk. output: %s", output)
 		return nil, err
 	}
 
