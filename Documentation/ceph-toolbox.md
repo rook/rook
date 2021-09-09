@@ -43,7 +43,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: rook-ceph-tools
-        image: rook/ceph:v1.7.2
+        image: rook/ceph:v1.7.3
         command: ["/tini"]
         args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
         imagePullPolicy: IfNotPresent
@@ -133,7 +133,7 @@ spec:
     spec:
       initContainers:
       - name: config-init
-        image: rook/ceph:v1.7.2
+        image: rook/ceph:v1.7.3
         command: ["/usr/local/bin/toolbox.sh"]
         args: ["--skip-watch"]
         imagePullPolicy: IfNotPresent
@@ -155,7 +155,7 @@ spec:
           mountPath: /etc/rook
       containers:
       - name: script
-        image: rook/ceph:v1.7.2
+        image: rook/ceph:v1.7.3
         volumeMounts:
         - mountPath: /etc/ceph
           name: ceph-config

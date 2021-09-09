@@ -25,7 +25,7 @@ spec:
       serviceAccountName: rook-ceph-purge-osd
       containers:
         - name: osd-removal
-          image: rook/ceph:v1.7.2
+          image: rook/ceph:v1.7.3
           # TODO: Insert the OSD ID in the last parameter that is to be removed
           # The OSD IDs are a comma-separated list. For example: "0" or "0,2".
           # If you want to preserve the OSD PVCs, set `--preserve-pvc true`.
