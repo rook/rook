@@ -206,7 +206,7 @@ spec:
                   operator: In
                   values:
                     - cluster1
-                topologyKey: "failure-domain.beta.kubernetes.io/zone"
+              topologyKey: "failure-domain.beta.kubernetes.io/zone"
       volumeClaimTemplates:
       - spec:
           resources:
@@ -360,7 +360,7 @@ spec:
                   operator: In
                   values:
                     - cluster1
-                topologyKey: "failure-domain.beta.kubernetes.io/zone"
+              topologyKey: "failure-domain.beta.kubernetes.io/zone"
       volumeClaimTemplates:
       - spec:
           resources:
@@ -384,7 +384,7 @@ spec:
                   operator: In
                   values:
                     - cluster1
-                topologyKey: "failure-domain.beta.kubernetes.io/zone"
+              topologyKey: "failure-domain.beta.kubernetes.io/zone"
       volumeClaimTemplates:
       - spec:
           resources:

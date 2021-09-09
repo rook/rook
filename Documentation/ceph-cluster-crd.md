@@ -1047,7 +1047,7 @@ spec:
                   operator: In
                   values:
                     - cluster1
-                topologyKey: "topology.kubernetes.io/zone"
+              topologyKey: "topology.kubernetes.io/zone"
       volumeClaimTemplates:
       - metadata:
           name: data
