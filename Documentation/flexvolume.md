@@ -23,7 +23,6 @@ Platform-specific instructions for the following Kubernetes deployment platforms
 * [OpenShift](#openshift)
 * [OpenStack Magnum](#openstack-magnum)
 * [Rancher](#rancher)
-* [Tectonic](#tectonic)
 * [Custom containerized kubelet](#custom-containerized-kubelet)
 * [Configuring the FlexVolume path](#configuring-the-flexvolume-path)
 
@@ -131,13 +130,6 @@ FlexVolume path for the Rook operator.
 
 If the default path as above is used no further configuration is required, otherwise if a different path is used
 the Rook operator will need to be reconfigured, to do this continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
-
-## Tectonic
-
-Follow [these instructions](tectonic.md) to configure the Flexvolume plugin for Rook on Tectonic during ContainerLinux node ignition file provisioning.
-If you want to use Rook with an already provisioned Tectonic cluster, please refer to the [ContainerLinux](#containerlinux) section.
-
-Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
 ## Custom containerized kubelet
 
