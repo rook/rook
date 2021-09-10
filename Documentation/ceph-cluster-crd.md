@@ -451,7 +451,7 @@ Below are the settings for host-based cluster. This type of cluster can specify 
   * `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
 
 Host-based cluster only supports raw device and partition. Be sure to see the
-[Ceph quickstart doc prerequisites](ceph-quickstart.md#prerequisites) for additional considerations.
+[Ceph quickstart doc prerequisites](quickstart.md#prerequisites) for additional considerations.
 
 Below are the settings for a PVC-based cluster.
 

@@ -27,7 +27,7 @@ spec:
 
 ### Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Quickstart guide](ceph-quickstart.md)
+This guide assumes you have created a Rook cluster as explained in the main [Quickstart guide](quickstart.md)
 
 ## Settings
 

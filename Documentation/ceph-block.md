@@ -11,7 +11,7 @@ Block storage allows a single pod to mount storage. This guide shows how to crea
 
 ## Prerequisites
 
-This guide assumes a Rook cluster as explained in the [Quickstart](ceph-quickstart.md).
+This guide assumes a Rook cluster as explained in the [Quickstart](quickstart.md).
 
 ## Provision Storage
 
