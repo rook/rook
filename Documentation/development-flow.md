@@ -274,10 +274,20 @@ The `component` **MUST** be one of the following:
 - build
 - cassandra
 - ceph
+- cephfs-mirror
 - ci
 - core
+- csi
 - docs
+- mds
+- mgr
+- mon
+- monitoring
 - nfs
+- osd
+- pool
+- rbd-mirror
+- rgw
 - test
 
 Note: sometimes you will feel like there is not so much to say, for instance if you are fixing a typo in a text.
