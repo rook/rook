@@ -13,7 +13,7 @@ The toolbox can be run in two modes:
 1. [Interactive](#interactive-toolbox): Start a toolbox pod where you can connect and execute Ceph commands from a shell
 2. [One-time job](#toolbox-job): Run a script with Ceph commands and collect the results from the job log
 
-> Prerequisite: Before running the toolbox you should have a running Rook cluster deployed (see the [Quickstart Guide](ceph-quickstart.md)).
+> Prerequisite: Before running the toolbox you should have a running Rook cluster deployed (see the [Quickstart Guide](quickstart.md)).
 
 ## Interactive Toolbox
 

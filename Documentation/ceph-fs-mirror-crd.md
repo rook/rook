@@ -5,7 +5,7 @@ indent: true
 ---
 {% include_relative branch.liquid %}
 
-This guide assumes you have created a Rook cluster as explained in the main [Quickstart guide](ceph-quickstart.md)
+This guide assumes you have created a Rook cluster as explained in the main [Quickstart guide](quickstart.md)
 
 # Ceph FilesystemMirror CRD
 
@@ -97,4 +97,3 @@ If any setting is unspecified, a suitable default will be used automatically.
 * `labels`: Key value pair list of labels to add.
 * `resources`: The resource requirements for the cephfs-mirror pods.
 * `priorityClassName`: The priority class to set on the cephfs-mirror pods.
-
