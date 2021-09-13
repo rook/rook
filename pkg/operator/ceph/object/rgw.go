@@ -349,7 +349,10 @@ func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) 
 	return tlsCert, nil
 }
 
-func GenObjectStoreHTTPClient(objContext *Context, spec *cephv1.ObjectStoreSpec) (*http.Client, []byte, error) {
+// Allow overriding this function for unit tests to mock the admin ops api
+var genObjectStoreHTTPClientFunc = genObjectStoreHTTPClient
+
+func genObjectStoreHTTPClient(objContext *Context, spec *cephv1.ObjectStoreSpec) (*http.Client, []byte, error) {
 	nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
 	c := &http.Client{}
 	tlsCert := []byte{}

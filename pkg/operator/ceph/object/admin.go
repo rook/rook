@@ -150,7 +150,7 @@ func NewMultisiteAdminOpsContext(
 		return nil, errors.Wrapf(err, "failed to create or retrieve rgw admin ops user")
 	}
 
-	httpClient, tlsCert, err := GenObjectStoreHTTPClient(objContext, spec)
+	httpClient, tlsCert, err := genObjectStoreHTTPClientFunc(objContext, spec)
 	if err != nil {
 		return nil, err
 	}
