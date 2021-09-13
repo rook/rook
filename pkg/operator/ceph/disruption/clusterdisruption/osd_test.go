@@ -464,3 +464,31 @@ func TestHasNodeDrained(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, expected)
 }
+
+func TestGetAllowedDisruptions(t *testing.T) {
+	r := getFakeReconciler(t)
+	clientset := test.New(t, 3)
+	test.SetFakeKubernetesVersion(clientset, "v1.21.0")
+	r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Clientset: clientset}}
+
+	// Default PDB is not available
+	allowedDisruptions, err := r.getAllowedDisruptions(osdPDBAppName, namespace)
+	assert.Error(t, err)
+	assert.Equal(t, int32(-1), allowedDisruptions)
+
+	// Default PDB is available
+	pdb := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      osdPDBAppName,
+			Namespace: namespace,
+		},
+		Status: policyv1.PodDisruptionBudgetStatus{
+			DisruptionsAllowed: int32(0),
+		},
+	}
+	err = r.client.Create(context.TODO(), pdb)
+	assert.NoError(t, err)
+	allowedDisruptions, err = r.getAllowedDisruptions(osdPDBAppName, namespace)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(0), allowedDisruptions)
+}

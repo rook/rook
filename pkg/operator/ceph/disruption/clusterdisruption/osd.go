@@ -407,6 +407,21 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
 	}
 
+	// requeue if allowed disruptions in the default PDB is 0
+	allowedDisruptions, err := r.getAllowedDisruptions(osdPDBAppName, request.Namespace)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Debugf("default osd pdb %q not found. Skipping reconcile", osdPDBAppName)
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get allowed disruptions count from default osd pdb %q.", osdPDBAppName)
+	}
+
+	if allowedDisruptions == 0 {
+		logger.Info("reconciling osd pdb reconciler as the allowed disruptions in default pdb is 0")
+		return reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}, nil
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -638,6 +653,30 @@ func getLastDrainTimeStamp(pdbStateMap *corev1.ConfigMap, key string) (time.Time
 	}
 
 	return lastDrainTimeStamp, nil
+}
+
+func (r *ReconcileClusterDisruption) getAllowedDisruptions(pdbName, namespace string) (int32, error) {
+	usePDBV1Beta1, err := k8sutil.UsePDBV1Beta1Version(r.context.ClusterdContext.Clientset)
+	if err != nil {
+		return -1, errors.Wrap(err, "failed to fetch pdb version")
+	}
+	if usePDBV1Beta1 {
+		pdb := &policyv1beta1.PodDisruptionBudget{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: pdbName, Namespace: namespace}, pdb)
+		if err != nil {
+			return -1, err
+		}
+
+		return pdb.Status.DisruptionsAllowed, nil
+	}
+
+	pdb := &policyv1.PodDisruptionBudget{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pdbName, Namespace: namespace}, pdb)
+	if err != nil {
+		return -1, err
+	}
+
+	return pdb.Status.DisruptionsAllowed, nil
 }
 
 func resetPDBConfig(pdbStateMap *corev1.ConfigMap) {
