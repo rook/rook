@@ -133,6 +133,6 @@ list-image:
 	awk '/image:/ {print $2}' $(MANIFESTS_DIR)/operator.yaml $(MANIFESTS_DIR)/cluster.yaml | \
 	cut -d: -f2- |\
 	tee -a $(MANIFESTS_DIR)/images.txt && \
-	awk '/quay.io/ || /k8s.gcr.io/ {print $3}' $(MANIFESTS_DIR)/operator.yaml | \
-	cut -d: -f2- |\
+	awk '/quay.io/ || /k8s.gcr.io/ {print $3}' ../../pkg/operator/ceph/csi/spec.go | \
+	cut -d= -f2- |\
 	tr -d '"' | tee -a $(MANIFESTS_DIR)/images.txt
