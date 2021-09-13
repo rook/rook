@@ -1,17 +1,42 @@
 ---
 title: Prerequisites
-weight: 2010
-indent: true
+weight: 1000
 ---
+{% include_relative branch.liquid %}
 
-# Ceph Prerequisites
+# Prerequisites
 
-To make sure you have a Kubernetes cluster that is ready for `Rook`, review the general [Rook Prerequisites](k8s-pre-reqs.md).
+Rook can be installed on any existing Kubernetes cluster as long as it meets the minimum version
+and Rook is granted the required privileges (see below for more information).
+
+## Minimum Version
+
+Kubernetes **v1.11** or higher is supported for the Ceph operator.
+
+**Important** If you are using K8s 1.15 or older, you will need to create a different version of the Ceph CRDs. Create the `crds.yaml` found in the [pre-k8s-1.16](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/pre-k8s-1.16) subfolder of the example manifests.
+
+## Ceph Prerequisites
 
 In order to configure the Ceph storage cluster, at least one of these local storage options are required:
 - Raw devices (no partitions or formatted filesystems)
 - Raw partitions (no formatted filesystem)
 - PVs available from a storage class in `block` mode
+
+You can confirm whether your partitions or devices are formatted with filesystems with the following command.
+
+```console
+lsblk -f
+```
+>```
+>NAME                  FSTYPE      LABEL UUID                                   MOUNTPOINT
+>vda
+>└─vda1                LVM2_member       >eSO50t-GkUV-YKTH-WsGq-hNJY-eKNf-3i07IB
+>  ├─ubuntu--vg-root   ext4              c2366f76-6e21-4f10-a8f3-6776212e2fe4   /
+>  └─ubuntu--vg-swap_1 swap              9492a3dc-ad75-47cd-9596-678e8cf17ff9   [SWAP]
+>vdb
+>```
+
+If the `FSTYPE` field is not empty, there is a filesystem on top of the corresponding device. In this example, you can use `vdb` for Ceph and can't use `vda` or its partitions.
 
 ## LVM package
 
@@ -50,17 +75,6 @@ runcmd:
 - [ vgchange, -ay ]
 ```
 
-## Ceph Flexvolume Configuration
-
-**NOTE** This configuration is only needed when using the FlexVolume driver (required for Kubernetes 1.12 or earlier). The Ceph-CSI RBD driver or the Ceph-CSI CephFS driver are recommended for Kubernetes 1.13 and newer, making FlexVolume configuration redundant.
-
-If you want to configure volumes with the Flex driver instead of CSI, the Rook agent requires setup as a Flex volume plugin to manage the storage attachments in your cluster.
-See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kubernetes deployment to load the Rook volume plugin.
-
-### Extra agent mounts
-
-On certain distributions it may be necessary to mount additional directories into the agent container. That is what the environment variable `AGENT_MOUNTS` is for. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.mounts`. The format of the variable content should be `mountname1=/host/path1:/container/path1,mountname2=/host/path2:/container/path2`.
-
 ## Kernel
 
 ### RBD
@@ -77,7 +91,3 @@ or choose a different Linux distribution.
 If you will be creating volumes from a Ceph shared file system (CephFS), the recommended minimum kernel version is **4.17**.
 If you have a kernel version less than 4.17, the requested PVC sizes will not be enforced. Storage quotas will only be
 enforced on newer kernels.
-
-## Kernel modules directory configuration
-
-Normally, on Linux, kernel modules can be found in `/lib/modules`. However, there are some distributions that put them elsewhere. In that case the environment variable `LIB_MODULES_DIR_PATH` can be used to override the default. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.libModulesDirPath`. One notable distribution where this setting is useful would be [NixOS](https://nixos.org).

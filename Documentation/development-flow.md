@@ -99,6 +99,7 @@ rook
 ├── cluster
 │   ├── charts                    # Helm charts
 │   │   └── rook-ceph
+│   │   └── rook-ceph-cluster
 │   └── examples                  # Sample yaml files for Rook cluster
 │
 ├── cmd                           # Binaries with main entrypoint
@@ -134,7 +135,6 @@ rook
     │   ├── installer             # installs Rook and its supported storage providers into integration tests environments
     │   └── utils
     ├── integration               # all test cases that will be invoked during integration testing
-    ├── longhaul                  # longhaul tests
     └── scripts                   # scripts for setting up integration and manual testing environments
 
 ```
@@ -148,7 +148,6 @@ To add a feature or to make a bug fix, you will need to create a branch in your 
 For new features of significant scope and complexity, a design document is recommended before work begins on the implementation.
 So create a design document if:
 
-* Adding a new storage provider
 * Adding a new CRD
 * Adding a significant feature to an existing storage provider. If the design is simple enough to describe in a github issue, you likely don't need a full design doc.
 
@@ -350,18 +349,7 @@ By default, you should always open a pull request against master.
 The flow for getting a fix into a release branch is:
 
 1. Open a PR to merge the changes to master following the process outlined above.
-2. Add the backport label to that PR such as backport-release-1.1
+2. Add the backport label to that PR such as backport-release-1.7
 3. After your PR is merged to master, the mergify bot will automatically open a PR with your commits backported to the release branch
 4. If there are any conflicts you will need to resolve them by pulling the branch, resolving the conflicts and force push back the branch
 5. After the CI is green, the bot will automatically merge the backport PR.
-
-## Debugging operators locally
-
-Operators are meant to be run inside a Kubernetes cluster. However, this makes it harder to use debugging tools and slows down the developer cycle of edit-build-test since testing requires to build a container image, push to the cluster, restart the pods, get logs, etc.
-
-A common operator developer practice is to run the operator locally on the developer machine in order to leverage the developer tools and comfort.
-
-In order to support this external operator mode, rook detects if the operator is running outside of the cluster (using standard cluster env) and changes the behavior as follows:
-
-* Connecting to Kubernetes API will load the config from the user `~/.kube/config`.
-* Instead of the default [CommandExecutor](../pkg/util/exec/exec.go) this mode uses a [TranslateCommandExecutor](../pkg/util/exec/translate_exec.go) that executes every command issued by the operator to run as a Kubernetes job inside the cluster, so that any tools that the operator needs from its image can be called.

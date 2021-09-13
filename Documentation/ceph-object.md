@@ -10,7 +10,7 @@ Object storage exposes an S3 API to the storage cluster for applications to put 
 
 ## Prerequisites
 
-This guide assumes a Rook cluster as explained in the [Quickstart](ceph-quickstart.md).
+This guide assumes a Rook cluster as explained in the [Quickstart](quickstart.md).
 
 ## Configure an Object Store
 

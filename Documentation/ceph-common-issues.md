@@ -92,7 +92,7 @@ If you see that the PVC remains in **pending** state, see the topic [PVCs stay i
 
 ### Possible Solutions Summary
 
-* `rook-ceph-agent` pod is in a `CrashLoopBackOff` status because it cannot deploy its driver on a read-only filesystem: [Flexvolume configuration pre-reqs](./ceph-prerequisites.md#ceph-flexvolume-configuration)
+* `rook-ceph-agent` pod is in a `CrashLoopBackOff` status because it cannot deploy its driver on a read-only filesystem: [Flexvolume configuration pre-reqs](./prerequisites.md#ceph-flexvolume-configuration)
 * Persistent Volume and/or Claim are failing to be created and bound: [Volume Creation](#volume-creation)
 * `rook-ceph-agent` pod is failing to mount and format the volume: [Rook Agent Mounting](#volume-mounting)
 
@@ -165,7 +165,7 @@ First, clean up the agent deployment with:
 kubectl -n rook-ceph delete daemonset rook-ceph-agent
 ```
 
-Once the `rook-ceph-agent` pods are gone, **follow the instructions in the [Flexvolume configuration pre-reqs](./ceph-prerequisites.md#ceph-flexvolume-configuration)** to ensure a good value for `--volume-plugin-dir` has been provided to the Kubelet.
+Once the `rook-ceph-agent` pods are gone, **follow the instructions in the [Flexvolume configuration pre-reqs](./prerequisites.md#ceph-flexvolume-configuration)** to ensure a good value for `--volume-plugin-dir` has been provided to the Kubelet.
 After that has been configured, and the Kubelet has been restarted, start the agent pods up again by restarting `rook-operator`:
 
 ```console

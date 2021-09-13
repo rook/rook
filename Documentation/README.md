@@ -6,23 +6,18 @@ Rook turns storage software into self-managing, self-scaling, and self-healing s
 
 Rook integrates deeply into cloud native environments leveraging extension points and providing a seamless experience for scheduling, lifecycle management, resource management, security, monitoring, and user experience.
 
-For more details about the status of storage solutions currently supported by Rook, please refer to the [project status section](https://github.com/rook/rook/blob/master/README.md#project-status) of the Rook repository.
-We plan to continue adding support for other storage systems and environments based on community demand and engagement in future releases.
+The Ceph operator was declared stable in December 2018 in the Rook v0.9 release, providing a production storage platform for several years already.
 
-## Quick Start Guides
+## Quick Start Guide
 
-Starting Rook in your cluster is as simple as a few `kubectl` commands depending on the storage provider.
-See our [Quickstart](quickstart.md) guide list for the detailed instructions for each storage provider.
+Starting Ceph in your cluster is as simple as a few `kubectl` commands.
+See our [Quickstart](quickstart.md) guide to get started with the Ceph operator!
 
-## Storage Provider Designs
+## Designs
 
-High-level Storage Provider design documents:
+[Ceph](https://docs.ceph.com/en/latest/) is a highly scalable distributed storage solution for block storage, object storage, and shared filesystems with years of production deployments. See the [Ceph overview](ceph-storage.md).
 
-| Storage Provider        | Status | Description                                                                                                                                            |
-| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [Ceph](ceph-storage.md) | Stable | Ceph is a highly scalable distributed storage solution for block storage, object storage, and shared filesystems with years of production deployments. |
-
-Low level design documentation for supported list of storage systems collected at [design docs](https://github.com/rook/rook/tree/master/design) section.
+For detailed design documentation, see also the [design docs](https://github.com/rook/rook/tree/master/design).
 
 ## Need help? Be sure to join the Rook Slack
 

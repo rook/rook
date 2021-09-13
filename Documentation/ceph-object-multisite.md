@@ -22,7 +22,7 @@ To review core multisite concepts please read the [ceph-multisite design overvie
 
 ## Prerequisites
 
-This guide assumes a Rook cluster as explained in the [Quickstart](ceph-quickstart.md).
+This guide assumes a Rook cluster as explained in the [Quickstart](quickstart.md).
 
 # Creating Object Multisite
 

@@ -25,7 +25,7 @@ See the [Helm support matrix](https://helm.sh/docs/topics/version_skew/) for mor
 
 The Ceph Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster.
 1. Install the Helm chart
-1. [Create a Rook cluster](ceph-quickstart.md#create-a-rook-cluster).
+1. [Create a Rook cluster](quickstart.md#create-a-rook-cluster).
 
 The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph` namespace (you will install your clusters into separate namespaces).
 
@@ -106,7 +106,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `csi.provisionerPriorityClassName`  | PriorityClassName to be set on csi driver provisioner pods.                                                                 | <none>                                                    |
 | `csi.enableOMAPGenerator`           | EnableOMAP generator deploys omap sidecar in CSI provisioner pod, to enable it set it to true                               | `false`                                                   |
 | `csi.rbdFSGroupPolicy`              | Policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted                                  | ReadWriteOnceWithFSType                                   |
-| `csi.cephFSFSGroupPolicy`           | Policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted                               | `None`                                  |
+| `csi.cephFSFSGroupPolicy`           | Policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted                               | `None`                                                    |
 | `csi.logLevel`                      | Set logging level for csi containers. Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity. | `0`                                                       |
 | `csi.enableGrpcMetrics`             | Enable Ceph CSI GRPC Metrics.                                                                                               | `false`                                                   |
 | `csi.enableCSIHostNetwork`          | Enable Host Networking for Ceph CSI nodeplugins.                                                                            | `false`                                                   |
