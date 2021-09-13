@@ -7,12 +7,21 @@
       2,
       "always",
       [
-        "build",
         "bot",
+        "build",
         "ceph",
+        "cephfs-mirror",
         "ci",
         "core",
+        "csi",
         "docs",
+        "mds",
+        "mgr",
+        "mon",
+        "osd",
+        "pool",
+        "rbd-mirror",
+        "rgw",
         "test"
       ]
     ],
