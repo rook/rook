@@ -135,6 +135,10 @@ function validate_yaml() {
   # skipping folders and some yamls that are only for openshift.
   manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc.yaml')"
   with_f_arg="$(echo "$manifests" | awk '{printf " -f %s",$1}')" # don't add newline
+<<<<<<< HEAD
+=======
+  # shellcheck disable=SC2086 # '-f manifest1.yaml -f manifest2.yaml etc.' should not be quoted
+>>>>>>> 038031ddb (ci: dry-run is deprecated and replaced with --dry-run=client)
   kubectl create ${with_f_arg} --dry-run=client
 }
 
