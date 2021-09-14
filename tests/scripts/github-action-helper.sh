@@ -136,7 +136,7 @@ function validate_yaml() {
   manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*')"
   with_f_arg="$(echo "$manifests" | awk '{printf " -f %s",$1}')" # don't add newline
   # shellcheck disable=SC2086 # '-f manifest1.yaml -f manifest2.yaml etc.' should not be quoted
-  kubectl create ${with_f_arg} --dry-run
+  kubectl create ${with_f_arg} --dry-run=client
 }
 
 function create_cluster_prerequisites() {
