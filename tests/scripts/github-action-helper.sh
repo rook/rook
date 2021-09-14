@@ -133,7 +133,9 @@ function validate_yaml() {
   cd cluster/examples/kubernetes/ceph
   kubectl create -f crds.yaml -f common.yaml
   # skipping folders and some yamls that are only for openshift.
-  kubectl create $(ls -I scc.yaml -I "*-openshift.yaml" -I "*.sh" -I "*.py" -p | grep -v / | awk ' { print " -f " $1 } ') --dry-run
+  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc.yaml')"
+  with_f_arg="$(echo "$manifests" | awk '{printf " -f %s",$1}')" # don't add newline
+  kubectl create ${with_f_arg} --dry-run=client
 }
 
 function create_cluster_prerequisites() {
