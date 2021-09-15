@@ -123,6 +123,11 @@ spec:
   #        VAULT_BACKEND: v2
   #     # name of the secret containing the kms authentication token
   #     tokenSecretName: rook-vault-token
+  # To enable the OPA authentication
+  #   opa:
+  #     url: "URL of the OPA service" # eg: opa.rook-ceph:8181/v1/data/ceph/authz/allow
+  #     token: "OPA auth token"
+  #     verifySSL: true # the required TLS cert need to pass as a secret for caBundleRef
 # # UNCOMMENT THIS TO ENABLE A KMS CONNECTION
 # # Also, do not forget to replace both:
 # #  * ROOK_TOKEN_CHANGE_ME: with a base64 encoded value of the token to use

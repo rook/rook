@@ -213,6 +213,19 @@ func TestSSLPodSpec(t *testing.T) {
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "quay.io/ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class")
+	verifySSL := true
+	c.store.Spec.Security = &cephv1.SecuritySpec{
+		OpenPolicyAgentService: &cephv1.OpenPolicyAgentServiceSpec{
+			URL:       "",
+			Token:     "",
+			VerifySSL: &verifySSL,
+		}}
+	s, err = c.makeRGWPodSpec(rgwConfig)
+	assert.NoError(t, err)
+	podTemplate = cephtest.NewPodTemplateSpecTester(t, &s)
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "quay.io/ceph/ceph:myversion",
+		"200", "100", "1337", "500", /* resources */
+		"my-priority-class")
 
 	assert.True(t, s.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, s.Spec.DNSPolicy)

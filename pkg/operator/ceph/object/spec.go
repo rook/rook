@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
@@ -308,6 +309,20 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 				cephconfig.NewFlag("rgw crypt vault secret engine",
 					c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
 			)
+		}
+	}
+	if c.store.Spec.Security != nil && c.store.Spec.Security.OpenPolicyAgentService != nil {
+		container.Args = append(container.Args,
+			cephconfig.NewFlag("rgw use opa authz", "true"),
+			cephconfig.NewFlag("rgw opa url",
+				c.store.Spec.Security.OpenPolicyAgentService.URL),
+			cephconfig.NewFlag("rgw opa token",
+				c.store.Spec.Security.OpenPolicyAgentService.Token),
+		)
+		if c.store.Spec.Security.OpenPolicyAgentService.VerifySSL != nil {
+			container.Args = append(container.Args,
+				cephconfig.NewFlag("rgw opa verify ssl",
+					strconv.FormatBool(*c.store.Spec.Security.OpenPolicyAgentService.VerifySSL)))
 		}
 	}
 	return container

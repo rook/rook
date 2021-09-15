@@ -1859,6 +1859,23 @@ spec:
                           description: TokenSecretName is the kubernetes secret containing the KMS token
                           type: string
                       type: object
+                    opa:
+                      description: OpenPolicyAgentService defines spec for the OPA service
+                      nullable: true
+                      properties:
+                        token:
+                          description: Token is the token for the OPA
+                          minLength: 1
+                          type: string
+                        url:
+                          description: URL of the OPA service for the authentication
+                          minLength: 1
+                          type: string
+                        verifySSL:
+                          description: Indicate whether the server certificate is validated by the client or not
+                          nullable: true
+                          type: boolean
+                      type: object
                   type: object
                 skipUpgradeChecks:
                   description: SkipUpgradeChecks defines if an upgrade should be forced even if one of the check fails
@@ -7504,6 +7521,23 @@ spec:
                         tokenSecretName:
                           description: TokenSecretName is the kubernetes secret containing the KMS token
                           type: string
+                      type: object
+                    opa:
+                      description: OpenPolicyAgentService defines spec for the OPA service
+                      nullable: true
+                      properties:
+                        token:
+                          description: Token is the token for the OPA
+                          minLength: 1
+                          type: string
+                        url:
+                          description: URL of the OPA service for the authentication
+                          minLength: 1
+                          type: string
+                        verifySSL:
+                          description: Indicate whether the server certificate is validated by the client or not
+                          nullable: true
+                          type: boolean
                       type: object
                   type: object
                 zone:

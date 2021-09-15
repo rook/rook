@@ -37,6 +37,7 @@ spec:
   preservePoolsOnDelete: true
   gateway:
     # sslCertificateRef:
+    # caBundleRef:
     port: 80
     # securePort: 443
     instances: 1
@@ -92,6 +93,7 @@ The gateway settings correspond to the RGW daemon settings.
 
 * `type`: `S3` is supported
 * `sslCertificateRef`: If specified, this is the name of the Kubernetes secret(`opaque` or `tls` type) that contains the TLS certificate to be used for secure connections to the object store. Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be in the format expected by the [RGW service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb): "The server key, server certificate, and any other CA or intermediate certificates be supplied in one file. Each of these items must be in PEM form."
+* `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that contains ca-bundle to use. The secret must be in the same namespace as the Rook cluster. Rook will look in the secret provided at the `cabundle` key name.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be specified either via `sslCerticateRef` or `service.annotations`
 * `instances`: The number of pods that will be started to load balance this object store.
@@ -171,11 +173,11 @@ Rook-Ceph always keeps the bucket and the user for the health check, it just doe
 
 ## Security settings
 
-Ceph RGW supports encryption via Key Management System (KMS) using HashiCorp Vault. Refer to the [vault kms section](ceph-cluster-crd.md#vault-kms) for detailed explanation.
+The `security` section contains settings related to Key Management System (KMS) encryption and Open Policy Agent (OPA) authentication for the RGW.
+
+Ceph RGW supports encryption via KMS using HashiCorp Vault. Refer to the [vault kms section](ceph-cluster-crd.md#vault-kms) for detailed explanation.
 If these settings are defined, then RGW establish a connection between Vault and whenever S3 client sends a request with Server Side Encryption,
 it encrypts that using the key specified by the client. For more details w.r.t RGW, please refer [Ceph Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/)
-
-The `security` section contains settings related to KMS encryption of the RGW.
 
 ```yaml
 security:
@@ -190,7 +192,7 @@ security:
     tokenSecretName: rgw-vault-token
 ```
 
-For RGW, please note the following:
+For RGW, please note the following wrt KMS:
 
 * `VAULT_SECRET_ENGINE` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit). And for kv engine only version 2 is supported.
 * The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption
@@ -198,6 +200,15 @@ $ vault kv put rook/<mybucketkey> key=$(openssl rand -base64 32) # kv engine
 $ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 
 * TLS authentication with custom certs between Vault and RGW are yet to be supported.
+
+Here example for OPA config:
+```yaml
+  opa:
+    url: opa.rook-ceph:8181/v1/data/ceph/authz/allow
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+    verifySSL: true
+```
+The config options include url, token for the OPA service. The TLS certs can be passed with help `caBundleRef`. For more details w.r.t RGW, please refer [Ceph OPA documentation](https://docs.ceph.com/en/latest/radosgw/opa/).
 
 ## Deleting a CephObjectStore
 

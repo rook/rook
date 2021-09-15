@@ -236,6 +236,28 @@ type SecuritySpec struct {
 	// +optional
 	// +nullable
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+	// OpenPolicyAgentService defines spec for the OPA service
+	// +optional
+	// +nullable
+	OpenPolicyAgentService *OpenPolicyAgentServiceSpec `json:"opa,omitempty"`
+}
+
+// OpenPolicyAgentServiceSpec contains options for communicating with the OPA server
+type OpenPolicyAgentServiceSpec struct {
+	// URL of the OPA service for the authentication
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	URL string `json:"url,omitempty"`
+	// Indicate whether the server certificate is validated by the client or not
+	// +optional
+	// +nullable
+	VerifySSL *bool `json:"verifySSL,omitempty"`
+	// Token is the token for the OPA
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	Token string `json:"token,omitempty"`
 }
 
 // KeyManagementServiceSpec represent various details of the KMS server
