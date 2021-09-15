@@ -45,6 +45,7 @@ const (
 	helmMinimalTestVersion            = "1.17.0"
 	upgradeMinimalTestVersion         = "1.18.0"
 	smokeSuiteMinimalTestVersion      = "1.19.0"
+	objectSuiteMinimalTestVersion     = "1.19.0"
 )
 
 var (

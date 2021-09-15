@@ -44,6 +44,7 @@ pull_request_rules:
       - 'check-success=TestCephHelmSuite'
       - 'check-success=TestCephMultiClusterDeploySuite'
       - 'check-success=TestCephUpgradeSuite'
+      - 'check-success=TestCephObjectSuite'
     actions:
       merge:
         method: merge
