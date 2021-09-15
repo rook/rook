@@ -19,6 +19,7 @@ package integration
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -105,45 +106,66 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	blockName := "block-claim-upgrade"
 	logger.Infof("Initializing block before the upgrade")
 	clusterInfo := client.AdminClusterInfo(s.namespace)
-	setupBlockLite(s.helper, s.k8sh, s.Suite, clusterInfo, poolName, storageClassName, blockName, rbdPodName)
 
-	createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, storageClassName, rbdPodName, blockName)
+	// run block, file, and object tests in parallel goroutines to speed up the test
+	var wg sync.WaitGroup
+
+	// block test
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		setupBlockLite(s.helper, s.k8sh, s.Suite, clusterInfo, poolName, storageClassName, blockName, rbdPodName)
+		createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, storageClassName, rbdPodName, blockName)
+	}()
 
 	// FIX: We should require block images to be removed. See tracking issue:
 	// <INSERT ISSUE>
 	requireBlockImagesRemoved := false
 	defer blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, clusterInfo, poolName, storageClassName, blockName, rbdPodName, requireBlockImagesRemoved)
 
-	// Create the filesystem
-	logger.Infof("Initializing file before the upgrade")
 	filesystemName := "upgrade-test-fs"
-	activeCount := 1
-	createFilesystem(s.helper, s.k8sh, s.Suite, s.settings, filesystemName, activeCount)
-
-	// Start the file test client
 	fsStorageClass := "file-upgrade"
-	assert.NoError(s.T(), s.helper.FSClient.CreateStorageClass(filesystemName, s.settings.OperatorNamespace, s.namespace, fsStorageClass))
-	createFilesystemConsumerPod(s.helper, s.k8sh, s.Suite, s.settings, filesystemName, fsStorageClass)
+	wg.Add(1)
+	go func() {
+		// Create the filesystem
+		logger.Infof("Initializing file before the upgrade")
+		activeCount := 1
+		createFilesystem(s.helper, s.k8sh, s.Suite, s.settings, filesystemName, activeCount)
+
+		// Start the file test client
+		assert.NoError(s.T(), s.helper.FSClient.CreateStorageClass(filesystemName, s.settings.OperatorNamespace, s.namespace, fsStorageClass))
+		createFilesystemConsumerPod(s.helper, s.k8sh, s.Suite, s.settings, filesystemName, fsStorageClass)
+	}()
 	defer func() {
 		cleanupFilesystemConsumer(s.helper, s.k8sh, s.Suite, s.namespace, filePodName)
 		cleanupFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filesystemName)
 	}()
 
-	logger.Infof("Initializing object before the upgrade")
 	objectStoreName := "upgraded-object"
-	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.settings, objectStoreName, 1, false)
-
-	logger.Infof("Initializing object user before the upgrade")
 	objectUserID := "upgraded-user"
-	createCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, false, false)
-
-	logger.Info("Initializing object bucket claim before the upgrade")
-	bucketStorageClassName := "rook-smoke-delete-bucket"
 	bucketPrefix := "generate-me" // use generated bucket name for this test
-	cobErr := s.helper.BucketClient.CreateBucketStorageClass(s.namespace, objectStoreName, bucketStorageClassName, "Delete", region)
-	require.Nil(s.T(), cobErr)
-	cobcErr := s.helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketPrefix, maxObject, false)
-	require.Nil(s.T(), cobcErr)
+	wg.Add(1)
+	go func() {
+		logger.Infof("Initializing object before the upgrade")
+		runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.settings, objectStoreName, 1, false)
+
+		logger.Infof("Initializing object user before the upgrade")
+		createCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, false, false)
+
+		logger.Info("Initializing object bucket claim before the upgrade")
+		bucketStorageClassName := "rook-smoke-delete-bucket"
+		cobErr := s.helper.BucketClient.CreateBucketStorageClass(s.namespace, objectStoreName, bucketStorageClassName, "Delete", region)
+		require.Nil(s.T(), cobErr)
+		cobcErr := s.helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketPrefix, maxObject, false)
+		require.Nil(s.T(), cobcErr)
+
+		created := utils.Retry(12, 2*time.Second, "OBC is created", func() bool {
+			// do not check if bound here b/c this fails in Rook v1.4
+			return s.helper.BucketClient.CheckOBC(obcName, "created")
+		})
+		require.True(s.T(), created)
+	}()
+
 	defer func() {
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
 		_ = s.helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketPrefix, maxObject, false)
@@ -151,14 +173,10 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 		objectStoreCleanUp(s.Suite, s.helper, s.k8sh, s.settings.Namespace, objectStoreName)
 	}()
 
-	created := utils.Retry(12, 2*time.Second, "OBC is created", func() bool {
-		// do not check if bound here b/c this fails in Rook v1.4
-		return s.helper.BucketClient.CheckOBC(obcName, "created")
-	})
-	require.True(s.T(), created)
-
 	// verify that we're actually running the right pre-upgrade image
 	s.verifyOperatorImage(installer.Version1_6)
+
+	wg.Wait()
 
 	message := "my simple message"
 	preFilename := "pre-upgrade-file"
