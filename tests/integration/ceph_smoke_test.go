@@ -103,7 +103,7 @@ func (s *SmokeSuite) SetupSuite() {
 		CephVersion:               installer.PacificVersion,
 	}
 	s.settings.ApplyEnvVars()
-	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, smokeSuiteMinimalTestVersion)
+	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
 	if s.k8sh.VersionAtLeast("v1.16.0") {
 		s.settings.EnableVolumeReplication = true
 	}

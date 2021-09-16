@@ -18,8 +18,6 @@ package integration
 
 import (
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"testing"
@@ -35,17 +33,6 @@ import (
 
 const (
 	defaultNamespace = "default"
-	// UPDATE these versions when the integration test matrix changes
-	// These versions are for running a minimal test suite for more efficient tests across different versions of K8s
-	// instead of running all suites on all versions
-	// To run on multiple versions, add a comma separate list such as 1.16.0,1.17.0
-	flexDriverMinimalTestVersion      = "1.15.0"
-	cephMasterSuiteMinimalTestVersion = "1.16.0"
-	multiClusterMinimalTestVersion    = "1.16.0"
-	helmMinimalTestVersion            = "1.17.0"
-	upgradeMinimalTestVersion         = "1.18.0"
-	smokeSuiteMinimalTestVersion      = "1.19.0"
-	objectSuiteMinimalTestVersion     = "1.19.0"
 )
 
 var (
@@ -96,34 +83,10 @@ func HandlePanics(r interface{}, uninstaller func(), t func() *testing.T) {
 	}
 }
 
-func checkIfShouldRunForMinimalTestMatrix(t func() *testing.T, k8sh *utils.K8sHelper, version string) {
-	testArgs := os.Getenv("TEST_ARGUMENTS")
-	if !strings.Contains(testArgs, "min-test-matrix") {
-		logger.Infof("running all tests")
-		return
-	}
-	versions := strings.Split(version, ",")
-	logger.Infof("checking if tests are running on k8s %q", version)
-	matchedVersion := false
-	kubeVersion := ""
-	for _, v := range versions {
-		kubeVersion, matchedVersion = k8sh.VersionMinorMatches(v)
-		if matchedVersion {
-			break
-		}
-	}
-	if !matchedVersion {
-		logger.Infof("Skipping test suite since kube version %q does not match", kubeVersion)
-		t().Skip()
-	}
-	logger.Infof("Running test suite since kube version is %q", kubeVersion)
-}
-
 // StartTestCluster creates new instance of TestCephSettings struct
-func StartTestCluster(t func() *testing.T, settings *installer.TestCephSettings, minimalMatrixK8sVersion string) (*installer.CephInstaller, *utils.K8sHelper) {
+func StartTestCluster(t func() *testing.T, settings *installer.TestCephSettings) (*installer.CephInstaller, *utils.K8sHelper) {
 	k8shelper, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
-	checkIfShouldRunForMinimalTestMatrix(t, k8shelper, minimalMatrixK8sVersion)
 
 	// Turn on DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)

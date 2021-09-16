@@ -167,7 +167,7 @@ func (s *MultiClusterDeploySuite) setupMultiClusterCore() {
 	cmdOut := utils.ExecuteCommand(cmdArgs)
 	require.NoError(s.T(), cmdOut.Err)
 
-	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, multiClusterMinimalTestVersion)
+	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
 	s.testClient = clients.CreateTestClient(s.k8sh, s.installer.Manifests)
 	s.coreToolbox = client.RunAllCephCommandsInToolboxPod
 }
