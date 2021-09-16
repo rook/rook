@@ -87,6 +87,9 @@ csi:
   # sidecar with CSI provisioner pod, to enable set it to true.
   enableOMAPGenerator: false
 
+  # Set replicas for csi provisioner deployment.
+  provisionerReplicas: 2
+
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   #logLevel: 0

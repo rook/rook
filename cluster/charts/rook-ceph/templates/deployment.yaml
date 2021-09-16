@@ -275,6 +275,10 @@ spec:
         - name: CSI_LOG_LEVEL
           value: {{ .Values.csi.logLevel | quote }}
 {{- end }}
+{{- if .Values.csi.provisionerReplicas }}
+        - name: CSI_PROVISIONER_REPLICAS
+          value: {{ .Values.csi.provisionerReplicas | quote }}
+{{- end }}
 {{- if .Values.csi.csiRBDProvisionerResource }}
         - name: CSI_RBD_PROVISIONER_RESOURCE
           value: {{ .Values.csi.csiRBDProvisionerResource | quote }}
