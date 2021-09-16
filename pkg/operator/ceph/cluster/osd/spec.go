@@ -194,85 +194,6 @@ else
 	echo "LUKS version is not 2 so not setting label and subsystem"
 fi
 `
-	// #nosec G101 no leak just variable names
-	getKEKFromVaultWithToken = `
-# DO NOT RUN WITH -x TO AVOID LEAKING VAULT_TOKEN
-set -e
-
-KEK_NAME=%s
-KEY_PATH=%s
-CURL_PAYLOAD=$(mktemp)
-ARGS=(--silent --show-error --request GET --header "X-Vault-Token: ${VAULT_TOKEN//[$'\t\r\n']}")
-PYTHON_DATA_PARSE="['data']"
-
-# If a vault namespace is set
-if [ -n "$VAULT_NAMESPACE" ]; then
-  ARGS+=(--header "X-Vault-Namespace: ${VAULT_NAMESPACE}")
-fi
-
-# If SSL is configured but self-signed CA is used
-if [ -n "$VAULT_SKIP_VERIFY" ] && [[ "$VAULT_SKIP_VERIFY" == "true" ]]; then
-  ARGS+=(--insecure)
-fi
-
-# TLS args
-if [ -n "$VAULT_CACERT" ]; then
-  if [ -z "$VAULT_CLIENT_CERT" ] && [ -z "$VAULT_CLIENT_KEY" ]; then
-    ARGS+=(--cacert "${VAULT_CACERT}")
-  else
-    ARGS+=(--capath $(dirname "${VAULT_CACERT}"))
-  fi
-fi
-if [ -n "$VAULT_CLIENT_CERT" ]; then
-  ARGS+=(--cert "${VAULT_CLIENT_CERT}")
-fi
-if [ -n "$VAULT_CLIENT_KEY" ]; then
-  ARGS+=(--key "${VAULT_CLIENT_KEY}")
-fi
-
-# For a request to any host/port, connect to VAULT_TLS_SERVER_NAME:requests original port instead
-# Used for SNI validation and correct certificate matching
-if [ -n "$VAULT_TLS_SERVER_NAME" ]; then
-  ARGS+=(--connect-to ::"${VAULT_TLS_SERVER_NAME}":)
-fi
-
-# trim VAULT_BACKEND_PATH for last character '/' to avoid a redirect response from the server
-VAULT_BACKEND_PATH="${VAULT_BACKEND_PATH%%/}"
-
-# Check KV engine version
-if [[ "$VAULT_BACKEND" == "v2" ]]; then
-  PYTHON_DATA_PARSE="['data']['data']"
-  VAULT_BACKEND_PATH="$VAULT_BACKEND_PATH/data"
-fi
-
-
-# Get the Key Encryption Key
-curl "${ARGS[@]}" "$VAULT_ADDR"/v1/"$VAULT_BACKEND_PATH"/"$KEK_NAME" > "$CURL_PAYLOAD"
-
-# Check for warnings in the payload
-if warning=$(python3 -c "import sys, json; print(json.load(sys.stdin)[\"warnings\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"); then
-  if [[ "$warning" != None ]]; then
-    # We could get a warning but it is not necessary an issue, so if there is no key we exit
-    if ! python3 -c "import sys, json; print(json.load(sys.stdin)${PYTHON_DATA_PARSE}[\"$KEK_NAME\"], end='')" &> /dev/null < "$CURL_PAYLOAD"; then
-      echo "no encryption key $KEK_NAME present in vault"
-      echo "$warning"
-      exit 1
-    fi
-  fi
-fi
-
-# Check for errors in the payload
-if error=$(python3 -c "import sys, json; print(json.load(sys.stdin)[\"errors\"], end='')" 2> /dev/null < "$CURL_PAYLOAD"); then
-  echo "$error"
-  exit 1
-fi
-
-# Put the KEK in a file for cryptsetup to read
-python3 -c "import sys, json; print(json.load(sys.stdin)${PYTHON_DATA_PARSE}[\"$KEK_NAME\"], end='')" < "$CURL_PAYLOAD" > "$KEY_PATH"
-
-# purge payload file
-rm -f "$CURL_PAYLOAD"
-`
 
 	// If the disk identifier changes (different major and minor) we must force copy
 	// --remove-destination will remove each existing destination file before attempting to open it
@@ -926,15 +847,20 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 }
 
 func (c *Cluster) generateVaultGetKEK(osdProps osdProperties) v1.Container {
+	keyName := osdProps.pvc.ClaimName
+	keyPath := encryptionKeyPath()
+
 	return v1.Container{
-		Name:  blockEncryptionKMSGetKEKInitContainer,
-		Image: c.spec.CephVersion.Image,
-		Command: []string{
-			"/bin/bash",
-			"-c",
-			fmt.Sprintf(getKEKFromVaultWithToken, kms.GenerateOSDEncryptionSecretName(osdProps.pvc.ClaimName), encryptionKeyPath()),
+		Name:    blockEncryptionKMSGetKEKInitContainer,
+		Image:   c.rookVersion,
+		Command: []string{"rook"},
+		Args: []string{
+			"key-management",
+			"get",
+			keyName,
+			keyPath,
 		},
-		Env:       kms.VaultConfigToEnvVar(c.spec),
+		Env:       c.getConfigEnvVars(osdProps, ""),
 		Resources: osdProps.resources,
 	}
 }

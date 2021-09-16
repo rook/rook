@@ -104,7 +104,7 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 		// Store the secret in Vault
 		v, err := InitVault(c.context, c.clusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
-			return "", errors.Wrap(err, "failed to get secret in vault")
+			return "", errors.Wrap(err, "failed to init vault")
 		}
 
 		k := buildKeyContext(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
