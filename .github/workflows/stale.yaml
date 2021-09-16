@@ -9,10 +9,11 @@ jobs:
     runs-on: ubuntu-18.04
     if: github.repository == 'rook/rook'
     steps:
-    - uses: actions/stale@v3
+    - uses: actions/stale@v4
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        days-before-stale: 90
+        days-before-issue-stale: 60
+        days-before-pr-stale: 30
         days-before-close: 7
         days-before-pr-close: 14
         stale-issue-message: >
