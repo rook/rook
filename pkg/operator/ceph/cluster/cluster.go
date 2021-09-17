@@ -224,8 +224,9 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	cluster.isUpgrade = isUpgrade
 
 	if cluster.Spec.IsStretchCluster() {
-		if !cephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Build: 5}) {
-			return errors.Errorf("stretch clusters minimum ceph version is v16.2.5, but is running %s", cephVersion.String())
+		stretchVersion := cephver.CephVersion{Major: 16, Minor: 2, Build: 5}
+		if !cephVersion.IsAtLeast(stretchVersion) {
+			return errors.Errorf("stretch clusters minimum ceph version is %q, but is running %s", stretchVersion.String(), cephVersion.String())
 		}
 	}
 
