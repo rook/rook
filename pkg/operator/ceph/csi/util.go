@@ -22,25 +22,25 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 )
 
-func loadTemplate(name, templateData string, p templateParam) (string, error) {
+func loadTemplate(name, templateData string, p templateParam) ([]byte, error) {
 	var writer bytes.Buffer
 	t := template.New(name)
 	t, err := t.Parse(templateData)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to parse template %v", name)
+		return nil, errors.Wrapf(err, "failed to parse template %v", name)
 	}
 	err = t.Execute(&writer, p)
-	return writer.String(), err
+	return writer.Bytes(), err
 }
 
 func templateToService(name, templateData string, p templateParam) (*corev1.Service, error) {
@@ -50,7 +50,7 @@ func templateToService(name, templateData string, p templateParam) (*corev1.Serv
 		return nil, errors.Wrap(err, "failed to load service template")
 	}
 
-	err = yaml.Unmarshal([]byte(t), &svc)
+	err = yaml.Unmarshal(t, &svc)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal service template")
 	}
@@ -64,7 +64,7 @@ func templateToDaemonSet(name, templateData string, p templateParam) (*apps.Daem
 		return nil, errors.Wrap(err, "failed to load daemonset template")
 	}
 
-	err = yaml.Unmarshal([]byte(t), &ds)
+	err = yaml.Unmarshal(t, &ds)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal daemonset template")
 	}
@@ -78,7 +78,7 @@ func templateToDeployment(name, templateData string, p templateParam) (*apps.Dep
 		return nil, errors.Wrap(err, "failed to load deployment template")
 	}
 
-	err = yaml.Unmarshal([]byte(t), &dep)
+	err = yaml.Unmarshal(t, &dep)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal deployment template")
 	}

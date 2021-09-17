@@ -22,12 +22,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -215,7 +215,7 @@ func YamlToContainerResource(raw string) ([]ContainerResource, error) {
 	if raw == "" {
 		return resources, nil
 	}
-	rawJSON, err := yaml.YAMLToJSON([]byte(raw))
+	rawJSON, err := yaml.ToJSON([]byte(raw))
 	if err != nil {
 		return resources, err
 	}

@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 func TestClusterSpecMarshal(t *testing.T) {
@@ -48,7 +48,7 @@ storage:
     devicePathFilter: "^/dev/disk/by-id/.*foo.*"`)
 
 	// convert the raw spec yaml into JSON
-	rawJSON, err := yaml.YAMLToJSON(specYaml)
+	rawJSON, err := yaml.ToJSON(specYaml)
 	assert.Nil(t, err)
 	fmt.Printf("rawJSON: %s\n", string(rawJSON))
 

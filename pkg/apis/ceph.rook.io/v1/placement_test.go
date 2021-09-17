@@ -19,10 +19,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 func TestPlacementSpec(t *testing.T) {
@@ -46,7 +46,7 @@ topologySpreadConstraints:
       matchLabels:
         foo: bar`)
 	// convert the raw spec yaml into JSON
-	rawJSON, err := yaml.YAMLToJSON(specYaml)
+	rawJSON, err := yaml.ToJSON(specYaml)
 	assert.Nil(t, err)
 
 	// unmarshal the JSON into a strongly typed placement spec object

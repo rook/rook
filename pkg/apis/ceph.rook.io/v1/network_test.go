@@ -20,14 +20,14 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 func TestNetworkCephSpecLegacy(t *testing.T) {
 	netSpecYAML := []byte(`hostNetwork: true`)
 
-	rawJSON, err := yaml.YAMLToJSON(netSpecYAML)
+	rawJSON, err := yaml.ToJSON(netSpecYAML)
 	assert.Nil(t, err)
 
 	var net NetworkSpec
@@ -53,7 +53,7 @@ selectors:
   server: enp2s0f0
   broker: enp2s0f0`)
 
-	rawJSON, err := yaml.YAMLToJSON(netSpecYAML)
+	rawJSON, err := yaml.ToJSON(netSpecYAML)
 	assert.Nil(t, err)
 
 	var net NetworkSpec
