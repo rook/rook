@@ -131,7 +131,8 @@ func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
 	if utils.IsPlatformOpenShift() {
 		s.T().Skip("object store tests skipped on openshift")
 	}
-	runObjectE2ETest(s.helper, s.k8sh, s.Suite, s.settings.Namespace)
+	storeName := "lite-store"
+	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.settings, storeName, 2, true)
 }
 
 // Test to make sure all rook components are installed and Running
