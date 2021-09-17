@@ -249,3 +249,23 @@ Rook will warn about which buckets are blocking deletion in three ways:
 If the CephObjectStore is configured in a [multisite setup](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) the above conditions are applicable only to stores that belong to a single master zone.
 Otherwise the conditions are ignored. Even if the store is removed the user can access the
 data from a peer object store.
+
+1. An error will be added to the Rook-Ceph Operator log
+
+## LDAP settings
+The authentication for s3 client accessing RGW is performed with help of LDAP server. Please find more details [here](https://docs.ceph.com/en/latest/radosgw/ldap-auth/)
+
+For example:
+```yaml
+ldap:
+  uri: ldaps://ldap-server:636
+  binddn: "uid=ceph,cn=users,cn=accounts,dc=example,dc=com"
+  credentialsecret: object-my-store-ldap-creds
+  searchdn: "cn=users,cn=accounts,dc=example,dc=com"
+  dnattr: "uid"
+```
+* `uri`: It specifies the address of LDAP server to use.
+* `binddn`: The bind domain for the service account used by RGW server.
+* `credentialsecret`: The name of k8s secret which contains password for the bind domain, need to save value as `data.password`.
+* `searchdn`: The search domain where can it look for the user details.
+* `dnattr`: The attribute being used in the constructed search filter to match a username, this can either be `uid` or `cn`.
