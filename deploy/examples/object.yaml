@@ -114,6 +114,13 @@ spec:
       disabled: false
     readinessProbe:
       disabled: false
+  # To enable ldap configurations for RGW
+  # ldap:
+  #   uri: # e.g: ldaps://<fqdn>:636
+  #   binddn: # e.g: "uid=ceph,cn=users,cn=accounts,dc=example,dc=com"
+  #   searchdn: # e.g: "cn=users,cn=accounts,dc=example,dc=com"
+  #   dnattr: # e.g: "uid=ceph"
+  #   credentialsecret: object-my-store-ldap-creds
   # security oriented settings
   # security:
   # To enable the KMS configuration properly don't forget to uncomment the Secret at the end of the file
@@ -139,3 +146,11 @@ spec:
 #   namespace: rook-ceph # namespace:cluster
 # data:
 #   token: ROOK_TOKEN_CHANGE_ME
+# ---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: object-my-store-ldap-creds
+#   namespace: rook-ceph # namespace:cluster
+# data:
+#   password: CHANGE_ME

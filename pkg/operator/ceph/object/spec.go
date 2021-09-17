@@ -162,6 +162,22 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		podSpec.InitContainers = append(podSpec.InitContainers,
 			c.createCaBundleUpdateInitContainer(rgwConfig))
 	}
+	//Check if ldap is enabled
+	if c.store.Spec.LDAP != nil {
+		ldapVol := v1.Volume{
+			Name: ldapVolumeName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: c.store.Spec.LDAP.CredentialSecretName,
+					Items: []v1.KeyToPath{
+						{Key: ldapKeyName, Path: ldapFileName},
+					},
+				},
+			},
+		}
+		podSpec.Volumes = append(podSpec.Volumes, ldapVol)
+	}
+
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
 		return v1.PodTemplateSpec{}, err
@@ -311,6 +327,24 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	if c.store.Spec.Gateway.CaBundleRef != "" {
 		updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: caBundleExtractedDir, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, updatedBundleMount)
+	}
+	if c.store.Spec.LDAP != nil {
+		ldapMount := v1.VolumeMount{Name: ldapVolumeName, MountPath: ldapDir, ReadOnly: true}
+		container.VolumeMounts = append(container.VolumeMounts, ldapMount)
+		container.Args = append(container.Args,
+			cephconfig.NewFlag("rgw s3 auth use ldap", "true"),
+			cephconfig.NewFlag("rgw ldap uri", c.store.Spec.LDAP.URI),
+			cephconfig.NewFlag("rgw ldap binddn", c.store.Spec.LDAP.BindDN),
+			cephconfig.NewFlag("rgw ldap secret", path.Join(ldapDir, ldapFileName)),
+		)
+		if c.store.Spec.LDAP.SearchDN != "" {
+			container.Args = append(container.Args,
+				cephconfig.NewFlag("rgw ldap searchdn", c.store.Spec.LDAP.SearchDN))
+		}
+		if c.store.Spec.LDAP.DNattribute != "" {
+			container.Args = append(container.Args,
+				cephconfig.NewFlag("rgw ldap dnattr", c.store.Spec.LDAP.DNattribute))
+		}
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {

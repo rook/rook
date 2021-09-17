@@ -247,3 +247,21 @@ Rook will warn about which buckets are blocking deletion in three ways:
 1. An event will be registered on the CephObjectStore resource
 1. A status condition will be added to the CephObjectStore resource
 1. An error will be added to the Rook-Ceph Operator log
+
+## LDAP settings
+The authentication for s3 client accessing RGW is performed with help of LDAP server. Please find more details [here](https://docs.ceph.com/en/latest/radosgw/ldap-auth/)
+
+For example:
+```yaml
+ldap:
+  uri: ldaps://ldap-server:636
+  binddn: "uid=ceph,cn=users,cn=accounts,dc=example,dc=com"
+  credentialsecret: object-my-store-ldap-creds
+  searchdn: "cn=users,cn=accounts,dc=example,dc=com"
+  dnattr: "uid"
+```
+* `uri`: It specifies the address of LDAP server to use.
+* `binddn`: The bind domain for the service account used by RGW server.
+* `credentialsecret`: The name of k8s secret which contains password for the bind domain, need to save value as `data.password`.
+* `searchdn`: The search domain where can it look for the user details.
+* `dnattr`: The attribute being used in the constructed search filter to match a username, this can either be `uid` or `cn`.

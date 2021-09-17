@@ -1321,6 +1321,40 @@ type ObjectStoreSpec struct {
 	// +optional
 	// +nullable
 	Security *SecuritySpec `json:"security,omitempty"`
+
+	// LDAP represents ldap settings
+	// +optional
+	// +nullable
+	LDAP *LDAPSpec `json:"ldap,omitempty"`
+}
+
+// defines parameters required for rgw to authenticate with LDAP server
+type LDAPSpec struct {
+	// Specifies the LDAP server to use.
+	// Make sure to use the ldaps://<fqdn>:<port> parameter to not transmit clear text credentials over the wire.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	URI string `json:"uri"`
+	// The Distinguished Name (DN) of the LDAP service account used by the Ceph Object Gateway.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	BindDN string `json:"binddn"`
+	// A Distinguished Name (DN) that specifies the base in the directory information tree for searching users.
+	// This might be your user's Organizational Unit (OU) or some more specific Organizational Unit.
+	// +optional
+	SearchDN string `json:"searchdn,omitempty"`
+	// The Distinguished Name (DN) attribute being used in the constructed search filter to match a username.
+	// Depending on your Directory Information Tree (DIT), this would probably be `uid` or `cn`.
+	// The generated filter string will be, e.g., `cn=some_username`.
+	// +optional
+	DNattribute string `json:"dnattr,omitempty"`
+	// The name of the Kubernetes Secret that contains credentials for the bind Distinguished Name (DN) (binddn).
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Required
+	// +required
+	CredentialSecretName string `json:"credentialsecret"`
 }
 
 // BucketHealthCheckSpec represents the health check of an object store

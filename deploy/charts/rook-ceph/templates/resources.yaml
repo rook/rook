@@ -8569,6 +8569,33 @@ spec:
                           type: object
                       type: object
                   type: object
+                ldap:
+                  description: LDAP represents ldap settings
+                  nullable: true
+                  properties:
+                    binddn:
+                      description: The Distinguished Name (DN) of the LDAP service account used by the Ceph Object Gateway.
+                      minLength: 1
+                      type: string
+                    credentialsecret:
+                      description: The name of the Kubernetes Secret that contains credentials for the bind Distinguished Name (DN) (binddn).
+                      minLength: 1
+                      type: string
+                    dnattr:
+                      description: The Distinguished Name (DN) attribute being used in the constructed search filter to match a username. Depending on your Directory Information Tree (DIT), this would probably be `uid` or `cn`. The generated filter string will be, e.g., `cn=some_username`.
+                      type: string
+                    searchdn:
+                      description: A Distinguished Name (DN) that specifies the base in the directory information tree for searching users. This might be your user's Organizational Unit (OU) or some more specific Organizational Unit.
+                      type: string
+                    uri:
+                      description: Specifies the LDAP server to use. Make sure to use the ldaps://<fqdn>:<port> parameter to not transmit clear text credentials over the wire.
+                      minLength: 1
+                      type: string
+                  required:
+                    - binddn
+                    - credentialsecret
+                    - uri
+                  type: object
                 metadataPool:
                   description: The metadata pool settings
                   nullable: true
