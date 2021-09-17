@@ -19,11 +19,12 @@ package integration
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"os/exec"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/installer"
@@ -98,7 +99,7 @@ func (s *CephMgrSuite) SetupSuite() {
 		CephVersion:       installer.MasterVersion,
 	}
 	s.settings.ApplyEnvVars()
-	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, cephMasterSuiteMinimalTestVersion)
+	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
 	s.waitForOrchestrationModule()
 	s.prepareLocalStorageClass("local-storage")
 }

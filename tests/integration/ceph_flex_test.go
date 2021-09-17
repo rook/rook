@@ -99,7 +99,7 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 	}
 	s.settings.ApplyEnvVars()
 	s.clusterInfo = client.AdminClusterInfo(namespace)
-	s.installer, s.kh = StartTestCluster(s.T, s.settings, flexDriverMinimalTestVersion)
+	s.installer, s.kh = StartTestCluster(s.T, s.settings)
 	s.testClient = clients.CreateTestClient(s.kh, s.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }

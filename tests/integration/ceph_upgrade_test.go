@@ -88,7 +88,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		CephVersion:       installer.NautilusPartitionVersion,
 	}
 
-	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, upgradeMinimalTestVersion)
+	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
 	s.helper = clients.CreateTestClient(s.k8sh, s.installer.Manifests)
 }
 
