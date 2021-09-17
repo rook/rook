@@ -57,6 +57,10 @@ const (
 	externalConnectionRetry = 60 * time.Second
 )
 
+var (
+	ClusterInfoNoClusterNoSecret = errors.New("not expected to create new cluster info and did not find existing secret")
+)
+
 func (c *Cluster) genMonSharedKeyring() string {
 	return fmt.Sprintf(
 		keyringTemplate,
@@ -77,32 +81,32 @@ func dataDirRelativeHostPath(monName string) string {
 }
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephclient.ClusterInfo, int, *Mapping, error) {
-	return CreateOrLoadClusterInfo(context, namespace, nil)
+func LoadClusterInfo(ctx *clusterd.Context, context context.Context, namespace string) (*cephclient.ClusterInfo, int, *Mapping, error) {
+	return CreateOrLoadClusterInfo(ctx, context, namespace, nil)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) (*cephclient.ClusterInfo, int, *Mapping, error) {
-	ctx := context.TODO()
+func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) (*cephclient.ClusterInfo, int, *Mapping, error) {
 	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
 		Schedule: map[string]*MonScheduleInfo{},
 	}
 
-	secrets, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, AppName, metav1.GetOptions{})
+	secrets, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(context, AppName, metav1.GetOptions{})
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon secrets")
 		}
 		if ownerInfo == nil {
-			return nil, maxMonID, monMapping, errors.New("not expected to create new cluster info and did not find existing secret")
+			return nil, maxMonID, monMapping, ClusterInfoNoClusterNoSecret
 		}
 
 		clusterInfo, err = createNamedClusterInfo(clusterdContext, namespace)
 		if err != nil {
 			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create mon secrets")
 		}
+		clusterInfo.Context = context
 
 		err = createClusterAccessSecret(clusterdContext.Clientset, namespace, clusterInfo, ownerInfo)
 		if err != nil {
@@ -113,6 +117,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 			Namespace:     namespace,
 			FSID:          string(secrets.Data[fsidSecretNameKey]),
 			MonitorSecret: string(secrets.Data[monSecretNameKey]),
+			Context:       context,
 		}
 		if cephUsername, ok := secrets.Data[cephUsernameKey]; ok {
 			clusterInfo.CephCred.Username = string(cephUsername)
@@ -123,7 +128,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 
 			secrets.Data[cephUsernameKey] = []byte(cephclient.AdminUsername)
 			secrets.Data[cephUserSecretKey] = adminSecretKey
-			if _, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Update(ctx, secrets, metav1.UpdateOptions{}); err != nil {
+			if _, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Update(context, secrets, metav1.UpdateOptions{}); err != nil {
 				return nil, maxMonID, monMapping, errors.Wrap(err, "failed to update mon secrets")
 			}
 		} else {
@@ -148,7 +153,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 
 	// If the admin secret is "admin-secret", look for the deprecated secret that has the external creds
 	if clusterInfo.CephCred.Secret == adminSecretNameKey {
-		secret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, OperatorCreds, metav1.GetOptions{})
+		secret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(context, OperatorCreds, metav1.GetOptions{})
 		if err != nil {
 			return clusterInfo, maxMonID, monMapping, err
 		}
@@ -263,7 +268,6 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 }
 
 func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephclient.ClusterInfo, ownerInfo *k8sutil.OwnerInfo) error {
-	ctx := context.TODO()
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
 
@@ -286,7 +290,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference to mon secret %q", secret.Name)
 	}
-	if _, err = clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	if _, err = clientset.CoreV1().Secrets(namespace).Create(clusterInfo.Context, secret, metav1.CreateOptions{}); err != nil {
 		return errors.Wrap(err, "failed to save mon secrets")
 	}
 
@@ -369,9 +373,9 @@ func ExtractKey(contents string) (string, error) {
 }
 
 // PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no OSDs keep waiting
-func PopulateExternalClusterInfo(context *clusterd.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) *cephclient.ClusterInfo {
+func PopulateExternalClusterInfo(context *clusterd.Context, ctx context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) *cephclient.ClusterInfo {
 	for {
-		clusterInfo, _, _, err := LoadClusterInfo(context, namespace)
+		clusterInfo, _, _, err := LoadClusterInfo(context, ctx, namespace)
 		if err != nil {
 			logger.Warningf("waiting for the csi connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
 			logger.Debugf("%v", err)

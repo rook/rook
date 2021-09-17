@@ -57,7 +57,7 @@ func updateStatus(client client.Client, poolName types.NamespacedName, status ce
 // updateStatusBucket updates an object with a given status
 func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.PoolMirroringStatusSummarySpec, mirrorInfo *cephv1.PoolMirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
 	blockPool := &cephv1.CephBlockPool{}
-	if err := c.client.Get(context.TODO(), c.namespacedName, blockPool); err != nil {
+	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, blockPool); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
 			return

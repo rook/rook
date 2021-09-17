@@ -28,7 +28,6 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/tevino/abool"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
@@ -307,7 +306,6 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 
 	clientset := test.NewComplexClientset(t) // fake clientset with generate name functionality
 
-	requestCancelOrchestration := *abool.New()
 	// clusterd.Context is created in doSetup()
 
 	clusterInfo := &cephclient.ClusterInfo{
@@ -316,6 +314,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	clusterInfo.Context = context.TODO()
 
 	spec := cephv1.ClusterSpec{}
 	fakeK8sVersion := "v1.13.0"
@@ -329,8 +328,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 		test.SetFakeKubernetesVersion(clientset, fakeK8sVersion) // PVCs require k8s version v1.13+
 		errs = newProvisionErrors()
 		ctx := &clusterd.Context{
-			Clientset:                  clientset,
-			RequestCancelOrchestration: &requestCancelOrchestration,
+			Clientset: clientset,
 		}
 		c = New(ctx, clusterInfo, spec, "rook/rook:master")
 		config = c.newProvisionConfig()
@@ -425,18 +423,6 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 		fakeK8sVersion = "v1.13.0"
 	})
 
-	t.Run("request cancel orchestration", func(t *testing.T) {
-		// spec = <working spec from prior test>
-		clientset = test.NewComplexClientset(t) // reset to empty fake k8s environment
-		requestCancelOrchestration.Set()
-		doSetup()
-		awaitingStatusConfigMaps, err = c.startProvisioningOverPVCs(config, errs)
-		assert.Error(t, err)
-		assert.Zero(t, errs.len())
-		assert.Zero(t, awaitingStatusConfigMaps.Len())
-		requestCancelOrchestration.UnSet()
-	})
-
 	t.Run("error if no volume claim template", func(t *testing.T) {
 		spec = cephv1.ClusterSpec{
 			Storage: cephv1.StorageScopeSpec{
@@ -468,7 +454,6 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 	dataDirHostPath := "/var/lib/mycluster"
 
 	clientset := test.New(t, 3) // fake clientset with 3 nodes
-	requestCancelOrchestration := *abool.New()
 	// clusterd.Context is created in doSetup()
 
 	// names of status configmaps for nodes
@@ -483,6 +468,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	clusterInfo.Context = context.TODO()
 
 	var useAllDevices bool
 	spec := cephv1.ClusterSpec{}
@@ -496,8 +482,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 	doSetup := func() {
 		errs = newProvisionErrors()
 		ctx := &clusterd.Context{
-			Clientset:                  clientset,
-			RequestCancelOrchestration: &requestCancelOrchestration,
+			Clientset: clientset,
 		}
 		c = New(ctx, clusterInfo, spec, "rook/rook:master")
 		config = c.newProvisionConfig()
@@ -597,16 +582,6 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 			[]string{statusNameNode0, statusNameNode2},
 			prepareJobsRun.List(),
 		)
-	})
-
-	t.Run("request cancel orchestration", func(t *testing.T) {
-		requestCancelOrchestration.Set()
-		doSetup()
-		prepareJobsRun, err = c.startProvisioningOverNodes(config, errs)
-		assert.Error(t, err)
-		assert.Zero(t, errs.len())
-		assert.Zero(t, prepareJobsRun.Len())
-		requestCancelOrchestration.UnSet()
 	})
 
 	t.Run("use no nodes", func(t *testing.T) {

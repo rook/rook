@@ -17,12 +17,12 @@ limitations under the License.
 package ceph
 
 import (
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	operator "github.com/rook/rook/pkg/operator/ceph"
-	cluster "github.com/rook/rook/pkg/operator/ceph/cluster"
-
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
@@ -41,7 +41,7 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	operatorCmd.Flags().BoolVar(&cluster.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
+	operatorCmd.Flags().BoolVar(&operator.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetLoggingFlags(operatorCmd.Flags())
@@ -49,9 +49,7 @@ func init() {
 }
 
 func startOperator(cmd *cobra.Command, args []string) error {
-
 	rook.SetLogLevel()
-
 	rook.LogStartupInfo(operatorCmd.Flags())
 
 	logger.Info("starting Rook-Ceph operator")
@@ -60,6 +58,11 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	volumeAttachment, err := attachment.New(context)
 	if err != nil {
 		rook.TerminateFatal(err)
+	}
+
+	// Fail if operator namespace is not provided
+	if os.Getenv(k8sutil.PodNamespaceEnvVar) == "" {
+		rook.TerminateFatal(errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %q", k8sutil.PodNamespaceEnvVar))
 	}
 
 	rook.CheckOperatorResources(context.Clientset)

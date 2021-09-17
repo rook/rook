@@ -27,7 +27,6 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/tevino/abool"
 	v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -48,9 +47,8 @@ func TestCreateOrUpdateCephCron(t *testing.T) {
 	cephVersion := &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
 	ctx := context.TODO()
 	context := &clusterd.Context{
-		Clientset:                  test.New(t, 1),
-		RookClientset:              rookclient.NewSimpleClientset(),
-		RequestCancelOrchestration: abool.New(),
+		Clientset:     test.New(t, 1),
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	s := scheme.Scheme

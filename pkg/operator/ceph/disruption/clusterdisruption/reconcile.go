@@ -106,6 +106,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 		logger.Infof("clusterName is not known for namespace %q", request.Namespace)
 		return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.New("clusterName for this namespace not yet known")
 	}
+	clusterInfo.Context = r.context.OpManagerContext
 
 	// ensure that the cluster name is populated
 	if request.Name == "" {

@@ -37,7 +37,6 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -74,13 +73,13 @@ func TestStartMgr(t *testing.T) {
 
 	defer os.RemoveAll(configDir)
 	ctx := &clusterd.Context{
-		Executor:                   executor,
-		ConfigDir:                  configDir,
-		Clientset:                  clientset,
-		RequestCancelOrchestration: abool.New(),
-		Client:                     cl}
+		Executor:  executor,
+		ConfigDir: configDir,
+		Clientset: clientset,
+		Client:    cl,
+	}
 	ownerInfo := cephclient.NewMinimumOwnerInfo(t)
-	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo, CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Build: 5}}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", FSID: "myfsid", OwnerInfo: ownerInfo, CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Build: 5}, Context: context.TODO()}
 	clusterInfo.SetName("test")
 	clusterSpec := cephv1.ClusterSpec{
 		Annotations:        map[rook.KeyType]rook.Annotations{cephv1.KeyMgr: {"my": "annotation"}},
@@ -207,8 +206,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset,
 	}
-	ownerInfo := cephclient.NewMinimumOwnerInfo(t)
-	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", OwnerInfo: ownerInfo}
+	clusterInfo := cephclient.AdminClusterInfo("mycluster")
 	clusterInfo.SetName("test")
 	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
 
@@ -280,7 +278,7 @@ func TestConfigureModules(t *testing.T) {
 
 	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
-	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	clusterInfo := cephclient.AdminClusterInfo("mycluster")
 	c := &Cluster{
 		context:     context,
 		clusterInfo: clusterInfo,

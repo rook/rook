@@ -17,7 +17,6 @@ limitations under the License.
 package mgr
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -57,7 +56,6 @@ func (c *Cluster) dashboardPort() int {
 }
 
 func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
-	ctx := context.TODO()
 	user := fmt.Sprintf("mgr.%s", m.DaemonID)
 	access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
 	s := keyring.GetSecretStore(c.context, c.clusterInfo, c.clusterInfo.OwnerInfo)
@@ -68,7 +66,7 @@ func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
 	}
 
 	// Delete legacy key store for upgrade from Rook v0.9.x to v1.0.x
-	err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Delete(ctx, m.ResourceName, metav1.DeleteOptions{})
+	err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, m.ResourceName, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Debugf("legacy mgr key %q is already removed", m.ResourceName)

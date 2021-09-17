@@ -32,7 +32,6 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/tevino/abool"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -155,10 +154,9 @@ func TestCephClientController(t *testing.T) {
 		},
 	}
 	c := &clusterd.Context{
-		Executor:                   executor,
-		Clientset:                  testop.New(t, 1),
-		RookClientset:              rookclient.NewSimpleClientset(),
-		RequestCancelOrchestration: abool.New(),
+		Executor:      executor,
+		Clientset:     testop.New(t, 1),
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	// Register operator types with the runtime scheme.
@@ -170,9 +168,10 @@ func TestCephClientController(t *testing.T) {
 
 	// Create a ReconcileCephClient object with the scheme and fake client.
 	r := &ReconcileCephClient{
-		client:  cl,
-		scheme:  s,
-		context: c,
+		client:           cl,
+		scheme:           s,
+		context:          c,
+		opManagerContext: ctx,
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -217,9 +216,10 @@ func TestCephClientController(t *testing.T) {
 	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephClient object with the scheme and fake client.
 	r = &ReconcileCephClient{
-		client:  cl,
-		scheme:  s,
-		context: c,
+		client:           cl,
+		scheme:           s,
+		context:          c,
+		opManagerContext: ctx,
 	}
 	assert.True(t, res.Requeue)
 
@@ -274,15 +274,10 @@ func TestCephClientController(t *testing.T) {
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 	// Create a ReconcileCephClient object with the scheme and fake client.
 	r = &ReconcileCephClient{
-		client:  cl,
-		scheme:  s,
-		context: c,
-	}
-
-	r = &ReconcileCephClient{
-		client:  cl,
-		scheme:  s,
-		context: c,
+		client:           cl,
+		scheme:           s,
+		context:          c,
+		opManagerContext: context.TODO(),
 	}
 
 	res, err = r.Reconcile(ctx, req)

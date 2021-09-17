@@ -398,7 +398,7 @@ func (c *Controller) GetClientAccessInfo(args []string, clientAccessInfo *Client
 	ctx := context.TODO()
 	// args: 0 ClusterNamespace, 1 PodNamespace, 2 MountUser, 3 MountSecret
 	clusterNamespace := args[0]
-	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, clusterNamespace)
+	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, ctx, clusterNamespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to load cluster information from clusters namespace %s", clusterNamespace)
 	}

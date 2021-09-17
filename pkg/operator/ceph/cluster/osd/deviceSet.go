@@ -189,7 +189,6 @@ func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet cephv1.StorageClassDe
 }
 
 func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolumeClaim, deviceSetName string, pvcTemplate v1.PersistentVolumeClaim, setIndex int) (*v1.PersistentVolumeClaim, error) {
-	ctx := context.TODO()
 	// old labels and PVC ID for backward compatibility
 	pvcID := legacyDeviceSetPVCID(deviceSetName, setIndex)
 
@@ -215,7 +214,7 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 	}
 
 	// No PVC found, creating a new one
-	deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
+	deployedPVC, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.clusterInfo.Namespace).Create(c.clusterInfo.Context, pvc, metav1.CreateOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create PVC %q for device set %q", pvc.Name, deviceSetName)
 	}

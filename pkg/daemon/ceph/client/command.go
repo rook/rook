@@ -127,6 +127,9 @@ func NewRBDCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []s
 
 func (c *CephToolCommand) run() ([]byte, error) {
 	command, args := FinalizeCephCommandArgs(c.tool, c.clusterInfo, c.args, c.context.ConfigDir)
+	if c.clusterInfo.Context.Err() != nil {
+		return nil, c.clusterInfo.Context.Err()
+	}
 	if c.JsonOutput {
 		args = append(args, "--format", "json")
 	} else {

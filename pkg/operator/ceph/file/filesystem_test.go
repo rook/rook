@@ -267,7 +267,7 @@ func TestCreateFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus, Context: ctx}
 
 	// start a basic cluster
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -396,7 +396,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus, Context: ctx}
 
 	// start a basic cluster for upgrade
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -528,7 +528,7 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 			},
 		},
 	}
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid"}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", Context: ctx}
 
 	// start a basic cluster
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()

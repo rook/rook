@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	appName       = "rook-ceph-admission-controller"
-	tlsPort int32 = 443
+	admissionControllerAppName       = "rook-ceph-admission-controller"
+	tlsPort                    int32 = 443
 )
 
 var (
@@ -42,12 +42,12 @@ var (
 )
 
 func isSecretPresent(ctx context.Context, context *clusterd.Context) (bool, error) {
-	logger.Infof("looking for admission webhook secret %q", appName)
-	s, err := context.Clientset.CoreV1().Secrets(namespace).Get(ctx, appName, metav1.GetOptions{})
+	logger.Infof("looking for admission webhook secret %q", admissionControllerAppName)
+	s, err := context.Clientset.CoreV1().Secrets(namespace).Get(ctx, admissionControllerAppName, metav1.GetOptions{})
 	if err != nil {
 		// If secret is not found. All good ! Proceed with rook without admission controllers
 		if apierrors.IsNotFound(err) {
-			logger.Infof("admission webhook secret %q not found. proceeding without the admission controller", appName)
+			logger.Infof("admission webhook secret %q not found. proceeding without the admission controller", admissionControllerAppName)
 			return false, nil
 		}
 		return false, err
@@ -57,7 +57,7 @@ func isSecretPresent(ctx context.Context, context *clusterd.Context) (bool, erro
 	logger.Debug("searching for old admission controller deployment")
 	removeOldAdmissionControllerDeployment(ctx, context)
 
-	logger.Infof("admission webhook secret %q found", appName)
+	logger.Infof("admission webhook secret %q found", admissionControllerAppName)
 	for k, data := range s.Data {
 		path := fmt.Sprintf("%s/%s", certDir, k)
 		err := ioutil.WriteFile(path, data, 0400)
@@ -72,7 +72,7 @@ func isSecretPresent(ctx context.Context, context *clusterd.Context) (bool, erro
 func createWebhookService(context *clusterd.Context) error {
 	webhookService := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appName,
+			Name:      admissionControllerAppName,
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -99,7 +99,7 @@ func createWebhookService(context *clusterd.Context) error {
 }
 
 func removeOldAdmissionControllerDeployment(ctx context.Context, context *clusterd.Context) {
-	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
+	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", admissionControllerAppName)}
 	d, err := context.Clientset.AppsV1().Deployments(namespace).List(ctx, opts)
 	if err != nil {
 		logger.Warningf("failed to get old admission controller deployment. %v", err)

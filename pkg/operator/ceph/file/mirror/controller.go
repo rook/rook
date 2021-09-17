@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
-	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -67,27 +66,33 @@ var controllerTypeMeta = metav1.TypeMeta{
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
+var currentAndDesiredCephVersion = opcontroller.CurrentAndDesiredCephVersion
+
 // ReconcileFilesystemMirror reconciles a CephFilesystemMirror object
 type ReconcileFilesystemMirror struct {
-	context         *clusterd.Context
-	clusterInfo     *cephclient.ClusterInfo
-	client          client.Client
-	scheme          *runtime.Scheme
-	cephClusterSpec *cephv1.ClusterSpec
+	context          *clusterd.Context
+	clusterInfo      *cephclient.ClusterInfo
+	client           client.Client
+	scheme           *runtime.Scheme
+	cephClusterSpec  *cephv1.ClusterSpec
+	opManagerContext context.Context
+	opConfig         opcontroller.OperatorConfig
 }
 
 // Add creates a new CephFilesystemMirror Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, context *clusterd.Context) error {
-	return add(mgr, newReconciler(mgr, context))
+func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileFilesystemMirror{
-		client:  mgr.GetClient(),
-		scheme:  mgr.GetScheme(),
-		context: context,
+		client:           mgr.GetClient(),
+		scheme:           mgr.GetScheme(),
+		context:          context,
+		opConfig:         opConfig,
+		opManagerContext: opManagerContext,
 	}
 }
 
@@ -116,25 +121,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 
-	// Build Handler function to return the list of ceph object
-	// This is used by the watchers below
-	handlerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephFilesystemMirrorList{}, mgr.GetScheme())
-	if err != nil {
-		return err
-	}
-
-	// Watch for CephCluster Spec changes that we want to propagate to us
-	err = c.Watch(&source.Kind{Type: &cephv1.CephCluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       opcontroller.ClusterResource.Kind,
-			APIVersion: opcontroller.ClusterResource.APIVersion,
-		},
-	},
-	}, handler.EnqueueRequestsFromMapFunc(handlerFunc), opcontroller.WatchCephClusterPredicate())
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -146,7 +132,7 @@ func (r *ReconcileFilesystemMirror) Reconcile(context context.Context, request r
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
 		logger.Errorf("failed to reconcile %v", err)
 	}
 
@@ -156,7 +142,7 @@ func (r *ReconcileFilesystemMirror) Reconcile(context context.Context, request r
 func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CephFilesystemMirror instance
 	filesystemMirror := &cephv1.CephFilesystemMirror{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, filesystemMirror)
+	err := r.client.Get(r.opManagerContext, request.NamespacedName, filesystemMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
@@ -168,7 +154,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 
 	// The CR was just created, initializing status fields
 	if filesystemMirror.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -182,26 +168,42 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	r.cephClusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo
-	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")
 	}
 
-	// Populate CephVersion
-	daemon := string(opconfig.MonType)
-	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, daemon)
+	// Detect desired CephCluster version
+	runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
+		r.opConfig.Image,
+		filesystemMirror.Namespace,
+		controllerName,
+		k8sutil.NewOwnerInfo(filesystemMirror, r.scheme),
+		r.context,
+		r.cephClusterSpec,
+		r.clusterInfo,
+	)
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
 		}
-		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to retrieve current ceph %q version", daemon)
+		return reconcile.Result{}, errors.Wrap(err, "failed to detect running and desired ceph version")
 	}
-	r.clusterInfo.CephVersion = currentCephVersion
+
+	// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
+	// the cluster is being upgraded. So the controller will just wait for the upgrade to finish and
+	// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
+	if !reflect.DeepEqual(runningCephVersion, desiredCephVersion) {
+		// Upgrade is in progress, let's wait for the mons to be done
+		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
+			opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
+	}
+	r.clusterInfo.CephVersion = *runningCephVersion
 
 	// Validate Ceph version
-	if !currentCephVersion.IsAtLeastPacific() {
-		return opcontroller.ImmediateRetryResult, errors.Errorf("ceph pacific version is required to deploy cephfs mirroring, current cluster runs %q", currentCephVersion.String())
+	if !r.clusterInfo.CephVersion.IsAtLeastPacific() {
+		return opcontroller.ImmediateRetryResult, errors.Errorf("ceph pacific version is required to deploy cephfs mirroring, current cluster runs %q", r.clusterInfo.CephVersion.String())
 	}
 
 	// CREATE/UPDATE
@@ -212,7 +214,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	}
 
 	// Set Ready status, we are done reconciling
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph filesystem mirror")
@@ -239,9 +241,9 @@ func (r *ReconcileFilesystemMirror) reconcileFilesystemMirror(filesystemMirror *
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileFilesystemMirror) updateStatus(client client.Client, name types.NamespacedName, status string) {
 	fsMirror := &cephv1.CephFilesystemMirror{}
-	err := client.Get(context.TODO(), name, fsMirror)
+	err := client.Get(r.opManagerContext, name, fsMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")

@@ -300,7 +300,7 @@ func TestGetRetryConfig(t *testing.T) {
 }
 
 func TestOSDUpdateShouldCheckOkToStop(t *testing.T) {
-	clusterInfo := &ClusterInfo{}
+	clusterInfo := AdminClusterInfo("mycluster")
 	lsOutput := ""
 	treeOutput := ""
 	context := &clusterd.Context{

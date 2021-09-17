@@ -35,7 +35,6 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/tevino/abool"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -69,6 +68,7 @@ func TestStart(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
 		CephVersion: cephver.Nautilus,
+		Context:     context.TODO(),
 	}
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{}
@@ -151,6 +151,7 @@ func TestAddRemoveNode(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
 		CephVersion: cephver.Nautilus,
+		Context:     ctx,
 	}
 	clusterInfo.SetName("rook-ceph-test")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -162,11 +163,10 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 
 	context := &clusterd.Context{
-		Clientset:                  clientset,
-		ConfigDir:                  "/var/lib/rook",
-		Executor:                   executor,
-		RequestCancelOrchestration: abool.New(),
-		RookClientset:              fakeclient.NewSimpleClientset(),
+		Clientset:     clientset,
+		ConfigDir:     "/var/lib/rook",
+		Executor:      executor,
+		RookClientset: fakeclient.NewSimpleClientset(),
 	}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
@@ -324,10 +324,11 @@ func TestAddNodeFailure(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns-add-remove",
 		CephVersion: cephver.Nautilus,
+		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("testcluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}, RequestCancelOrchestration: abool.New()}
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
 	spec := cephv1.ClusterSpec{
 		DataDirHostPath: context.ConfigDir,
 		Storage: cephv1.StorageScopeSpec{

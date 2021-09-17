@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -73,8 +72,6 @@ func (c *updateConfig) doneUpdating() bool {
 }
 
 func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
-	ctx := context.TODO()
-
 	if c.doneUpdating() {
 		return // no more OSDs to update
 	}
@@ -117,7 +114,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		}
 
 		depName := deploymentName(osdID)
-		dep, err := c.cluster.context.Clientset.AppsV1().Deployments(c.cluster.clusterInfo.Namespace).Get(ctx, depName, metav1.GetOptions{})
+		dep, err := c.cluster.context.Clientset.AppsV1().Deployments(c.cluster.clusterInfo.Namespace).Get(c.cluster.clusterInfo.Context, depName, metav1.GetOptions{})
 		if err != nil {
 			errs.addError("failed to update OSD %d. failed to find existing deployment %q. %v", osdID, depName, err)
 			continue
@@ -194,7 +191,6 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 // getOSDUpdateInfo returns an update queue of OSDs which need updated and an existence list of OSD
 // Deployments which already exist.
 func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existenceList, error) {
-	ctx := context.TODO()
 	namespace := c.clusterInfo.Namespace
 
 	selector := fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)
@@ -202,7 +198,7 @@ func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existe
 		// list only rook-ceph-osd Deployments
 		LabelSelector: selector,
 	}
-	deps, err := c.context.Clientset.AppsV1().Deployments(namespace).List(ctx, listOpts)
+	deps, err := c.context.Clientset.AppsV1().Deployments(namespace).List(c.clusterInfo.Context, listOpts)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to query existing OSD deployments to see if they need updated")
 	}
@@ -338,12 +334,11 @@ func (e *existenceList) Exists(osdID int) bool {
 
 // return a function that will list only OSD deployments with the IDs given
 func (c *Cluster) getFuncToListDeploymentsWithIDs(osdIDs []string) func() (*appsv1.DeploymentList, error) {
-	ctx := context.TODO()
 	selector := fmt.Sprintf("ceph-osd-id in (%s)", strings.Join(osdIDs, ", "))
 	listOpts := metav1.ListOptions{
 		LabelSelector: selector, // e.g. 'ceph-osd-id in (1, 3, 5, 7, 9)'
 	}
 	return func() (*appsv1.DeploymentList, error) {
-		return c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(ctx, listOpts)
+		return c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
 	}
 }

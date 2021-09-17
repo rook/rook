@@ -17,20 +17,18 @@ limitations under the License.
 package bucket
 
 import (
-	"context"
 	"crypto/rand"
 
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner"
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-bucket-prov")
@@ -43,9 +41,9 @@ const (
 	objectStoreEndpoint  = "endpoint"
 )
 
-func NewBucketController(cfg *rest.Config, p *Provisioner) (*provisioner.Provisioner, error) {
+func NewBucketController(cfg *rest.Config, p *Provisioner, data map[string]string) (*provisioner.Provisioner, error) {
 	const allNamespaces = ""
-	provName := cephObject.GetObjectBucketProvisioner(p.context, p.clusterInfo.Namespace)
+	provName := cephObject.GetObjectBucketProvisioner(data, p.clusterInfo.Namespace)
 
 	logger.Infof("ceph bucket provisioner launched watching for provisioner %q", provName)
 	return provisioner.NewProvisioner(cfg, provName, p, allNamespaces)
@@ -78,7 +76,7 @@ func getCephUser(ob *bktv1alpha1.ObjectBucket) string {
 }
 
 func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
-	ctx := context.TODO()
+	ctx := p.clusterInfo.Context
 	// Verify the object store API object actually exists
 	store, err := p.context.RookClientset.CephV1().CephObjectStores(p.clusterInfo.Namespace).Get(ctx, p.objectStoreName, metav1.GetOptions{})
 	if err != nil {
@@ -91,7 +89,7 @@ func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
 }
 
 func (p *Provisioner) getCephCluster() (*cephv1.CephCluster, error) {
-	cephCluster, err := p.context.RookClientset.CephV1().CephClusters(p.clusterInfo.Namespace).List(context.TODO(), metav1.ListOptions{})
+	cephCluster, err := p.context.RookClientset.CephV1().CephClusters(p.clusterInfo.Namespace).List(p.clusterInfo.Context, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to list ceph clusters in namespace %q", p.clusterInfo.Namespace)
 	}

@@ -153,11 +153,9 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 
 	awaitingStatusConfigMaps := sets.NewString()
 	for _, volume := range c.deviceSets {
-		// Check whether we need to cancel the orchestration
-		if err := opcontroller.CheckForCancelledOrchestration(c.context); err != nil {
-			return awaitingStatusConfigMaps, err
+		if c.clusterInfo.Context.Err() != nil {
+			return awaitingStatusConfigMaps, c.clusterInfo.Context.Err()
 		}
-
 		dataSource, dataOK := volume.PVCSources[bluestorePVCData]
 
 		// The data PVC template is required.
@@ -310,11 +308,9 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 
 	awaitingStatusConfigMaps := sets.NewString()
 	for _, node := range c.ValidStorage.Nodes {
-		// Check whether we need to cancel the orchestration
-		if err := opcontroller.CheckForCancelledOrchestration(c.context); err != nil {
-			return awaitingStatusConfigMaps, err
+		if c.clusterInfo.Context.Err() != nil {
+			return awaitingStatusConfigMaps, c.clusterInfo.Context.Err()
 		}
-
 		// fully resolve the storage config and resources for this node
 		// don't care about osd device class resources since it will be overwritten later for prepareosd resources
 		n := c.resolveNode(node.Name, "")

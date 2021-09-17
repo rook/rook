@@ -17,6 +17,7 @@ limitations under the License.
 package ceph
 
 import (
+	ctx "context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -226,6 +227,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := opcontroller.ClusterOwnerRef(clusterName, ownerRefID)
 	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(&ownerRef, clusterInfo.Namespace)
 	clusterInfo.OwnerInfo = ownerInfo
+	clusterInfo.Context = ctx.Background()
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerInfo)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)

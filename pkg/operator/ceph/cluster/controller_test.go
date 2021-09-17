@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/tevino/abool"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func TestReconcile_DeleteCephCluster(t *testing.T) {
+func TestReconcileDeleteCephCluster(t *testing.T) {
 	ctx := context.TODO()
 	cephNs := "rook-ceph"
 	clusterName := "my-cluster"
@@ -79,8 +78,7 @@ func TestReconcile_DeleteCephCluster(t *testing.T) {
 		clusterdCtx := &clusterd.Context{
 			Clientset: k8sfake.NewSimpleClientset(),
 			// reconcile looks for fake dependencies in the dynamic clientset
-			DynamicClientset:           dynamicfake.NewSimpleDynamicClient(scheme, fakePool),
-			RequestCancelOrchestration: abool.New(),
+			DynamicClientset: dynamicfake.NewSimpleDynamicClient(scheme, fakePool),
 		}
 
 		// set up ClusterController
@@ -90,21 +88,9 @@ func TestReconcile_DeleteCephCluster(t *testing.T) {
 				return &rookalpha.VolumeList{Items: []rookalpha.Volume{}}, nil
 			},
 		}
-		operatorConfigCallbacks := []func() error{
-			func() error {
-				t.Log("test op config callback")
-				return nil
-			},
-		}
-		addCallbacks := []func() error{
-			func() error {
-				t.Log("test success callback")
-				return nil
-			},
-		}
 
 		// create the cluster controller and tell it that the cluster has been deleted
-		controller := NewClusterController(clusterdCtx, "", volumeAttachmentController, operatorConfigCallbacks, addCallbacks)
+		controller := NewClusterController(clusterdCtx, "", volumeAttachmentController)
 		fakeRecorder := record.NewFakeRecorder(5)
 		controller.recorder = k8sutil.NewEventReporter(fakeRecorder)
 
@@ -118,6 +104,7 @@ func TestReconcile_DeleteCephCluster(t *testing.T) {
 			scheme:            scheme,
 			context:           clusterdCtx,
 			clusterController: controller,
+			opManagerContext:  context.TODO(),
 		}
 
 		req := reconcile.Request{NamespacedName: nsName}
@@ -201,20 +188,8 @@ func Test_checkIfVolumesExist(t *testing.T) {
 
 			},
 		}
-		operatorConfigCallbacks := []func() error{
-			func() error {
-				logger.Infof("test success callback")
-				return nil
-			},
-		}
-		addCallbacks := []func() error{
-			func() error {
-				logger.Infof("test success callback")
-				return nil
-			},
-		}
 		// create the cluster controller and tell it that the cluster has been deleted
-		controller := NewClusterController(context, "", volumeAttachmentController, operatorConfigCallbacks, addCallbacks)
+		controller := NewClusterController(context, "", volumeAttachmentController)
 		clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 
 		// The test returns a volume on the first call
@@ -244,23 +219,8 @@ func Test_checkIfVolumesExist(t *testing.T) {
 
 			},
 		}
-		operatorConfigCallbacks := []func() error{
-			func() error {
-				logger.Infof("test success callback")
-				return nil
-			},
-		}
-		addCallbacks := []func() error{
-			func() error {
-				logger.Infof("test success callback")
-				os.Setenv("ROOK_ENABLE_FLEX_DRIVER", "true")
-				os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
-				defer os.Unsetenv("ROOK_ENABLE_FLEX_DRIVER")
-				return nil
-			},
-		}
 		// create the cluster controller and tell it that the cluster has been deleted
-		controller := NewClusterController(context, "", volumeAttachmentController, operatorConfigCallbacks, addCallbacks)
+		controller := NewClusterController(context, "", volumeAttachmentController)
 		clusterToDelete := &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 		assert.NoError(t, controller.checkIfVolumesExist(clusterToDelete))
 

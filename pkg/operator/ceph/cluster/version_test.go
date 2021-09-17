@@ -18,11 +18,13 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -149,6 +151,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 func TestMinVersion(t *testing.T) {
 	c := testSpec(t)
 	c.Spec.CephVersion.AllowUnsupported = true
+	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
 	// All versions less than 14.2.5 are invalid
 	v := &cephver.CephVersion{Major: 13, Minor: 2, Extra: 3}
@@ -167,6 +170,7 @@ func TestMinVersion(t *testing.T) {
 
 func TestSupportedVersion(t *testing.T) {
 	c := testSpec(t)
+	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
 	// Supported versions are valid
 	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 12}

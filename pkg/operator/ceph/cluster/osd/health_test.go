@@ -101,11 +101,11 @@ func TestOSDHealthCheck(t *testing.T) {
 }
 
 func TestMonitorStart(t *testing.T) {
-	stopCh := make(chan struct{})
+	context, cancel := context.WithCancel(context.TODO())
 	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, client.AdminClusterInfo("ns"), true, cephv1.CephClusterHealthCheckSpec{})
 	logger.Infof("starting osd monitor")
-	go osdMon.Start(stopCh)
-	close(stopCh)
+	go osdMon.Start(context)
+	cancel()
 }
 
 func TestNewOSDHealthMonitor(t *testing.T) {

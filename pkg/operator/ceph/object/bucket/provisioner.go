@@ -17,7 +17,6 @@ limitations under the License.
 package bucket
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -98,7 +97,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	}
 
 	singleBucketQuota := 1
-	_, err = p.adminOpsClient.ModifyUser(context.TODO(), admin.User{ID: p.cephUserName, MaxBuckets: &singleBucketQuota})
+	_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &singleBucketQuota})
 	if err != nil {
 		p.deleteOBCResourceLogError(p.bucketName)
 		return nil, err
@@ -140,20 +139,20 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	// need to quota into -1 for restricting creation of new buckets in rgw
 	restrictBucketCreation := -1
-	_, err = p.adminOpsClient.ModifyUser(context.TODO(), admin.User{ID: p.cephUserName, MaxBuckets: &restrictBucketCreation})
+	_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &restrictBucketCreation})
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
 	// get the bucket's owner via the bucket metadata
-	stats, err := p.adminOpsClient.GetBucketInfo(context.TODO(), admin.Bucket{Bucket: p.bucketName})
+	stats, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, errors.Wrapf(err, "failed to get bucket %q stats", p.bucketName)
 	}
 
-	objectUser, err := p.adminOpsClient.GetUser(context.TODO(), admin.User{ID: stats.Owner})
+	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: stats.Owner})
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, errors.Wrapf(err, "failed to get user %q", stats.Owner)
@@ -236,7 +235,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 	}
 	logger.Infof("Revoke: denying access to bucket %q for OB %q", p.bucketName, ob.Name)
 
-	bucket, err := p.adminOpsClient.GetBucketInfo(context.TODO(), admin.Bucket{Bucket: p.bucketName})
+	bucket, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
 	if err != nil {
 		logger.Errorf("%v", err)
 	} else {
@@ -244,7 +243,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return errors.Errorf("failed to find bucket %q owner", p.bucketName)
 		}
 
-		user, err := p.adminOpsClient.GetUser(context.TODO(), admin.User{ID: bucket.Owner})
+		user, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: bucket.Owner})
 		if err != nil {
 			if errors.Is(err, admin.ErrNoSuchUser) {
 				// The user may not exist. Ignore this in order to ensure the PolicyStatement does not contain the
@@ -561,7 +560,7 @@ func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error 
 	}
 
 	// Enabling quota for the user
-	err := p.adminOpsClient.SetUserQuota(context.TODO(), admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
+	err := p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable user %q quota for obc", p.cephUserName)
 	}
@@ -572,7 +571,7 @@ func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error 
 			return errors.Wrap(err, "failed to convert maxObjects to integer")
 		}
 		maxObjectsInt64 := int64(maxObjectsInt)
-		err = p.adminOpsClient.SetUserQuota(context.TODO(), admin.QuotaSpec{UID: p.cephUserName, MaxObjects: &maxObjectsInt64})
+		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxObjects: &maxObjectsInt64})
 		if err != nil {
 			return errors.Wrapf(err, "failed to set MaxObject to user %q", p.cephUserName)
 		}
@@ -582,7 +581,7 @@ func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error 
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse maxSize quota for user %q", p.cephUserName)
 		}
-		err = p.adminOpsClient.SetUserQuota(context.TODO(), admin.QuotaSpec{UID: p.cephUserName, MaxSize: &maxSizeInt})
+		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxSize: &maxSizeInt})
 		if err != nil {
 			return errors.Wrapf(err, "failed to set MaxSize to user %q", p.cephUserName)
 		}
@@ -685,7 +684,7 @@ func (p Provisioner) updateAdditionalSettings(ob *bktv1alpha1.ObjectBucket) erro
 			return errors.Wrapf(err, "failed to parse maxSize quota for user %q", p.cephUserName)
 		}
 	}
-	objectUser, err := p.adminOpsClient.GetUser(context.TODO(), admin.User{ID: ob.Spec.Connection.AdditionalState[cephUser]})
+	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: ob.Spec.Connection.AdditionalState[cephUser]})
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch user %q", p.cephUserName)
 	}
@@ -693,7 +692,7 @@ func (p Provisioner) updateAdditionalSettings(ob *bktv1alpha1.ObjectBucket) erro
 		(maxObjects == "" || maxObjectsInt64 < 0) &&
 		(maxSize == "" || maxSizeInt64 < 0) {
 		quotaEnabled = false
-		err = p.adminOpsClient.SetUserQuota(context.TODO(), admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
+		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
 		if err != nil {
 			return errors.Wrapf(err, "failed to disable quota to user %q", p.cephUserName)
 		}
@@ -712,7 +711,7 @@ func (p Provisioner) updateAdditionalSettings(ob *bktv1alpha1.ObjectBucket) erro
 	if maxSize != "" && (maxSizeInt64 != *objectUser.UserQuota.MaxSize) {
 		quotaSpec.MaxSize = &maxSizeInt64
 	}
-	err = p.adminOpsClient.SetUserQuota(context.TODO(), quotaSpec)
+	err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, quotaSpec)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update quota to user %q", p.cephUserName)
 	}

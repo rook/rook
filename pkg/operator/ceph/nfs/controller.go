@@ -28,7 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
-	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -67,27 +67,33 @@ var controllerTypeMeta = metav1.TypeMeta{
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
+var currentAndDesiredCephVersion = opcontroller.CurrentAndDesiredCephVersion
+
 // ReconcileCephNFS reconciles a cephNFS object
 type ReconcileCephNFS struct {
-	client          client.Client
-	scheme          *runtime.Scheme
-	context         *clusterd.Context
-	cephClusterSpec *cephv1.ClusterSpec
-	clusterInfo     *cephclient.ClusterInfo
+	client           client.Client
+	scheme           *runtime.Scheme
+	context          *clusterd.Context
+	cephClusterSpec  *cephv1.ClusterSpec
+	clusterInfo      *cephclient.ClusterInfo
+	opManagerContext context.Context
+	opConfig         opcontroller.OperatorConfig
 }
 
 // Add creates a new cephNFS Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, context *clusterd.Context) error {
-	return add(mgr, newReconciler(mgr, context))
+func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephNFS{
-		client:  mgr.GetClient(),
-		scheme:  mgr.GetScheme(),
-		context: context,
+		client:           mgr.GetClient(),
+		scheme:           mgr.GetScheme(),
+		context:          context,
+		opManagerContext: opManagerContext,
+		opConfig:         opConfig,
 	}
 }
 
@@ -136,7 +142,7 @@ func (r *ReconcileCephNFS) Reconcile(context context.Context, request reconcile.
 func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the cephNFS instance
 	cephNFS := &cephv1.CephNFS{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephNFS)
+	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephNFS)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("cephNFS resource not found. Ignoring since object must be deleted.")
@@ -182,26 +188,23 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// Populate clusterInfo
 	// Always populate it during each reconcile
-	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
 
-	// Populate CephVersion
-	currentCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, opconfig.MonType)
-	if err != nil {
-		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info(opcontroller.OperatorNotInitializedMessage)
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
-		}
-		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", opconfig.MonType)
-	}
-	r.clusterInfo.CephVersion = currentCephVersion
-
 	// DELETE: the CR was deleted
 	if !cephNFS.GetDeletionTimestamp().IsZero() {
 		logger.Infof("deleting ceph nfs %q", cephNFS.Name)
-		err := r.removeServersFromDatabase(cephNFS, 0)
+
+		// Detect running Ceph version
+		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
+		}
+		r.clusterInfo.CephVersion = runningCephVersion
+
+		err = r.removeServersFromDatabase(cephNFS, 0)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete filesystem %q. ", cephNFS.Name)
 		}
@@ -215,6 +218,34 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, nil
 	}
+
+	// Detect desired CephCluster version
+	runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
+		r.opConfig.Image,
+		cephNFS.Namespace,
+		controllerName,
+		k8sutil.NewOwnerInfo(cephNFS, r.scheme),
+		r.context,
+		r.cephClusterSpec,
+		r.clusterInfo,
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+			logger.Info(opcontroller.OperatorNotInitializedMessage)
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		}
+		return reconcile.Result{}, errors.Wrap(err, "failed to detect running and desired ceph version")
+	}
+
+	// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
+	// the cluster is being upgraded. So the controller will just wait for the upgrade to finish and
+	// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
+	if !reflect.DeepEqual(runningCephVersion, desiredCephVersion) {
+		// Upgrade is in progress, let's wait for the mons to be done
+		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
+			opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
+	}
+	r.clusterInfo.CephVersion = *runningCephVersion
 
 	// validate the store settings
 	if err := validateGanesha(r.context, r.clusterInfo, cephNFS); err != nil {
@@ -239,7 +270,6 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 }
 
 func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reconcile.Result, error) {
-	ctx := context.TODO()
 	if r.cephClusterSpec.External.Enable {
 		_, err := opcontroller.ValidateCephVersionsBetweenLocalAndExternalClusters(r.context, r.clusterInfo)
 		if err != nil {
@@ -249,7 +279,7 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 		}
 	}
 
-	deployments, err := r.context.Clientset.AppsV1().Deployments(cephNFS.Namespace).List(ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
+	deployments, err := r.context.Clientset.AppsV1().Deployments(cephNFS.Namespace).List(r.opManagerContext, metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("creating ceph nfs %q", cephNFS.Name)

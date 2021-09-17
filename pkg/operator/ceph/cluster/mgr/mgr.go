@@ -18,7 +18,6 @@ limitations under the License.
 package mgr
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"strconv"
@@ -112,7 +111,6 @@ func (c *Cluster) getDaemonIDs() []string {
 
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
-	ctx := context.TODO()
 	// Validate pod's memory if specified
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyMgr, cephv1.GetMgrResources(c.spec.Resources), cephMgrPodMinimumMemory)
 	if err != nil {
@@ -124,11 +122,9 @@ func (c *Cluster) Start() error {
 	var deploymentsToWaitFor []*v1.Deployment
 
 	for _, daemonID := range daemonIDs {
-		// Check whether we need to cancel the orchestration
-		if err := controller.CheckForCancelledOrchestration(c.context); err != nil {
-			return err
+		if c.clusterInfo.Context.Err() != nil {
+			return c.clusterInfo.Context.Err()
 		}
-
 		resourceName := fmt.Sprintf("%s-%s", AppName, daemonID)
 		mgrConfig := &mgrConfig{
 			DaemonID:     daemonID,
@@ -155,7 +151,7 @@ func (c *Cluster) Start() error {
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
 		}
 
-		newDeployment, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(ctx, d, metav1.CreateOptions{})
+		newDeployment, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(c.clusterInfo.Context, d, metav1.CreateOptions{})
 		if err != nil {
 			if !kerrors.IsAlreadyExists(err) {
 				return errors.Wrapf(err, "failed to create mgr deployment %s", resourceName)
@@ -233,7 +229,7 @@ func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
 	// In case the mgr count was reduced, delete the extra mgrs
 	for i := maxMgrCount - 1; i >= len(daemonIDs); i-- {
 		mgrName := fmt.Sprintf("%s-%s", AppName, k8sutil.IndexToName(i))
-		err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(context.TODO(), mgrName, metav1.DeleteOptions{})
+		err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, mgrName, metav1.DeleteOptions{})
 		if err == nil {
 			logger.Infof("removed extra mgr %q", mgrName)
 		} else if !kerrors.IsNotFound(err) {
@@ -246,7 +242,7 @@ func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
 // in the sidecar
 func (c *Cluster) ReconcileActiveMgrServices(daemonNameToUpdate string) error {
 	// If the services are already set to this daemon, no need to attempt to update
-	svc, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), AppName, metav1.GetOptions{})
+	svc, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, AppName, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("failed to check current mgr service, proceeding to update. %v", err)
 	} else {

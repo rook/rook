@@ -17,7 +17,6 @@ limitations under the License.
 package object
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -53,7 +52,7 @@ func CephObjectStoreDependents(
 	}
 
 	// CephObjectStoreUsers
-	users, err := clusterdCtx.RookClientset.CephV1().CephObjectStoreUsers(store.Namespace).List(context.TODO(), metav1.ListOptions{})
+	users, err := clusterdCtx.RookClientset.CephV1().CephObjectStoreUsers(store.Namespace).List(clusterInfo.Context, metav1.ListOptions{})
 	if err != nil {
 		return deps, errors.Wrapf(err, "%s. failed to list CephObjectStoreUsers for CephObjectStore %q", baseErrMsg, nsName)
 	}
@@ -93,7 +92,7 @@ func getBucketDependents(
 	}
 
 	// buckets (including lib-bucket-provisioner buckets and COSI buckets)
-	buckets, err := opsCtx.AdminOpsClient.ListBuckets(context.TODO())
+	buckets, err := opsCtx.AdminOpsClient.ListBuckets(clusterInfo.Context)
 	if err != nil {
 		return errors.Wrapf(err, "failed to list buckets in CephObjectStore %q", nsName)
 	}

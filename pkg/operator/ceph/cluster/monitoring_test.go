@@ -23,7 +23,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
-func TestIsMonitoringDisabled(t *testing.T) {
+func TestIsMonitoringEnabled(t *testing.T) {
 	type args struct {
 		daemon      string
 		clusterSpec *cephv1.ClusterSpec
@@ -33,12 +33,12 @@ func TestIsMonitoringDisabled(t *testing.T) {
 		args args
 		want bool
 	}{
-		{"isDisabled", args{"mon", &cephv1.ClusterSpec{}}, false},
-		{"isEnabled", args{"mon", &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Disabled: true}}}}}, true},
+		{"isEnabled", args{"mon", &cephv1.ClusterSpec{}}, true},
+		{"isDisabled", args{"mon", &cephv1.ClusterSpec{HealthCheck: cephv1.CephClusterHealthCheckSpec{DaemonHealth: cephv1.DaemonHealthSpec{Monitor: cephv1.HealthCheckSpec{Disabled: true}}}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isMonitoringDisabled(tt.args.daemon, tt.args.clusterSpec); got != tt.want {
+			if got := isMonitoringEnabled(tt.args.daemon, tt.args.clusterSpec); got != tt.want {
 				t.Errorf("isMonitoringEnabled() = %v, want %v", got, tt.want)
 			}
 		})

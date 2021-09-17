@@ -115,6 +115,7 @@ func TestStartSecureDashboard(t *testing.T) {
 		Namespace:   "myns",
 		CephVersion: cephver.Nautilus,
 		OwnerInfo:   ownerInfo,
+		Context:     ctx,
 	}
 	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor},
 		spec: cephv1.ClusterSpec{

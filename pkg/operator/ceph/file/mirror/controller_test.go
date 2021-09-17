@@ -27,6 +27,9 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -41,18 +44,6 @@ import (
 
 const (
 	cephAuthGetOrCreateKey = `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`
-	dummyVersionsRaw       = `
-	{
-		"mon": {
-			"ceph version 14.2.8 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 3
-		}
-	}`
-	pacificVersionsRaw = `
-	{
-		"mon": {
-			"ceph version 16.2.1 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) pacific (stable)": 3
-		}
-	}`
 )
 
 func TestCephFilesystemMirrorController(t *testing.T) {
@@ -65,12 +56,12 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
-	//
-	// TEST 1 SETUP
-	//
-	// FAILURE because no CephCluster
-	//
-	// An cephfs-mirror resource with metadata and spec.
+	// Mock cmd reporter
+	// pacific := &version.CephVersion{Major: 16, Minor: 2, Extra: 1, Build: 0, CommitID: ""}
+	currentAndDesiredCephVersion = func(rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
+		return &version.Octopus, &version.Octopus, nil
+	}
+
 	fsMirror := &cephv1.CephFilesystemMirror{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -93,9 +84,6 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return cephAuthGetOrCreateKey, nil
 			}
-			if args[0] == "versions" {
-				return dummyVersionsRaw, nil
-			}
 			return "", nil
 		},
 	}
@@ -115,31 +103,33 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	// Create a ReconcileFilesystemMirror object with the scheme and fake client.
-	r := &ReconcileFilesystemMirror{client: cl, scheme: s, context: c}
-
-	// Mock request to simulate Reconcile() being called on an event for a
-	// watched resource .
+	r := &ReconcileFilesystemMirror{
+		client:  cl,
+		scheme:  s,
+		context: c,
+		opConfig: controller.OperatorConfig{
+			OperatorNamespace: namespace,
+			Image:             "rook",
+			ServiceAccount:    "foo",
+		},
+		opManagerContext: ctx,
+	}
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      name,
 			Namespace: namespace,
 		},
 	}
-	logger.Info("STARTING PHASE 1")
-	res, err := r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, res.Requeue)
-	logger.Info("PHASE 1 DONE")
 
-	//
-	// TEST 2:
-	//
-	// FAILURE we have a cluster but it's not ready
-	//
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace,
 			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{
+				Image: "ceph/ceph:16.2.0",
+			},
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
@@ -148,81 +138,124 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 			},
 		},
 	}
-	object = append(object, cephCluster)
-	// Create a fake client to mock API calls.
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	// Create a ReconcileFilesystemMirror object with the scheme and fake client.
-	r = &ReconcileFilesystemMirror{client: cl, scheme: s, context: c}
-	logger.Info("STARTING PHASE 2")
-	res, err = r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, res.Requeue)
-	logger.Info("PHASE 2 DONE")
 
-	//
-	// TEST 3:
-	//
-	// SUCCESS! The CephCluster is ready but version is too old!
-	//
+	t.Run("error - no ceph cluster", func(t *testing.T) {
+		// Mock request to simulate Reconcile() being called on an event for a
+		// watched resource .
 
-	// Mock clusterInfo
-	secrets := map[string][]byte{
-		"fsid":         []byte(name),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-mon",
-			Namespace: namespace,
-		},
-		Data: secrets,
-		Type: k8sutil.RookType,
-	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+	})
 
-	// Add ready status to the CephCluster
-	cephCluster.Status.Phase = k8sutil.ReadyStatus
-	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
+	t.Run("error - ceph cluster not ready", func(t *testing.T) {
+		object = append(object, cephCluster)
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		// Create a ReconcileFilesystemMirror object with the scheme and fake client.
+		r = &ReconcileFilesystemMirror{
+			client:  cl,
+			scheme:  s,
+			context: c,
+			opConfig: controller.OperatorConfig{
+				OperatorNamespace: namespace,
+				Image:             "rook",
+				ServiceAccount:    "foo",
+			},
+			opManagerContext: ctx,
+		}
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+	})
 
-	// Create a fake client to mock API calls.
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	t.Run("error - ceph cluster ready but version is too old", func(t *testing.T) {
+		// Mock clusterInfo
+		secrets := map[string][]byte{
+			"fsid":         []byte(name),
+			"mon-secret":   []byte("monsecret"),
+			"admin-secret": []byte("adminsecret"),
+		}
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-mon",
+				Namespace: namespace,
+			},
+			Data: secrets,
+			Type: k8sutil.RookType,
+		}
+		_, err := c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		assert.NoError(t, err)
 
-	// Create a ReconcileFilesystemMirror object with the scheme and fake client.
-	r = &ReconcileFilesystemMirror{
-		client:  cl,
-		scheme:  s,
-		context: c,
-	}
-	res, err = r.Reconcile(ctx, req)
-	assert.Error(t, err)
-	assert.True(t, res.Requeue)
+		// Add ready status to the CephCluster
+		cephCluster.Status.Phase = k8sutil.ReadyStatus
+		cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
-	//
-	// TEST 4:
-	//
-	// SUCCESS! The CephCluster is ready and running Ceph Pacific!
-	//
-	r.context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if args[0] == "status" {
-				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			if args[0] == "auth" && args[1] == "get-or-create-key" {
-				return cephAuthGetOrCreateKey, nil
-			}
-			if args[0] == "versions" {
-				return pacificVersionsRaw, nil
-			}
-			return "", nil
-		},
-	}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
-	res, err = r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, fsMirror)
-	assert.NoError(t, err)
-	assert.Equal(t, "Ready", fsMirror.Status.Phase, fsMirror)
+		// Create a ReconcileFilesystemMirror object with the scheme and fake client.
+		r = &ReconcileFilesystemMirror{
+			client:  cl,
+			scheme:  s,
+			context: c,
+			opConfig: controller.OperatorConfig{
+				OperatorNamespace: namespace,
+				Image:             "rook",
+				ServiceAccount:    "foo",
+			},
+			opManagerContext: ctx,
+		}
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.True(t, res.Requeue)
+	})
+
+	t.Run("error - cluster is upgrading", func(t *testing.T) {
+		r.context.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "status" {
+					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+				}
+				if args[0] == "auth" && args[1] == "get-or-create-key" {
+					return cephAuthGetOrCreateKey, nil
+				}
+				return "", nil
+			},
+		}
+
+		currentAndDesiredCephVersion = func(rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
+			return &version.Octopus, &version.Pacific, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "waiting for ceph monitors upgrade to finish. current version: 16.0.0-0 pacific. expected version: 15.0.0-0 octopus. will reconcile again in 1m0s")
+		assert.True(t, res.Requeue)
+	})
+
+	t.Run("success - running pacific", func(t *testing.T) {
+		r.context.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "status" {
+					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+				}
+				if args[0] == "auth" && args[1] == "get-or-create-key" {
+					return cephAuthGetOrCreateKey, nil
+				}
+				return "", nil
+			},
+		}
+
+		currentAndDesiredCephVersion = func(rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
+			return &version.Pacific, &version.Pacific, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		err = r.client.Get(context.TODO(), req.NamespacedName, fsMirror)
+		assert.NoError(t, err)
+		assert.Equal(t, "Ready", fsMirror.Status.Phase, fsMirror)
+	})
 }

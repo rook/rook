@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -263,4 +264,37 @@ func pickNode(clientset *fake.Clientset) string {
 	name := nodes.Items[pickNodeIdx].GetName()
 	pickNodeIdx++
 	return name
+}
+
+func FakeOperatorPod(ns string) *corev1.Pod {
+	p := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-operator",
+			Namespace: ns,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "ReplicaSet",
+					Name: "testReplicaSet",
+				},
+			},
+		},
+		Spec: corev1.PodSpec{},
+	}
+	return p
+}
+
+func FakeReplicaSet(ns string) *appsv1.ReplicaSet {
+	r := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testReplicaSet",
+			Namespace: ns,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "Deployment",
+				},
+			},
+		},
+	}
+
+	return r
 }

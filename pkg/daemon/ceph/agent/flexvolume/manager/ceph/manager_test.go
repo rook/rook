@@ -162,7 +162,7 @@ func TestAttach(t *testing.T) {
 		},
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, ownerInfo)
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, ctx, clusterNamespace, ownerInfo)
 	assert.NoError(t, err)
 	devicePath, err := vm.Attach("image1", "testpool", "admin", "never-gonna-give-you-up", clusterNamespace)
 	assert.Equal(t, "/dev/rbd3", devicePath)
@@ -244,7 +244,7 @@ func TestDetach(t *testing.T) {
 		},
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, ownerInfo)
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, ctx, clusterNamespace, ownerInfo)
 	assert.NoError(t, err)
 	err = vm.Detach("image1", "testpool", "admin", "", clusterNamespace, false)
 	assert.Nil(t, err)
@@ -300,7 +300,7 @@ func TestDetachCustomKeyring(t *testing.T) {
 		},
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	_, _, _, err = mon.CreateOrLoadClusterInfo(context, clusterNamespace, ownerInfo)
+	_, _, _, err = mon.CreateOrLoadClusterInfo(context, ctx, clusterNamespace, ownerInfo)
 	assert.NoError(t, err)
 	err = vm.Detach("image1", "testpool", "user1", "", clusterNamespace, false)
 	assert.Nil(t, err)

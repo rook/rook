@@ -70,17 +70,15 @@ func New(clientset kubernetes.Interface) *Discover {
 }
 
 // Start the discover
-func (d *Discover) Start(namespace, discoverImage, securityAccount string, useCephVolume bool) error {
-
-	err := d.createDiscoverDaemonSet(namespace, discoverImage, securityAccount, useCephVolume)
+func (d *Discover) Start(ctx context.Context, namespace, discoverImage, securityAccount string, useCephVolume bool) error {
+	err := d.createDiscoverDaemonSet(ctx, namespace, discoverImage, securityAccount, useCephVolume)
 	if err != nil {
-		return fmt.Errorf("Error starting discover daemonset: %v", err)
+		return fmt.Errorf("failed to start discover daemonset. %v", err)
 	}
 	return nil
 }
 
-func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string, useCephVolume bool) error {
-	ctx := context.TODO()
+func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, discoverImage, securityAccount string, useCephVolume bool) error {
 	privileged := true
 	discovery_parameters := []string{"discover",
 		"--discover-interval", getEnvVar(discoverIntervalEnv, defaultDiscoverInterval)}

@@ -27,6 +27,8 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -152,11 +154,10 @@ func TestCephFilesystemController(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
-	//
-	// TEST 1 SETUP
-	//
-	// FAILURE because no CephCluster
-	//
+	currentAndDesiredCephVersion = func(rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
+		return &version.Pacific, &version.Pacific, nil
+	}
+
 	// A Pool resource with metadata and spec.
 	fs := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
@@ -203,7 +204,7 @@ func TestCephFilesystemController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r := &ReconcileCephFilesystem{client: cl, scheme: s, context: c, fsChannels: make(map[string]*fsHealth)}
+	r := &ReconcileCephFilesystem{client: cl, scheme: s, context: c, fsContexts: make(map[string]*fsHealth), opManagerContext: context.TODO()}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -213,17 +214,6 @@ func TestCephFilesystemController(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
-	logger.Info("STARTING PHASE 1")
-	res, err := r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, res.Requeue)
-	logger.Info("PHASE 1 DONE")
-
-	//
-	// TEST 2:
-	//
-	// FAILURE we have a cluster but it's not ready
-	//
 	cephCluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace,
@@ -236,75 +226,77 @@ func TestCephFilesystemController(t *testing.T) {
 			},
 		},
 	}
-	object = append(object, cephCluster)
-	// Create a fake client to mock API calls.
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c}
-	logger.Info("STARTING PHASE 2")
-	res, err = r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, res.Requeue)
-	logger.Info("PHASE 2 DONE")
 
-	//
-	// TEST 3:
-	//
-	// SUCCESS! The CephCluster is ready
-	//
+	t.Run("error - no ceph cluster", func(t *testing.T) {
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+	})
 
-	// Mock clusterInfo
-	secrets := map[string][]byte{
-		"fsid":         []byte(name),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-mon",
-			Namespace: namespace,
-		},
-		Data: secrets,
-		Type: k8sutil.RookType,
-	}
-	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	t.Run("error - ceph cluster not ready", func(t *testing.T) {
+		object = append(object, cephCluster)
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		// Create a ReconcileCephFilesystem object with the scheme and fake client.
+		r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c, opManagerContext: context.TODO()}
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+		logger.Info("PHASE 2 DONE")
+	})
 
-	// Add ready status to the CephCluster
-	cephCluster.Status.Phase = k8sutil.ReadyStatus
-	cephCluster.Status.CephStatus.Health = "HEALTH_OK"
+	t.Run("success - ceph cluster ready and mds are running", func(t *testing.T) {
+		// Mock clusterInfo
+		secrets := map[string][]byte{
+			"fsid":         []byte(name),
+			"mon-secret":   []byte("monsecret"),
+			"admin-secret": []byte("adminsecret"),
+		}
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-mon",
+				Namespace: namespace,
+			},
+			Data: secrets,
+			Type: k8sutil.RookType,
+		}
+		_, err := c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		assert.NoError(t, err)
 
-	// Create a fake client to mock API calls.
-	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		// Add ready status to the CephCluster
+		cephCluster.Status.Phase = k8sutil.ReadyStatus
+		cephCluster.Status.CephStatus.Health = "HEALTH_OK"
 
-	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if args[0] == "status" {
-				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			if args[0] == "fs" && args[1] == "get" {
-				return fsGet, nil
-			}
-			if args[0] == "auth" && args[1] == "get-or-create-key" {
-				return mdsCephAuthGetOrCreateKey, nil
-			}
-			if args[0] == "versions" {
-				return dummyVersionsRaw, nil
-			}
-			return "", nil
-		},
-	}
-	c.Executor = executor
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
-	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c, fsChannels: make(map[string]*fsHealth)}
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "status" {
+					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+				}
+				if args[0] == "fs" && args[1] == "get" {
+					return fsGet, nil
+				}
+				if args[0] == "auth" && args[1] == "get-or-create-key" {
+					return mdsCephAuthGetOrCreateKey, nil
+				}
+				if args[0] == "versions" {
+					return dummyVersionsRaw, nil
+				}
+				return "", nil
+			},
+		}
+		c.Executor = executor
 
-	logger.Info("STARTING PHASE 3")
-	res, err = r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, fs)
-	assert.NoError(t, err)
-	assert.Equal(t, cephv1.ConditionType("Ready"), fs.Status.Phase, fs)
-	logger.Info("PHASE 3 DONE")
+		// Create a ReconcileCephFilesystem object with the scheme and fake client.
+		r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c, fsContexts: make(map[string]*fsHealth), opManagerContext: context.TODO()}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		err = r.client.Get(context.TODO(), req.NamespacedName, fs)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ConditionType("Ready"), fs.Status.Phase, fs)
+	})
 }

@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/vault/api v1.1.2-0.20210713235431-1fc8af4c041f
 	github.com/hashicorp/vault/sdk v0.2.2-0.20210825150427-9b1f4d486f5d
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210818162813-3eee31c01875
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210907154902-775800a3d0b0
 	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
@@ -26,7 +26,6 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/tevino/abool v1.2.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/ini.v1 v1.57.0
 	gopkg.in/yaml.v2 v2.4.0

@@ -17,6 +17,7 @@ limitations under the License.
 package controllerconfig
 
 import (
+	"context"
 	"sync"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -25,9 +26,8 @@ import (
 // Context passed to the controller when associating it with the manager.
 type Context struct {
 	ClusterdContext   *clusterd.Context
-	RookImage         string
-	OperatorNamespace string
 	ReconcileCanaries *LockingBool
+	OpManagerContext  context.Context
 }
 
 // LockingBool is a bool coupled with a sync.Mutex

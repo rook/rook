@@ -1,7 +1,6 @@
 package bucket
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -9,7 +8,7 @@ import (
 )
 
 func (p *Provisioner) bucketExists(name string) (bool, error) {
-	_, err := p.adminOpsClient.GetBucketInfo(context.TODO(), admin.Bucket{Bucket: name})
+	_, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchBucket) {
 			return false, nil
@@ -20,7 +19,7 @@ func (p *Provisioner) bucketExists(name string) (bool, error) {
 }
 
 func (p *Provisioner) userExists(name string) (bool, error) {
-	_, err := p.adminOpsClient.GetUser(context.TODO(), admin.User{ID: name})
+	_, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			return false, nil
@@ -50,10 +49,10 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 	}
 
 	var u admin.User
-	u, err = p.adminOpsClient.GetUser(context.TODO(), userConfig)
+	u, err = p.adminOpsClient.GetUser(p.clusterInfo.Context, userConfig)
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
-			u, err = p.adminOpsClient.CreateUser(context.TODO(), userConfig)
+			u, err = p.adminOpsClient.CreateUser(p.clusterInfo.Context, userConfig)
 			if err != nil {
 				return "", "", errors.Wrapf(err, "failed to create ceph object user %v", userConfig.ID)
 			}
@@ -96,7 +95,7 @@ func (p *Provisioner) deleteOBCResource(bucketName string) error {
 	if len(bucketName) > 0 {
 		// delete bucket with purge option to remove all objects
 		thePurge := true
-		err := p.adminOpsClient.RemoveBucket(context.TODO(), admin.Bucket{Bucket: bucketName, PurgeObject: &thePurge})
+		err := p.adminOpsClient.RemoveBucket(p.clusterInfo.Context, admin.Bucket{Bucket: bucketName, PurgeObject: &thePurge})
 		if err == nil {
 			logger.Infof("bucket %q successfully deleted", p.bucketName)
 		} else if errors.Is(err, admin.ErrNoSuchBucket) {
@@ -107,7 +106,7 @@ func (p *Provisioner) deleteOBCResource(bucketName string) error {
 		}
 	}
 	if len(p.cephUserName) > 0 {
-		err := p.adminOpsClient.RemoveUser(context.TODO(), admin.User{ID: p.cephUserName})
+		err := p.adminOpsClient.RemoveUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName})
 		if err != nil {
 			if errors.Is(err, admin.ErrNoSuchUser) {
 				logger.Warningf("user %q does not exist, nothing to delete. %v", p.cephUserName, err)

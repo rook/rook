@@ -17,7 +17,6 @@ limitations under the License.
 package object
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"reflect"
@@ -606,7 +605,7 @@ func (c *clusterConfig) generateVolumeSourceWithCaBundleSecret() (*v1.SecretVolu
 }
 
 func (c *clusterConfig) rgwTLSSecretType(secretName string) (v1.SecretType, error) {
-	rgwTlsSecret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	rgwTlsSecret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, secretName, metav1.GetOptions{})
 	if rgwTlsSecret != nil {
 		return rgwTlsSecret.Type, nil
 	}

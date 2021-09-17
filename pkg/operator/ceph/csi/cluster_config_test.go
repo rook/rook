@@ -28,7 +28,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	mons := map[string]*cephclient.MonInfo{
 		"foo": {Name: "foo", Endpoint: "1.2.3.4:5000"},
 	}
-	s, err := UpdateCsiClusterConfig("[]", "alpha", mons)
+	s, err := updateCsiClusterConfig("[]", "alpha", mons)
 	assert.NoError(t, err)
 	assert.Equal(t, s,
 		`[{"clusterID":"alpha","monitors":["1.2.3.4:5000"]}]`)
@@ -36,7 +36,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	// add a 2nd mon to the current cluster
 	mons["bar"] = &cephclient.MonInfo{
 		Name: "bar", Endpoint: "10.11.12.13:5000"}
-	s, err = UpdateCsiClusterConfig(s, "alpha", mons)
+	s, err = updateCsiClusterConfig(s, "alpha", mons)
 	assert.NoError(t, err)
 	cc, err := parseCsiClusterConfig(s)
 	assert.NoError(t, err)
@@ -52,7 +52,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		"flam": {Name: "flam", Endpoint: "20.1.1.2:5000"},
 		"blam": {Name: "blam", Endpoint: "20.1.1.3:5000"},
 	}
-	s, err = UpdateCsiClusterConfig(s, "beta", mons2)
+	s, err = updateCsiClusterConfig(s, "beta", mons2)
 	assert.NoError(t, err)
 	cc, err = parseCsiClusterConfig(s)
 	assert.NoError(t, err)
@@ -69,7 +69,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 
 	// remove a mon from the 2nd cluster
 	delete(mons2, "blam")
-	s, err = UpdateCsiClusterConfig(s, "beta", mons2)
+	s, err = updateCsiClusterConfig(s, "beta", mons2)
 	assert.NoError(t, err)
 	cc, err = parseCsiClusterConfig(s)
 	assert.NoError(t, err)
@@ -84,6 +84,6 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	assert.Equal(t, len(cc[1].Monitors), 2)
 
 	// does it return error on garbage input?
-	_, err = UpdateCsiClusterConfig("qqq", "beta", mons2)
+	_, err = updateCsiClusterConfig("qqq", "beta", mons2)
 	assert.Error(t, err)
 }

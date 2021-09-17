@@ -227,6 +227,7 @@ func TestGetOSDFailureDomains(t *testing.T) {
 			}
 			r := getFakeReconciler(t, objs...)
 			clusterInfo := getFakeClusterInfo()
+			clusterInfo.Context = context.TODO()
 			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 			allfailureDomains, nodeDrainFailureDomains, osdDownFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
 			assert.NoError(t, err)
@@ -262,6 +263,7 @@ func TestGetOSDFailureDomainsError(t *testing.T) {
 			r := getFakeReconciler(t, cephCluster, &corev1.ConfigMap{},
 				tc.osds[1].DeepCopy(), tc.osds[2].DeepCopy(), osd)
 			clusterInfo := getFakeClusterInfo()
+			clusterInfo.Context = context.TODO()
 			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 			allfailureDomains, nodeDrainFailureDomains, osdDownFailureDomains, err := r.getOSDFailureDomains(clusterInfo, request, "zone")
 			assert.Error(t, err)
@@ -344,6 +346,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := getFakeReconciler(t, cephCluster, tc.configMap)
 			clusterInfo := getFakeClusterInfo()
+			clusterInfo.Context = context.TODO()
 			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 			executor := &exectest.MockExecutor{}
 			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
@@ -400,6 +403,7 @@ func TestPGHealthcheckTimeout(t *testing.T) {
 	pdbConfig := fakePDBConfigMap("")
 	r := getFakeReconciler(t, cephCluster, pdbConfig)
 	clusterInfo := getFakeClusterInfo()
+	clusterInfo.Context = context.TODO()
 	request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {

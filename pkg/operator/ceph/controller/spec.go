@@ -18,7 +18,6 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path"
@@ -697,7 +696,7 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 	}
 
 	// Get the endpoint to see if anything needs to be updated
-	currentEndpoints, err := ctx.Clientset.CoreV1().Endpoints(clusterInfo.Namespace).Get(context.TODO(), endpoint.Name, metav1.GetOptions{})
+	currentEndpoints, err := ctx.Clientset.CoreV1().Endpoints(clusterInfo.Namespace).Get(clusterInfo.Context, endpoint.Name, metav1.GetOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
 		return errors.Wrap(err, "failed to fetch endpoints")
 	}

@@ -240,10 +240,9 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.String, error) {
-	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
 
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(ctx, listOpts)
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query existing OSD deployments")
 	}
@@ -406,12 +405,11 @@ func (c *Cluster) getOSDPropsForPVC(pvcName, osdDeviceClass string) (osdProperti
 // First look for the node selector that was previously used for the OSD, or if a new OSD
 // check for the assignment of the OSD prepare job.
 func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
-	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OSDOverPVCLabelKey, pvcName)}
 
 	// Check for the existence of the OSD deployment where the node selector was applied
 	// in a previous reconcile.
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(ctx, listOpts)
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get deployment for osd with pvc %q", pvcName)
 	}
@@ -426,7 +424,7 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 
 	// Since the deployment wasn't found it must be a new deployment so look at the node
 	// assignment of the OSD prepare pod
-	pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(ctx, listOpts)
+	pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get pod for osd with pvc %q", pvcName)
 	}

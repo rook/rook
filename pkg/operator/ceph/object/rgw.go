@@ -80,7 +80,6 @@ func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName s
 }
 
 func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) error {
-	ctx := context.TODO()
 	// backward compatibility, triggered during updates
 	if c.store.Spec.Gateway.Instances < 1 {
 		// Set the minimum of at least one instance
@@ -153,7 +152,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", deployment.Name)
 		}
 
-		_, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
+		_, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(c.clusterInfo.Context, deployment, metav1.CreateOptions{})
 		if createErr != nil {
 			if !kerrors.IsAlreadyExists(createErr) {
 				return errors.Wrap(createErr, "failed to create rgw deployment")
@@ -191,7 +190,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 
 			// Delete the Secret key
 			secretToRemove := c.generateSecretName(k8sutil.IndexToName(depIDToRemove))
-			err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(ctx, secretToRemove, metav1.DeleteOptions{})
+			err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(c.clusterInfo.Context, secretToRemove, metav1.DeleteOptions{})
 			if err != nil && !kerrors.IsNotFound(err) {
 				logger.Warningf("failed to delete rgw secret %q. %v", secretToRemove, err)
 			}

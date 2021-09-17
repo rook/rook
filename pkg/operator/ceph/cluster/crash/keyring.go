@@ -96,7 +96,7 @@ func createOrUpdateCrashCollectorSecret(clusterInfo *client.ClusterInfo, crashCo
 	// Create Kubernetes Secret
 	err = k.CreateSecret(s)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", crashCollectorSecret, clusterInfo.Namespace)
+		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", s.Name, clusterInfo.Namespace)
 	}
 
 	logger.Infof("created kubernetes crash collector secret for cluster %q", clusterInfo.Namespace)

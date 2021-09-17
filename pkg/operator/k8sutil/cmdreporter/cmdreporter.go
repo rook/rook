@@ -31,6 +31,7 @@ import (
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	watch "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
@@ -214,7 +215,7 @@ func (cr *CmdReporter) newWatcher() (watch.Interface, error) {
 		TypeMeta: metav1.TypeMeta{
 			Kind: "ConfigMap",
 		},
-		FieldSelector: fmt.Sprintf("metadata.name=%s", jobName),
+		FieldSelector: fields.OneTermEqualSelector("metadata.name", jobName).String(),
 	}
 
 	list, err := cr.clientset.CoreV1().ConfigMaps(namespace).List(ctx, listOpts)
