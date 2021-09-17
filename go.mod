@@ -8,7 +8,6 @@ require (
 	github.com/ceph/go-ceph v0.11.0
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/csi-addons/volume-replication-operator v0.1.1-0.20210525040814-ab575a2879fb
-	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-ini/ini v1.51.1
 	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v1.1.2

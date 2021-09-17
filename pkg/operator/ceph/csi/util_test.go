@@ -29,8 +29,9 @@ func TestDaemonSetTemplate(t *testing.T) {
 		Param:     CSIParam,
 		Namespace: "foo",
 	}
-	_, err := templateToDaemonSet("test-ds", RBDPluginTemplatePath, tp)
+	ds, err := templateToDaemonSet("test-ds", RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
+	assert.Equal(t, "driver-registrar", ds.Spec.Template.Spec.Containers[0].Name)
 }
 
 func TestDeploymentTemplate(t *testing.T) {

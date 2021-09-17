@@ -19,8 +19,8 @@ package k8sutil
 import (
 	"encoding/json"
 
-	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 // This function takes raw YAML string and converts it to Kubernetes Tolerations array
@@ -29,7 +29,7 @@ func YamlToTolerations(raw string) ([]v1.Toleration, error) {
 		return []v1.Toleration{}, nil
 	}
 
-	rawJSON, err := yaml.YAMLToJSON([]byte(raw))
+	rawJSON, err := yaml.ToJSON([]byte(raw))
 	if err != nil {
 		return []v1.Toleration{}, err
 	}
