@@ -19,6 +19,10 @@ For documentation on consuming the storage:
 * RBD: See the [Block Storage](ceph-block.md) topic
 * CephFS: See the [Shared Filesystem](ceph-filesystem.md) topic
 
+## Supported Versions
+The supported Ceph CSI version is 3.3.0 or greater with Rook. Refer to ceph csi [releases](https://github.com/ceph/ceph-csi/releases)
+for more information.
+
 ## Static Provisioning
 
 Both drivers also support the creation of static PV and static PVC from existing RBD image/CephFS volume. Refer to [static PVC](https://github.com/ceph/ceph-csi/blob/devel/docs/static-pvc.md) for more information.
