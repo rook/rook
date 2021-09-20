@@ -77,17 +77,17 @@ ROOK_OP_VERSION=$3
 # VARIABLES #
 #############
 : "${SED_IN_PLACE:="build/sed-in-place"}"
-YQ_CMD_DELETE=($yq delete -i)
-YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --prettyPrint)
-YQ_CMD_MERGE=($yq merge --inplace --append -P )
-YQ_CMD_WRITE=($yq write --inplace -P )
+YQ_CMD_DELETE=("$yq" delete -i)
+YQ_CMD_MERGE_OVERWRITE=("$yq" merge --inplace --overwrite --prettyPrint)
+YQ_CMD_MERGE=("$yq" merge --inplace --append -P )
+YQ_CMD_WRITE=("$yq" write --inplace -P )
 OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
 OPERATOR_YAML_FILE_OCP="cluster/examples/kubernetes/ceph/operator-openshift.yaml"
 COMMON_YAML_FILE="cluster/examples/kubernetes/ceph/common.yaml"
 CSV_PATH="$OLM_CATALOG_DIR/deploy/olm-catalog/${PLATFORM}/${VERSION}"
 CSV_BUNDLE_PATH="${CSV_PATH}/manifests"
 CSV_FILE_NAME="$CSV_BUNDLE_PATH/ceph.clusterserviceversion.yaml"
-OP_SDK_CMD=($operator_sdk generate csv --output-dir="deploy/olm-catalog/${PLATFORM}/${VERSION}" --csv-version)
+OP_SDK_CMD=("$operator_sdk" generate csv --output-dir="deploy/olm-catalog/${PLATFORM}/${VERSION}" --csv-version)
 OLM_OPERATOR_YAML_FILE="$OLM_CATALOG_DIR/deploy/operator.yaml"
 OLM_ROLE_YAML_FILE="$OLM_CATALOG_DIR/deploy/role.yaml"
 OLM_ROLE_BINDING_YAML_FILE="$OLM_CATALOG_DIR/deploy/role_binding.yaml"

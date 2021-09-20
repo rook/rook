@@ -3,6 +3,8 @@
 /.cache
 /.idea
 
+/super-linter.log
+
 /_output
 
 /tests/integration/rook-test/

@@ -1,0 +1,44 @@
+name: Super-Linter
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+jobs:
+  build:
+    name: Lint Rook project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+        with:
+          # Full git history is needed to get a proper list of changed files within `super-linter`
+          fetch-depth: 0
+
+      - name: Lint project
+        uses: github/super-linter/slim@v4
+        env:
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LINTER_RULES_PATH: lint
+
+          # VALIDATE_ALL_CODEBASE: when false, only new or edited files will be validated
+          VALIDATE_ALL_CODEBASE: true
+
+          # yamllint
+          VALIDATE_YAML: true
+
+          # super-linter supports golangci-lint, but it doesn't work for complex Go projects:
+          # https://github.com/github/super-linter/issues/143
+
+          # shellcheck
+          VALIDATE_BASH: true
+          SHELLCHECK_OPTS: "--external-sources --severity=warning"

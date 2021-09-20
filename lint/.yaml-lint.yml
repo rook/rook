@@ -1,0 +1,18 @@
+# ignore uses .gitignore-style syntax
+# use '*' to ignore all files by default and '!' overrides to use opt-in linting
+# must precede paths with double-asterisk '**' so that yamllint can be run from within any dir
+ignore: |
+  *
+  !**/cluster/examples/kubernetes/**
+  **/cluster/examples/kubernetes/ceph/csi/template
+  **/cluster/examples/kubernetes/ceph/crds.yaml
+  **/cluster/examples/kubernetes/ceph/pre-k8s-1.16/crds.yaml
+  **/cluster/examples/kubernetes/ceph/monitoring/
+  !**/lint
+
+# use default rules, and override below
+extends: default
+
+rules:
+  line-length: disable
+  truthy: disable
