@@ -1,0 +1,334 @@
+name: Daily nightly jobs
+on:
+  schedule:
+    - cron: "0 0 * * *" # every day at midnight
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+jobs:
+  canary-arm64:
+    runs-on: [self-hosted, ubuntu-20.04, ARM64]
+    if: github.repository == 'rook/rook'
+    env:
+      BLOCK: /dev/sdb
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: setup golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: teardown minikube and docker
+        run: |
+          uptime
+          minikube delete
+          docker system prune -a
+
+      - name: setup minikube
+        run: |
+          # sudo apt-get install build-essential -y
+          # curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-arm64
+          # sudo install minikube-linux-arm64 /usr/local/bin/minikube
+          # sudo rm -f minikube-linux-arm64
+          # curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
+          # sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          minikube start --memory 28g --cpus=12 --driver=docker
+
+      - name: print k8s cluster status
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: use local disk and create partitions for osds
+        run: |
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 1
+
+      - name: validate-yaml
+        run: tests/scripts/github-action-helper.sh validate_yaml
+
+      - name: deploy cluster
+        run: |
+          # removing liveness probes since the env is slow and the probe is killing the daemons
+          yq write -d1 -i cluster/examples/kubernetes/ceph/cluster-test.yaml "spec.healthCheck.livenessProbe.mon.disabled" true
+          yq write -d1 -i cluster/examples/kubernetes/ceph/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
+          yq write -d1 -i cluster/examples/kubernetes/ceph/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
+          tests/scripts/github-action-helper.sh deploy_cluster
+          # there are no package for arm64 nfs-ganesha
+          kubectl delete -f cluster/examples/kubernetes/ceph/nfs-test.yaml
+
+      - name: wait for prepare pod
+        run: timeout 900 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done' || kubectl -n rook-ceph get all && kubectl logs -n rook-ceph deploy/rook-ceph-operator
+
+      - name: wait for ceph to be ready
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 1
+
+      - name: teardown minikube and docker
+        run: |
+          minikube delete
+          docker system prune -a
+
+      - name: upload canary test result
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: canary-arm64
+          path: test
+
+  smoke-suite-pacific-devel:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: setup golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: "v1.22.0"
+          kubernetes version: "v1.22.0"
+          start args: --memory 6g --cpus=2
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: print k8s cluster status
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: use local disk
+        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+      - name: build rook
+        run: tests/scripts/github-action-helper.sh build_rook
+
+      - name: TestCephSmokeSuite
+        run: |
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="pacific-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
+
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-smoke-suite-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  smoke-suite-ceph-master:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: setup golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: "v1.22.0"
+          kubernetes version: "v1.22.0"
+          start args: --memory 6g --cpus=2
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: print k8s cluster status
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: use local disk
+        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+      - name: build rook
+        run: tests/scripts/github-action-helper.sh build_rook
+
+      - name: TestCephSmokeSuite
+        run: |
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=master go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
+
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-smoke-suite-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  object-suite-pacific-devel:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: setup golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: "v1.22.0"
+          kubernetes version: "v1.22.0"
+          start args: --memory 6g --cpus=2
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: print k8s cluster status
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: use local disk
+        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+      - name: build rook
+        run: tests/scripts/github-action-helper.sh build_rook
+
+      - name: TestCephObjectSuite
+        run: |
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="pacific-devel" go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
+
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-object-suite-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  object-suite-master:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: setup golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: "v1.22.0"
+          kubernetes version: "v1.22.0"
+          start args: --memory 6g --cpus=2
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: print k8s cluster status
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: use local disk
+        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+      - name: build rook
+        run: tests/scripts/github-action-helper.sh build_rook
+
+      - name: TestCephObjectSuite
+        run: |
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=master go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
+
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-object-suite-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  upgrade-from-pacific-stable-to-pacific-devel:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: setup golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: "v1.22.0"
+          kubernetes version: "v1.22.0"
+          start args: --memory 6g --cpus=2
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: print k8s cluster status
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: use local disk
+        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+      - name: build rook
+        run: tests/scripts/github-action-helper.sh build_rook
+
+      - name: TestCephUpgradeSuite
+        run: |
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToPacificDevel github.com/rook/rook/tests/integration
+
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-upgrade-suite-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  upgrade-from-octopus-stable-to-octopus-devel:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: setup golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: "v1.22.0"
+          kubernetes version: "v1.22.0"
+          start args: --memory 6g --cpus=2
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: print k8s cluster status
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: use local disk
+        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
+
+      - name: build rook
+        run: tests/scripts/github-action-helper.sh build_rook
+
+      - name: TestCephUpgradeSuite
+        run: |
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToOctopusDevel github.com/rook/rook/tests/integration
+
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-upgrade-suite-artifact
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/

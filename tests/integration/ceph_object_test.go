@@ -75,7 +75,7 @@ func (s *ObjectSuite) SetupSuite() {
 		EnableAdmissionController: true,
 		UseCrashPruner:            true,
 		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.PacificVersion,
+		CephVersion:               installer.ReturnCephVersion(),
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
