@@ -313,6 +313,7 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		return errors.Wrap(err, "failed to load CSI_PROVISIONER_PRIORITY_CLASSNAME setting")
 	}
 
+<<<<<<< HEAD
 	// OMAP generator will be enabled by default
 	// If AllowUnsupported is set to false and if CSI version is less than
 	// <3.2.0 disable OMAP generator sidecar
@@ -325,6 +326,9 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		return errors.Wrap(err, "failed to load CSI_ENABLE_OMAP_GENERATOR setting")
 	}
 	if strings.EqualFold(enableOMAPGenerator, "true") {
+=======
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_OMAP_GENERATOR", "false"), "true") {
+>>>>>>> 731b0f527 (ceph: lift minimum supported version of ceph csi to v3.3.0)
 		tp.EnableOMAPGenerator = true
 	}
 
