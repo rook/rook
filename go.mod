@@ -18,6 +18,7 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20210907154902-775800a3d0b0
 	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec
+	github.com/openshift/api v0.0.0-20210105115604-44119421ec6b
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
 	github.com/openshift/machine-api-operator v0.2.1-0.20190903202259-474e14e4965a
 	github.com/pkg/errors v0.9.1

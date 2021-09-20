@@ -11,11 +11,9 @@ apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph
 allowPrivilegedContainer: true
-allowHostNetwork: true
 allowHostDirVolumePlugin: true
 priority:
 allowedCapabilities: []
-allowHostPorts: true
 allowHostPID: true # remove this once we drop support for Nautilus
 allowHostIPC: true
 readOnlyRootFilesystem: false
@@ -29,9 +27,6 @@ fsGroup:
   type: MustRunAs
 supplementalGroups:
   type: RunAsAny
-allowedFlexVolumes:
-  - driver: "ceph.rook.io/rook"
-  - driver: "ceph.rook.io/rook-ceph"
 volumes:
   - configMap
   - downwardAPI
@@ -55,17 +50,23 @@ kind: SecurityContextConstraints
 apiVersion: security.openshift.io/v1
 metadata:
   name: rook-ceph-csi
+# To allow running privilegedContainers
 allowPrivilegedContainer: true
+# CSI daemonset pod needs hostnetworking
 allowHostNetwork: true
+# This need to be set to true as we use HostPath
 allowHostDirVolumePlugin: true
 priority:
-allowedCapabilities: ["*"]
+# SYS_ADMIN is needed for rbd to execture rbd map command
+allowedCapabilities: ["SYS_ADMIN"]
+# Needed as we run liveness container on daemonset pods
 allowHostPorts: true
+# Needed as we are setting this in RBD plugin pod
 allowHostPID: true
+# Required for encryption
 allowHostIPC: true
+# Set to false as we write to RootFilesystem inside csi containers
 readOnlyRootFilesystem: false
-requiredDropCapabilities: []
-defaultAddCapabilities: []
 runAsUser:
   type: RunAsAny
 seLinuxContext:
@@ -74,10 +75,12 @@ fsGroup:
   type: RunAsAny
 supplementalGroups:
   type: RunAsAny
-allowedFlexVolumes:
-  - driver: "ceph.rook.io/rook"
-  - driver: "ceph.rook.io/rook-ceph"
-volumes: ["*"]
+# The type of volumes which are mounted to csi pods
+volumes:
+  - configMap
+  - projected
+  - emptyDir
+  - hostPath
 users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
