@@ -177,8 +177,10 @@ func (s *CephMgrSuite) waitForOrchestrationModule() {
 
 			// Get status information
 			bytes := []byte(output)
+			logBytesInfo(bytes)
+
 			var status orchStatus
-			err := json.Unmarshal(bytes, &status)
+			err := json.Unmarshal(bytes[:len(output)], &status)
 			if err != nil {
 				logger.Error("Error getting ceph orch status")
 				continue
@@ -222,6 +224,14 @@ func (s *CephMgrSuite) TestStatus() {
 	assert.Equal(s.T(), status, "Backend: rook\nAvailable: Yes")
 }
 
+func logBytesInfo(bytesSlice []byte){
+	logger.Infof("---- bytes slice info ---")
+	logger.Infof("bytes: %v\n", bytesSlice)
+	logger.Infof("length: %d\n", len(bytesSlice))
+	logger.Infof("string: -->%s<--\n", string(bytesSlice))
+	logger.Infof("-------------------------")
+}
+
 func (s *CephMgrSuite) TestHostLs() {
 	logger.Info("Testing .... <ceph orch host ls>")
 
@@ -231,9 +241,10 @@ func (s *CephMgrSuite) TestHostLs() {
 	logger.Infof("output = %s", output)
 
 	hosts := []byte(output)
-	var hostsList []host
+	logBytesInfo(hosts)
 
-	err = json.Unmarshal(hosts, &hostsList)
+	var hostsList []host
+	err = json.Unmarshal(hosts[:len(output)], &hostsList)
 	if err != nil {
 		assert.Nil(s.T(), err)
 	}
@@ -265,9 +276,10 @@ func (s *CephMgrSuite) TestServiceLs() {
 	logger.Infof("output = %s", output)
 
 	services := []byte(output)
-	var servicesList []service
+	logBytesInfo(services)
 
-	err = json.Unmarshal(services, &servicesList)
+	var servicesList []service
+	err = json.Unmarshal(services[:len(output)], &servicesList)
 	assert.Nil(s.T(), err)
 
 	labelFilter := ""
