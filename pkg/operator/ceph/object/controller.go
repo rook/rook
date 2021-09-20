@@ -448,7 +448,10 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 	// Start monitoring
 	if !cephObjectStore.Spec.HealthCheck.Bucket.Disabled {
-		r.startMonitoring(cephObjectStore, objContext, namespacedName)
+		err = r.startMonitoring(cephObjectStore, objContext, namespacedName)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	return reconcile.Result{}, nil
@@ -513,20 +516,23 @@ func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1
 	return cephObjectStore.Name, cephObjectStore.Name, cephObjectStore.Name, reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, namespacedName types.NamespacedName) {
+func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, namespacedName types.NamespacedName) error {
 	// Start monitoring object store
 	if r.objectStoreContexts[objectstore.Name].started {
 		logger.Info("external rgw endpoint monitoring go routine already running!")
-		return
+		return nil
 	}
 
 	rgwChecker, err := newBucketChecker(r.context, objContext, r.client, namespacedName, &objectstore.Spec)
 	if err != nil {
-		logger.Error(err)
-		return
+		return errors.Wrapf(err, "failed to start rgw health checker for CephObjectStore %q, will re-reconcile", namespacedName.String())
 	}
 
-	logger.Info("starting rgw healthcheck")
+	logger.Infof("starting rgw health checker for CephObjectStore %q", namespacedName.String())
 	go rgwChecker.checkObjectStore(r.objectStoreContexts[objectstore.Name].internalCtx)
+
+	// Set the monitoring flag so we don't start more than one go routine
 	r.objectStoreContexts[objectstore.Name].started = true
+
+	return nil
 }
