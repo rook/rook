@@ -28,8 +28,6 @@ export OUTPUT_DIR=${BUILD_ROOT}/_output
 export WORK_DIR=${BUILD_ROOT}/.work
 CACHE_DIR=${BUILD_ROOT}/.cache
 
-export KUBEADM_DIND_DIR=${CACHE_DIR}/kubeadm-dind
-
 CROSS_IMAGE=${BUILD_REGISTRY}/cross-amd64
 CROSS_IMAGE_VOLUME=cross-volume
 CROSS_RSYNC_PORT=10873
