@@ -441,3 +441,13 @@ $ rbd ls --id=csi-rbd-node -m=10.111.136.166:6789 --key=AQDpIQhg+v83EhAAgLboWIbl
 ```
 
 Where `-m` is one of the mon endpoints and the `--key` is the key used by the CSI driver for accessing the Ceph cluster.
+
+## Parallel RBD PVC creation hangs for new BlockPool
+
+This issue is specifically present in CephCSI `v3.4.x`, used by rook `>=v1.7.1` and occurs when multiple parallel PVCs creation requests are issued on a newly created uninitialized blockpool. Follow the steps below to workaround the issue:
+* Execute `rbd pool init <pool_name>` command from [toolbox](./ceph-toolbox.md) or ceph-csi pods(similar to [this](#rbd-commands)).
+* Restart the csi-rbdplugin-provisioner-xxx pods.
+
+    `kubectl -n rook-ceph delete pods -l app=csi-rbdplugin-provisioner`
+
+After following the above steps, multiple parallel PVC creation will work as expected.
