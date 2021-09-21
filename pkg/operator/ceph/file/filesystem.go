@@ -18,10 +18,8 @@ package file
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util/exec"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -51,35 +49,29 @@ func createFilesystem(
 	ownerInfo *k8sutil.OwnerInfo,
 	dataDirHostPath string,
 ) error {
+	logger.Infof("start running mdses for filesystem %q", fs.Name)
+	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, ownerInfo, dataDirHostPath)
+	if err := c.Start(); err != nil {
+		return err
+	}
+
 	if len(fs.Spec.DataPools) != 0 {
 		f := newFS(fs.Name, fs.Namespace)
 		if err := f.doFilesystemCreate(context, clusterInfo, clusterSpec, fs.Spec); err != nil {
 			return errors.Wrapf(err, "failed to create filesystem %q", fs.Name)
 		}
 	}
-
-	filesystem, err := cephclient.GetFilesystem(context, clusterInfo, fs.Name)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get filesystem %q", fs.Name)
-	}
-
 	if fs.Spec.MetadataServer.ActiveStandby {
-		if err = cephclient.AllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+		if err := cephclient.AllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
 			return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %q", fs.Name)
 		}
 	}
 
 	// set the number of active mds instances
 	if fs.Spec.MetadataServer.ActiveCount > 1 {
-		if err = cephclient.SetNumMDSRanks(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
+		if err := cephclient.SetNumMDSRanks(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
 			logger.Warningf("failed setting active mds count to %d. %v", fs.Spec.MetadataServer.ActiveCount, err)
 		}
-	}
-
-	logger.Infof("start running mdses for filesystem %q", fs.Name)
-	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerInfo, dataDirHostPath)
-	if err := c.Start(); err != nil {
-		return err
 	}
 
 	return nil
@@ -94,15 +86,7 @@ func deleteFilesystem(
 	ownerInfo *k8sutil.OwnerInfo,
 	dataDirHostPath string,
 ) error {
-	filesystem, err := cephclient.GetFilesystem(context, clusterInfo, fs.Name)
-	if err != nil {
-		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-			// If we're deleting the filesystem anyway, ignore the error that the filesystem doesn't exist
-			return nil
-		}
-		return errors.Wrapf(err, "failed to get filesystem %q", fs.Name)
-	}
-	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, filesystem, ownerInfo, dataDirHostPath)
+	c := mds.NewCluster(clusterInfo, context, clusterSpec, fs, ownerInfo, dataDirHostPath)
 
 	// Delete mds CephX keys and configuration in centralized mon database
 	replicas := fs.Spec.MetadataServer.ActiveCount * 2
@@ -110,7 +94,7 @@ func deleteFilesystem(
 		daemonLetterID := k8sutil.IndexToName(i)
 		daemonName := fmt.Sprintf("%s-%s", fs.Name, daemonLetterID)
 
-		err = c.DeleteMdsCephObjects(daemonName)
+		err := c.DeleteMdsCephObjects(daemonName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete mds ceph objects for filesystem %q", fs.Name)
 		}

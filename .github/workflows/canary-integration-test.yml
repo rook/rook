@@ -860,7 +860,7 @@ jobs:
 
     - name: verify fs mirroring is working
       run: |
-        timeout 45 sh -c 'until [ "$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/|grep -c asok)" -eq 3 ]; do echo "waiting for connection to peer" && sleep 1; done'
+        timeout 45 sh -c 'until [ "$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/|grep -c asok)" -lt 3 ]; do echo "waiting for connection to peer" && sleep 1; done'
         sockets=$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/)
         status=$(for socket in $sockets; do minikube kubectl -- -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$socket help|awk -F ":" '/get filesystem mirror status/ {print $1}'; done)
         if [ "${#status}" -lt 1 ]; then echo "peer addition failed" && exit 1; fi

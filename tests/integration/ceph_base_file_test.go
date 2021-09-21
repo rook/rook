@@ -385,9 +385,24 @@ func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Create file System")
 	fscErr := helper.FSClient.Create(filesystemName, settings.Namespace, activeCount)
 	require.Nil(s.T(), fscErr)
-	logger.Infof("File system %s created", filesystemName)
+	var err error
 
-	filesystemList, _ := helper.FSClient.List(settings.Namespace)
+	var filesystemList []cephclient.CephFilesystem
+	for i := 1; i <= 10; i++ {
+		filesystemList, err = helper.FSClient.List(settings.Namespace)
+		if err != nil {
+			logger.Errorf("failed to list fs. trying again. %v", err)
+			continue
+		}
+		logger.Debugf("filesystemList is %+v", filesystemList)
+		if len(filesystemList) == 1 {
+			logger.Infof("File system %s created", filesystemList[0].Name)
+			break
+		}
+		logger.Infof("Waiting for file system %s to be created", filesystemName)
+		time.Sleep(time.Second * 5)
+	}
+	logger.Debugf("filesystemList is %+v", filesystemList)
 	require.Equal(s.T(), 1, len(filesystemList), "There should be one shared file system present")
 }
 

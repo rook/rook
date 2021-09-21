@@ -50,7 +50,7 @@ const (
 	// test with the latest octopus build
 	octopusTestImage = "quay.io/ceph/ceph:v15"
 	// test with the latest pacific build
-	pacificTestImage = "quay.io/ceph/ceph:v16.2.5"
+	pacificTestImage = "quay.io/ceph/ceph:v16.2.6"
 	// test with the latest master image
 	masterTestImage    = "ceph/daemon-base:latest-master-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
