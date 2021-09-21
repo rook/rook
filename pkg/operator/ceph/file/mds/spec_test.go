@@ -72,7 +72,6 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 			Network:     network,
 		},
 		fs,
-		&cephclient.CephFilesystemDetails{ID: 15},
 		&k8sutil.OwnerInfo{},
 		"/var/lib/rook/",
 	)

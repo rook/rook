@@ -1,5 +1,5 @@
  rook/ceph:v1.7.3
- quay.io/ceph/ceph:v16.2.5
+ quay.io/ceph/ceph:v16.2.6
  quay.io/cephcsi/cephcsi:v3.4.0
  k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.2.0
  k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2
