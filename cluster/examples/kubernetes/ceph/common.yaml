@@ -17,6 +17,7 @@ metadata:
   name: rook-ceph # namespace:cluster
 # OLM: BEGIN OBJECTBUCKET ROLEBINDING
 ---
+# Give Rook-Ceph Operator permissions to provision ObjectBuckets in response to ObjectBucketClaims.
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -128,6 +129,8 @@ rules:
 ---
 # The cluster role for managing the Rook CRDs
 apiVersion: rbac.authorization.k8s.io/v1
+# Rook watches for its CRDs in all namespaces, so this should be a cluster-scoped role unless the
+# operator config `ROOK_CURRENT_NAMESPACE_ONLY=true`.
 kind: ClusterRole
 metadata:
   name: rook-ceph-global
@@ -144,6 +147,11 @@ rules:
       - nodes
       - nodes/proxy
       - services
+      # Rook watches secrets which it uses to configure access to external resources.
+      # e.g., external Ceph cluster; TLS certificates for the admission controller or object store
+      - secrets
+      # Rook watches for changes to the rook-operator-config configmap
+      - configmaps
     verbs:
       - get
       - list
@@ -285,6 +293,9 @@ rules:
       - list
       - watch
 ---
+# Used for provisioning ObjectBuckets (OBs) in response to ObjectBucketClaims (OBCs).
+# Note: Rook runs a copy of the lib-bucket-provisioner's OBC controller.
+# OBCs can be created in any Kubernetes namespace, so this must be a cluster-scoped role.
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -293,27 +304,49 @@ metadata:
     operator: rook
     storage-backend: ceph
 rules:
-  - apiGroups:
-      - ""
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps"]
     verbs:
-      - "*"
-    resources:
-      - secrets
-      - configmaps
-  - apiGroups:
-      - storage.k8s.io
-    resources:
-      - storageclasses
-    verbs:
+      # OBC controller creates secrets and configmaps containing information for users about how to
+      # connect to object buckets. It deletes them when an OBC is deleted.
       - get
+      - create
+      - update
+      - delete
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs:
+      # OBC controller gets parameters from the OBC's storageclass
+      # Rook gets additional parameters from the OBC's storageclass
+      - get
+  - apiGroups: ["objectbucket.io"]
+    resources: ["objectbucketclaims"]
+    verbs:
+      # OBC controller needs to list/watch OBCs and get latest version of a reconciled OBC
       - list
       - watch
-  - apiGroups:
-      - "objectbucket.io"
+      - get
+      # Ideally, update should not be needed, but the OBC controller updates the OBC with bucket
+      # information outside of the status subresource
+      - update
+      # OBC controller does not delete OBCs; users do this
+  - apiGroups: ["objectbucket.io"]
+    resources: ["objectbuckets"]
     verbs:
-      - "*"
-    resources:
-      - "*"
+      # OBC controller needs to list/watch OBs and get latest version of a reconciled OB
+      - list
+      - watch
+      - get
+      # OBC controller creates an OB when an OBC's bucket has been provisioned by Ceph, updates them
+      # when an OBC is updated, and deletes them when the OBC is de-provisioned.
+      - create
+      - update
+      - delete
+  - apiGroups: ["objectbucket.io"]
+    resources: ["objectbucketclaims/status", "objectbuckets/status"]
+    verbs:
+      # OBC controller updates OBC and OB statuses
+      - update
 # OLM: END OPERATOR ROLE
 # OLM: BEGIN SERVICE ACCOUNT SYSTEM
 ---
