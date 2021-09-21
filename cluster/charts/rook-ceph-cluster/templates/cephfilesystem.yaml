@@ -13,6 +13,8 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ $filesystem.storageClass.name }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "{{ if default false $filesystem.storageClass.isDefault }}true{{ else }}false{{ end }}"
 provisioner: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
 parameters:
   fsName: {{ $filesystem.name }}

@@ -369,6 +369,7 @@ cephFileSystems:
         activeStandby: true
     storageClass:
       enabled: true
+      isDefault: false
       name: ceph-filesystem
       reclaimPolicy: Delete
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem.md#provision-storage for available configuration
