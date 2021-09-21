@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	// VersionMaster tag for the latest manifests
-	VersionMaster = "master"
+	// LocalBuildTag tag for the latest manifests
+	LocalBuildTag = "local-build"
 
 	// test suite names
 	CassandraTestSuite = "cassandra"

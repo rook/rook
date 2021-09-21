@@ -74,7 +74,7 @@ func (h *CephInstaller) CreateRookCephClusterViaHelm(values map[string]interface
 	values["configOverride"] = clusterCustomSettings
 	values["toolbox"] = map[string]interface{}{
 		"enabled": true,
-		"image":   "rook/ceph:master",
+		"image":   "rook/ceph:" + LocalBuildTag,
 	}
 	values["cephClusterSpec"] = clusterCRD["spec"]
 
