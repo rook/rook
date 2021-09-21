@@ -26,7 +26,7 @@ export scriptdir
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export OUTPUT_DIR=${BUILD_ROOT}/_output
 export WORK_DIR=${BUILD_ROOT}/.work
-CACHE_DIR=${BUILD_ROOT}/.cache
+export CACHE_DIR=${BUILD_ROOT}/.cache
 
 CROSS_IMAGE=${BUILD_REGISTRY}/cross-amd64
 CROSS_IMAGE_VOLUME=cross-volume
