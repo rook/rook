@@ -22,17 +22,22 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -86,6 +91,8 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 		// Make sure it has the fake CephCluster that is to be deleted in it
 		client := clientfake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(fakeCluster).Build()
 
+		err := corev1.AddToScheme(scheme)
+		assert.NoError(t, err)
 		// Create a ReconcileCephClient object with the scheme and fake client.
 		reconcileCephCluster := &ReconcileCephCluster{
 			client:            client,
@@ -129,4 +136,65 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, kerrors.IsNotFound(err))
 	})
+}
+
+func TestRemoveFinalizers(t *testing.T) {
+	reconcileCephCluster := &ReconcileCephCluster{
+		opManagerContext: context.TODO(),
+	}
+	s := scheme.Scheme
+	fakeObject1 := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "rook-ceph",
+			Finalizers: []string{
+				"cephcluster.ceph.rook.io",
+			},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephCluster",
+		},
+	}
+	schema1 := schema.GroupVersion{Group: "ceph.rook.io", Version: "v1"}
+	fakeObject2 := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "rook-ceph",
+			Finalizers: []string{
+				"ceph.rook.io/disaster-protection",
+			},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Secret",
+		},
+	}
+	schema2 := schema.GroupVersion{Group: "", Version: "v1"}
+
+	tests := []struct {
+		name      string
+		finalizer string
+		object    client.Object
+		schema    schema.GroupVersion
+	}{
+		{"CephCluster", "cephcluster.ceph.rook.io", fakeObject1, schema1},
+		{"mon secret", "ceph.rook.io/disaster-protection", fakeObject2, schema2},
+	}
+
+	for _, tt := range tests {
+		t.Run("delete finalizer for "+tt.name, func(t *testing.T) {
+			fakeObject, err := meta.Accessor(tt.object)
+			assert.NoError(t, err)
+			object := []runtime.Object{
+				tt.object,
+			}
+			s.AddKnownTypes(tt.schema, tt.object)
+			cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+			assert.NotEmpty(t, fakeObject.GetFinalizers())
+			name := types.NamespacedName{Name: fakeObject.GetName(), Namespace: fakeObject.GetNamespace()}
+			err = reconcileCephCluster.removeFinalizer(cl, name, tt.object, tt.finalizer)
+			assert.NoError(t, err)
+			assert.Empty(t, fakeObject.GetFinalizers())
+		})
+	}
 }

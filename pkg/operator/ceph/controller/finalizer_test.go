@@ -76,3 +76,30 @@ func TestRemoveFinalizer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, fakeObject.Finalizers)
 }
+
+func TestRemoveFinalizerWithName(t *testing.T) {
+	fakeObject := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "rook-ceph",
+			Finalizers: []string{
+				"cephblockpool.ceph.rook.io",
+			},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "cephblockpool",
+		},
+	}
+
+	object := []runtime.Object{
+		fakeObject,
+	}
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, fakeObject)
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+	assert.NotEmpty(t, fakeObject.Finalizers)
+	err := RemoveFinalizerWithName(cl, fakeObject, "cephblockpool.ceph.rook.io")
+	assert.NoError(t, err)
+	assert.Empty(t, fakeObject.Finalizers)
+}

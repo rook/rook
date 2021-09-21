@@ -320,7 +320,7 @@ kubectl create -f cluster.yaml
 7. Scale up the operator
 
 ```shell
-kubectl -n rook-ceph --replicas=1 deploy/rook-ceph-operator
+kubectl -n rook-ceph scale --replicas=1 deploy/rook-ceph-operator
 ```
 
 Watch the operator log to confirm that the reconcile completes successfully.
