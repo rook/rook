@@ -124,3 +124,6 @@ function rsync_host_to_container() {
 function rsync_container_to_host() {
     run_rsync rsync://localhost:${CROSS_RSYNC_PORT}/volume/go/src/${BUILD_REPO}/ "${scriptdir}"/.. "$@"
 }
+
+THIS="that"
+THAT=$THIS # this is an intentional failure for shellcheck for testing

@@ -14,5 +14,5 @@ ignore: |
 extends: default
 
 rules:
-  line-length: disable
+  # line-length: disable # todo: re enable later
   truthy: disable
