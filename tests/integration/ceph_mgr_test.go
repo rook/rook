@@ -95,7 +95,7 @@ func (s *CephMgrSuite) SetupSuite() {
 		UseCSI:            true,
 		SkipOSDCreation:   true,
 		EnableDiscovery:   true,
-		RookVersion:       installer.VersionMaster,
+		RookVersion:       installer.LocalBuildTag,
 		CephVersion:       installer.MasterVersion,
 	}
 	s.settings.ApplyEnvVars()
@@ -224,7 +224,7 @@ func (s *CephMgrSuite) TestStatus() {
 	assert.Equal(s.T(), status, "Backend: rook\nAvailable: Yes")
 }
 
-func logBytesInfo(bytesSlice []byte){
+func logBytesInfo(bytesSlice []byte) {
 	logger.Infof("---- bytes slice info ---")
 	logger.Infof("bytes: %v\n", bytesSlice)
 	logger.Infof("length: %d\n", len(bytesSlice))

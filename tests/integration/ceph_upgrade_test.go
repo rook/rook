@@ -183,7 +183,7 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	s.gatherLogs(s.settings.OperatorNamespace, "_before_master_upgrade")
 	s.upgradeToMaster()
 
-	s.verifyOperatorImage(installer.VersionMaster)
+	s.verifyOperatorImage(installer.LocalBuildTag)
 	s.verifyRookUpgrade(numOSDs)
 	err = s.installer.WaitForToolbox(s.namespace)
 	assert.NoError(s.T(), err)
@@ -359,15 +359,15 @@ func (s *UpgradeSuite) verifyFilesAfterUpgrade(fsName, newFileToWrite, messageFo
 // verify the upgrade but merely starts the upgrade process.
 func (s *UpgradeSuite) upgradeToMaster() {
 	// Apply the CRDs for the latest master
-	s.settings.RookVersion = installer.VersionMaster
+	s.settings.RookVersion = installer.LocalBuildTag
 	m := installer.NewCephManifests(s.settings)
 	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", m.GetCRDs(s.k8sh)))
 
 	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", m.GetCommon()))
 
 	require.NoError(s.T(),
-		s.k8sh.SetDeploymentVersion(s.settings.OperatorNamespace, operatorContainer, operatorContainer, installer.VersionMaster))
+		s.k8sh.SetDeploymentVersion(s.settings.OperatorNamespace, operatorContainer, operatorContainer, installer.LocalBuildTag))
 
 	require.NoError(s.T(),
-		s.k8sh.SetDeploymentVersion(s.settings.Namespace, "rook-ceph-tools", "rook-ceph-tools", installer.VersionMaster))
+		s.k8sh.SetDeploymentVersion(s.settings.Namespace, "rook-ceph-tools", "rook-ceph-tools", installer.LocalBuildTag))
 }

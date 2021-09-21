@@ -87,7 +87,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		UseCSI:                    true,
 		MultipleMgrs:              true,
 		EnableAdmissionController: true,
-		RookVersion:               installer.VersionMaster,
+		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.NautilusVersion,
 	}
 	s.settings.ApplyEnvVars()
