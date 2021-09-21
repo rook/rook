@@ -136,6 +136,10 @@ func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 	result, err := runAdminCommand(c, true, args...)
 	if err != nil {
+		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.EEXIST) {
+			return nil, ErrorCodeFileExists, errors.New("s3 user already exists")
+		}
+
 		if strings.Contains(result, "could not create user: unable to create user, user: ") {
 			return nil, ErrorCodeFileExists, errors.New("s3 user already exists")
 		}
