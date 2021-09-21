@@ -410,6 +410,7 @@ cephObjectStores:
     storageClass:
       enabled: true
       name: ceph-bucket
+      isDefault: false
       reclaimPolicy: Delete
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-object-bucket-claim.md#storageclass for available configuration
       parameters:
