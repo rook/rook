@@ -297,9 +297,9 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
 		if objectStore.Spec.IsTLSEnabled() {
-			s3client, err = rgw.NewTestOnlyS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
+			s3client, err = rgw.NewTestOnlyS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true)
 		} else {
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true, nil)
 		}
 
 		assert.Nil(s.T(), err)
