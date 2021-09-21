@@ -101,7 +101,7 @@ func (s *CephMgrSuite) SetupSuite() {
 		Mons:              1,
 		UseCSI:            true,
 		SkipOSDCreation:   true,
-		RookVersion:       installer.VersionMaster,
+		RookVersion:       installer.LocalBuildTag,
 		CephVersion:       installer.MasterVersion,
 	}
 	s.settings.ApplyEnvVars()
