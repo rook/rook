@@ -104,7 +104,7 @@ func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 // CreateUser creates a new user with the information given.
 // The function is used **ONCE** only to provision so the RGW Admin Ops User
 // Subsequent interaction with the API will be done with the created user
-func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
+func CreateUser(c *Context, user ObjectUser, force bool) (*ObjectUser, int, error) {
 	logger.Debugf("creating s3 user %q", user.UserID)
 
 	if strings.TrimSpace(user.UserID) == "" {
@@ -132,6 +132,10 @@ func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 
 	if user.AdminOpsUser {
 		args = append(args, "--caps", rgwAdminOpsUserCaps)
+	}
+
+	if force {
+		args = append(args, "--yes-i-really-mean-it")
 	}
 
 	result, err := runAdminCommand(c, true, args...)
