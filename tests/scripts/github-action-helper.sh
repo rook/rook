@@ -239,6 +239,7 @@ spec:
   - server auth
 EOF
 
+<<<<<<< HEAD
   kubectl create -f "${DIR}/"csr.yaml
 
   kubectl certificate approve ${CSR_NAME}
@@ -246,6 +247,25 @@ EOF
   serverCert=$(kubectl get csr ${CSR_NAME} -o jsonpath='{.status.certificate}')
   echo "${serverCert}" | openssl base64 -d -A -out "${DIR}"/"${SERVICE}".crt
   kubectl config view --raw --minify --flatten -o jsonpath='{.clusters[].cluster.certificate-authority-data}' | base64 -d > "${DIR}"/"${SERVICE}".ca
+=======
+function write_object_to_cluster1_read_from_cluster2() {
+  cd cluster/examples/kubernetes/ceph/
+  echo "[default]" > s3cfg
+  echo "host_bucket = no.way.in.hell" >> ./s3cfg
+  echo "use_https = False" >> ./s3cfg
+  fallocate -l 1M ./1M.dat
+  echo "hello world" >> ./1M.dat
+  CLUSTER_1_IP_ADDR=$(kubectl -n rook-ceph get svc rook-ceph-rgw-multisite-store -o jsonpath="{.spec.clusterIP}")
+  BASE64_ACCESS_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.access-key}")
+  BASE64_SECRET_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.secret-key}")
+  ACCESS_KEY=$(echo ${BASE64_ACCESS_KEY} | base64 --decode)
+  SECRET_KEY=$(echo ${BASE64_SECRET_KEY} | base64 --decode)
+  s3cmd -v -d --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_1_IP_ADDR} mb s3://bkt
+  s3cmd -v -d --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_1_IP_ADDR} put ./1M.dat s3://bkt
+  CLUSTER_2_IP_ADDR=$(kubectl -n rook-ceph-secondary get svc rook-ceph-rgw-zone-b-multisite-store -o jsonpath="{.spec.clusterIP}")
+  s3cmd -v -d --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_2_IP_ADDR} get s3://bkt/1M.dat 1M-get.dat --force
+  diff 1M.dat 1M-get.dat
+>>>>>>> 8786b40d6 (rgw: do not create the rgw ops user on the secondary cluster)
 }
 
 selected_function="$1"

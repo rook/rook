@@ -866,7 +866,10 @@ func enableRGWDashboard(context *Context) error {
 	}
 	// TODO:
 	// Use admin ops user instead!
-	u, errCode, err := CreateUser(context, user)
+	// It's safe to create the user with the force flag regardless if the cluster's dashboard is
+	// configured as a secondary rgw site. The creation will return the user already exists and we
+	// will just fetch it (it has been created by the primary cluster)
+	u, errCode, err := CreateUser(context, user, true)
 	if err != nil || errCode != 0 {
 		return errors.Wrapf(err, "failed to create user %q", DashboardUser)
 	}
