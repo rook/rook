@@ -38,10 +38,7 @@ func (m *CephManifestsV1_6) Settings() *TestCephSettings {
 }
 
 func (m *CephManifestsV1_6) GetCRDs(k8shelper *utils.K8sHelper) string {
-	if k8shelper.VersionAtLeast("v1.16.0") {
-		return m.settings.readManifestFromGithub("crds.yaml")
-	}
-	return m.settings.readManifestFromGithub("pre-k8s-1.16/crds.yaml")
+	return m.settings.readManifestFromGithub("crds.yaml")
 }
 
 // GetRookOperator returns rook Operator manifest

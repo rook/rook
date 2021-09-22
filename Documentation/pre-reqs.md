@@ -11,9 +11,7 @@ and Rook is granted the required privileges (see below for more information).
 
 ## Minimum Version
 
-Kubernetes **v1.11** or higher is supported for the Ceph operator.
-
-**Important** If you are using K8s 1.15 or older, you will need to create a different version of the Ceph CRDs. Create the `crds.yaml` found in the [pre-k8s-1.16](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/pre-k8s-1.16) subfolder of the example manifests.
+Kubernetes **v1.16** or higher is supported for the Ceph operator.
 
 ## Ceph Prerequisites
 

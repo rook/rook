@@ -79,7 +79,7 @@ func (a Annotations) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 
 // Merge returns an Annotations which results from merging the attributes of the
 // original Annotations with the attributes of the supplied one. The supplied
-// Placement's attributes will override the original ones if defined.
+// Annotation attributes will override the original ones if defined.
 func (a Annotations) Merge(with map[string]string) Annotations {
 	ret := a
 	if ret == nil {

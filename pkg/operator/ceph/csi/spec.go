@@ -123,13 +123,10 @@ var (
 )
 
 const (
-	KubeMinMajor                   = "1"
-	ProvDeploymentSuppVersion      = "14"
-	kubeMinVerForFilesystemRestore = "15"
-	kubeMinVerForBlockRestore      = "16"
-	kubeMinVerForSnapshot          = "17"
-	kubeMinVerForV1csiDriver       = "18"
-	kubeMaxVerForBeta1csiDriver    = "21"
+	KubeMinMajor                = "1"
+	kubeMinVerForSnapshot       = "17"
+	kubeMinVerForV1csiDriver    = "18"
+	kubeMaxVerForBeta1csiDriver = "21"
 
 	// common tolerations and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
@@ -322,13 +319,6 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
 
 	tp.ResizerImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
-
-	if ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForFilesystemRestore {
-		logger.Warning("CSI Filesystem volume expansion requires Kubernetes version >=1.15.0")
-	}
-	if ver.Major == KubeMinMajor && ver.Minor < kubeMinVerForBlockRestore {
-		logger.Warning("CSI Block volume expansion requires Kubernetes version >=1.16.0")
-	}
 
 	logLevel := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LOG_LEVEL", "")
 	tp.LogLevel = defaultLogLevel

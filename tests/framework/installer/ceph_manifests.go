@@ -69,10 +69,7 @@ func (m *CephManifestsMaster) Settings() *TestCephSettings {
 }
 
 func (m *CephManifestsMaster) GetCRDs(k8shelper *utils.K8sHelper) string {
-	if k8shelper.VersionAtLeast("v1.16.0") {
-		return m.settings.readManifest("crds.yaml")
-	}
-	return m.settings.readManifest("pre-k8s-1.16/crds.yaml")
+	return m.settings.readManifest("crds.yaml")
 }
 
 func (m *CephManifestsMaster) GetOperator() string {

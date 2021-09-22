@@ -156,14 +156,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
 	}
 
-	if serverVersion.Major < KubeMinMajor || serverVersion.Major == KubeMinMajor && serverVersion.Minor < ProvDeploymentSuppVersion {
-		logger.Infof("CSI drivers only supported in K8s 1.14 or newer. version=%s", serverVersion.String())
-		// disable csi control variables to disable other csi functions
-		EnableRBD = false
-		EnableCephFS = false
-		return opcontroller.ImmediateRetryResult, nil
-	}
-
 	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
 	if err != nil {
 		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)

@@ -26,7 +26,6 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [Too few PGs per OSD warning is shown](#too-few-pgs-per-osd-warning-is-shown)
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
 * [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
-* [Failed to create CRDs](#failed-to-create-crds)
 * [Unexpected partitions created](#unexpected-partitions-created)
 
 See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
@@ -651,14 +650,6 @@ To overcome this, you need to increase the value of `fs.aio-max-nr` of your sysc
 You can do this with your favorite configuration management system.
 
 Alternatively, you can have a [DaemonSet](https://github.com/rook/rook/issues/6279#issuecomment-694390514) to apply the configuration for you on all your nodes.
-
-## Failed to create CRDs
-If you are using Kubernetes version is v1.15 or older, you will see an error like this:
->```
->unable to recognize "STDIN": no matches for kind "CustomResourceDefinition" in version "apiextensions.k8s.io/v1"
->```
-You need to create the CRDs found in `cluster/examples/kubernetes/ceph/pre-k8s-1.16`. Note that these pre-1.16 `apiextensions.k8s.io/v1beta1` CRDs are deprecated in k8s v1.16 and will no longer be supported from k8s v1.22.
-
 
 ## Unexpected partitions created
 

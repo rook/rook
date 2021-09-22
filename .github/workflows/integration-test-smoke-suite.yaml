@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.16.15', 'v1.22.0']
+        kubernetes-versions : ['v1.16.15', 'v1.22.2']
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -46,7 +46,7 @@ jobs:
     - name: build rook
       run: tests/scripts/github-action-helper.sh build_rook
 
-       
+
     - name: TestCephSmokeSuite
       run: |
        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
