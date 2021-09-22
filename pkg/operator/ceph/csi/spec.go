@@ -281,13 +281,6 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	// critical pods in cluster but less priority than plugin pods
 	tp.ProvisionerPriorityClassName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_PROVISIONER_PRIORITY_CLASSNAME", "")
 
-	// OMAP generator will be enabled by default
-	// If AllowUnsupported is set to false and if CSI version is less than
-	// <3.2.0 disable OMAP generator sidecar
-	if !v.SupportsOMAPController() {
-		tp.EnableOMAPGenerator = false
-	}
-
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_OMAP_GENERATOR", "false"), "true") {
 		tp.EnableOMAPGenerator = true
 	}
