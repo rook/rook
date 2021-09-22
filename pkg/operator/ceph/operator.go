@@ -28,7 +28,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -66,8 +65,8 @@ type Operator struct {
 }
 
 // New creates an operator instance
-func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment, rookImage, serviceAccount string) *Operator {
-	schemes := []k8sutil.CustomResource{opcontroller.ClusterResource, attachment.VolumeResource}
+func New(context *clusterd.Context, rookImage, serviceAccount string) *Operator {
+	schemes := []k8sutil.CustomResource{opcontroller.ClusterResource}
 
 	o := &Operator{
 		context:   context,
@@ -78,7 +77,7 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 			ServiceAccount:    serviceAccount,
 		},
 	}
-	o.clusterController = cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper)
+	o.clusterController = cluster.NewClusterController(context, rookImage)
 	return o
 }
 

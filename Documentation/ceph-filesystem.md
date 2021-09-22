@@ -79,8 +79,6 @@ ceph status
 Before Rook can start provisioning storage, a StorageClass needs to be created based on the filesystem. This is needed for Kubernetes to interoperate
 with the CSI driver to create persistent volumes.
 
-> **NOTE**: This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI CephFS](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs) directory. For an example of a volume using the flex driver (required for K8s 1.12 and earlier), see the [Flex Driver](#flex-driver) section below.
-
 Save this storage class definition as `storageclass.yaml`:
 
 ```yaml
@@ -244,10 +242,6 @@ kubectl -n rook-ceph delete cephfilesystem myfs
 ```
 
 Note: If the "preserveFilesystemOnDelete" filesystem attribute is set to true, the above command won't delete the filesystem. Recreating the same CRD will reuse the existing filesystem.
-
-## Flex Driver
-
-To create a volume based on the flex driver instead of the CSI driver, see the [kube-registry.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/flex/kube-registry.yaml) example manifest or refer to the complete flow in the Rook v1.0 [Shared Filesystem](https://rook.io/docs/rook/v1.0/ceph-filesystem.html) documentation.
 
 ### Advanced Example: Erasure Coded Filesystem
 

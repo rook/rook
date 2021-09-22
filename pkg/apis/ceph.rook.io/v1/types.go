@@ -19,7 +19,6 @@ package v1
 import (
 	"time"
 
-	rook "github.com/rook/rook/pkg/apis/rook.io"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,7 +61,7 @@ type CephClusterHealthCheckSpec struct {
 	DaemonHealth DaemonHealthSpec `json:"daemonHealth,omitempty"`
 	// LivenessProbe allows to change the livenessprobe configuration for a given daemon
 	// +optional
-	LivenessProbe map[rook.KeyType]*ProbeSpec `json:"livenessProbe,omitempty"`
+	LivenessProbe map[KeyType]*ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
 // DaemonHealthSpec is a daemon health check
@@ -1010,13 +1009,13 @@ type MetadataServerSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rook.Labels `json:"labels,omitempty"`
+	Labels Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rgw pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1336,13 +1335,13 @@ type GatewaySpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rook.Labels `json:"labels,omitempty"`
+	Labels Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rgw pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1591,7 +1590,7 @@ type RGWServiceSpec struct {
 	// The annotations-related configuration to add/set on each rgw service.
 	// nullable
 	// optional
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations Annotations `json:"annotations,omitempty"`
 }
 
 // CephNFS represents a Ceph NFS
@@ -1650,13 +1649,13 @@ type GaneshaServerSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rook.Labels `json:"labels,omitempty"`
+	Labels Labels `json:"labels,omitempty"`
 
 	// Resources set resource requests and limits
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1857,13 +1856,13 @@ type RBDMirroringSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Labels rook.Labels `json:"labels,omitempty"`
+	Labels Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the rbd mirror pods
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -1916,12 +1915,12 @@ type FilesystemMirroringSpec struct {
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +nullable
 	// +optional
-	Annotations rook.Annotations `json:"annotations,omitempty"`
+	Annotations Annotations `json:"annotations,omitempty"`
 
 	// The labels-related configuration to add/set on each Pod related object.
 	// +nullable
 	// +optional
-	Labels rook.Labels `json:"labels,omitempty"`
+	Labels Labels `json:"labels,omitempty"`
 
 	// The resource requirements for the cephfs-mirror pods
 	// +nullable
@@ -2010,7 +2009,7 @@ type Selection struct {
 }
 
 // PlacementSpec is the placement for core ceph daemons part of the CephCluster CRD
-type PlacementSpec map[rook.KeyType]Placement
+type PlacementSpec map[KeyType]Placement
 
 // Placement is the placement for an object
 type Placement struct {
@@ -2047,7 +2046,7 @@ type ProbeSpec struct {
 }
 
 // PriorityClassNamesSpec is a map of priority class names to be assigned to components
-type PriorityClassNamesSpec map[rook.KeyType]string
+type PriorityClassNamesSpec map[KeyType]string
 
 // StorageClassDeviceSet is a storage class device set
 // +nullable

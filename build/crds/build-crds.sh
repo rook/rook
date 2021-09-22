@@ -53,15 +53,6 @@ generating_crds_v1() {
   $YQ_BIN_PATH w -i "${OLM_CATALOG_DIR}"/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.properties.annotations.x-kubernetes-preserve-unknown-fields true
 }
 
-generating_crds_v1alpha2() {
-  "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/rook.io/v1alpha2" output:crd:artifacts:config="$OLM_CATALOG_DIR"
-  # TODO: revisit later
-  # * remove copy_ob_obc_crds()
-  # * remove files cluster/olm/ceph/assemble/{objectbucket.io_objectbucketclaims.yaml,objectbucket.io_objectbuckets.yaml}
-  # Activate code below
-  # "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./vendor/github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
-}
-
 generate_vol_rep_crds() {
   echo "Generating volume replication crds in crds.yaml"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="github.com/csi-addons/volume-replication-operator/api/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
@@ -106,9 +97,8 @@ build_helm_resources() {
 generating_crds_v1
 
 if [ -z "$NO_OB_OBC_VOL_GEN" ]; then
-  echo "Generating v1alpha2 in crds.yaml"
+  echo "Generating obcs in crds.yaml"
   copy_ob_obc_crds
-  generating_crds_v1alpha2
 fi
 
 generate_vol_rep_crds

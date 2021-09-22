@@ -23,14 +23,13 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestConfigureLivenessProbe(t *testing.T) {
-	keyTypes := []rook.KeyType{
+	keyTypes := []cephv1.KeyType{
 		cephv1.KeyMds,
 		cephv1.KeyMon,
 		cephv1.KeyMgr,
@@ -42,7 +41,7 @@ func TestConfigureLivenessProbe(t *testing.T) {
 	}
 }
 
-func configLivenessProbeHelper(t *testing.T, keyType rook.KeyType) {
+func configLivenessProbeHelper(t *testing.T, keyType cephv1.KeyType) {
 	p := &v1.Probe{
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
@@ -52,9 +51,9 @@ func configLivenessProbeHelper(t *testing.T, keyType rook.KeyType) {
 		},
 	}
 	container := v1.Container{LivenessProbe: p}
-	l := map[rook.KeyType]*cephv1.ProbeSpec{keyType: {Disabled: true}}
+	l := map[cephv1.KeyType]*cephv1.ProbeSpec{keyType: {Disabled: true}}
 	type args struct {
-		daemon      rook.KeyType
+		daemon      cephv1.KeyType
 		container   v1.Container
 		healthCheck cephv1.CephClusterHealthCheckSpec
 	}

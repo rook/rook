@@ -293,7 +293,6 @@ csi:
     enabled: false
     #image: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
 
-enableFlexDriver: false
 enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 
@@ -304,27 +303,6 @@ allowMultipleFilesystems: false
 
 ## if true, run rook operator on the host network
 # useOperatorHostNetwork: true
-
-## Rook Agent configuration
-## toleration: NoSchedule, PreferNoSchedule or NoExecute
-## tolerationKey: Set this to the specific key of the taint to tolerate
-## tolerations: Array of tolerations in YAML format which will be added to agent deployment
-## nodeAffinity: Set to labels of the node to match
-## flexVolumeDirPath: The path where the Rook agent discovers the flex volume plugins
-## libModulesDirPath: The path where the Rook agent can find kernel modules
-# agent:
-#   toleration: NoSchedule
-#   tolerationKey: key
-#   tolerations:
-#   - key: key
-#     operator: Exists
-#     effect: NoSchedule
-#   nodeAffinity: key1=value1,value2; key2=value3
-#   mountSecurityMode: Any
-## For information on FlexVolume path, please refer to https://rook.io/docs/rook/latest/flexvolume.html
-#   flexVolumeDirPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
-#   libModulesDirPath: /lib/modules
-#   mounts: mount1=/host/path:/container/path,/host/path2:/container/path2
 
 ## Rook Discover configuration
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute

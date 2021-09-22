@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -32,19 +31,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func checkSkipCSITest(t *testing.T, k8sh *utils.K8sHelper) {
-	if !k8sh.VersionAtLeast("v1.14.0") {
-		logger.Info("Skipping tests as kube version is less than 1.14.0 for the CSI driver")
-		t.Skip()
-	}
-}
 
 func skipSnapshotTest(k8sh *utils.K8sHelper) bool {
 	minVersion := "v1.17.0"
@@ -262,8 +251,6 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
 // Create,Mount,Write,Read,Expand,Unmount and Delete.
 func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
-	checkSkipCSITest(s.T(), k8sh)
-
 	podName := "block-test"
 	poolName := "replicapool"
 	storageClassName := "rook-ceph-block"
@@ -416,8 +403,6 @@ func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 }
 
 func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings) {
-	checkSkipCSITest(s.T(), k8sh)
-
 	logger.Infof("Block Storage End to End Integration Test - create storageclass,pool and pvc")
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
 	clusterInfo := client.AdminClusterInfo(settings.Namespace)
@@ -576,102 +561,4 @@ spec:
        readOnly: ` + strconv.FormatBool(readOnly) + `
   restartPolicy: Never
 `
-}
-
-func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podName, StorageClassName string) (*v1.Service, *appsv1.StatefulSet) {
-	service := &v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      statefulsetName,
-			Namespace: namespace,
-			Labels: map[string]string{
-				"app": statefulsetName,
-			},
-		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				{
-					Name: statefulsetName,
-					Port: 80,
-				},
-			},
-			ClusterIP: "None",
-			Selector: map[string]string{
-				"app": statefulsetName,
-			},
-		},
-	}
-
-	var replica int32 = 1
-
-	labels := map[string]string{
-		"app": statefulsetName,
-	}
-
-	statefulSet := &appsv1.StatefulSet{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "StatefulSet",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
-			Namespace: namespace,
-		},
-		Spec: appsv1.StatefulSetSpec{
-			ServiceName: statefulsetName,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
-			},
-			Replicas: &replica,
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:    statefulsetName,
-							Image:   "busybox",
-							Command: []string{"sleep", "3600"},
-							Ports: []v1.ContainerPort{
-								{
-									ContainerPort: 80,
-									Name:          podName,
-								},
-							},
-							VolumeMounts: []v1.VolumeMount{
-								{
-									Name:      "rookpvc",
-									MountPath: "/tmp/rook",
-								},
-							},
-						},
-					},
-				},
-			},
-			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "rookpvc",
-						Annotations: map[string]string{
-							"volume.beta.kubernetes.io/storage-class": StorageClassName,
-						},
-					},
-					Spec: v1.PersistentVolumeClaimSpec{
-						AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-						Resources: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceStorage: *resource.NewQuantity(1.0, resource.BinarySI),
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	return service, statefulSet
 }

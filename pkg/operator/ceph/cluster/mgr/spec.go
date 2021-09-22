@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -328,7 +327,7 @@ func (c *Cluster) getPodLabels(daemonName string, includeNewLabels bool) map[str
 
 func (c *Cluster) applyPrometheusAnnotations(objectMeta *metav1.ObjectMeta) {
 	if len(cephv1.GetMgrAnnotations(c.spec.Annotations)) == 0 {
-		t := rook.Annotations{
+		t := cephv1.Annotations{
 			"prometheus.io/scrape": "true",
 			"prometheus.io/port":   strconv.Itoa(int(DefaultMetricsPort)),
 		}

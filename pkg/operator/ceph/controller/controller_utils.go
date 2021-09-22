@@ -79,16 +79,6 @@ var (
 	OperatorCephBaseImageVersion string
 )
 
-func FlexDriverEnabled(ctx *clusterd.Context) bool {
-	// Ignore the error. In the remote chance that the configmap fails to be read, we will default
-	// to disabling the flex driver
-	// It's ok to use a TODO context here since FlexDriverEnabled is called by a manager which
-	// already has a context
-	context := context.TODO()
-	value, _ := k8sutil.GetOperatorSetting(context, ctx.Clientset, OperatorSettingConfigMapName, "ROOK_ENABLE_FLEX_DRIVER", "false")
-	return value == "true"
-}
-
 func DiscoveryDaemonEnabled(data map[string]string) bool {
 	return k8sutil.GetValue(data, "ROOK_ENABLE_DISCOVERY_DAEMON", "false") == "true"
 }

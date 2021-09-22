@@ -290,8 +290,7 @@ spec:
 
 func (m *CephManifestsMaster) GetBlockStorageClass(poolName, storageClassName, reclaimPolicy string) string {
 	// Create a CSI driver storage class
-	if m.settings.UseCSI {
-		return `
+	return `
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -308,18 +307,6 @@ parameters:
   imageFeatures: layering
   csi.storage.k8s.io/fstype: ext4
 `
-	}
-	// Create a FLEX driver storage class
-	return `apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: ` + storageClassName + `
-provisioner: ceph.rook.io/block
-allowVolumeExpansion: true
-reclaimPolicy: ` + reclaimPolicy + `
-parameters:
-    blockPool: ` + poolName + `
-    clusterNamespace: ` + m.settings.Namespace
 }
 
 func (m *CephManifestsMaster) GetFileStorageClass(fsName, storageClassName string) string {

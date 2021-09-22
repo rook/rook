@@ -104,7 +104,6 @@ rook
 │
 ├── cmd                           # Binaries with main entrypoint
 │   ├── rook                      # Main command entry points for operators and daemons
-│   └── rookflex                  # Main command entry points for Rook flexvolume driver
 │
 ├── design                        # Design documents for the various components of the Rook project
 ├── Documentation                 # Rook project Documentation
@@ -114,8 +113,6 @@ rook
 │   ├── apis
 │   │   ├── ceph.rook.io          # ceph specific specs for cluster, file, object
 │   │   │   ├── v1
-│   │   └── rook.io               # rook.io API group of common types
-│   │       └── v1alpha2
 │   ├── client                    # auto-generated strongly typed client code to access Rook APIs
 │   ├── clusterd
 │   ├── daemon                    # daemons for each storage provider

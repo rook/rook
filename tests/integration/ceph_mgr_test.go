@@ -92,7 +92,6 @@ func (s *CephMgrSuite) SetupSuite() {
 		UseHelm:           false,
 		UsePVC:            false,
 		Mons:              1,
-		UseCSI:            true,
 		SkipOSDCreation:   true,
 		EnableDiscovery:   true,
 		RookVersion:       installer.LocalBuildTag,

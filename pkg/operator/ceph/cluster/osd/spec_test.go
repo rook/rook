@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -100,7 +99,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 			Selection: cephv1.Selection{UseAllDevices: &allDevices, DeviceFilter: deviceName},
 			Nodes:     []cephv1.Node{{Name: "node1"}},
 		},
-		PriorityClassNames: map[rook.KeyType]string{
+		PriorityClassNames: map[cephv1.KeyType]string{
 			cephv1.KeyOSD: "my-priority-class",
 		},
 		Annotations: cephv1.AnnotationsSpec{

@@ -17,15 +17,10 @@ limitations under the License.
 package util
 
 import (
-	"io/ioutil"
 	"net"
-	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -35,34 +30,6 @@ const (
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-ceph-util")
-
-// FindRBDMappedFile search for the mapped RBD volume and returns its device path
-func FindRBDMappedFile(imageName, poolName, sysBusDir string) (string, error) {
-
-	sysBusDeviceDir := filepath.Join(sysBusDir, RBDDevicesDir)
-	// if sysPath does not exist, no attachments has happened
-	if _, err := os.Stat(sysBusDeviceDir); os.IsNotExist(err) {
-		return "", nil
-	}
-
-	files, err := ioutil.ReadDir(sysBusDeviceDir)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to read rbd device dir")
-	}
-
-	for _, idFile := range files {
-		nameContent, err := ioutil.ReadFile(filepath.Clean(filepath.Join(sysBusDeviceDir, idFile.Name(), "name")))
-		if err == nil && imageName == strings.TrimSpace(string(nameContent)) {
-			// the image for the current rbd device matches, now try to match pool
-			poolContent, err := ioutil.ReadFile(filepath.Clean(filepath.Join(sysBusDeviceDir, idFile.Name(), "pool")))
-			if err == nil && poolName == strings.TrimSpace(string(poolContent)) {
-				// match current device matches both image name and pool name, return the device
-				return idFile.Name(), nil
-			}
-		}
-	}
-	return "", nil
-}
 
 // GetIPFromEndpoint return the IP from an endpoint string (192.168.0.1:6789)
 func GetIPFromEndpoint(endpoint string) string {

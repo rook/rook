@@ -38,7 +38,6 @@ type TestCephSettings struct {
 	UseCrashPruner              bool
 	MultipleMgrs                bool
 	SkipOSDCreation             bool
-	UseCSI                      bool
 	EnableDiscovery             bool
 	EnableAdmissionController   bool
 	IsExternal                  bool
@@ -79,9 +78,6 @@ func (s *TestCephSettings) readManifestFromGithubWithClusterNamespace(filename, 
 func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `# CSI_LOG_LEVEL: "0"`, `CSI_LOG_LEVEL: "5"`)
 	manifest = strings.ReplaceAll(manifest, `ROOK_ENABLE_DISCOVERY_DAEMON: "false"`, fmt.Sprintf(`ROOK_ENABLE_DISCOVERY_DAEMON: "%t"`, s.EnableDiscovery))
-	manifest = strings.ReplaceAll(manifest, `ROOK_ENABLE_FLEX_DRIVER: "false"`, fmt.Sprintf(`ROOK_ENABLE_FLEX_DRIVER: "%t"`, !s.UseCSI))
-	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_CEPHFS: "true"`, fmt.Sprintf(`ROOK_CSI_ENABLE_CEPHFS: "%t"`, s.UseCSI))
-	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_RBD: "true"`, fmt.Sprintf(`ROOK_CSI_ENABLE_RBD: "%t"`, s.UseCSI))
 	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))
 	return manifest
 }

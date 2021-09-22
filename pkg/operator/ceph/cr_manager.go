@@ -20,9 +20,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/agent"
 	"github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
@@ -64,7 +62,6 @@ var (
 		mapiv1.AddToScheme,
 		healthchecking.AddToScheme,
 		cephv1.AddToScheme,
-		v1alpha2.AddToScheme,
 	}
 )
 
@@ -104,7 +101,6 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 	mirror.Add,
 	Add,
 	csi.Add,
-	agent.Add,
 	bucket.Add,
 }
 

@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
@@ -64,7 +63,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 			v1.ResourceMemory: *resource.NewQuantity(500.0, resource.BinarySI),
 		},
 	}
-	c.spec.PriorityClassNames = map[rook.KeyType]string{
+	c.spec.PriorityClassNames = map[cephv1.KeyType]string{
 		cephv1.KeyMon: "my-priority-class",
 	}
 	monConfig := testGenMonConfig(monID)

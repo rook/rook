@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rook "github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/rook/rook/pkg/clusterd"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -41,7 +40,7 @@ func TestNodeAffinity(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{}, &sync.Mutex{})
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
-	c.spec.Placement = map[rook.KeyType]cephv1.Placement{}
+	c.spec.Placement = map[cephv1.KeyType]cephv1.Placement{}
 	c.spec.Placement[cephv1.KeyMon] = cephv1.Placement{NodeAffinity: &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{

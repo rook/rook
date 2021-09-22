@@ -65,11 +65,6 @@ func TestCephSmokeSuite(t *testing.T) {
 		t.Skip()
 	}
 
-	// Skip the suite if CSI is not supported
-	kh, err := utils.CreateK8sHelper(func() *testing.T { return t })
-	require.NoError(t, err)
-	checkSkipCSITest(t, kh)
-
 	s := new(SmokeSuite)
 	defer func(s *SmokeSuite) {
 		HandlePanics(recover(), s.TearDownSuite, s.T)
@@ -96,7 +91,6 @@ func (s *SmokeSuite) SetupSuite() {
 		UsePVC:                    installer.UsePVC(),
 		Mons:                      3,
 		SkipOSDCreation:           false,
-		UseCSI:                    true,
 		EnableAdmissionController: true,
 		UseCrashPruner:            true,
 		RookVersion:               installer.LocalBuildTag,

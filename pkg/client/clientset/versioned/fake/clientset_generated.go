@@ -22,8 +22,6 @@ import (
 	clientset "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
 	fakecephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1/fake"
-	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2"
-	fakerookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -81,9 +79,4 @@ var _ clientset.Interface = &Clientset{}
 // CephV1 retrieves the CephV1Client
 func (c *Clientset) CephV1() cephv1.CephV1Interface {
 	return &fakecephv1.FakeCephV1{Fake: &c.Fake}
-}
-
-// RookV1alpha2 retrieves the RookV1alpha2Client
-func (c *Clientset) RookV1alpha2() rookv1alpha2.RookV1alpha2Interface {
-	return &fakerookv1alpha2.FakeRookV1alpha2{Fake: &c.Fake}
 }

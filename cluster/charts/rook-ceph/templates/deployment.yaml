@@ -34,44 +34,6 @@ spec:
         env:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: {{ .Values.currentNamespaceOnly | quote }}
-{{- if .Values.agent }}
-{{- if .Values.agent.toleration }}
-        - name: AGENT_TOLERATION
-          value: {{ .Values.agent.toleration }}
-{{- end }}
-{{- if .Values.agent.tolerationKey }}
-        - name: AGENT_TOLERATION_KEY
-          value: {{ .Values.agent.tolerationKey }}
-{{- end }}
-{{- if .Values.agent.tolerations }}
-        - name: AGENT_TOLERATIONS
-          value: {{ toYaml .Values.agent.tolerations | quote }}
-{{- end }}
-{{- if .Values.agent.nodeAffinity }}
-        - name: AGENT_NODE_AFFINITY
-          value: {{ .Values.agent.nodeAffinity }}
-{{- end }}
-{{- if .Values.agent.priorityClassName }}
-        - name: AGENT_PRIORITY_CLASS_NAME
-          value: {{ .Values.agent.priorityClassName }}
-{{- end }}
-{{- if .Values.agent.mountSecurityMode }}
-        - name: AGENT_MOUNT_SECURITY_MODE
-          value: {{ .Values.agent.mountSecurityMode }}
-{{- end }}
-{{- if .Values.agent.flexVolumeDirPath }}
-        - name: FLEXVOLUME_DIR_PATH
-          value: {{ .Values.agent.flexVolumeDirPath }}
-{{- end }}
-{{- if .Values.agent.libModulesDirPath }}
-        - name: LIB_MODULES_DIR_PATH
-          value: {{ .Values.agent.libModulesDirPath }}
-{{- end }}
-{{- if .Values.agent.mounts }}
-        - name: AGENT_MOUNTS
-          value: {{ .Values.agent.mounts }}
-{{- end }}
-{{- end }}
 {{- if .Values.discover }}
 {{- if .Values.discover.toleration }}
         - name: DISCOVER_TOLERATION
@@ -296,8 +258,6 @@ spec:
           value: {{ .Values.csi.csiCephFSPluginResource | quote }}
 {{- end }}
 {{- end }}
-        - name: ROOK_ENABLE_FLEX_DRIVER
-          value: "{{ .Values.enableFlexDriver }}"
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
           value: "{{ .Values.enableDiscoveryDaemon }}"
         - name: ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS

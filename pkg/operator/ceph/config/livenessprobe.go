@@ -20,16 +20,15 @@ package config
 
 import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/apis/rook.io"
 	v1 "k8s.io/api/core/v1"
 )
 
 type fn func(cephv1.CephClusterHealthCheckSpec) *v1.Probe
 
 // ConfigureLivenessProbe returns the desired liveness probe for a given daemon
-func ConfigureLivenessProbe(daemon rook.KeyType, container v1.Container, healthCheck cephv1.CephClusterHealthCheckSpec) v1.Container {
+func ConfigureLivenessProbe(daemon cephv1.KeyType, container v1.Container, healthCheck cephv1.CephClusterHealthCheckSpec) v1.Container {
 	// Map of functions
-	probeFnMap := map[rook.KeyType]fn{
+	probeFnMap := map[cephv1.KeyType]fn{
 		cephv1.KeyMon: cephv1.GetMonLivenessProbe,
 		cephv1.KeyMgr: cephv1.GetMgrLivenessProbe,
 		cephv1.KeyOSD: cephv1.GetOSDLivenessProbe,

@@ -112,9 +112,6 @@ Dependents via CSI:
   - `spec.storageClassName == <name of StorageClass which references the CephBlockPool>`
   - NOTE: dependents should continue to be ignored if `spec.cleanupPolicy.allowUninstallWithVolumes == true`
 
-Dependents via FlexVolume:
-- Unnecessary because Rook plans to deprecate FlexVolume support for v1.7
-
 #### `CephFilesystem`
 Dependents which can consume this provider's pools:
 - CephNFSes in the same namespace that have `spec.pool == <a provider pool>`
@@ -132,9 +129,6 @@ Dependents via CSI:
   - OR
   - `spec.storageClassName == <name of StorageClass which references the CephBlockPool>`
   - NOTE: dependents should continue to be ignored if `spec.cleanupPolicy.allowUninstallWithVolumes == true`
-
-Dependents via FlexVolume:
-- Unnecessary because Rook plans to deprecate FlexVolume support for v1.7
 
 #### `CephObjectStore`
 Dependents which can consume this provider's pools:
