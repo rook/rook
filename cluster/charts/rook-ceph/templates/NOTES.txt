@@ -1,7 +1,7 @@
 The Rook Operator has been installed. Check its status by running:
   kubectl --namespace {{ .Release.Namespace }} get pods -l "app=rook-ceph-operator"
 
-Visit https://rook.io/docs/rook/master for instructions on how to create and configure Rook clusters
+Visit https://rook.io/docs/rook/latest for instructions on how to create and configure Rook clusters
 
 Important Notes:
 - You must customize the 'CephCluster' resource in the sample manifests for your cluster.

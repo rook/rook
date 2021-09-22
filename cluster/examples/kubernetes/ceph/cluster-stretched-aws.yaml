@@ -22,7 +22,7 @@ spec:
     stretchCluster:
       # The ceph failure domain will be extracted from the label, which by default is the zone. The nodes running OSDs must have
       # this label in order for the OSDs to be configured in the correct topology. For topology labels, see
-      # https://rook.github.io/docs/rook/master/ceph-cluster-crd.html#osd-topology.
+      # https://rook.github.io/docs/rook/latest/ceph-cluster-crd.html#osd-topology.
       failureDomainLabel: topology.kubernetes.io/zone
       # The sub failure domain is the secondary level at which the data will be placed to maintain data durability and availability.
       # The default is "host", which means that each OSD must be on a different node and you would need at least two nodes per zone.
