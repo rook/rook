@@ -120,6 +120,9 @@ data:
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   # CSI_LOG_LEVEL: "0"
 
+  # Set replicas for csi provisioner deployment.
+  CSI_PROVISIONER_REPLICAS: "2"
+
   # OMAP generator generates the omap mapping between the PV name and the RBD image
   # which helps CSI to identify the rbd images for CSI operations.
   # CSI_ENABLE_OMAP_GENERATOR need to be enabled when we are using rbd mirroring feature.
