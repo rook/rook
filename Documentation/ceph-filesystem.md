@@ -120,7 +120,7 @@ provisioner value should be "rook-op.rbd.csi.ceph.com".
 Create the storage class.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/storageclass.yaml
+kubectl create -f deploy/examples/csi/cephfs/storageclass.yaml
 ```
 
 ## Quotas
@@ -213,7 +213,7 @@ spec:
 Create the Kube registry deployment:
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/kube-registry.yaml
+kubectl create -f deploy/examples/csi/cephfs/kube-registry.yaml
 ```
 
 You now have a docker registry which is HA with persistent storage.

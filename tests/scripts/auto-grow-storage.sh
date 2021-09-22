@@ -7,7 +7,7 @@
 function calculateSize() {
    local currentsize=$2
    local unit=$1
-   rawsizeValue=0  # rawsizeValue is a global variable 
+   rawsizeValue=0  # rawsizeValue is a global variable
 
    if [[ "$currentsize" == *"Mi" ]]
    then
@@ -42,7 +42,7 @@ function compareSizes() {
    then
       return "1"
    fi
-   return "0"   
+   return "0"
 }
 
 function growVertically() {
@@ -53,7 +53,7 @@ function growVertically() {
    local currentSize
    currentSize=$(kubectl get pvc "${pvc}" -n "${ns}" -o json | jq -r '.spec.resources.requests.storage')
    echo "PVC(OSD) current size is ${currentSize} and will be increased by ${growRate}%."
-  
+
    calculateSize "${pvc}" "${currentSize}" # rawSize is calculated and used for further process
 
    if ! [[ "${rawSize}" =~ ^[0-9]+$ ]]
@@ -68,7 +68,7 @@ function growVertically() {
       else
          echo "New calculated size for the PVC is ${newSize}${unitSize}"
       fi
-      
+
       compareSizes ${newSize}${unitSize} "${maxSize}"
       if [ "1" = $? ]
       then
@@ -79,14 +79,14 @@ function growVertically() {
          result=$(kubectl patch pvc "${pvc}" -n "${ns}" --type json --patch  "[{ op: replace, path: /spec/resources/requests/storage, value: ${newSize}${unitSize} }]")
       fi
       echo "${result}"
-   fi   
+   fi
 }
 
 function growHorizontally() {
    local increaseOSDCount=$1
    local pvc=$2
    local ns=$3
-   local maxOSDCount=$4 
+   local maxOSDCount=$4
    local deviceSetName
    local cluster=""
    local deviceSet=""
@@ -116,7 +116,7 @@ function growHorizontally() {
             echo "${result}"
             break
          fi
-         deviceSetCount=$((deviceSetCount+1)) 
+         deviceSetCount=$((deviceSetCount+1))
          deviceSet=$(kubectl get CephCluster -n "${ns}" -o json | jq -r ".items[${clusterCount}].spec.storage.storageClassDeviceSets[${deviceSetCount}].name")
       done
       clusterCount=$((clusterCount+1))
@@ -126,7 +126,7 @@ function growHorizontally() {
 
 function growOSD(){
    itr=0
-   alertmanagerroute=$(kubectl -n rook-ceph -o jsonpath="{.status.hostIP}" get pod prometheus-rook-prometheus-0)   
+   alertmanagerroute=$(kubectl -n rook-ceph -o jsonpath="{.status.hostIP}" get pod prometheus-rook-prometheus-0)
    route=${alertmanagerroute}:30900
    toolbox=$(kubectl get pods -n rook-ceph | grep -i rook-ceph-tools | awk '{ print $1  }')
    alerts=$(kubectl exec -it "${toolbox}" -n rook-ceph -- bash -c "curl  -s  http://${route}/api/v1/alerts")
@@ -153,17 +153,17 @@ function growOSD(){
          pvc=$(kubectl get deployment -n "${ns}" rook-ceph-"${osdID}" -o json | jq -r '.metadata.labels."ceph.rook.io/pvc"')
          if [[ $pvc == null ]]
          then
-            echo "PVC not found, script can only run on PVC-based cluster"   
+            echo "PVC not found, script can only run on PVC-based cluster"
             exit 1
          fi
          echo "Processing NearFull or Full alert for PVC ${pvc} in namespace ${ns}"
          if [[ $1 == "count" ]]
-         then 
+         then
             growHorizontally "$2" "${pvc}" "${ns}" "$3"
          else
             growVertically "$2"  "${pvc}" "${ns}" "$3"
          fi
-      fi   
+      fi
       (( itr = itr + 1 ))
       if [[ "${itr}" == "${total_alerts}" ]] || [[ "${total_alerts}" == "0" ]]
       then
@@ -172,24 +172,24 @@ function growOSD(){
          total_alerts=$( jq '.data.alerts | length'  <<< "${alerts}")
          itr=0
          echo "Looping at $(date +"%Y-%m-%d %H:%M:%S")"
-      fi  
+      fi
    done
 }
 
 function creatingPrerequisites(){
    echo "creating Prerequisites deployments - Prometheus Operator and Prometheus Instances"
-   # creating Prometheus operator 
+   # creating Prometheus operator
    kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.40.0/bundle.yaml
    # waitng for Prometheus operator to get ready
    timeout 30 sh -c "until [ $(kubectl get pod -l app.kubernetes.'io/name'=prometheus-operator -o json | jq -r '.items[0].status.phase') = Running ]; do echo 'waiting for prometheus-operator to get created' && sleep 1; done"
    # creating a service monitor that will watch the Rook cluster and collect metrics regularly
-   kubectl create -f https://raw.githubusercontent.com/rook/rook/master/cluster/examples/kubernetes/ceph/monitoring/service-monitor.yaml
+   kubectl create -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/monitoring/service-monitor.yaml
    # create the PrometheusRule for Rook alerts.
-   kubectl create -f https://raw.githubusercontent.com/rook/rook/master/cluster/examples/kubernetes/ceph/monitoring/prometheus-ceph-v14-rules.yaml
+   kubectl create -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/monitoring/prometheus-ceph-v14-rules.yaml
    # create prometheus-rook-prometheus-0 pod
-   kubectl create -f https://raw.githubusercontent.com/rook/rook/master/cluster/examples/kubernetes/ceph/monitoring/prometheus.yaml
+   kubectl create -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/monitoring/prometheus.yaml
    # create prometheus-service
-   kubectl create -f https://raw.githubusercontent.com/rook/rook/master/cluster/examples/kubernetes/ceph/monitoring/prometheus-service.yaml
+   kubectl create -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/monitoring/prometheus-service.yaml
    # waitng for prometheus-rook-prometheus-0 pod to get ready
    timeout 60 sh -c "until [ $(kubectl get pod -l prometheus=rook-prometheus -nrook-ceph -o json | jq -r '.items[0].status.phase') = Running ]; do echo 'waiting for prometheus-rook-prometheus-0 pod to get created' && sleep 1; done"
    if [ "$(kubectl get pod -l prometheus=rook-prometheus -nrook-ceph)" == "" ]
@@ -221,14 +221,14 @@ count)
    then
       echo "maxCount should be an integer"
       invalidCall
-      exit 1 
+      exit 1
    fi
    if ! [[ "${count}" =~ ^[0-9]+$ ]]
    then
       echo "rate should be an integer"
       invalidCall
-      exit 1 
-   fi     
+      exit 1
+   fi
    creatingPrerequisites
    echo "Adding on nearfull and full alert and number of OSD to add is ${count}"
    growOSD count "${count}" "${max}"
@@ -245,14 +245,14 @@ size)
    then
       echo "maxSize should be an string"
       invalidCall
-      exit 1 
+      exit 1
    fi
    if ! [[ "${growRate}" =~ ^[0-9]+$ ]]
    then
       echo "growth-rate should be an integer"
       invalidCall
-      exit 1 
-   fi     
+      exit 1
+   fi
    creatingPrerequisites
    echo "Resizing on nearfull and full alert and  Expansion percentage set to ${growRate}%"
    growOSD size "${growRate}" "${max}"
@@ -260,4 +260,4 @@ size)
 *)
   invalidCall
     ;;
-esac 
+esac

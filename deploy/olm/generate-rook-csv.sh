@@ -4,7 +4,7 @@ set -e
 ##################
 # INIT VARIABLES #
 ##################
-: "${OLM_CATALOG_DIR:=cluster/olm/ceph}"
+: "${OLM_CATALOG_DIR:=deploy/olm}"
 ASSEMBLE_FILE_COMMON="$OLM_CATALOG_DIR/assemble/metadata-common.yaml"
 ASSEMBLE_FILE_K8S="$OLM_CATALOG_DIR/assemble/metadata-k8s.yaml"
 ASSEMBLE_FILE_OCP="$OLM_CATALOG_DIR/assemble/metadata-ocp.yaml"
@@ -81,9 +81,9 @@ YQ_CMD_DELETE=($yq delete -i)
 YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --prettyPrint)
 YQ_CMD_MERGE=($yq merge --inplace --append -P )
 YQ_CMD_WRITE=($yq write --inplace -P )
-OPERATOR_YAML_FILE_K8S="cluster/examples/kubernetes/ceph/operator.yaml"
-OPERATOR_YAML_FILE_OCP="cluster/examples/kubernetes/ceph/operator-openshift.yaml"
-COMMON_YAML_FILE="cluster/examples/kubernetes/ceph/common.yaml"
+OPERATOR_YAML_FILE_K8S="deploy/examples/operator.yaml"
+OPERATOR_YAML_FILE_OCP="deploy/examples/operator-openshift.yaml"
+COMMON_YAML_FILE="deploy/examples/common.yaml"
 CSV_PATH="$OLM_CATALOG_DIR/deploy/olm-catalog/${PLATFORM}/${VERSION}"
 CSV_BUNDLE_PATH="${CSV_PATH}/manifests"
 CSV_FILE_NAME="$CSV_BUNDLE_PATH/ceph.clusterserviceversion.yaml"
@@ -92,7 +92,7 @@ OLM_OPERATOR_YAML_FILE="$OLM_CATALOG_DIR/deploy/operator.yaml"
 OLM_ROLE_YAML_FILE="$OLM_CATALOG_DIR/deploy/role.yaml"
 OLM_ROLE_BINDING_YAML_FILE="$OLM_CATALOG_DIR/deploy/role_binding.yaml"
 OLM_SERVICE_ACCOUNT_YAML_FILE="$OLM_CATALOG_DIR/deploy/service_account.yaml"
-CEPH_EXTERNAL_SCRIPT_FILE="cluster/examples/kubernetes/ceph/create-external-cluster-resources.py"
+CEPH_EXTERNAL_SCRIPT_FILE="deploy/examples/create-external-cluster-resources.py"
 
 if [[ -d "$CSV_BUNDLE_PATH" ]]; then
     echo "$CSV_BUNDLE_PATH already exists, not doing anything."
@@ -115,6 +115,7 @@ function cleanup() {
 function generate_csv(){
     pushd "$OLM_CATALOG_DIR" &> /dev/null
     "${OP_SDK_CMD[@]}" "$VERSION"
+    mv "$CSV_BUNDLE_PATH/olm.clusterserviceversion.yaml" "$CSV_FILE_NAME"
     popd &> /dev/null
 
     # cleanup to get the expected state before merging the real data from assembles

@@ -9,7 +9,7 @@ indent: true
 
 [OpenShift](https://www.openshift.com/) adds a number of security and other enhancements to Kubernetes. In particular, [security context constraints](https://blog.openshift.com/understanding-service-accounts-sccs/) allow the cluster admin to define exactly which permissions are allowed to pods running in the cluster. You will need to define those permissions that allow the Rook pods to run.
 
-The settings for Rook in OpenShift are described below, and are also included in the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph):
+The settings for Rook in OpenShift are described below, and are also included in the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples):
 
 * `operator-openshift.yaml`: Creates the security context constraints and starts the operator deployment
 * `object-openshift.yaml`: Creates an object store with rgw listening on a valid port number for OpenShift
@@ -35,7 +35,7 @@ To orchestrate the storage platform, Rook requires the following access in the c
 
 ## Security Context Constraints
 
-Before starting the Rook operator or cluster, create the security context constraints needed by the Rook pods. The following yaml is found in `operator-openshift.yaml` under `/cluster/examples/kubernetes/ceph`.
+Before starting the Rook operator or cluster, create the security context constraints needed by the Rook pods. The following yaml is found in `operator-openshift.yaml` under `/deploy/examples`.
 
 > **NOTE**: Older versions of OpenShift may require `apiVersion: v1`.
 

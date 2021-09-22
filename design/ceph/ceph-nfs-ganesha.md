@@ -40,12 +40,11 @@ This allows the NFS-Ganesha server cluster to be scalable and highly available.
   exported by the NFS-Ganesha server cluster.
   e.g.,
   ```
-  kubectl create -f cluster/examples/kubernetes/ceph/filesystem.yaml
+  kubectl create -f deploy/examples/filesystem.yaml
   ```
 
 - An existing RADOS pool (e.g., CephFS's data pool) or a pool created with a
   [Ceph Pool CRD] to store NFS client recovery data.
-
 
 ### Ceph NFS-Ganesha CRD
 

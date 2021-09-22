@@ -32,9 +32,9 @@ if [[ -n "$BUILD_CRDS_INTO_DIR" ]]; then
   echo "Generating CRDs into dir $BUILD_CRDS_INTO_DIR"
   DESTINATION_ROOT="$BUILD_CRDS_INTO_DIR"
 fi
-OLM_CATALOG_DIR="${DESTINATION_ROOT}/cluster/olm/ceph/deploy/crds"
-CEPH_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/examples/kubernetes/ceph/crds.yaml"
-CEPH_HELM_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/charts/rook-ceph/templates/resources.yaml"
+OLM_CATALOG_DIR="${DESTINATION_ROOT}/deploy/olm/deploy/crds"
+CEPH_CRDS_FILE_PATH="${DESTINATION_ROOT}/deploy/examples/crds.yaml"
+CEPH_HELM_CRDS_FILE_PATH="${DESTINATION_ROOT}/deploy/charts/rook-ceph/templates/resources.yaml"
 
 #############
 # FUNCTIONS #
@@ -42,8 +42,8 @@ CEPH_HELM_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/charts/rook-ceph/templates
 
 copy_ob_obc_crds() {
   mkdir -p "$OLM_CATALOG_DIR"
-  cp -f "${SCRIPT_ROOT}/cluster/olm/ceph/assemble/objectbucket.io_objectbucketclaims.yaml" "$OLM_CATALOG_DIR"
-  cp -f "${SCRIPT_ROOT}/cluster/olm/ceph/assemble/objectbucket.io_objectbuckets.yaml" "$OLM_CATALOG_DIR"
+  cp -f "${SCRIPT_ROOT}/deploy/olm/assemble/objectbucket.io_objectbucketclaims.yaml" "$OLM_CATALOG_DIR"
+  cp -f "${SCRIPT_ROOT}/deploy/olm/assemble/objectbucket.io_objectbuckets.yaml" "$OLM_CATALOG_DIR"
 }
 
 generating_crds_v1() {

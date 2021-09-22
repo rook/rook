@@ -14,5 +14,5 @@ Rook has published the following Helm charts for the Ceph storage provider:
 
 The Helm charts are intended to simplify deployment and upgrades.
 Configuring the Rook resources without Helm is also fully supported by creating the
-[manifests](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes)
+[manifests](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples)
 directly.

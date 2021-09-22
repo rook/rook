@@ -26,12 +26,11 @@ In short, as the documentation describes it:
 
 If your Kubernetes version is updated to a newer version of the snapshot API, follow the upgrade guide [here](https://github.com/kubernetes-csi/external-snapshotter/tree/v4.0.0#upgrade) to upgrade from v1alpha1 to v1beta1, or v1beta1 to v1.
 
-
 ## RBD Snapshots
 
 ### VolumeSnapshotClass
 
-In [VolumeSnapshotClass](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml),
+In [VolumeSnapshotClass](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/rbd/snapshotclass.yaml),
 the `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the
 name of the secret created for the rbdplugin and `pool` to reflect the Ceph pool name.
 
@@ -41,18 +40,18 @@ maintain a configmap whose contents will match this key. By default this is
 "rook-ceph".
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml
+kubectl create -f deploy/examples/csi/rbd/snapshotclass.yaml
 ```
 
 ### Volumesnapshot
 
-In [snapshot](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml),
+In [snapshot](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/rbd/snapshot.yaml),
 `volumeSnapshotClassName` should be the name of the `VolumeSnapshotClass`
 previously created. The `persistentVolumeClaimName` should be the name of the
 PVC which is already created by the RBD CSI driver.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml
+kubectl create -f deploy/examples/csi/rbd/snapshot.yaml
 ```
 
 ### Verify RBD Snapshot Creation
@@ -81,14 +80,14 @@ The snapshot will be ready to restore to a new PVC when the `READYTOUSE` field o
 ### Restore the snapshot to a new PVC
 
 In
-[pvc-restore](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/pvc-restore.yaml),
+[pvc-restore](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/rbd/pvc-restore.yaml),
 `dataSource` should be the name of the `VolumeSnapshot` previously
 created. The `dataSource` kind should be the `VolumeSnapshot`.
 
 Create a new PVC from the snapshot
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-restore.yaml
+kubectl create -f deploy/examples/csi/rbd/pvc-restore.yaml
 ```
 
 ### Verify RBD Clone PVC Creation
@@ -107,16 +106,16 @@ kubectl get pvc
 To clean your cluster of the resources created by this example, run the following:
 
 ```console
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-restore.yaml
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/snapshot.yaml
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/snapshotclass.yaml
+kubectl delete -f deploy/examples/csi/rbd/pvc-restore.yaml
+kubectl delete -f deploy/examples/csi/rbd/snapshot.yaml
+kubectl delete -f deploy/examples/csi/rbd/snapshotclass.yaml
 ```
 
 ## CephFS Snapshots
 
 ### VolumeSnapshotClass
 
-In [VolumeSnapshotClass](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/snapshotclass.yaml),
+In [VolumeSnapshotClass](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/cephfs/snapshotclass.yaml),
 the `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the
 name of the secret created for the cephfsplugin.
 
@@ -127,18 +126,18 @@ maintain a configmap whose contents will match this key. By default this is
 
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/snapshotclass.yaml
+kubectl create -f deploy/examples/csi/cephfs/snapshotclass.yaml
 ```
 
 ### Volumesnapshot
 
-In [snapshot](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/snapshot.yaml),
+In [snapshot](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/cephfs/snapshot.yaml),
 `volumeSnapshotClassName` should be the name of the `VolumeSnapshotClass`
 previously created. The `persistentVolumeClaimName` should be the name of the
 PVC which is already created by the CephFS CSI driver.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/snapshot.yaml
+kubectl create -f deploy/examples/csi/cephfs/snapshot.yaml
 ```
 
 ### Verify CephFS Snapshot Creation
@@ -165,14 +164,14 @@ The snapshot will be ready to restore to a new PVC when `READYTOUSE` field of th
 ### Restore the snapshot to a new PVC
 
 In
-[pvc-restore](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/pvc-restore.yaml),
+[pvc-restore](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/cephfs/pvc-restore.yaml),
 `dataSource` should be the name of the `VolumeSnapshot` previously
 created. The `dataSource` kind should be the `VolumeSnapshot`.
 
 Create a new PVC from the snapshot
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/pvc-restore.yaml
+kubectl create -f deploy/examples/csi/cephfs/pvc-restore.yaml
 ```
 
 ### Verify CephFS Restore PVC Creation
@@ -192,9 +191,9 @@ kubectl get pvc
 To clean your cluster of the resources created by this example, run the following:
 
 ```console
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/cephfs/pvc-restore.yaml
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/cephfs/snapshot.yaml
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/cephfs/snapshotclass.yaml
+kubectl delete -f deploy/examples/csi/cephfs/pvc-restore.yaml
+kubectl delete -f deploy/examples/csi/cephfs/snapshot.yaml
+kubectl delete -f deploy/examples/csi/cephfs/snapshotclass.yaml
 ```
 
 ## Limitations

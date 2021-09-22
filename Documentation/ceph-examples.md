@@ -9,13 +9,13 @@ indent: true
 
 Configuration for Rook and Ceph can be configured in multiple ways to provide block devices, shared filesystem volumes or object storage in a kubernetes namespace. We have provided several examples to simplify storage setup, but remember there are many tunables and you will need to decide what settings work for your use case and environment.
 
-See the **[example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph)** folder for all the rook/ceph setup example spec files.
+See the **[example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples)** folder for all the rook/ceph setup example spec files.
 
 ## Common Resources
 
 The first step to deploy Rook is to create the CRDs and other common resources. The configuration for these resources will be the same for most deployments.
-The [crds.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/crds.yaml) and
-[common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml) sets these resources up.
+The [crds.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/crds.yaml) and
+[common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/common.yaml) sets these resources up.
 
 ```console
 kubectl create -f crds.yaml -f common.yaml
@@ -25,14 +25,14 @@ The examples all assume the operator and all Ceph daemons will be started in the
 
 ## Operator
 
-After the common resources are created, the next step is to create the Operator deployment. Several spec file examples are provided in [this directory](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/):
+After the common resources are created, the next step is to create the Operator deployment. Several spec file examples are provided in [this directory](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/):
 
 * `operator.yaml`: The most common settings for production deployments
   * `kubectl create -f operator.yaml`
 * `operator-openshift.yaml`: Includes all of the operator settings for running a basic Rook cluster in an OpenShift environment. You will also want to review the [OpenShift Prerequisites](ceph-openshift.md) to confirm the settings.
   * `oc create -f operator-openshift.yaml`
 
-Settings for the operator are configured through environment variables on the operator deployment. The individual settings are documented in [operator.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator.yaml).
+Settings for the operator are configured through environment variables on the operator deployment. The individual settings are documented in [operator.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/operator.yaml).
 
 ## Cluster CRD
 
@@ -97,13 +97,13 @@ See the [Object Store CRD](ceph-object-store-crd.md) topic for more details on t
 
 ### Object Storage User
 
-* `object-user.yaml`: Creates a simple object storage user and generates credentials for the S3 API
+- `object-user.yaml`: Creates a simple object storage user and generates credentials for the S3 API
 
 ### Object Storage Buckets
 
 The Ceph operator also runs an object store bucket provisioner which can grant access to existing buckets or dynamically provision new buckets.
 
-* [object-bucket-claim-retain.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/object-bucket-claim-retain.yaml) Creates a request for a new bucket by referencing a StorageClass which saves the bucket when the initiating OBC is deleted.
-* [object-bucket-claim-delete.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/object-bucket-claim-delete.yaml) Creates a request for a new bucket by referencing a StorageClass which deletes the bucket when the initiating OBC is deleted.
-* [storageclass-bucket-retain.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/storageclass-bucket-retain.yaml) Creates a new StorageClass which defines the Ceph Object Store, a region, and retains the bucket after the initiating OBC is deleted.
-* [storageclass-bucket-delete.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/storageclass-bucket-delete.yaml) Creates a new StorageClass which defines the Ceph Object Store, a region, and deletes the bucket after the initiating OBC is deleted.
+* [object-bucket-claim-retain.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/object-bucket-claim-retain.yaml) Creates a request for a new bucket by referencing a StorageClass which saves the bucket when the initiating OBC is deleted.
+* [object-bucket-claim-delete.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/object-bucket-claim-delete.yaml) Creates a request for a new bucket by referencing a StorageClass which deletes the bucket when the initiating OBC is deleted.
+* [storageclass-bucket-retain.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/storageclass-bucket-retain.yaml) Creates a new StorageClass which defines the Ceph Object Store, a region, and retains the bucket after the initiating OBC is deleted.
+* [storageclass-bucket-delete.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/storageclass-bucket-delete.yaml) Creates a new StorageClass which defines the Ceph Object Store, a region, and deletes the bucket after the initiating OBC is deleted.

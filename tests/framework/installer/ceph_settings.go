@@ -62,7 +62,7 @@ func (s *TestCephSettings) ApplyEnvVars() {
 }
 
 func (s *TestCephSettings) readManifest(filename string) string {
-	manifest := readManifest("ceph", filename)
+	manifest := readManifest(filename)
 	return replaceNamespaces(manifest, manifest, s.OperatorNamespace, s.Namespace)
 }
 
@@ -71,7 +71,7 @@ func (s *TestCephSettings) readManifestFromGithub(filename string) string {
 }
 
 func (s *TestCephSettings) readManifestFromGithubWithClusterNamespace(filename, clusterNamespace string) string {
-	manifest := readManifestFromGithub(s.RookVersion, "ceph", filename)
+	manifest := readManifestFromGithub(s.RookVersion, filename)
 	return replaceNamespaces(filename, manifest, s.OperatorNamespace, clusterNamespace)
 }
 

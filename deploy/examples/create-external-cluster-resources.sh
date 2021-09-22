@@ -2,7 +2,7 @@
 # this script creates all the users/keys on the external cluster
 # those keys will be injected via the import-external-cluster.sh once this one is done running
 # so you can run import-external-cluster.sh right after this script
-# run me like: . cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh
+# run me like: . deploy/examples/create-external-cluster-resources.sh
 set -e
 
 #############
@@ -26,12 +26,12 @@ function checkEnv() {
     echo "'ceph' binary is expected'"
     return 1
   fi
-  
+
   if ! is_available jq; then
     echo "'jq' binary is expected'"
     return 1
   fi
-  
+
   if ! ceph -s 1>/dev/null; then
     echo "cannot connect to the ceph cluster"
     return 1

@@ -35,4 +35,4 @@ jobs:
         uses: helm/chart-testing-action@v2.1.0
 
       - name: Run chart-testing (lint)
-        run: ct lint --charts=./cluster/charts/rook-ceph --validate-yaml=false --validate-maintainers=false
+        run: ct lint --charts=./deploy/charts/rook-ceph --validate-yaml=false --validate-maintainers=false

@@ -59,7 +59,7 @@ the following:
 First get the latest common resources manifests that contain the latest changes for Rook v1.7.
 ```sh
 git clone --single-branch --depth=1 --branch v1.7.1 https://github.com/rook/rook.git
-cd rook/cluster/examples/kubernetes/ceph
+cd rook/deploy/examples
 ```
 
 If you have deployed the Rook Operator or the Ceph cluster into a different namespace than
@@ -103,7 +103,7 @@ time without compatibility support and without prior notice.
 We will do all our work in the Ceph example manifests directory.
 
 ```sh
-$ cd $YOUR_ROOK_REPO/cluster/examples/kubernetes/ceph/
+$ cd $YOUR_ROOK_REPO/deploy/examples/
 ```
 
 Unless your Rook cluster was created with customized namespaces, namespaces for Rook clusters are
@@ -275,7 +275,7 @@ needed by the Operator. Also update the Custom Resource Definitions (CRDs).
 Get the latest common resources manifests that contain the latest changes.
 ```sh
 git clone --single-branch --depth=1 --branch v1.7.0 https://github.com/rook/rook.git
-cd rook/cluster/examples/kubernetes/ceph
+cd rook/deploy/examples
 ```
 
 If you have deployed the Rook Operator or the Ceph cluster into a different namespace than
@@ -299,7 +299,7 @@ If you have [Prometheus monitoring](ceph-monitoring.md) enabled, follow the
 step to upgrade the Prometheus RBAC resources as well.
 
 ```sh
-kubectl apply -f cluster/examples/kubernetes/ceph/monitoring/rbac.yaml
+kubectl apply -f deploy/examples/monitoring/rbac.yaml
 ```
 
 ### **2. Update Ceph CSI versions**

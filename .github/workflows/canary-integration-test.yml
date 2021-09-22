@@ -55,8 +55,8 @@ jobs:
         mgr_raw=$(kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr)
         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
         kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
-        kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/test-data/ceph-status-out $toolbox:/etc/ceph/test-data/
-        kubectl -n rook-ceph cp cluster/examples/kubernetes/ceph/create-external-cluster-resources.py $toolbox:/etc/ceph
+        kubectl -n rook-ceph cp tests/ceph-status-out $toolbox:/etc/ceph/test-data/
+        kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
         timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
 
     - name: run external script create-external-cluster-resources.py unit tests
@@ -73,11 +73,11 @@ jobs:
       run: |
         kubectl -n rook-ceph delete deploy/rook-ceph-operator
         kubectl -n rook-ceph delete deploy/rook-ceph-osd-1 --grace-period=0 --force
-        sed -i 's/<OSD-IDs>/1/' cluster/examples/kubernetes/ceph/osd-purge.yaml
+        sed -i 's/<OSD-IDs>/1/' deploy/examples/osd-purge.yaml
         # the CI must force the deletion since we use replica 1 on 2 OSDs
-        sed -i 's/false/true/' cluster/examples/kubernetes/ceph/osd-purge.yaml
-        sed -i 's|rook/ceph:master|rook/ceph:local-build|' cluster/examples/kubernetes/ceph/osd-purge.yaml
-        kubectl -n rook-ceph create -f cluster/examples/kubernetes/ceph/osd-purge.yaml
+        sed -i 's/false/true/' deploy/examples/osd-purge.yaml
+        sed -i 's|rook/ceph:master|rook/ceph:local-build|' deploy/examples/osd-purge.yaml
+        kubectl -n rook-ceph create -f deploy/examples/osd-purge.yaml
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         kubectl -n rook-ceph exec $toolbox -- ceph status
         timeout 120 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1.*.destroyed'; do echo 'waiting for ceph osd 1 to be destroyed'; sleep 1; done"
@@ -122,12 +122,12 @@ jobs:
 
     - name: deploy cluster
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -174,11 +174,11 @@ jobs:
 
     - name: deploy cluster
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -222,12 +222,12 @@ jobs:
 
     - name: deploy rook
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -274,11 +274,11 @@ jobs:
 
     - name: deploy cluster
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -325,10 +325,10 @@ jobs:
 
     - name: deploy cluster
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -375,11 +375,11 @@ jobs:
 
     - name: deploy rook
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -430,7 +430,7 @@ jobs:
 
     - name: deploy cluster
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
@@ -439,7 +439,7 @@ jobs:
         yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
         yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
         kubectl create -f tests/manifests/test-object.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -500,12 +500,12 @@ jobs:
 
     - name: deploy cluster
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-k8s-auth.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -554,10 +554,10 @@ jobs:
 
     - name: deploy cluster
       run: |
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -603,7 +603,7 @@ jobs:
     - name: deploy first cluster rook
       run: |
         tests/scripts/github-action-helper.sh deploy_first_rook_cluster
-        cd cluster/examples/kubernetes/ceph/
+        cd deploy/examples/
         kubectl create -f rbdmirror.yaml -f filesystem-mirror.yaml
 
     # cephfs-mirroring is a push operation
@@ -611,7 +611,7 @@ jobs:
     - name: deploy second cluster rook
       run: |
         tests/scripts/github-action-helper.sh deploy_second_rook_cluster
-        cd cluster/examples/kubernetes/ceph/
+        cd deploy/examples/
         sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' rbdmirror.yaml
         kubectl create -f rbdmirror.yaml
 
@@ -623,7 +623,7 @@ jobs:
 
     - name: create replicated mirrored pool on cluster 1
       run: |
-        cd cluster/examples/kubernetes/ceph/
+        cd deploy/examples/
         yq w -i pool-test.yaml spec.mirroring.enabled true
         yq w -i pool-test.yaml spec.mirroring.mode image
         kubectl create -f pool-test.yaml
@@ -631,7 +631,7 @@ jobs:
 
     - name: create replicated mirrored pool 2 on cluster 1
       run: |
-        cd cluster/examples/kubernetes/ceph/
+        cd deploy/examples/
         yq w -i pool-test.yaml metadata.name replicapool2
         kubectl create -f pool-test.yaml
         timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to created on cluster 2" && sleep 1; done'
@@ -639,14 +639,14 @@ jobs:
 
     - name: create replicated mirrored pool on cluster 2
       run: |
-        cd cluster/examples/kubernetes/ceph/
+        cd deploy/examples/
         yq w -i pool-test.yaml metadata.namespace rook-ceph-secondary
         kubectl create -f pool-test.yaml
         timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to created on cluster 1" && sleep 1; done'
 
     - name: create replicated mirrored pool 2 on cluster 2
       run: |
-        cd cluster/examples/kubernetes/ceph/
+        cd deploy/examples/
         yq w -i pool-test.yaml metadata.name replicapool2
         kubectl create -f pool-test.yaml
         timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to created on cluster 2" && sleep 1; done'
@@ -719,15 +719,15 @@ jobs:
 
     - name: create replicated mirrored filesystem on cluster 1
       run: |
-        PRIMARY_YAML=cluster/examples/kubernetes/ceph/filesystem-test-primary.yaml
-        cp cluster/examples/kubernetes/ceph/filesystem-test.yaml "$PRIMARY_YAML"
+        PRIMARY_YAML=deploy/examples/filesystem-test-primary.yaml
+        cp deploy/examples/filesystem-test.yaml "$PRIMARY_YAML"
         yq merge --inplace --arrays append "$PRIMARY_YAML" tests/manifests/test-fs-mirror-spec.yaml
         kubectl create -f "$PRIMARY_YAML"
         timeout 120 sh -c 'until [ "$(kubectl -n rook-ceph get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
 
     - name: create replicated mirrored filesystem on cluster 2
       run: |
-        cd cluster/examples/kubernetes/ceph/
+        cd deploy/examples/
         yq w -i filesystem-test.yaml metadata.namespace rook-ceph-secondary
         yq w -i filesystem-test.yaml spec.mirroring.enabled true
         kubectl create -f filesystem-test.yaml

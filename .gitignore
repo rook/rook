@@ -8,5 +8,5 @@
 /tests/integration/rook-test/
 
 # OLM related stuff
-cluster/olm/ceph/deploy/*
-cluster/olm/ceph/templates/*
+deploy/olm/deploy/*
+deploy/olm/templates/*

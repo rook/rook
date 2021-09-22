@@ -1,8 +1,8 @@
 extends: default
 ignore: |
-  cluster/examples/kubernetes/ceph/csi/template
-  cluster/examples/kubernetes/ceph/crds.yaml
-  cluster/examples/kubernetes/ceph/monitoring/
+  deploy/examples/csi/template
+  deploy/examples/crds.yaml
+  deploy/examples/monitoring/
 rules:
   line-length: disable
   new-lines: disable

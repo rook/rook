@@ -53,6 +53,7 @@ to the updated cluster CR.
 
 To remove an OSD due to a failed disk or other re-configuration, consider the following to ensure the health of the data
 through the removal process:
+
 - Confirm you will have enough space on your cluster after removing your OSDs to properly handle the deletion
 - Confirm the remaining OSDs and their placement groups (PGs) are healthy in order to handle the rebalancing of the data
 - Do not remove too many OSDs at once
@@ -106,7 +107,7 @@ in the toolbox may show which OSD is `down`. If you want to remove a healthy OSD
 
 ### Purge the OSD from the Ceph cluster
 
-OSD removal can be automated with the example found in the [rook-ceph-purge-osd job](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/osd-purge.yaml).
+OSD removal can be automated with the example found in the [rook-ceph-purge-osd job](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/osd-purge.yaml).
 In the osd-purge.yaml, change the `<OSD-IDs>` to the ID(s) of the OSDs you want to remove.
 
 1. Run the job: `kubectl create -f osd-purge.yaml`

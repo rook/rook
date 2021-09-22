@@ -162,9 +162,7 @@ function build_rook_all() {
 }
 
 function validate_yaml() {
-  cd cluster/examples/kubernetes/ceph
-
-  # create the Rook CRDs and other resources
+  cd deploy/examples
   kubectl create -f crds.yaml -f common.yaml
 
   # create the volume replication CRDs
@@ -187,7 +185,7 @@ function validate_yaml() {
 
 function create_cluster_prerequisites() {
   # this might be called from another function that has already done a cd
-  ( cd cluster/examples/kubernetes/ceph && kubectl create -f crds.yaml -f common.yaml )
+  ( cd deploy/examples && kubectl create -f crds.yaml -f common.yaml )
 }
 
 function deploy_manifest_with_local_build() {
@@ -208,7 +206,7 @@ function replace_ceph_image() {
 }
 
 function deploy_cluster() {
-  cd cluster/examples/kubernetes/ceph
+  cd deploy/examples
   deploy_manifest_with_local_build operator.yaml
   sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-test.yaml
   kubectl create -f cluster-test.yaml
@@ -272,14 +270,15 @@ function create_LV_on_disk() {
   sudo vgcreate "$VG" "$BLOCK" || sudo vgcreate "$VG" "$BLOCK" || sudo vgcreate "$VG" "$BLOCK"
   sudo lvcreate -l 100%FREE -n "${LV}" "${VG}"
   tests/scripts/localPathPV.sh /dev/"${VG}"/${LV}
-  kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml
-  kubectl create -f cluster/examples/kubernetes/ceph/common.yaml
+  kubectl create -f deploy/examples/crds.yaml
+  kubectl create -f deploy/examples/common.yaml
 }
 
 function deploy_first_rook_cluster() {
   BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
   create_cluster_prerequisites
-  cd cluster/examples/kubernetes/ceph/
+  cd deploy/examples/
+
   deploy_manifest_with_local_build operator.yaml
   yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
   yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
@@ -290,7 +289,7 @@ function deploy_first_rook_cluster() {
 
 function deploy_second_rook_cluster() {
   BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
-  cd cluster/examples/kubernetes/ceph/
+  cd deploy/examples/
   NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
   yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"2
@@ -348,7 +347,7 @@ function restart_operator () {
 }
 
 function write_object_to_cluster1_read_from_cluster2() {
-  cd cluster/examples/kubernetes/ceph/
+  cd deploy/examples/
   echo "[default]" > s3cfg
   echo "host_bucket = no.way.in.hell" >> ./s3cfg
   echo "use_https = False" >> ./s3cfg

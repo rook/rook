@@ -267,7 +267,7 @@ Below guide assumes that we have a PVC (rbd-pvc) in BOUND state; created using
 In this case, we create a Volume Replication Class on cluster-1
 
 ```bash
-[cluster-1]$ kubectl apply -f cluster/examples/kubernetes/ceph/volume-replication-class.yaml
+[cluster-1]$ kubectl apply -f deploy/examples/volume-replication-class.yaml
 ```
 
 > **Note:** The `schedulingInterval` can be specified in formats of
@@ -281,7 +281,7 @@ In this case, we create a Volume Replication Class on cluster-1
  the PVC which we intend to replicate to secondary cluster.
 
 ```bash
-[cluster-1]$ kubectl apply -f cluster/examples/kubernetes/ceph/volume-replication.yaml
+[cluster-1]$ kubectl apply -f deploy/examples/volume-replication.yaml
 ```
 
 >:memo: *VolumeReplication* is a namespace scoped object. Thus,
@@ -373,7 +373,7 @@ Here, we take a backup of PVC and PV object on one site, so that they can be res
 * Create VolumeReplicationClass on the secondary cluster
 
 ```bash
-[cluster-1]$ kubectl apply -f cluster/examples/kubernetes/ceph/volume-replication-class.yaml
+[cluster-1]$ kubectl apply -f deploy/examples/volume-replication-class.yaml
  ```
 
 > ```bash
