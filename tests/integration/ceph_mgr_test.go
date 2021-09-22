@@ -94,7 +94,7 @@ func (s *CephMgrSuite) SetupSuite() {
 		Mons:              1,
 		UseCSI:            true,
 		SkipOSDCreation:   true,
-		EnableDiscovery:   true,
+		EnableDiscovery:   false,
 		RookVersion:       installer.VersionMaster,
 		CephVersion:       installer.MasterVersion,
 	}
@@ -113,9 +113,26 @@ func (s *CephMgrSuite) TearDownSuite() {
 	s.installer.UninstallRook()
 }
 
-func (s *CephMgrSuite) execute(command []string) (error, string) {
-	orchCommand := append([]string{"orch"}, command...)
-	return s.installer.Execute("ceph", orchCommand, s.namespace)
+func (s *CephMgrSuite) execute(command []string, maxRetries int) (error, string) {
+	tries := 0
+	orchestratorCommand := append([]string{"orch"}, command...)
+	for {
+		err, output := s.installer.Execute("ceph", orchestratorCommand, s.namespace)
+		tries++
+		if err != nil  {
+			if maxRetries == 1 {
+				return err, output
+			} else {
+				if tries < maxRetries {
+					logger.Infof("retrying command <<ceph %s>>: last error: %v", command, err)
+				} else {
+					return fmt.Errorf("max retries(%d) reached, last err: %v", tries, err), ""
+				}
+			}
+		} else {
+			return err, output
+		}
+	}
 }
 
 func (s *CephMgrSuite) prepareLocalStorageClass(storageClassName string) {
@@ -152,7 +169,7 @@ func (s *CephMgrSuite) enableOrchestratorModule() {
 	}
 
 	logger.Info("Setting orchestrator backend to Rook .... <ceph orch set backend rook>")
-	err, output = s.execute([]string{"set", "backend", "rook"})
+	err, output = s.execute([]string{"set", "backend", "rook"}, 1)
 	logger.Infof("output: %s", output)
 	if err != nil {
 		logger.Infof("Not possible to set rook as backend orchestrator module: %q", err)
@@ -170,7 +187,7 @@ func (s *CephMgrSuite) waitForOrchestrationModule() {
 
 	for timeout := 0; timeout < 30; timeout++ {
 		logger.Info("Waiting for rook orchestrator module enabled and ready ...")
-		err, output := s.execute([]string{"status", "--format", "json"})
+		err, output := s.execute([]string{"status", "--format", "json"}, 1)
 		logger.Infof("%s", output)
 		if err == nil {
 			logger.Info("Ceph orchestrator ready to execute commands")
@@ -210,14 +227,14 @@ func (s *CephMgrSuite) waitForOrchestrationModule() {
 }
 func (s *CephMgrSuite) TestDeviceLs() {
 	logger.Info("Testing .... <ceph orch device ls>")
-	err, device_list := s.execute([]string{"device", "ls"})
+	err, deviceList := s.execute([]string{"device", "ls"}, 3)
 	assert.Nil(s.T(), err)
-	logger.Infof("output = %s", device_list)
+	logger.Infof("output = %s", deviceList)
 }
 
 func (s *CephMgrSuite) TestStatus() {
 	logger.Info("Testing .... <ceph orch status>")
-	err, status := s.execute([]string{"status"})
+	err, status := s.execute([]string{"status"}, 3)
 	assert.Nil(s.T(), err)
 	logger.Infof("output = %s", status)
 
@@ -236,7 +253,7 @@ func (s *CephMgrSuite) TestHostLs() {
 	logger.Info("Testing .... <ceph orch host ls>")
 
 	// Get the orchestrator hosts
-	err, output := s.execute([]string{"host", "ls", "json"})
+	err, output := s.execute([]string{"host", "ls", "json"}, 3)
 	assert.Nil(s.T(), err)
 	logger.Infof("output = %s", output)
 
@@ -271,7 +288,7 @@ func (s *CephMgrSuite) TestHostLs() {
 
 func (s *CephMgrSuite) TestServiceLs() {
 	logger.Info("Testing .... <ceph orch ls --format json>")
-	err, output := s.execute([]string{"ls", "--format", "json"})
+	err, output := s.execute([]string{"ls", "--format", "json"}, 3)
 	assert.Nil(s.T(), err)
 	logger.Infof("output = %s", output)
 
