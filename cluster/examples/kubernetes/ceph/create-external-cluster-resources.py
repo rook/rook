@@ -77,9 +77,11 @@ class DummyRados(object):
         ceph_status_str = ""
         with open(path.join(script_dir, json_file_name), 'r') as json_file:
             ceph_status_str = json_file.read()
+        self.cmd_names['osd lspools'] = '''{"format": "json", "prefix": "osd lspools"}'''
+        self.cmd_output_map[self.cmd_names['osd lspools']] = '''[{"poolnum":1,"poolname":"device_health_metrics"},{"poolnum":10,"poolname":"myfs-metadata"},{"poolnum":11,"poolname":"myfs-data0"},{"poolnum":12,"poolname":"my-store.rgw.buckets.index"},{"poolnum":13,"poolname":"my-store.rgw.meta"},{"poolnum":14,"poolname":".rgw.root"},{"poolnum":15,"poolname":"my-store.rgw.control"},{"poolnum":16,"poolname":"my-store.rgw.log"},{"poolnum":17,"poolname":"my-store.rgw.buckets.non-ec"},{"poolnum":18,"poolname":"my-store.rgw.buckets.data"}]'''
         self.cmd_names['fs ls'] = '''{"format": "json", "prefix": "fs ls"}'''
         self.cmd_names['quorum_status'] = '''{"format": "json", "prefix": "quorum_status"}'''
-        self.cmd_names['caps_change_default_pool_prefix'] = '''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}'''
+        self.cmd_names['caps_change_default_pool_prefix'] = '''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=my-store.rgw.meta, allow r pool=.rgw.root, allow rw pool=my-store.rgw.control, allow rx pool=my-store.rgw.log, allow x pool=my-store.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}'''
         self.cmd_names['mgr services'] = '''{"format": "json", "prefix": "mgr services"}'''
         # all the commands and their output
         self.cmd_output_map[self.cmd_names['fs ls']
@@ -87,15 +89,15 @@ class DummyRados(object):
         self.cmd_output_map[self.cmd_names['quorum_status']] = '''{"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_leader_name":"a","quorum_age":14385,"features":{"quorum_con":"4540138292836696063","quorum_mon":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"]},"monmap":{"epoch":1,"fsid":"af4e1673-0b72-402d-990a-22d2919d0f1c","modified":"2020-05-07T03:36:39.918035Z","created":"2020-05-07T03:36:39.918035Z","min_mon_release":15,"min_mon_release_name":"octopus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.110.205.174:3300","nonce":0},{"type":"v1","addr":"10.110.205.174:6789","nonce":0}]},"addr":"10.110.205.174:6789/0","public_addr":"10.110.205.174:6789/0","priority":0,"weight":0}]}}'''
         self.cmd_output_map[self.cmd_names['mgr services']
                             ] = '''{"dashboard":"https://ceph-dashboard:8443/","prometheus":"http://ceph-dashboard-db:9283/"}'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=my-store.rgw.meta, allow r pool=.rgw.root, allow rw pool=my-store.rgw.control, allow x pool=my-store.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"allow rwx pool=my-store.rgw.meta, allow r pool=.rgw.root, allow rw pool=my-store.rgw.control, allow x pool=my-store.rgw.buckets.index"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "profile rbd", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd","osd":"profile rbd"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs *=*"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=my-store.rgw.meta, allow r pool=.rgw.root, allow rw pool=my-store.rgw.control, allow rx pool=my-store.rgw.log, allow x pool=my-store.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=my-store.rgw.meta, allow r pool=.rgw.root, allow rw pool=my-store.rgw.control, allow rx pool=my-store.rgw.log, allow x pool=my-store.rgw.buckets.index"}}]'''
         self.cmd_output_map['''{"format": "json", "prefix": "mgr services"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
         self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
-        self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=my-store.rgw.meta, allow r pool=.rgw.root, allow rw pool=my-store.rgw.control, allow rx pool=my-store.rgw.log, allow x pool=my-store.rgw.buckets.index"}}]'''
         self.cmd_output_map[self.cmd_names['caps_change_default_pool_prefix']] = '''[{}]'''
         self.cmd_output_map['{"format": "json", "prefix": "status"}'] = ceph_status_str
 
@@ -145,7 +147,6 @@ class RadosJSON:
     EXTERNAL_USER_NAME = "client.healthchecker"
     EXTERNAL_RGW_ADMIN_OPS_USER_NAME = "rgw-admin-ops-user"
     EMPTY_OUTPUT_LIST = "Empty output list"
-    DEFAULT_RGW_POOL_PREFIX = "default"
     DEFAULT_MONITORING_ENDPOINT_PORT = "9283"
 
     @classmethod
@@ -287,8 +288,6 @@ class RadosJSON:
         # if user not provided, give a default user
         if not self.run_as_user and not self._arg_parser.upgrade:
             self.run_as_user = self.EXTERNAL_USER_NAME
-        if not self._arg_parser.rgw_pool_prefix and not self._arg_parser.upgrade:
-            self._arg_parser.rgw_pool_prefix = self.DEFAULT_RGW_POOL_PREFIX
         if self.ceph_conf:
             self.cluster = rados.Rados(conffile=self.ceph_conf)
         else:
@@ -296,12 +295,39 @@ class RadosJSON:
             self.cluster.conf_read_file()
         self.cluster.connect()
 
+        if not self._arg_parser.rgw_pool_prefix and not self._arg_parser.upgrade:
+            # auto detect prefix
+            self._arg_parser.rgw_pool_prefix = self.detect_rgw_pool_prefix()
+
     def shutdown(self):
         if self.cluster.state == "connected":
             self.cluster.shutdown()
 
     def get_fsid(self):
         return str(self.cluster.get_fsid())
+
+    def detect_rgw_pool_prefix(self):
+        cmd_json = {"prefix": "osd lspools", "format": "json"}
+        ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
+        # if there is an unsuccessful attempt,
+        if ret_val != 0 or len(json_out) == 0:
+            raise ExecutionFailureException(
+                "'osd lspools' command failed.\n" +
+                "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
+
+        found = False
+        for pool in json_out:
+            if '.rgw.meta' in pool['poolname']:
+                pool = pool['poolname']  # type: str
+                # extract prefix name
+                rc = re.compile(r'.+?(?=\.rgw\.meta)')
+                self._arg_parser.rgw_pool_prefix = rc.findall(pool)[0]
+                found = True
+                return self._arg_parser.rgw_pool_prefix
+
+        if not found:
+            raise ExecutionFailureException(
+                "Unable to determine 'rgw-pool-prefx'. Please provide one with '--rgw-pool-prefix' flag")
 
     def _common_cmd_json_gen(self, cmd_json):
         cmd = json.dumps(cmd_json, sort_keys=True)
@@ -587,6 +613,8 @@ class RadosJSON:
         return str(json_out[0]['key'])
 
     def create_checkerKey(self):
+        if not self._arg_parser.rgw_pool_prefix:
+            self._arg_parser.rgw_pool_prefix = self.detect_rgw_pool_prefix()
         cmd_json = {"prefix": "auth get-or-create",
                     "entity": self.run_as_user,
                     "caps": ["mon", self.MIN_USER_CAP_PERMISSIONS['mon'],
@@ -835,6 +863,8 @@ class RadosJSON:
         return json.dumps(json_out)+LINESEP
 
     def upgrade_user_permissions(self):
+        if not self._arg_parser.rgw_pool_prefix:
+            self._arg_parser.rgw_pool_prefix = self.detect_rgw_pool_prefix()
         # check whether the given user exists or not
         cmd_json = {"prefix": "auth get", "entity": "{}".format(
             self.run_as_user), "format": "json"}
@@ -1073,7 +1103,7 @@ class TestRadosJSON(unittest.TestCase):
             self.rjObj.cluster.cmd_names['caps_change_default_pool_prefix'])
         cur_osd_caps = json_cmd['caps'][json_cmd['caps'].index('osd') + 1]
         new_osd_caps = cur_osd_caps.replace(
-            'default.', '{}.'.format(non_default_pool_prefix))
+            'my-store', '{}.'.format(non_default_pool_prefix))
         all_osd_caps = "{}, {}".format(new_osd_caps, cur_osd_caps)
         caps_list = [x.strip() for x in all_osd_caps.split(',') if x.strip()]
         new_caps_list = []
