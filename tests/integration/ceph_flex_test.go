@@ -94,7 +94,7 @@ func (s *CephFlexDriverSuite) SetupSuite() {
 		SkipOSDCreation:    false,
 		UseCSI:             false,
 		DirectMountToolbox: true,
-		RookVersion:        installer.VersionMaster,
+		RookVersion:        installer.LocalBuildTag,
 		CephVersion:        installer.OctopusVersion,
 	}
 	s.settings.ApplyEnvVars()
