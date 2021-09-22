@@ -15,7 +15,7 @@ pull_request_rules:
       - conflict
     actions:
       comment:
-        message: This pull request has merge conflicts that must be resolved before it can be merged. @{{author}} please rebase it. https://rook.io/docs/rook/master/development-flow.html#updating-your-fork
+        message: This pull request has merge conflicts that must be resolved before it can be merged. @{{author}} please rebase it. https://rook.io/docs/rook/latest/development-flow.html#updating-your-fork
 
   # automerge on master only under certain strict conditions
   - name: automerge merge master with specific label and approvals with code change

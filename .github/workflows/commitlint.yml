@@ -23,4 +23,4 @@ jobs:
       - uses: wagoid/commitlint-github-action@v2.0.3
         with:
           configFile: './.commitlintrc.json'
-          helpURL: https://rook.io/docs/rook/master/development-flow.html#commit-structure
+          helpURL: https://rook.io/docs/rook/latest/development-flow.html#commit-structure

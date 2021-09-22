@@ -58,7 +58,7 @@ data:
 
   # Enable cephfs kernel driver instead of ceph-fuse.
   # If you disable the kernel client, your application may be disrupted during upgrade.
-  # See the upgrade guide: https://rook.io/docs/rook/master/ceph-upgrade.html
+  # See the upgrade guide: https://rook.io/docs/rook/latest/ceph-upgrade.html
   # NOTE! cephfs quota is not supported in kernel version < 4.17
   CSI_FORCE_CEPHFS_KERNEL_CLIENT: "true"
 

@@ -174,7 +174,7 @@ and you can use that token to log into the UI at http://localhost:8001/ui.
 
 Everything should happen on the host, your development environment will reside on the host machine NOT inside the virtual machines running the Kubernetes cluster.
 
-Now, please refer to [https://rook.io/docs/rook/master/development-flow.html](https://rook.io/docs/rook/master/development-flow.html) to setup your development environment (go, git etc).
+Now, please refer to the [development flow](development-flow.md) to setup your development environment (go, git etc).
 
 At this stage, Rook should be cloned on your host.
 
