@@ -89,12 +89,12 @@ func updateStatusBucket(client client.Client, name types.NamespacedName, status 
 		}
 		objectStore.Status.BucketStatus = toCustomResourceStatus(objectStore.Status.BucketStatus, details, status)
 
+		// do not transition to other statuses once deletion begins
 		if objectStore.Status.Phase != cephv1.ConditionDeleting {
-			// do not transition to to other statuses once deletion begins
-			logger.Debugf("object store %q status not updated to %q because it is deleting", name.String(), status)
 			objectStore.Status.Phase = status
 		}
 
+		// but we still need to update the health checker status
 		if err := reporting.UpdateStatus(client, objectStore); err != nil {
 			return errors.Wrapf(err, "failed to set object store %q status to %v", name.String(), status)
 		}
