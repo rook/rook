@@ -45,4 +45,4 @@ Read [Github documentation if you need help](https://help.github.com/en/articles
 * Storage backend version (e.g. for ceph do `ceph -v`):
 * Kubernetes version (use `kubectl version`):
 * Kubernetes cluster type (e.g. Tectonic, GKE, OpenShift):
-* Storage backend status (e.g. for Ceph use `ceph health` in the [Rook Ceph toolbox](https://rook.io/docs/rook/master/ceph-toolbox.html)):
+* Storage backend status (e.g. for Ceph use `ceph health` in the [Rook Ceph toolbox](https://rook.io/docs/rook/latest/ceph-toolbox.html)):

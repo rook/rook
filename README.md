@@ -24,7 +24,7 @@ Rook is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF
 
 ## Getting Started and Documentation
 
-For installation, deployment, and administration, see our [Documentation](https://rook.github.io/docs/rook/master).
+For installation, deployment, and administration, see our [Documentation](https://rook.github.io/docs/rook/latest).
 
 ## Contributing
 
@@ -80,7 +80,7 @@ More details about API versioning and status in Kubernetes can be found on the K
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------ |
 | Ceph | [Ceph](https://ceph.com/) is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters. | ceph.rook.io/v1 | Stable |
 
-This repo is for the Ceph storage provider. The [Cassandra](https://github.com/rook/cassandra) and [NFS](https://github.com/rook/nfs) storage providers moved to a separate repo to allow for each [storage provider](https://rook.github.io/docs/rook/master/storage-providers.html) to have an independent development and release schedule.
+This repo is for the Ceph storage provider. The [Cassandra](https://github.com/rook/cassandra) and [NFS](https://github.com/rook/nfs) storage providers moved to a separate repo to allow for each [storage provider](https://rook.github.io/docs/rook/latest/storage-providers.html) to have an independent development and release schedule.
 
 ### Official Releases
 

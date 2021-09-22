@@ -83,7 +83,7 @@ Ceph requires a Linux kernel built with the RBD module. Many Linux distributions
 For example, the GKE Container-Optimised OS (COS) does not have RBD.
 
 You can test your Kubernetes nodes by running `modprobe rbd`.
-If it says 'not found', you may have to [rebuild your kernel](https://rook.io/docs/rook/master/common-issues.html#rook-agent-rbd-module-missing-error)
+If it says 'not found', you may have to [rebuild your kernel](common-issues.md#rook-agent-rbd-module-missing-error)
 or choose a different Linux distribution.
 
 ### CephFS

@@ -138,7 +138,7 @@ data:
 
   # Enable Ceph Kernel clients on kernel < 4.17 which support quotas for Cephfs
   # If you disable the kernel client, your application may be disrupted during upgrade.
-  # See the upgrade guide: https://rook.io/docs/rook/master/ceph-upgrade.html
+  # See the upgrade guide: https://rook.io/docs/rook/latest/ceph-upgrade.html
   CSI_FORCE_CEPHFS_KERNEL_CLIENT: "true"
 
   # (Optional) policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted.

@@ -53,7 +53,7 @@ Rook provides the following framework to assist storage providers in building an
   each storage provider has its own repo.
 * Helm charts are published to [charts.rook.io](https://charts.rook.io/release)
 * Documentation for the storage provider is to be written by the storage provider
-  members. The build process will publish the documentation to the [Rook website](https://rook.github.io/docs/rook/master/).
+  members. The build process will publish the documentation to the [Rook website](https://rook.github.io/docs/rook/latest/).
 * All storage providers are added to the [Rook.io website](https://rook.io/)
 * A great Slack community is available where you can communicate amongst developers and users
 

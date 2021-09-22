@@ -22,7 +22,7 @@ storage cluster.
 * [OSD Dedicated Network](#osd-dedicated-network)
 * [Phantom OSD Removal](#phantom-osd-removal)
 * [Change Failure Domain](#change-failure-domain)
-* [Auto Expansion of OSDs](#auto-expansion-of-OSDs)
+* [Auto Expansion of OSDs](#auto-expansion-of-osds)
 
 ## Prerequisites
 
@@ -467,7 +467,7 @@ Two changes are necessary to the configuration to enable this capability:
 
 ### Use hostNetwork in the rook ceph cluster configuration
 
-Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](https://rook.io/docs/rook/master/ceph-cluster-crd.html#samples).
+Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](ceph-cluster-crd.md#samples).
 For example,
 
 ```yaml
@@ -606,13 +606,13 @@ Exactly the same approach can be used to change from `host` back to `osd`.
 
 Run the following script to auto-grow the size of OSDs on a PVC-based Rook-Ceph cluster whenever the OSDs have reached the storage near-full threshold.
 ```console
-tests/scripts/auto-grow-storage.sh size  --max maxSize --growth-rate percent 
+tests/scripts/auto-grow-storage.sh size  --max maxSize --growth-rate percent
 ```
 >growth-rate percentage represents the percent increase you want in the OSD capacity and maxSize represent the maximum disk size.
 
 For example, if you need to increase the size of OSD by 30% and max disk size is 1Ti
 ```console
-./auto-grow-storage.sh size  --max 1Ti --growth-rate 30 
+./auto-grow-storage.sh size  --max 1Ti --growth-rate 30
 ```
 
 ### To scale OSDs Horizontally
