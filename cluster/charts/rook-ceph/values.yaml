@@ -41,7 +41,7 @@ currentNamespaceOnly: false
 ## Annotations to be added to pod
 annotations: {}
 
-## LogLevel can be set to: TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR or CRITICAL
+## The logging level for the operator: ERROR | WARNING | INFO | DEBUG
 logLevel: INFO
 
 ## If true, create & use RBAC resources
