@@ -64,7 +64,7 @@ type Param struct {
 	CephFSLivenessMetricsPort      uint16
 	RBDGRPCMetricsPort             uint16
 	RBDLivenessMetricsPort         uint16
-	ProvisionerReplicas            uint8
+	ProvisionerReplicas            int32
 	CSICephFSPodLabels             map[string]string
 	CSIRBDPodLabels                map[string]string
 }
@@ -172,6 +172,9 @@ const (
 	detectCSIVersionName = "rook-ceph-csi-detect-version"
 	// default log level for csi containers
 	defaultLogLevel uint8 = 0
+
+	// default provisioner replicas
+	defaultProvisionerReplicas int32 = 2
 
 	// update strategy
 	rollingUpdate = "RollingUpdate"
@@ -409,14 +412,26 @@ func startDrivers(clientset kubernetes.Interface, rookclientset rookclient.Inter
 		}
 	}
 
-	tp.ProvisionerReplicas = 2
+	tp.ProvisionerReplicas = defaultProvisionerReplicas
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err == nil {
 		if len(nodes.Items) == 1 {
 			tp.ProvisionerReplicas = 1
+		} else {
+			replicas, err := k8sutil.GetOperatorSetting(clientset, controllerutil.OperatorSettingConfigMapName, "CSI_PROVISIONER_REPLICAS", "2")
+			if err != nil {
+				logger.Warningf("failed to load CSI_PROVISIONER_REPLICAS. Defaulting to %d. %v", tp.ProvisionerReplicas, err)
+			} else {
+				r, err := strconv.ParseInt(replicas, 10, 32)
+				if err != nil {
+					logger.Errorf("failed to parse CSI_PROVISIONER_REPLICAS. Defaulting to %d. %v", tp.ProvisionerReplicas, err)
+				} else {
+					tp.ProvisionerReplicas = int32(r)
+				}
+			}
 		}
 	} else {
-		logger.Errorf("failed to get nodes. Defaulting the number of replicas of provisioner pods to 2. %v", err)
+		logger.Errorf("failed to get nodes. Defaulting the number of replicas of provisioner pods to %d. %v", tp.ProvisionerReplicas, err)
 	}
 
 	if EnableRBD {

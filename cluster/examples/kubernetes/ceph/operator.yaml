@@ -41,6 +41,9 @@ data:
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   # CSI_LOG_LEVEL: "0"
 
+  # Set replicas for csi provisioner deployment.
+  CSI_PROVISIONER_REPLICAS: "2"
+
   # OMAP generator will generate the omap mapping between the PV name and the RBD image.
   # CSI_ENABLE_OMAP_GENERATOR need to be enabled when we are using rbd mirroring feature.
   # By default OMAP generator sidecar is deployed with CSI provisioner pod, to disable
