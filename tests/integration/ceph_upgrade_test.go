@@ -255,7 +255,9 @@ func (s *UpgradeSuite) deployClusterforUpgrade(objectStoreName, objectUserID, me
 	createFilesystemConsumerPod(s.helper, s.k8sh, s.Suite, s.settings, filesystemName, fsStorageClass)
 
 	logger.Infof("Initializing object before the upgrade")
-	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.settings, objectStoreName, 1, false)
+	deleteStore := false
+	tls := false
+	runObjectE2ETestLite(s.T(), s.helper, s.k8sh, s.settings.Namespace, objectStoreName, 1, deleteStore, tls)
 
 	logger.Infof("Initializing object user before the upgrade")
 	createCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, false, false)

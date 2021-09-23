@@ -126,7 +126,9 @@ func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
 		s.T().Skip("object store tests skipped on openshift")
 	}
 	storeName := "lite-store"
-	runObjectE2ETestLite(s.helper, s.k8sh, s.Suite, s.settings, storeName, 2, true)
+	deleteStore := true
+	tls := false
+	runObjectE2ETestLite(s.T(), s.helper, s.k8sh, s.settings.Namespace, storeName, 2, deleteStore, tls)
 }
 
 // Test to make sure all rook components are installed and Running

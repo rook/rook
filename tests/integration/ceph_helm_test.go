@@ -105,5 +105,7 @@ func (h *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 
 // Test Object StoreCreation on Rook that was installed via helm
 func (h *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
-	runObjectE2ETestLite(h.helper, h.k8shelper, h.Suite, h.settings, "default", 3, true)
+	deleteStore := true
+	tls := false
+	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.settings.Namespace, "default", 3, deleteStore, tls)
 }
