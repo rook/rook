@@ -123,7 +123,12 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	}
 
 	logger.Infof("Running on Rook Cluster %s", namespace)
-	createCephObjectStore(s, helper, k8sh, namespace, storeName, 3, tlsEnable)
+	createCephObjectStore(s.T(), helper, k8sh, namespace, storeName, 3, tlsEnable)
+
+	// test that a second object store can be created (and deleted) while the first exists
+	testSecondObjectStore(s.T(), helper, k8sh, namespace, storeName+"-second", tlsEnable)
+
+	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
 }
 
@@ -188,26 +193,74 @@ func checkCephObjectUser(
 	}
 }
 
-func createCephObjectStore(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string, replicaSize int, tlsEnable bool) {
+// create a CephObjectStore and wait for it to report ready status
+func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string, replicaSize int, tlsEnable bool) {
 	logger.Infof("Create Object Store %q with replica count %d", storeName, replicaSize)
 	rgwServiceName := "rook-ceph-rgw-" + storeName
 	if tlsEnable {
-		generateRgwTlsCertSecret(s, helper, k8sh, namespace, storeName, rgwServiceName)
+		t.Run("generate TLS certs", func(t *testing.T) {
+			generateRgwTlsCertSecret(t, helper, k8sh, namespace, storeName, rgwServiceName)
+		})
 	}
-	t := s.T()
 	t.Run("create CephObjectStore", func(t *testing.T) {
 		err := helper.ObjectClient.Create(namespace, storeName, 3, tlsEnable)
-		assert.Nil(s.T(), err)
+		assert.Nil(t, err)
+	})
 
+	t.Run("wait for RGWs to be running", func(t *testing.T) {
 		// check that ObjectStore is created
 		logger.Infof("Check that RGW pods are Running")
 		for i := 0; i < 24 && k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running") == false; i++ {
 			logger.Infof("(%d) RGW pod check sleeping for 5 seconds ...", i)
 			time.Sleep(5 * time.Second)
 		}
-		assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running"))
+		assert.True(t, k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running"))
 		logger.Info("RGW pods are running")
 		logger.Infof("Object store %q created successfully", storeName)
+	})
+
+	ctx := context.TODO()
+
+	// Check object store status
+	t.Run("verify object store status", func(t *testing.T) {
+		retryCount := 30
+		i := 0
+		for i = 0; i < retryCount; i++ {
+			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
+			assert.Nil(t, err)
+			if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
+				logger.Infof("(%d) object status check sleeping for 5 seconds ...%+v", i, objectStore.Status)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			logger.Info("objectstore status is", objectStore.Status)
+			if objectStore.Status.BucketStatus.Health == cephv1.ConditionFailure {
+				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...%+v", i, objectStore.Status.BucketStatus)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			assert.Equal(t, cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
+			// Info field has the endpoint in it
+			assert.NotEmpty(t, objectStore.Status.Info)
+			assert.NotEmpty(t, objectStore.Status.Info["endpoint"])
+			break
+		}
+		if i == retryCount {
+			t.Fatal("bucket status check failed. status is not connected")
+		}
+	})
+}
+
+// test creating a second object store while an object store already exists, once the second store
+// is found to be ready, it will be deleted. "storeName" should be unique.
+func testSecondObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string, tlsEnable bool) {
+	t.Run("run a second object store", func(t *testing.T) {
+		createCephObjectStore(t, helper, k8sh, namespace, storeName, 1, tlsEnable)
+
+		t.Run("delete the second object store", func(t *testing.T) {
+			deleteObjectStore(t, k8sh, namespace, storeName)
+			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
+		})
 	})
 }
 
@@ -226,35 +279,6 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 			time.Sleep(5 * time.Second)
 		}
 		assert.NotEqual(t, 4, i)
-	})
-
-	// Check object store status
-	t.Run(fmt.Sprintf("verify ceph object store %q status", storeName), func(t *testing.T) {
-		retryCount := 30
-		i := 0
-		for i = 0; i < retryCount; i++ {
-			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
-			assert.Nil(s.T(), err)
-			if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
-				logger.Infof("(%d) object status check sleeping for 5 seconds ...%+v", i, objectStore.Status)
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			logger.Info("objectstore status is", objectStore.Status)
-			if objectStore.Status.BucketStatus.Health == cephv1.ConditionFailure {
-				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...%+v", i, objectStore.Status.BucketStatus)
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			assert.Equal(s.T(), cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
-			// Info field has the endpoint in it
-			assert.NotEmpty(s.T(), objectStore.Status.Info)
-			assert.NotEmpty(s.T(), objectStore.Status.Info["endpoint"])
-			break
-		}
-		if i == retryCount {
-			t.Fatal("bucket status check failed. status is not connected")
-		}
 	})
 
 	context := k8sh.MakeContext()
@@ -360,11 +384,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 	})
 
 	t.Run("delete CephObjectStore should be blocked by OBC bucket and CephObjectStoreUser", func(t *testing.T) {
-		err := k8sh.DeleteResourceAndWait(false, "-n", namespace, "CephObjectStore", storeName)
-		assert.NoError(t, err)
-		// wait initially for the controller to detect deletion. Almost always enough, but not
-		// waiting will almost always fail the first check in the loop
-		time.Sleep(2 * time.Second)
+		deleteObjectStore(t, k8sh, namespace, storeName)
 
 		store := &cephv1.CephObjectStore{}
 		i := 0
@@ -449,58 +469,76 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		// wait initially since it will almost never detect on the first try without this.
 		time.Sleep(3 * time.Second)
 
-		store := &cephv1.CephObjectStore{}
-		i := 0
-		retry := 10
-		for i = 0; i < retry; i++ {
-			storeStr, err := k8sh.GetResource("-n", namespace, "CephObjectStore", storeName, "-o", "json")
-			assert.NoError(t, err)
-			logger.Infof("store: \n%s", storeStr)
-
-			err = json.Unmarshal([]byte(storeStr), &store)
-			assert.NoError(t, err)
-
-			cond := cephv1.FindStatusCondition(store.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
-			if cond.Status == v1.ConditionFalse && cond.Reason == cephv1.ObjectHasNoDependentsReason {
-				// Let's give some time to the object to be updated
-				time.Sleep(5 * time.Second)
-				break
-			}
-			logger.Info("waiting 3 more seconds for CephObjectStore to be unblocked by dependents")
-			time.Sleep(3 * time.Second)
-		}
-		assert.NotEqual(t, retry, i)
-
-		assert.Equal(t, cephv1.ConditionDeleting, store.Status.Phase) // phase == "Deleting"
-		// verify deletion is NOT blocked b/c object has dependents
-		cond := cephv1.FindStatusCondition(store.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
-		assert.Equal(t, v1.ConditionFalse, cond.Status)
-		assert.Equal(t, cephv1.ObjectHasNoDependentsReason, cond.Reason)
-
-		err := k8sh.WaitUntilResourceIsDeleted("CephObjectStore", namespace, storeName)
-		assert.NoError(t, err)
+		assertObjectStoreDeletion(t, k8sh, namespace, storeName)
 	})
 
 	// TODO : Add case for brownfield/cleanup s3 client}
 }
 
-func generateRgwTlsCertSecret(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName, rgwServiceName string) {
+func deleteObjectStore(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string) {
+	err := k8sh.DeleteResourceAndWait(false, "-n", namespace, "CephObjectStore", storeName)
+	assert.NoError(t, err)
+	// wait initially for the controller to detect deletion. Almost always enough, but not
+	// waiting immediately after this will almost always fail the first check in the loop
+	time.Sleep(4 * time.Second)
+}
+
+func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string) {
+	store := &cephv1.CephObjectStore{}
+	i := 0
+	retry := 10
+	sleepTime := 3 * time.Second
+	for i = 0; i < retry; i++ {
+		storeStr, err := k8sh.GetResource("-n", namespace, "CephObjectStore", storeName, "-o", "json")
+		assert.NoError(t, err)
+		logger.Infof("store: \n%s", storeStr)
+
+		err = json.Unmarshal([]byte(storeStr), &store)
+		assert.NoError(t, err)
+
+		cond := cephv1.FindStatusCondition(store.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
+		if cond == nil {
+			logger.Infof("waiting for CephObjectStore %q to have a deletion condition", storeName)
+			time.Sleep(sleepTime)
+			continue
+		}
+		if cond.Status == v1.ConditionFalse && cond.Reason == cephv1.ObjectHasNoDependentsReason {
+			// no longer blocked by dependents
+			time.Sleep(5 * time.Second) // Let's give some time to the object to be updated
+			break
+		}
+		logger.Infof("waiting 3 more seconds for CephObjectStore %q to be unblocked by dependents", storeName)
+		time.Sleep(sleepTime)
+	}
+	assert.NotEqual(t, retry, i)
+
+	assert.Equal(t, cephv1.ConditionDeleting, store.Status.Phase) // phase == "Deleting"
+	// verify deletion is NOT blocked b/c object has dependents
+	cond := cephv1.FindStatusCondition(store.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
+	assert.Equal(t, v1.ConditionFalse, cond.Status)
+	assert.Equal(t, cephv1.ObjectHasNoDependentsReason, cond.Reason)
+
+	err := k8sh.WaitUntilResourceIsDeleted("CephObjectStore", namespace, storeName)
+	assert.NoError(t, err)
+}
+
+func generateRgwTlsCertSecret(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName, rgwServiceName string) {
 	ctx := context.TODO()
 	root, err := utils.FindRookRoot()
-	require.NoError(s.T(), err, "failed to get rook root")
+	require.NoError(t, err, "failed to get rook root")
 	tlscertdir, err := ioutil.TempDir(root, "tlscertdir")
-	require.NoError(s.T(), err, "failed to create directory for TLS certs")
+	require.NoError(t, err, "failed to create directory for TLS certs")
 	defer os.RemoveAll(tlscertdir)
 	cmdArgs := utils.CommandArgs{Command: filepath.Join(root, "tests/scripts/generate-tls-config.sh"),
 		CmdArgs: []string{tlscertdir, rgwServiceName, namespace}}
 	cmdOut := utils.ExecuteCommand(cmdArgs)
-	require.NoError(s.T(), cmdOut.Err)
+	require.NoError(t, cmdOut.Err)
 	tlsKeyIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".key"))
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 	tlsCertIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".crt"))
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 	tlsCaCertIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".ca"))
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 	secretCertOut := fmt.Sprintf("%s%s%s", tlsKeyIn, tlsCertIn, tlsCaCertIn)
 	tlsK8sSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -512,5 +550,5 @@ func generateRgwTlsCertSecret(s suite.Suite, helper *clients.TestClient, k8sh *u
 		},
 	}
 	_, err = k8sh.Clientset.CoreV1().Secrets(namespace).Create(ctx, tlsK8sSecret, metav1.CreateOptions{})
-	require.Nil(s.T(), err)
+	require.Nil(t, err)
 }
