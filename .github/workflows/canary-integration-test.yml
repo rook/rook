@@ -148,12 +148,12 @@ jobs:
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: |
@@ -231,11 +231,11 @@ jobs:
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -303,12 +303,12 @@ jobs:
 
     - name: deploy rook
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -377,11 +377,11 @@ jobs:
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -452,10 +452,10 @@ jobs:
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -526,11 +526,11 @@ jobs:
 
     - name: deploy rook
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -608,7 +608,7 @@ jobs:
         tests/scripts/deploy-validate-vault.sh deploy
     - name: deploy rook
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
@@ -618,7 +618,7 @@ jobs:
         sed -i 's/ver1/ver2/g' tests/manifests/test-object.yaml
         sed -i 's/VAULT_BACKEND: v1/VAULT_BACKEND: v2/g' tests/manifests/test-object.yaml
         kubectl create -f tests/manifests/test-object.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
     - name: wait for prepare pod
       run: |
         timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
@@ -694,10 +694,10 @@ jobs:
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
