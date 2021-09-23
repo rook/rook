@@ -82,7 +82,7 @@ rules:
     verbs: ["get", "list", "delete" ]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
-    verbs: ["delete"]
+    verbs: ["get", "update", "delete"]
 
 {{- if .Values.monitoring.enabled }}
 ---

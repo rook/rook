@@ -145,7 +145,7 @@ rules:
     verbs: ["get", "list", "delete"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
-    verbs: ["delete"]
+    verbs: ["get", "update", "delete"]
 ---
 # Allow the osd purge job to run in this namespace
 kind: RoleBinding
