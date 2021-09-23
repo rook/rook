@@ -24,19 +24,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// CopyBinsCmd defines a top-level utility command which copies rook and tini binaries from the Rook
+// CopyBinsCmd defines a top-level utility command which copies rook binary from the Rook
 // container image to a directory.
 var CopyBinsCmd = &cobra.Command{
 	Use:   "copy-binaries",
-	Short: "Copy 'rook' and 'tini' binaries from a container to a given directory.",
-	Long: `Copy 'rook' and 'tini' binaries from a container to a given directory.
+	Short: "Copy 'rook' binary from a container to a given directory.",
+	Long: `Copy 'rook' binary from a container to a given directory.
 As an example, 'cmd-reporter run' may often need to be run from a container
 other than the container containing the 'rook' binary. Use this command to copy
-the 'rook' and required 'tini' binaries from the container containing the 'rook'
+the 'rook' binary from the container containing the 'rook'
 binary to a Kubernetes EmptyDir volume mounted at the given directory in a pod's
 init container. From the pod's main container, mount the volume which now
-contains the 'rook' and 'tini' binaries, and call 'rook cmd-reporter run' from
-'tini' in order to run the desired command from a non-Rook container.`,
+contains the 'rook' binary, and call 'rook cmd-reporter run' from
+'rook' in order to run the desired command from a non-Rook container.`,
 	Args: cobra.NoArgs,
 	RunE: runCopyBins,
 }
@@ -44,7 +44,7 @@ contains the 'rook' and 'tini' binaries, and call 'rook cmd-reporter run' from
 func init() {
 	// copy-binaries
 	CopyBinsCmd.Flags().StringVar(&copyToDir, "copy-to-dir", "",
-		"The directory into which 'tini' and 'rook' binaries will be copied.")
+		"The directory into which 'rook' binary will be copied.")
 	if err := CopyBinsCmd.MarkFlagRequired("copy-to-dir"); err != nil {
 		panic(err)
 	}
@@ -52,7 +52,7 @@ func init() {
 
 func runCopyBins(cCmd *cobra.Command, cArgs []string) error {
 	if err := util.CopyBinaries(copyToDir); err != nil {
-		rook.TerminateFatal(fmt.Errorf("could not copy binaries to %s. %+v", copyToDir, err))
+		rook.TerminateFatal(fmt.Errorf("could not copy binary to %s. %+v", copyToDir, err))
 	}
 	return nil
 }

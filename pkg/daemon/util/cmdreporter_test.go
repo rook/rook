@@ -74,6 +74,7 @@ func TestCommandMarshallingUnmarshalling(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+	ctx := context.TODO()
 	client := fake.NewSimpleClientset
 	type fields struct {
 		clientset     kubernetes.Interface
@@ -101,6 +102,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewCmdReporter(
+				ctx,
 				tt.fields.clientset,
 				tt.fields.cmd,
 				tt.fields.args,
@@ -145,7 +147,7 @@ func TestRunner_Run(t *testing.T) {
 		defer func() { os.Unsetenv("GO_HELPER_PROCESS_PRINT_COMMAND") }()
 
 		k8s := newClient()
-		r, err := NewCmdReporter(k8s, cmd, args, "command-configmap", "command-namespace")
+		r, err := NewCmdReporter(ctx, k8s, cmd, args, "command-configmap", "command-namespace")
 		assert.NoError(t, err)
 		assert.NoError(t, r.Run())
 
@@ -168,7 +170,7 @@ func TestRunner_Run(t *testing.T) {
 		defer func() { os.Unsetenv("GO_HELPER_PROCESS_RETCODE") }()
 
 		k8s := newClient()
-		r, err := NewCmdReporter(k8s, []string{"standin-cmd"}, []string{"--some", "arg"}, "outputs-configmap", "outputs-namespace")
+		r, err := NewCmdReporter(ctx, k8s, []string{"standin-cmd"}, []string{"--some", "arg"}, "outputs-configmap", "outputs-namespace")
 		assert.NoError(t, err)
 		assert.NoError(t, r.Run())
 
@@ -195,7 +197,7 @@ func TestRunner_Run(t *testing.T) {
 	}
 	_, err := k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	r, err := NewCmdReporter(k8s, []string{"some-command"}, []string{"some", "args"}, "preexisting-configmap", "preexisting-namespace")
+	r, err := NewCmdReporter(ctx, k8s, []string{"some-command"}, []string{"some", "args"}, "preexisting-configmap", "preexisting-namespace")
 	assert.NoError(t, err)
 	assert.Error(t, r.Run())
 	cm, err = k8s.CoreV1().ConfigMaps("preexisting-namespace").Get(ctx, "preexisting-configmap", metav1.GetOptions{})
@@ -218,7 +220,7 @@ func TestRunner_Run(t *testing.T) {
 	}
 	_, err = k8s.CoreV1().ConfigMaps("preexisting-namespace").Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	r, err = NewCmdReporter(k8s, []string{"some-command"}, []string{"some", "args"}, "preexisting-configmap", "preexisting-namespace")
+	r, err = NewCmdReporter(ctx, k8s, []string{"some-command"}, []string{"some", "args"}, "preexisting-configmap", "preexisting-namespace")
 	assert.NoError(t, err)
 	assert.NoError(t, r.Run())
 	verifyConfigMap(k8s, "", "", "0", "preexisting-configmap", "preexisting-namespace")

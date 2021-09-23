@@ -299,8 +299,8 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	readOnlyRootFilesystem := false
 
 	osdProvisionContainer := v1.Container{
-		Command:      []string{path.Join(rookBinariesMountPath, "tini")},
-		Args:         []string{"--", path.Join(rookBinariesMountPath, "rook"), "ceph", "osd", "provision"},
+		Command:      []string{path.Join(rookBinariesMountPath, "rook")},
+		Args:         []string{"ceph", "osd", "provision"},
 		Name:         "provision",
 		Image:        c.spec.CephVersion.Image,
 		VolumeMounts: volumeMounts,

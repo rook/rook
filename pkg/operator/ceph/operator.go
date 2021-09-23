@@ -41,9 +41,9 @@ var (
 	// ImmediateRetryResult Return this for a immediate retry of the reconciliation loop with the same request object.
 	ImmediateRetryResult = reconcile.Result{Requeue: true}
 
-	// Signals to watch for to terminate the operator gracefully
+	// ShutdownSignals signals to watch for to terminate the operator gracefully
 	// Using os.Interrupt is more portable across platforms instead of os.SIGINT
-	shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
+	ShutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
 
 	// Placeholder for the CRD manager life cycle, first we have the context to manage cancellation
 	// of the manager.
@@ -85,7 +85,7 @@ func New(context *clusterd.Context, rookImage, serviceAccount string) *Operator 
 func (o *Operator) Run() error {
 	// Initialize signal handler and context for the operator process life cycle
 	// This context is used to handle the graceful termination of the operator
-	operatorContext, operatorStop := signal.NotifyContext(context.Background(), shutdownSignals...)
+	operatorContext, operatorStop := signal.NotifyContext(context.Background(), ShutdownSignals...)
 	defer operatorStop()
 
 	// Start the CRD manager

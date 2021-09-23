@@ -608,8 +608,8 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// to modify the storage by instead running an innocuous command.
 	d.Spec.Template.Spec.InitContainers = []v1.Container{}
 	d.Spec.Template.Spec.Containers[0].Image = c.rookVersion
-	d.Spec.Template.Spec.Containers[0].Command = []string{"/tini"}
-	d.Spec.Template.Spec.Containers[0].Args = []string{"--", "sleep", "3600"}
+	d.Spec.Template.Spec.Containers[0].Command = []string{"sleep"} // sleep responds to signals so we don't need to wrap it
+	d.Spec.Template.Spec.Containers[0].Args = []string{"3600"}
 	// remove the liveness probe on the canary pod
 	d.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 

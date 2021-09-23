@@ -25,8 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCopyBinaries(t *testing.T) {
-
+func TestCopyBinary(t *testing.T) {
 	createTestBinary := func(binPath string) {
 		f, err := os.Create(binPath)
 		assert.NoError(t, err)
@@ -76,79 +75,34 @@ func TestCopyBinaries(t *testing.T) {
 	oDefaultRookDir := defaultRookDir
 	defaultRookDir = path.Join(testRootDir, "/usr/local/bin")
 	defer func() { defaultRookDir = oDefaultRookDir }()
-	// set default tini dir for unit tests
-	oDefaultTiniDir := defaultTiniDir
-	defaultTiniDir = path.Join(testRootDir, "/")
-	defer func() { defaultTiniDir = oDefaultTiniDir }()
 
-	// expect failure if rook binary is available in path but not tini
+	// expect success if binary is available in path
 	// testRootDir/
 	//   bin/
 	//     rook
 	//   copy-to-dir/
 	createTestBinary(path.Join(envPath, "rook"))
-
-	err = CopyBinaries(copyToDir)
-	assert.Error(t, err)
-	if err == nil {
-		panic(err)
-	}
-
-	err = os.Remove(path.Join(envPath, "rook"))
-	assert.NoError(t, err)
-
-	// expect failure if tini binary is available in path but not rook
-	// testRootDir/
-	//   bin/
-	//     tini
-	//   copy-to-dir/
-	createTestBinary(path.Join(envPath, "tini"))
-
-	err = CopyBinaries(copyToDir)
-	assert.Error(t, err)
-	if err == nil {
-		panic(err)
-	}
-
-	err = os.Remove(path.Join(envPath, "tini"))
-	assert.NoError(t, err)
-
-	// expect success if both binaries are available in path
-	// testRootDir/
-	//   bin/
-	//     rook
-	//     tini
-	//   copy-to-dir/
-	createTestBinary(path.Join(envPath, "rook"))
-	createTestBinary(path.Join(envPath, "tini"))
 	cleanDir(copyToDir)
 
 	err = CopyBinaries(copyToDir)
 	assert.NoError(t, err)
 	r := fileText(path.Join(copyToDir, "rook"))
 	assert.Contains(t, r, path.Join(testRootDir, "bin/rook"))
-	r = fileText(path.Join(copyToDir, "tini"))
-	assert.Contains(t, r, path.Join(testRootDir, "bin/tini"))
 
-	// expect success if both binaries are available in default locations AND in path
-	// additionally expect that the binaries will be taken from the default location in this case
+	// expect success if the binary is available in default locations AND in path
+	// additionally expect that the binary will be taken from the default location in this case
 	// testRootDir/
-	//   tini
 	//   usr/local/bin/
 	//     rook
 	//   bin/
 	//     rook
-	//     tini
 	//   copy-to-dir/
 	mkdir(defaultRookDir)
 	createTestBinary(path.Join(defaultRookDir, "rook"))
-	createTestBinary(path.Join(defaultTiniDir, "tini"))
 	cleanDir(copyToDir)
 
 	err = CopyBinaries(copyToDir)
 	assert.NoError(t, err)
 	r = fileText(path.Join(copyToDir, "rook"))
 	assert.Contains(t, r, path.Join(testRootDir, "usr/local/bin/rook"))
-	r = fileText(path.Join(copyToDir, "tini"))
-	assert.Contains(t, r, path.Join(testRootDir, "tini"))
 }
