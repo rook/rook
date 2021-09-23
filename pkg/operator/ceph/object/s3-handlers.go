@@ -36,16 +36,19 @@ type S3Agent struct {
 	Client *s3.S3
 }
 
-func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte) (*S3Agent, error) {
-	return newS3Agent(accessKey, secretKey, endpoint, debug, tlsCert, false)
+func NewS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCert []byte) (*S3Agent, error) {
+	return newS3Agent(accessKey, secretKey, endpoint, region, debug, tlsCert, false)
 }
 
-func NewTestOnlyS3Agent(accessKey, secretKey, endpoint string, debug bool) (*S3Agent, error) {
-	return newS3Agent(accessKey, secretKey, endpoint, debug, nil, true)
+func NewTestOnlyS3Agent(accessKey, secretKey, endpoint, region string, debug bool) (*S3Agent, error) {
+	return newS3Agent(accessKey, secretKey, endpoint, region, debug, nil, true)
 }
 
-func newS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool) (*S3Agent, error) {
-	const cephRegion = "us-east-1"
+func newS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCert []byte, insecure bool) (*S3Agent, error) {
+	var cephRegion = "us-east-1"
+	if region != "" {
+		cephRegion = region
+	}
 
 	logLevel := aws.LogOff
 	if debug {
