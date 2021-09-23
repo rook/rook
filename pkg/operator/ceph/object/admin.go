@@ -72,7 +72,8 @@ func (c *debugHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Debugf("\n%s\n", string(dump))
+	// this can leak credentials for making requests
+	c.logger.Tracef("\n%s\n", string(dump))
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -84,7 +85,8 @@ func (c *debugHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Debugf("\n%s\n", string(dump))
+	// this can leak any sensitive info like credentials in the response
+	c.logger.Tracef("\n%s\n", string(dump))
 
 	return resp, nil
 }

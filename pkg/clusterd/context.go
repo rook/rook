@@ -17,7 +17,6 @@ limitations under the License.
 package clusterd
 
 import (
-	"github.com/coreos/pkg/capnslog"
 	netclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/util/exec"
@@ -57,9 +56,6 @@ type Context struct {
 
 	// The root configuration directory used by services
 	ConfigDir string
-
-	// A value indicating the desired logging/tracing level
-	LogLevel capnslog.LogLevel
 
 	// The full path to a config file that can be used to override generated settings
 	ConfigFileOverride string

@@ -28,6 +28,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/version"
@@ -55,20 +56,15 @@ var (
 	logLevelRaw        string
 	operatorImage      string
 	serviceAccountName string
-	Cfg                = &Config{}
 	logger             = capnslog.NewPackageLogger("github.com/rook/rook", "rookcmd")
 )
-
-type Config struct {
-	LogLevel capnslog.LogLevel
-}
 
 // Initialize the configuration parameters. The precedence from lowest to highest is:
 //  1) default value (at compilation)
 //  2) environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOK_DISCOVERY_URL)
 //  3) command line parameter
 func init() {
-	RootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
+	RootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: ERROR,WARNING,INFO,DEBUG)")
 	RootCmd.PersistentFlags().StringVar(&operatorImage, "operator-image", "", "Override the image url that the operator uses. The default is read from the operator pod.")
 	RootCmd.PersistentFlags().StringVar(&serviceAccountName, "service-account", "", "Override the service account that the operator uses. The default is read from the operator pod.")
 
@@ -79,13 +75,7 @@ func init() {
 
 // SetLogLevel set log level based on provided log option.
 func SetLogLevel() {
-	// parse given log level string then set up corresponding global logging level
-	ll, err := capnslog.ParseLevel(logLevelRaw)
-	if err != nil {
-		logger.Warningf("failed to set log level %s. %+v", logLevelRaw, err)
-	}
-	Cfg.LogLevel = ll
-	capnslog.SetGlobalLogLevel(Cfg.LogLevel)
+	util.SetGlobalLogLevel(logLevelRaw, logger)
 }
 
 // LogStartupInfo log the version number, arguments, and all final flag values (environment variable overrides have already been taken into account)
@@ -103,7 +93,6 @@ func NewContext() *clusterd.Context {
 	context := &clusterd.Context{
 		Executor:  &exec.CommandExecutor{},
 		ConfigDir: k8sutil.DataDir,
-		LogLevel:  Cfg.LogLevel,
 	}
 
 	// Try to read config from in-cluster env
