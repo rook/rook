@@ -23,11 +23,7 @@ import (
 )
 
 var (
-	testMinVersion         = CephCSIVersion{2, 0, 0}
-	testReleaseV210        = CephCSIVersion{2, 1, 0}
-	testReleaseV300        = CephCSIVersion{3, 0, 0}
-	testReleaseV320        = CephCSIVersion{3, 2, 0}
-	testReleaseV321        = CephCSIVersion{3, 2, 1}
+	testMinVersion         = CephCSIVersion{3, 3, 0}
 	testReleaseV330        = CephCSIVersion{3, 3, 0}
 	testReleaseV340        = CephCSIVersion{3, 4, 0}
 	testVersionUnsupported = CephCSIVersion{4, 0, 0}
@@ -43,44 +39,8 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testMinVersion.isAtLeast(&testMinVersion)
 	assert.Equal(t, true, ret)
 
-	// Test version which is greater (minor)
-	version = CephCSIVersion{2, 1, 0}
-	ret = testMinVersion.isAtLeast(&version)
-	assert.Equal(t, false, ret)
-
-	// Test version which is greater (bugfix)
-	version = CephCSIVersion{2, 2, 0}
-	ret = testMinVersion.isAtLeast(&version)
-	assert.Equal(t, false, ret)
-
-	// Test for v2.1.0
-	// Test version which is greater (bugfix)
-	version = CephCSIVersion{2, 0, 1}
-	ret = testReleaseV210.isAtLeast(&version)
-	assert.Equal(t, true, ret)
-
 	// Test version which is equal
-	ret = testReleaseV210.isAtLeast(&testReleaseV210)
-	assert.Equal(t, true, ret)
-
-	// Test version which is greater (minor)
-	version = CephCSIVersion{2, 1, 1}
-	ret = testReleaseV210.isAtLeast(&version)
-	assert.Equal(t, false, ret)
-
-	// Test version which is greater (bugfix)
-	version = CephCSIVersion{2, 2, 0}
-	ret = testReleaseV210.isAtLeast(&version)
-	assert.Equal(t, false, ret)
-
-	// Test for 3.0.0
-	// Test version which is equal
-	ret = testReleaseV300.isAtLeast(&testReleaseV300)
-	assert.Equal(t, true, ret)
-
-	// Test for 3.3.0
-	// Test version which is lesser
-	ret = testReleaseV330.isAtLeast(&testReleaseV300)
+	ret = testReleaseV330.isAtLeast(&testReleaseV330)
 	assert.Equal(t, true, ret)
 
 	// Test for 3.4.0
@@ -88,50 +48,23 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testReleaseV340.isAtLeast(&testReleaseV330)
 	assert.Equal(t, true, ret)
 
-	// Test version which is greater (minor)
-	version = CephCSIVersion{3, 1, 1}
-	ret = testReleaseV300.isAtLeast(&version)
-	assert.Equal(t, false, ret)
-
-	// Test version which is greater (bugfix)
-	version = CephCSIVersion{3, 2, 0}
-	ret = testReleaseV300.isAtLeast(&version)
-	assert.Equal(t, false, ret)
 }
 
 func TestSupported(t *testing.T) {
 	AllowUnsupported = false
 	ret := testMinVersion.Supported()
-	assert.Equal(t, false, ret)
+	assert.Equal(t, true, ret)
 
 	ret = testVersionUnsupported.Supported()
 	assert.Equal(t, false, ret)
+
+	ret = testReleaseV330.Supported()
+	assert.Equal(t, true, ret)
 
 	ret = testReleaseV340.Supported()
 	assert.Equal(t, true, ret)
 }
 
-func TestSupportOMAPController(t *testing.T) {
-	AllowUnsupported = true
-	ret := testMinVersion.SupportsOMAPController()
-	assert.True(t, ret)
-
-	AllowUnsupported = false
-	ret = testMinVersion.SupportsOMAPController()
-	assert.False(t, ret)
-
-	ret = testReleaseV300.SupportsOMAPController()
-	assert.False(t, ret)
-
-	ret = testReleaseV320.SupportsOMAPController()
-	assert.True(t, ret)
-
-	ret = testReleaseV321.SupportsOMAPController()
-	assert.True(t, ret)
-
-	ret = testReleaseV330.SupportsOMAPController()
-	assert.True(t, ret)
-}
 func Test_extractCephCSIVersion(t *testing.T) {
 	expectedVersion := CephCSIVersion{3, 0, 0}
 	csiString := []byte(`Cephcsi Version: v3.0.0
