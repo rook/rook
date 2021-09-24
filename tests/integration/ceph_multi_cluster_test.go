@@ -84,7 +84,6 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		StorageClassName:          "manual",
 		UsePVC:                    installer.UsePVC(),
 		Mons:                      1,
-		UseCSI:                    true,
 		MultipleMgrs:              true,
 		EnableAdmissionController: true,
 		RookVersion:               installer.LocalBuildTag,
@@ -97,7 +96,6 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		Namespace:         "multi-external",
 		OperatorNamespace: s.settings.OperatorNamespace,
 		RookVersion:       s.settings.RookVersion,
-		UseCSI:            true,
 	}
 	externalSettings.ApplyEnvVars()
 	s.externalManifests = installer.NewCephManifests(externalSettings)

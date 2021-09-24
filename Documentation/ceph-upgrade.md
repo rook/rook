@@ -272,12 +272,7 @@ Let's get started!
 First apply updates to Rook-Ceph common resources. This includes slightly modified privileges (RBAC)
 needed by the Operator. Also update the Custom Resource Definitions (CRDs).
 
-> **IMPORTANT:** If you are using Kubernetes version v1.15 or lower, you will need to manually
-> modify the `common.yaml` file to use
-> `rbac.authorization.k8s.io/v1beta1` instead of `rbac.authorization.k8s.io/v1`
-> You will also need to apply `pre-k8s-1.16/crds.yaml` instead of `crds.yaml`.
-
-First get the latest common resources manifests that contain the latest changes.
+Get the latest common resources manifests that contain the latest changes.
 ```sh
 git clone --single-branch --depth=1 --branch v1.7.0 https://github.com/rook/rook.git
 cd rook/cluster/examples/kubernetes/ceph

@@ -51,11 +51,6 @@ func TestCephUpgradeSuite(t *testing.T) {
 		t.Skip()
 	}
 
-	// Skip the suite if CSI is not supported
-	kh, err := utils.CreateK8sHelper(func() *testing.T { return t })
-	require.NoError(t, err)
-	checkSkipCSITest(t, kh)
-
 	s := new(UpgradeSuite)
 	defer func(s *UpgradeSuite) {
 		HandlePanics(recover(), s.TearDownSuite, s.T)
@@ -82,7 +77,6 @@ func (s *UpgradeSuite) SetupSuite() {
 		UseHelm:           false,
 		UsePVC:            false,
 		Mons:              1,
-		UseCSI:            true,
 		SkipOSDCreation:   false,
 		RookVersion:       installer.Version1_6,
 		CephVersion:       installer.NautilusPartitionVersion,

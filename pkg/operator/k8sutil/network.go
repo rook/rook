@@ -24,7 +24,6 @@ import (
 
 	netapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/apis/rook.io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -106,7 +105,7 @@ func ApplyMultus(net cephv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
 		networks = "[" + networks + "]"
 	}
 
-	t := rook.Annotations{
+	t := cephv1.Annotations{
 		"k8s.v1.cni.cncf.io/networks": networks,
 	}
 	t.ApplyToObjectMeta(objectMeta)

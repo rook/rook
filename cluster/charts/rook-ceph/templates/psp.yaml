@@ -23,7 +23,6 @@ spec:
   allowedCapabilities:
     # required by CSI
     - SYS_ADMIN
-  # fsGroup - the flexVolume agent has fsGroup capabilities and could potentially be any group
   fsGroup:
     rule: RunAsAny
   # runAsUser, supplementalGroups - Rook needs to run some pods as root
@@ -45,7 +44,6 @@ spec:
     - projected
     # required for Rook
     - hostPath
-    - flexVolume
   # allowedHostPaths can be set to Rook's known host volume mount points when they are fully-known
   # allowedHostPaths:
   #   - pathPrefix: "/run/udev"  # for OSD prep

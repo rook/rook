@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	cephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
-	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook.io/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -31,25 +30,18 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	CephV1() cephv1.CephV1Interface
-	RookV1alpha2() rookv1alpha2.RookV1alpha2Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	cephV1       *cephv1.CephV1Client
-	rookV1alpha2 *rookv1alpha2.RookV1alpha2Client
+	cephV1 *cephv1.CephV1Client
 }
 
 // CephV1 retrieves the CephV1Client
 func (c *Clientset) CephV1() cephv1.CephV1Interface {
 	return c.cephV1
-}
-
-// RookV1alpha2 retrieves the RookV1alpha2Client
-func (c *Clientset) RookV1alpha2() rookv1alpha2.RookV1alpha2Interface {
-	return c.rookV1alpha2
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -77,10 +69,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
-	cs.rookV1alpha2, err = rookv1alpha2.NewForConfig(&configShallowCopy)
-	if err != nil {
-		return nil, err
-	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -94,7 +82,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.cephV1 = cephv1.NewForConfigOrDie(c)
-	cs.rookV1alpha2 = rookv1alpha2.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -104,7 +91,6 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.cephV1 = cephv1.New(c)
-	cs.rookV1alpha2 = rookv1alpha2.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

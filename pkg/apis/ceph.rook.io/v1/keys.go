@@ -16,18 +16,14 @@ limitations under the License.
 
 package v1
 
-import (
-	rookcore "github.com/rook/rook/pkg/apis/rook.io"
-)
-
 const (
-	KeyAll                         = "all"
-	KeyMds        rookcore.KeyType = "mds"
-	KeyMon        rookcore.KeyType = "mon"
-	KeyMonArbiter rookcore.KeyType = "arbiter"
-	KeyMgr        rookcore.KeyType = "mgr"
-	KeyOSDPrepare rookcore.KeyType = "prepareosd"
-	KeyOSD        rookcore.KeyType = "osd"
-	KeyCleanup    rookcore.KeyType = "cleanup"
-	KeyMonitoring rookcore.KeyType = "monitoring"
+	KeyAll                = "all"
+	KeyMds        KeyType = "mds"
+	KeyMon        KeyType = "mon"
+	KeyMonArbiter KeyType = "arbiter"
+	KeyMgr        KeyType = "mgr"
+	KeyOSDPrepare KeyType = "prepareosd"
+	KeyOSD        KeyType = "osd"
+	KeyCleanup    KeyType = "cleanup"
+	KeyMonitoring KeyType = "monitoring"
 )

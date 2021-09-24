@@ -321,9 +321,6 @@ data:
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
 
-  # Whether to enable the flex driver. By default it is enabled and is fully supported, but will be deprecated in some future release
-  # in favor of the CSI driver.
-  ROOK_ENABLE_FLEX_DRIVER: "false"
   # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
   # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
   ROOK_ENABLE_DISCOVERY_DAEMON: "false"
@@ -373,44 +370,6 @@ spec:
             # If this is not set to true, the operator will watch for cluster CRDs in all namespaces.
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
-            # Rook Agent toleration. Will tolerate all taints with all keys.
-            # Choose between NoSchedule, PreferNoSchedule and NoExecute:
-            # - name: AGENT_TOLERATION
-            #   value: "NoSchedule"
-            # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
-            # - name: AGENT_TOLERATION_KEY
-            #   value: "<KeyOfTheTaintToTolerate>"
-            # (Optional) Rook Agent tolerations list. Put here list of taints you want to tolerate in YAML format.
-            # - name: AGENT_TOLERATIONS
-            #   value: |
-            #     - effect: NoSchedule
-            #       key: node-role.kubernetes.io/controlplane
-            #       operator: Exists
-            #     - effect: NoExecute
-            #       key: node-role.kubernetes.io/etcd
-            #       operator: Exists
-            # (Optional) Rook Agent priority class name to set on the pod(s)
-            # - name: AGENT_PRIORITY_CLASS_NAME
-            #   value: "<PriorityClassName>"
-            # (Optional) Rook Agent NodeAffinity.
-            # - name: AGENT_NODE_AFFINITY
-            #   value: "role=storage-node; storage=rook,ceph"
-            # (Optional) Rook Agent mount security mode. Can by `Any` or `Restricted`.
-            # `Any` uses Ceph admin credentials by default/fallback.
-            # For using `Restricted` you must have a Ceph secret in each namespace storage should be consumed from and
-            # set `mountUser` to the Ceph user, `mountSecret` to the Kubernetes secret name.
-            # to the namespace in which the `mountSecret` Kubernetes secret namespace.
-            # - name: AGENT_MOUNT_SECURITY_MODE
-            #   value: "Any"
-            # Set the path where the Rook agent can find the flex volumes
-            # - name: FLEXVOLUME_DIR_PATH
-            #   value: "<PathToFlexVolumes>"
-            # Set the path where kernel modules can be found
-            # - name: LIB_MODULES_DIR_PATH
-            #   value: "<PathToLibModules>"
-            # Mount any extra directories into the agent container
-            # - name: AGENT_MOUNTS
-            #   value: "somemount=/host/path:/container/path,someothermount=/host/path2:/container/path2"
             # Rook Discover toleration. Will tolerate all taints with all keys.
             # Choose between NoSchedule, PreferNoSchedule and NoExecute:
             # - name: DISCOVER_TOLERATION

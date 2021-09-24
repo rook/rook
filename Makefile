@@ -62,7 +62,7 @@ SERVER_PLATFORMS := $(filter linux_%,$(PLATFORMS))
 CLIENT_PLATFORMS := $(filter-out linux_%,$(PLATFORMS))
 
 # server projects that we build on server platforms
-SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook $(GO_PROJECT)/cmd/rookflex
+SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook
 
 # tests packages that will be compiled into binaries
 TEST_PACKAGES = $(GO_PROJECT)/tests/integration

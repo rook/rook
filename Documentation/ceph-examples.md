@@ -65,7 +65,6 @@ Ceph can provide raw block device volumes to pods. Each example below sets up a 
 The storage classes are found in different sub-directories depending on the driver:
 
 * `csi/rbd`: The CSI driver for block devices. This is the preferred driver going forward.
-* `flex`: The flex driver will be deprecated in a future release to be determined.
 
 See the [Ceph Pool CRD](ceph-pool-crd.md) topic for more details on the settings.
 

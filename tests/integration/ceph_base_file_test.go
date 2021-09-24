@@ -17,7 +17,6 @@ limitations under the License.
 package integration
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -31,15 +30,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	filePodName          = "file-test"
-	fileMountUserPodName = "file-mountuser-test"
-	fileMountUser        = "filemountuser"
-	fileMountSecret      = "file-mountuser-cephkey" //nolint:gosec // We safely suppress gosec in tests file
+	filePodName = "file-test"
 )
 
 func fileSystemCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, storageClassName, systemNamespace string) {
@@ -240,10 +234,6 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 // Smoke Test for File System Storage - Test check the following operations on Filesystem Storage in order
 // Create,Mount,Write,Read,Unmount and Delete.
 func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string, preserveFilesystemOnDelete bool) {
-	if settings.UseCSI {
-		checkSkipCSITest(s.T(), k8sh)
-	}
-
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, settings.Namespace, filesystemName)
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
 	logger.Infof("File Storage End To End Integration Test - create, mount, write to, read from, and unmount")
@@ -264,22 +254,6 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	// Test reading and writing to the first pod
 	err = writeAndReadToFilesystem(helper, k8sh, s, settings.Namespace, filePodName, "test_file")
 	assert.NoError(s.T(), err)
-
-	// TODO: Also mount with user credentials with the CSI driver
-	if !settings.UseCSI {
-		// Create a test pod where CephFS is consumed with a mountUser and mountSecret specified.
-		createFilesystemMountCephCredentials(helper, k8sh, s, settings, filesystemName)
-		createFilesystemMountUserConsumerPod(helper, k8sh, s, settings, filesystemName, storageClassName)
-
-		// Test reading and writing to the second pod
-		err = writeAndReadToFilesystem(helper, k8sh, s, settings.Namespace, fileMountUserPodName, "canttouchthis")
-		assert.Error(s.T(), err, "we should not be able to write to file canttouchthis on CephFS `/`")
-		err = writeAndReadToFilesystem(helper, k8sh, s, settings.Namespace, fileMountUserPodName, "foo/test_file")
-		assert.NoError(s.T(), err, "we should be able to write to the `/foo` directory on CephFS")
-
-		cleanupFilesystemConsumer(helper, k8sh, s, settings.Namespace, fileMountUserPodName)
-		assert.NoError(s.T(), err)
-	}
 
 	// Start the NFS daemons
 	testNFSDaemons(helper, k8sh, s, settings, filesystemName)
@@ -359,7 +333,6 @@ func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 
 // Test File System Creation on Rook that was installed on a custom namespace i.e. Namespace != "rook" and delete it again
 func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
-	checkSkipCSITest(s.T(), k8sh)
 	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
 	activeCount := 1
@@ -415,56 +388,11 @@ func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 }
 
 func createPodWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, podName, filesystemName, storageClassName string, mountUser bool) error {
-	var testPodManifest string
-	if settings.UseCSI {
-		testPodManifest = getFilesystemCSITestPod(settings, podName, storageClassName)
-	} else {
-		testPodManifest = getFilesystemFlexTestPod(settings, podName, filesystemName, mountUser)
-	}
+	testPodManifest := getFilesystemCSITestPod(settings, podName, storageClassName)
 	if err := k8sh.ResourceOperation("create", testPodManifest); err != nil {
 		return fmt.Errorf("failed to create pod -- %s. %+v", testPodManifest, err)
 	}
 	return nil
-}
-
-func getFilesystemFlexTestPod(settings *installer.TestCephSettings, podName, filesystemName string, mountUser bool) string {
-	mountUserInsert := ""
-	if mountUser {
-		mountUserInsert = `
-        mountUser: ` + fileMountUser + `
-        mountSecret: ` + fileMountSecret
-	}
-	// Bash's sleep signal handling: http://mywiki.wooledge.org/SignalTrap#When_is_the_signal_handled.3F
-	return `apiVersion: v1
-kind: Pod
-metadata:
-  name: ` + podName + `
-  namespace: ` + settings.Namespace + `
-spec:
-  containers:
-  - name: ` + podName + `
-    image: krallin/ubuntu-tini
-    command:
-        - "/usr/local/bin/tini"
-        - "-g"
-        - "--"
-        - "sleep"
-        - "1800"
-    imagePullPolicy: IfNotPresent
-    env:
-    volumeMounts:
-    - mountPath: "` + utils.TestMountPath + `"
-      name: ` + filesystemName + `
-  volumes:
-  - name: ` + filesystemName + `
-    flexVolume:
-      driver: ceph.rook.io/` + settings.OperatorNamespace + `
-      fsType: ceph
-      options:
-        fsName: ` + filesystemName + `
-        clusterNamespace: ` + settings.Namespace + mountUserInsert + `
-  restartPolicy: Always
-`
 }
 
 func getFilesystemCSITestPod(settings *installer.TestCephSettings, podName, storageClassName string) string {
@@ -507,79 +435,6 @@ spec:
        claimName: ` + claimName + `
        readOnly: false
   restartPolicy: Never
-`
-}
-
-func createFilesystemMountCephCredentials(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
-	ctx := context.TODO()
-	// Create agent binding for access to Secrets
-	err := k8sh.ResourceOperation("apply", getFilesystemAgentMountSecretsBinding(settings.Namespace))
-	require.Nil(s.T(), err)
-	// Mount CephFS in toolbox and create /foo directory on it
-	logger.Info("Creating /foo directory on CephFS")
-	_, err = k8sh.ExecRemote(settings.Namespace, "mkdir", []string{"-p", utils.TestMountPath})
-	require.Nil(s.T(), err)
-	_, err = k8sh.ExecRemoteWithRetry(10, settings.Namespace, "bash", []string{"-c", fmt.Sprintf("mount -t ceph -o mds_namespace=%s,name=admin,secret=$(grep key /etc/ceph/keyring | awk '{print $3}') $(grep mon_host /etc/ceph/ceph.conf | awk '{print $3}'):/ %s", filesystemName, utils.TestMountPath)})
-	require.Nil(s.T(), err)
-	_, err = k8sh.ExecRemote(settings.Namespace, "mkdir", []string{"-p", fmt.Sprintf("%s/foo", utils.TestMountPath)})
-	require.Nil(s.T(), err)
-	_, err = k8sh.ExecRemote(settings.Namespace, "umount", []string{utils.TestMountPath})
-	require.Nil(s.T(), err)
-	logger.Info("Created /foo directory on CephFS")
-
-	// Create Ceph credentials which allow CephFS access to `/foo` but not `/`.
-	commandArgs := []string{
-		"-c",
-		fmt.Sprintf(
-			`ceph auth get-or-create-key client.%s mon "allow r" osd "allow rw pool=%s-data0" mds "allow r, allow rw path=/foo"`,
-			fileMountUser,
-			filesystemName,
-		),
-	}
-	logger.Infof("ceph credentials command args: %s", commandArgs[1])
-	result, err := k8sh.ExecRemote(settings.Namespace, "bash", commandArgs)
-	logger.Infof("Ceph filesystem credentials output: %s", result)
-	logger.Info("Created Ceph credentials")
-	require.Nil(s.T(), err)
-	// Save Ceph credentials to Kubernetes
-	_, err = k8sh.Clientset.CoreV1().Secrets(settings.Namespace).Create(ctx, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fileMountSecret,
-			Namespace: settings.Namespace,
-		},
-		Data: map[string][]byte{
-			"mykey": []byte(result),
-		},
-	}, metav1.CreateOptions{})
-	require.Nil(s.T(), err)
-	logger.Info("Created Ceph credentials Secret in Kubernetes")
-}
-
-func createFilesystemMountUserConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName, storageClassName string) {
-	// TODO: Mount with user credentials for the CSI driver
-	mtfsErr := createPodWithFilesystem(k8sh, s, settings, fileMountUserPodName, filesystemName, storageClassName, true)
-	require.Nil(s.T(), mtfsErr)
-	filePodRunning := k8sh.IsPodRunning(fileMountUserPodName, settings.Namespace)
-	require.True(s.T(), filePodRunning, "make sure file-mountuser-test pod is in running state")
-	logger.Infof("File system mounted successfully")
-}
-
-func getFilesystemAgentMountSecretsBinding(namespace string) string {
-	return `apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: rook-ceph-agent-mount
-  labels:
-    operator: rook
-    storage-backend: ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-agent-mount
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: ` + namespace + `
 `
 }
 

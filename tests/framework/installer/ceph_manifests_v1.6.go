@@ -38,10 +38,7 @@ func (m *CephManifestsV1_6) Settings() *TestCephSettings {
 }
 
 func (m *CephManifestsV1_6) GetCRDs(k8shelper *utils.K8sHelper) string {
-	if k8shelper.VersionAtLeast("v1.16.0") {
-		return m.settings.readManifestFromGithub("crds.yaml")
-	}
-	return m.settings.readManifestFromGithub("pre-k8s-1.16/crds.yaml")
+	return m.settings.readManifestFromGithub("crds.yaml")
 }
 
 // GetRookOperator returns rook Operator manifest
@@ -246,8 +243,7 @@ spec:
 
 func (m *CephManifestsV1_6) GetBlockStorageClass(poolName, storageClassName, reclaimPolicy string) string {
 	// Create a CSI driver storage class
-	if m.settings.UseCSI {
-		return `
+	return `
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -264,18 +260,6 @@ parameters:
   imageFeatures: layering
   csi.storage.k8s.io/fstype: ext4
 `
-	}
-	// Create a FLEX driver storage class
-	return `apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: ` + storageClassName + `
-provisioner: ceph.rook.io/block
-allowVolumeExpansion: true
-reclaimPolicy: ` + reclaimPolicy + `
-parameters:
-    blockPool: ` + poolName + `
-    clusterNamespace: ` + m.settings.Namespace
 }
 
 func (m *CephManifestsV1_6) GetFileStorageClass(fsName, storageClassName string) string {

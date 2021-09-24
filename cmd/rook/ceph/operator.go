@@ -21,7 +21,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	operator "github.com/rook/rook/pkg/operator/ceph"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -55,10 +54,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	logger.Info("starting Rook-Ceph operator")
 	context := createContext()
 	context.ConfigDir = k8sutil.DataDir
-	volumeAttachment, err := attachment.New(context)
-	if err != nil {
-		rook.TerminateFatal(err)
-	}
 
 	// Fail if operator namespace is not provided
 	if os.Getenv(k8sutil.PodNamespaceEnvVar) == "" {
@@ -75,7 +70,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	logger.Infof("base ceph version inside the rook operator image is %q", opcontroller.OperatorCephBaseImageVersion)
 
 	serviceAccountName := rook.GetOperatorServiceAccount(context.Clientset)
-	op := operator.New(context, volumeAttachment, rookImage, serviceAccountName)
+	op := operator.New(context, rookImage, serviceAccountName)
 	err = op.Run()
 	if err != nil {
 		rook.TerminateFatal(errors.Wrap(err, "failed to run operator"))

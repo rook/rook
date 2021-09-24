@@ -12,7 +12,6 @@ storage cluster.
 * [Prerequisites](#prerequisites)
 * [Using alternate namespaces](#using-alternate-namespaces)
 * [Deploying a second cluster](#deploying-a-second-cluster)
-* [Use custom Ceph user and secret for mounting](#use-custom-ceph-user-and-secret-for-mounting)
 * [Log Collection](#log-collection)
 * [OSD Information](#osd-information)
 * [Separate Storage Groups](#separate-storage-groups)
@@ -76,116 +75,6 @@ NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl cr
 
 This will create all the necessary RBACs as well as the new namespace. The script assumes that `common.yaml` was already created.
 When you create the second CephCluster CR, use the same `NAMESPACE` and the operator will configure the second cluster.
-
-## Use custom Ceph user and secret for mounting
-
-> **NOTE**: For extensive info about creating Ceph users, consult the Ceph documentation: https://docs.ceph.com/en/latest/rados/operations/user-management/#add-a-user.
-
-Using a custom Ceph user and secret can be done for filesystem and block storage.
-
-Create a custom user in Ceph with read-write access in the `/bar` directory on CephFS:
-
-```console
-$ ceph auth get-or-create-key client.user1 mon 'allow r' osd 'allow rw tag cephfs data=YOUR_FS_DATA_POOL' mds 'allow r, allow rw path=/bar'
-```
-
-The command will return a Ceph secret key, this key should be added as a secret in Kubernetes like this:
-
-```console
-$ kubectl create secret generic ceph-user1-secret --from-literal=key=YOUR_CEPH_KEY
-```
-
-> **NOTE**: This secret with the same name must be created in each namespace where the StorageClass will be used.
-
-In addition to this Secret you must create a RoleBinding to allow the Rook Ceph agent to get the secret from each namespace.
-The RoleBinding is optional if you are using a ClusterRoleBinding for the Rook Ceph agent secret access.
-A ClusterRole which contains the permissions which are needed and used for the Bindings are shown as an example after the next step.
-
-On a StorageClass `parameters` and/or flexvolume Volume entry `options` set the following options:
-
-```yaml
-mountUser: user1
-mountSecret: ceph-user1-secret
-```
-
-If you want the Rook Ceph agent to require a `mountUser` and `mountSecret` to be set in StorageClasses using Rook, you must set the environment variable `AGENT_MOUNT_SECURITY_MODE` to `Restricted` on the Rook Ceph operator Deployment.
-
-For more information on using the Ceph feature to limit access to CephFS paths, see [Ceph Documentation - Path Restriction](https://docs.ceph.com/en/latest/cephfs/client-auth/#path-restriction).
-
-### ClusterRole
-
-> **NOTE**: When you are using the Helm chart to install the Rook Ceph operator and have set `mountSecurityMode` to e.g., `Restricted`, then the below ClusterRole has already been created for you.
-
-**This ClusterRole is needed no matter if you want to use a RoleBinding per namespace or a ClusterRoleBinding.**
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: rook-ceph-agent-mount
-  labels:
-    operator: rook
-    storage-backend: ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-```
-
-### RoleBinding
-
-> **NOTE**: You either need a RoleBinding in each namespace in which a mount secret resides in or create a ClusterRoleBinding with which the Rook Ceph agent
-> has access to Kubernetes secrets in all namespaces.
-
-Create the RoleBinding shown here in each namespace the Rook Ceph agent should read secrets for mounting.
-The RoleBinding `subjects`' `namespace` must be the one the Rook Ceph agent runs in (default `rook-ceph` for version 1.0 and newer. The default namespace in
-previous versions was `rook-ceph-system`).
-
-Replace `namespace: name-of-namespace-with-mountsecret` according to the name of all namespaces a `mountSecret` can be in.
-
-```yaml
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-agent-mount
-  namespace: name-of-namespace-with-mountsecret
-  labels:
-    operator: rook
-    storage-backend: ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-agent-mount
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: rook-ceph
-```
-
-### ClusterRoleBinding
-
-This ClusterRoleBinding only needs to be created once, as it covers the whole cluster.
-
-```yaml
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-agent-mount
-  labels:
-    operator: rook
-    storage-backend: ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-agent-mount
-subjects:
-- kind: ServiceAccount
-  name: rook-ceph-system
-  namespace: rook-ceph
-```
 
 ## Log Collection
 

@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/apis/rook.io"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -41,7 +40,7 @@ func TestPodSpec(t *testing.T) {
 	clusterSpec := cephv1.ClusterSpec{
 		CephVersion:        cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:myceph"},
 		Dashboard:          cephv1.DashboardSpec{Port: 1234},
-		PriorityClassNames: map[rook.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
+		PriorityClassNames: map[cephv1.KeyType]string{cephv1.KeyMgr: "my-priority-class"},
 		DataDirHostPath:    "/var/lib/rook/",
 		Resources: cephv1.ResourceSpec{string(cephv1.KeyMgr): v1.ResourceRequirements{
 			Limits: v1.ResourceList{
@@ -168,10 +167,10 @@ func TestApplyPrometheusAnnotations(t *testing.T) {
 	d, err = c.makeDeployment(&mgrTestConfig)
 	assert.NoError(t, err)
 
-	fakeAnnotations := rook.Annotations{
+	fakeAnnotations := cephv1.Annotations{
 		"foo.io/bar": "foobar",
 	}
-	c.spec.Annotations = map[rook.KeyType]rook.Annotations{cephv1.KeyMgr: fakeAnnotations}
+	c.spec.Annotations = map[cephv1.KeyType]cephv1.Annotations{cephv1.KeyMgr: fakeAnnotations}
 
 	c.applyPrometheusAnnotations(&d.ObjectMeta)
 	assert.Equal(t, 1, len(c.spec.Annotations))

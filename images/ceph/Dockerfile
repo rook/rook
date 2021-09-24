@@ -22,7 +22,7 @@ ARG TINI_VERSION
 RUN curl --fail -sSL -o /tini https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} && \
     chmod +x /tini
 
-COPY rook rookflex toolbox.sh set-ceph-debug-level /usr/local/bin/
+COPY rook toolbox.sh set-ceph-debug-level /usr/local/bin/
 COPY ceph-monitoring /etc/ceph-monitoring
 COPY rook-external /etc/rook-external/
 COPY ceph-csv-templates /etc/ceph-csv-templates

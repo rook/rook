@@ -145,22 +145,9 @@ The following tables lists the configurable parameters of the rook-operator char
 | `csi.rbdPodLabels`                  | Labels to add to the CSI RBD Pods.                                                                                          | <none>                                                    |
 | `csi.volumeReplication.enabled`     | Enable Volume Replication.                                                                                                  | `false`                                                   |
 | `csi.volumeReplication.image`       | Volume Replication Controller image.                                                                                        | `quay.io/csiaddons/volumereplication-operator:v0.1.0`     |
-| `agent.flexVolumeDirPath`           | Path where the Rook agent discovers the flex volume plugins (*)                                                             | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/`    |
-| `agent.libModulesDirPath`           | Path where the Rook agent should look for kernel modules (*)                                                                | `/lib/modules`                                            |
-| `agent.mounts`                      | Additional paths to be mounted in the agent container (**)                                                                  | <none>                                                    |
-| `agent.mountSecurityMode`           | Mount Security Mode for the agent.                                                                                          | `Any`                                                     |
-| `agent.priorityClassName`           | The priority class name to add to the agent pods                                                                            | <none>                                                    |
-| `agent.toleration`                  | Toleration for the agent pods                                                                                               | <none>                                                    |
-| `agent.tolerationKey`               | The specific key of the taint to tolerate                                                                                   | <none>                                                    |
-| `agent.tolerations`                 | Array of tolerations in YAML format which will be added to agent deployment                                                 | <none>                                                    |
-| `agent.nodeAffinity`                | The node labels for affinity of `rook-agent` (***)                                                                          | <none>                                                    |
 | `admissionController.tolerations`   | Array of tolerations in YAML format which will be added to admission controller deployment.                                 | <none>                                                    |
 | `admissionController.nodeAffinity`  | The node labels for affinity of the admission controller deployment (***)                                                   | <none>                                                    |
 | `allowMultipleFilesystems`          | **(experimental)** Allows multiple filesystems to be deployed to a Ceph cluster. Octopus (v15) or Nautilus (v14)            | `false`                                                   |
-
-&ast; For information on what to set `agent.flexVolumeDirPath` to, please refer to the [Rook flexvolume documentation](flexvolume.md)
-
-&ast; &ast; `agent.mounts` should have this format `mountname1=/host/path:/container/path,mountname2=/host/path2:/container/path2`
 
 &ast; &ast; &ast; `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 

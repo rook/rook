@@ -69,7 +69,6 @@ func (h *HelmSuite) SetupSuite() {
 		UseHelm:                   true,
 		UsePVC:                    false,
 		Mons:                      1,
-		UseCSI:                    true,
 		SkipOSDCreation:           false,
 		EnableAdmissionController: false,
 		EnableDiscovery:           true,

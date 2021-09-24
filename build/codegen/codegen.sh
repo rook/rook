@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GROUP_VERSIONS="rook.io:v1alpha2 ceph.rook.io:v1"
+GROUP_VERSIONS="ceph.rook.io:v1"
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 

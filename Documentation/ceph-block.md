@@ -21,8 +21,6 @@ Before Rook can provision storage, a [`StorageClass`](https://kubernetes.io/docs
 
 Each OSD must be located on a different node, because the [`failureDomain`](ceph-pool-crd.md#spec) is set to `host` and the `replicated.size` is set to `3`.
 
-> **NOTE**: This example uses the CSI driver, which is the preferred driver going forward for K8s 1.13 and newer. Examples are found in the [CSI RBD](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd) directory. For an example of a storage class using the flex driver (required for K8s 1.12 or earlier), see the [Flex Driver](#flex-driver) section below, which has examples in the [flex](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/flex) directory.
-
 Save this `StorageClass` definition as `storageclass.yaml`:
 
 ```yaml
@@ -160,50 +158,6 @@ kubectl delete -n rook-ceph cephblockpools.ceph.rook.io replicapool
 kubectl delete storageclass rook-ceph-block
 ```
 
-## Flex Driver
-
-To create a volume based on the flex driver instead of the CSI driver, see the following example of a storage class.
-Make sure the flex driver is enabled over Ceph CSI.
-For this, you need to set `ROOK_ENABLE_FLEX_DRIVER` to `true` in your operator deployment in the `operator.yaml` file.
-The pool definition is the same as for the CSI driver.
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephBlockPool
-metadata:
-  name: replicapool
-  namespace: rook-ceph
-spec:
-  failureDomain: host
-  replicated:
-    size: 3
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: rook-ceph-block
-provisioner: ceph.rook.io/block
-parameters:
-  blockPool: replicapool
-  # The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
-  clusterNamespace: rook-ceph
-  # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
-  fstype: ext4
-# Optional, default reclaimPolicy is "Delete". Other options are: "Retain", "Recycle" as documented in https://kubernetes.io/docs/concepts/storage/storage-classes/
-reclaimPolicy: Retain
-# Optional, if you want to add dynamic resize for PVC. Works for Kubernetes 1.14+
-# For now only ext3, ext4, xfs resize support provided, like in Kubernetes itself.
-allowVolumeExpansion: true
-```
-
-Create the pool and storage class using `kubectl`:
-
-```console
-kubectl create -f cluster/examples/kubernetes/ceph/flex/storageclass.yaml
-```
-
-Continue with the example above for the [wordpress application](#consume-the-storage-wordpress-sample).
-
 ## Advanced Example: Erasure Coded Block Storage
 
 If you want to use erasure coded pool with RBD, your OSDs must use `bluestore` as their `storeType`.
@@ -223,10 +177,3 @@ The OSDs must be located on different nodes, because the [`failureDomain`](ceph-
 The erasure coded pool must be set as the `dataPool` parameter in
 [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName
 }}/cluster/examples/kubernetes/ceph/csi/rbd/storage-class-ec.yaml) It is used for the data of the RBD images.
-
-### Erasure Coded Flex Driver
-
-The erasure coded pool must be set as the `dataBlockPool` parameter in
-[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName
-}}/cluster/examples/kubernetes/ceph/flex/storage-class-ec.yaml). It is used for
-the data of the RBD images.

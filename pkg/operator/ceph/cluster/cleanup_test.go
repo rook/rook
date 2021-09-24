@@ -24,7 +24,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	testop "github.com/rook/rook/pkg/operator/test"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +48,7 @@ func TestCleanupJobSpec(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(),
 	}
-	controller := NewClusterController(context, "", &attachment.MockAttachment{})
+	controller := NewClusterController(context, "")
 	podTemplateSpec := controller.cleanUpJobTemplateSpec(cluster, "monSecret", "28b87851-8dc1-46c8-b1ec-90ec51a47c89")
 	assert.Equal(t, expectedHostPath, podTemplateSpec.Spec.Containers[0].Env[0].Value)
 	assert.Equal(t, expectedNamespace, podTemplateSpec.Spec.Containers[0].Env[1].Value)

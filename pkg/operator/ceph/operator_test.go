@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -30,15 +29,15 @@ import (
 func TestOperator(t *testing.T) {
 	clientset := test.New(t, 3)
 	context := &clusterd.Context{Clientset: clientset}
-	o := New(context, &attachment.MockAttachment{}, "", "")
+	o := New(context, "", "")
 
 	assert.NotNil(t, o)
 	assert.NotNil(t, o.clusterController)
 	assert.NotNil(t, o.resources)
 	assert.Equal(t, context, o.context)
-	assert.Equal(t, len(o.resources), 2)
+	assert.Equal(t, 1, len(o.resources))
 	for _, r := range o.resources {
-		if r.Name != opcontroller.ClusterResource.Name && r.Name != attachment.VolumeResource.Name {
+		if r.Name != opcontroller.ClusterResource.Name {
 			assert.Fail(t, fmt.Sprintf("Resource %s is not valid", r.Name))
 		}
 	}

@@ -17,50 +17,86 @@ limitations under the License.
 package v1
 
 import (
-	rook "github.com/rook/rook/pkg/apis/rook.io"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // LabelsSpec is the main spec label for all daemons
-type LabelsSpec map[rook.KeyType]rook.Labels
+type LabelsSpec map[KeyType]Labels
 
-func (a LabelsSpec) All() rook.Labels {
+// KeyType type safety
+type KeyType string
+
+// Labels are label for a given daemons
+type Labels map[string]string
+
+func (a LabelsSpec) All() Labels {
 	return a[KeyAll]
 }
 
 // GetMgrLabels returns the Labels for the MGR service
-func GetMgrLabels(a LabelsSpec) rook.Labels {
+func GetMgrLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyMgr)
 }
 
 // GetMonLabels returns the Labels for the MON service
-func GetMonLabels(a LabelsSpec) rook.Labels {
+func GetMonLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyMon)
 }
 
 // GetOSDPrepareLabels returns the Labels for the OSD prepare job
-func GetOSDPrepareLabels(a LabelsSpec) rook.Labels {
+func GetOSDPrepareLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyOSDPrepare)
 }
 
 // GetOSDLabels returns the Labels for the OSD service
-func GetOSDLabels(a LabelsSpec) rook.Labels {
+func GetOSDLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyOSD)
 }
 
 // GetCleanupLabels returns the Labels for the cleanup job
-func GetCleanupLabels(a LabelsSpec) rook.Labels {
+func GetCleanupLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyCleanup)
 }
 
 // GetMonitoringLabels returns the Labels for monitoring resources
-func GetMonitoringLabels(a LabelsSpec) rook.Labels {
+func GetMonitoringLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyMonitoring)
 }
 
-func mergeAllLabelsWithKey(a LabelsSpec, name rook.KeyType) rook.Labels {
+func mergeAllLabelsWithKey(a LabelsSpec, name KeyType) Labels {
 	all := a.All()
 	if all != nil {
 		return all.Merge(a[name])
 	}
 	return a[name]
+}
+
+// ApplyToObjectMeta adds labels to object meta unless the keys are already defined.
+func (a Labels) ApplyToObjectMeta(t *metav1.ObjectMeta) {
+	if t.Labels == nil {
+		t.Labels = map[string]string{}
+	}
+	for k, v := range a {
+		if _, ok := t.Labels[k]; !ok {
+			t.Labels[k] = v
+		}
+	}
+}
+
+// Merge returns a Labels which results from merging the attributes of the
+// original Labels with the attributes of the supplied one. The supplied
+// Labels attributes will override the original ones if defined.
+func (a Labels) Merge(with Labels) Labels {
+	ret := Labels{}
+	for k, v := range a {
+		if _, ok := ret[k]; !ok {
+			ret[k] = v
+		}
+	}
+	for k, v := range with {
+		if _, ok := ret[k]; !ok {
+			ret[k] = v
+		}
+	}
+	return ret
 }

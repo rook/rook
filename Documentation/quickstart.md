@@ -16,9 +16,7 @@ from other pods running in your cluster.
 
 ## Minimum Version
 
-Kubernetes **v1.11** or higher is supported by Rook.
-
-**Important** If you are using K8s 1.15 or older, you will need to create a different version of the Rook CRDs. Create the `crds.yaml` found in the [pre-k8s-1.16](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/pre-k8s-1.16) subfolder of the example manifests.
+Kubernetes **v1.16** or higher is supported by Rook.
 
 ## Prerequisites
 
@@ -59,12 +57,9 @@ kubectl -n rook-ceph get pod
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 
 Before you start the operator in production, there are some settings that you may want to consider:
-1. If you are using kubernetes v1.15 or older you need to create CRDs found here `/cluster/examples/kubernetes/ceph/pre-k8s-1.16/crd.yaml`.
-   The apiextension v1beta1 version of CustomResourceDefinition was deprecated in Kubernetes v1.16.
-2. Consider if you want to enable certain Rook features that are disabled by default. See the [operator.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator.yaml) for these and other advanced settings.
+1. Consider if you want to enable certain Rook features that are disabled by default. See the [operator.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator.yaml) for these and other advanced settings.
    1. Device discovery: Rook will watch for new devices to configure if the `ROOK_ENABLE_DISCOVERY_DAEMON` setting is enabled, commonly used in bare metal clusters.
-   2. Flex driver: The flex driver is deprecated in favor of the CSI driver, but can still be enabled with the `ROOK_ENABLE_FLEX_DRIVER` setting.
-   3. Node affinity and tolerations: The CSI driver by default will run on any node in the cluster. To configure the CSI driver affinity, several settings are available.
+   2. Node affinity and tolerations: The CSI driver by default will run on any node in the cluster. To configure the CSI driver affinity, several settings are available.
 
 If you wish to deploy into a namespace other than the default `rook-ceph`, see the
 [Ceph advanced configuration section](ceph-advanced-configuration.md#using-alternate-namespaces) on the topic.

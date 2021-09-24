@@ -72,7 +72,6 @@ func (s *ObjectSuite) SetupSuite() {
 		UsePVC:                    installer.UsePVC(),
 		Mons:                      3,
 		SkipOSDCreation:           false,
-		UseCSI:                    true,
 		EnableAdmissionController: true,
 		UseCrashPruner:            true,
 		RookVersion:               installer.LocalBuildTag,

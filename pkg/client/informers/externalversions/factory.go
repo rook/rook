@@ -26,7 +26,6 @@ import (
 	versioned "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephrookio "github.com/rook/rook/pkg/client/informers/externalversions/ceph.rook.io"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
-	rookio "github.com/rook/rook/pkg/client/informers/externalversions/rook.io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -174,13 +173,8 @@ type SharedInformerFactory interface {
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
 	Ceph() cephrookio.Interface
-	Rook() rookio.Interface
 }
 
 func (f *sharedInformerFactory) Ceph() cephrookio.Interface {
 	return cephrookio.New(f, f.namespace, f.tweakListOptions)
-}
-
-func (f *sharedInformerFactory) Rook() rookio.Interface {
-	return rookio.New(f, f.namespace, f.tweakListOptions)
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -81,16 +80,15 @@ var ControllerTypeMeta = metav1.TypeMeta{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context          *clusterd.Context
-	volumeAttachment attachment.Attachment
-	rookImage        string
-	clusterMap       map[string]*cluster
-	csiConfigMutex   *sync.Mutex
-	osdChecker       *osd.OSDHealthMonitor
-	client           client.Client
-	namespacedName   types.NamespacedName
-	recorder         *k8sutil.EventReporter
-	OpManagerCtx     context.Context
+	context        *clusterd.Context
+	rookImage      string
+	clusterMap     map[string]*cluster
+	csiConfigMutex *sync.Mutex
+	osdChecker     *osd.OSDHealthMonitor
+	client         client.Client
+	namespacedName types.NamespacedName
+	recorder       *k8sutil.EventReporter
+	OpManagerCtx   context.Context
 }
 
 // ReconcileCephCluster reconciles a CephFilesystem object
@@ -325,13 +323,12 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string) *ClusterController {
 	return &ClusterController{
-		context:          context,
-		volumeAttachment: volumeAttachment,
-		rookImage:        rookImage,
-		clusterMap:       make(map[string]*cluster),
-		csiConfigMutex:   &sync.Mutex{},
+		context:        context,
+		rookImage:      rookImage,
+		clusterMap:     make(map[string]*cluster),
+		csiConfigMutex: &sync.Mutex{},
 	}
 }
 
@@ -419,39 +416,7 @@ func (c *ClusterController) checkIfVolumesExist(cluster *cephv1.CephCluster) err
 			return err
 		}
 	}
-	if !opcontroller.FlexDriverEnabled(c.context) {
-		logger.Debugf("Flex driver disabled, skipping check for volume attachments for cluster %q", cluster.Namespace)
-		return nil
-	}
-	return c.flexVolumesAllowForDeletion(cluster)
-}
-
-func (c *ClusterController) flexVolumesAllowForDeletion(cluster *cephv1.CephCluster) error {
-	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	vols, err := c.volumeAttachment.List(operatorNamespace)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get volume attachments for operator namespace %q", operatorNamespace)
-	}
-
-	// find volume attachments in the deleted cluster
-	attachmentsExist := false
-AttachmentLoop:
-	for _, vol := range vols.Items {
-		for _, a := range vol.Attachments {
-			if a.ClusterName == cluster.Namespace {
-				// there is still an outstanding volume attachment in the cluster that is being deleted.
-				attachmentsExist = true
-				break AttachmentLoop
-			}
-		}
-	}
-
-	if !attachmentsExist {
-		logger.Infof("no volume attachments for cluster %q to clean up.", cluster.Namespace)
-		return nil
-	}
-
-	return errors.Errorf("waiting for volume attachments in cluster %q to be cleaned up.", cluster.Namespace)
+	return nil
 }
 
 func (c *ClusterController) csiVolumesAllowForDeletion(cluster *cephv1.CephCluster) error {

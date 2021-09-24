@@ -8,14 +8,9 @@ v1.8...
 
 ## Breaking Changes
 
-### Ceph
+- Flex driver is fully deprecated. If you are still using flex volumes, before upgrading to v1.8
+  you will need to convert them to csi volumes. See the flex conversion tool.
+- Min supported version of K8s is now 1.16. If running on an older version of K8s it is recommended
+  to update to a newer version before updating to Rook v1.8.
 
 ## Features
-
-### Core
-
-### Ceph
-
-### Cassandra
-
-### NFS
