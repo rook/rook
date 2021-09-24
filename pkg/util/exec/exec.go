@@ -336,18 +336,21 @@ func ExtractExitCode(err error) (int, error) {
 	case *kexec.CodeExitError:
 		return errType.ExitStatus(), nil
 
+	// have to check both *kexec.CodeExitError and kexec.CodeExitError because CodeExitError methods
+	// are not defined with pointer receivers; both pointer and non-pointers are valid `error`s.
+	case kexec.CodeExitError:
+		return errType.ExitStatus(), nil
+
 	case *kerrors.StatusError:
 		return int(errType.ErrStatus.Code), nil
 
 	default:
 		logger.Debugf(err.Error())
-		// This is ugly but I don't know why the type assertion does not work...
-		// Whatever I've tried I can see the type "exec.CodeExitError" but none of the "case" nor other attempts with "errors.As()" worked :(
-		// So I'm parsing the Error string until we have a solution
+		// This is ugly, but it's a decent backup just in case the error isn't a type above.
 		if strings.Contains(err.Error(), "command terminated with exit code") {
 			a := strings.SplitAfter(err.Error(), "command terminated with exit code")
 			return strconv.Atoi(strings.TrimSpace(a[1]))
 		}
-		return 0, errors.Errorf("error %#v is not an ExitError nor CodeExitError but is %v", err, reflect.TypeOf(err))
+		return -1, errors.Errorf("error %#v is an unknown error type: %v", err, reflect.TypeOf(err))
 	}
 }
