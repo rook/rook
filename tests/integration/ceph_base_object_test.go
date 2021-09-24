@@ -154,7 +154,7 @@ func checkCephObjectUser(
 		assert.Equal(s.T(), k8sutil.ReadyStatus, phase)
 	}
 	if checkQuotaAndCaps {
-		// following fields in CephObjectStoreUser CRD doesn't exist before Rook v1.7.3
+		// following fields in CephObjectStoreUser CRD doesn't exist before Rook v1.7.4
 		maxObjectInt, err := strconv.Atoi(maxObject)
 		assert.Nil(s.T(), err)
 		maxSizeInt, err := strconv.Atoi(maxSize)

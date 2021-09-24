@@ -143,9 +143,14 @@ function create_cluster_prerequisites() {
   kubectl create -f crds.yaml -f common.yaml
 }
 
+function deploy_manifest_with_local_build() {
+  sed -i "s|image: rook/ceph:v1.7.4|image: rook/ceph:local-build|g" $1
+  kubectl create -f $1
+}
+
 function deploy_cluster() {
   cd cluster/examples/kubernetes/ceph
-  kubectl create -f operator.yaml
+  deploy_manifest_with_local_build operator.yaml
   sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-test.yaml
   kubectl create -f cluster-test.yaml
   kubectl create -f object-test.yaml
@@ -154,7 +159,7 @@ function deploy_cluster() {
   kubectl create -f rbdmirror.yaml
   kubectl create -f filesystem-mirror.yaml
   kubectl create -f nfs-test.yaml
-  kubectl create -f toolbox.yaml
+  deploy_manifest_with_local_build toolbox.yaml
 }
 
 function wait_for_prepare_pod() {
@@ -252,7 +257,9 @@ selected_function="$1"
 if [ "$selected_function" = "generate_tls_config" ]; then
     $selected_function $2 $3 $4 $5
 elif [ "$selected_function" = "wait_for_ceph_to_be_ready" ]; then
-     $selected_function $2 $3
+    $selected_function $2 $3
+elif [ "$selected_function" = "deploy_manifest_with_local_build" ]; then
+    $selected_function $2
 else
   $selected_function
 fi
