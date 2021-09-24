@@ -17,13 +17,11 @@ limitations under the License.
 package exec
 
 import (
-	"fmt"
-	"os"
 	"os/exec"
-	"strconv"
 	"testing"
 
 	"github.com/pkg/errors"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kexec "k8s.io/utils/exec"
@@ -51,12 +49,16 @@ func Test_assertErrorType(t *testing.T) {
 	}
 }
 
+// import TestMockExecHelperProcess
+func TestMockExecHelperProcess(t *testing.T) {
+	exectest.TestMockExecHelperProcess(t)
+}
+
 func TestExtractExitCode(t *testing.T) {
 	mockExecExitError := func(retcode int) *exec.ExitError {
 		// we can't create an exec.ExitError directly, but we can get one by running a command that fails
 		// use go's type assertion to be sure we are returning exactly *exec.ExitError
-		cmd := mockExecCommandReturns("stdout", "stderr", retcode)
-		err := cmd.Run()
+		err := exectest.MockExecCommandReturns(t, "stdout", "stderr", retcode)
 
 		ee, ok := err.(*exec.ExitError)
 		if !ok {
@@ -107,34 +109,4 @@ func TestExtractExitCode(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Mock an exec command where we really only care about the return values
-// Inspired by: https://github.com/golang/go/blob/master/src/os/exec/exec_test.go
-func mockExecCommandReturns(stdout, stderr string, retcode int) *exec.Cmd {
-	cmd := exec.Command(os.Args[0], "-test.run=TestExecHelperProcess") //nolint:gosec //Rook controls the input to the exec arguments
-	cmd.Env = append(os.Environ(),
-		"GO_WANT_HELPER_PROCESS=1",
-		fmt.Sprintf("GO_HELPER_PROCESS_STDOUT=%s", stdout),
-		fmt.Sprintf("GO_HELPER_PROCESS_STDERR=%s", stderr),
-		fmt.Sprintf("GO_HELPER_PROCESS_RETCODE=%d", retcode),
-	)
-	return cmd
-}
-
-// TestHelperProcess isn't a real test. It's used as a helper process.
-// Inspired by: https://github.com/golang/go/blob/master/src/os/exec/exec_test.go
-func TestExecHelperProcess(*testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-
-	// test should set these in its environment to control the output of the test commands
-	fmt.Fprint(os.Stdout, os.Getenv("GO_HELPER_PROCESS_STDOUT"))
-	fmt.Fprint(os.Stderr, os.Getenv("GO_HELPER_PROCESS_STDERR"))
-	rc, err := strconv.Atoi(os.Getenv("GO_HELPER_PROCESS_RETCODE"))
-	if err != nil {
-		panic(err)
-	}
-	os.Exit(rc)
 }
