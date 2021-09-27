@@ -402,7 +402,9 @@ data:
   # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
   # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
   ROOK_ENABLE_DISCOVERY_DAEMON: "false"
-  # Enable volume replication controller
+  # Enable the volume replication controller
+  # Before enabling, ensure the Volume Replication CRDs are created.
+  # See https://rook.io/docs/rook/latest/ceph-csi-drivers.html#rbd-mirroring
   CSI_ENABLE_VOLUME_REPLICATION: "false"
   # The timeout value (in seconds) of Ceph commands. It should be >= 1. If this variable is not set or is an invalid value, it's default to 15.
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: "15"

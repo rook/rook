@@ -46,6 +46,10 @@ func readManifest(provider, filename string) string {
 
 func readManifestFromGithub(rookVersion, provider, filename string) string {
 	url := fmt.Sprintf("https://raw.githubusercontent.com/rook/rook/%s/cluster/examples/kubernetes/%s/%s", rookVersion, provider, filename)
+	return readManifestFromURL(url)
+}
+
+func readManifestFromURL(url string) string {
 	logger.Infof("Retrieving manifest: %s", url)
 	var response *http.Response
 	var err error
