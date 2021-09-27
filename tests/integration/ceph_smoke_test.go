@@ -99,14 +99,12 @@ func (s *SmokeSuite) SetupSuite() {
 		UseCSI:                    true,
 		EnableAdmissionController: true,
 		UseCrashPruner:            true,
+		EnableVolumeReplication:   true,
 		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.PacificVersion,
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings, smokeSuiteMinimalTestVersion)
-	if s.k8sh.VersionAtLeast("v1.16.0") {
-		s.settings.EnableVolumeReplication = true
-	}
 	s.helper = clients.CreateTestClient(s.k8sh, s.installer.Manifests)
 }
 

@@ -62,11 +62,6 @@ generating_crds_v1alpha2() {
   # "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./vendor/github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
 }
 
-generate_vol_rep_crds() {
-  echo "Generating volume replication crds in crds.yaml"
-  "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="github.com/csi-addons/volume-replication-operator/api/v1alpha1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
-}
-
 generating_main_crd() {
   true > "$CEPH_CRDS_FILE_PATH"
   true > "$CEPH_HELM_CRDS_FILE_PATH"
@@ -110,8 +105,6 @@ if [ -z "$NO_OB_OBC_VOL_GEN" ]; then
   copy_ob_obc_crds
   generating_crds_v1alpha2
 fi
-
-generate_vol_rep_crds
 
 generating_main_crd
 
