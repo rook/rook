@@ -51,8 +51,11 @@ const (
 	octopusTestImage = "quay.io/ceph/ceph:v15"
 	// test with the latest pacific build
 	pacificTestImage = "quay.io/ceph/ceph:v16.2.6"
+	// test with the current development version of Pacific
+	pacificDevelTestImage = "quay.io/ceph/daemon-base:latest-pacific-devel"
+	octopusDevelTestImage = "quay.io/ceph/daemon-base:latest-octopus-devel"
 	// test with the latest master image
-	masterTestImage    = "ceph/daemon-base:latest-master-devel"
+	masterTestImage    = "quay.io/ceph/daemon-base:latest-master-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
 	defaultclusterName = "test-cluster"
 
@@ -67,7 +70,9 @@ var (
 	NautilusVersion          = cephv1.CephVersionSpec{Image: nautilusTestImage}
 	NautilusPartitionVersion = cephv1.CephVersionSpec{Image: nautilusTestImagePartition}
 	OctopusVersion           = cephv1.CephVersionSpec{Image: octopusTestImage}
+	OctopusDevelVersion      = cephv1.CephVersionSpec{Image: octopusDevelTestImage}
 	PacificVersion           = cephv1.CephVersionSpec{Image: pacificTestImage}
+	PacificDevelVersion      = cephv1.CephVersionSpec{Image: pacificDevelTestImage}
 	MasterVersion            = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
 )
 
@@ -81,6 +86,17 @@ type CephInstaller struct {
 	k8sVersion       string
 	changeHostnames  bool
 	T                func() *testing.T
+}
+
+func ReturnCephVersion() cephv1.CephVersionSpec {
+	switch os.Getenv("CEPH_SUITE_VERSION") {
+	case "master":
+		return MasterVersion
+	case "pacific-devel":
+		return PacificDevelVersion
+	default:
+		return PacificVersion
+	}
 }
 
 // CreateCephOperator creates rook-operator via kubectl
