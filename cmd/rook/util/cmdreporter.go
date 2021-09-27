@@ -17,8 +17,12 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"fmt"
+	"os/signal"
+
 	"github.com/rook/rook/pkg/daemon/util"
+	operator "github.com/rook/rook/pkg/operator/ceph"
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/spf13/cobra"
@@ -77,13 +81,17 @@ func init() {
 }
 
 func runCmdReporter(cCmd *cobra.Command, cArgs []string) {
+	// Initialize the context
+	ctx, cancel := signal.NotifyContext(context.Background(), operator.ShutdownSignals...)
+	defer cancel()
+
 	cmd, args, err := util.CmdReporterFlagArgumentToCommand(commandString)
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to parse '--command' argument [%s]. %+v", commandString, err))
 	}
 
 	context := rook.NewContext()
-	reporter, err := util.NewCmdReporter(context.Clientset, cmd, args, configMapName, namespace)
+	reporter, err := util.NewCmdReporter(ctx, context.Clientset, cmd, args, configMapName, namespace)
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("cannot start command-reporter. %+v", err))
 	}

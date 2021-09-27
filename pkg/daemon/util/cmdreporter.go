@@ -61,10 +61,11 @@ type CmdReporter struct {
 	args          []string
 	configMapName string
 	namespace     string
+	context       context.Context
 }
 
 // NewCmdReporter creates a new CmdReporter and returns an error if cmd, configMapName, or Namespace aren't specified.
-func NewCmdReporter(clientset kubernetes.Interface, cmd, args []string, configMapName, namespace string) (*CmdReporter, error) {
+func NewCmdReporter(context context.Context, clientset kubernetes.Interface, cmd, args []string, configMapName, namespace string) (*CmdReporter, error) {
 	if clientset == nil {
 		return nil, fmt.Errorf("Kubernetes client interface was not specified")
 	}
@@ -83,6 +84,7 @@ func NewCmdReporter(clientset kubernetes.Interface, cmd, args []string, configMa
 		args:          args,
 		configMapName: configMapName,
 		namespace:     namespace,
+		context:       context,
 	}, nil
 }
 
@@ -189,10 +191,9 @@ func (r *CmdReporter) runCommand() (stdout, stderr string, retcode int, err erro
 
 func (r *CmdReporter) saveToConfigMap(stdout, stderr string, retcode int) error {
 	retcodeStr := fmt.Sprintf("%d", retcode)
-	ctx := context.TODO()
 
 	k8s := r.clientset
-	cm, err := k8s.CoreV1().ConfigMaps(r.namespace).Get(ctx, r.configMapName, metav1.GetOptions{})
+	cm, err := k8s.CoreV1().ConfigMaps(r.namespace).Get(r.context, r.configMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to determine if ConfigMap %s is preexisting. %+v", r.configMapName, err)
@@ -214,7 +215,7 @@ func (r *CmdReporter) saveToConfigMap(stdout, stderr string, retcode int) error 
 			},
 		}
 
-		if _, err := k8s.CoreV1().ConfigMaps(r.namespace).Create(ctx, cm, metav1.CreateOptions{}); err != nil {
+		if _, err := k8s.CoreV1().ConfigMaps(r.namespace).Create(r.context, cm, metav1.CreateOptions{}); err != nil {
 			return fmt.Errorf("failed to create ConfigMap %s. %+v", r.configMapName, err)
 		}
 		return nil
@@ -243,7 +244,7 @@ func (r *CmdReporter) saveToConfigMap(stdout, stderr string, retcode int) error 
 	cm.Data[CmdReporterConfigMapStderrKey] = stderr
 	cm.Data[CmdReporterConfigMapRetcodeKey] = retcodeStr
 
-	if _, err := k8s.CoreV1().ConfigMaps(r.namespace).Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
+	if _, err := k8s.CoreV1().ConfigMaps(r.namespace).Update(r.context, cm, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("failed to update ConfigMap %s. %+v", r.configMapName, err)
 	}
 

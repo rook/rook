@@ -552,7 +552,7 @@ func osdIntegrationTestExecutor(t *testing.T, clientset *fake.Clientset, namespa
 					// ceph osd ls returns an array of osd IDs like [0,1,2]
 					// build this based on the number of deployments since they should be equal
 					// for this test
-					l, err := clientset.AppsV1().Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
+					l, err := clientset.AppsV1().Deployments(namespace).List(contextStandard.TODO(), metav1.ListOptions{})
 					if err != nil {
 						panic(fmt.Sprintf("failed to build 'ceph osd ls' output. %v", err))
 					}
@@ -620,7 +620,7 @@ func newDummyStorageClassDeviceSet(
 
 func waitForNumConfigMaps(clientset kubernetes.Interface, namespace string, count int) []corev1.ConfigMap {
 	for {
-		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(contextStandard.TODO(), metav1.ListOptions{})
 		if err != nil {
 			panic(err)
 		}

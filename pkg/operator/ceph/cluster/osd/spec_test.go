@@ -60,12 +60,10 @@ func TestPodContainer(t *testing.T) {
 	logger.Infof("container: %+v", container)
 	assert.Equal(t, "copy-binaries", container.Args[0])
 	container = c.Spec.Containers[0]
-	assert.Equal(t, "/rook/tini", container.Command[0])
-	assert.Equal(t, "--", container.Args[0])
-	assert.Equal(t, "/rook/rook", container.Args[1])
-	assert.Equal(t, "ceph", container.Args[2])
-	assert.Equal(t, "osd", container.Args[3])
-	assert.Equal(t, "provision", container.Args[4])
+	assert.Equal(t, "/rook/rook", container.Command[0])
+	assert.Equal(t, "ceph", container.Args[0])
+	assert.Equal(t, "osd", container.Args[1])
+	assert.Equal(t, "provision", container.Args[2])
 
 	for _, c := range c.Spec.Containers {
 		vars := operatortest.FindDuplicateEnvVars(c)

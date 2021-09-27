@@ -14,3 +14,6 @@ v1.8...
   to update to a newer version before updating to Rook v1.8.
 
 ## Features
+
+- The Rook Operator does not use "tini" as an init process. Instead, it uses the "rook" and handles
+  signals on its own.

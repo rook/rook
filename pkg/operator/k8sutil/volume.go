@@ -81,7 +81,7 @@ func NodeConfigURI() (string, error) {
 }
 
 func BinariesMountInfo() (v1.EnvVar, v1.Volume, v1.VolumeMount) {
-	// To get rook inside the container, the config init container needs to copy "tini" and "rook" binaries into a volume.
+	// To get rook inside the container, the config init container needs to copy "rook" binary into a volume.
 	// Set the config flag so rook will copy the binaries.
 	// Create the volume and mount that will be shared between the init container and the daemon container
 	volumeName := "rookbinaries"

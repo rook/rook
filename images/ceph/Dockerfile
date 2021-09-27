@@ -16,15 +16,9 @@
 FROM BASEIMAGE
 
 ARG ARCH
-ARG TINI_VERSION
-
-# Run tini as PID 1 and avoid signal handling issues
-RUN curl --fail -sSL -o /tini https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} && \
-    chmod +x /tini
-
 COPY rook toolbox.sh set-ceph-debug-level /usr/local/bin/
 COPY ceph-monitoring /etc/ceph-monitoring
 COPY rook-external /etc/rook-external/
 COPY ceph-csv-templates /etc/ceph-csv-templates
-ENTRYPOINT ["/tini", "--", "/usr/local/bin/rook"]
+ENTRYPOINT ["/usr/local/bin/rook"]
 CMD [""]
