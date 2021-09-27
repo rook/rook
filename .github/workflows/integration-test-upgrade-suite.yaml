@@ -58,7 +58,7 @@ jobs:
         name: ceph-upgrade-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
