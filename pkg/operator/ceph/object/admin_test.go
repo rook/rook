@@ -18,6 +18,7 @@ package object
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -157,6 +158,39 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 
 		// This is not the best but it shows we go through the right codepath
 		assert.EqualError(t, err, "no pods found with selector \"rook-ceph-mgr\"")
+	})
+
+	t.Run("check debug level for radosgw-admin command", func(t *testing.T) {
+		debugRGW := false
+		debugRGWSync := false
+		debugMS := false
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				for i := range args {
+					if args[i] == "--debug-rgw" {
+						debugRGW = true
+					}
+					if args[i] == "--debug-rgw_sync" {
+						debugRGWSync = true
+					}
+					if args[i] == "--debug-ms" {
+						debugMS = true
+					}
+				}
+				return "", nil
+			},
+		}
+		objContext.Context.Executor = executor
+		objContext.CephClusterSpec = v1.ClusterSpec{Network: v1.NetworkSpec{Provider: ""}}
+		RunAdminCommandNoMultisite(objContext, false, []string{"zone", "get"}...)
+		assert.False(t, debugRGW)
+		assert.False(t, debugRGWSync)
+		assert.False(t, debugMS)
+		os.Setenv("ROOK_RGW_ADMIN_LOG_LEVEL", "20")
+		RunAdminCommandNoMultisite(objContext, false, []string{"zone", "get"}...)
+		assert.True(t, debugRGW)
+		assert.True(t, debugRGWSync)
+		assert.True(t, debugMS)
 	})
 }
 

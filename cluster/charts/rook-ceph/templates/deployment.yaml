@@ -277,6 +277,17 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+
+{{- if .Values.libBucketProvisionerThreads }}
+        - name: LIB_BUCKET_PROVISIONER_THREADS
+          value: {{ .Values.libBucketProvisionerThreads | quote }}
+{{- end }}
+
+{{- if .Values.radosgwadminLogLevel }}
+        - name: ROOK_RGW_ADMIN_LOG_LEVEL
+          value: {{ .Values.radosgwadminLogLevel | quote }}
+{{- end }}
+
 {{- if .Values.resources }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}

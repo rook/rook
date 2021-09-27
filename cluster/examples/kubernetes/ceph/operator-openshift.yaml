@@ -531,6 +531,13 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
 
+            #  Uncomment it to run lib bucket provisioner in multithreaded mode
+            #- name: LIB_BUCKET_PROVISIONER_THREADS
+            #  value: "5"
+            #  Uncomment it tto increase log level for radosgw-admin commands executed in operator pod
+            #- name: ROOK_RGW_ADMIN_LOG_LEVEL
+            #  value: "20"
+
           # Recommended resource requests and limits, if desired
           #resources:
           #  limits:
@@ -539,10 +546,6 @@ spec:
           #  requests:
           #    cpu: 100m
           #    memory: 128Mi
-
-          #  Uncomment it to run lib bucket provisioner in multithreaded mode
-          #- name: LIB_BUCKET_PROVISIONER_THREADS
-          #  value: "5"
 
       volumes:
         - name: rook-config

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"regexp"
 	"strings"
 
@@ -214,6 +215,10 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 	var output, stderr string
 	var err error
 
+	// run radosgw-admin command with debug flags if Rook Operator log level is DEBUG
+	if debugLevel := os.Getenv("ROOK_RGW_ADMIN_LOG_LEVEL"); debugLevel != "" {
+		args = append(args, "--debug-rgw", debugLevel, "--debug-rgw_sync", debugLevel, "--debug-ms", debugLevel)
+	}
 	// If Multus is enabled we proxy all the command to the mgr sidecar
 	if c.CephClusterSpec.Network.IsMultus() {
 		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
@@ -221,7 +226,6 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
 		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, command, args...)
 	}
-
 	if err != nil {
 		return fmt.Sprintf("%s. %s", output, stderr), err
 	}

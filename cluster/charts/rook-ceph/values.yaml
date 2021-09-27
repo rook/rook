@@ -351,3 +351,9 @@ admissionController:
   #      operator: Exists
   #      effect: NoSchedule
   # nodeAffinity: key1=value1,value2; key2=value3
+
+# The thread count for lib bucket provisioner to run parallel OBC operations
+libBucketProvisionerThreads:
+
+# The log level for radosgw-admin commands executed in rook operator pod values between 1 to 20
+radosgwadminLogLevel:
