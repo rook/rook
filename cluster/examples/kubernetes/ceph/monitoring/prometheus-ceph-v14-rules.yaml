@@ -61,8 +61,7 @@ spec:
     rules:
     - alert: CephMdsMissingReplicas
       annotations:
-        description: Minimum required replicas for storage metadata service not available.
-          Might affect the working of storage cluster.
+        description: Minimum required replicas for storage metadata service not available. Might affect the working of storage cluster.
         message: Insufficient replicas for storage metadata service.
         severity_level: warning
         storage_type: ceph
@@ -86,8 +85,7 @@ spec:
         severity: critical
     - alert: CephMonHighNumberOfLeaderChanges
       annotations:
-        description: Ceph Monitor {{ $labels.ceph_daemon }} on host {{ $labels.hostname
-          }} has seen {{ $value | printf "%.2f" }} leader changes per minute recently.
+        description: Ceph Monitor {{ $labels.ceph_daemon }} on host {{ $labels.hostname }} has seen {{ $value | printf "%.2f" }} leader changes per minute recently.
         message: Storage Cluster has seen many leader changes recently.
         severity_level: warning
         storage_type: ceph
@@ -100,8 +98,7 @@ spec:
     rules:
     - alert: CephNodeDown
       annotations:
-        description: Storage node {{ $labels.node }} went down. Please check the node
-          immediately.
+        description: Storage node {{ $labels.node }} went down. Please check the node immediately.
         message: Storage node {{ $labels.node }} went down
         severity_level: error
         storage_type: ceph
@@ -114,9 +111,7 @@ spec:
     rules:
     - alert: CephOSDCriticallyFull
       annotations:
-        description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class
-          type {{$labels.device_class}} has crossed 80% on host {{ $labels.hostname
-          }}. Immediately free up some space or add capacity of type {{$labels.device_class}}.
+        description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class type {{$labels.device_class}} has crossed 80% on host {{ $labels.hostname }}. Immediately free up some space or add capacity of type {{$labels.device_class}}.
         message: Back-end storage device is critically full.
         severity_level: error
         storage_type: ceph
@@ -127,9 +122,7 @@ spec:
         severity: critical
     - alert: CephOSDFlapping
       annotations:
-        description: Storage daemon {{ $labels.ceph_daemon }} has restarted 5 times
-          in last 5 minutes. Please check the pod events or ceph status to find out
-          the cause.
+        description: Storage daemon {{ $labels.ceph_daemon }} has restarted 5 times in last 5 minutes. Please check the pod events or ceph status to find out the cause.
         message: Ceph storage osd flapping.
         severity_level: error
         storage_type: ceph
@@ -140,9 +133,7 @@ spec:
         severity: critical
     - alert: CephOSDNearFull
       annotations:
-        description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class
-          type {{$labels.device_class}} has crossed 75% on host {{ $labels.hostname
-          }}. Immediately free up some space or add capacity of type {{$labels.device_class}}.
+        description: Utilization of storage device {{ $labels.ceph_daemon }} of device_class type {{$labels.device_class}} has crossed 75% on host {{ $labels.hostname }}. Immediately free up some space or add capacity of type {{$labels.device_class}}.
         message: Back-end storage device is nearing full.
         severity_level: warning
         storage_type: ceph
@@ -153,8 +144,7 @@ spec:
         severity: warning
     - alert: CephOSDDiskNotResponding
       annotations:
-        description: Disk device {{ $labels.device }} not responding, on host {{ $labels.host
-          }}.
+        description: Disk device {{ $labels.device }} not responding, on host {{ $labels.host }}.
         message: Disk not responding
         severity_level: error
         storage_type: ceph
@@ -165,8 +155,7 @@ spec:
         severity: critical
     - alert: CephOSDDiskUnavailable
       annotations:
-        description: Disk device {{ $labels.device }} not accessible on host {{ $labels.host
-          }}.
+        description: Disk device {{ $labels.device }} not accessible on host {{ $labels.host }}.
         message: Disk not accessible
         severity_level: error
         storage_type: ceph
@@ -177,8 +166,7 @@ spec:
         severity: critical
     - alert: CephOSDSlowOps
       annotations:
-        description: '{{ $value }} Ceph OSD requests are taking too long to process.
-          Please check ceph status to find out the cause.'
+        description: '{{ $value }} Ceph OSD requests are taking too long to process. Please check ceph status to find out the cause.'
         message: OSD requests are taking too long to process.
         severity_level: warning
         storage_type: ceph
@@ -213,10 +201,8 @@ spec:
     rules:
     - alert: PersistentVolumeUsageNearFull
       annotations:
-        description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed
-          75%. Free up some space or expand the PVC.
-        message: PVC {{ $labels.persistentvolumeclaim }} is nearing full. Data deletion
-          or PVC expansion is required.
+        description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed 75%. Free up some space or expand the PVC.
+        message: PVC {{ $labels.persistentvolumeclaim }} is nearing full. Data deletion or PVC expansion is required.
         severity_level: warning
         storage_type: ceph
       expr: |
@@ -226,10 +212,8 @@ spec:
         severity: warning
     - alert: PersistentVolumeUsageCritical
       annotations:
-        description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed
-          85%. Free up some space or expand the PVC immediately.
-        message: PVC {{ $labels.persistentvolumeclaim }} is critically full. Data
-          deletion or PVC expansion is required.
+        description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed 85%. Free up some space or expand the PVC immediately.
+        message: PVC {{ $labels.persistentvolumeclaim }} is critically full. Data deletion or PVC expansion is required.
         severity_level: error
         storage_type: ceph
       expr: |
@@ -263,8 +247,7 @@ spec:
         severity: warning
     - alert: CephOSDVersionMismatch
       annotations:
-        description: There are {{ $value }} different versions of Ceph OSD components
-          running.
+        description: There are {{ $value }} different versions of Ceph OSD components running.
         message: There are multiple versions of storage services running.
         severity_level: warning
         storage_type: ceph
@@ -275,8 +258,7 @@ spec:
         severity: warning
     - alert: CephMonVersionMismatch
       annotations:
-        description: There are {{ $value }} different versions of Ceph Mon components
-          running.
+        description: There are {{ $value }} different versions of Ceph Mon components running.
         message: There are multiple versions of storage services running.
         severity_level: warning
         storage_type: ceph
@@ -289,10 +271,8 @@ spec:
     rules:
     - alert: CephClusterNearFull
       annotations:
-        description: Storage cluster utilization has crossed 75% and will become read-only
-          at 85%. Free up some space or expand the storage cluster.
-        message: Storage cluster is nearing full. Data deletion or cluster expansion
-          is required.
+        description: Storage cluster utilization has crossed 75% and will become read-only at 85%. Free up some space or expand the storage cluster.
+        message: Storage cluster is nearing full. Data deletion or cluster expansion is required.
         severity_level: warning
         storage_type: ceph
       expr: |
@@ -302,10 +282,8 @@ spec:
         severity: warning
     - alert: CephClusterCriticallyFull
       annotations:
-        description: Storage cluster utilization has crossed 80% and will become read-only
-          at 85%. Free up some space or expand the storage cluster immediately.
-        message: Storage cluster is critically full and needs immediate data deletion
-          or cluster expansion.
+        description: Storage cluster utilization has crossed 80% and will become read-only at 85%. Free up some space or expand the storage cluster immediately.
+        message: Storage cluster is critically full and needs immediate data deletion or cluster expansion.
         severity_level: error
         storage_type: ceph
       expr: |
@@ -315,10 +293,8 @@ spec:
         severity: critical
     - alert: CephClusterReadOnly
       annotations:
-        description: Storage cluster utilization has crossed 85% and will become read-only
-          now. Free up some space or expand the storage cluster immediately.
-        message: Storage cluster is read-only now and needs immediate data deletion
-          or cluster expansion.
+        description: Storage cluster utilization has crossed 85% and will become read-only now. Free up some space or expand the storage cluster immediately.
+        message: Storage cluster is read-only now and needs immediate data deletion or cluster expansion.
         severity_level: error
         storage_type: ceph
       expr: |
