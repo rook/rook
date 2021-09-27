@@ -38,6 +38,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// #nosec G101 since this is not leaking any hardcoded credentials, it's just the secret name
+	objectTLSSecretName = "rook-ceph-rgw-tls-test-store-csr"
+)
+
 var (
 	userid                 = "rook-user"
 	userdisplayname        = "A rook RGW user"
