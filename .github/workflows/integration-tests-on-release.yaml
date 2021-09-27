@@ -64,11 +64,6 @@ jobs:
         name: ceph-helm-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-    - name: setup tmate session for debugging
-      if: failure()
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 30
-
   TestCephMultiClusterDeploySuite:
     runs-on: ubuntu-18.04
     strategy:
@@ -116,11 +111,6 @@ jobs:
         name: ceph-multi-cluster-deploy-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-    - name: setup tmate session for debugging
-      if: failure()
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 30
-
   TestCephSmokeSuite:
     runs-on: ubuntu-18.04
     strategy:
@@ -166,11 +156,6 @@ jobs:
       with:
         name: ceph-smoke-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-    - name: setup tmate session for debugging
-      if: failure()
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 30
 
   TestCephUpgradeSuite:
     runs-on: ubuntu-18.04
@@ -218,11 +203,6 @@ jobs:
         name: ceph-upgrade-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-    - name: setup tmate session for debugging
-      if: failure()
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 30
-
   TestCephObjectSuite:
     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     runs-on: ubuntu-18.04
@@ -269,8 +249,3 @@ jobs:
       with:
         name: ceph-smoke-suite-artifact
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-    - name: setup tmate session for debugging
-      if: failure()
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 60

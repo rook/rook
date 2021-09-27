@@ -91,8 +91,8 @@ jobs:
         name: canary
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -171,8 +171,8 @@ jobs:
         name:  pvc
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -238,8 +238,8 @@ jobs:
         name: pvc-db
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -309,8 +309,8 @@ jobs:
         name: pvc-db-wal
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -379,8 +379,8 @@ jobs:
         name: encryption-pvc
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -449,8 +449,8 @@ jobs:
         name: encryption-pvc-db-wal
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -520,8 +520,8 @@ jobs:
         name: encryption-pvc-db
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -608,8 +608,8 @@ jobs:
         name: encryption-pvc-kms-vault-token-auth
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -673,8 +673,8 @@ jobs:
         name: lvm-pvc
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -878,8 +878,8 @@ jobs:
         name: multi-cluster-mirroring
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -960,7 +960,7 @@ jobs:
         name: rgw-multisite-testing
         path: test
 
-    - name: setup tmate session for debugging
-      if: failure()
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
