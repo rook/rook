@@ -68,7 +68,7 @@ Here are some common commands to troubleshoot a Ceph cluster:
 
 The first two status commands provide the overall cluster health. The normal state for cluster operations is HEALTH_OK, but will still function when the state is in a HEALTH_WARN state. If you are in a WARN state, then the cluster is in a condition that it may enter the HEALTH_ERROR state at which point *all* disk I/O operations are halted. If a HEALTH_WARN state is observed, then one should take action to prevent the cluster from halting when it enters the HEALTH_ERROR state.
 
-There are many Ceph sub-commands to look at and manipulate Ceph objects, well beyond the scope this document. See the [Ceph documentation](https://docs.ceph.com/) for more details of gathering information about the health of the cluster. In addition, there are other helpful hints and some best practices located in the [Advanced Configuration section](advanced-configuration.md). Of particular note, there are scripts for collecting logs and gathering OSD information there.
+There are many Ceph sub-commands to look at and manipulate Ceph objects, well beyond the scope this document. See the [Ceph documentation](https://docs.ceph.com/) for more details of gathering information about the health of the cluster. In addition, there are other helpful hints and some best practices located in the [Advanced Configuration section](ceph-advanced-configuration.md). Of particular note, there are scripts for collecting logs and gathering OSD information there.
 
 ## Cluster failing to service requests
 
