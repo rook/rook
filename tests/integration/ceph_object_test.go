@@ -31,7 +31,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	objectStoreServicePrefixUniq = "rook-ceph-rgw-"
+	objectStoreTLSName           = "tls-test-store"
+)
+
+var (
+	objectStoreServicePrefix = "rook-ceph-rgw-"
 )
 
 func TestCephObjectSuite(t *testing.T) {
@@ -92,7 +102,15 @@ func (s *ObjectSuite) TestWithTLS() {
 	}
 
 	tls := true
+	objectStoreServicePrefix = objectStoreServicePrefixUniq
 	runObjectE2ETest(s.helper, s.k8sh, s.Suite, s.settings.Namespace, tls)
+	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			logger.Fatal("failed to deleted store TLS secret")
+		}
+	}
+	logger.Info("successfully deleted store TLS secret")
 }
 
 func (s *ObjectSuite) TestWithoutTLS() {
@@ -101,6 +119,7 @@ func (s *ObjectSuite) TestWithoutTLS() {
 	}
 
 	tls := false
+	objectStoreServicePrefix = objectStoreServicePrefixUniq
 	runObjectE2ETest(s.helper, s.k8sh, s.Suite, s.settings.Namespace, tls)
 }
 
@@ -111,7 +130,7 @@ func (s *ObjectSuite) TestWithoutTLS() {
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, tlsEnable bool) {
 	storeName := "test-store"
 	if tlsEnable {
-		storeName = "tls-test-store"
+		storeName = objectStoreTLSName
 	}
 
 	logger.Infof("Running on Rook Cluster %s", namespace)
@@ -125,6 +144,18 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 		deleteStore := true
 		runObjectE2ETestLite(t, helper, k8sh, namespace, otherStoreName, 1, deleteStore, tlsEnable)
 	})
+	if tlsEnable {
+		// test that a third object store can be created (and deleted) while the first exists
+		s.T().Run("run a third object store with broken tls", func(t *testing.T) {
+			otherStoreName := "broken-" + storeName
+			// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
+			// and then deletes it.
+			deleteStore := true
+			objectStoreServicePrefix = objectStoreServicePrefixUniq
+			runObjectE2ETestLite(t, helper, k8sh, namespace, otherStoreName, 1, deleteStore, tlsEnable)
+			objectStoreServicePrefix = objectStoreServicePrefixUniq
+		})
+	}
 
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
@@ -189,7 +220,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
 		if objectStore.Spec.IsTLSEnabled() {
-			s3client, err = rgw.NewTestOnlyS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true)
+			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true)
 		} else {
 			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true, nil)
 		}

@@ -621,7 +621,8 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 		Timeout: cephObject.HttpTimeOut,
 	}
 	if p.tlsCert != nil {
-		httpClient.Transport = cephObject.BuildTransportTLS(p.tlsCert)
+		insecure := false
+		httpClient.Transport = cephObject.BuildTransportTLS(p.tlsCert, insecure)
 	}
 
 	// Fetch the ceph object store
