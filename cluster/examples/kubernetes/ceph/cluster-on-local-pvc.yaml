@@ -26,7 +26,8 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  volumeMode: Block
+  # PV for mon must be a filesystem volume.
+  volumeMode: Filesystem
   local:
     # If you want to use dm devices like logical volume, please replace `/dev/sdb` with their device names like `/dev/vg-name/lv-name`.
     path: /dev/sdb
@@ -50,6 +51,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
+  # PV for OSD must be a block volume.
   volumeMode: Block
   local:
     path: /dev/sdc
@@ -73,7 +75,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  volumeMode: Block
+  volumeMode: Filesystem
   local:
     path: /dev/sdb
   nodeAffinity:
@@ -119,7 +121,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  volumeMode: Block
+  volumeMode: Filesystem
   local:
     path: /dev/sdb
   nodeAffinity:
