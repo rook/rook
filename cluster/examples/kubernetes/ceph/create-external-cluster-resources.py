@@ -85,7 +85,8 @@ class DummyRados(object):
         self.cmd_output_map[self.cmd_names['fs ls']
                             ] = '''[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":2,"data_pool_ids":[3],"data_pools":["myfs-data0"]}]'''
         self.cmd_output_map[self.cmd_names['quorum_status']] = '''{"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_leader_name":"a","quorum_age":14385,"features":{"quorum_con":"4540138292836696063","quorum_mon":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"]},"monmap":{"epoch":1,"fsid":"af4e1673-0b72-402d-990a-22d2919d0f1c","modified":"2020-05-07T03:36:39.918035Z","created":"2020-05-07T03:36:39.918035Z","min_mon_release":15,"min_mon_release_name":"octopus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.110.205.174:3300","nonce":0},{"type":"v1","addr":"10.110.205.174:6789","nonce":0}]},"addr":"10.110.205.174:6789/0","public_addr":"10.110.205.174:6789/0","priority":0,"weight":0}]}}'''
-        self.cmd_output_map[self.cmd_names['mgr services']] = '''{"dashboard":"https://ceph-dashboard:8443/","prometheus":"http://ceph-dashboard-db:9283/"}'''
+        self.cmd_output_map[self.cmd_names['mgr services']
+                            ] = '''{"dashboard":"https://ceph-dashboard:8443/","prometheus":"http://ceph-dashboard-db:9283/"}'''
         self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "profile rbd", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd","osd":"profile rbd"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
@@ -369,9 +370,9 @@ class RadosJSON:
 
     def get_active_and_standby_mgrs(self):
         monitoring_endpoint_port = self._arg_parser.monitoring_endpoint_port
-        monitoring_endpoint_ip = self._arg_parser.monitoring_endpoint
+        monitoring_endpoint_ip_list = self._arg_parser.monitoring_endpoint
         standby_mgrs = []
-        if not monitoring_endpoint_ip:
+        if not monitoring_endpoint_ip_list:
             cmd_json = {"prefix": "status", "format": "json"}
             ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
             # if there is an unsuccessful attempt,
@@ -394,13 +395,25 @@ class RadosJSON:
             except ValueError:
                 raise ExecutionFailureException(
                     "invalid endpoint: {}".format(monitoring_endpoint))
-            monitoring_endpoint_ip = parsed_endpoint.hostname
+            monitoring_endpoint_ip_list = parsed_endpoint.hostname
             if not monitoring_endpoint_port:
                 monitoring_endpoint_port = "{}".format(parsed_endpoint.port)
 
         # if monitoring endpoint port is not set, put a default mon port
         if not monitoring_endpoint_port:
             monitoring_endpoint_port = self.DEFAULT_MONITORING_ENDPOINT_PORT
+
+        # user could give comma and space separated inputs (like --monitoring-endpoint="<ip1>, <ip2>")
+        monitoring_endpoint_ip_list = monitoring_endpoint_ip_list.replace(
+            ",", " ")
+        monitoring_endpoint_ip_list_split = monitoring_endpoint_ip_list.split()
+        # if monitoring-endpoint could not be found, raise an error
+        if len(monitoring_endpoint_ip_list_split) == 0:
+            raise ExecutionFailureException("No 'monitoring-endpoint' found")
+        # first ip is treated as the main monitoring-endpoint
+        monitoring_endpoint_ip = monitoring_endpoint_ip_list_split[0]
+        # rest of the ip-s are added to the 'standby_mgrs' list
+        standby_mgrs.extend(monitoring_endpoint_ip_list_split[1:])
 
         try:
             failed_ip = monitoring_endpoint_ip
