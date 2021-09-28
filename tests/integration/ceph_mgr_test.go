@@ -250,7 +250,7 @@ func (s *CephMgrSuite) TestHostLs() {
 
 	var hostOutput []string
 	for _, hostItem := range hostsList {
-		hostOutput = append(hostOutput, hostItem.Addr)
+		hostOutput = append(hostOutput, hostItem.Hostname)
 	}
 	sort.Strings(hostOutput)
 
