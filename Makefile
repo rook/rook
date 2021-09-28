@@ -115,7 +115,7 @@ do.build.platform.%:
 
 do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
-build: csv-clean build.common ## Only build for linux platform
+build: build.common ## Only build for linux platform
 	@$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
 	@$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
 
@@ -153,7 +153,7 @@ codegen: ${CODE_GENERATOR} ## Run code generators.
 mod.check: go.mod.check ## Check if any go modules changed.
 mod.update: go.mod.update ## Update all go modules.
 
-clean: csv-clean ## Remove all files that are created by building.
+clean: ## Remove all files that are created by building.
 	@$(MAKE) go.mod.clean
 	@$(MAKE) -C images clean
 	@rm -fr $(OUTPUT_DIR) $(WORK_DIR)
@@ -168,14 +168,29 @@ prune: ## Prune cached artifacts.
 csv-ceph: export MAX_DESC_LEN=0 # sets the description length to 0 since CSV cannot be bigger than 1MB
 csv-ceph: export NO_OB_OBC_VOL_GEN=true
 csv-ceph: csv-clean crds ## Generate a CSV file for OLM.
+	$(MAKE) -C images/ceph csv-clean
 	$(MAKE) -C images/ceph csv
 
-csv-clean: ## Remove existing OLM files.
-	@$(MAKE) -C images/ceph csv-clean
-
+GEN_CRD_TEMP := /tmp/rook-ceph-gen-crds
+BUILD_CRDS_INTO_DIR ?= $(GEN_CRD_TEMP) # unless overridden, build CRDs into the temp dir
 crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
-	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
+	@# build into a temp dir so that it doesn't interfere with CSV generation
+	rm -rf $(GEN_CRD_TEMP) && mkdir -p $(GEN_CRD_TEMP)
+	build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
+	rm -rf $(GEN_CRD_TEMP)
+
+GEN_CSV_TEMP := /tmp/rook-ceph-gen-csv-template
+csv-templates: ## Generate incomplete CSV templates which are tracked in Rook source
+	$(MAKE) -C images/ceph csv-clean
+	rm -rf $(GEN_CSV_TEMP) && mkdir -p $(GEN_CSV_TEMP)
+	$(MAKE) -C images/ceph \
+	    GENERATE_ROOK_CSV_FOR_TRACKING_ONLY=true \
+	    CSV_TEMPLATE_DIR=$(GEN_CSV_TEMP) \
+	  generate-csv-templates
+	cp -a $(GEN_CSV_TEMP)/cluster/olm/ceph/templates cluster/olm/ceph/.
+	cp -a $(GEN_CSV_TEMP)/cluster/olm/ceph/deploy cluster/olm/ceph/.
+	rm -rf $(GEN_CSV_TEMP)
 
 .PHONY: all build.common cross.build.parallel
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune

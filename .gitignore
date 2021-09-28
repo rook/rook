@@ -7,6 +7,9 @@
 
 /tests/integration/rook-test/
 
-# OLM related stuff
-cluster/olm/ceph/deploy/*
-cluster/olm/ceph/templates/*
+# Ignore the CRDs generated for the CSV templates. They are duplicated multiple times and end up
+# adding 20k+ lines. Since we already detect CRD changes in
+# cluster/examples/kubernetes/ceph/crds.yaml, ignore them in the CSVs.
+cluster/olm/ceph/deploy/crds/*
+cluster/olm/ceph/deploy/olm-catalog/**/manifests
+cluster/olm/ceph/templates/crds/*

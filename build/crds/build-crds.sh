@@ -33,8 +33,10 @@ if [[ -n "$BUILD_CRDS_INTO_DIR" ]]; then
   DESTINATION_ROOT="$BUILD_CRDS_INTO_DIR"
 fi
 OLM_CATALOG_DIR="${DESTINATION_ROOT}/cluster/olm/ceph/deploy/crds"
-CEPH_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/examples/kubernetes/ceph/crds.yaml"
-CEPH_HELM_CRDS_FILE_PATH="${DESTINATION_ROOT}/cluster/charts/rook-ceph/templates/resources.yaml"
+CEPH_CRDS_DIR="${DESTINATION_ROOT}/cluster/examples/kubernetes/ceph"
+CEPH_CRDS_FILE_PATH="${CEPH_CRDS_DIR}/crds.yaml"
+CEPH_HELM_CRDS_DIR="${DESTINATION_ROOT}/cluster/charts/rook-ceph/templates"
+CEPH_HELM_CRDS_FILE_PATH="${CEPH_HELM_CRDS_DIR}/resources.yaml"
 
 #############
 # FUNCTIONS #
@@ -59,7 +61,9 @@ generate_vol_rep_crds() {
 }
 
 generating_main_crd() {
+  mkdir -p "$CEPH_CRDS_DIR"
   true > "$CEPH_CRDS_FILE_PATH"
+  mkdir -p "$CEPH_HELM_CRDS_DIR"
   true > "$CEPH_HELM_CRDS_FILE_PATH"
 cat <<EOF > "$CEPH_CRDS_FILE_PATH"
 ##############################################################################

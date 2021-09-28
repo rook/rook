@@ -48,11 +48,19 @@ jobs:
 
     - name: run crds-gen
       working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: make csv-clean && GOPATH=$(go env GOPATH) make crds
+      run: GOPATH=$(go env GOPATH) make crds
 
     - name: validate crds-gen
       working-directory: /Users/runner/go/src/github.com/rook/rook
       run: tests/scripts/validate_modified_files.sh crd
+
+    - name: run csv gen
+      working-directory: /Users/runner/go/src/github.com/rook/rook/
+      run: GOPATH=$(go env GOPATH) make csv-templates
+
+    - name: validate csv gen
+      working-directory: /Users/runner/go/src/github.com/rook/rook/
+      run: tests/scripts/validate_modified_files.sh csv-templates
 
     - name: setup tmate session for debugging
       if: failure()

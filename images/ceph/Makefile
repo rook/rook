@@ -89,9 +89,10 @@ generate-csv-templates: $(OPERATOR_SDK) $(YQ) ## Generate CSV templates for OLM 
 	@# first, copy the existing CRDs and OLM catalog directory to CSV_TEMPLATE_DIR
 	@# then, generate or copy all prerequisites into CSV_TEMPLATE_DIR (e.g., CRDs)
 	@# finally, generate the templates in-place using CSV_TEMPLATE_DIR as a staging dir
-	@mkdir -p $(CSV_TEMPLATE_DIR)
-	@cp -a ../../cluster $(CSV_TEMPLATE_DIR)/cluster
-	@set -eE;\
+	@ echo yq=$(YQ) operator-sdk=$(OPERATOR_SDK)
+	mkdir -p $(CSV_TEMPLATE_DIR)
+	cp -a ../../cluster $(CSV_TEMPLATE_DIR)/cluster
+	set -eE;\
 	BEFORE_GEN_CRD_SIZE=$$(wc -l < $(MANIFESTS_DIR)/crds.yaml);\
 	$(MAKE) -C ../.. NO_OB_OBC_VOL_GEN=true MAX_DESC_LEN=0 BUILD_CRDS_INTO_DIR=$(CSV_TEMPLATE_DIR) crds;\
 	AFTER_GEN_CRD_SIZE=$$(wc -l < $(CSV_TEMPLATE_DIR)/cluster/examples/kubernetes/ceph/crds.yaml);\
@@ -101,28 +102,28 @@ generate-csv-templates: $(OPERATOR_SDK) $(YQ) ## Generate CSV templates for OLM 
 		echo "length after $$AFTER_GEN_CRD_SIZE";\
 		exit 1;\
 	fi
-	@OLM_CATALOG_DIR=$(CSV_TEMPLATE_DIR)/cluster/olm/ceph ../../cluster/olm/ceph/generate-rook-csv-templates.sh
+	OLM_CATALOG_DIR=$(CSV_TEMPLATE_DIR)/cluster/olm/ceph ../../cluster/olm/ceph/generate-rook-csv-templates.sh
 	@echo " === Generated CSV templates can be found at $(CSV_TEMPLATE_DIR)/cluster/olm/ceph/templates"
 
 $(YQ):
 	@echo === installing yq $(GOHOST)
-	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(HOST_PLATFORM) -o $(YQ)
-	@chmod +x $(YQ)
+	mkdir -p $(TOOLS_HOST_DIR)
+	curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(HOST_PLATFORM) -o $(YQ)
+	chmod +x $(YQ)
 
 $(OPERATOR_SDK):
 	@echo === installing operator-sdk $(GOHOST)
-	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -JL -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) \
+	mkdir -p $(TOOLS_HOST_DIR)
+	curl -JL -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) \
 		https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)
-	@chmod +x $(OPERATOR_SDK)
+	chmod +x $(OPERATOR_SDK)
 
 csv: $(OPERATOR_SDK) $(YQ) ## Generate a CSV file for OLM.
 	@echo Generating CSV manifests
 	@cd ../.. && cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
-csv-clean: $(OPERATOR_SDK) $(YQ) ## Remove existing OLM files.
-	@rm -fr ../../cluster/olm/ceph/deploy/* ../../cluster/olm/ceph/templates/*
+csv-clean: ## Remove existing OLM files.
+	rm -fr ../../cluster/olm/ceph/deploy/* ../../cluster/olm/ceph/templates/*
 
 # reading from a file and outputting to the same file can have undefined results, so use this intermediate
 IMAGE_TMP="/tmp/rook-ceph-image-list"

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 #############
 # VARIABLES #
@@ -7,7 +7,8 @@ set -ex
 CODEGEN_ERR="found codegen files! please run 'make codegen' and update your PR"
 MOD_ERR="changes found by mod.check. You may need to run make clean"
 CRD_ERR="changes found by 'make crds'. please run 'make crds' locally and update your PR"
-BUILD_ERR="changes found by make build', please commit your go.sum or other changed files"
+BUILD_ERR="changes found by 'make build'. please commit your go.sum or other changed files"
+CSVGEN_ERR="changes found by 'make csv-templates'. please run 'make csv-templates' locally and update your PR"
 
 #############
 # FUNCTIONS #
@@ -40,7 +41,10 @@ case "$1" in
   build)
     validate "$BUILD_ERR"
   ;;
+  csv-templates)
+    validate "$CSVGEN_ERR"
+  ;;
   *)
-    echo $"Usage: $0 {codegen|modcheck|crd|build}"
+    echo $"Usage: $0 {codegen|modcheck|crd|build|csv-templates}"
     exit 1
 esac

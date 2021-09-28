@@ -20,6 +20,9 @@ yq="${YQ:-yq}"
 : "${OLM_INCLUDE_RBD_CSI:=true}"
 : "${OLM_INCLUDE_REPORTER:=true}"
 
+# When true, allow removing some bits of the CSV that change between runs/platforms
+: "${GENERATE_ROOK_CSV_FOR_TRACKING_ONLY:=false}"
+
 ##########
 # CHECKS #
 ##########
@@ -124,13 +127,19 @@ function generate_csv(){
     "${YQ_CMD_DELETE[@]}" "$CSV_FILE_NAME" 'spec.maintainers[0]'
 
     "${YQ_CMD_MERGE_OVERWRITE[@]}" "$CSV_FILE_NAME" "$ASSEMBLE_FILE_COMMON"
-    "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.externalClusterScript "$(base64 <$CEPH_EXTERNAL_SCRIPT_FILE)"
+
+    if [[ "${GENERATE_ROOK_CSV_FOR_TRACKING_ONLY}" != "true" ]]; then
+        # base64 has different behavior on linux vs macos
+        "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.externalClusterScript "$(base64 <$CEPH_EXTERNAL_SCRIPT_FILE)"
+    fi
 
     if [[ "$PLATFORM" == "k8s" ]]; then
         "${YQ_CMD_MERGE_OVERWRITE[@]}" "$CSV_FILE_NAME" "$ASSEMBLE_FILE_K8S"
         "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.name "rook-ceph.v${VERSION}"
         "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" spec.displayName "Rook-Ceph"
-        "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
+        if [[ "${GENERATE_ROOK_CSV_FOR_TRACKING_ONLY}" != "true" ]]; then
+            "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
+        fi
     fi
 
     if [[ "$PLATFORM" == "ocp" ]]; then
@@ -141,7 +150,9 @@ function generate_csv(){
         "${YQ_CMD_MERGE[@]}" "$CSV_FILE_NAME" "$ASSEMBLE_FILE_OKD"
         "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.name "rook-ceph.v${VERSION}"
         "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" spec.displayName "Rook-Ceph"
-        "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
+        if [[ "${GENERATE_ROOK_CSV_FOR_TRACKING_ONLY}" != "true" ]]; then
+            "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
+        fi
     fi
 }
 
