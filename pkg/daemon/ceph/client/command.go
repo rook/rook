@@ -129,7 +129,22 @@ func NewRBDCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []s
 }
 
 func (c *CephToolCommand) run() ([]byte, error) {
-	command, args := FinalizeCephCommandArgs(c.tool, c.clusterInfo, c.args, c.context.ConfigDir)
+	// Initialize the command and args
+	command := c.tool
+	args := c.args
+
+	// If this is a remote execution, we don't want to build the full set of args. For instance all
+	// these args are not needed since those paths don't exist inside the cmd-proxy container:
+	//      --cluster=openshift-storage
+	//		--conf=/var/lib/rook/openshift-storage/openshift-storage.config
+	//		--name=client.admin
+	//		--keyring=/var/lib/rook/openshift-storage/client.admin.keyring
+	//
+	// The cmd-proxy container will take care of the rest with the help of the env CEPH_ARGS
+	if !c.RemoteExecution {
+		command, args = FinalizeCephCommandArgs(c.tool, c.clusterInfo, c.args, c.context.ConfigDir)
+	}
+
 	if c.JsonOutput {
 		args = append(args, "--format", "json")
 	} else {
@@ -142,6 +157,7 @@ func (c *CephToolCommand) run() ([]byte, error) {
 	var output, stderr string
 	var err error
 
+<<<<<<< HEAD
 	if c.OutputFile {
 		if command == Kubectl {
 			// Kubectl commands targeting the toolbox container generate a temp
@@ -171,6 +187,14 @@ func (c *CephToolCommand) run() ([]byte, error) {
 			} else {
 				output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
 			}
+=======
+	// NewRBDCommand does not use the --out-file option so we only check for remote execution here
+	// Still forcing the check for the command if the behavior changes in the future
+	if command == RBDTool {
+		if c.RemoteExecution {
+			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
+			output = fmt.Sprintf("%s. %s", output, stderr)
+>>>>>>> d7b93679a (ceph: do not build all the args to remote exec cmd)
 		} else if c.timeout == 0 {
 			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
 		} else {
