@@ -1,51 +1,60 @@
-{{- if ne .Release.Namespace .Values.operatorNamespace }}
----
+{{/*
+RoleBindings needed for running a Rook CephCluster
+*/}}
+{{- define "rook-ceph-library.cluster-rolebindings" }}
 # Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: rook-ceph-cluster-mgmt
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: {{ .Values.operatorNamespace }}
+    namespace: {{ .Values.operatorNamespace | default .Release.Namespace }} # namespace:cluster
 ---
 # Allow the osd pods in this namespace to work with configmaps
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: rook-ceph-osd
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-osd
+    namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
-# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
+# Allow the ceph mgr to access resources scoped to the CephCluster namespace necessary for mgr modules
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: rook-ceph-mgr
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-mgr
 ---
-# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+# Allow the ceph mgr to access resources in the Rook operator namespace necessary for mgr modules
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-mgr-system-{{ .Release.Namespace }}
-  namespace: {{ .Values.operatorNamespace }}
+  name: {{ printf "rook-ceph-mgr-system--%s" .Release.Namespace }}
+  namespace: {{ .Values.operatorNamespace | default .Release.Namespace }} # namespace:operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -53,49 +62,36 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-mgr
-    namespace: {{ .Release.Namespace }}
+    namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: rook-ceph-cmd-reporter
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-cmd-reporter
-    namespace: {{ .Release.Namespace }}
+    namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
 # Allow the osd purge job to run in this namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-purge-osd
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: rook-ceph-purge-osd
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-purge-osd
-    namespace: {{ .Release.Namespace }}
-
-{{- if .Values.monitoring.enabled }}
----
-# Allow the operator to get ServiceMonitors in this cluster's namespace
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-monitoring
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-monitoring
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-system
-    namespace: {{ .Values.operatorNamespace }}
-{{- end }}
-{{- end }}
+    namespace: {{ .Release.Namespace }} # namespace:cluster
+{{- end -}}

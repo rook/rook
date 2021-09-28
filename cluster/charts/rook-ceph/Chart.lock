@@ -1,0 +1,6 @@
+dependencies:
+- name: rook-ceph-library
+  repository: file://../rook-ceph-library
+  version: 0.0.1
+digest: sha256:d4343bb76be1c5fd24a2522073361d4dbfa9a30ae1b2ae240571b719e34fe84f
+generated: "2021-09-27T15:19:10.047773-06:00"

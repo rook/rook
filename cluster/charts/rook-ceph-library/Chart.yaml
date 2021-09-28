@@ -1,0 +1,4 @@
+apiVersion: v2
+name: rook-ceph-library
+version: 0.0.1
+type: library

@@ -1,4 +1,3 @@
-{{/* vim: set filetype=mustache: */}}
 {{/*
 Expand the name of the chart.
 */}}
@@ -18,9 +17,9 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{/*
 Define imagePullSecrets option to pass to all service accounts
 */}}
-{{- define "imagePullSecrets" }}
-{{- if .Values.imagePullSecrets -}}
+{{- define "rook-ceph-library.imagePullSecrets" }}
+{{- if .Values.imagePullSecrets }}
 imagePullSecrets:
 {{ toYaml .Values.imagePullSecrets }}
-{{- end -}}
-{{- end -}}
+{{- end }}
+{{- end }}

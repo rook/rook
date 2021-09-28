@@ -1,0 +1,40 @@
+{{- if ne .Release.Namespace .Values.operatorNamespace -}}
+
+{{/*
+clusterrolebindings
+*/}}
+{{- include "rook-ceph-library.cluster-clusterrolebindings" . -}}
+
+{{- if .Values.pspEnable }}
+{{- include "rook-ceph-library.cluster-psp-rolebindings" }}
+{{- end -}}
+
+{{/*
+roles
+*/}}
+---
+{{- include "rook-ceph-library.cluster-roles" . -}}
+
+{{- if .Values.monitoring.enabled }}
+---
+{{- include "rook-ceph-library.monitoring-roles" . }}
+{{- end }}
+
+{{/*
+rolebindings
+*/}}
+---
+{{- include "rook-ceph-library.cluster-rolebindings" . -}}
+
+{{- if .Values.monitoring.enabled }}
+---
+{{- include "rook-ceph-library.monitoring-rolebindings" . }}
+{{- end }}
+
+{{/*
+serviceaccounts
+*/}}
+---
+{{- include "rook-ceph-library.cluster-serviceaccounts" . -}}
+
+{{- end -}}
