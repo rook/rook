@@ -42,7 +42,7 @@ spec:
         severity_level: critical
         storage_type: ceph
       expr: |
-        absent(up{job="rook-ceph-mgr"} == 1)
+        up{job="rook-ceph-mgr"} == 0
       for: 5m
       labels:
         severity: critical
