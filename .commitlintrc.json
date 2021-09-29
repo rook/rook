@@ -15,6 +15,7 @@
         "core",
         "csi",
         "docs",
+        "helm",
         "mds",
         "mgr",
         "mon",
