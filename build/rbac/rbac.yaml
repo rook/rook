@@ -177,21 +177,6 @@ rules:
     resources: [serviceaccounts]
     verbs: [get]
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: rook-ceph-agent-mount
-  labels:
-    operator: rook
-    storage-backend: ceph
-rules:
-  - apiGroups:
-      - ''
-    resources:
-      - secrets
-    verbs:
-      - get
----
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -470,7 +455,6 @@ rules:
     verbs:
       - get
       - list
-# Use a default dict to avoid 'can't give argument to non-function' errors from text/template
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -629,22 +613,6 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: psp:rook
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-system
-    namespace: rook-ceph
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: rook-ceph-system-psp-users
-  labels:
-    operator: rook
-    storage-backend: ceph
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: rook-ceph-system-psp-user
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
