@@ -12,6 +12,10 @@ metadata:
   name: rook-ceph
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
+# set to true if running rook with host networking enabled
+allowHostNetwork: false
+# set to true if running rook with the provider as host
+allowHostPorts: false
 priority:
 allowedCapabilities: []
 allowHostPID: true # remove this once we drop support for Nautilus
