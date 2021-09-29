@@ -4,6 +4,7 @@ metadata:
   name: "multus-teardown-{{ .MultusNodeName }}"
   namespace: {{ .Namespace }}
 spec:
+  backoffLimit: 0
   template:
     metadata:
       name: multus-teardown
@@ -14,7 +15,7 @@ spec:
         args: ["ceph", "multus-teardown"]
         env:
         - name: MULTUSIP
-          value: "{{ .MultusMultusIP }}"
+          value: "{{ .MultusIP }}"
         securityContext:
           privileged: true
           capabilities:

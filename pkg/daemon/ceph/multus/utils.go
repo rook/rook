@@ -1,3 +1,18 @@
+/*
+Copyright 2021 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package multus
 
 import (
@@ -14,8 +29,8 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/vishvananda/netlink"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 var (
@@ -23,52 +38,109 @@ var (
 )
 
 const (
-	ifBase         = "mlink"
-	multusLinkName = "net1"
-	nsDir          = "/var/run/netns"
+	ifBase        = "mlink"
+	nsDir         = "/var/run/netns"
+	supportedIPAM = "whereabouts"
+	holderIpEnv   = "HOLDERIP"
+	multusIpEnv   = "MULTUSIP"
+	multusLinkEnv = "MULTUSLINK"
 )
 
-type multusNetStatus struct {
-	Name      string   `yaml:"name"`
-	Interface string   `yaml:"interface"`
-	Ips       []string `yaml:"ips"`
+type multusConfig struct {
+	IPAM multusIPAM `json:"ipam"`
 }
 
-func GetMultusIP(pod corev1.Pod) (string, error) {
-	var multusIP string
+type multusIPAM struct {
+	Type  string `json:"type"`
+	Range string `json:"range"`
+}
+
+func GetAddressRange(config string) (string, error) {
+	var multusConf multusConfig
+	err := json.Unmarshal([]byte(config), &multusConf)
+	if err != nil {
+		return "", err
+	}
+
+	if multusConf.IPAM.Type != supportedIPAM {
+		return "", errors.New("unsupported ipam type")
+	}
+	return multusConf.IPAM.Range, nil
+}
+
+type multusNetConfiguration struct {
+	NetworkName   string   `json:"name"`
+	InterfaceName string   `json:"interface"`
+	Ips           []string `json:"ips"`
+}
+
+func inAddrRange(ip, multusNet string) (bool, error) {
+	// Getting netmask prefix length.
+	tmp := strings.Split(multusNet, "/")
+	if len(tmp) < 2 {
+		return false, errors.New("invalid address range")
+	}
+	prefix := tmp[1]
+
+	_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%s", ip, prefix))
+
+	if err != nil {
+		return false, err
+	}
+
+	if ipNet.String() == multusNet {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
+func GetMultusConf(pod corev1.Pod, multusName string, multusNamespace string, addrRange string) (string, string, error) {
+
+	// The network name includes its namespace.
+	multusNetwork := fmt.Sprintf("%s/%s", multusNamespace, multusName)
 
 	if val, ok := pod.ObjectMeta.Annotations["k8s.v1.cni.cncf.io/networks-status"]; ok {
-		var multusStats []multusNetStatus
+		var multusConfs []multusNetConfiguration
 
-		err := yaml.Unmarshal([]byte(val), &multusStats)
+		err := json.Unmarshal([]byte(val), &multusConfs)
 		if err != nil {
-			return multusIP, err
+			return "", "", err
 		}
-		for _, iface := range multusStats {
-			if iface.Interface == "net1" && len(iface.Ips) > 0 {
-				multusIP = iface.Ips[0]
+
+		for _, multusConf := range multusConfs {
+			if multusConf.NetworkName == multusNetwork {
+				for _, ip := range multusConf.Ips {
+					inRange, err := inAddrRange(ip, addrRange)
+					if err != nil {
+						return "", "", err
+					}
+					if inRange {
+						return ip, multusConf.InterfaceName, nil
+					}
+				}
 			}
 		}
 	} else {
-		return multusIP, errors.New("Multus Annotation not found")
+		return "", "", errors.New("multus annotation not found")
 	}
 
-	return multusIP, nil
+	return "", "", errors.New("multus address not found")
 }
 
 func determineHolderNS() (ns.NetNS, error) {
 	var holderNS ns.NetNS
 
-	holderIP, found := os.LookupEnv("HOLDERIP")
+	holderIP, found := os.LookupEnv(holderIpEnv)
 	if !found {
-		return holderNS, errors.New("Environment variable HOLDERIP not set.")
+		return holderNS, fmt.Errorf("environment variable %s not set.", holderIpEnv)
 	}
 
-	log.Println("Finding the pod namespace handle")
+	logger.Info("finding the pod namespace handle")
 
 	nsFiles, err := ioutil.ReadDir(nsDir)
 	if err != nil {
-		log.Fatal(err)
+		return holderNS, err
 	}
 
 	for _, nsFile := range nsFiles {
@@ -76,7 +148,7 @@ func determineHolderNS() (ns.NetNS, error) {
 
 		tmpNS, err := ns.GetNS(filepath.Join(nsDir, nsFile.Name()))
 		if err != nil {
-			log.Fatal(err)
+			return holderNS, err
 		}
 
 		err = tmpNS.Do(func(ns ns.NetNS) error {
@@ -91,7 +163,7 @@ func determineHolderNS() (ns.NetNS, error) {
 					return err
 				}
 				if link == nil {
-					return errors.New("Link not found")
+					return errors.New("link not found")
 				}
 
 				addrs, err := netlink.AddrList(link, 0)
@@ -115,13 +187,13 @@ func determineHolderNS() (ns.NetNS, error) {
 
 		if err != nil {
 			// Don't quit, just keep looking.
-			log.Println(err)
+			logger.Debugf("error looking for namespace, continuing search: %v", err)
 			continue
 		}
 
 		if foundNS {
 			holderNS = tmpNS
-			break
+			return holderNS, nil
 		}
 	}
 
@@ -156,45 +228,19 @@ func determineNewLinkName() (string, error) {
 	return newLinkName, nil
 }
 
-func determineMultusIP(holderNS ns.NetNS) (netlink.Addr, error) {
-	var mAddr netlink.Addr
-
-	err := holderNS.Do(func(ns ns.NetNS) error {
-		log.Println("Finding the multus network connected link")
-		link, err := netlink.LinkByName(multusLinkName)
-		if err != nil {
-			return err
-		}
-
-		log.Println("Determining the IP address of the multus link")
-		addrs, err := netlink.AddrList(link, 0)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if len(addrs) > 0 {
-			mAddr = addrs[0]
-		}
-
-		return nil
-	})
-
-	return mAddr, err
-}
-
-func migrateInterface(hostNS, holderNS ns.NetNS, newLinkName string) error {
+func migrateInterface(hostNS, holderNS ns.NetNS, ogLinkName, newLinkName string) error {
 	return holderNS.Do(func(ns ns.NetNS) error {
-		link, err := netlink.LinkByName(multusLinkName)
+		link, err := netlink.LinkByName(ogLinkName)
 		if err != nil {
 			return err
 		}
 
-		log.Println("Setting multus link down to be renamed")
+		logger.Info("setting multus link down to be renamed")
 		if err := netlink.LinkSetDown(link); err != nil {
 			return err
 		}
 
-		log.Printf("Renaming multus link to %s", newLinkName)
+		logger.Infof("renaming multus link to %s", newLinkName)
 		if err := netlink.LinkSetName(link, newLinkName); err != nil {
 			return err
 		}
@@ -205,7 +251,7 @@ func migrateInterface(hostNS, holderNS ns.NetNS, newLinkName string) error {
 			return err
 		}
 
-		log.Println("Moving the multus interface to the host network namespace")
+		logger.Info("moving the multus interface to the host network namespace")
 		if err = netlink.LinkSetNsFd(link, int(hostNS.Fd())); err != nil {
 			return err
 		}
@@ -219,8 +265,6 @@ func setupInterface(mLinkName string, multusIP netlink.Addr) error {
 		return err
 	}
 
-	log.Printf("Setting up IP address as %s\n", multusIP)
-
 	// The IP address label must be changed to the new interface name
 	// for the AddrAdd call to succeed.
 	multusIP.Label = mLinkName
@@ -229,7 +273,7 @@ func setupInterface(mLinkName string, multusIP netlink.Addr) error {
 		return err
 	}
 
-	log.Println("Setting link up")
+	logger.Info("setting link up")
 	if err := netlink.LinkSetUp(link); err != nil {
 		return err
 	}
@@ -237,14 +281,9 @@ func setupInterface(mLinkName string, multusIP netlink.Addr) error {
 	return nil
 }
 
-func checkMigration() (bool, string, error) {
+func checkMigration(multusIpStr string) (bool, string, error) {
 	var migrated bool
 	var linkName string
-
-	multusIP, found := os.LookupEnv("MULTUSIP")
-	if !found {
-		return migrated, linkName, errors.New("Environment variable MULTUSIP not set.")
-	}
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
@@ -257,7 +296,7 @@ func checkMigration() (bool, string, error) {
 			return migrated, linkName, err
 		}
 		if link == nil {
-			return migrated, linkName, errors.New("Link not found")
+			return migrated, linkName, errors.New("link not found")
 		}
 
 		addrs, err := netlink.AddrList(link, 0)
@@ -265,22 +304,55 @@ func checkMigration() (bool, string, error) {
 			return migrated, linkName, err
 		}
 
-		if len(addrs) < 1 {
-			continue
-		}
-
-		// Assuming that the needed address is first on the list.
-		if addrs[0].IP.String() == multusIP {
-			migrated = true
-
-			linkAttrs := link.Attrs()
-			if linkAttrs != nil {
-				linkName = linkAttrs.Name
+		for _, addr := range addrs {
+			if addr.IP.String() == multusIpStr {
+				migrated = true
+				linkAttrs := link.Attrs()
+				if linkAttrs != nil {
+					linkName = linkAttrs.Name
+				}
+				return migrated, linkName, nil
 			}
-
-			return migrated, linkName, nil
 		}
 	}
 
 	return migrated, linkName, nil
+}
+
+func determineMultusIPConfig(holderNS ns.NetNS, multusIP, multusLinkName string) (netlink.Addr, error) {
+	var mAddr netlink.Addr
+	var addrFound bool
+
+	err := holderNS.Do(func(ns ns.NetNS) error {
+		logger.Info("finding the multus network connected link")
+		link, err := netlink.LinkByName(multusLinkName)
+		if err != nil {
+			return err
+		}
+
+		logger.Info("determining the IP address of the multus link")
+		addrs, err := netlink.AddrList(link, 0)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, addr := range addrs {
+			if addr.IP.String() == multusIP {
+				mAddr = addr
+				addrFound = true
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return mAddr, err
+	}
+
+	if !addrFound {
+		return mAddr, errors.New("multus ip configuration not found.")
+	}
+
+	return mAddr, nil
 }

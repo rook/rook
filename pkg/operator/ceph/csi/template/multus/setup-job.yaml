@@ -4,6 +4,7 @@ metadata:
   name: "multus-migration-{{ .MultusNodeName }}"
   namespace: {{ .Namespace }}
 spec:
+  backoffLimit: 0
   template:
     metadata:
       name: multus-migration
@@ -16,7 +17,9 @@ spec:
         - name: HOLDERIP
           value: "{{ .MultusPodIP }}"
         - name: MULTUSIP
-          value: "{{ .MultusMultusIP }}"
+          value: "{{ .MultusIP }}"
+        - name: MULTUSLINK
+          value: "{{ .MultusLink }}"
         securityContext:
           privileged: true
           capabilities:
