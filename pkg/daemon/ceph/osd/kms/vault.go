@@ -183,7 +183,7 @@ func buildKeyContext(config map[string]string) map[string]string {
 	keyContext := map[string]string{secrets.KeyVaultNamespace: config[api.EnvVaultNamespace]}
 	vaultNamespace, ok := config[api.EnvVaultNamespace]
 	if !ok || vaultNamespace == "" {
-		keyContext = nil
+		keyContext = map[string]string{}
 	}
 
 	return keyContext
