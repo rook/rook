@@ -23,6 +23,7 @@ set -xe
 NETWORK_ERROR="connection reset by peer"
 SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
 INTERNAL_ERROR="INTERNAL_ERROR"
+INTERNAL_SERVER_ERROR="500 Internal Server Error"
 
 #############
 # FUNCTIONS #
@@ -106,6 +107,10 @@ function build_rook() {
           continue
         ;;
         *"$INTERNAL_ERROR"*)
+          echo "network failure occurred, retrying..."
+          continue
+        ;;
+        *"$INTERNAL_SERVER_ERROR"*)
           echo "network failure occurred, retrying..."
           continue
         ;;
