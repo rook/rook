@@ -202,7 +202,7 @@ func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec *
 		case VaultKVSecretEngineKey:
 			// Append Backend Version if not already present
 			if GetParam(securitySpec.KeyManagementService.ConnectionDetails, vault.VaultBackendKey) == "" {
-				backendVersion, err := BackendVersion(securitySpec.KeyManagementService.ConnectionDetails)
+				backendVersion, err := BackendVersion(clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
 				if err != nil {
 					return errors.Wrap(err, "failed to get backend version")
 				}

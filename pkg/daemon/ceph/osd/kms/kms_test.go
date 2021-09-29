@@ -91,7 +91,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 	securitySpec.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 	err = ValidateConnectionDetails(context, securitySpec, ns)
 	assert.Error(t, err, "")
-	assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection details k8s secret \"VAULT_CACERT\"")
+	assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection details k8s secret \"vault-ca-secret\"")
 
 	// Error: TLS secret exists but empty key
 	tlsSecret := &v1.Secret{
@@ -122,7 +122,9 @@ func TestValidateConnectionDetails(t *testing.T) {
 		vault.TestWaitActive(t, core)
 		client := cluster.Cores[0].Client
 		// Mock the client here
-		vaultClient = func(secretConfig map[string]string) (*api.Client, error) { return client, nil }
+		vaultClient = func(clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
+			return client, nil
+		}
 		if err := client.Sys().Mount("rook/", &api.MountInput{
 			Type:    "kv-v2",
 			Options: map[string]string{"version": "2"},
