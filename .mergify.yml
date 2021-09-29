@@ -70,36 +70,6 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
-  # release-1.4 branch
-  - name: automerge backport release-1.4
-    conditions:
-      - author=mergify[bot]
-      - base=release-1.4
-      - label!=do-not-merge
-      - 'status-success=DCO'
-      - 'status-success=continuous-integration/jenkins/pr-head'
-    actions:
-      merge:
-        method: merge
-        strict: false
-      dismiss_reviews: {}
-      delete_head_branch: {}
-
-  # release-1.5 branch
-  - name: automerge backport release-1.5
-    conditions:
-      - author=mergify[bot]
-      - base=release-1.5
-      - label!=do-not-merge
-      - 'status-success=DCO'
-      - 'status-success=continuous-integration/jenkins/pr-head'
-    actions:
-      merge:
-        method: merge
-        strict: false
-      dismiss_reviews: {}
-      delete_head_branch: {}
-
   # release-1.6 branch
   - name: automerge backport release-1.6
     conditions:
@@ -121,11 +91,12 @@ pull_request_rules:
       - 'check-success=encryption-pvc-db-wal'
       - 'check-success=encryption-pvc-kms-vault-token-auth'
       - 'check-success=TestCephSmokeSuite (v1.16.15)'
-      - 'check-success=TestCephSmokeSuite (v1.20.2)'
+      - 'check-success=TestCephSmokeSuite (v1.21.0)'
       - 'check-success=TestCephHelmSuite (v1.16.15)'
-      - 'check-success=TestCephHelmSuite (v1.20.2)'
-      - 'check-success=TestCephMultiClusterDeploySuite (v1.20.2)'
-      - 'check-success=TestCephUpgradeSuite (v1.20.2)'
+      - 'check-success=TestCephHelmSuite (v1.22.0)'
+      - 'check-success=TestCephMultiClusterDeploySuite (v1.21.0)'
+      - 'check-success=TestCephUpgradeSuite (v1.16.15)'
+      - 'check-success=TestCephUpgradeSuite (v1.21.0)'
     actions:
       merge:
         method: merge
@@ -153,11 +124,12 @@ pull_request_rules:
       - 'check-success=encryption-pvc-db'
       - 'check-success=encryption-pvc-db-wal'
       - 'check-success=encryption-pvc-kms-vault-token-auth'
-      - 'check-success=TestCephSmokeSuite (v1.16.15)'
+      - 'check-success=TestCephSmokeSuite (v1.15.12)'
       - 'check-success=TestCephSmokeSuite (v1.21.0)'
-      - 'check-success=TestCephHelmSuite (v1.16.15)'
+      - 'check-success=TestCephHelmSuite (v1.15.12)'
       - 'check-success=TestCephHelmSuite (v1.21.0)'
       - 'check-success=TestCephMultiClusterDeploySuite (v1.21.0)'
+      - 'check-success=TestCephUpgradeSuite (v1.15.12)'
       - 'check-success=TestCephUpgradeSuite (v1.21.0)'
     actions:
       merge:
@@ -165,24 +137,6 @@ pull_request_rules:
         strict: false
       dismiss_reviews: {}
       delete_head_branch: {}
-
-  # release-1.4 branch
-  - actions:
-      backport:
-        branches:
-          - release-1.4
-    conditions:
-      - label=backport-release-1.4
-    name: backport release-1.4
-
-  # release-1.5 branch
-  - actions:
-      backport:
-        branches:
-          - release-1.5
-    conditions:
-      - label=backport-release-1.5
-    name: backport release-1.5
 
   # release-1.6 branch
   - actions:
