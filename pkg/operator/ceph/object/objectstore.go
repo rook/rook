@@ -152,7 +152,7 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 	if err != nil {
 		return errors.Wrap(err, "failed to update period after removing an endpoint from the zone")
 	}
-	logger.Infof("successfully updated period for realm %v after removal of object-store %v", objContext.Realm, objContext.Name)
+	logger.Infof("successfully updated period for realm %q after removal of object-store %q", objContext.Realm, objContext.Name)
 
 	return nil
 }
@@ -374,9 +374,9 @@ func createMultisite(objContext *Context, endpointArg string) error {
 			if err != nil {
 				return errorOrIsNotFound(err, "failed to create ceph realm %q, for reason %q", objContext.ZoneGroup, output)
 			}
-			logger.Debugf("created realm %v", objContext.Realm)
+			logger.Debugf("created realm %q", objContext.Realm)
 		} else {
-			return errorOrIsNotFound(err, "radosgw-admin realm get failed with code %d, for reason %q. %v", strconv.Itoa(code), output, string(kerrors.ReasonForError(err)))
+			return errorOrIsNotFound(err, "'radosgw-admin realm get' failed with code %d, for reason %q. %v", strconv.Itoa(code), output, string(kerrors.ReasonForError(err)))
 		}
 	}
 
@@ -390,9 +390,9 @@ func createMultisite(objContext *Context, endpointArg string) error {
 			if err != nil {
 				return errorOrIsNotFound(err, "failed to create ceph zone group %q, for reason %q", objContext.ZoneGroup, output)
 			}
-			logger.Debugf("created zone group %v", objContext.ZoneGroup)
+			logger.Debugf("created zone group %q", objContext.ZoneGroup)
 		} else {
-			return errorOrIsNotFound(err, "radosgw-admin zonegroup get failed with code %d, for reason %q", strconv.Itoa(code), output)
+			return errorOrIsNotFound(err, "'radosgw-admin zonegroup get' failed with code %d, for reason %q", strconv.Itoa(code), output)
 		}
 	}
 
@@ -406,19 +406,32 @@ func createMultisite(objContext *Context, endpointArg string) error {
 			if err != nil {
 				return errorOrIsNotFound(err, "failed to create ceph zone %q, for reason %q", objContext.Zone, output)
 			}
-			logger.Debugf("created zone %v", objContext.Zone)
+			logger.Debugf("created zone %q", objContext.Zone)
 		} else {
-			return errorOrIsNotFound(err, "radosgw-admin zone get failed with code %d, for reason %q", strconv.Itoa(code), output)
+			return errorOrIsNotFound(err, "'radosgw-admin zone get' failed with code %d, for reason %q", strconv.Itoa(code), output)
+		}
+	}
+
+	// check if the period exists
+	output, err = runAdminCommand(objContext, false, "period", "get")
+	if err != nil {
+		code, err := exec.ExtractExitCode(err)
+		// ENOENT means “No such file or directory”
+		if err == nil && code == int(syscall.ENOENT) {
+			// period does not exist and so needs to be created
+			updatePeriod = true
+		} else {
+			return errorOrIsNotFound(err, "'radosgw-admin period get' failed with code %d, for reason %q", strconv.Itoa(code), output)
 		}
 	}
 
 	if updatePeriod {
 		// the period will help notify other zones of changes if there are multi-zones
-		_, err := runAdminCommand(objContext, false, "period", "update", "--commit")
+		_, err = runAdminCommand(objContext, false, "period", "update", "--commit")
 		if err != nil {
 			return errorOrIsNotFound(err, "failed to update period")
 		}
-		logger.Debugf("updated period for realm %v", objContext.Realm)
+		logger.Debugf("updated period for realm %q", objContext.Realm)
 	}
 
 	logger.Infof("Multisite for object-store: realm=%s, zonegroup=%s, zone=%s", objContext.Realm, objContext.ZoneGroup, objContext.Zone)

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -303,4 +304,288 @@ func TestDashboard(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, checkdashboard)
 	disableRGWDashboard(objContext)
+}
+
+// import TestMockExecHelperProcess
+func TestMockExecHelperProcess(t *testing.T) {
+	exectest.TestMockExecHelperProcess(t)
+}
+
+func Test_createMultisite(t *testing.T) {
+	// control the return values from calling get/create/update on resources
+	type commandReturns struct {
+		realmExists         bool
+		zoneGroupExists     bool
+		zoneExists          bool
+		periodExists        bool
+		failCreateRealm     bool
+		failCreateZoneGroup bool
+		failCreateZone      bool
+		failUpdatePeriod    bool
+	}
+
+	// control whether we should expect certain 'get' calls
+	type expectCommands struct {
+		getRealm        bool
+		createRealm     bool
+		getZoneGroup    bool
+		createZoneGroup bool
+		getZone         bool
+		createZone      bool
+		getPeriod       bool
+		updatePeriod    bool
+	}
+
+	// vars used for testing if calls were made
+	var (
+		calledGetRealm        = false
+		calledGetZoneGroup    = false
+		calledGetZone         = false
+		calledGetPeriod       = false
+		calledCreateRealm     = false
+		calledCreateZoneGroup = false
+		calledCreateZone      = false
+		calledUpdatePeriod    = false
+	)
+
+	enoentIfNotExist := func(resourceExists bool) (string, error) {
+		if !resourceExists {
+			return "", exectest.MockExecCommandReturns(t, "", "", int(syscall.ENOENT))
+		}
+		return "{}", nil // get wants json, and {} is the most basic json
+	}
+
+	errorIfFail := func(shouldFail bool) (string, error) {
+		if shouldFail {
+			return "", exectest.MockExecCommandReturns(t, "", "basic error", 1)
+		}
+		return "", nil
+	}
+
+	setupTest := func(env commandReturns) *exectest.MockExecutor {
+		// reset output testing vars
+		calledGetRealm = false
+		calledCreateRealm = false
+		calledGetZoneGroup = false
+		calledCreateZoneGroup = false
+		calledGetZone = false
+		calledCreateZone = false
+		calledGetPeriod = false
+		calledUpdatePeriod = false
+
+		return &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+				if command == "radosgw-admin" {
+					switch arg[0] {
+					case "realm":
+						switch arg[1] {
+						case "get":
+							calledGetRealm = true
+							return enoentIfNotExist(env.realmExists)
+						case "create":
+							calledCreateRealm = true
+							return errorIfFail(env.failCreateRealm)
+						}
+					case "zonegroup":
+						switch arg[1] {
+						case "get":
+							calledGetZoneGroup = true
+							return enoentIfNotExist(env.zoneGroupExists)
+						case "create":
+							calledCreateZoneGroup = true
+							return errorIfFail(env.failCreateZoneGroup)
+						}
+					case "zone":
+						switch arg[1] {
+						case "get":
+							calledGetZone = true
+							return enoentIfNotExist(env.zoneExists)
+						case "create":
+							calledCreateZone = true
+							return errorIfFail(env.failCreateZone)
+						}
+					case "period":
+						switch arg[1] {
+						case "get":
+							calledGetPeriod = true
+							return enoentIfNotExist(env.periodExists)
+						case "update":
+							calledUpdatePeriod = true
+							return errorIfFail(env.failUpdatePeriod)
+						}
+					}
+				}
+				t.Fatalf("unhandled command: %s %v", command, arg)
+				return "", nil
+			},
+		}
+	}
+
+	expectNoErr := false // want no error
+	expectErr := true    // want an error
+
+	tests := []struct {
+		name           string
+		commandReturns commandReturns
+		expectCommands expectCommands
+		wantErr        bool
+	}{
+		{"create realm, zonegroup, and zone; period update",
+			commandReturns{
+				// nothing exists, and all should succeed
+			},
+			expectCommands{
+				getRealm:        true,
+				createRealm:     true,
+				getZoneGroup:    true,
+				createZoneGroup: true,
+				getZone:         true,
+				createZone:      true,
+				getPeriod:       true,
+				updatePeriod:    true,
+			},
+			expectNoErr},
+		{"fail creating realm",
+			commandReturns{
+				failCreateRealm: true,
+			},
+			expectCommands{
+				getRealm:    true,
+				createRealm: true,
+				// when we fail to create realm, we should not continue
+			},
+			expectErr},
+		{"fail creating zonegroup",
+			commandReturns{
+				failCreateZoneGroup: true,
+			},
+			expectCommands{
+				getRealm:        true,
+				createRealm:     true,
+				getZoneGroup:    true,
+				createZoneGroup: true,
+				// when we fail to create zonegroup, we should not continue
+			},
+			expectErr},
+		{"fail creating zone",
+			commandReturns{
+				failCreateZone: true,
+			},
+			expectCommands{
+				getRealm:        true,
+				createRealm:     true,
+				getZoneGroup:    true,
+				createZoneGroup: true,
+				getZone:         true,
+				createZone:      true,
+				// when we fail to create zone, we should not continue
+			},
+			expectErr},
+		{"fail period update",
+			commandReturns{
+				failUpdatePeriod: true,
+			},
+			expectCommands{
+				getRealm:        true,
+				createRealm:     true,
+				getZoneGroup:    true,
+				createZoneGroup: true,
+				getZone:         true,
+				createZone:      true,
+				getPeriod:       true,
+				updatePeriod:    true,
+			},
+			expectErr},
+		{"realm exists; create zonegroup and zone; period update",
+			commandReturns{
+				realmExists: true,
+			},
+			expectCommands{
+				getRealm:        true,
+				createRealm:     false,
+				getZoneGroup:    true,
+				createZoneGroup: true,
+				getZone:         true,
+				createZone:      true,
+				getPeriod:       true,
+				updatePeriod:    true,
+			},
+			expectNoErr},
+		{"realm and zonegroup exist; create zone; period update",
+			commandReturns{
+				realmExists:     true,
+				zoneGroupExists: true,
+			},
+			expectCommands{
+				getRealm:        true,
+				createRealm:     false,
+				getZoneGroup:    true,
+				createZoneGroup: false,
+				getZone:         true,
+				createZone:      true,
+				getPeriod:       true,
+				updatePeriod:    true,
+			},
+			expectNoErr},
+		{"realm, zonegroup, and zone exist; period update",
+			commandReturns{
+				realmExists:     true,
+				zoneGroupExists: true,
+				zoneExists:      true,
+			},
+			expectCommands{
+				getRealm:        true,
+				createRealm:     false,
+				getZoneGroup:    true,
+				createZoneGroup: false,
+				getZone:         true,
+				createZone:      false,
+				getPeriod:       true,
+				updatePeriod:    true,
+			},
+			expectNoErr},
+		{"realm, zonegroup, zone, and period all exist",
+			commandReturns{
+				realmExists:     true,
+				zoneGroupExists: true,
+				zoneExists:      true,
+				periodExists:    true,
+			},
+			expectCommands{
+				getRealm:        true,
+				createRealm:     false,
+				getZoneGroup:    true,
+				createZoneGroup: false,
+				getZone:         true,
+				createZone:      false,
+				getPeriod:       true,
+				updatePeriod:    false,
+			},
+			expectNoErr},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			executor := setupTest(tt.commandReturns)
+			ctx := &clusterd.Context{
+				Executor: executor,
+			}
+			objContext := NewContext(ctx, &client.ClusterInfo{Namespace: "my-cluster"}, "my-store")
+
+			// assumption: endpointArg is sufficiently tested by integration tests
+			err := createMultisite(objContext, "")
+			assert.Equal(t, tt.expectCommands.getRealm, calledGetRealm)
+			assert.Equal(t, tt.expectCommands.createRealm, calledCreateRealm)
+			assert.Equal(t, tt.expectCommands.getZoneGroup, calledGetZoneGroup)
+			assert.Equal(t, tt.expectCommands.createZoneGroup, calledCreateZoneGroup)
+			assert.Equal(t, tt.expectCommands.getZone, calledGetZone)
+			assert.Equal(t, tt.expectCommands.createZone, calledCreateZone)
+			assert.Equal(t, tt.expectCommands.getPeriod, calledGetPeriod)
+			assert.Equal(t, tt.expectCommands.updatePeriod, calledUpdatePeriod)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
