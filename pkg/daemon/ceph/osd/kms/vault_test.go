@@ -157,3 +157,27 @@ func Test_configTLS(t *testing.T) {
 	assert.NotEqual(t, "vault-client-cert", config["VAULT_CLIENT_CERT"])
 	assert.NotEqual(t, "vault-client-key", config["VAULT_CLIENT_KEY"])
 }
+
+func Test_buildKeyContext(t *testing.T) {
+	t.Run("no vault namespace, return empty map and assignment is possible", func(t *testing.T) {
+		config := map[string]string{
+			"KMS_PROVIDER": "vault",
+			"VAULT_ADDR":   "1.1.1.1",
+		}
+		context := buildKeyContext(config)
+		assert.Len(t, context, 0)
+		context["foo"] = "bar"
+	})
+
+	t.Run("vault namespace, return 1 single element in the map and assignment is possible", func(t *testing.T) {
+		config := map[string]string{
+			"KMS_PROVIDER":    "vault",
+			"VAULT_ADDR":      "1.1.1.1",
+			"VAULT_NAMESPACE": "vault-namespace",
+		}
+		context := buildKeyContext(config)
+		assert.Len(t, context, 1)
+		context["foo"] = "bar"
+		assert.Len(t, context, 2)
+	})
+}
