@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2021 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package ceph
 
 import (
@@ -48,8 +47,7 @@ func setupMultus(cmd *cobra.Command, args []string) error {
 	logger.Infof("Starting multus setup")
 	err := multus.Setup()
 	if err != nil {
-		logger.Error("Multus setup failed.")
-		return err
+		rook.TerminateFatal(err)
 	}
 
 	logger.Infof("Multus setup complete.")
@@ -64,8 +62,7 @@ func teardownMultus(cmd *cobra.Command, args []string) error {
 	logger.Infof("Starting multus teardown")
 	err := multus.Teardown()
 	if err != nil {
-		logger.Error("Multus teardown failed.")
-		return err
+		rook.TerminateFatal(err)
 	}
 
 	logger.Infof("Multus teardown complete.")
