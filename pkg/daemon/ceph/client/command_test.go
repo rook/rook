@@ -115,6 +115,7 @@ func TestNewRBDCommand(t *testing.T) {
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			switch {
 			case command == "rbd" && args[0] == "create":
+				assert.Len(t, args, 8)
 				return "success", nil
 			}
 			return "", errors.Errorf("unexpected ceph command %q", args)
@@ -136,6 +137,7 @@ func TestNewRBDCommand(t *testing.T) {
 		assert.True(t, cmd.RemoteExecution)
 		_, err := cmd.Run()
 		assert.Error(t, err)
+		assert.Len(t, cmd.args, 4)
 		// This is not the best but it shows we go through the right codepath
 		assert.EqualError(t, err, "no pods found with selector \"rook-ceph-mgr\"")
 	})
