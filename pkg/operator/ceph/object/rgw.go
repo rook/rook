@@ -362,7 +362,8 @@ func genObjectStoreHTTPClient(objContext *Context, spec *cephv1.ObjectStoreSpec)
 		if err != nil {
 			return nil, tlsCert, errors.Wrapf(err, "failed to fetch CA cert to establish TLS connection with object store %q", nsName)
 		}
-		c.Transport = BuildTransportTLS(tlsCert)
+		insecure := false
+		c.Transport = BuildTransportTLS(tlsCert, insecure)
 	}
 	return c, tlsCert, nil
 }

@@ -159,14 +159,13 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	}
 
 	// Set access and secret key
-	tlsCert := c.objContext.TlsCert
 	s3endpoint := c.objContext.Endpoint
 	s3AccessKey := user.Keys[0].AccessKey
 	s3SecretKey := user.Keys[0].SecretKey
 
 	// Initiate s3 agent
 	logger.Debugf("initializing s3 connection for object store %q", c.namespacedName.Name)
-	s3client, err := NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", false, tlsCert)
+	s3client, err := NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", false)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize s3 connection")
 	}
