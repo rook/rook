@@ -13,6 +13,7 @@
 # limitations under the License.
 
 include build/makelib/common.mk
+include build/makelib/helm.mk
 
 .PHONY: all
 all: build
@@ -176,6 +177,9 @@ csv-clean: ## Remove existing OLM files.
 crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
+
+gen-rbac: $(HELM) ## generate RBAC from Helm charts
+	HELM=$(HELM) ./build/rbac/get-helm-rbac.sh
 
 .PHONY: all build.common cross.build.parallel
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune

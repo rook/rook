@@ -1,0 +1,51 @@
+name: Generate RBAC from Helm charts
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+jobs:
+  gen-rbac:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: copy working directory to GOPATH
+      run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
+
+    - name: Setup python
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.9"
+
+    - name: Install pip dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruamel.yaml==0.17.16
+
+    - name: run gen-rbac
+      working-directory: /home/runner/go/src/github.com/rook/rook
+      run: GOPATH=$(go env GOPATH) make gen-rbac
+
+    - name: validate gen-rbac
+      working-directory: /home/runner/go/src/github.com/rook/rook
+      run: tests/scripts/validate_modified_files.sh gen-rbac
