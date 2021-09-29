@@ -419,6 +419,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 		// ENOENT means “No such file or directory”
 		if err == nil && code == int(syscall.ENOENT) {
 			// period does not exist and so needs to be created
+			logger.Debugf("period must be updated for CephObjectStore %q because it does not exist", objContext.Name)
 			updatePeriod = true
 		} else {
 			return errorOrIsNotFound(err, "'radosgw-admin period get' failed with code %d, for reason %q", strconv.Itoa(code), output)
