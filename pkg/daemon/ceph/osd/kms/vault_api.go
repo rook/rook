@@ -23,6 +23,7 @@ import (
 	"github.com/libopenstorage/secrets/vault"
 	"github.com/libopenstorage/secrets/vault/utils"
 	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/clusterd"
 
 	"github.com/hashicorp/vault/api"
 )
@@ -38,14 +39,33 @@ var vaultClient = newVaultClient
 
 // newVaultClient returns a vault client, there is no need for any secretConfig validation
 // Since this is called after an already validated call InitVault()
-func newVaultClient(secretConfig map[string]string) (*api.Client, error) {
+func newVaultClient(clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
 	// DefaultConfig uses the environment variables if present.
 	config := api.DefaultConfig()
 
+	// Always use a new map otherwise the map will mutate and subsequent calls will fail since the
+	// TLS content has been altered by the TLS config in vaultClient()
+	localSecretConfig := make(map[string]string)
+	for k, v := range secretConfig {
+		localSecretConfig[k] = v
+	}
+
 	// Convert map string to map interface
 	c := make(map[string]interface{})
-	for k, v := range secretConfig {
+	for k, v := range localSecretConfig {
 		c[k] = v
+	}
+
+	// Populate TLS config
+	newConfigWithTLS, removeCertFiles, err := configTLS(clusterdContext, namespace, localSecretConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize vault tls configuration")
+	}
+	defer removeCertFiles()
+
+	// Populate TLS config
+	for key, value := range newConfigWithTLS {
+		c[key] = string(value)
 	}
 
 	// Configure TLS
@@ -64,7 +84,7 @@ func newVaultClient(secretConfig map[string]string) (*api.Client, error) {
 	client.SetToken(strings.TrimSuffix(os.Getenv(api.EnvVaultToken), "\n"))
 
 	// Set Vault address, was validated by ValidateConnectionDetails()
-	err = client.SetAddress(strings.TrimSuffix(secretConfig[api.EnvVaultAddress], "\n"))
+	err = client.SetAddress(strings.TrimSuffix(localSecretConfig[api.EnvVaultAddress], "\n"))
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +92,7 @@ func newVaultClient(secretConfig map[string]string) (*api.Client, error) {
 	return client, nil
 }
 
-func BackendVersion(secretConfig map[string]string) (string, error) {
+func BackendVersion(clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (string, error) {
 	v1 := "v1"
 	v2 := "v2"
 
@@ -91,7 +111,7 @@ func BackendVersion(secretConfig map[string]string) (string, error) {
 		return v2, nil
 	default:
 		// Initialize Vault client
-		vaultClient, err := vaultClient(secretConfig)
+		vaultClient, err := vaultClient(clusterdContext, namespace, secretConfig)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to initialize vault client")
 		}
