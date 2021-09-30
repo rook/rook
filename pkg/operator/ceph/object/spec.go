@@ -111,7 +111,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	if c.clusterSpec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Containers = append(podSpec.Containers, *controller.LogCollectorContainer(strings.TrimPrefix(generateCephXUser(fmt.Sprintf("ceph-client.%s", rgwConfig.ResourceName)), "client."), c.clusterInfo.Namespace, *c.clusterSpec))
+		podSpec.Containers = append(podSpec.Containers, *controller.LogCollectorContainer(getDaemonName(rgwConfig), c.clusterInfo.Namespace, *c.clusterSpec))
 	}
 
 	// Replace default unreachable node toleration
@@ -610,4 +610,8 @@ func (c *clusterConfig) rgwTLSSecretType(secretName string) (v1.SecretType, erro
 		return rgwTlsSecret.Type, nil
 	}
 	return "", errors.Wrapf(err, "no Kubernetes secrets referring TLS certificates found")
+}
+
+func getDaemonName(rgwConfig *rgwConfig) string {
+	return fmt.Sprintf("ceph-%s", generateCephXUser(rgwConfig.ResourceName))
 }

@@ -379,3 +379,33 @@ func TestCheckRGWKMS(t *testing.T) {
 	assert.True(t, b)
 	assert.NoError(t, err)
 }
+
+func TestGetDaemonName(t *testing.T) {
+	context := &clusterd.Context{Clientset: test.New(t, 3)}
+	store := simpleStore()
+	tests := []struct {
+		storeName      string
+		testDaemonName string
+		daemonID       string
+	}{
+		{"default", "ceph-client.rgw.default.a", "a"},
+		{"my-store", "ceph-client.rgw.my.store.b", "b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.storeName, func(t *testing.T) {
+			c := &clusterConfig{
+				context: context,
+				store:   store,
+			}
+			c.store.Name = tt.storeName
+			daemonName := fmt.Sprintf("%s-%s", c.store.Name, tt.daemonID)
+			resourceName := fmt.Sprintf("%s-%s", AppName, daemonName)
+			rgwconfig := &rgwConfig{
+				ResourceName: resourceName,
+				DaemonID:     daemonName,
+			}
+			daemon := getDaemonName(rgwconfig)
+			assert.Equal(t, tt.testDaemonName, daemon)
+		})
+	}
+}
