@@ -91,7 +91,7 @@ spec:
         storage_type: ceph
       expr: |
         (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-mgr"}[5m]) * 60)) > 0.95
-      for: 5m
+      for: 15m
       labels:
         severity: warning
   - name: ceph-node-alert.rules
@@ -150,7 +150,7 @@ spec:
         storage_type: ceph
       expr: |
         label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon) group_left(host, device) label_replace(ceph_disk_occupation,"host","$1","exported_instance","(.*)")
-      for: 1m
+      for: 15m
       labels:
         severity: critical
     - alert: CephOSDDiskUnavailable
@@ -242,7 +242,7 @@ spec:
         storage_type: ceph
       expr: |
         ceph_health_status{job="rook-ceph-mgr"} == 1
-      for: 10m
+      for: 15m
       labels:
         severity: warning
     - alert: CephOSDVersionMismatch
