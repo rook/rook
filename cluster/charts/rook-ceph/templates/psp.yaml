@@ -1,20 +1,18 @@
 {{- if .Values.pspEnable }}
-# PSP for rook-ceph-operator
-
-# Most of the teams follow the kubernetes docs and have these PSPs.
+# We expect most Kubernetes teams to follow the Kubernetes docs and have these PSPs.
 # * privileged (for kube-system namespace)
 # * restricted (for all logged in users)
 #
-# If we name it as `rook-ceph-operator`, it comes next to `restricted` PSP alphabetically,
-# and applies `restricted` capabilities to `rook-system`. That's reason this is named with `00-rook-ceph-operator`,
-# so it stays somewhere close to top and `rook-system` gets the intended PSP.
+# PSPs are applied based on the first match alphabetically. `rook-ceph-operator` comes after
+# `restricted` alphabetically, so we name this `00-rook-privileged`, so it stays somewhere
+# close to the top and so `rook-system` gets the intended PSP. This may need to be renamed in
+# environments with other `00`-prefixed PSPs.
 #
-# More info on PSP ordering : https://kubernetes.io/docs/concepts/policy/pod-security-policy/#policy-order
-
+# More on PSP ordering: https://kubernetes.io/docs/concepts/policy/pod-security-policy/#policy-order
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: 00-rook-ceph-operator
+  name: 00-rook-privileged
   annotations:
     seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
     seccomp.security.alpha.kubernetes.io/defaultProfileName:  'runtime/default'
@@ -77,4 +75,106 @@ spec:
     # Ceph mgr Prometheus Metrics
     - min: 9283
       max: 9283
+{{- if .Values.rbacEnable }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: 'psp:rook'
+  labels:
+    operator: rook
+    storage-backend: ceph
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+rules:
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - 00-rook-privileged
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-ceph-system-psp
+  labels:
+    operator: rook
+    storage-backend: ceph
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-system
+    namespace: {{ .Release.Namespace }} # namespace:operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-csi-cephfs-provisioner-sa-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-provisioner-sa
+    namespace: {{ .Release.Namespace }} # namespace:operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-csi-cephfs-plugin-sa-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-plugin-sa
+    namespace: {{ .Release.Namespace }} # namespace:operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-csi-rbd-plugin-sa-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-plugin-sa
+    namespace: {{ .Release.Namespace }} # namespace:operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-csi-rbd-provisioner-sa-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'psp:rook'
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-provisioner-sa
+    namespace: {{ .Release.Namespace }} # namespace:operator
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-nodeplugin
+roleRef:
+  kind: ClusterRole
+  name: rbd-csi-nodeplugin
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-plugin-sa
+    namespace: {{ .Release.Namespace }} # namespace:operator
 {{- end }}
+{{- end -}}

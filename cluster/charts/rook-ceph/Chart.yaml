@@ -5,3 +5,7 @@ version: 0.0.1
 icon: https://rook.io/images/rook-logo.svg
 sources:
   - https://github.com/rook/rook
+dependencies:
+- name: library
+  version: "0.0.1"
+  repository: "file://../library"

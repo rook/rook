@@ -458,24 +458,4 @@ rules:
   - apiGroups: [""]
     resources: ["serviceaccounts"]
     verbs: ["get"]
-{{- end }}
-{{- if .Values.pspEnable }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: 'psp:rook'
-  labels:
-    operator: rook
-    storage-backend: ceph
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-rules:
-- apiGroups:
-  - policy
-  resources:
-  - podsecuritypolicies
-  resourceNames:
-  - 00-rook-ceph-operator
-  verbs:
-  - use
-{{- end }}
+{{- end -}}

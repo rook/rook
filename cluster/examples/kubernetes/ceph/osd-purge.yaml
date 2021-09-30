@@ -16,7 +16,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: rook-ceph-purge-osd
-  namespace: rook-ceph # namespace:operator
+  namespace: rook-ceph # namespace:cluster
   labels:
     app: rook-ceph-purge-osd
 spec:

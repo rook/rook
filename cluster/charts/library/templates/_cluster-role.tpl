@@ -1,9 +1,12 @@
-{{- if ne .Release.Namespace .Values.operatorNamespace }}
----
+{{/*
+Roles needed for running a Rook CephCluster
+*/}}
+{{- define "library.cluster.roles" }}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -12,10 +15,12 @@ rules:
     resources: ["cephclusters", "cephclusters/finalizers"]
     verbs: ["get", "list", "create", "update", "delete"]
 ---
+# Aspects of ceph-mgr that operate within the cluster's namespace
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 rules:
   - apiGroups:
       - ""
@@ -47,11 +52,26 @@ rules:
       - "*"
     verbs:
       - "*"
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/scale
+      - deployments
+    verbs:
+      - patch
+      - delete
+  - apiGroups:
+      - ''
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - delete
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 rules:
   - apiGroups:
       - ""
@@ -70,6 +90,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-purge-osd
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -83,25 +104,4 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "update", "delete"]
-
-{{- if .Values.monitoring.enabled }}
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-monitoring
-rules:
-  - apiGroups:
-      - "monitoring.coreos.com"
-    resources:
-      - servicemonitors
-      - prometheusrules
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - delete
-{{- end }}
 {{- end }}

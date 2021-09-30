@@ -80,7 +80,7 @@ rules:
     resources:
       - podsecuritypolicies
     resourceNames:
-      - 00-rook-ceph-operator
+      - 00-rook-privileged
     verbs:
       - use
 ---
@@ -482,7 +482,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-plugin-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 roleRef:
   kind: ClusterRole
   name: cephfs-csi-nodeplugin
@@ -495,7 +495,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 roleRef:
   kind: ClusterRole
   name: cephfs-external-provisioner-runner
@@ -505,14 +505,14 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-nodeplugin
-subjects:
-  - kind: ServiceAccount
-    name: rook-csi-rbd-plugin-sa
-    namespace: rook-ceph
 roleRef:
   kind: ClusterRole
   name: rbd-csi-nodeplugin
   apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-plugin-sa
+    namespace: rook-ceph # namespace:operator
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -521,7 +521,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 roleRef:
   kind: ClusterRole
   name: rbd-external-provisioner-runner
@@ -542,7 +542,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
 # Allow the ceph mgr to access cluster-wide resources necessary for the mgr modules
 kind: ClusterRoleBinding
@@ -556,7 +556,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-mgr
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
 kind: ClusterRoleBinding
 # Give Rook-Ceph Operator permissions to provision ObjectBuckets in response to ObjectBucketClaims.
@@ -570,7 +570,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
 # Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
 kind: ClusterRoleBinding
@@ -584,7 +584,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-osd
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -600,7 +600,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -616,7 +616,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -629,7 +629,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-plugin-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -642,7 +642,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -655,7 +655,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-plugin-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -668,24 +668,22 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
-# PSP for rook-ceph-operator
-
-# Most of the teams follow the kubernetes docs and have these PSPs.
+# We expect most Kubernetes teams to follow the Kubernetes docs and have these PSPs.
 # * privileged (for kube-system namespace)
 # * restricted (for all logged in users)
 #
-# If we name it as `rook-ceph-operator`, it comes next to `restricted` PSP alphabetically,
-# and applies `restricted` capabilities to `rook-system`. That's reason this is named with `00-rook-ceph-operator`,
-# so it stays somewhere close to top and `rook-system` gets the intended PSP.
+# PSPs are applied based on the first match alphabetically. `rook-ceph-operator` comes after
+# `restricted` alphabetically, so we name this `00-rook-privileged`, so it stays somewhere
+# close to the top and so `rook-system` gets the intended PSP. This may need to be renamed in
+# environments with other `00`-prefixed PSPs.
 #
-# More info on PSP ordering : https://kubernetes.io/docs/concepts/policy/pod-security-policy/#policy-order
-
+# More on PSP ordering: https://kubernetes.io/docs/concepts/policy/pod-security-policy/#policy-order
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: 00-rook-ceph-operator
+  name: 00-rook-privileged
   annotations:
     seccomp.security.alpha.kubernetes.io/allowedProfileNames: runtime/default
     seccomp.security.alpha.kubernetes.io/defaultProfileName: runtime/default
@@ -753,7 +751,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-external-provisioner-cfg
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 rules:
   - apiGroups: ['']
     resources: [endpoints]
@@ -769,7 +767,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-cfg
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 rules:
   - apiGroups: ['']
     resources: [endpoints]
@@ -785,7 +783,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups:
       - ''
@@ -805,7 +803,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups:
       - ''
@@ -856,7 +854,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups: ['']
     resources: [configmaps]
@@ -869,6 +867,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-purge-osd
+  namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups: ['']
     resources: [configmaps]
@@ -883,12 +882,12 @@ rules:
     resources: [persistentvolumeclaims]
     verbs: [get, update, delete]
 ---
-# The role for the operator to manage resources in its own namespace
+# Allow the operator to manage resources in its own namespace
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: rook-ceph-system
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
   labels:
     operator: rook
     storage-backend: ceph
@@ -944,11 +943,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-provisioner-role-cfg
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
@@ -958,11 +957,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-provisioner-role-cfg
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 roleRef:
   kind: Role
   name: rbd-external-provisioner-cfg
@@ -973,7 +972,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cluster-mgmt
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -981,13 +980,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-cmd-reporter
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -995,13 +994,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-cmd-reporter
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rook-ceph-cmd-reporter-psp
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -1009,13 +1008,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-cmd-reporter
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rook-ceph-default-psp
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
   labels:
     operator: rook
     storage-backend: ceph
@@ -1026,14 +1025,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: default
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
-# Allow the ceph mgr to access the cluster-specific resources necessary for the mgr modules
+# Allow the ceph mgr to access resources scoped to the CephCluster namespace necessary for mgr modules
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -1041,13 +1040,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-mgr
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rook-ceph-mgr-psp
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -1055,14 +1054,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-mgr
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
-# Allow the ceph mgr to access the rook system resources necessary for the mgr modules
+# Allow the ceph mgr to access resources in the Rook operator namespace necessary for mgr modules
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -1070,14 +1069,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-mgr
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
 # Allow the osd pods in this namespace to work with configmaps
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-osd
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -1085,13 +1084,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-osd
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rook-ceph-osd-psp
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -1099,27 +1098,29 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-osd
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 ---
+# Allow the osd purge job to run in this namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-purge-osd
+  namespace: rook-ceph # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-purge-osd
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-purge-osd
-    namespace: rook-ceph
-roleRef:
-  kind: Role
-  name: rook-ceph-purge-osd
-  apiGroup: rbac.authorization.k8s.io
+    namespace: rook-ceph # namespace:cluster
 ---
 # Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-system
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
   labels:
     operator: rook
     storage-backend: ceph
@@ -1130,78 +1131,80 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:operator
 ---
+# Service account for the job that reports the Ceph version in an image
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-cmd-reporter
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
   labels:
     operator: rook
     storage-backend: ceph
 ---
-# Service account for the Ceph Mgr. Must exist and cannot be renamed.
+# Service account for Ceph mgrs
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-mgr
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
   labels:
     operator: rook
     storage-backend: ceph
 ---
-# Service account for the Ceph OSDs. Must exist and cannot be renamed.
+# Service account for Ceph OSDs
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-osd
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
   labels:
     operator: rook
     storage-backend: ceph
+    i-am-a-new-label: delete-me
 ---
-# Service account for the purge osd job
+# Service account for job that purges OSDs from a Rook-Ceph cluster
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-purge-osd
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 ---
-# Service account for the operator
+# Service account for the Rook-Ceph operator
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-ceph-system
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
   labels:
     operator: rook
     storage-backend: ceph
 ---
-# Service account for the cephfs csi driver
+# Service account for the CephFS CSI driver
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-plugin-sa
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 ---
-# Service account for the cephfs csi provisioner
+# Service account for the CephFS CSI provisioner
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-cephfs-provisioner-sa
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 ---
-# Service account for the rbd csi driver
+# Service account for the RBD CSI driver
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-plugin-sa
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
 ---
-# Service account for the rbd csi provisioner
+# Service account for the RBD CSI provisioner
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-provisioner-sa
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:operator
