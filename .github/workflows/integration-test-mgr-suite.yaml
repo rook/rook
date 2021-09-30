@@ -1,6 +1,8 @@
 name: Integration test CephMgrSuite
 on:
   pull_request:
+  schedule:
+    - cron: "0 0 * * *" # every day at midnight
 
 defaults:
   run:
@@ -10,7 +12,7 @@ defaults:
 jobs:
   TestCephMgrSuite:
     runs-on: ubuntu-18.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    if: "contains(github.event.pull_request.labels.*.name, 'run-mgr-suite')"
     strategy:
       fail-fast: false
       matrix:
