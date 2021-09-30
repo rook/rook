@@ -97,9 +97,6 @@ GO_TEST_FILTER=$(TESTFILTER)
 
 include build/makelib/golang.mk
 
-# setup helm charts
-include build/makelib/helm.mk
-
 # ====================================================================================
 # Targets
 
