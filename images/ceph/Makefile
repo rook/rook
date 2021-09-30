@@ -124,15 +124,15 @@ csv: $(OPERATOR_SDK) $(YQ) ## Generate a CSV file for OLM.
 csv-clean: $(OPERATOR_SDK) $(YQ) ## Remove existing OLM files.
 	@rm -fr ../../cluster/olm/ceph/deploy/* ../../cluster/olm/ceph/templates/*
 
-# list-image creates list of images for offline installation
-list-image:
-	@echo "producing list of images for offline installation";\
-	# remove the file if already exists
-	rm -f $(MANIFESTS_DIR)/images.txt;\
+# reading from a file and outputting to the same file can have undefined results, so use this intermediate
+IMAGE_TMP="/tmp/rook-ceph-image-list"
+list-image: ## Create a list of images for offline installation
+	@echo "producing list of images for offline installation"
+	rm -f $(IMAGE_TMP)
 	awk '/image:/ {print $2}' $(MANIFESTS_DIR)/operator.yaml $(MANIFESTS_DIR)/cluster.yaml | \
-	cut -d: -f2- |\
-	tee $(MANIFESTS_DIR)/images.txt; \
+		cut -d: -f2- | tee $(IMAGE_TMP)
 	awk '/quay.io/ || /k8s.gcr.io/ {print $3}' ../../pkg/operator/ceph/csi/spec.go | \
-	cut -d= -f2- |\
-	tr -d '"' | tee -a $(MANIFESTS_DIR)/images.txt;\
-	cat $(MANIFESTS_DIR)/images.txt|sort -h|uniq|tee $(MANIFESTS_DIR)/images.txt
+		cut -d= -f2- | tr -d '"' | tee -a $(IMAGE_TMP)
+	rm -f $(MANIFESTS_DIR)/images.txt
+	cat $(IMAGE_TMP) | sort -h | uniq | tee $(MANIFESTS_DIR)/images.txt
+	rm -f $(IMAGE_TMP)

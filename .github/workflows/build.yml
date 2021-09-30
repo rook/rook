@@ -28,6 +28,10 @@ jobs:
       run: |
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
 
+    - name: validate build
+      working-directory: /Users/runner/go/src/github.com/rook/rook
+      run: tests/scripts/validate_modified_files.sh build
+
     - name: run codegen
       working-directory: /Users/runner/go/src/github.com/rook/rook
       run: GOPATH=$(go env GOPATH) make codegen
