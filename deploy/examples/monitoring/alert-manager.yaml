@@ -1,0 +1,84 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: alertmanager-config
+  namespace: rook-ceph
+data:
+  config.yml: |-
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 3600s
+      receiver: 'web.hook'
+    receivers:
+    - name: 'web.hook'
+      webhook_configs:
+      - url: 'http://127.0.0.1:5001/'
+    inhibit_rules:
+      - source_match:
+          severity: 'page'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'dev', 'instance']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: rook-ceph
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/path:   /
+    prometheus.io/port:   '8080'
+spec:
+  selector:
+    app: alertmanager
+  type: NodePort
+  ports:
+    - port: 9093
+      targetPort: 9093
+      nodePort: 31000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: rook-ceph
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      name: alertmanager
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.19.0
+          args:
+            - "--config.file=/etc/alertmanager/config.yml"
+            - "--storage.path=/alertmanager"
+          ports:
+            - name: alertmanager
+              containerPort: 9093
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/alertmanager
+            - name: templates-volume
+              mountPath: /etc/alertmanager-templates
+            - name: alertmanager
+              mountPath: /alertmanager
+      volumes:
+        - name: config-volume
+          configMap:
+            name: alertmanager-config
+        - name: templates-volume
+          emptyDir: {}
+        - name: alertmanager
+          emptyDir: {}

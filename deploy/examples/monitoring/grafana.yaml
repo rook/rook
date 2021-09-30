@@ -1,0 +1,266 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-grafana
+  namespace: rook-ceph
+  labels:
+    app: grafana
+spec:
+  storageClassName: ceph-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-ini
+  namespace: rook-ceph
+  labels:
+    app: grafana
+data:
+  grafana.ini: |
+    [server]
+      protocol = https
+      http_port = 3000
+      cert_file = /etc/grafana/certs/tls.crt
+      cert_key  = /etc/grafana/certs/tls.key
+    [analytics]
+      reporting_enabled = false
+      check_for_updates = true
+    [log]
+      mode = console
+      level = info
+    [security]
+      allow_embedding = true
+    [auth.anonymous]
+      enabled = true
+      org_name = Main Org.
+      org_role = Viewer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: rook-ceph
+  labels:
+    app: grafana
+data:
+  prometheus.yaml: |-
+    {
+        "apiVersion": 1,
+        "datasources": [
+            {
+               "access":"proxy",
+                "editable": true,
+                "name": "Dashboard1",
+                "orgId": 1,
+                "type": "prometheus",
+                "url": "PROMETHEUS-SVC",
+                "version": 1
+            }
+        ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: rook-ceph
+  labels:
+    app: grafana
+data:
+  ceph-dashboard.yml: |-
+    apiVersion: 1
+    providers:
+      - name: 'Dashboard1'
+        torgId: 1
+        folder: 'ceph-dashboard'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 3
+        editable: false
+        options:
+          path: '/etc/grafana/dashboards/ceph-dashboard'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-tls-cert
+  namespace: rook-ceph
+  labels:
+    app: grafana
+type: kubernetes.io/tls
+data:
+  tls.crt: |
+    LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURPRENDQWlBQ0NRREdyejNOVmNkU2FEQU5C
+    Z2txaGtpRzl3MEJBUXNGQURCeU1Rc3dDUVlEVlFRR0V3SkgKUWpFUU1BNEdBMVVFQnd3SGFHOXRa
+    V3hoWWpFUU1BNEdBMVVFQ2d3SGFHOXRaV3hoWWpFUU1BNEdBMVVFQ3d3SAphRzl0Wld4aFlqRVFN
+    QTRHQTFVRUF3d0hhR3d1ZEdWemRERWJNQmtHQ1NxR1NJYjNEUUVKQVJZTWNtOXZkRUJvCmJDNTBa
+    WE4wTUI0WERUSXdNVEl5T0RJd01EYzBORm9YRFRJMU1USXlOekl3TURjME5Gb3dTakVMTUFrR0Ex
+    VUUKQmhNQ1IwSXhFREFPQmdOVkJBY01CMGh2YldWTVlXSXhFREFPQmdOVkJBb01CMGh2YldWTVlX
+    SXhGekFWQmdOVgpCQU1NRGlvdVlYQndjeTVvYkM1MFpYTjBNSUlCSWpBTkJna3Foa2lHOXcwQkFR
+    RUZBQU9DQVE4QU1JSUJDZ0tDCkFRRUF3TXZNNlNPd0NJc2lDZWpSZG9IVVdyZVMzdXNoclFiejBI
+    OWFvb2xQRisxYXNGTGZobG9ZeFpXMXgwY2wKbytsSWxWdW5BRXNGUEhaeFZuWkR1bFpEV3ZYc1h6
+    MTB5ekp5YUVkNmpQdDdMeXZxMTFXNkJodzliZVhnUmdwOQo4dkVuQk5XMExVZ1EwLzhKaG9uZllT
+    WEVBL29BYXF2Y2gvMEV4NjYzRzVhRk5iWkRYS2JhYzRBdE52djFWQjJ4CmlCTFB1NGRRZUhNNHZW
+    ejMyaHE5aHhEL1RZdlBnYmRZeTB5T3VUVEVSbE5QbzVtMXNJbGVHREFtRHFaRFplSjUKMDU3T2k4
+    UHVRenNzZ3FhejJFZ1d1TGkwVzVNUUp6UU5NcXZ0V2F3M0QyUTV4ZkYwZlE4UnhYcTFQRk8zMGVG
+    OQprOUptelJDbXZLTUpoMVQ3R2ZBcmxZVFg0UUlEQVFBQk1BMEdDU3FHU0liM0RRRUJDd1VBQTRJ
+    QkFRQ2dUTjJoCjlDSUk1MWl3N1JNTWhHRmw2SlR6N2ZsWUtIUTQ5OFV5ZWkxdzUyby92YmlSRG1S
+    UzI1RENQMFk4Y2h0MWF2T0kKdWFpR3lPY2dmcDVZYlBXdzVuZW9ydE1vVGdjaXRKVzlDRzk4bVRM
+    VFhYMWVJbG8ySkUzRnl1QzNyYzRDU0JsbQpBcWFNdG1jUlU1c25LVk8wVWxDRXZvbHpvNkpUWVJ5
+    UUhxcWpiUFM5UDNWYzFQT2dLcjhIYVYwWTdULzAxRHI5CkExa0R5VnhISXlkQWxybjdCa3ZxNWlo
+    MGIzcW1oQjNZL3l2SXU2eG5wMEQ0a3dSOVhFYjI1SWQ4Ukh3RCtkY3AKam5pMWFLQkdZK3NiLzlC
+    a3ZZVFFVSFd5QkhsTzJ2Z1Y4NVdsK21hYUtWVXJoMCtKSVQyRDUyeW1YVzNLUzdxMApwSklrYVhp
+    cEJBb1JjcWMyCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: |
+    LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBd012TTZTT3dD
+    SXNpQ2VqUmRvSFVXcmVTM3VzaHJRYnowSDlhb29sUEYrMWFzRkxmCmhsb1l4WlcxeDBjbG8rbEls
+    VnVuQUVzRlBIWnhWblpEdWxaRFd2WHNYejEweXpKeWFFZDZqUHQ3THl2cTExVzYKQmh3OWJlWGdS
+    Z3A5OHZFbkJOVzBMVWdRMC84SmhvbmZZU1hFQS9vQWFxdmNoLzBFeDY2M0c1YUZOYlpEWEtiYQpj
+    NEF0TnZ2MVZCMnhpQkxQdTRkUWVITTR2VnozMmhxOWh4RC9UWXZQZ2JkWXkweU91VFRFUmxOUG81
+    bTFzSWxlCkdEQW1EcVpEWmVKNTA1N09pOFB1UXpzc2dxYXoyRWdXdUxpMFc1TVFKelFOTXF2dFdh
+    dzNEMlE1eGZGMGZROFIKeFhxMVBGTzMwZUY5azlKbXpSQ212S01KaDFUN0dmQXJsWVRYNFFJREFR
+    QUJBb0lCQVFEQVhSaFJMbWgvdmNMeQp2RGZ5MUV0N1VGcmN6U0xHcjM4cDgwZ05rSTg0UW4wUUhV
+    QWxuMVBFSVVKRVdUcTNOeFpTNENYYTV2K01lbWxQCmFhVGVFU0FYYS9TeWVuRkVKVXQ5dklRTWt3
+    Y3Y0OVBua3dPUEFUSlJxdUdCUVFxMkVlTnFzWWVhL3FLN3cyWlAKdE5VSzYxR08zaXo0UWc1Q0tU
+    UlJ3SU8ycFJLNHFTMDN2STNUeW5ncWRaL2hlYzZiekZjSlN1ZFJYVWdUV21SYwpDZ2pSL0RLcE5o
+    UmE2TmhaaEpDMy9VOVV0c0VIUDlPV2JldXRXYm1ZRzRPc1lkcWU2UHdoTEJYME1VTWFDMTYrCjQ4
+    U3BsU3RJTHFmTmloaElVM2tMb1Vnb0lvNEFBS1I5RDBRVEdlcHd5WnAwRWNlOEtUNGxVaWxiMVhH
+    cVk0bnUKYVZ0WEdmSTVBb0dCQU9UOGpGMU8zeTJUcHpLLys0a1UrUnhDS2huSEplL2IrREJLcTky
+    OUsyZmNydDllU1M3bApYQTdsMTRIR2ZDQnFxSzRxSzdpVXhQT2FlNjg2WlZmRHZrNjJoYkE3cFJO
+    M2drL2FSRFhCTTBscjdLd1dXQ1BjCm5wSnpKNWJxYUI4UWJYSER4NEczWVJlb1VPQkFhYXRnaDhO
+    cE5SYU1CbnFBRFpGNFo2eHV0WHpmQW9HQkFOZUsKU3NjZWVURDZpclVCU3JtQU9Ed05uOVFTeWtp
+    NnJEcVltN2FBVko0ZFFvU0JEbHdBSm9obnM5U05IS3NibDIrWApkZU03V0xEMGVxWU55cXRIWG9x
+    dFJUcmpoRSthOCsrUlcyVlRxQ0hlb0w3Y2NoOHVWdk9BY2hYSXFMMEhpQ1NXCjVESkFQRGZGUHVD
+    UTdVZGlMbWI2MTEwZGZObHg0d0lNZ2pmUnE0TS9Bb0dBQ0F6WTRtN2phYmJIS2dHVjFqdm0KaGhm
+    Tll4cWRPdEdBNkRHMzJSUE5jdGxQVElzRUI2SUltbjE2RmhYa1J6OTRycWJNNHJCWVBEZ3lJUGJz
+    bVNsSQpoM3ZqTjA3aGZzMjB4eG5sUy81K3p4WDhQQkNOQ0xXNDNXMHU5eDlHaWRFS0IvWGFEYlZr
+    dEhBMlo2dmNDeXBaCm00VVhXTE9UaHJyNXZ5TjhnWk5pemdFQ2dZRUFnZkVYZjgrNVZIUFhKNlJ0
+    dmtPMG8wKzdhWWtpZHBKRHZ0ZSsKR0ZwcHFTRU90djl1L3J3QWZ2KzJCSkJHRmtuK0ZBS0Z5Y1kv
+    Zy83LzZoZ3FkUFFENVNyc3I4SDJSRit3YkY5LwpjQ2p0RmU0M2pwa3NHK3c5ODNNZVZFK3ltck50
+    dWxGVnBZM2dQK2NrTHhKd1dqYXdydGpPK1k0TGRMUWFIV1FaCkpUbThZdFVDZ1lBTjErZFJETDY5
+    NFJTcCswSEhOWk1jaVZEeTVjWERnRG5wNGNYSVJyanh5bS82cGkxSkpibTkKZGFzbmM0TEMxcEQ2
+    RThNTXJseTkyVlpkUzZpSFBXVysxTFB0cFlyTjBZcHljR2d5aUc4d1dtczhIYTNFeUNzKwpjS2hl
+    Vk1rYlJObWtPWmNVQ2ozUkdEUXBLNDZCUW1NTlRXeHcwdWo5WUpUSy9mMlZtc1FmdGc9PQotLS0t
+    LUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: rook-ceph
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      name: grafana
+      labels:
+        app: grafana
+    spec:
+      # Deployment has PodAntiAffinity configured to ensure that
+      # the scheduler does not co-locate replicas on a single node.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - grafana
+              topologyKey: "kubernetes.io/hostname"
+      securityContext:
+        fsGroup: 472
+        runAsGroup: 472
+        runAsNonRoot: true
+        runAsUser: 472
+      containers:
+        - name: grafana
+          image: quay.io/ceph/ceph-grafana:6.7.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grafana
+              containerPort: 3000
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+          env:
+            - name: GF_PATHS_PROVISIONING
+              value: "/etc/grafana/k8sprovisioning"
+            - name: GF_PATHS_DATA
+              value: "/var/lib/grafanadata"
+          volumeMounts:
+            - name: grafana-config
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+
+            - name: grafana-storage
+              mountPath: /var/lib/grafanadata
+
+            - name: grafana-certs
+              mountPath: /etc/grafana/certs/
+              readOnly: true
+
+            - name: grafana-dashboards
+              mountPath: /etc/grafana/k8sprovisioning/dashboards/
+
+            - name: grafana-datasources
+              mountPath: /etc/grafana/k8sprovisioning/datasources/
+
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: grafana-config
+          configMap:
+            name: grafana-ini
+
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: pvc-grafana
+
+        - name: grafana-certs
+          secret:
+            secretName: grafana-tls-cert
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+
+        - name: grafana-datasources
+          configMap:
+            name: grafana-datasources
+
+        - name: grafana-dashboards
+          configMap:
+            name: grafana-dashboards
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: rook-ceph
+  labels:
+    app: grafana
+spec:
+  selector:
+    app: grafana
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 32000

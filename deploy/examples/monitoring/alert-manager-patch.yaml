@@ -1,0 +1,6 @@
+spec:
+  alerting:
+    alertmanagers:
+      - namespace: rook-ceph
+        name: alertmanager
+        port: 31000
