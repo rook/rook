@@ -3,9 +3,9 @@
 We have already explored and explained the benefit of multi-homed networking, so this document will not rehearse that but simply focus on the implementation for the Ceph backend.
 If you are interested in learning more about multi-homed networking you can read the [design documentation on that matter](../core/multi-homed-cluster.md).
 
-To make the story short, [Multus](https://github.com/intel/multus-cni) should allow us to get the same performance benefit as `HostNetworking` by increasing the security.
+To make the story short, [Multus](https://github.com/intel/multus-cni) should allow us to get the same performance benefit as `HostNetworking`, but increasing the security.
 Using `HostNetworking` results in exposing **all** the network interfaces (the entire stack) of the host inside the container where Multus allows you to pick the one you want.
-Also, this removes the need of privileged containers (required for `HostNetworking`).
+Also, this minimizes the need of privileged containers (required for `HostNetworking`).
 
 ## Proposed CRD changed
 
@@ -78,7 +78,22 @@ Nothing to do in particular since they don't use any service IPs.
 
 ### CSI pods
 
-We can add annotations to these pods and they can reach out the Ceph public network, then the driver will expose the block or the filesystem normally.
+The CSI pods will run in the node's host network namespace.
+
+When deploying a CephCluster resource configured to use multus networks, a multus-connected network interface will be added to the host network namespace of all nodes that will run CSI plugin pods.
+
+Before deploying the CSI pods, the rook operator will first create a daemonset whose pods will run on the same nodes as the CSI pods, and is configured to use the multus network that will serve as the public network in the Ceph cluster. The pods from this daemonset will be referred to as the holder pods. These pods sleep indefinitely and are present only to hold the IP address from the multus IPAM. If these pods ever went down, the IPAM would consider the IP address free and reuse them, which could lead to IP address collisions. To avoid this, the daemonset is configured to  be part of the system-node-critical priority class, and has an onDelete upgrade policy.
+
+Once the pods from the holder daemonset are up and running, the Rook operator deploys jobs in parallel on each node to migrate the multus interface from the holder pod's network namespace into the host network namespace. These jobs run privileged pods, with SYS_ADMIN and NET_ADMIN capabilities, on the host network namespace, and with access to the /var/run/netns directory.
+
+The job is provided with the holder pod's pod IP, the multus IP to migrate, and the multus link to migrate. The multus IP is first used to check if the migration has already occurred. The job will return if it finds that the multus IP is already in use by an interface in the host network namespace. Prior to interface migration, the pod determines an available name for the new interface in the host network namespace. The migrated interfaces take on the name of "mlink#" in the host network namespace, starting with mlink0. The job uses the pod IP to find the holder pod's network namespace. The job then goes into the holder network namespace to rename the network interface and move it to the host network namespace. Moving namespaces causes the interface to lose its network configuration. The job therefore reconfigures the moved interface with its original IP configuration, and sets the link up. Before exiting, the job checks to ensure that the new interface is present on the host network namespace.
+
+If an error occurs in any of the migration jobs, the operator runs a teardown job on all of the nodes where migration was to have occurred. The teardown job runs on the host network namespace and is passed the multus IP of that node. It searches for an interface in the host namespace with the multus IP and removes it. If there is no such interface present, the job is considered complete.
+
+Restarting the node will cause the multus interface in the host namespace to go away. The holder pod will once again have the interface, and will be remigrated once the job runs again on the node.
+
+The deployment of the migration and teardown steps requires a service account with the proper permissions to deploy it. The rook-ceph-csi SecurityContextConstraints already has the needed permissions, so the rook-ceph-multus service account was added to list of accounts allowed to use these constraints.
+
 
 ## Accepted proposal
 
@@ -132,3 +147,4 @@ TBT: if the pod restarts, it keeps the same IP.
 We could and this is pure theory at this point use a IPAM with DHCP along with service IP.
 This would require interacting with Kubeproxy and there is no such feature yet.
 Even if it was there, we decided not to go with DHCP so this is not relevant.
+
