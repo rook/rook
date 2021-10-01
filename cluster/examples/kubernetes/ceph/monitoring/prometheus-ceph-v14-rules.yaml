@@ -53,7 +53,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        sum(up{job="rook-ceph-mgr"}) < 1
+        sum(up{job="rook-ceph-mgr"}) by (namespace) < 1
       for: 5m
       labels:
         severity: warning
@@ -66,7 +66,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        sum(ceph_mds_metadata{job="rook-ceph-mgr"} == 1) < 2
+        sum(ceph_mds_metadata{job="rook-ceph-mgr"} == 1) by (namespace) < 2
       for: 5m
       labels:
         severity: warning
@@ -79,7 +79,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        count(ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) <= (floor(count(ceph_mon_metadata{job="rook-ceph-mgr"}) / 2) + 1)
+        count(ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) by (namespace) <= (floor(count(ceph_mon_metadata{job="rook-ceph-mgr"}) by (namespace) / 2) + 1)
       for: 15m
       labels:
         severity: critical
@@ -252,7 +252,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        count(count(ceph_osd_metadata{job="rook-ceph-mgr"}) by (ceph_version)) > 1
+        count(count(ceph_osd_metadata{job="rook-ceph-mgr"}) by (ceph_version, namespace)) by (ceph_version, namespace) > 1
       for: 10m
       labels:
         severity: warning
