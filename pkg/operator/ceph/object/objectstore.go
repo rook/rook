@@ -86,6 +86,9 @@ type realmType struct {
 	Realms []string `json:"realms"`
 }
 
+// allow commitConfigChanges to be overridden for unit testing
+var commitConfigChanges = CommitConfigChanges
+
 func deleteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreSpec) error {
 	if spec.IsMultisite() {
 		// since pools for object store are created by the zone, the object store only needs to be removed from the zone
@@ -146,12 +149,11 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 		logger.Infof("WARNING: No other zone in realm %q can commit to the period or pull the realm until you create another object-store in zone %q", objContext.Realm, objContext.Zone)
 	}
 
-	// the period will help notify other zones of changes if there are multi-zones
-	_, err = runAdminCommand(objContext, false, "period", "update", "--commit")
-	if err != nil {
-		return errors.Wrap(err, "failed to update period after removing an endpoint from the zone")
+	// this will notify other zones of changes if there are multi-zones
+	if err := commitConfigChanges(objContext); err != nil {
+		nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+		return errors.Wrapf(err, "failed to commit config changes after removing CephObjectStore %q from multi-site", nsName)
 	}
-	logger.Infof("successfully updated period for realm %q after removal of object-store %q", objContext.Realm, objContext.Name)
 
 	return nil
 }
@@ -362,13 +364,11 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 
-	updatePeriod := false
 	// create the realm if it doesn't exist yet
 	output, err := RunAdminCommandNoMultisite(objContext, true, "realm", "get", realmArg)
 	if err != nil {
 		// ENOENT means “No such file or directory”
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
-			updatePeriod = true
 			output, err = RunAdminCommandNoMultisite(objContext, false, "realm", "create", realmArg)
 			if err != nil {
 				return errorOrIsNotFound(err, "failed to create ceph realm %q, for reason %q", objContext.ZoneGroup, output)
@@ -384,7 +384,6 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	if err != nil {
 		// ENOENT means “No such file or directory”
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
-			updatePeriod = true
 			output, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "create", "--master", realmArg, zoneGroupArg, endpointArg)
 			if err != nil {
 				return errorOrIsNotFound(err, "failed to create ceph zone group %q, for reason %q", objContext.ZoneGroup, output)
@@ -400,7 +399,6 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	if err != nil {
 		// ENOENT means “No such file or directory”
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
-			updatePeriod = true
 			output, err = runAdminCommand(objContext, false, "zone", "create", "--master", endpointArg)
 			if err != nil {
 				return errorOrIsNotFound(err, "failed to create ceph zone %q, for reason %q", objContext.Zone, output)
@@ -411,27 +409,9 @@ func createMultisite(objContext *Context, endpointArg string) error {
 		}
 	}
 
-	// check if the period exists
-	output, err = runAdminCommand(objContext, false, "period", "get")
-	if err != nil {
-		code, err := exec.ExtractExitCode(err)
-		// ENOENT means “No such file or directory”
-		if err == nil && code == int(syscall.ENOENT) {
-			// period does not exist and so needs to be created
-			logger.Debugf("period must be updated for CephObjectStore %q because it does not exist", objContext.Name)
-			updatePeriod = true
-		} else {
-			return errorOrIsNotFound(err, "'radosgw-admin period get' failed with code %d, for reason %q", strconv.Itoa(code), output)
-		}
-	}
-
-	if updatePeriod {
-		// the period will help notify other zones of changes if there are multi-zones
-		_, err = runAdminCommand(objContext, false, "period", "update", "--commit")
-		if err != nil {
-			return errorOrIsNotFound(err, "failed to update period")
-		}
-		logger.Debugf("updated period for realm %q", objContext.Realm)
+	if err := commitConfigChanges(objContext); err != nil {
+		nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+		return errors.Wrapf(err, "failed to commit config changes after creating multisite config for CephObjectStore %q", nsName)
 	}
 
 	logger.Infof("Multisite for object-store: realm=%s, zonegroup=%s, zone=%s", objContext.Realm, objContext.ZoneGroup, objContext.Zone)
@@ -471,11 +451,11 @@ func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 	}
 	logger.Debugf("endpoints for zone %q are now %q", objContext.Zone, zoneEndpoints)
 
-	// the period will help notify other zones of changes if there are multi-zones
-	_, err = RunAdminCommandNoMultisite(objContext, false, "period", "update", "--commit", realmArg, zoneGroupArg, zoneArg)
-	if err != nil {
-		return errorOrIsNotFound(err, "failed to update period")
+	if err := commitConfigChanges(objContext); err != nil {
+		nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+		return errors.Wrapf(err, "failed to commit config changes for CephObjectStore %q when joining multisite ", nsName)
 	}
+
 	logger.Infof("added object store %q to realm %q, zonegroup %q, zone %q", objContext.Name, objContext.Realm, objContext.ZoneGroup, objContext.Zone)
 
 	// create system user for realm for master zone in master zonegorup for multisite scenario

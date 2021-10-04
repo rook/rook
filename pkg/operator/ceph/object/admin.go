@@ -18,13 +18,16 @@ package object
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"regexp"
+	"strings"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -292,6 +295,118 @@ func isInvalidFlagError(err error) bool {
 	// exit code 22 (EINVAL) is returned when there is an invalid flag
 	// it's also returned from some other failures, but this should be rare for Rook
 	return exitCode == 22
+}
+
+// CommitConfigChanges commits changes to RGW configs for realm/zonegroup/zone changes idempotently.
+// Under the hood, this updates the RGW config period and commits the change if changes are detected.
+func CommitConfigChanges(c *Context) error {
+	currentPeriod, err := runAdminCommand(c, true, "period", "get")
+	if err != nil {
+		return errorOrIsNotFound(err, "failed to get the current RGW configuration period to see if it needs changed")
+	}
+
+	// this stages the current config changees and returns what the new period config will look like
+	// without committing the changes
+	stagedPeriod, err := runAdminCommand(c, true, "period", "update")
+	if err != nil {
+		return errorOrIsNotFound(err, "failed to stage the current RGW configuration period")
+	}
+
+	shouldCommit, err := periodWillChange(currentPeriod, stagedPeriod)
+	if err != nil {
+		return errors.Wrap(err, "failed to determine if the staged RGW configuration period is different from current")
+	}
+
+	// DO NOT MODIFY nsName here. It is part of the integration test checks noted below.
+	nsName := fmt.Sprintf("%s/%s", c.clusterInfo.Namespace, c.Name)
+	if !shouldCommit {
+		logger.Debugf("not committing changes to RGW configuration period for CephObjectStore %q", nsName)
+		return nil
+	}
+	// don't expect json output since we don't intend to use the output from the command
+	_, err = runAdminCommand(c, false, "period", "update", "--commit")
+	if err != nil {
+		return errorOrIsNotFound(err, "failed to commit RGW configuration period changes")
+	}
+
+	return nil
+}
+
+// return true if the configuration period will change if the staged period is committed
+func periodWillChange(current, staged string) (bool, error) {
+	// Rook wants to check if there are any differences in the current period versus the period that
+	// is staged to be applied/committed. If there are differences, then Rook should "commit" the
+	// staged period changes to instruct RGWs to update their runtime configuration.
+	//
+	// For many RGW interactions, Rook often creates a typed struct to unmarshal RGW JSON output
+	// into. In those cases Rook is able to opt in to only a small subset of specific fields it
+	// needs. This keeps the coupling between Rook and RGW JSON output as loose as possible while
+	// still being specific enough for Rook to operate.
+	//
+	// For this implementation, we could use a strongly-typed struct here to unmarshal into, and we
+	// could use DisallowUnknownFields() to cause an error if the RGW JSON output changes to flag
+	// when the existing implementation might be invalidated. This relies on an extremely tight
+	// coupling between Rook and the JSON output from RGW. The failure mode of this implementation
+	// is to return an error from the reconcile when there are unmarshalling errors, which results
+	// in CephObjectStores that could not be updated if a version of Ceph changes the RGW output.
+	//
+	// In the chosen implementation, we unmarshal into "dumb" data structures that create a loose
+	// coupling. With these, we must ignore the fields that we have observed to change between the
+	// current and staged periods when we should *not* commit an un-changed period. The failure mode
+	// of this implementation is that if the RGW output changes its structure, Rook may detect
+	// differences where there are none. This would result in Rook committing the period more often
+	// than necessary. Committing the period results in a short period of downtime while RGWs reload
+	// their configuration, but we opt for this inconvenience in lieu of blocking reconciliation.
+	//
+	// For any implementation, if the RGW changes the behavior of its output but not the structure,
+	// Rook could commit unnecessary period changes or fail to commit necessary period changes
+	// depending on how the RGW output has changed. Rook cannot detect this class of failures, and
+	// the behavior cannot be specifically known.
+	var currentJSON map[string]interface{}
+	var stagedJSON map[string]interface{}
+	var err error
+
+	err = json.Unmarshal([]byte(current), &currentJSON)
+	if err != nil {
+		return true, errors.Wrap(err, "failed to unmarshal current RGW configuration period")
+	}
+	err = json.Unmarshal([]byte(staged), &stagedJSON)
+	if err != nil {
+		return true, errors.Wrap(err, "failed to unmarshal staged RGW configuration period")
+	}
+
+	// There are some values in the periods that we don't care to diff because they are always
+	// different in the staged period, even when no updates are needed. Sometimes, the values are
+	// reported as different in the staging output but aren't actually changed upon commit.
+	ignorePaths := cmp.FilterPath(func(path cmp.Path) bool {
+		// path.String() outputs nothing for the crude map[string]interface{} JSON struct
+		// Example of path.GoString() output for a long path in the period JSON:
+		// root["period_map"].(map[string]interface {})["short_zone_ids"].([]interface {})[0].(map[string]interface {})["val"].(float64)
+		switch path.GoString() {
+		case `root["id"]`:
+			// "id" is always changed in the staged period, but it doesn't always update.
+			return true
+		case `root["predecessor_uuid"]`:
+			// "predecessor_uuid" is always changed in the staged period, but it doesn't always update.
+			return true
+		case `root["realm_epoch"]`:
+			// "realm_epoch" is always incremented in the staged period, but it doesn't always increment.
+			return true
+		case `root["epoch"]`:
+			// Strangely, "epoch" is not incremented in the staged period even though it is always
+			// incremented upon an actual commit. It could be argued that this behavior is a bug.
+			// Ignore this value to handle the possibility that the behavior changes in the future.
+			return true
+		default:
+			return false
+		}
+	}, cmp.Ignore())
+
+	diff := cmp.Diff(currentJSON, stagedJSON, ignorePaths)
+	diff = strings.TrimSpace(diff)
+	logger.Debugf("RGW config period diff:\n%s", diff)
+
+	return (diff != ""), nil
 }
 
 func GetAdminOPSUserCredentials(objContext *Context, spec *cephv1.ObjectStoreSpec) (string, string, error) {

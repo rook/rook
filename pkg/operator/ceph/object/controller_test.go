@@ -28,12 +28,14 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	"github.com/rook/rook/pkg/util/dependents"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -285,7 +287,20 @@ func TestCephObjectStoreController(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
+	commitConfigChangesOrig := commitConfigChanges
+	defer func() { commitConfigChanges = commitConfigChangesOrig }()
+
+	// make sure joining multisite calls to commit config changes
+	calledCommitConfigChanges := false
+	commitConfigChanges = func(c *Context) error {
+		calledCommitConfigChanges = true
+		return nil
+	}
+
 	setupNewEnvironment := func(additionalObjects ...runtime.Object) *ReconcileCephObjectStore {
+		// reset var we use to check if we have called to commit config changes
+		calledCommitConfigChanges = false
+
 		// A Pool resource with metadata and spec.
 		objectStore := &cephv1.CephObjectStore{
 			ObjectMeta: metav1.ObjectMeta{
@@ -360,6 +375,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
+		assert.False(t, calledCommitConfigChanges)
 	})
 
 	t.Run("error - ceph cluster not ready", func(t *testing.T) {
@@ -381,6 +397,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
+		assert.False(t, calledCommitConfigChanges)
 	})
 
 	// set up an environment that has a ready ceph cluster, and return the reconciler for it
@@ -483,6 +500,9 @@ func TestCephObjectStoreController(t *testing.T) {
 		// we don't actually care if Requeue is true if there is an error assert.True(t, res.Requeue)
 		assert.Contains(t, err.Error(), "failed to start rgw health checker")
 		assert.Contains(t, err.Error(), "induced error creating admin ops API connection")
+
+		// health checker should start up after committing config changes
+		assert.True(t, calledCommitConfigChanges)
 	})
 
 	t.Run("success - object store is running", func(t *testing.T) {
@@ -498,8 +518,8 @@ func TestCephObjectStoreController(t *testing.T) {
 		assert.Equal(t, cephv1.ConditionProgressing, objectStore.Status.Phase, objectStore)
 		assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
 		assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
+		assert.True(t, calledCommitConfigChanges)
 	})
-
 }
 
 func TestCephObjectStoreControllerMultisite(t *testing.T) {
@@ -635,6 +655,16 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		},
 	}
 
+	commitConfigChangesOrig := commitConfigChanges
+	defer func() { commitConfigChanges = commitConfigChangesOrig }()
+
+	// make sure joining multisite calls to commit config changes
+	calledCommitConfigChanges := false
+	commitConfigChanges = func(c *Context) error {
+		calledCommitConfigChanges = true
+		return nil
+	}
+
 	clientset := test.New(t, 3)
 	c := &clusterd.Context{
 		Executor:      executor,
@@ -668,9 +698,50 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		},
 	}
 
-	res, err := r.Reconcile(ctx, req)
-	assert.NoError(t, err)
-	assert.False(t, res.Requeue)
-	err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
-	assert.NoError(t, err)
+	currentAndDesiredCephVersion = func(rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
+		return &cephver.Pacific, &cephver.Pacific, nil
+	}
+
+	t.Run("create an object store", func(t *testing.T) {
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		assert.True(t, calledCommitConfigChanges)
+		err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
+		assert.NoError(t, err)
+	})
+
+	t.Run("delete the same store", func(t *testing.T) {
+		calledCommitConfigChanges = false
+
+		// no dependents
+		dependentsChecked := false
+		cephObjectStoreDependentsOrig := cephObjectStoreDependents
+		defer func() { cephObjectStoreDependents = cephObjectStoreDependentsOrig }()
+		cephObjectStoreDependents = func(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, store *cephv1.CephObjectStore, objCtx *Context, opsCtx *AdminOpsContext) (*dependents.DependentList, error) {
+			dependentsChecked = true
+			return &dependents.DependentList{}, nil
+		}
+
+		err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
+		assert.NoError(t, err)
+		objectStore.DeletionTimestamp = &metav1.Time{
+			Time: time.Now(),
+		}
+		err = r.client.Update(ctx, objectStore)
+
+		// have to also track the same objects in the rook clientset
+		r.context.RookClientset = rookfake.NewSimpleClientset(
+			objectRealm,
+			objectZoneGroup,
+			objectZone,
+			objectStore,
+		)
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		assert.True(t, dependentsChecked)
+		assert.True(t, calledCommitConfigChanges)
+	})
 }
