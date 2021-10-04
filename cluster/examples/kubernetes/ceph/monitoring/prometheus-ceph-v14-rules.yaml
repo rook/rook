@@ -91,7 +91,7 @@ spec:
         storage_type: ceph
       expr: |
         (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-mgr"}[5m]) * 60)) > 0.95
-      for: 15m
+      for: 5m
       labels:
         severity: warning
   - name: ceph-node-alert.rules
