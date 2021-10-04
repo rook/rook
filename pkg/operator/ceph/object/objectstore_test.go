@@ -314,39 +314,39 @@ func TestMockExecHelperProcess(t *testing.T) {
 func Test_createMultisite(t *testing.T) {
 	// control the return values from calling get/create/update on resources
 	type commandReturns struct {
-		realmExists         bool
-		zoneGroupExists     bool
-		zoneExists          bool
-		periodExists        bool
-		failCreateRealm     bool
-		failCreateZoneGroup bool
-		failCreateZone      bool
-		failUpdatePeriod    bool
+		realmExists             bool
+		zoneGroupExists         bool
+		zoneExists              bool
+		failCreateRealm         bool
+		failCreateZoneGroup     bool
+		failCreateZone          bool
+		failCommitConfigChanges bool
 	}
 
 	// control whether we should expect certain 'get' calls
 	type expectCommands struct {
-		getRealm        bool
-		createRealm     bool
-		getZoneGroup    bool
-		createZoneGroup bool
-		getZone         bool
-		createZone      bool
-		getPeriod       bool
-		updatePeriod    bool
+		getRealm            bool
+		createRealm         bool
+		getZoneGroup        bool
+		createZoneGroup     bool
+		getZone             bool
+		createZone          bool
+		commitConfigChanges bool
 	}
 
 	// vars used for testing if calls were made
 	var (
-		calledGetRealm        = false
-		calledGetZoneGroup    = false
-		calledGetZone         = false
-		calledGetPeriod       = false
-		calledCreateRealm     = false
-		calledCreateZoneGroup = false
-		calledCreateZone      = false
-		calledUpdatePeriod    = false
+		calledGetRealm            = false
+		calledGetZoneGroup        = false
+		calledGetZone             = false
+		calledCreateRealm         = false
+		calledCreateZoneGroup     = false
+		calledCreateZone          = false
+		calledCommitConfigChanges = false
 	)
+
+	commitConfigChangesOrig := commitConfigChanges
+	defer func() { commitConfigChanges = commitConfigChangesOrig }()
 
 	enoentIfNotExist := func(resourceExists bool) (string, error) {
 		if !resourceExists {
@@ -370,8 +370,15 @@ func Test_createMultisite(t *testing.T) {
 		calledCreateZoneGroup = false
 		calledGetZone = false
 		calledCreateZone = false
-		calledGetPeriod = false
-		calledUpdatePeriod = false
+		calledCommitConfigChanges = false
+
+		commitConfigChanges = func(c *Context) error {
+			calledCommitConfigChanges = true
+			if env.failCommitConfigChanges {
+				return errors.New("fake error from CommitConfigChanges")
+			}
+			return nil
+		}
 
 		return &exectest.MockExecutor{
 			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
@@ -404,19 +411,10 @@ func Test_createMultisite(t *testing.T) {
 							calledCreateZone = true
 							return errorIfFail(env.failCreateZone)
 						}
-					case "period":
-						switch arg[1] {
-						case "get":
-							calledGetPeriod = true
-							return enoentIfNotExist(env.periodExists)
-						case "update":
-							calledUpdatePeriod = true
-							return errorIfFail(env.failUpdatePeriod)
-						}
 					}
 				}
 				t.Fatalf("unhandled command: %s %v", command, arg)
-				return "", nil
+				panic("unhandled command")
 			},
 		}
 	}
@@ -430,19 +428,18 @@ func Test_createMultisite(t *testing.T) {
 		expectCommands expectCommands
 		wantErr        bool
 	}{
-		{"create realm, zonegroup, and zone; period update",
+		{"create realm, zonegroup, and zone; commit config",
 			commandReturns{
 				// nothing exists, and all should succeed
 			},
 			expectCommands{
-				getRealm:        true,
-				createRealm:     true,
-				getZoneGroup:    true,
-				createZoneGroup: true,
-				getZone:         true,
-				createZone:      true,
-				getPeriod:       true,
-				updatePeriod:    true,
+				getRealm:            true,
+				createRealm:         true,
+				getZoneGroup:        true,
+				createZoneGroup:     true,
+				getZone:             true,
+				createZone:          true,
+				commitConfigChanges: true,
 			},
 			expectNoErr},
 		{"fail creating realm",
@@ -481,85 +478,63 @@ func Test_createMultisite(t *testing.T) {
 				// when we fail to create zone, we should not continue
 			},
 			expectErr},
-		{"fail period update",
+		{"fail commit config",
 			commandReturns{
-				failUpdatePeriod: true,
+				failCommitConfigChanges: true,
 			},
 			expectCommands{
-				getRealm:        true,
-				createRealm:     true,
-				getZoneGroup:    true,
-				createZoneGroup: true,
-				getZone:         true,
-				createZone:      true,
-				getPeriod:       true,
-				updatePeriod:    true,
+				getRealm:            true,
+				createRealm:         true,
+				getZoneGroup:        true,
+				createZoneGroup:     true,
+				getZone:             true,
+				createZone:          true,
+				commitConfigChanges: true,
 			},
 			expectErr},
-		{"realm exists; create zonegroup and zone; period update",
+		{"realm exists; create zonegroup and zone; commit config",
 			commandReturns{
 				realmExists: true,
 			},
 			expectCommands{
-				getRealm:        true,
-				createRealm:     false,
-				getZoneGroup:    true,
-				createZoneGroup: true,
-				getZone:         true,
-				createZone:      true,
-				getPeriod:       true,
-				updatePeriod:    true,
+				getRealm:            true,
+				createRealm:         false,
+				getZoneGroup:        true,
+				createZoneGroup:     true,
+				getZone:             true,
+				createZone:          true,
+				commitConfigChanges: true,
 			},
 			expectNoErr},
-		{"realm and zonegroup exist; create zone; period update",
+		{"realm and zonegroup exist; create zone; commit config",
 			commandReturns{
 				realmExists:     true,
 				zoneGroupExists: true,
 			},
 			expectCommands{
-				getRealm:        true,
-				createRealm:     false,
-				getZoneGroup:    true,
-				createZoneGroup: false,
-				getZone:         true,
-				createZone:      true,
-				getPeriod:       true,
-				updatePeriod:    true,
+				getRealm:            true,
+				createRealm:         false,
+				getZoneGroup:        true,
+				createZoneGroup:     false,
+				getZone:             true,
+				createZone:          true,
+				commitConfigChanges: true,
 			},
 			expectNoErr},
-		{"realm, zonegroup, and zone exist; period update",
-			commandReturns{
-				realmExists:     true,
-				zoneGroupExists: true,
-				zoneExists:      true,
-			},
-			expectCommands{
-				getRealm:        true,
-				createRealm:     false,
-				getZoneGroup:    true,
-				createZoneGroup: false,
-				getZone:         true,
-				createZone:      false,
-				getPeriod:       true,
-				updatePeriod:    true,
-			},
-			expectNoErr},
-		{"realm, zonegroup, zone, and period all exist",
+		{"realm, zonegroup, and zone exist; commit config",
 			commandReturns{
 				realmExists:     true,
 				zoneGroupExists: true,
 				zoneExists:      true,
-				periodExists:    true,
 			},
 			expectCommands{
-				getRealm:        true,
-				createRealm:     false,
-				getZoneGroup:    true,
-				createZoneGroup: false,
-				getZone:         true,
-				createZone:      false,
-				getPeriod:       true,
-				updatePeriod:    false,
+				getRealm:            true,
+				createRealm:         false,
+				getZoneGroup:        true,
+				createZoneGroup:     false,
+				getZone:             true,
+				createZone:          false,
+				commitConfigChanges: true,
 			},
 			expectNoErr},
 	}
@@ -579,8 +554,7 @@ func Test_createMultisite(t *testing.T) {
 			assert.Equal(t, tt.expectCommands.createZoneGroup, calledCreateZoneGroup)
 			assert.Equal(t, tt.expectCommands.getZone, calledGetZone)
 			assert.Equal(t, tt.expectCommands.createZone, calledCreateZone)
-			assert.Equal(t, tt.expectCommands.getPeriod, calledGetPeriod)
-			assert.Equal(t, tt.expectCommands.updatePeriod, calledUpdatePeriod)
+			assert.Equal(t, tt.expectCommands.commitConfigChanges, calledCommitConfigChanges)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
