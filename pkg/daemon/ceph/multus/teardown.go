@@ -19,20 +19,21 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )
 
 func Teardown() error {
-	logger.Info("determining multus ip")
+	logger.Info("cleaning up multus link from host network namespace")
+
 	multusIpStr, found := os.LookupEnv(multusIpEnv)
 	if !found {
 		return fmt.Errorf("environment variable %s not set.", multusIpEnv)
 	}
 
-	logger.Info("checking if interface has already been removed")
 	migrated, linkName, err := checkMigration(multusIpStr)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error while checking if the interface has already been removed")
 	}
 	if !migrated {
 		logger.Info("interface already removed. exiting.")
@@ -42,7 +43,7 @@ func Teardown() error {
 	logger.Info("removing interface")
 	link, err := netlink.LinkByName(linkName)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error occurred while removing the multus interface")
 	}
 
 	return netlink.LinkDel(link)
