@@ -61,7 +61,8 @@ allowHostNetwork: true
 allowHostDirVolumePlugin: true
 priority:
 # SYS_ADMIN is needed for rbd to execture rbd map command
-allowedCapabilities: ["SYS_ADMIN"]
+# NET_ADMIN is needed for multus-related namespace operations 
+allowedCapabilities: ["SYS_ADMIN", "NET_ADMIN"]
 # Needed as we run liveness container on daemonset pods
 allowHostPorts: true
 # Needed as we are setting this in RBD plugin pod
