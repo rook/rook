@@ -62,6 +62,12 @@ git clone --single-branch --depth=1 --branch v1.7.4 https://github.com/rook/rook
 cd rook/cluster/examples/kubernetes/ceph
 ```
 
+**IMPORTANT** If you have RBD or CephFS volumes and are upgrading from Rook v1.6.0 - v1.6.4,
+there is an issue upgrading from those versions that causes the volumes to hang.
+Nodes will need to be restarted for the volumes to connect again. See
+[this issue](https://github.com/rook/rook/issues/8085#issuecomment-859234755) for more details.
+Future upgrades of Rook will not have this issue.
+
 If you have deployed the Rook Operator or the Ceph cluster into a different namespace than
 `rook-ceph`, see the [Update common resources and CRDs](#1-update-common-resources-and-crds)
 section for instructions on how to change the default namespaces in `common.yaml`.
@@ -130,6 +136,12 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
   starting state.
 * All pods consuming Rook storage should be created, running, and in a steady state. No Rook
   persistent volumes should be in the act of being created or deleted.
+
+**IMPORTANT** If you have RBD or CephFS volumes and are upgrading from Rook v1.6.0 - v1.6.4,
+there is an issue upgrading from those versions that causes the volumes to hang.
+Nodes will need to be restarted for the volumes to connect again. See
+[this issue](https://github.com/rook/rook/issues/8085#issuecomment-859234755) for more details.
+Future upgrades of Rook will not have this issue.
 
 ## Health Verification
 
