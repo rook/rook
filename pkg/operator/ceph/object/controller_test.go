@@ -685,7 +685,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		context:             c,
 		objectStoreContexts: make(map[string]*objectStoreHealth),
 		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
-		opManagerContext:    context.TODO(),
+		opManagerContext:    ctx,
 	}
 
 	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
@@ -707,7 +707,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 		assert.True(t, calledCommitConfigChanges)
-		err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
+		err = r.client.Get(ctx, req.NamespacedName, objectStore)
 		assert.NoError(t, err)
 	})
 
@@ -723,7 +723,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			return &dependents.DependentList{}, nil
 		}
 
-		err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
+		err = r.client.Get(ctx, req.NamespacedName, objectStore)
 		assert.NoError(t, err)
 		objectStore.DeletionTimestamp = &metav1.Time{
 			Time: time.Now(),

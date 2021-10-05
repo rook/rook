@@ -953,6 +953,19 @@ jobs:
     - name: write an object to one cluster, read from the other
       run: tests/scripts/github-action-helper.sh write_object_to_cluster1_read_from_cluster2
 
+    # if this test fails, it could mean the RGW `period get` or `period update` output has changed
+    - name: RGW configuration period should be committed on first reconcile and not be committed on second reconcile
+      run: |
+        ns_name_primary='"rook-ceph/multisite-store"' # double quotes intended
+        ns_name_secondary='"rook-ceph-secondary/zone-b-multisite-store"' # double quotes intended
+        committed_msg="committing changes to RGW configuration period for CephObjectStore"
+        tests/scripts/github-action-helper.sh verify_operator_log_message "${committed_msg} ${ns_name_primary}"
+        tests/scripts/github-action-helper.sh verify_operator_log_message "${committed_msg} ${ns_name_secondary}"
+        tests/scripts/github-action-helper.sh restart_operator
+        not_committed_msg="there are no changes to commit for RGW configuration period for CephObjectStore"
+        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary}" 120
+        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary}" 90
+
     - name: upload test result
       uses: actions/upload-artifact@v2
       if: always()

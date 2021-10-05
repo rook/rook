@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -xe
+set -xeEo pipefail
 
 #############
 # VARIABLES #
@@ -145,12 +145,12 @@ function validate_yaml() {
 }
 
 function create_cluster_prerequisites() {
-  cd cluster/examples/kubernetes/ceph
-  kubectl create -f crds.yaml -f common.yaml
+  # this might be called from another function that has already done a cd
+  ( cd cluster/examples/kubernetes/ceph && kubectl create -f crds.yaml -f common.yaml )
 }
 
 function deploy_manifest_with_local_build() {
-  sed -i "s|image: rook/ceph:[0-9a-zA-Z.]*|image: rook/ceph:local-build|g" $1
+  sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
   kubectl create -f $1
 }
 
@@ -169,23 +169,31 @@ function deploy_cluster() {
 }
 
 function wait_for_prepare_pod() {
-  timeout 180 bash <<-'EOF'
-    while true; do
-      if [[ "$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare --field-selector=status.phase=Running)" -gt 1 ]]; then
-        break
-      fi
-      sleep 5
-    done
-    kubectl -n rook-ceph logs --follow pod/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[0].metadata.name}')
-EOF
-  timeout 60 bash <<-'EOF'
-  until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers || true; do
-    echo "waiting for osd container"
+  get_pod_cmd=(kubectl --namespace rook-ceph get pod --no-headers)
+  timeout=450
+  start_time="${SECONDS}"
+  while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
+    pods="$("${get_pod_cmd[@]}" --selector=rook-ceph-osd-prepare --output custom-columns=NAME:.metadata.name,PHASE:status.phase)"
+    if echo "$pods" | grep 'Running\|Succeeded\|Failed'; then break; fi
+    echo 'waiting for at least one osd prepare pod to be running or finished'
+    sleep 5
+  done
+  pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd-prepare --output name | head -n1)"
+  kubectl --namespace rook-ceph logs --follow "$pod"
+  timeout=60
+  start_time="${SECONDS}"
+  while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
+    pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd,ceph_daemon_id=0 --output custom-columns=NAME:.metadata.name,PHASE:status.phase)"
+    if echo "$pod" | grep 'Running'; then break; fi
+    echo 'waiting for OSD 0 pod to be running'
     sleep 1
   done
-EOF
-  kubectl -n rook-ceph describe job/"$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" || true
-  kubectl -n rook-ceph describe deploy/rook-ceph-osd-0 || true
+  # getting the below logs is a best-effort attempt, so use '|| true' to allow failures
+  pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd,ceph_daemon_id=0 --output name)" || true
+  kubectl --namespace rook-ceph logs "$pod" || true
+  job="$(kubectl --namespace rook-ceph get job --selector app=rook-ceph-osd-prepare --output name | head -n1)" || true
+  kubectl -n rook-ceph describe "$job" || true
+  kubectl -n rook-ceph describe deployment/rook-ceph-osd-0 || true
 }
 
 function wait_for_ceph_to_be_ready() {
@@ -217,12 +225,27 @@ function create_LV_on_disk() {
 
 function deploy_first_rook_cluster() {
   BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+  create_cluster_prerequisites
   cd cluster/examples/kubernetes/ceph/
-  kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+
+  deploy_manifest_with_local_build operator.yaml
   yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
   yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
   yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"1
-  kubectl create -f cluster-test.yaml -f toolbox.yaml
+  kubectl create -f cluster-test.yaml
+  deploy_manifest_with_local_build toolbox.yaml
+}
+
+function deploy_second_rook_cluster() {
+  BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+  cd cluster/examples/kubernetes/ceph/
+  NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
+  sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
+  yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"2
+  yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
+  kubectl create -f cluster-test.yaml
+  yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
+  deploy_manifest_with_local_build toolbox.yaml toolbox.yaml
 }
 
 function wait_for_rgw_pods() {
@@ -237,15 +260,32 @@ function wait_for_rgw_pods() {
 
 }
 
-function deploy_second_rook_cluster() {
-  BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
-  cd cluster/examples/kubernetes/ceph/
-  NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
-  sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
-  yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"2
-  yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
-  yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
-  kubectl create -f cluster-test.yaml -f toolbox.yaml
+function verify_operator_log_message() {
+  local message="$1"  # param 1: the message to verify exists
+  local namespace="${2:-rook-ceph}"  # optional param 2: the namespace of the CephCluster (default: rook-ceph)
+  kubectl --namespace "$namespace" logs deployment/rook-ceph-operator | grep "$message"
+}
+
+function wait_for_operator_log_message() {
+  local message="$1"  # param 1: the message to look for
+  local timeout="$2"  # param 2: the timeout for waiting for the message to exist
+  local namespace="${3:-rook-ceph}"  # optional param 3: the namespace of the CephCluster (default: rook-ceph)
+  start_time="${SECONDS}"
+  while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
+    if verify_operator_log_message "$message" "$namespace"; then return 0; fi
+    sleep 5
+  done
+  echo "timed out" >&2 && return 1
+}
+
+function restart_operator () {
+  local namespace="${1:-rook-ceph}"  # optional param 1: the namespace of the CephCluster (default: rook-ceph)
+  kubectl --namespace "$namespace" delete pod --selector app=rook-ceph=operator
+  # wait for new pod to be running
+  get_pod_cmd=(kubectl --namespace "$namespace" get pod --selector app=rook-ceph-operator --no-headers)
+  timeout 20 bash -c \
+    "until [[ -n \"\$(${get_pod_cmd[*]} --field-selector=status.phase=Running 2>/dev/null)\" ]] ; do echo waiting && sleep 1; done"
+  "${get_pod_cmd[@]}"
 }
 
 function write_object_to_cluster1_read_from_cluster2() {
@@ -275,7 +315,5 @@ EOF
 FUNCTION="$1"
 shift # remove function arg now that we've recorded it
 # call the function with the remainder of the user-provided args
-if ! $FUNCTION "$@"; then
-  echo "Call to $FUNCTION was not successful" >&2
-  exit 1
-fi
+# -e, -E, and -o=pipefail will ensure this script returns a failure if a part of the function fails
+$FUNCTION "$@"

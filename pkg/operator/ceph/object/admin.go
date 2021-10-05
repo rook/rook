@@ -320,9 +320,12 @@ func CommitConfigChanges(c *Context) error {
 	// DO NOT MODIFY nsName here. It is part of the integration test checks noted below.
 	nsName := fmt.Sprintf("%s/%s", c.clusterInfo.Namespace, c.Name)
 	if !shouldCommit {
-		logger.Debugf("not committing changes to RGW configuration period for CephObjectStore %q", nsName)
+		// DO NOT MODIFY THE MESSAGE BELOW. It is checked in integration tests.
+		logger.Infof("there are no changes to commit for RGW configuration period for CephObjectStore %q", nsName)
 		return nil
 	}
+	// DO NOT MODIFY THE MESSAGE BELOW. It is checked in integration tests.
+	logger.Infof("committing changes to RGW configuration period for CephObjectStore %q", nsName)
 	// don't expect json output since we don't intend to use the output from the command
 	_, err = runAdminCommand(c, false, "period", "update", "--commit")
 	if err != nil {
