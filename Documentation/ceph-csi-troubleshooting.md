@@ -441,3 +441,57 @@ $ rbd ls --id=csi-rbd-node -m=10.111.136.166:6789 --key=AQDpIQhg+v83EhAAgLboWIbl
 ```
 
 Where `-m` is one of the mon endpoints and the `--key` is the key used by the CSI driver for accessing the Ceph cluster.
+
+## Node Loss
+
+When a node is lost, you will see application pods on the node stuck in the `Terminating` state while another pod is rescheduled and is in the `ContainerCreating` state.
+
+To allow the application pod to start on another node, force delete the pod.
+
+###  Force deleting the pod
+
+To force delete the pod stuck in the `Terminating` state:
+
+```console
+$ kubectl -n rook-ceph delete pod my-app-69cd495f9b-nl6hf --grace-period 0 --force
+```
+
+After the force delete, wait for a timeout of about 8-10 minutes. If the pod still not in the running state, continue with the next section to blocklist the node.
+
+### Blocklisting a node
+
+To shorten the timeout, you can mark the node as "blocklisted" from the [Rook toolbox](ceph-toolbox.md) so Rook can safely failover the pod sooner.
+
+If the Ceph version is at least Pacific(v16.2.x), run the following command:
+
+```console
+$ ceph osd blocklist add <NODE_IP> # get the node IP you want to blocklist
+blocklisting <NODE_IP>
+```
+
+If the Ceph version is Octopus(v15.2.x) or older, run the following command:
+
+```console
+$ ceph osd blacklist add <NODE_IP> # get the node IP you want to blacklist
+blacklisting <NODE_IP>
+```
+
+After running the above command within a few minutes the pod will be running.
+
+### Removing a node blocklist
+
+After you are absolutely sure the node is permanently offline and that the node no longer needs to be blocklisted, remove the node from the blocklist.
+
+If the Ceph version is at least Pacific(v16.2.x), run:
+
+```console
+$ ceph osd blocklist rm <NODE_IP>
+un-blocklisting <NODE_IP>
+```
+
+If the Ceph version is Octopus(v15.2.x) or older, run:
+
+```console
+$ ceph osd blacklist rm <NODE_IP> # get the node IP you want to blacklist
+un-blacklisting <NODE_IP>
+```
