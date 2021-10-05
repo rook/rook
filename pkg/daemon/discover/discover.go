@@ -158,6 +158,7 @@ func rawUdevBlockMonitor(c chan string, matches, exclusions []string) {
 		logger.Warningf("Cannot open udevadm stdout: %v", err)
 		return
 	}
+	defer stdout.Close()
 
 	err = cmd.Start()
 	if err != nil {
