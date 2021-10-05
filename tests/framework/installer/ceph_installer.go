@@ -457,7 +457,7 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 
 func (h *CephInstaller) InstallRook() (bool, error) {
 
-	if h.settings.RookVersion != VersionMaster {
+	if h.settings.RookVersion != LocalBuildTag {
 		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
 		assert.NoError(h.T(), h.k8shelper.GetDockerImage("rook/ceph:"+h.settings.RookVersion))
 	}
@@ -475,7 +475,7 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 	if h.settings.UseHelm {
 		// disable the discovery daemonset with the helm chart
 		startDiscovery = true
-		err = h.CreateRookOperatorViaHelm("enableDiscoveryDaemon=true,image.tag=master")
+		err = h.CreateRookOperatorViaHelm("enableDiscoveryDaemon=true,image.tag=" + LocalBuildTag)
 		if err != nil {
 			return false, errors.Wrap(err, "failed to configure helm")
 		}
@@ -850,7 +850,7 @@ spec:
           restartPolicy: Never
           containers:
               - name: rook-cleaner
-                image: rook/ceph:` + VersionMaster + `
+                image: rook/ceph:` + LocalBuildTag + `
                 securityContext:
                     privileged: true
                 volumeMounts:
@@ -880,7 +880,7 @@ spec:
           restartPolicy: Never
           containers:
               - name: rook-cleaner
-                image: rook/ceph:` + VersionMaster + `
+                image: rook/ceph:` + LocalBuildTag + `
                 securityContext:
                     privileged: true
                 volumeMounts:

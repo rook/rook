@@ -73,7 +73,7 @@ func (h *HelmSuite) SetupSuite() {
 		SkipOSDCreation:           false,
 		EnableAdmissionController: false,
 		EnableDiscovery:           true,
-		RookVersion:               installer.VersionMaster,
+		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.OctopusVersion,
 	}
 	h.settings.ApplyEnvVars()

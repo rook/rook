@@ -52,7 +52,7 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
 
     - name: validate-yaml
       run: tests/scripts/github-action-helper.sh validate_yaml
@@ -138,7 +138,7 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
 
     - name: create cluster prerequisites
       run: |
@@ -148,12 +148,12 @@ jobs:
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: |
@@ -224,18 +224,18 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
 
     - name: create cluster prerequisites
       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -296,19 +296,19 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
 
     - name: create cluster prerequisites
       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy rook
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -368,7 +368,7 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
 
     - name: create cluster prerequisites
       run: |
@@ -377,11 +377,11 @@ jobs:
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -445,17 +445,17 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
 
     - name: create cluster prerequisites
       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -519,18 +519,18 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
 
     - name: create cluster prerequisites
       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy rook
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -597,7 +597,7 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
     - name: rook prereq
       run: |
         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
@@ -608,7 +608,7 @@ jobs:
         tests/scripts/deploy-validate-vault.sh deploy
     - name: deploy rook
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
         yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
@@ -618,7 +618,7 @@ jobs:
         sed -i 's/ver1/ver2/g' tests/manifests/test-object.yaml
         sed -i 's/VAULT_BACKEND: v1/VAULT_BACKEND: v2/g' tests/manifests/test-object.yaml
         kubectl create -f tests/manifests/test-object.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
     - name: wait for prepare pod
       run: |
         timeout 180 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'||true
@@ -687,17 +687,17 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:v1.6.10
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
 
     - name: create LV on disk
       run: tests/scripts/github-action-helper.sh create_LV_on_disk
 
     - name: deploy cluster
       run: |
-        kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -760,7 +760,7 @@ jobs:
         # set VERSION to a dummy value since Jenkins normally sets it for us. Do this to make Helm happy and not fail with "Error: Invalid Semantic Version"
         GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' VERSION=0 build
         docker images
-        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:master
+        docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
     - name: deploy first cluster rook
       run: |
         BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)

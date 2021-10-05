@@ -56,7 +56,7 @@ type CephManifestsMaster struct {
 // NewCephManifests gets the manifest type depending on the Rook version desired
 func NewCephManifests(settings *TestCephSettings) CephManifests {
 	switch settings.RookVersion {
-	case VersionMaster:
+	case LocalBuildTag:
 		return &CephManifestsMaster{settings}
 	case Version1_5:
 		return &CephManifestsV1_5{settings}
