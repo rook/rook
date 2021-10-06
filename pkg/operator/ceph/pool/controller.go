@@ -356,6 +356,14 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 
+	logger.Infof("initializing pool %q", p.Name)
+	args := []string{"pool", "init", p.Name}
+	output, err := cephclient.NewRBDCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to initialize pool %q. %s", p.Name, string(output))
+	}
+	logger.Infof("successfully initialized pool %q", p.Name)
+
 	return nil
 }
 
