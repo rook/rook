@@ -51,6 +51,9 @@ func TestCreatePool(t *testing.T) {
 			if command == "ceph" && args[1] == "erasure-code-profile" {
 				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
 			}
+			if command == "rbd" {
+				assert.Equal(t, []string{"pool", "init", "mypool"}, args[0:3])
+			}
 			return "", nil
 		},
 	}
