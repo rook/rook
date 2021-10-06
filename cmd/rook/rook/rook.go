@@ -35,7 +35,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -148,9 +147,6 @@ func NewContext() *clusterd.Context {
 	// at runtime.
 	context.DynamicClientset, err = dynamic.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create dynamic clientset")
-
-	context.APIExtensionClientset, err = apiextensionsclient.NewForConfig(context.KubeConfig)
-	TerminateOnError(err, "failed to create k8s API extension clientset")
 
 	context.RookClientset, err = rookclient.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create rook clientset")

@@ -21,7 +21,6 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -41,9 +40,6 @@ type Context struct {
 
 	// Represents the Client provided by the controller-runtime package to interact with Kubernetes objects
 	Client client.Client
-
-	// APIExtensionClientset is a connection to the API Extension kubernetes API
-	APIExtensionClientset apiextensionsclient.Interface
 
 	// RookClientset is a typed connection to the rook API
 	RookClientset rookclient.Interface
