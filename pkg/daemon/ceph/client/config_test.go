@@ -29,7 +29,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -49,18 +48,13 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 	}
 
 	// start with INFO level logging
-	context := &clusterd.Context{
-		LogLevel: capnslog.INFO,
-	}
+	context := &clusterd.Context{}
 
 	cephConfig, err := CreateDefaultCephConfig(context, clusterInfo)
 	if err != nil {
 		t.Fatalf("failed to create default ceph config. %+v", err)
 	}
 	verifyConfig(t, cephConfig, clusterInfo, 0)
-
-	// now use DEBUG level logging
-	context.LogLevel = capnslog.DEBUG
 
 	cephConfig, err = CreateDefaultCephConfig(context, clusterInfo)
 	if err != nil {

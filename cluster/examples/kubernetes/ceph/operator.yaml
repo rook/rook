@@ -22,7 +22,7 @@ metadata:
   # should be in the namespace of the operator
   namespace: rook-ceph # namespace:operator
 data:
-  # The logging level for the operator: INFO | DEBUG
+  # The logging level for the operator: ERROR | WARNING | INFO | DEBUG
   ROOK_LOG_LEVEL: "INFO"
 
   # Enable the CSI driver.

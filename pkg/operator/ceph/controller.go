@@ -18,7 +18,6 @@ package operator
 
 import (
 	"context"
-	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -27,12 +26,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -127,10 +126,7 @@ func (r *ReconcileConfig) reconcile(request reconcile.Request) (reconcile.Result
 	opcontroller.SetCephCommandsTimeout(r.config.Parameters)
 
 	// Reconcile Operator's logging level
-	err = reconcileOperatorLogLevel(opConfig.Data)
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, err
-	}
+	reconcileOperatorLogLevel(opConfig.Data)
 
 	// Reconcile discovery daemon
 	err = r.reconcileDiscoveryDaemon()
@@ -145,15 +141,9 @@ func (r *ReconcileConfig) reconcile(request reconcile.Request) (reconcile.Result
 	return reconcile.Result{}, nil
 }
 
-func reconcileOperatorLogLevel(data map[string]string) error {
-	rookLogLevel := k8sutil.GetValue(data, "ROOK_LOG_LEVEL", "INFO")
-	logLevel, err := capnslog.ParseLevel(strings.ToUpper(rookLogLevel))
-	if err != nil {
-		return errors.Wrapf(err, "failed to load ROOK_LOG_LEVEL %q.", rookLogLevel)
-	}
-
-	capnslog.SetGlobalLogLevel(logLevel)
-	return nil
+func reconcileOperatorLogLevel(data map[string]string) {
+	rookLogLevel := k8sutil.GetValue(data, "ROOK_LOG_LEVEL", util.DefaultLogLevel.String())
+	util.SetGlobalLogLevel(rookLogLevel, logger)
 }
 
 func (r *ReconcileConfig) reconcileDiscoveryDaemon() error {
