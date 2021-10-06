@@ -288,7 +288,9 @@ csi:
   #cephfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
   #rbdPodLabels: "key1=value1,key2=value2"
-  # Enable volume replication controller
+  # Enable the volume replication controller.
+  # Before enabling, ensure the Volume Replication CRDs are created.
+  # See https://rook.io/docs/rook/latest/ceph-csi-drivers.html#rbd-mirroring
   volumeReplication:
     enabled: false
     #image: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
