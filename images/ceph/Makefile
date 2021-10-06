@@ -47,6 +47,11 @@ $(info NOT INCLUDING OLM/CSV TEMPLATES!)
 $(info )
 endif
 
+VOL_REPL_VERSION = v0.1.0
+VOL_REPL_URL = https://raw.githubusercontent.com/csi-addons/volume-replication-operator/$(VOL_REPL_VERSION)/config/crd/bases
+VOLUME_REPLICATION_CRD = replication.storage.openshift.io_volumereplications.yaml
+VOLUME_REPLICATION_CLASS_CRD = replication.storage.openshift.io_volumereplicationclasses.yaml
+
 OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
 YQ := $(TOOLS_HOST_DIR)/yq-$(YQ_VERSION)
 export OPERATOR_SDK YQ
@@ -68,6 +73,7 @@ do.build:
 
 ifeq ($(INCLUDE_CSV_TEMPLATES),true)
 	@$(MAKE) CSV_TEMPLATE_DIR=$(TEMP) generate-csv-templates
+	@$(MAKE) CRD_TEMPLATE_DIR=$(TEMP)/cluster/olm/ceph/templates/crds/ get-volume-replication-crds
 	@cp -r $(TEMP)/cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates
 else
 	mkdir $(TEMP)/ceph-csv-templates
@@ -103,6 +109,15 @@ generate-csv-templates: $(OPERATOR_SDK) $(YQ) ## Generate CSV templates for OLM 
 	fi
 	@OLM_CATALOG_DIR=$(CSV_TEMPLATE_DIR)/cluster/olm/ceph ../../cluster/olm/ceph/generate-rook-csv-templates.sh
 	@echo " === Generated CSV templates can be found at $(CSV_TEMPLATE_DIR)/cluster/olm/ceph/templates"
+
+get-volume-replication-crds:
+	@if [[ -z "$(CRD_TEMPLATE_DIR)" ]]; then echo "CRD_TEMPLATE_DIR is not set"; exit 1; fi
+	@if [[ ! -d "$(CACHE_DIR)/crds" ]]; then\
+		mkdir -p $(CACHE_DIR)/crds;\
+		curl -L $(VOL_REPL_URL)/$(VOLUME_REPLICATION_CRD) -o $(CACHE_DIR)/crds/$(VOLUME_REPLICATION_CRD);\
+		curl -L $(VOL_REPL_URL)/$(VOLUME_REPLICATION_CLASS_CRD) -o $(CACHE_DIR)/crds/$(VOLUME_REPLICATION_CLASS_CRD);\
+	fi
+	@cp $(CACHE_DIR)/crds/* $(CRD_TEMPLATE_DIR)
 
 $(YQ):
 	@echo === installing yq $(GOHOST)

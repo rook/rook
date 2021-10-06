@@ -64,16 +64,20 @@ const (
 osd_pool_default_size = 1
 bdev_flock_retry = 20
 `
+	volumeReplicationVersion = "v0.1.0"
 )
 
 var (
-	NautilusVersion          = cephv1.CephVersionSpec{Image: nautilusTestImage}
-	NautilusPartitionVersion = cephv1.CephVersionSpec{Image: nautilusTestImagePartition}
-	OctopusVersion           = cephv1.CephVersionSpec{Image: octopusTestImage}
-	OctopusDevelVersion      = cephv1.CephVersionSpec{Image: octopusDevelTestImage}
-	PacificVersion           = cephv1.CephVersionSpec{Image: pacificTestImage}
-	PacificDevelVersion      = cephv1.CephVersionSpec{Image: pacificDevelTestImage}
-	MasterVersion            = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
+	NautilusVersion              = cephv1.CephVersionSpec{Image: nautilusTestImage}
+	NautilusPartitionVersion     = cephv1.CephVersionSpec{Image: nautilusTestImagePartition}
+	OctopusVersion               = cephv1.CephVersionSpec{Image: octopusTestImage}
+	OctopusDevelVersion          = cephv1.CephVersionSpec{Image: octopusDevelTestImage}
+	PacificVersion               = cephv1.CephVersionSpec{Image: pacificTestImage}
+	PacificDevelVersion          = cephv1.CephVersionSpec{Image: pacificDevelTestImage}
+	MasterVersion                = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
+	volumeReplicationBaseURL     = fmt.Sprintf("https://raw.githubusercontent.com/csi-addons/volume-replication-operator/%s/config/crd/bases/", volumeReplicationVersion)
+	volumeReplicationCRDURL      = volumeReplicationBaseURL + "replication.storage.openshift.io_volumereplications.yaml"
+	volumeReplicationClassCRDURL = volumeReplicationBaseURL + "replication.storage.openshift.io_volumereplicationclasses.yaml"
 )
 
 // CephInstaller wraps installing and uninstalling rook on a platform
@@ -130,12 +134,37 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 		return errors.Errorf("Failed to start admission controllers: %v", err)
 	}
 
+	if err := h.CreateVolumeReplicationCRDs(); err != nil {
+		return errors.Wrap(err, "failed to create volume replication CRDs")
+	}
+
 	_, err = h.k8shelper.KubectlWithStdin(h.Manifests.GetOperator(), createFromStdinArgs...)
 	if err != nil {
 		return errors.Errorf("Failed to create rook-operator pod: %v", err)
 	}
 
 	logger.Infof("Rook operator started")
+	return nil
+}
+
+func (h *CephInstaller) CreateVolumeReplicationCRDs() (err error) {
+	if !h.Manifests.Settings().EnableVolumeReplication {
+		logger.Info("volume replication CRDs skipped")
+		return nil
+	}
+	if !h.k8shelper.VersionAtLeast("v1.16.0") {
+		logger.Info("volume replication CRDs skipped on older than k8s 1.16")
+		return nil
+	}
+
+	logger.Info("Creating volume replication CRDs")
+	if _, err := h.k8shelper.KubectlWithStdin(readManifestFromURL(volumeReplicationCRDURL), createFromStdinArgs...); err != nil {
+		return errors.Wrap(err, "failed to create volumereplication CRD")
+	}
+
+	if _, err := h.k8shelper.KubectlWithStdin(readManifestFromURL(volumeReplicationClassCRDURL), createFromStdinArgs...); err != nil {
+		return errors.Wrap(err, "failed to create volumereplicationclass CRD")
+	}
 	return nil
 }
 
