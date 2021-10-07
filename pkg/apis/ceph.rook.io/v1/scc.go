@@ -41,6 +41,8 @@ func NewSecurityContextConstraints(name, namespace string) *secv1.SecurityContex
 		// TODO: remove me once Nautilus is not supported anymore
 		AllowHostIPC:             true,
 		ReadOnlyRootFilesystem:   false,
+		AllowHostNetwork:         false,
+		AllowHostPorts:           false,
 		RequiredDropCapabilities: []corev1.Capability{},
 		DefaultAddCapabilities:   []corev1.Capability{},
 		RunAsUser: secv1.RunAsUserStrategyOptions{
