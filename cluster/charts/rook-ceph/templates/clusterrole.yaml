@@ -296,24 +296,6 @@ rules:
   verbs:
   - get
   - list
-# Use a default dict to avoid 'can't give argument to non-function' errors from text/template
-{{- if ne ((.Values.agent | default (dict "mountSecurityMode" "")).mountSecurityMode | default "") "Any" }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: rook-ceph-agent-mount
-  labels:
-    operator: rook
-    storage-backend: ceph
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-{{- end }}
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
