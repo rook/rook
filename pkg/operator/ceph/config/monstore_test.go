@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -41,8 +42,13 @@ func TestMonStore_Set(t *testing.T) {
 	// us to cause it to return an error when it detects a keyword.
 	execedCmd := ""
 	execInjectErr := false
+<<<<<<< HEAD
 	executor.MockExecuteCommandWithOutputFile =
 		func(command string, outfile string, args ...string) (string, error) {
+=======
+	executor.MockExecuteCommandWithTimeout =
+		func(timeout time.Duration, command string, args ...string) (string, error) {
+>>>>>>> 8da68bfb7 (mon: run ceph commands to mon with timeout)
 			execedCmd = command + " " + strings.Join(args, " ")
 			if execInjectErr {
 				return "output from cmd with error", errors.New("mocked error")
@@ -86,8 +92,13 @@ func TestMonStore_Delete(t *testing.T) {
 	// us to cause it to return an error when it detects a keyword.
 	execedCmd := ""
 	execInjectErr := false
+<<<<<<< HEAD
 	executor.MockExecuteCommandWithOutputFile =
 		func(command string, outfile string, args ...string) (string, error) {
+=======
+	executor.MockExecuteCommandWithTimeout =
+		func(timeout time.Duration, command string, args ...string) (string, error) {
+>>>>>>> 8da68bfb7 (mon: run ceph commands to mon with timeout)
 			execedCmd = command + " " + strings.Join(args, " ")
 			if execInjectErr {
 				return "output from cmd with error", errors.New("mocked error")
@@ -125,8 +136,13 @@ func TestMonStore_GetDaemon(t *testing.T) {
 		"\"rgw_enable_usage_log\":{\"value\":\"true\",\"section\":\"client.rgw.test.a\",\"mask\":{}," +
 		"\"can_update_at_runtime\":true}}"
 	execInjectErr := false
+<<<<<<< HEAD
 	executor.MockExecuteCommandWithOutputFile =
 		func(command string, outfile string, args ...string) (string, error) {
+=======
+	executor.MockExecuteCommandWithTimeout =
+		func(timeout time.Duration, command string, args ...string) (string, error) {
+>>>>>>> 8da68bfb7 (mon: run ceph commands to mon with timeout)
 			execedCmd = command + " " + strings.Join(args, " ")
 			if execInjectErr {
 				return "output from cmd with error", errors.New("mocked error")
@@ -171,8 +187,13 @@ func TestMonStore_DeleteDaemon(t *testing.T) {
 		"\"can_update_at_runtime\":true}," +
 		"\"rgw_enable_usage_log\":{\"value\":\"true\",\"section\":\"client.rgw.test.a\",\"mask\":{}," +
 		"\"can_update_at_runtime\":true}}"
+<<<<<<< HEAD
 	executor.MockExecuteCommandWithOutputFile =
 		func(command string, outfile string, args ...string) (string, error) {
+=======
+	executor.MockExecuteCommandWithTimeout =
+		func(timeout time.Duration, command string, args ...string) (string, error) {
+>>>>>>> 8da68bfb7 (mon: run ceph commands to mon with timeout)
 			execedCmd = command + " " + strings.Join(args, " ")
 			return execReturn, nil
 		}
@@ -197,8 +218,13 @@ func TestMonStore_SetAll(t *testing.T) {
 	// us to cause it to return an error when it detects a keyword.
 	execedCmds := []string{}
 	execInjectErrOnKeyword := "donotinjectanerror"
+<<<<<<< HEAD
 	executor.MockExecuteCommandWithOutputFile =
 		func(command string, outfile string, args ...string) (string, error) {
+=======
+	executor.MockExecuteCommandWithTimeout =
+		func(timeout time.Duration, command string, args ...string) (string, error) {
+>>>>>>> 8da68bfb7 (mon: run ceph commands to mon with timeout)
 			execedCmd := command + " " + strings.Join(args, " ")
 			execedCmds = append(execedCmds, execedCmd)
 			k := execInjectErrOnKeyword

@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -406,7 +407,11 @@ func TestConfigureRBDStats(t *testing.T) {
 	)
 
 	executor := &exectest.MockExecutor{
+<<<<<<< HEAD
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+=======
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+>>>>>>> 8da68bfb7 (mon: run ceph commands to mon with timeout)
 			logger.Infof("Command: %s %v", command, args)
 			switch {
 			case args[0] == "config" && args[1] == "set" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools" && args[4] != "":
@@ -470,7 +475,11 @@ func TestConfigureRBDStats(t *testing.T) {
 	// Case 5: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
 	// SetConfig returns an error
 	context.Executor = &exectest.MockExecutor{
+<<<<<<< HEAD
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+=======
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+>>>>>>> 8da68bfb7 (mon: run ceph commands to mon with timeout)
 			logger.Infof("Command: %s %v", command, args)
 			return "", errors.New("mock error to simulate failure of SetConfig() function")
 		},

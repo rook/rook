@@ -164,7 +164,11 @@ func TestConfigureHealthSettings(t *testing.T) {
 	getGlobalIDReclaim := false
 	setGlobalIDReclaim := false
 	c.context.Executor = &exectest.MockExecutor{
+<<<<<<< HEAD
 		MockExecuteCommandWithOutputFile: func(command, outfile string, args ...string) (string, error) {
+=======
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+>>>>>>> 8da68bfb7 (mon: run ceph commands to mon with timeout)
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "config" && args[3] == "auth_allow_insecure_global_id_reclaim" {
 				if args[1] == "get" {
