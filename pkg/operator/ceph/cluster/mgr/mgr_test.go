@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -267,11 +268,14 @@ func TestConfigureModules(t *testing.T) {
 					}
 					lastModuleConfigured = args[3]
 				}
-				if args[0] == "config" && args[1] == "set" && args[2] == "global" {
-					configSettings[args[3]] = args[4]
-				}
 			}
 			return "", nil //return "{\"key\":\"mysecurekey\"}", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "config" && args[1] == "set" && args[2] == "global" {
+				configSettings[args[3]] = args[4]
+			}
+			return "", nil
 		},
 	}
 
