@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 // MonStore provides methods for setting Ceph configurations in the centralized mon
@@ -74,7 +75,7 @@ func (m *MonStore) Set(who, option, value string) error {
 	logger.Infof("setting %q=%q=%q option to the mon configuration database", who, option, value)
 	args := []string{"config", "set", who, normalizeKey(option), value}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
-	out, err := cephCmd.Run()
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set ceph config in the centralized mon configuration database; "+
 			"you may need to use the rook-config-override ConfigMap. output: %s", string(out))
@@ -89,7 +90,7 @@ func (m *MonStore) Delete(who, option string) error {
 	logger.Infof("deleting %q option from the mon configuration database", option)
 	args := []string{"config", "rm", who, normalizeKey(option)}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
-	out, err := cephCmd.Run()
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete ceph config in the centralized mon configuration database. output: %s",
 			string(out))
@@ -104,7 +105,7 @@ func (m *MonStore) Delete(who, option string) error {
 func (m *MonStore) Get(who, option string) (string, error) {
 	args := []string{"config", "get", who, normalizeKey(option)}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
-	out, err := cephCmd.Run()
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get config setting %q for user %q", option, who)
 	}
@@ -115,7 +116,7 @@ func (m *MonStore) Get(who, option string) (string, error) {
 func (m *MonStore) GetDaemon(who string) ([]Option, error) {
 	args := []string{"config", "get", who}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
-	out, err := cephCmd.Run()
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
 		return []Option{}, errors.Wrapf(err, "failed to get config for daemon %q. output: %s", who, string(out))
 	}
