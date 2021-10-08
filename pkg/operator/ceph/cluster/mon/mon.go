@@ -94,6 +94,8 @@ const (
 	// pods and waiting for kubernetes scheduling to complete.
 	canaryRetries           = 30
 	canaryRetryDelaySeconds = 5
+
+	DisasterProtectionFinalizerName = cephv1.CustomResourceGroup + "/disaster-protection"
 )
 
 var (
@@ -1030,8 +1032,9 @@ func (c *Cluster) saveMonConfig() error {
 func (c *Cluster) persistExpectedMonDaemons() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      EndpointConfigMapName,
-			Namespace: c.Namespace,
+			Name:       EndpointConfigMapName,
+			Namespace:  c.Namespace,
+			Finalizers: []string{DisasterProtectionFinalizerName},
 		},
 	}
 	err := c.ownerInfo.SetControllerReference(configMap)

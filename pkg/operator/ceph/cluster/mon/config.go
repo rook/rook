@@ -280,8 +280,9 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      AppName,
-			Namespace: namespace,
+			Name:       AppName,
+			Namespace:  namespace,
+			Finalizers: []string{DisasterProtectionFinalizerName},
 		},
 		Data: secrets,
 		Type: k8sutil.RookType,

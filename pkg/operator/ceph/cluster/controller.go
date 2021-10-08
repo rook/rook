@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
@@ -312,10 +313,10 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 		}
 	}
 
-	// Remove finalizer
-	err = removeFinalizer(r.client, nsName)
+	// Remove finalizers
+	err = r.removeFinalizers(r.client, nsName)
 	if err != nil {
-		return reconcile.Result{}, cephCluster, errors.Wrap(err, "failed to remove finalizer")
+		return reconcile.Result{}, cephCluster, errors.Wrap(err, "failed to remove finalizers")
 	}
 
 	// Return and do not requeue. Successful deletion.
@@ -461,23 +462,50 @@ func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID 
 	return false, nil
 }
 
-// removeFinalizer removes a finalizer
-func removeFinalizer(client client.Client, name types.NamespacedName) error {
-	cephCluster := &cephv1.CephCluster{}
-	err := client.Get(context.TODO(), name, cephCluster)
+func (r *ReconcileCephCluster) removeFinalizers(client client.Client, name types.NamespacedName) error {
+	// Remove cephcluster finalizer
+	err := r.removeFinalizer(client, name, &cephv1.CephCluster{}, "")
+	if err != nil {
+		return errors.Wrap(err, "failed to remove cephcluster finalizer")
+	}
+
+	// Remove finalizer for rook-ceph-mon secret
+	name = types.NamespacedName{Name: mon.AppName, Namespace: name.Namespace}
+	err = r.removeFinalizer(client, name, &corev1.Secret{}, mon.DisasterProtectionFinalizerName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove finalizer for the secret %q", name.Name)
+	}
+
+	// Remove finalizer for rook-ceph-mon-endpoints configmap
+	name = types.NamespacedName{Name: mon.EndpointConfigMapName, Namespace: name.Namespace}
+	err = r.removeFinalizer(client, name, &corev1.ConfigMap{}, mon.DisasterProtectionFinalizerName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove finalizer for the configmap %q", name.Name)
+	}
+	return nil
+}
+
+func (r *ReconcileCephCluster) removeFinalizer(client client.Client, name types.NamespacedName, obj client.Object, finalizer string) error {
+	err := client.Get(r.opManagerContext, name, obj)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+			logger.Debugf("%s resource not found. Ignoring since object must be deleted.", name.Name)
 			return nil
 		}
-		return errors.Wrapf(err, "failed to retrieve ceph cluster %q to remove finalizer", name.Name)
+		return errors.Wrapf(err, "failed to retrieve %q to remove finalizer", name.Name)
 	}
 
-	err = opcontroller.RemoveFinalizer(client, cephCluster)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove finalizer")
+	if finalizer == "" {
+		err = opcontroller.RemoveFinalizer(client, obj)
+		if err != nil {
+			return errors.Wrap(err, "failed to remove finalizer")
+		}
+	} else {
+		err = opcontroller.RemoveFinalizerWithName(client, obj, finalizer)
+		if err != nil {
+			return errors.Wrapf(err, "failed to remove finalizer %q", finalizer)
+		}
 	}
-
 	return nil
 }
 

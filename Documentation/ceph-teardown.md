@@ -148,7 +148,7 @@ If the cluster CRD still exists even though you have executed the delete command
 When a Cluster CRD is created, a [finalizer](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/#finalizers) is added automatically by the Rook operator. The finalizer will allow the operator to ensure that before the cluster CRD is deleted, all block and file mounts will be cleaned up. Without proper cleanup, pods consuming the storage will be hung indefinitely until a system reboot.
 
 The operator is responsible for removing the finalizer after the mounts have been cleaned up.
-If for some reason the operator is not able to remove the finalizer (ie. the operator is not running anymore), you can delete the finalizer manually with the following command:
+If for some reason the operator is not able to remove the finalizer (i.e., the operator is not running anymore), you can delete the finalizer manually with the following command:
 
 ```console
 for CRD in $(kubectl get crd -n rook-ceph | awk '/ceph.rook.io/ {print $1}'); do
@@ -174,4 +174,16 @@ If the namespace is still stuck in Terminating state, you can check which resour
 ```console
 kubectl api-resources --verbs=list --namespaced -o name \
   | xargs -n 1 kubectl get --show-kind --ignore-not-found -n rook-ceph
+```
+
+### Remove critical resource finalizers
+
+Rook adds a finalizer `ceph.rook.io/disaster-protection` to resources critical to the Ceph cluster so that the resources will not be accidentally deleted.
+
+The operator is responsible for removing the finalizers when a CephCluster is deleted.
+If for some reason the operator is not able to remove the finalizers (i.e., the operator is not running anymore), you can remove the finalizers manually with the following commands:
+
+```console
+kubectl -n rook-ceph patch configmap rook-ceph-mon-endpoints --type merge -p '{"metadata":{"finalizers": [null]}}'
+kubectl -n rook-ceph patch secrets rook-ceph-mon --type merge -p '{"metadata":{"finalizers": [null]}}'
 ```
