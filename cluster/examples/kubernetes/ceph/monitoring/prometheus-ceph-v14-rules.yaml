@@ -263,7 +263,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        count(count(ceph_mon_metadata{job="rook-ceph-mgr"}) by (ceph_version)) > 1
+        count(count(ceph_mon_metadata{job="rook-ceph-mgr", ceph_version != ""}) by (ceph_version)) > 1
       for: 10m
       labels:
         severity: warning
