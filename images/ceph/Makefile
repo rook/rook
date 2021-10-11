@@ -69,7 +69,6 @@ do.build:
 	@mkdir -p $(TEMP)/rook-external/test-data
 	@cp $(MANIFESTS_DIR)/create-external-cluster-resources.* $(TEMP)/rook-external/
 	@cp $(MANIFESTS_DIR)/test-data/ceph-status-out $(TEMP)/rook-external/test-data/
-	@$(MAKE) list-image
 
 ifeq ($(INCLUDE_CSV_TEMPLATES),true)
 	@$(MAKE) CSV_TEMPLATE_DIR=$(TEMP) generate-csv-templates

@@ -107,6 +107,7 @@ build.version:
 build.common: build.version helm.build mod.check
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
+	@$(MAKE) -C images/ceph list-image
 
 do.build.platform.%:
 	@$(MAKE) PLATFORM=$* go.build
