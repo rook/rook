@@ -56,6 +56,7 @@ function create_block_partition {
     for osd in $(seq 1 "$osd_count"); do
       echo "$osd"
       create_partition osd-"$osd"
+      echo "SUBSYSTEM==\"block\", ATTR{size}==\"12582912\", ATTR{partition}==\"$osd\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 ${DISK}${osd}\"" | sudo tee -a /etc/udev/rules.d/01-rook-"$osd".rules
     done
   fi
 }
