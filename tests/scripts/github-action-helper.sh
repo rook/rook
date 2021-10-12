@@ -150,7 +150,9 @@ function create_cluster_prerequisites() {
 }
 
 function deploy_manifest_with_local_build() {
-  sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
+  if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
+    sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
+  fi
   kubectl create -f $1
 }
 
