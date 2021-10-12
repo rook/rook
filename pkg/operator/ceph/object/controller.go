@@ -74,6 +74,9 @@ var controllerTypeMeta = metav1.TypeMeta{
 	APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
 }
 
+// allow this to be overridden for unit tests
+var cephObjectStoreDependents = CephObjectStoreDependents
+
 // ReconcileCephObjectStore reconciles a cephObjectStore object
 type ReconcileCephObjectStore struct {
 	client              client.Client
@@ -280,7 +283,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 				return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to check for object buckets. failed to get admin ops API context")
 			}
 
-			deps, err := CephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
+			deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
 			if err != nil {
 				return reconcile.Result{}, cephObjectStore, err
 			}
