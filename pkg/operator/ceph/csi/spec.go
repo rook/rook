@@ -715,7 +715,6 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 	}
 
 	for _, cephCluster := range cephClusters.Items {
-		// Assuming one CephCluster in the r.opConfig.OperatorNamespace
 		if cephCluster.Spec.Network.IsMultus() {
 			if publicNetwork, ok = cephCluster.Spec.Network.Selectors["public"]; !ok {
 				logger.Debug("public network not provided; not performing multus configuration.")
@@ -732,14 +731,14 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 	}
 
 	// Populate the host network namespace with a multus-connected interface.
-	tp := templateParam{
+	template := templateParam{
 		Namespace: r.opConfig.OperatorNamespace,
 	}
 
-	tp.MultusNetwork = publicNetwork
-	tp.MultusImage = r.opConfig.Image
+	template.MultusNetwork = publicNetwork
+	template.MultusImage = r.opConfig.Image
 
-	multusHostSetup, err := templateToDaemonSet(csiMultusSetup, MultusDaemonsetTemplatePath, tp)
+	multusHostSetup, err := templateToDaemonSet(csiMultusSetup, MultusDaemonsetTemplatePath, template)
 	if err != nil {
 		return errors.Wrap(err, "failed to get daemonset template to set up the csi network")
 	}
@@ -794,10 +793,10 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 	ch := make(chan migrationJobReport)
 
 	for _, pod := range podList.Items {
-		tp.MultusNodeName = pod.Spec.NodeName
-		tp.MultusPodIP = pod.Status.PodIP
+		template.MultusNodeName = pod.Spec.NodeName
+		template.MultusPodIP = pod.Status.PodIP
 
-		tp.MultusIP, tp.MultusLink, err = multus.GetMultusConf(pod, publicNetwork, nad.ObjectMeta.Namespace, multusRange)
+		template.MultusIP, template.MultusLink, err = multus.GetMultusConf(pod, publicNetwork, nad.ObjectMeta.Namespace, multusRange)
 		if err != nil {
 			logger.Errorf("failed to get multus IP from pod: %v", err)
 			migrationError = true
@@ -806,7 +805,7 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 
 		// Will deploy job and wait for completion before moving on to next one.
 		// If a job fails, the nodes that have been modified will be reverted.
-		migrationJob, err := templateToJob(csiMultusSetup, MultusSetupJobTemplatePath, tp)
+		migrationJob, err := templateToJob(csiMultusSetup, MultusSetupJobTemplatePath, template)
 		if err != nil {
 			logger.Errorf("failed to get job template to set up the csi network: %v", err)
 			migrationError = true
@@ -824,7 +823,7 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 				nodeName,
 				k8sutil.WaitForJobCompletion(r.context.Clientset, migrationJob, 30*time.Second),
 			}
-		}(tp.MultusNodeName, migrationJob)
+		}(template.MultusNodeName, migrationJob)
 	}
 
 	for range podList.Items {
@@ -884,11 +883,11 @@ func (r *ReconcileCSI) teardownCSINetwork(namespace string) error {
 	}
 
 	// Populate the host network namespace with a multus-connected interface.
-	tp := templateParam{
+	template := templateParam{
 		Namespace: namespace,
 	}
 
-	tp.MultusImage = r.opConfig.Image
+	template.MultusImage = r.opConfig.Image
 
 	// Deploy jobs to remove network interface host network namespace.
 	podList, err := r.context.Clientset.CoreV1().Pods(namespace).List(r.opManagerContext, metav1.ListOptions{
@@ -902,9 +901,9 @@ func (r *ReconcileCSI) teardownCSINetwork(namespace string) error {
 	ch := make(chan migrationJobReport)
 
 	for _, pod := range podList.Items {
-		tp.MultusNodeName = pod.Spec.NodeName
+		template.MultusNodeName = pod.Spec.NodeName
 
-		tp.MultusIP, _, err = multus.GetMultusConf(pod, publicNetwork, nad.ObjectMeta.Namespace, multusRange)
+		template.MultusIP, _, err = multus.GetMultusConf(pod, publicNetwork, nad.ObjectMeta.Namespace, multusRange)
 		if err != nil {
 			logger.Errorf("error occurred while cleaning up multus resources: %v", err)
 			cleanupError = true
@@ -913,7 +912,7 @@ func (r *ReconcileCSI) teardownCSINetwork(namespace string) error {
 
 		// Will deploy job and wait for completion before moving on to next one.
 		// If a job fails, the nodes that have been modified will be reverted.
-		cleanupJob, err := templateToJob(csiMultusTeardown, MultusTeardownJobTemplatePath, tp)
+		cleanupJob, err := templateToJob(csiMultusTeardown, MultusTeardownJobTemplatePath, template)
 		if err != nil {
 			logger.Errorf("error occurred while cleaning up multus resources: %v", err)
 			cleanupError = true
@@ -925,18 +924,12 @@ func (r *ReconcileCSI) teardownCSINetwork(namespace string) error {
 			cleanupError = true
 			continue
 		}
-		err = k8sutil.WaitForJobCompletion(r.context.Clientset, cleanupJob, 30*time.Second)
-		if err != nil {
-			logger.Errorf("error occurred while cleaning up multus resources: %v", err)
-			cleanupError = true
-			continue
-		}
 		go func(nodeName string, migrationJob *batch.Job) {
 			ch <- migrationJobReport{
 				nodeName,
 				k8sutil.WaitForJobCompletion(r.context.Clientset, cleanupJob, 30*time.Second),
 			}
-		}(tp.MultusNodeName, cleanupJob)
+		}(template.MultusNodeName, cleanupJob)
 	}
 
 	for range podList.Items {
