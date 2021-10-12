@@ -106,6 +106,7 @@ func (r *ReconcileCSI) Reconcile(context context.Context, request reconcile.Requ
 }
 
 func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	logger.Infof("Request name: %s, namespace: %s", request.NamespacedName.Name, request.NamespacedName.Namespace)
 	// See if there is a CephCluster
 	cephClusters := &cephv1.CephClusterList{}
 	err := r.client.List(r.opManagerContext, cephClusters, &client.ListOptions{})

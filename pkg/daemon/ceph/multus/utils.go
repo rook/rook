@@ -13,10 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package multus
 
 import (
-	gerrors "errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -63,7 +63,7 @@ func GetAddressRange(config string) (string, error) {
 	}
 
 	if multusConf.IPAM.Type != supportedIPAM {
-		return "", gerrors.New("unsupported ipam type")
+		return "", errors.New("unsupported ipam type")
 	}
 	return multusConf.IPAM.Range, nil
 }
@@ -78,7 +78,7 @@ func inAddrRange(ip, multusNet string) (bool, error) {
 	// Getting netmask prefix length.
 	tmp := strings.Split(multusNet, "/")
 	if len(tmp) < 2 {
-		return false, gerrors.New("invalid address range")
+		return false, errors.New("invalid address range")
 	}
 	prefix := tmp[1]
 
@@ -122,10 +122,10 @@ func GetMultusConf(pod corev1.Pod, multusName string, multusNamespace string, ad
 			}
 		}
 	} else {
-		return "", "", gerrors.New("multus annotation not found")
+		return "", "", errors.New("multus annotation not found")
 	}
 
-	return "", "", gerrors.New("multus address not found")
+	return "", "", errors.New("multus address not found")
 }
 
 func determineHolderNS() (ns.NetNS, error) {
@@ -163,7 +163,7 @@ func determineHolderNS() (ns.NetNS, error) {
 					return errors.Wrapf(err, "error occurred while getting link")
 				}
 				if link == nil {
-					return gerrors.New("link not found")
+					return errors.New("link not found")
 				}
 
 				addrs, err := netlink.AddrList(link, 0)
@@ -296,7 +296,7 @@ func checkMigration(multusIpStr string) (bool, string, error) {
 			return migrated, linkName, errors.Wrapf(err, "error getting link")
 		}
 		if link == nil {
-			return migrated, linkName, gerrors.New("link not found")
+			return migrated, linkName, errors.New("link not found")
 		}
 
 		addrs, err := netlink.AddrList(link, 0)
@@ -351,7 +351,7 @@ func determineMultusIPConfig(holderNS ns.NetNS, multusIP, multusLinkName string)
 	}
 
 	if !addrFound {
-		return mAddr, gerrors.New("multus ip configuration not found.")
+		return mAddr, errors.New("multus ip configuration not found.")
 	}
 
 	return mAddr, nil
