@@ -39,8 +39,8 @@ function wait_for_daemon () {
     sleep 1
     let timeout=timeout-1
   done
-  echo current status:
-  $EXEC_COMMAND -s
+  echo "current status:"
+  eval "$EXEC_COMMAND -s"
 
   return 1
 }

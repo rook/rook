@@ -627,6 +627,7 @@ func TestGetRealmKeyArgsFromSecret(t *testing.T) {
 
 		access, secret, err := GetRealmKeyArgsFromSecret(s, realmNsName)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to decode CephObjectRealm \"my-ns/my-realm\" access key from secret")
 		assert.Equal(t, "", access)
 		assert.Equal(t, "", secret)
 	})
@@ -638,6 +639,7 @@ func TestGetRealmKeyArgsFromSecret(t *testing.T) {
 
 		access, secret, err := GetRealmKeyArgsFromSecret(s, realmNsName)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to decode CephObjectRealm \"my-ns/my-realm\" secret key from secret")
 		assert.Equal(t, "", access)
 		assert.Equal(t, "", secret)
 	})
@@ -685,6 +687,7 @@ func TestGetRealmKeyArgs(t *testing.T) {
 
 		access, secret, err := GetRealmKeyArgs(c, realmName, ns)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get CephObjectRealm \"my-ns/my-realm\" keys secret")
 		assert.Equal(t, "", access)
 		assert.Equal(t, "", secret)
 	})
@@ -699,6 +702,7 @@ func TestGetRealmKeyArgs(t *testing.T) {
 
 		access, secret, err := GetRealmKeyArgs(c, realmName, ns)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to decode CephObjectRealm \"my-ns/my-realm\"")
 		assert.Equal(t, "", access)
 		assert.Equal(t, "", secret)
 	})

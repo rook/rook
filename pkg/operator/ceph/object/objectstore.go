@@ -319,7 +319,7 @@ func GetRealmKeyArgsFromSecret(realmSecret *v1.Secret, realmName types.Namespace
 	}
 	secretKey, err := DecodeSecret(realmSecret, SecretKeyName)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "failed to decode CephObjectRealm %q access key from secret %q", realmName.String(), realmSecret.Name)
+		return "", "", errors.Wrapf(err, "failed to decode CephObjectRealm %q secret key from secret %q", realmName.String(), realmSecret.Name)
 	}
 	logger.Debugf("decoded keys for realm %q", realmName.String())
 
