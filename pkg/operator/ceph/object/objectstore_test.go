@@ -32,6 +32,10 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 const (
@@ -549,4 +553,153 @@ func Test_createMultisite(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetRealmKeySecret(t *testing.T) {
+	ns := "my-ns"
+	realmName := "my-realm"
+
+	t.Run("secret exists", func(t *testing.T) {
+		secret := &v1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: v1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: ns,
+				Name:      realmName + "-keys",
+			},
+			// should not care about data presence just to get the secret
+		}
+
+		c := &clusterd.Context{
+			Clientset: k8sfake.NewSimpleClientset(secret),
+		}
+
+		secret, err := GetRealmKeySecret(c, types.NamespacedName{Namespace: ns, Name: realmName})
+		assert.NoError(t, err)
+		assert.NotNil(t, secret)
+	})
+
+	t.Run("secret doesn't exist", func(t *testing.T) {
+		c := &clusterd.Context{
+			Clientset: k8sfake.NewSimpleClientset(),
+		}
+
+		secret, err := GetRealmKeySecret(c, types.NamespacedName{Namespace: ns, Name: realmName})
+		assert.Error(t, err)
+		assert.Nil(t, secret)
+	})
+}
+
+func TestGetRealmKeyArgsFromSecret(t *testing.T) {
+	ns := "my-ns"
+	realmName := "my-realm"
+	realmNsName := types.NamespacedName{Namespace: ns, Name: realmName}
+
+	baseSecret := &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: v1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      realmName + "-keys",
+		},
+		Data: map[string][]byte{},
+	}
+
+	t.Run("all secret data exists", func(t *testing.T) {
+		s := baseSecret.DeepCopy()
+		s.Data["access-key"] = []byte("my-access-key")
+		s.Data["secret-key"] = []byte("my-secret-key")
+
+		access, secret, err := GetRealmKeyArgsFromSecret(s, realmNsName)
+		assert.NoError(t, err)
+		assert.Equal(t, "--access-key=my-access-key", access)
+		assert.Equal(t, "--secret-key=my-secret-key", secret)
+	})
+
+	t.Run("access-key missing", func(t *testing.T) {
+		s := baseSecret.DeepCopy()
+		// missing s.Data["access-key"]
+		s.Data["secret-key"] = []byte("my-secret-key")
+
+		access, secret, err := GetRealmKeyArgsFromSecret(s, realmNsName)
+		assert.Error(t, err)
+		assert.Equal(t, "", access)
+		assert.Equal(t, "", secret)
+	})
+
+	t.Run("secret-key missing", func(t *testing.T) {
+		s := baseSecret.DeepCopy()
+		s.Data["access-key"] = []byte("my-access-key")
+		// missing s.Data["secret-key"]
+
+		access, secret, err := GetRealmKeyArgsFromSecret(s, realmNsName)
+		assert.Error(t, err)
+		assert.Equal(t, "", access)
+		assert.Equal(t, "", secret)
+	})
+}
+
+func TestGetRealmKeyArgs(t *testing.T) {
+	ns := "my-ns"
+	realmName := "my-realm"
+
+	baseSecret := &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: v1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      realmName + "-keys",
+		},
+		Data: map[string][]byte{},
+	}
+
+	// No need to test every case since this is a combination of GetRealmKeySecret and
+	// GetRealmKeyArgsFromSecret and those are both thoroughly unit tested. Just check the success
+	// case and cases where either sub-function fails.
+
+	t.Run("secret exists with all data", func(t *testing.T) {
+		s := baseSecret.DeepCopy()
+		s.Data["access-key"] = []byte("my-access-key")
+		s.Data["secret-key"] = []byte("my-secret-key")
+
+		c := &clusterd.Context{
+			Clientset: k8sfake.NewSimpleClientset(s),
+		}
+
+		access, secret, err := GetRealmKeyArgs(c, realmName, ns)
+		assert.NoError(t, err)
+		assert.Equal(t, "--access-key=my-access-key", access)
+		assert.Equal(t, "--secret-key=my-secret-key", secret)
+	})
+
+	t.Run("secret doesn't exist", func(t *testing.T) {
+		c := &clusterd.Context{
+			Clientset: k8sfake.NewSimpleClientset(),
+		}
+
+		access, secret, err := GetRealmKeyArgs(c, realmName, ns)
+		assert.Error(t, err)
+		assert.Equal(t, "", access)
+		assert.Equal(t, "", secret)
+	})
+
+	t.Run("secret exists but is missing data", func(t *testing.T) {
+		s := baseSecret.DeepCopy()
+		// missing all data
+
+		c := &clusterd.Context{
+			Clientset: k8sfake.NewSimpleClientset(s),
+		}
+
+		access, secret, err := GetRealmKeyArgs(c, realmName, ns)
+		assert.Error(t, err)
+		assert.Equal(t, "", access)
+		assert.Equal(t, "", secret)
+	})
 }

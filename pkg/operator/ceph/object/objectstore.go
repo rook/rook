@@ -38,6 +38,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -293,37 +294,51 @@ func DecodeSecret(secret *v1.Secret, keyName string) (string, error) {
 	realmKey, ok := secret.Data[keyName]
 
 	if !ok {
-		return "", errors.New("key was not in secret data")
+		return "", errors.New(fmt.Sprintf("failed to find key %q in secret %q data. ", keyName, secret.Name) +
+			"user likely created or modified the secret manually and should add the missing key back into the secret")
 	}
 
 	return string(realmKey), nil
 }
 
-func GetRealmKeyArgs(clusterdContext *clusterd.Context, realmName, namespace string) (string, string, error) {
+func GetRealmKeySecret(clusterdContext *clusterd.Context, realmName types.NamespacedName) (*v1.Secret, error) {
 	ctx := context.TODO()
-	logger.Debugf("getting keys for realm %v", realmName)
-	// get realm's access and secret keys
-	realmSecretName := realmName + "-keys"
-	realmSecret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, realmSecretName, metav1.GetOptions{})
+	realmSecretName := realmName.Name + "-keys"
+	realmSecret, err := clusterdContext.Clientset.CoreV1().Secrets(realmName.Namespace).Get(ctx, realmSecretName, metav1.GetOptions{})
 	if err != nil {
-		return "", "", errors.Wrapf(err, "failed to get realm %q keys secret", realmName)
+		return nil, errors.Wrapf(err, "failed to get CephObjectRealm %q keys secret", realmName.String())
 	}
-	logger.Debugf("found keys secret for realm %v", realmName)
+	logger.Debugf("found keys secret for CephObjectRealm %q", realmName.String())
+	return realmSecret, nil
+}
 
+func GetRealmKeyArgsFromSecret(realmSecret *v1.Secret, realmName types.NamespacedName) (string, string, error) {
 	accessKey, err := DecodeSecret(realmSecret, AccessKeyName)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "failed to decode realm %q access key", realmName)
+		return "", "", errors.Wrapf(err, "failed to decode CephObjectRealm %q access key from secret %q", realmName.String(), realmSecret.Name)
 	}
 	secretKey, err := DecodeSecret(realmSecret, SecretKeyName)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "failed to decode realm %q access key", realmName)
+		return "", "", errors.Wrapf(err, "failed to decode CephObjectRealm %q access key from secret %q", realmName.String(), realmSecret.Name)
 	}
-	logger.Debugf("decoded keys for realm %v", realmName)
+	logger.Debugf("decoded keys for realm %q", realmName.String())
 
 	accessKeyArg := fmt.Sprintf("--access-key=%s", accessKey)
 	secretKeyArg := fmt.Sprintf("--secret-key=%s", secretKey)
 
 	return accessKeyArg, secretKeyArg, nil
+}
+
+func GetRealmKeyArgs(clusterdContext *clusterd.Context, realmName, namespace string) (string, string, error) {
+	realmNsName := types.NamespacedName{Namespace: namespace, Name: realmName}
+	logger.Debugf("getting keys for realm %q", realmNsName.String())
+
+	secret, err := GetRealmKeySecret(clusterdContext, realmNsName)
+	if err != nil {
+		return "", "", err
+	}
+
+	return GetRealmKeyArgsFromSecret(secret, realmNsName)
 }
 
 func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, error) {

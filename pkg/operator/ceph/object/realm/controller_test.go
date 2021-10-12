@@ -24,17 +24,17 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
-	"github.com/rook/rook/pkg/operator/test"
-
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -259,4 +259,74 @@ func getObjectRealmAndReconcileObjectRealm(t *testing.T) (*ReconcileObjectRealm,
 	r := &ReconcileObjectRealm{client: cl, scheme: s, context: c, clusterInfo: clusterInfo}
 
 	return r, objectRealm
+}
+
+func TestReconcileObjectRealm_createRealmKeys(t *testing.T) {
+	ctx := context.TODO()
+	realmName := "my-realm"
+	ns := "my-ns"
+
+	scheme := scheme.Scheme
+	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectRealm{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+
+	realm := &cephv1.CephObjectRealm{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      realmName,
+			Namespace: ns,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephObjectRealm",
+		},
+	}
+
+	t.Run("should be idempotent", func(t *testing.T) {
+		r := ReconcileObjectRealm{
+			context: &clusterd.Context{
+				Clientset: k8sfake.NewSimpleClientset(),
+			},
+			scheme: scheme,
+		}
+
+		for _, tName := range []string{"first reconcile", "second reconcile"} {
+			// the output should be the same on the first and subsequent reconciles
+			t.Run(tName, func(t *testing.T) {
+				res, err := r.createRealmKeys(realm)
+				assert.NoError(t, err)
+				assert.True(t, res.IsZero())
+
+				secret, err := r.context.Clientset.CoreV1().Secrets(ns).Get(ctx, realmName+"-keys", metav1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Contains(t, secret.Data, "access-key")
+				assert.Contains(t, secret.Data, "secret-key")
+			})
+		}
+	})
+
+	t.Run("should fail if the secret doesn't have the necessary keys", func(t *testing.T) {
+		secret := &v1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: v1.SchemeGroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: ns,
+				Name:      realmName + "-keys",
+			},
+			Data: map[string][]byte{
+				"access-key": []byte("my-access-key"),
+				// missing "secret-key"
+			},
+		}
+
+		r := ReconcileObjectRealm{
+			context: &clusterd.Context{
+				Clientset: k8sfake.NewSimpleClientset(secret),
+			},
+			scheme: scheme,
+		}
+
+		_, err := r.createRealmKeys(realm)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "user likely created or modified the secret manually and should add the missing key back into the secret")
+	})
 }
