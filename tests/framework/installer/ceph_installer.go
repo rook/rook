@@ -626,8 +626,10 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 
 	// If test failed do not teardown and leave the cluster in the state it is
 	if h.T().Failed() {
-		logger.Info("one of the tests failed, leaving the cluster in its bad shape for investigation")
-		return
+		if !h.settings.forceClusterCleanUp {
+			logger.Info("one of the tests failed, leaving the cluster in its bad shape for investigation")
+			return
+		}
 	}
 
 	logger.Infof("Uninstalling Rook")

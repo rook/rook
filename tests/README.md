@@ -95,6 +95,12 @@ To run specific tests inside a suite:
 go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestARookClusterInstallation_SmokeTest
 ```
 
+By default, the test cluster is not cleaned after the integration test execution if it fails. If you want to force the cluster cleanup after test execution independently of the execution result, set the following env var:
+
+```console
+export FORCE_CLUSTER_CLEANUP=true
+```
+
 ### To run tests on OpenShift environment
 
 - Setup OpenShift environment and export KUBECONFIG before executing the tests.

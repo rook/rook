@@ -43,6 +43,7 @@ type TestCephSettings struct {
 	IsExternal                  bool
 	SkipClusterCleanup          bool
 	SkipCleanupPolicy           bool
+	forceClusterCleanUp         bool
 	DirectMountToolbox          bool
 	EnableVolumeReplication     bool
 	RookVersion                 string
@@ -58,6 +59,12 @@ func (s *TestCephSettings) ApplyEnvVars() {
 	s.SkipCleanupPolicy = true
 	if os.Getenv("SKIP_CLEANUP_POLICY") == "false" {
 		s.SkipCleanupPolicy = false
+	}
+	s.forceClusterCleanUp = false
+	if os.Getenv("FORCE_CLUSTER_CLEANUP") == "true" {
+		s.forceClusterCleanUp = true
+		s.SkipCleanupPolicy = false
+		s.SkipClusterCleanup = false
 	}
 }
 
