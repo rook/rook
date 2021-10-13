@@ -407,13 +407,13 @@ func inventoryDevice(executor exec.Executor, devicePath string) (CephVolumeInven
 	args := []string{"inventory", "--format", "json", devicePath}
 	inventory, err := executor.ExecuteCommandWithOutput("ceph-volume", args...)
 	if err != nil {
-		return CVInventory, fmt.Errorf("failed to execute ceph-volume inventory on disk %q. %v", devicePath, err)
+		return CVInventory, fmt.Errorf("failed to execute ceph-volume inventory on disk %q. %s. %v", devicePath, inventory, err)
 	}
 
 	bInventory := []byte(inventory)
 	err = json.Unmarshal(bInventory, &CVInventory)
 	if err != nil {
-		return CVInventory, fmt.Errorf("error unmarshalling json data coming from ceph-volume inventory %q. %v", devicePath, err)
+		return CVInventory, fmt.Errorf("failed to unmarshal json data coming from ceph-volume inventory %q. %q. %v", devicePath, inventory, err)
 	}
 
 	return CVInventory, nil
