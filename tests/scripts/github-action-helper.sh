@@ -282,7 +282,7 @@ function wait_for_operator_log_message() {
 
 function restart_operator () {
   local namespace="${1:-rook-ceph}"  # optional param 1: the namespace of the CephCluster (default: rook-ceph)
-  kubectl --namespace "$namespace" delete pod --selector app=rook-ceph=operator
+  kubectl --namespace "$namespace" delete pod --selector app=rook-ceph-operator
   # wait for new pod to be running
   get_pod_cmd=(kubectl --namespace "$namespace" get pod --selector app=rook-ceph-operator --no-headers)
   timeout 20 bash -c \

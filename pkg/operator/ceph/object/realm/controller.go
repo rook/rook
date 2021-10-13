@@ -120,7 +120,7 @@ func (r *ReconcileObjectRealm) Reconcile(context context.Context, request reconc
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, err := r.reconcile(request)
 	if err != nil {
-		logger.Errorf("failed to reconcile: %v", err)
+		logger.Errorf("failed to reconcile CephObjectRealm %q. %v", request.NamespacedName.String(), err)
 	}
 
 	return reconcileResponse, err
@@ -132,7 +132,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectRealm)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectRealm resource not found. Ignoring since object must be deleted.")
+			logger.Debug("CephObjectRealm %q resource not found. Ignoring since object must be deleted", request.NamespacedName.String())
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -181,7 +181,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 
 	// Create/Pull Ceph Realm
 	if cephObjectRealm.Spec.IsPullRealm() {
-		logger.Debug("pull section in spec found")
+		logger.Debug("pull section in realm %q spec found", request.NamespacedName)
 		_, err = r.pullCephRealm(cephObjectRealm)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -202,14 +202,14 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
-	logger.Debug("realm done reconciling")
+	logger.Debug("realm %q done reconciling", request.NamespacedName)
 	return reconcile.Result{}, nil
 }
 
 func (r *ReconcileObjectRealm) pullCephRealm(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realm.Name)
 	urlArg := fmt.Sprintf("--url=%s", realm.Spec.Pull.Endpoint)
-	logger.Debug("getting keys to pull realm")
+	logger.Debug("getting keys to pull realm for CephObjectRealm %q", realm.Name)
 	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.context, realm.Name, realm.Namespace)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -217,7 +217,7 @@ func (r *ReconcileObjectRealm) pullCephRealm(realm *cephv1.CephObjectRealm) (rec
 		}
 		return waitForRequeueIfRealmNotReady, errors.Wrap(err, "failed to get keys for realm")
 	}
-	logger.Debugf("keys found to pull realm, getting ready to pull from endpoint %q", realm.Spec.Pull.Endpoint)
+	logger.Debugf("keys found to pull realm for CephObjectRealm %q, getting ready to pull from endpoint %q", realm.Name, realm.Spec.Pull.Endpoint)
 
 	objContext := object.NewContext(r.context, r.clusterInfo, realm.Name)
 	output, err := object.RunAdminCommandNoMultisite(objContext, false, "realm", "pull", realmArg, urlArg, accessKeyArg, secretKeyArg)
@@ -253,7 +253,21 @@ func (r *ReconcileObjectRealm) createCephRealm(realm *cephv1.CephObjectRealm) (r
 }
 
 func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
-	logger.Debugf("generating access and secret keys for new realm %q", realm.Name)
+	realmName := types.NamespacedName{Namespace: realm.Namespace, Name: realm.Name}
+	logger.Debugf("generating access and secret keys for new realm %q", realmName.String())
+	secretName := realm.Name + "-keys"
+
+	// Check if the secret exists first, and check that it has the access information needed.
+	secret, err := object.GetRealmKeySecret(r.context, realmName)
+	if err == nil {
+		// secret exists, now verify access info. We don't need the args, but we do want to get the
+		// error if the args can't be built
+		_, _, err := object.GetRealmKeyArgsFromSecret(secret, realmName)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to ensure secret keys for CephObjectRealm %q", realmName.String())
+		}
+		return reconcile.Result{}, nil
+	}
 
 	// the realm's secret key and access key are randomly generated and then encoded to base64
 	accessKey, err := mgr.GeneratePassword(accessKeyLength)
@@ -275,8 +289,7 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 		object.SecretKeyName: []byte(secretKey),
 	}
 
-	secretName := realm.Name + "-keys"
-	secret := &v1.Secret{
+	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: realm.Namespace,
@@ -292,7 +305,7 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 	if _, err = r.context.Clientset.CoreV1().Secrets(realm.Namespace).Create(r.opManagerContext, secret, metav1.CreateOptions{}); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save rgw secrets")
 	}
-	logger.Infof("secrets for keys have been created for realm %q", realm.Name)
+	logger.Infof("secret keys have been created for realm %q in secret %q", realm.Name, secret.Name)
 
 	return reconcile.Result{}, nil
 }
@@ -318,7 +331,7 @@ func (r *ReconcileObjectRealm) updateStatus(client client.Client, name types.Nam
 	objectRealm := &cephv1.CephObjectRealm{}
 	if err := client.Get(r.opManagerContext, name, objectRealm); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectRealm resource not found. Ignoring since object must be deleted.")
+			logger.Debug("CephObjectRealm %q resource not found. Ignoring since object must be deleted", name)
 			return
 		}
 		logger.Warningf("failed to retrieve object realm %q to update status to %q. %v", name, status, err)
