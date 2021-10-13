@@ -34,7 +34,7 @@ const (
 	confirmFlag             = "--yes-i-really-mean-it"
 	reallyConfirmFlag       = "--yes-i-really-really-mean-it"
 	targetSizeRatioProperty = "target_size_ratio"
-	compressionModeProperty = "compression_mode"
+	CompressionModeProperty = "compression_mode"
 	PgAutoscaleModeProperty = "pg_autoscale_mode"
 	PgAutoscaleModeOn       = "on"
 )
@@ -252,7 +252,7 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 	}
 
 	if pool.IsCompressionEnabled() {
-		pool.Parameters[compressionModeProperty] = pool.CompressionMode
+		pool.Parameters[CompressionModeProperty] = pool.CompressionMode
 	}
 
 	// Apply properties

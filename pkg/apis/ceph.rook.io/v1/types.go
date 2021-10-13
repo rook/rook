@@ -601,9 +601,10 @@ type PoolSpec struct {
 	// +nullable
 	DeviceClass string `json:"deviceClass,omitempty"`
 
+	// DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force"
 	// The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)
 	// +kubebuilder:validation:Enum=none;passive;aggressive;force;""
-	// +kubebuilder:default=none
+	// Do NOT set a default value for kubebuilder as this will override the Parameters
 	// +optional
 	// +nullable
 	CompressionMode string `json:"compressionMode,omitempty"`

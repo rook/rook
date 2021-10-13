@@ -36,8 +36,7 @@ spec:
               description: PoolSpec represents the spec of ceph pool
               properties:
                 compressionMode:
-                  default: none
-                  description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
+                  description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
                   enum:
                     - none
                     - passive
@@ -4456,8 +4455,7 @@ spec:
                     description: PoolSpec represents the spec of ceph pool
                     properties:
                       compressionMode:
-                        default: none
-                        description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
+                        description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
                         enum:
                           - none
                           - passive
@@ -4624,8 +4622,7 @@ spec:
                   nullable: true
                   properties:
                     compressionMode:
-                      default: none
-                      description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
+                      description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
                       enum:
                         - none
                         - passive
@@ -6383,8 +6380,7 @@ spec:
                   nullable: true
                   properties:
                     compressionMode:
-                      default: none
-                      description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
+                      description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
                       enum:
                         - none
                         - passive
@@ -7322,8 +7318,7 @@ spec:
                   nullable: true
                   properties:
                     compressionMode:
-                      default: none
-                      description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
+                      description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
                       enum:
                         - none
                         - passive
@@ -7815,8 +7810,7 @@ spec:
                   nullable: true
                   properties:
                     compressionMode:
-                      default: none
-                      description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
+                      description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
                       enum:
                         - none
                         - passive
@@ -7981,8 +7975,7 @@ spec:
                   nullable: true
                   properties:
                     compressionMode:
-                      default: none
-                      description: 'The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)'
+                      description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
                       enum:
                         - none
                         - passive
