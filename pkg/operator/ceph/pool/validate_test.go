@@ -34,148 +34,170 @@ func TestValidatePool(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
 	clusterSpec := &cephv1.ClusterSpec{}
 
-	// not specifying some replication or EC settings is fine
-	p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	err := ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Nil(t, err)
+	t.Run("not specifying some replication or EC settings is fine", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.NoError(t, err)
+	})
 
-	// must specify name
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Namespace: clusterInfo.Namespace}}
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.NotNil(t, err)
+	t.Run("must specify name", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Namespace: clusterInfo.Namespace}}
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// must specify namespace
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool"}}
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.NotNil(t, err)
+	t.Run("must specify namespace", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool"}}
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// must not specify both replication and EC settings
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.Replicated.RequireSafeReplicaSize = false
-	p.Spec.ErasureCoded.CodingChunks = 2
-	p.Spec.ErasureCoded.DataChunks = 3
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.NotNil(t, err)
+	t.Run("must not specify both replication and EC settings", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 1
+		p.Spec.Replicated.RequireSafeReplicaSize = false
+		p.Spec.ErasureCoded.CodingChunks = 2
+		p.Spec.ErasureCoded.DataChunks = 3
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// succeed with replication settings
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.Replicated.RequireSafeReplicaSize = false
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Nil(t, err)
+	t.Run("succeed with replication settings", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 1
+		p.Spec.Replicated.RequireSafeReplicaSize = false
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.NoError(t, err)
+	})
 
-	// size is 1 and RequireSafeReplicaSize is true
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.Replicated.RequireSafeReplicaSize = true
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Error(t, err)
+	t.Run("size is 1 and RequireSafeReplicaSize is true", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 1
+		p.Spec.Replicated.RequireSafeReplicaSize = true
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// succeed with ec settings
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.ErasureCoded.CodingChunks = 1
-	p.Spec.ErasureCoded.DataChunks = 2
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Nil(t, err)
+	t.Run("succeed with ec settings", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.ErasureCoded.CodingChunks = 1
+		p.Spec.ErasureCoded.DataChunks = 2
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.NoError(t, err)
+	})
 
-	// Tests with various compression modes
-	// succeed with compression mode "none"
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.Replicated.RequireSafeReplicaSize = false
-	p.Spec.CompressionMode = "none"
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Nil(t, err)
+	t.Run("fail Parameters['compression_mode'] is unknown", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 1
+		p.Spec.Replicated.RequireSafeReplicaSize = false
+		p.Spec.Parameters = map[string]string{"compression_mode": "foo"}
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to validate pool spec unknown compression mode \"foo\"")
+		assert.Equal(t, "foo", p.Spec.Parameters["compression_mode"])
+	})
 
-	// succeed with compression mode "aggressive"
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.Replicated.RequireSafeReplicaSize = false
-	p.Spec.CompressionMode = "aggressive"
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Nil(t, err)
+	t.Run("success Parameters['compression_mode'] is known", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 1
+		p.Spec.Replicated.RequireSafeReplicaSize = false
+		p.Spec.Parameters = map[string]string{"compression_mode": "aggressive"}
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.NoError(t, err)
+	})
 
-	// fail with compression mode "unsupported"
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.Replicated.RequireSafeReplicaSize = false
-	p.Spec.CompressionMode = "unsupported"
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Error(t, err)
+	t.Run("fail since replica size is lower than ReplicasPerFailureDomain", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 1
+		p.Spec.Replicated.ReplicasPerFailureDomain = 2
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// fail since replica size is lower than ReplicasPerFailureDomain
-	p.Spec.Replicated.ReplicasPerFailureDomain = 2
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Error(t, err)
+	t.Run("fail since replica size is equal than ReplicasPerFailureDomain", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 2
+		p.Spec.Replicated.ReplicasPerFailureDomain = 2
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// fail since replica size is equal than ReplicasPerFailureDomain
-	p.Spec.Replicated.Size = 2
-	p.Spec.Replicated.ReplicasPerFailureDomain = 2
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Error(t, err)
+	t.Run("fail since ReplicasPerFailureDomain is not a power of 2", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 4
+		p.Spec.Replicated.ReplicasPerFailureDomain = 3
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// fail since ReplicasPerFailureDomain is not a power of 2
-	p.Spec.Replicated.Size = 4
-	p.Spec.Replicated.ReplicasPerFailureDomain = 3
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Error(t, err)
+	t.Run("fail since ReplicasPerFailureDomain is not a power of 2", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 4
+		p.Spec.Replicated.ReplicasPerFailureDomain = 5
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// fail since ReplicasPerFailureDomain is not a power of 2
-	p.Spec.Replicated.Size = 4
-	p.Spec.Replicated.ReplicasPerFailureDomain = 5
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Error(t, err)
+	t.Run("failure the sub domain does not exist", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.SubFailureDomain = "dummy"
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.Error(t, err)
+	})
 
-	// Failure the sub domain does not exist
-	p.Spec.Replicated.SubFailureDomain = "dummy"
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Error(t, err)
+	t.Run("succeed with ec pool and valid compression mode", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.ErasureCoded.CodingChunks = 1
+		p.Spec.ErasureCoded.DataChunks = 2
+		p.Spec.CompressionMode = "passive"
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
+		assert.NoError(t, err)
+	})
 
-	// succeed with ec pool and valid compression mode
-	p = cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.ErasureCoded.CodingChunks = 1
-	p.Spec.ErasureCoded.DataChunks = 2
-	p.Spec.CompressionMode = "passive"
-	err = ValidatePool(context, clusterInfo, clusterSpec, &p)
-	assert.Nil(t, err)
-
-	// Add mirror test mode
-	{
+	t.Run("fail unrecognized mirroring mode", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 		p.Spec.Mirroring.Enabled = true
 		p.Spec.Mirroring.Mode = "foo"
-		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "unrecognized mirroring mode \"foo\". only 'image and 'pool' are supported")
+	})
 
-		// Success mode is known
+	t.Run("success known mirroring mode", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Mirroring.Enabled = true
 		p.Spec.Mirroring.Mode = "pool"
-		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
 		assert.NoError(t, err)
+	})
 
-		// Error no interval specified
+	t.Run("fail mirroring mode no interval specified", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Mirroring.Enabled = true
+		p.Spec.Mirroring.Mode = "pool"
 		p.Spec.Mirroring.SnapshotSchedules = []cephv1.SnapshotScheduleSpec{{StartTime: "14:00:00-05:00"}}
-		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "schedule interval cannot be empty if start time is specified")
+	})
 
-		// Success we have an interval
+	t.Run("fail mirroring mode we have a snap interval", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Mirroring.Enabled = true
+		p.Spec.Mirroring.Mode = "pool"
 		p.Spec.Mirroring.SnapshotSchedules = []cephv1.SnapshotScheduleSpec{{Interval: "24h"}}
-		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
 		assert.NoError(t, err)
-	}
+	})
 
-	// Failure and subfailure domains
-	{
+	t.Run("failure and subfailure domains", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 		p.Spec.FailureDomain = "host"
 		p.Spec.Replicated.SubFailureDomain = "host"
-		err = ValidatePool(context, clusterInfo, clusterSpec, &p)
+		err := ValidatePool(context, clusterInfo, clusterSpec, &p)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failure and subfailure domain cannot be identical")
-	}
-
+	})
 }
 
 func TestValidateCrushProperties(t *testing.T) {

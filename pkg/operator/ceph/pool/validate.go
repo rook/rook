@@ -139,11 +139,19 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 
 	// validate pool compression mode if specified
 	if p.CompressionMode != "" {
-		switch p.CompressionMode {
-		case "none", "passive", "aggressive", "force":
-			break
-		default:
-			return errors.Errorf("unrecognized compression mode %q", p.CompressionMode)
+		logger.Warning("compressionMode is DEPRECATED, use Parameters instead")
+	}
+
+	// Test the same for Parameters
+	if p.Parameters != nil {
+		compression, ok := p.Parameters[client.CompressionModeProperty]
+		if ok && compression != "" {
+			switch compression {
+			case "none", "passive", "aggressive", "force":
+				break
+			default:
+				return errors.Errorf("failed to validate pool spec unknown compression mode %q", compression)
+			}
 		}
 	}
 
