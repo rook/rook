@@ -36,6 +36,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -135,9 +136,12 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		}
 	}
 
-	// Fetch the operator's configmap
+	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
+	// could be a CephCluster. If so the NamespaceName will be the one from the cluster and thus the
+	// CM won't be found
+	opNamespaceName := types.NamespacedName{Name: opcontroller.OperatorSettingConfigMapName, Namespace: r.opConfig.OperatorNamespace}
 	opConfig := &v1.ConfigMap{}
-	err = r.client.Get(r.opManagerContext, request.NamespacedName, opConfig)
+	err = r.client.Get(r.opManagerContext, opNamespaceName, opConfig)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("operator's configmap resource not found. will use default value or env var.")
