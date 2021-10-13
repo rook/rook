@@ -231,7 +231,8 @@ spec:
     size: ` + replicaSize + `
     targetSizeRatio: .5
     requireSafeReplicaSize: false
-  compressionMode: aggressive
+  parameters:
+    compression_mode: aggressive
   mirroring:
     enabled: true
     mode: image
