@@ -5653,6 +5653,7 @@ spec:
               properties:
                 rados:
                   description: RADOS is the Ganesha RADOS specification
+                  nullable: true
                   properties:
                     namespace:
                       description: Namespace is the RADOS namespace where NFS client recovery data is stored.
@@ -6255,7 +6256,6 @@ spec:
                     - active
                   type: object
               required:
-                - rados
                 - server
               type: object
             status:
