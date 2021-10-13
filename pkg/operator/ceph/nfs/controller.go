@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -49,6 +50,9 @@ import (
 const (
 	controllerName = "ceph-nfs-controller"
 )
+
+// Version of Ceph where NFS default pool name changes to ".nfs"
+var cephNFSChangeVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 7}
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
@@ -247,9 +251,26 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	}
 	r.clusterInfo.CephVersion = *runningCephVersion
 
+	// Octopus: Customization is allowed, so don't change the pool and namespace
+	// Pacific before 16.2.7: No customization, default pool name is nfs-ganesha
+	// Pacific after 16.2.7: No customization, default pool name is .nfs
+	// This code is changes the pool and namespace to the correct values if the version is Pacific.
+	// If the version precedes Pacific it doesn't change it at all and the values used are what the user provided in the spec.
+	if r.clusterInfo.CephVersion.IsAtLeastPacific() {
+		if r.clusterInfo.CephVersion.IsAtLeast(cephNFSChangeVersion) {
+			cephNFS.Spec.RADOS.Pool = postNFSChangeDefaultPoolName
+		} else {
+			cephNFS.Spec.RADOS.Pool = preNFSChangeDefaultPoolName
+		}
+		cephNFS.Spec.RADOS.Namespace = cephNFS.Name
+	}
+
 	// validate the store settings
 	if err := validateGanesha(r.context, r.clusterInfo, cephNFS); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "invalid ceph nfs %q arguments", cephNFS.Name)
+	}
+	if err := fetchOrCreatePool(r.context, r.clusterInfo, cephNFS); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to fetch or create RADOS pool")
 	}
 
 	// CREATE/UPDATE

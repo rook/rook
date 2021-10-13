@@ -19,6 +19,7 @@ package nfs
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
@@ -36,6 +37,10 @@ import (
 
 const (
 	ganeshaRadosGraceCmd = "ganesha-rados-grace"
+	// Default RADOS pool name after the NFS changes in Ceph
+	postNFSChangeDefaultPoolName = ".nfs"
+	// Default RADOS pool name before the NFS changes in Ceph
+	preNFSChangeDefaultPoolName = "nfs-ganesha"
 )
 
 var updateDeploymentAndWait = opmon.UpdateCephDeploymentAndWait
@@ -264,16 +269,45 @@ func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 		return errors.New("missing RADOS.pool")
 	}
 
+	if n.Spec.RADOS.Namespace == "" {
+		return errors.New("missing RADOS.namespace")
+	}
+
 	// Ganesha server properties
 	if n.Spec.Server.Active == 0 {
 		return errors.New("at least one active server required")
 	}
 
+	return nil
+}
+
+// create and enable default RADOS pool
+func createDefaultNFSRADOSPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, defaultRadosPoolName string) error {
+	args := []string{"osd", "pool", "create", defaultRadosPoolName}
+	_, err := cephclient.NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return err
+	}
+	args = []string{"osd", "pool", "application", "enable", defaultRadosPoolName, "nfs"}
+	_, err = cephclient.NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func fetchOrCreatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, n *cephv1.CephNFS) error {
 	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
 	_, err := cephclient.GetPoolDetails(context, clusterInfo, n.Spec.RADOS.Pool)
 	if err != nil {
+		if strings.Contains(err.Error(), "unrecognized pool") && clusterInfo.CephVersion.IsAtLeastPacific() {
+			err := createDefaultNFSRADOSPool(context, clusterInfo, n.Spec.RADOS.Pool)
+			if err != nil {
+				return errors.Wrapf(err, "failed to find %q pool and unable to create it", n.Spec.RADOS.Pool)
+			}
+			return nil
+		}
 		return errors.Wrapf(err, "pool %q not found", n.Spec.RADOS.Pool)
 	}
-
 	return nil
 }

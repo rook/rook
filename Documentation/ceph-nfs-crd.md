@@ -25,6 +25,8 @@ metadata:
   name: my-nfs
   namespace: rook-ceph
 spec:
+  # rados property is not used in versions of Ceph equal to or greater than 
+  # 16.2.7, see note in RADOS settings section below.
   rados:
     # RADOS pool where NFS client recovery data and per-daemon configs are
     # stored. In this example the data pool for the "myfs" filesystem is used.
@@ -90,6 +92,8 @@ ceph dashboard set-ganesha-clusters-rados-pool-namespace <cluster_id>:<pool_name
 
 * `pool`: The pool where ganesha recovery backend and supplemental configuration objects will be stored
 * `namespace`: The namespace in `pool` where ganesha recovery backend and supplemental configuration objects will be stored
+
+> **NOTE**: The RADOS settings aren't used in Ceph versions equal to or greater than Pacific 16.2.7, default values are used instead ".nfs" for the RADOS pool and the CephNFS CR's name for the RADOS namespace. However, RADOS settings are mandatory for versions preceding Pacific 16.2.7.
 
 > **NOTE**: Don't use EC pools for NFS because ganesha uses omap in the recovery objects and grace db. EC pools do not support omap.
 
