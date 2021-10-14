@@ -57,16 +57,35 @@ function use_local_disk() {
 }
 
 function use_local_disk_for_integration_test() {
+  sudo udevadm control --log-priority=debug
   sudo swapoff --all --verbose
   sudo umount /mnt
+  sudo sed -i.bak '/\/mnt/d' /etc/fstab
   # search for the device since it keeps changing between sda and sdb
   PARTITION="${BLOCK}1"
   sudo wipefs --all --force "$PARTITION"
-  sudo lsblk
+  sudo dd if=/dev/zero of="${PARTITION}" bs=1M count=1
+  sudo lsblk --bytes
   # add a udev rule to force the disk partitions to ceph
   # we have observed that some runners keep detaching/re-attaching the additional disk overriding the permissions to the default root:disk
   # for more details see: https://github.com/rook/rook/issues/7405
   echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
+  # for below, see: https://access.redhat.com/solutions/1465913
+  block_base="$(basename "${BLOCK}")"
+  echo "ACTION==\"add|change\", KERNEL==\"${block_base}\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
+  # The partition is still getting reloaded occasionally during operation. See https://github.com/rook/rook/issues/8975
+  # Try issuing some disk-inspection commands to jog the system so it won't reload the partitions
+  # during OSD provisioning.
+  sudo udevadm control --reload-rules || true
+  sudo udevadm trigger || true
+  time sudo udevadm settle || true
+  sudo partprobe || true
+  sudo lsblk --noheadings --pairs "${BLOCK}" || true
+  sudo sgdisk --print "${BLOCK}" || true
+  sudo udevadm info --query=property "${BLOCK}" || true
+  sudo lsblk --noheadings --pairs "${PARTITION}" || true
+  journalctl -o short-precise --dmesg | tail -40 || true
+  cat /etc/fstab || true
 }
 
 function create_partitions_for_osds() {
@@ -87,6 +106,14 @@ function create_bluestore_partitions_and_pvcs_for_wal(){
   WAL_PART="$BLOCK"2
   tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
   tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
+}
+
+function collect_udev_logs_in_background() {
+  local log_dir="${1:-"/home/runner/work/rook/rook/tests/integration/_output/tests"}"
+  mkdir -p "${log_dir}"
+  udevadm monitor --property &> "${log_dir}"/udev-monitor-property.txt &
+  udevadm monitor --kernel &> "${log_dir}"/udev-monitor-kernel.txt &
+  udevadm monitor --udev &> "${log_dir}"/udev-monitor-udev.txt &
 }
 
 function build_rook() {
