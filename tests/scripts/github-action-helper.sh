@@ -175,7 +175,7 @@ function wait_for_prepare_pod() {
   timeout=450
   start_time="${SECONDS}"
   while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
-    pods="$("${get_pod_cmd[@]}" --selector=rook-ceph-osd-prepare --output custom-columns=NAME:.metadata.name,PHASE:status.phase)"
+    pods="$("${get_pod_cmd[@]}" --selector=app=rook-ceph-osd-prepare --output custom-columns=NAME:.metadata.name,PHASE:status.phase)"
     if echo "$pods" | grep 'Running\|Succeeded\|Failed'; then break; fi
     echo 'waiting for at least one osd prepare pod to be running or finished'
     sleep 5
