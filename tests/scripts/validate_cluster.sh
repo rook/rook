@@ -106,7 +106,7 @@ function display_status {
   kubectl -n rook-ceph logs deploy/rook-ceph-operator > test/operator-logs.txt
   kubectl -n rook-ceph get pods -o wide > test/pods-list.txt
   kubectl -n rook-ceph describe job/"$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" > test/osd-prepare-describe.txt
-  kubectl -n rook-ceph log job/"$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" > test/osd-prepare-logs.txt
+  kubectl -n rook-ceph logs job/"$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" > test/osd-prepare-logs.txt
   kubectl -n rook-ceph describe deploy/rook-ceph-osd-0 > test/rook-ceph-osd-0-describe.txt
   kubectl -n rook-ceph describe deploy/rook-ceph-osd-1 > test/rook-ceph-osd-1-describe.txt
   kubectl -n rook-ceph logs deploy/rook-ceph-osd-0 --all-containers > test/rook-ceph-osd-0-logs.txt
