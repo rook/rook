@@ -40,7 +40,7 @@ function wait_for_daemon () {
     let timeout=timeout-1
   done
   echo "current status:"
-  eval "$EXEC_COMMAND -s"
+  $EXEC_COMMAND -s
 
   return 1
 }
@@ -96,25 +96,6 @@ function test_csi {
       sleep 5
     done
 EOF
-}
-
-function display_status {
-  $EXEC_COMMAND -s > test/ceph-status.txt
-  $EXEC_COMMAND osd dump > test/ceph-osd-dump.txt
-  $EXEC_COMMAND report > test/ceph-report.txt
-
-  kubectl -n rook-ceph logs deploy/rook-ceph-operator > test/operator-logs.txt
-  kubectl -n rook-ceph get pods -o wide > test/pods-list.txt
-  kubectl -n rook-ceph describe job/"$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" > test/osd-prepare-describe.txt
-  kubectl -n rook-ceph logs job/"$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}')" > test/osd-prepare-logs.txt
-  kubectl -n rook-ceph describe deploy/rook-ceph-osd-0 > test/rook-ceph-osd-0-describe.txt
-  kubectl -n rook-ceph describe deploy/rook-ceph-osd-1 > test/rook-ceph-osd-1-describe.txt
-  kubectl -n rook-ceph logs deploy/rook-ceph-osd-0 --all-containers > test/rook-ceph-osd-0-logs.txt
-  kubectl -n rook-ceph logs deploy/rook-ceph-osd-1 --all-containers > test/rook-ceph-osd-1-logs.txt
-  kubectl get all -n rook-ceph -o wide > test/cluster-wide.txt
-  kubectl get all -n rook-ceph -o yaml > test/cluster-yaml.txt
-  kubectl -n rook-ceph get cephcluster -o yaml > test/cephcluster.txt
-  sudo lsblk | sudo tee -a test/lsblk.txt
 }
 
 ########
@@ -173,7 +154,3 @@ $EXEC_COMMAND -s
 kubectl -n rook-ceph get pods
 kubectl -n rook-ceph logs "$(kubectl -n rook-ceph -l app=rook-ceph-operator get pods -o jsonpath='{.items[*].metadata.name}')"
 kubectl -n rook-ceph get cephcluster -o yaml
-
-set +eE
-display_status
-set -eE

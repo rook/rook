@@ -48,15 +48,24 @@ jobs:
 
     - name: TestCephMultiClusterDeploySuite
       run: |
-       export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-       export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-       go test -v -timeout 1800s -failfast -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
+        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+        export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
+        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+        go test -v -timeout 1800s -failfast -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
+
+    - name: collect common logs
+      if: always()
+      run: |
+        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+        export OPERATOR_NAMESPACE="multi-core-system"
+        CLUSTER_NAMESPACE="multi-core" tests/scripts/collect-logs.sh
+        CLUSTER_NAMESPACE="multi-external" tests/scripts/collect-logs.sh
 
     - name: Artifact
       uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: ceph-multi-cluster-deploy-suite-artifact
+        name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-versions }}
         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
     - name: setup tmate session for debugging when event is PR
