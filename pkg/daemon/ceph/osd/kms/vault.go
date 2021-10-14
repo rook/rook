@@ -19,6 +19,7 @@ package kms
 import (
 	"context"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
@@ -44,6 +45,14 @@ const (
 var (
 	vaultMandatoryConnectionDetails = []string{api.EnvVaultAddress}
 )
+
+// Used for unit tests mocking too as well as production code
+var (
+	createTmpFile      = ioutil.TempFile
+	getRemoveCertFiles = getRemoveCertFilesFunc
+)
+
+type removeCertFilesFunction func()
 
 /* VAULT API INTERNAL VALUES
 // Refer to https://pkg.golangclub.com/github.com/hashicorp/vault/api?tab=doc#pkg-constants
@@ -77,10 +86,11 @@ func InitVault(context *clusterd.Context, namespace string, config map[string]st
 	}
 
 	// Populate TLS config
-	newConfigWithTLS, err := configTLS(context, namespace, oriConfig)
+	newConfigWithTLS, removeCertFiles, err := configTLS(context, namespace, oriConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize vault tls configuration")
 	}
+	defer removeCertFiles()
 
 	// Populate TLS config
 	for key, value := range newConfigWithTLS {
@@ -96,8 +106,31 @@ func InitVault(context *clusterd.Context, namespace string, config map[string]st
 	return v, nil
 }
 
-func configTLS(clusterdContext *clusterd.Context, namespace string, config map[string]string) (map[string]string, error) {
+// configTLS returns a map of TLS config that map physical files for the TLS library to load
+// Also it returns a function to remove the temporary files (certs, keys)
+// The signature has named result parameters to help building 'defer' statements especially for the
+// content of removeCertFiles which needs to be populated by the files to remove if no errors and be
+// nil on errors
+func configTLS(clusterdContext *clusterd.Context, namespace string, config map[string]string) (newConfig map[string]string, removeCertFiles removeCertFilesFunction, retErr error) {
 	ctx := context.TODO()
+	var filesToRemove []*os.File
+
+	defer func() {
+		// Build the function that the caller should use to remove the temp files here
+		// create it when this function is returning based on the currently-recorded files
+		removeCertFiles = getRemoveCertFiles(filesToRemove)
+		if retErr != nil {
+			// If we encountered an error, remove the temp files
+			removeCertFiles()
+
+			// Also return an empty function to remove the temp files
+			// It's fine to use nil here since the defer from the calling functions is only
+			// triggered after evaluating any error, if on error the defer is not triggered since we
+			// have returned already
+			removeCertFiles = nil
+		}
+	}()
+
 	for _, tlsOption := range cephv1.VaultTLSConnectionDetails {
 		tlsSecretName := GetParam(config, tlsOption)
 		if tlsSecretName == "" {
@@ -107,31 +140,52 @@ func configTLS(clusterdContext *clusterd.Context, namespace string, config map[s
 		if !strings.Contains(tlsSecretName, EtcVaultDir) {
 			secret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, tlsSecretName, v1.GetOptions{})
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to fetch tls k8s secret %q", tlsSecretName)
+				return nil, removeCertFiles, errors.Wrapf(err, "failed to fetch tls k8s secret %q", tlsSecretName)
 			}
-
 			// Generate a temp file
-			file, err := ioutil.TempFile("", "")
+			file, err := createTmpFile("", "")
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to generate temp file for k8s secret %q content", tlsSecretName)
+				return nil, removeCertFiles, errors.Wrapf(err, "failed to generate temp file for k8s secret %q content", tlsSecretName)
 			}
 
 			// Write into a file
 			err = ioutil.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0444)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to write k8s secret %q content to a file", tlsSecretName)
+				return nil, removeCertFiles, errors.Wrapf(err, "failed to write k8s secret %q content to a file", tlsSecretName)
 			}
 
 			logger.Debugf("replacing %q current content %q with %q", tlsOption, config[tlsOption], file.Name())
 
-			// update the env var with the path
+			// Update the env var with the path
 			config[tlsOption] = file.Name()
+
+			// Add the file to the list of files to remove
+			filesToRemove = append(filesToRemove, file)
 		} else {
 			logger.Debugf("value of tlsOption %q tlsSecretName is already correct %q", tlsOption, tlsSecretName)
 		}
 	}
 
-	return config, nil
+	return config, removeCertFiles, nil
+}
+
+func getRemoveCertFilesFunc(filesToRemove []*os.File) removeCertFilesFunction {
+	return removeCertFilesFunction(func() {
+		for _, file := range filesToRemove {
+			logger.Debugf("closing %q", file.Name())
+			err := file.Close()
+			if err != nil {
+				logger.Errorf("failed to close file %q. %v", file.Name(), err)
+			}
+			logger.Debugf("closed %q", file.Name())
+			logger.Debugf("removing %q", file.Name())
+			err = os.Remove(file.Name())
+			if err != nil {
+				logger.Errorf("failed to remove file %q. %v", file.Name(), err)
+			}
+			logger.Debugf("removed %q", file.Name())
+		}
+	})
 }
 
 func put(v secrets.Secrets, secretName, secretValue string, keyContext map[string]string) error {
@@ -215,7 +269,7 @@ func validateVaultConnectionDetails(clusterdContext *clusterd.Context, ns string
 			// Fetch the secret
 			s, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Get(ctx, tlsSecretName, v1.GetOptions{})
 			if err != nil {
-				return errors.Errorf("failed to find TLS connection details k8s secret %q", tlsOption)
+				return errors.Errorf("failed to find TLS connection details k8s secret %q", tlsSecretName)
 			}
 
 			// Check the Secret key and its content

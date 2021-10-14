@@ -7,4 +7,7 @@ spec:
         VAULT_BACKEND_PATH: rook/ver1
         VAULT_SECRET_ENGINE: kv
         VAULT_SKIP_VERIFY: "true"
+        VAULT_CLIENT_KEY: "vault-client-key"
+        VAULT_CLIENT_CERT: "vault-client-cert"
+        VAULT_CACERT: "vault-ca-cert"
       tokenSecretName: rook-vault-token
