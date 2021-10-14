@@ -83,6 +83,17 @@ spec:
       for: 15m
       labels:
         severity: critical
+    - alert: CephMonQuorumLost
+      annotations:
+        description: Storage cluster quorum is lost. Contact Support.
+        message: Storage quorum is lost
+        severity_level: critical
+        storage_type: ceph
+      expr: |
+        count(kube_pod_status_phase{pod=~"rook-ceph-mon-.*", phase=~"Running|running"}) by (namespace) < 2
+      for: 5m
+      labels:
+        severity: critical
     - alert: CephMonHighNumberOfLeaderChanges
       annotations:
         description: Ceph Monitor {{ $labels.ceph_daemon }} on host {{ $labels.hostname }} has seen {{ $value | printf "%.2f" }} leader changes per minute recently.
