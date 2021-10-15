@@ -736,7 +736,7 @@ jobs:
     - name: wait for ceph cluster 1 to be ready
       run: |
         mkdir test
-        tests/scripts/validate_cluster.sh all 1
+        tests/scripts/validate_cluster.sh osd 1
         kubectl -n rook-ceph get pods
 
     - name: create replicated mirrored pool on cluster 1
