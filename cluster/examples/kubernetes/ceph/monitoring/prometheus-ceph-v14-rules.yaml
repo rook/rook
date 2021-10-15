@@ -42,7 +42,7 @@ spec:
         severity_level: critical
         storage_type: ceph
       expr: |
-        up{job="rook-ceph-mgr"} == 0
+        label_replace((up{job="rook-ceph-mgr"} == 0 or absent(up{job="rook-ceph-mgr"})), "namespace", "openshift-storage", "", "")
       for: 5m
       labels:
         severity: critical
@@ -53,7 +53,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        sum(up{job="rook-ceph-mgr"}) by (namespace) < 1
+        sum(kube_deployment_spec_replicas{deployment=~"rook-ceph-mgr-.*"}) by (namespace) < 1
       for: 5m
       labels:
         severity: warning
