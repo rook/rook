@@ -34,7 +34,7 @@ import (
 )
 
 var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephmultus")
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "multus")
 )
 
 const (
@@ -96,7 +96,6 @@ func inAddrRange(ip, multusNet string) (bool, error) {
 }
 
 func GetMultusConf(pod corev1.Pod, multusName string, multusNamespace string, addrRange string) (string, string, error) {
-
 	// The network name includes its namespace.
 	multusNetwork := fmt.Sprintf("%s/%s", multusNamespace, multusName)
 
@@ -171,14 +170,11 @@ func determineHolderNS() (ns.NetNS, error) {
 					return errors.Wrapf(err, "error occurred while getting IP addresses from link")
 				}
 
-				if len(addrs) < 1 {
-					continue
-				}
-
-				// Assuming that the needed address is first on the list.
-				if addrs[0].IP.String() == holderIP {
-					foundNS = true
-					return nil
+				for _, addr := range addrs {
+					if addr.IP.String() == holderIP {
+						foundNS = true
+						return nil
+					}
 				}
 			}
 

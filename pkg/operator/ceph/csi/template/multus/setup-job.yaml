@@ -31,7 +31,7 @@ spec:
         volumeMounts:
           - name: netns
             mountPath: /var/run/netns
-      serviceAccount: rook-ceph-multus
+      serviceAccount: rook-csi-multus
       nodeName: "{{ .MultusNodeName }}"
       hostNetwork: true
       volumes:

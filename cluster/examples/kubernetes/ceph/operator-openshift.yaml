@@ -60,7 +60,7 @@ allowHostNetwork: true
 allowHostDirVolumePlugin: true
 priority:
 # SYS_ADMIN is needed for rbd to execture rbd map command
-# NET_ADMIN is needed for multus-related namespace operations 
+# NET_ADMIN is needed for multus-related namespace operations
 allowedCapabilities: ["SYS_ADMIN", "NET_ADMIN"]
 # Needed as we run liveness container on daemonset pods
 allowHostPorts: true
@@ -92,7 +92,7 @@ users:
   - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator
-  - system:serviceaccount:rook-ceph:rook-ceph-multus
+  - system:serviceaccount:rook-ceph:rook-csi-multus
 ---
 # Rook Ceph Operator Config
 # Use this ConfigMap to override operator configurations

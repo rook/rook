@@ -24,7 +24,7 @@ spec:
               - NET_ADMIN
               # Needed for network namespace operations
               - SYS_ADMIN
-      serviceAccount: rook-ceph-multus
+      serviceAccount: rook-csi-multus
       nodeName: "{{ .MultusNodeName }}"
       hostNetwork: true
       restartPolicy: Never

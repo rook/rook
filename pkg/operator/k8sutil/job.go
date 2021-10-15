@@ -61,7 +61,11 @@ func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job, deleteIfF
 
 // WaitForJobCompletion waits for a job to reach the completed state.
 // Assumes that only one pod needs to complete.
-func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job, timeout time.Duration) error {
+func WaitForJobCompletion(parentCtx context.Context, clientset kubernetes.Interface, job *batch.Job, timeout time.Duration) error {
+	// If timeout value is too low 100-500 milliseconds: "context deadline exceeded"
+	// If timeout value is too high 1-5 seconds: "Wait(n=1) would exceed context deadline"
+	//ctx, cancel := context.WithTimeout(parentCtx, 500*time.Millisecond)
+	//defer cancel()
 	ctx := context.TODO()
 	logger.Infof("waiting for job %s to complete...", job.Name)
 	return wait.Poll(5*time.Second, timeout, func() (bool, error) {

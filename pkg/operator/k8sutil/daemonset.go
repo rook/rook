@@ -26,8 +26,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// CreateDaemonSet creates
-func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *appsv1.DaemonSet) error {
+// CreateOrUpdateDaemonSet creates
+func CreateOrUpdateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *appsv1.DaemonSet) error {
 	ctx := context.TODO()
 	_, err := clientset.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
 	if err != nil {

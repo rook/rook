@@ -26,9 +26,9 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/multus"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
@@ -37,7 +37,6 @@ import (
 	k8scsi "k8s.io/api/storage/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/version"
 )
 
@@ -202,10 +201,10 @@ const (
 	csiRBDProvisioner    = "csi-rbdplugin-provisioner"
 	csiCephFSProvisioner = "csi-cephfsplugin-provisioner"
 
-	csiMultusSetup    = "csi-multus-setup"
-	csiMultusTeardown = "csi-multus-teardown"
-
+	csiMultusSetup         = "csi-multus-setup"
+	csiMultusTeardown      = "csi-multus-teardown"
 	csiMultusDaemonsetName = "csi-multus"
+	csiMultusLabel         = "app=rook-ceph-multus"
 )
 
 func CSIEnabled() bool {
@@ -436,7 +435,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if multusApplied {
 			rbdPlugin.Spec.Template.Spec.HostNetwork = true
 		}
-		err = k8sutil.CreateDaemonSet(csiRBDPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
+		err = k8sutil.CreateOrUpdateDaemonSet(csiRBDPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbdplugin daemonset %q", rbdPlugin.Name)
 		}
@@ -504,7 +503,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if multusApplied {
 			cephfsPlugin.Spec.Template.Spec.HostNetwork = true
 		}
-		err = k8sutil.CreateDaemonSet(csiCephFSPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, cephfsPlugin)
+		err = k8sutil.CreateOrUpdateDaemonSet(csiCephFSPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, cephfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs plugin daemonset %q", cephfsPlugin.Name)
 		}
@@ -697,42 +696,27 @@ type migrationJobReport struct {
 	err      error
 }
 
-func (r *ReconcileCSI) setupCSINetwork() error {
+func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) (bool, error) {
 	// Setup of the CSI Network depends on if multus is being used.
-	var isMultusApplied bool
 	var publicNetwork string
 	var ok bool
 
-	cephClusters := &cephv1.CephClusterList{}
-	err := r.client.List(r.opManagerContext, cephClusters, &client.ListOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("no ceph cluster found not deploying ceph csi driver")
-			return nil
+	if cephCluster.Spec.Network.IsMultus() {
+		if err := opcontroller.AddFinalizerWithNameIfNotPresent(r.client, &cephCluster, multusFinalizer); err != nil {
+			return false, errors.Wrap(err, "failed to add multus finalizer")
 		}
-		// Error reading the object - requeue the request.
-		return errors.Wrap(err, "failed to list ceph clusters")
-	}
-
-	for _, cephCluster := range cephClusters.Items {
-		if cephCluster.Spec.Network.IsMultus() {
-			if publicNetwork, ok = cephCluster.Spec.Network.Selectors["public"]; !ok {
-				logger.Debug("public network not provided; not performing multus configuration.")
-				return nil
-			}
-			isMultusApplied = true
-			break
+		if publicNetwork, ok = cephCluster.Spec.Network.Selectors["public"]; !ok {
+			logger.Debug("public network not provided; not performing multus configuration.")
+			return false, nil
 		}
-	}
-
-	if !isMultusApplied {
+	} else {
 		logger.Debug("multus not used; no additional network configuration necessary.")
-		return nil
+		return false, nil
 	}
 
 	// Populate the host network namespace with a multus-connected interface.
 	template := templateParam{
-		Namespace: r.opConfig.OperatorNamespace,
+		Namespace: cephCluster.ObjectMeta.Namespace,
 	}
 
 	template.MultusNetwork = publicNetwork
@@ -740,7 +724,7 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 
 	multusHostSetup, err := templateToDaemonSet(csiMultusSetup, MultusDaemonsetTemplatePath, template)
 	if err != nil {
-		return errors.Wrap(err, "failed to get daemonset template to set up the csi network")
+		return false, errors.Wrap(err, "failed to get daemonset template to set up the csi network")
 	}
 
 	// Applying affinity and toleration to multus daemonset.
@@ -749,47 +733,40 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 	pluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &corev1.NodeAffinity{})
 	applyToPodSpec(&multusHostSetup.Spec.Template.Spec, pluginNodeAffinity, pluginTolerations)
 
-	err = k8sutil.CreateDaemonSet(csiMultusSetup, r.opConfig.OperatorNamespace, r.context.Clientset, multusHostSetup)
+	err = k8sutil.CreateOrUpdateDaemonSet(csiMultusSetup, cephCluster.ObjectMeta.Namespace, r.context.Clientset, multusHostSetup)
 	if err != nil {
-		return errors.Wrap(err, "failed to start daemonset to set up the csi network")
+		return false, errors.Wrap(err, "failed to start daemonset to set up the csi network")
 	}
 
 	// Wait for daemonset pods to come up.
 	// Will poll daemonset to ensure pods are available for interface migration.
-	err = wait.Poll(5*time.Second, 30*time.Second, func() (bool, error) {
-		daemonset, err := r.context.Clientset.AppsV1().DaemonSets(r.opConfig.OperatorNamespace).Get(r.opManagerContext, csiMultusDaemonsetName, metav1.GetOptions{})
-		if err != nil {
-			return false, errors.Wrap(err, "failed to get multus daemonset")
-		}
-
-		if daemonset.Status.NumberReady == daemonset.Status.DesiredNumberScheduled {
-			return true, nil
-		}
-		return false, nil
-	})
+	daemonset, err := r.context.Clientset.AppsV1().DaemonSets(cephCluster.ObjectMeta.Namespace).Get(r.opManagerContext, csiMultusDaemonsetName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return false, errors.Wrap(err, "failed to get multus daemonset")
+	}
+
+	if daemonset.Status.NumberReady != daemonset.Status.DesiredNumberScheduled {
+		logger.Debug("multus daemonset not ready, requeue")
+		return true, nil
 	}
 
 	// The multus address range is used to find the multus interface for migration and cleanup.
-	nad, err := r.context.NetworkClient.NetworkAttachmentDefinitions(r.opConfig.OperatorNamespace).Get(r.opManagerContext, publicNetwork, metav1.GetOptions{})
+	nad, err := r.context.NetworkClient.NetworkAttachmentDefinitions(cephCluster.ObjectMeta.Namespace).Get(r.opManagerContext, publicNetwork, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrap(err, "failed to get network attachment definition")
+		return false, errors.Wrap(err, "failed to get network attachment definition")
 	}
 	multusRange, err := multus.GetAddressRange(nad.Spec.Config)
 	if err != nil {
-		return errors.Wrap(err, "failed to get multus address range")
+		return false, errors.Wrap(err, "failed to get multus address range")
 	}
 
-	// Deploy jobs to move network interface from daemonset pods to host network r.opConfig.OperatorNamespace.
-	podList, err := r.context.Clientset.CoreV1().Pods(r.opConfig.OperatorNamespace).List(r.opManagerContext, metav1.ListOptions{
-		LabelSelector: "app=rook-ceph-multus",
+	podList, err := r.context.Clientset.CoreV1().Pods(cephCluster.ObjectMeta.Namespace).List(r.opManagerContext, metav1.ListOptions{
+		LabelSelector: csiMultusLabel,
 	})
 	if err != nil || len(podList.Items) < 1 {
-		return errors.Wrap(err, "failed to get multus daemonset pods")
+		return false, errors.Wrap(err, "failed to get multus daemonset pods")
 	}
 
-	var migrationError bool
 	ch := make(chan migrationJobReport)
 
 	for _, pod := range podList.Items {
@@ -798,30 +775,34 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 
 		template.MultusIP, template.MultusLink, err = multus.GetMultusConf(pod, publicNetwork, nad.ObjectMeta.Namespace, multusRange)
 		if err != nil {
-			logger.Errorf("failed to get multus IP from pod: %v", err)
-			migrationError = true
+			ch <- migrationJobReport{
+				template.MultusNodeName,
+				errors.Wrap(err, "failed to get multus IP from pod"),
+			}
 			continue
 		}
 
-		// Will deploy job and wait for completion before moving on to next one.
-		// If a job fails, the nodes that have been modified will be reverted.
 		migrationJob, err := templateToJob(csiMultusSetup, MultusSetupJobTemplatePath, template)
 		if err != nil {
-			logger.Errorf("failed to get job template to set up the csi network: %v", err)
-			migrationError = true
+			ch <- migrationJobReport{
+				template.MultusNodeName,
+				errors.Wrap(err, "failed to get job template to set up the csi network"),
+			}
 			continue
 		}
 		err = k8sutil.RunReplaceableJob(r.context.Clientset, migrationJob, true)
 		if err != nil {
-			logger.Errorf("failed to run job: %v", err)
-			migrationError = true
+			ch <- migrationJobReport{
+				template.MultusNodeName,
+				errors.Wrap(err, "failed to run job"),
+			}
 			continue
 		}
 
 		go func(nodeName string, migrationJob *batch.Job) {
 			ch <- migrationJobReport{
 				nodeName,
-				k8sutil.WaitForJobCompletion(r.context.Clientset, migrationJob, 30*time.Second),
+				k8sutil.WaitForJobCompletion(r.opManagerContext, r.context.Clientset, migrationJob, 30*time.Second),
 			}
 		}(template.MultusNodeName, migrationJob)
 	}
@@ -829,43 +810,84 @@ func (r *ReconcileCSI) setupCSINetwork() error {
 	for range podList.Items {
 		jobReport := <-ch
 		if jobReport.err != nil {
-			logger.Errorf("job error on node %s: %v", jobReport.nodeName, jobReport.err)
-			migrationError = true
+			logger.Errorf("multus interface migration error on node %s: %v", jobReport.nodeName, jobReport.err)
+			logger.Infof("cleaning up multus on node %s", jobReport.nodeName)
+			err = r.cleanupMultusNode(jobReport.nodeName, cephCluster.ObjectMeta.Namespace, publicNetwork, multusRange)
+			if err != nil {
+				logger.Errorf("failed to clean up node: %v; continuing", err)
+			}
 		}
 	}
 
-	if migrationError {
-		logger.Error("migration error occurred; cleaning up nodes")
-		err = r.teardownCSINetwork(r.opConfig.OperatorNamespace)
-		if err != nil {
-			return errors.New("error occurred during interface cleanup after error in interface migration")
-		}
-		return errors.New("error occurred during interface migration")
-	}
-
-	return nil
+	return false, nil
 }
 
-func (r *ReconcileCSI) teardownCSINetwork(namespace string) error {
+func (r *ReconcileCSI) cleanupMultusNode(nodeName, namespace, publicNetwork, multusRange string) error {
+
+	template := templateParam{
+		Namespace: namespace,
+	}
+
+	template.MultusImage = r.opConfig.Image
+
+	// Run the cleanup job on the node.
+	// Deploy jobs to remove network interface host network namespace.
+	podList, err := r.context.Clientset.CoreV1().Pods(namespace).List(r.opManagerContext, metav1.ListOptions{
+		LabelSelector: csiMultusLabel,
+	})
+	if err != nil || len(podList.Items) < 1 {
+		return errors.Wrap(err, "failed to get multus daemonset pods")
+	}
+
+	for _, pod := range podList.Items {
+		if pod.Spec.NodeName == nodeName {
+			template.MultusNodeName = pod.Spec.NodeName
+
+			template.MultusIP, _, err = multus.GetMultusConf(pod, publicNetwork, namespace, multusRange)
+			if err != nil {
+				return errors.Wrap(err, "failed to get  multus configuration")
+			}
+
+			// Will deploy job and wait for completion before moving on to next one.
+			// If a job fails, the nodes that have been modified will be reverted.
+			cleanupJob, err := templateToJob(csiMultusTeardown, MultusTeardownJobTemplatePath, template)
+			if err != nil {
+				return errors.Wrap(err, "failed to template multus cleanup job")
+			}
+			err = k8sutil.RunReplaceableJob(r.context.Clientset, cleanupJob, true)
+			if err != nil {
+				return errors.Wrap(err, "failed to run multus cleanup job")
+			}
+
+			err = k8sutil.WaitForJobCompletion(r.opManagerContext, r.context.Clientset, cleanupJob, 30*time.Second)
+			if err != nil {
+				return errors.Wrap(err, "error occurred waiting for multus cleanup job to complete")
+			}
+
+			// Deleting the pod that belongs to the multus daemonset will cause a new one to be created on the node with a fresh IP.
+			err = r.context.Clientset.CoreV1().Pods(namespace).Delete(r.opManagerContext, pod.ObjectMeta.Name, metav1.DeleteOptions{})
+			if err != nil {
+				return errors.Wrap(err, " failed to delete multus holder pod")
+			}
+		}
+	}
+
+	return errors.New("multus pod not found on node for cleanup")
+}
+
+func (r *ReconcileCSI) teardownCSINetwork(cephCluster cephv1.CephCluster) error {
 	// Setup of the CSI Network depends on if multus is being used.
-	var isMultusApplied bool
 	var publicNetwork string
 	var ok bool
 
-	cephClusters, err := r.context.RookClientset.CephV1().CephClusters(namespace).List(r.opManagerContext, metav1.ListOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to find CephClusters")
-	}
-	for _, cephCluster := range cephClusters.Items {
-		// Assuming one CephCluster in the namespace
-		if cephCluster.Spec.Network.IsMultus() {
-			if publicNetwork, ok = cephCluster.Spec.Network.Selectors["public"]; !ok {
-				logger.Debug("public network not provided; not performing multus configuration.")
-				return nil
-			}
-			isMultusApplied = true
-			break
+	if cephCluster.Spec.Network.IsMultus() {
+		if publicNetwork, ok = cephCluster.Spec.Network.Selectors["public"]; !ok {
+			logger.Debug("public network not provided; not performing multus cleanup")
+			return nil
 		}
+	} else {
+		logger.Debug("multus not used; no additional network configuration necessary")
+		return nil
 	}
 
 	nad, err := r.context.NetworkClient.NetworkAttachmentDefinitions(r.opConfig.OperatorNamespace).Get(r.opManagerContext, publicNetwork, metav1.GetOptions{})
@@ -877,72 +899,31 @@ func (r *ReconcileCSI) teardownCSINetwork(namespace string) error {
 		return errors.Wrap(err, "failed to get multus address range")
 	}
 
-	if !isMultusApplied {
-		logger.Debug("Multus not used. No additional network configuration necassary.")
-		return nil
-	}
-
-	// Populate the host network namespace with a multus-connected interface.
-	template := templateParam{
-		Namespace: namespace,
-	}
-
-	template.MultusImage = r.opConfig.Image
-
 	// Deploy jobs to remove network interface host network namespace.
-	podList, err := r.context.Clientset.CoreV1().Pods(namespace).List(r.opManagerContext, metav1.ListOptions{
-		LabelSelector: "app=rook-ceph-multus",
+	podList, err := r.context.Clientset.CoreV1().Pods(cephCluster.ObjectMeta.Namespace).List(r.opManagerContext, metav1.ListOptions{
+		LabelSelector: csiMultusLabel,
 	})
 	if err != nil || len(podList.Items) < 1 {
 		return errors.Wrap(err, "failed to get multus daemonset pods")
 	}
 
-	var cleanupError bool
-	ch := make(chan migrationJobReport)
-
+	ch := make(chan error)
 	for _, pod := range podList.Items {
-		template.MultusNodeName = pod.Spec.NodeName
-
-		template.MultusIP, _, err = multus.GetMultusConf(pod, publicNetwork, nad.ObjectMeta.Namespace, multusRange)
-		if err != nil {
-			logger.Errorf("error occurred while cleaning up multus resources: %v", err)
-			cleanupError = true
-			continue
-		}
-
-		// Will deploy job and wait for completion before moving on to next one.
-		// If a job fails, the nodes that have been modified will be reverted.
-		cleanupJob, err := templateToJob(csiMultusTeardown, MultusTeardownJobTemplatePath, template)
-		if err != nil {
-			logger.Errorf("error occurred while cleaning up multus resources: %v", err)
-			cleanupError = true
-			continue
-		}
-		err = k8sutil.RunReplaceableJob(r.context.Clientset, cleanupJob, true)
-		if err != nil {
-			logger.Errorf("error occurred while cleaning up multus resources: %v", err)
-			cleanupError = true
-			continue
-		}
-		go func(nodeName string, migrationJob *batch.Job) {
-			ch <- migrationJobReport{
-				nodeName,
-				k8sutil.WaitForJobCompletion(r.context.Clientset, cleanupJob, 30*time.Second),
-			}
-		}(template.MultusNodeName, cleanupJob)
+		go func(nodeName, namespace string) {
+			ch <- r.cleanupMultusNode(nodeName, namespace, publicNetwork, multusRange)
+		}(pod.Spec.NodeName, pod.ObjectMeta.Namespace)
 	}
 
 	for range podList.Items {
-		jobReport := <-ch
-		if jobReport.err != nil {
-			logger.Errorf("job error on node %s: %v", jobReport.nodeName, jobReport.err)
-			cleanupError = true
+		err = <-ch
+		if err != nil {
+			logger.Error(errors.Wrap(err, "failed to clean multus nodes"))
 		}
 	}
 
-	if cleanupError {
-		return errors.New("error occurred during cleanup")
+	err = r.context.Clientset.AppsV1().DaemonSets(cephCluster.ObjectMeta.Namespace).Delete(r.opManagerContext, csiMultusDaemonsetName, metav1.DeleteOptions{})
+	if err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, "failed to delete multus daemonset")
 	}
-
-	return r.context.Clientset.AppsV1().DaemonSets(namespace).Delete(r.opManagerContext, csiMultusDaemonsetName, metav1.DeleteOptions{})
+	return nil
 }

@@ -1260,7 +1260,7 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-ceph-multus
+  name: rook-csi-multus
   namespace: rook-ceph # namespace:operator
   labels:
     operator: rook
