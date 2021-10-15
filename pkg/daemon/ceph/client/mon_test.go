@@ -88,14 +88,21 @@ func TestStretchElectionStrategy(t *testing.T) {
 func TestStretchClusterMonTiebreaker(t *testing.T) {
 	monName := "a"
 	failureDomain := "rack"
+	setTiebreaker := false
+	enabledStretch := false
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
 		case args[0] == "mon" && args[1] == "enable_stretch_mode":
+			enabledStretch = true
 			assert.Equal(t, monName, args[2])
 			assert.Equal(t, defaultStretchCrushRuleName, args[3])
 			assert.Equal(t, failureDomain, args[4])
+			return "", nil
+		case args[0] == "mon" && args[1] == "set_new_tiebreaker":
+			setTiebreaker = true
+			assert.Equal(t, monName, args[2])
 			return "", nil
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
@@ -105,6 +112,14 @@ func TestStretchClusterMonTiebreaker(t *testing.T) {
 
 	err := SetMonStretchTiebreaker(context, clusterInfo, monName, failureDomain)
 	assert.NoError(t, err)
+	assert.True(t, enabledStretch)
+	assert.False(t, setTiebreaker)
+	enabledStretch = false
+
+	err = SetNewTiebreaker(context, clusterInfo, monName)
+	assert.NoError(t, err)
+	assert.True(t, setTiebreaker)
+	assert.False(t, enabledStretch)
 }
 
 func TestMonDump(t *testing.T) {
