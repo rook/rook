@@ -338,9 +338,18 @@ func (c *Cluster) isArbiterZone(zone string) bool {
 	return c.getArbiterZone() == zone
 }
 
-func (c *Cluster) ConfigureArbiter() error {
+func (c *Cluster) ConfigureArbiter(failingOver bool) error {
 	if c.arbiterMon == "" {
 		return errors.New("arbiter not specified for the stretch cluster")
+	}
+
+	failureDomain := c.stretchFailureDomainName()
+	if failingOver {
+		// Set the new mon tiebreaker
+		if err := cephclient.SetNewTiebreaker(c.context, c.ClusterInfo, c.arbiterMon); err != nil {
+			return errors.Wrap(err, "failed to set new mon tiebreaker")
+		}
+		return nil
 	}
 
 	monDump, err := cephclient.GetMonDump(c.context, c.ClusterInfo)
@@ -354,7 +363,6 @@ func (c *Cluster) ConfigureArbiter() error {
 	// Wait for the CRUSH map to have at least two zones
 	// The timeout is relatively short since the operator will requeue the reconcile
 	// and try again at a higher level if not yet found
-	failureDomain := c.stretchFailureDomainName()
 	logger.Infof("enabling stretch mode... waiting for two failure domains of type %q to be found in the CRUSH map after OSD initialization", failureDomain)
 	pollInterval := 5 * time.Second
 	totalWaitTime := 2 * time.Minute
