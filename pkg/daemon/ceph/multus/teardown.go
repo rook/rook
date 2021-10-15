@@ -17,7 +17,6 @@ limitations under the License.
 package multus
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
@@ -29,22 +28,22 @@ func Teardown() error {
 
 	multusIpStr, found := os.LookupEnv(multusIpEnv)
 	if !found {
-		return fmt.Errorf("environment variable %s not set.", multusIpEnv)
+		return errors.Errorf("failed to get value for environment variable %q", multusIpEnv)
 	}
 
 	migrated, linkName, err := checkMigration(multusIpStr)
 	if err != nil {
-		return errors.Wrapf(err, "error while checking if the interface has already been removed")
+		return errors.Wrapf(err, "failed to check if the interface has already been removed")
 	}
 	if !migrated {
-		logger.Info("interface already removed. exiting.")
+		logger.Info("interface already removed; exiting")
 		return nil
 	}
 
 	logger.Info("removing interface")
 	link, err := netlink.LinkByName(linkName)
 	if err != nil {
-		return errors.Wrapf(err, "error occurred while removing the multus interface")
+		return errors.Wrapf(err, "failed to remove the multus interface")
 	}
 
 	return netlink.LinkDel(link)

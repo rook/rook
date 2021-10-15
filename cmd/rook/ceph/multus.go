@@ -30,7 +30,7 @@ var multusSetupCmd = &cobra.Command{
 
 var multusTeardownCmd = &cobra.Command{
 	Use:   "multus-teardown",
-	Short: "Runs the rook teardown operation",
+	Short: "Runs the rook multus teardown operation",
 }
 
 func init() {

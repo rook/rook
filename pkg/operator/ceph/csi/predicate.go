@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,6 +58,11 @@ func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 				return cephCluster.Generation == 1
 			}
 
+			// Multus daemonsets are created to hold multus IPs that are migrated into the host network namespace.
+			if daemonset, ok := e.Object.(*apps.DaemonSet); ok {
+				return daemonset.ObjectMeta.Name == multusDaemonSetName
+			}
+
 			return false
 		},
 
@@ -70,6 +76,12 @@ func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 						return findCSIChange(diff)
 					}
 				}
+			}
+
+			// Multus daemonsets are created to hold multus IPs that are migrated into the host network namespace.
+			// Watching updates so that if a multus pod is deleted, the migration job will run again.
+			if daemonset, ok := e.ObjectOld.(*apps.DaemonSet); ok {
+				return daemonset.ObjectMeta.Name == multusDaemonSetName
 			}
 
 			return false

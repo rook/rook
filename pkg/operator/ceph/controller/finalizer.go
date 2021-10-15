@@ -50,7 +50,7 @@ func remove(list []string, s string) []string {
 	return list
 }
 
-// AddFinalizerIfNotPresent adds a finalizer an object to avoid instant deletion
+// AddFinalizerIfNotPresent adds a finalizer on an object to avoid instant deletion
 // of the object without finalizing it.
 func AddFinalizerIfNotPresent(ctx context.Context, client client.Client, obj client.Object) error {
 	objectFinalizer := buildFinalizerName(obj.GetObjectKind().GroupVersionKind().Kind)
@@ -67,6 +67,32 @@ func AddFinalizerIfNotPresent(ctx context.Context, client client.Client, obj cli
 		// Update CR with finalizer
 		if err := client.Update(ctx, obj); err != nil {
 			return errors.Wrapf(err, "failed to add finalizer %q on %q", objectFinalizer, accessor.GetName())
+		}
+	}
+
+	return nil
+}
+
+// AddFinalizerWithNameIfNotPresent adds a finalizer on an object to avoid instant deletion
+// of the object without finalizing it.
+func AddFinalizerWithNameIfNotPresent(client client.Client, obj client.Object, finalizer string) error {
+	err := client.Get(context.TODO(), types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj)
+	if err != nil {
+		return errors.Wrap(err, "failed to get the latest version of the object")
+	}
+
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return errors.Wrap(err, "failed to get meta information of object")
+	}
+
+	if !contains(accessor.GetFinalizers(), finalizer) {
+		logger.Infof("adding finalizer %q on %q", finalizer, accessor.GetName())
+		accessor.SetFinalizers(append(accessor.GetFinalizers(), finalizer))
+
+		// Update CR with finalizer
+		if err := client.Update(context.TODO(), obj); err != nil {
+			return errors.Wrapf(err, "failed to add finalizer %q on %q", finalizer, accessor.GetName())
 		}
 	}
 

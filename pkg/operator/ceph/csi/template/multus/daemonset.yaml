@@ -17,7 +17,7 @@ spec:
       annotations:
         k8s.v1.cni.cncf.io/networks: {{ .MultusNetwork }}
     spec:
-      serviceAccount: rook-ceph-multus
+      serviceAccount: rook-csi-multus
       priorityClassName: system-node-critical
       containers:
       - name: if-holder
