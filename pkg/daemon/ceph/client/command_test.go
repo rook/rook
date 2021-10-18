@@ -139,7 +139,7 @@ func TestNewRBDCommand(t *testing.T) {
 		assert.Error(t, err)
 		assert.Len(t, cmd.args, 4)
 		// This is not the best but it shows we go through the right codepath
-		assert.EqualError(t, err, "no pods found with selector \"rook-ceph-mgr\"")
+		assert.Contains(t, err.Error(), "no pods found with selector \"rook-ceph-mgr\"")
 	})
 
 }
