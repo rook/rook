@@ -152,3 +152,14 @@ func SetMonStretchTiebreaker(context *clusterd.Context, clusterInfo *ClusterInfo
 	logger.Infof("successfully set mon tiebreaker %q in failure domain %q", monName, bucketType)
 	return nil
 }
+
+// SetNewTiebreaker sets the new tiebreaker mon in the stretch cluster during a failover
+func SetNewTiebreaker(context *clusterd.Context, clusterInfo *ClusterInfo, monName string) error {
+	logger.Infof("setting new mon tiebreaker %q in arbiter zone", monName)
+	args := []string{"mon", "set_new_tiebreaker", monName}
+	if _, err := NewCephCommand(context, clusterInfo, args).Run(); err != nil {
+		return errors.Wrapf(err, "failed to set new mon tiebreaker %q", monName)
+	}
+	logger.Infof("successfully set new mon tiebreaker %q in arbiter zone", monName)
+	return nil
+}
