@@ -57,7 +57,7 @@ jobs:
       run: tests/scripts/github-action-helper.sh deploy_cluster
 
     - name: wait for prepare pod
-      run: timeout 300 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done'
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
@@ -83,6 +83,11 @@ jobs:
 
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
 
     - name: Upload canary test result
       uses: actions/upload-artifact@v2
@@ -148,21 +153,18 @@ jobs:
         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
 
     - name: wait for prepare pod
-      run: |
-        timeout 180 sh -c '[ $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'|wc -l) -eq 2 ]; do sleep 5; done'||true
-        for prepare in $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do
-          kubectl -n rook-ceph logs -f $prepare
-          break
-        done
-        timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done'||true
-        kubectl -n rook-ceph describe job/$prepare||true
-        kubectl -n rook-ceph describe deploy/rook-ceph-osd-0||true
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
 
     - name: Upload  pvc test result
       uses: actions/upload-artifact@v2
@@ -230,6 +232,11 @@ jobs:
 
     - name: wait for ceph to be ready
       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+    - name: collect common
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
 
     - name: Upload pvc-db test result
       uses: actions/upload-artifact@v2
@@ -302,6 +309,11 @@ jobs:
         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
         kubectl -n rook-ceph get pods
 
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
+
     - name: Upload pvc-db-wal test result
       uses: actions/upload-artifact@v2
       if: always()
@@ -371,6 +383,11 @@ jobs:
         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
         kubectl -n rook-ceph get secrets
         sudo lsblk
+
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
 
     - name: Upload encryption-pvc test result
       uses: actions/upload-artifact@v2
@@ -442,6 +459,11 @@ jobs:
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
 
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
+
     - name: Upload encryption-pvc-db-wal test result
       uses: actions/upload-artifact@v2
       if: always()
@@ -512,6 +534,11 @@ jobs:
         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
         kubectl -n rook-ceph get pods
         kubectl -n rook-ceph get secrets
+
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
 
     - name: Upload encryption-pvc-db test result
       uses: actions/upload-artifact@v2
@@ -601,6 +628,11 @@ jobs:
       run: |
         tests/scripts/deploy-validate-vault.sh validate_rgw
 
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
+
     - name: Upload encryption-pvc-kms-vault-token-auth test result
       uses: actions/upload-artifact@v2
       if: always()
@@ -665,6 +697,11 @@ jobs:
 
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
 
     - name: Upload pvc test result
       uses: actions/upload-artifact@v2
@@ -871,6 +908,11 @@ jobs:
         # the check is not super ideal since 'mirroring_failed' is only displayed when there is a failure but not when it's working...
         timeout 60 sh -c 'while [ "$(kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs snapshot mirror daemon status myfs|jq -r '.[0].filesystems[0]'|grep -c "mirroring_failed")" -eq 1 ]; do echo "waiting for filesystem to be mirrored" && sleep 1; done'
 
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
+
     - name: upload test result
       uses: actions/upload-artifact@v2
       if: always()
@@ -965,6 +1007,11 @@ jobs:
         not_committed_msg="there are no changes to commit for RGW configuration period for CephObjectStore"
         tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary}" 120
         tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary}" 90
+
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
 
     - name: upload test result
       uses: actions/upload-artifact@v2

@@ -76,6 +76,11 @@ jobs:
           minikube delete
           docker system prune -a
 
+      - name: collect common logs
+        if: always()
+        run: |
+          tests/scripts/collect-logs.sh
+
       - name: upload canary test result
         uses: actions/upload-artifact@v2
         if: always()
@@ -118,11 +123,19 @@ jobs:
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="pacific-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="smoke-ns"
+          export OPERATOR_NAMESPACE="smoke-ns-system"
+          tests/scripts/collect-logs.sh
+
       - name: Artifact
         uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: ceph-smoke-suite-artifact
+          name: ceph-smoke-suite-pacific-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   smoke-suite-ceph-master:
@@ -160,11 +173,19 @@ jobs:
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=master go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="smoke-ns"
+          export OPERATOR_NAMESPACE="smoke-ns-system"
+          tests/scripts/collect-logs.sh
+
       - name: Artifact
         uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: ceph-smoke-suite-artifact
+          name: ceph-smoke-suite-master-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   object-suite-pacific-devel:
@@ -202,11 +223,19 @@ jobs:
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="pacific-devel" go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
 
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="object-ns"
+          export OPERATOR_NAMESPACE="object-ns-system"
+          tests/scripts/collect-logs.sh
+
       - name: Artifact
         uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: ceph-object-suite-artifact
+          name: ceph-object-suite-pacific-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   object-suite-master:
@@ -244,11 +273,19 @@ jobs:
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=master go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
 
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="object-ns"
+          export OPERATOR_NAMESPACE="object-ns-system"
+          tests/scripts/collect-logs.sh
+
       - name: Artifact
         uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: ceph-object-suite-artifact
+          name: ceph-object-suite-master-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   upgrade-from-pacific-stable-to-pacific-devel:
@@ -286,11 +323,19 @@ jobs:
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
           go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToPacificDevel github.com/rook/rook/tests/integration
 
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="upgrade-ns"
+          export OPERATOR_NAMESPACE="upgrade-ns-system"
+          tests/scripts/collect-logs.sh
+
       - name: Artifact
         uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: ceph-upgrade-suite-artifact
+          name: ceph-upgrade-suite-pacific-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   upgrade-from-octopus-stable-to-octopus-devel:
@@ -328,9 +373,17 @@ jobs:
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
           go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToOctopusDevel github.com/rook/rook/tests/integration
 
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="upgrade-ns"
+          export OPERATOR_NAMESPACE="upgrade-ns-system"
+          tests/scripts/collect-logs.sh
+
       - name: Artifact
         uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: ceph-upgrade-suite-artifact
+          name: ceph-upgrade-suite-octopus-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
