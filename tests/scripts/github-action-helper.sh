@@ -168,10 +168,31 @@ function deploy_cluster() {
 }
 
 function wait_for_prepare_pod() {
-  timeout 180 sh -c 'until kubectl -n rook-ceph logs -f job/$(kubectl -n rook-ceph get job -l app=rook-ceph-osd-prepare -o jsonpath='{.items[0].metadata.name}'); do sleep 5; done' || true
-  timeout 60 sh -c 'until kubectl -n rook-ceph logs $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd,ceph_daemon_id=0 -o jsonpath='{.items[*].metadata.name}') --all-containers; do echo "waiting for osd container" && sleep 1; done' || true
-  kubectl -n rook-ceph describe job/$(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}') || true
-  kubectl -n rook-ceph describe deploy/rook-ceph-osd-0 || true
+  get_pod_cmd=(kubectl --namespace rook-ceph get pod --no-headers)
+  timeout=450
+  start_time="${SECONDS}"
+  while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
+    pod="$("${get_pod_cmd[@]}" --selector=app=rook-ceph-osd-prepare --output custom-columns=NAME:.metadata.name,PHASE:status.phase | awk 'FNR <= 1')"
+    if echo "$pod" | grep 'Running\|Succeeded\|Failed'; then break; fi
+    echo 'waiting for at least one osd prepare pod to be running or finished'
+    sleep 5
+  done
+  pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd-prepare --output name | awk 'FNR <= 1')"
+  kubectl --namespace rook-ceph logs --follow "$pod"
+  timeout=60
+  start_time="${SECONDS}"
+  while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
+    pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd,ceph_daemon_id=0 --output custom-columns=NAME:.metadata.name,PHASE:status.phase)"
+    if echo "$pod" | grep 'Running'; then break; fi
+    echo 'waiting for OSD 0 pod to be running'
+    sleep 1
+  done
+  # getting the below logs is a best-effort attempt, so use '|| true' to allow failures
+  pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd,ceph_daemon_id=0 --output name)" || true
+  kubectl --namespace rook-ceph logs "$pod" || true
+  job="$(kubectl --namespace rook-ceph get job --selector app=rook-ceph-osd-prepare --output name | awk 'FNR <= 1')" || true
+  kubectl -n rook-ceph describe "$job" || true
+  kubectl -n rook-ceph describe deployment/rook-ceph-osd-0 || true
 }
 
 function wait_for_ceph_to_be_ready() {
