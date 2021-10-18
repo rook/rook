@@ -110,8 +110,11 @@ dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct,dsync
 blkdiscard $DISK
 
 # These steps only have to be run once on each node
-# If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
-ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
+# Remove logical volumes
+for device in $(dmsetup ls | grep "^ceph" | cut -f1) ; do
+  echo "remove: ${device}"
+  dmsetup remove ${device}
+done 
 
 # ceph-volume setup can leave ceph-<UUID> directories in /dev and /dev/mapper (unnecessary clutter)
 rm -rf /dev/ceph-*
