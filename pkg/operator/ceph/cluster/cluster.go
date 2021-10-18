@@ -151,7 +151,8 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 
 	// If a stretch cluster, enable the arbiter after the OSDs are created with the CRUSH map
 	if c.Spec.IsStretchCluster() {
-		if err := c.mons.ConfigureArbiter(); err != nil {
+		failingOver := false
+		if err := c.mons.ConfigureArbiter(failingOver); err != nil {
 			return errors.Wrap(err, "failed to configure stretch arbiter")
 		}
 	}

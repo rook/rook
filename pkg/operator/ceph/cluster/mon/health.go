@@ -28,6 +28,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,6 +45,8 @@ var (
 	timeZero                       = time.Duration(0)
 	// Check whether mons are on the same node once per operator restart since it's a rare scheduling condition
 	needToCheckMonsOnSameNode = true
+	// Version of Ceph where the arbiter failover is supported
+	arbiterFailoverSupportedCephVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 7}
 )
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
@@ -322,32 +325,47 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
 		if err := c.removeMon(name); err != nil {
 			logger.Errorf("failed to remove mon %q. %v", name, err)
 		}
-	} else {
-		if c.spec.IsStretchCluster() && name == c.arbiterMon {
-			// Ceph does not currently support updating the arbiter mon
-			// or else the mons in the two datacenters will not be aware anymore
-			// of the arbiter mon. Thus, disabling failover until the arbiter
-			// mon can be updated in ceph.
-			logger.Warningf("refusing to failover arbiter mon %q on a stretched cluster", name)
-			return false
-		}
+		return true
+	}
 
-		// prevent any voluntary mon drain while failing over
-		if err := c.blockMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
-			logger.Errorf("failed to block mon drain. %v", err)
-		}
+	if err := c.allowFailover(name); err != nil {
+		logger.Warningf("aborting mon %q failover. %v", name, err)
+		return false
+	}
 
-		// bring up a new mon to replace the unhealthy mon
-		if err := c.failoverMon(name); err != nil {
-			logger.Errorf("failed to failover mon %q. %v", name, err)
-		}
+	// prevent any voluntary mon drain while failing over
+	if err := c.blockMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
+		logger.Errorf("failed to block mon drain. %v", err)
+	}
 
-		// allow any voluntary mon drain after failover
-		if err := c.allowMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
-			logger.Errorf("failed to allow mon drain. %v", err)
-		}
+	// bring up a new mon to replace the unhealthy mon
+	if err := c.failoverMon(name); err != nil {
+		logger.Errorf("failed to failover mon %q. %v", name, err)
+	}
+
+	// allow any voluntary mon drain after failover
+	if err := c.allowMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
+		logger.Errorf("failed to allow mon drain. %v", err)
 	}
 	return true
+}
+
+func (c *Cluster) allowFailover(name string) error {
+	if !c.spec.IsStretchCluster() {
+		// always failover if not a stretch cluster
+		return nil
+	}
+	if name != c.arbiterMon {
+		// failover if it's a non-arbiter
+		return nil
+	}
+	if c.ClusterInfo.CephVersion.IsAtLeast(arbiterFailoverSupportedCephVersion) {
+		// failover the arbiter if at least v16.2.7
+		return nil
+	}
+
+	// Ceph does not support updating the arbiter mon in older versions
+	return errors.Errorf("refusing to failover arbiter mon %q on a stretched cluster until upgrading to ceph version %s", name, arbiterFailoverSupportedCephVersion.String())
 }
 
 func (c *Cluster) removeOrphanMonResources() {
@@ -437,6 +455,9 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// remove the failed mon from a local list of the existing mons for finding a stretch zone
 	existingMons := c.clusterInfoToMonConfig(name)
+	// Cache the name of the current arbiter in case it is updated during the failover
+	// This allows a simple check for updating the arbiter later in this method
+	currentArbiter := c.arbiterMon
 	zone, err := c.findAvailableZoneIfStretched(existingMons)
 	if err != nil {
 		return errors.Wrap(err, "failed to find available stretch zone")
@@ -475,12 +496,11 @@ func (c *Cluster) failoverMon(name string) error {
 	}
 
 	// Assign to a zone if a stretch cluster
-	if c.spec.IsStretchCluster() {
-		if name == c.arbiterMon {
-			// Update the arbiter mon for the stretch cluster if it changed
-			if err := c.ConfigureArbiter(); err != nil {
-				return errors.Wrap(err, "failed to configure stretch arbiter")
-			}
+	if c.spec.IsStretchCluster() && name == currentArbiter {
+		// Update the arbiter mon for the stretch cluster if it changed
+		failingOver := true
+		if err := c.ConfigureArbiter(failingOver); err != nil {
+			return errors.Wrap(err, "failed to configure stretch arbiter")
 		}
 	}
 
