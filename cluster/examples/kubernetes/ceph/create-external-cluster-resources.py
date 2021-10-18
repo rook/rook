@@ -92,6 +92,7 @@ class DummyRados(object):
         self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs *=*"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=myfs-metadata"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"BQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=myfs-metadata"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
         self.cmd_output_map['''{"format": "json", "prefix": "mgr services"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
         self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
@@ -165,6 +166,8 @@ class RadosJSON:
                                   help="Namespace where CephCluster is running")
         common_group.add_argument("--rgw-pool-prefix", default="",
                                   help="RGW Pool prefix")
+        common_group.add_argument("--restricted-auth-permission",default=False,
+                                  help="Restricted cephCSIKeyrings auth permissions to specific pools and cluster. Mandatory flags that are needed to be set --cephfs-metadata-pool-name, --cephfs-data-pool-name and --rbd-data-pool-name")
 
         output_group = argP.add_argument_group('output')
         output_group.add_argument("--format", "-t", choices=["json", "bash"],
@@ -173,6 +176,8 @@ class RadosJSON:
                                   help="Output will be stored into the provided file")
         output_group.add_argument("--cephfs-filesystem-name", default="",
                                   help="Provides the name of the Ceph filesystem")
+        output_group.add_argument("--cephfs-metadata-pool-name", default="",
+                                  help="Provides the name of the cephfs metadata pool")
         output_group.add_argument("--cephfs-data-pool-name", default="",
                                   help="Provides the name of the cephfs data pool")
         output_group.add_argument("--rbd-data-pool-name", default="", required=False,
@@ -443,7 +448,19 @@ class RadosJSON:
         '''
         command: ceph auth get-or-create client.csi-cephfs-provisioner mon 'allow r' mgr 'allow rw' osd 'allow rw tag cephfs metadata=*'
         '''
-        cmd_json = {"prefix": "auth get-or-create",
+        metadata_pool = self._arg_parser.cephfs_metadata_pool_name
+        cmd_json = {}
+        if self._arg_parser.restricted_auth_permission:
+            if metadata_pool == "":
+                raise ExecutionFailureException(
+                 "'cephfs_metadata_pool_name' not found, please set the '--cephfs-metadata-pool-name' flag")
+            cmd_json = {"prefix": "auth get-or-create",
+                    "entity": "client.csi-cephfs-provisioner",
+                    "caps": ["mon", "allow r", "mgr", "allow rw",
+                             "osd", "allow rw tag cephfs metadata={}".format(metadata_pool)],
+                    "format": "json"}
+        else:
+            cmd_json = {"prefix": "auth get-or-create",
                     "entity": "client.csi-cephfs-provisioner",
                     "caps": ["mon", "allow r", "mgr", "allow rw",
                              "osd", "allow rw tag cephfs metadata=*"],
@@ -457,7 +474,21 @@ class RadosJSON:
         return str(json_out[0]['key'])
 
     def create_cephCSIKeyring_cephFSNode(self):
-        cmd_json = {"prefix": "auth get-or-create",
+        data_pool = self._arg_parser.cephfs_data_pool_name
+        cmd_json = {} 
+        if self._arg_parser.restricted_auth_permission:
+             if data_pool == "":
+                    raise ExecutionFailureException(
+                 "'cephfs_data_pool_name' not found, please set the '--cephfs-data-pool-name' flag")
+             cmd_json = {"prefix": "auth get-or-create",
+                    "entity": "client.csi-cephfs-node",
+                    "caps": ["mon", "allow r",
+                             "mgr", "allow rw",
+                             "osd", "allow rw tag cephfs data={}".format(data_pool),
+                             "mds", "allow rw"],
+                    "format": "json"}
+        else:
+            cmd_json = {"prefix": "auth get-or-create",
                     "entity": "client.csi-cephfs-node",
                     "caps": ["mon", "allow r",
                              "mgr", "allow rw",
@@ -473,7 +504,20 @@ class RadosJSON:
         return str(json_out[0]['key'])
 
     def create_cephCSIKeyring_RBDProvisioner(self):
-        cmd_json = {"prefix": "auth get-or-create",
+        rbd_pool_name = self._arg_parser.rbd_data_pool_name
+        cmd_json={}
+        if self._arg_parser.restricted_auth_permission:
+             if rbd_pool_name == "":
+                    raise ExecutionFailureException(
+                 "'rbd_data_pool_name' not found, please set the '--rbd-data-pool-name' flag")
+             cmd_json = {"prefix": "auth get-or-create",
+                    "entity": "client.csi-rbd-provisioner",
+                    "caps": ["mon", "profile rbd",
+                             "mgr", "allow rw",
+                             "osd", "profile rbd pool={}".format(rbd_pool_name)],
+                    "format": "json"}
+        else:
+             cmd_json = {"prefix": "auth get-or-create",
                     "entity": "client.csi-rbd-provisioner",
                     "caps": ["mon", "profile rbd",
                              "mgr", "allow rw",
@@ -540,8 +584,8 @@ class RadosJSON:
                 return
 
         if matching_json_out:
-            self._arg_parser.cephfs_filesystem_name = str(
-                matching_json_out['name'])
+            self._arg_parser.cephfs_filesystem_name = str(matching_json_out['name'])
+            self._arg_parser.cephfs_metadata_pool_name  = str(matching_json_out['metadata_pool'])
 
         if type(matching_json_out['data_pools']) == list:
             # if the user has already provided data-pool-name,
@@ -573,7 +617,19 @@ class RadosJSON:
                     self._arg_parser.cephfs_data_pool_name))
 
     def create_cephCSIKeyring_RBDNode(self):
-        cmd_json = {"prefix": "auth get-or-create",
+        rbd_pool_name = self._arg_parser.rbd_data_pool_name
+        cmd_json={}
+        if self._arg_parser.restricted_auth_permission:
+            if rbd_pool_name == "":
+                    raise ExecutionFailureException(
+                 "'rbd_data_pool_name' not found, please set the '--rbd-data-pool-name' flag")
+            cmd_json = {"prefix": "auth get-or-create",
+                    "entity": "client.csi-rbd-node",
+                    "caps": ["mon", "profile rbd",
+                             "osd", "profile rbd pool={}".format(rbd_pool_name)],
+                    "format": "json"}
+        else:
+            cmd_json = {"prefix": "auth get-or-create",
                     "entity": "client.csi-rbd-node",
                     "caps": ["mon", "profile rbd",
                              "osd", "profile rbd"],
@@ -671,13 +727,14 @@ class RadosJSON:
         self.out_map['CSI_RBD_NODE_SECRET_SECRET'] = self.create_cephCSIKeyring_RBDNode()
         self.out_map['CSI_RBD_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_RBDProvisioner()
         self.out_map['CEPHFS_POOL_NAME'] = self._arg_parser.cephfs_data_pool_name
+        self.out_map['CEPHFS_METADATA_POOL_NAME'] = self._arg_parser.cephfs_metadata_pool_name
         self.out_map['CEPHFS_FS_NAME'] = self._arg_parser.cephfs_filesystem_name
+        self.out_map['RESTRICTED_AUTH_PERMISSION'] =self._arg_parser.restricted_auth_permission
         self.out_map['CSI_CEPHFS_NODE_SECRET'] = ''
         self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = ''
         # create CephFS node and provisioner keyring only when MDS exists
         if self.out_map['CEPHFS_FS_NAME'] and self.out_map['CEPHFS_POOL_NAME']:
-            self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_cephFSNode(
-            )
+            self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_cephFSNode()
             self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_cephFSProvisioner()
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
         self.out_map['RGW_TLS_CERT'] = ''
@@ -931,7 +988,7 @@ if __name__ == '__main__':
 ################################################
 # inorder to test the package,
 # cd <script_directory>
-# python -m unittest --verbose <script_name_without_dot_py>
+# python3 -m unittest --verbose <script_name_without_dot_py>
 class TestRadosJSON(unittest.TestCase):
     def setUp(self):
         print("\nI am in setup")
@@ -961,7 +1018,11 @@ class TestRadosJSON(unittest.TestCase):
 
     def test_method_create_cephCSIKeyring_cephFSProvisioner(self):
         csiKeyring = self.rjObj.create_cephCSIKeyring_cephFSProvisioner()
-        print("{}".format(csiKeyring))
+        print("cephCSIKeyring without restricting it to a metadata pool. {}".format(csiKeyring))
+        self.rjObj._arg_parser.restricted_auth_permission=True
+        self.rjObj._arg_parser.cephfs_metadata_pool_name="myfs-metadata"
+        csiKeyring = self.rjObj.create_cephCSIKeyring_cephFSProvisioner()
+        print("cephCSIKeyring for a specific metadata pool. {}".format(csiKeyring))
 
     def test_non_zero_return_and_error(self):
         self.rjObj.cluster.return_val = 1
