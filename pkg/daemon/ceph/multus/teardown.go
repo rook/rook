@@ -20,7 +20,6 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
 )
 
 func Teardown() error {
@@ -33,7 +32,7 @@ func Teardown() error {
 
 	migrated, linkName, err := checkMigration(multusIpStr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to check if the interface has already been removed")
+		return errors.Wrap(err, "failed to check if the interface has already been removed")
 	}
 	if !migrated {
 		logger.Info("interface already removed; exiting")
@@ -41,10 +40,10 @@ func Teardown() error {
 	}
 
 	logger.Info("removing interface")
-	link, err := netlink.LinkByName(linkName)
+	err = removeInterface(linkName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to remove the multus interface")
+		return errors.Wrap(err, "failed to remove multus interface")
 	}
 
-	return netlink.LinkDel(link)
+	return nil
 }

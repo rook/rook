@@ -698,6 +698,7 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 
 type migrationJobReport struct {
 	nodeName string
+	podName  string
 	err      error
 }
 
@@ -782,6 +783,7 @@ func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) (bool, er
 		if err != nil {
 			ch <- migrationJobReport{
 				template.MultusNodeName,
+				pod.ObjectMeta.Name,
 				errors.Wrap(err, "failed to get multus IP from pod"),
 			}
 			continue
@@ -791,6 +793,7 @@ func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) (bool, er
 		if err != nil {
 			ch <- migrationJobReport{
 				template.MultusNodeName,
+				pod.ObjectMeta.Name,
 				errors.Wrap(err, "failed to get job template to set up the csi network"),
 			}
 			continue
@@ -799,17 +802,19 @@ func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) (bool, er
 		if err != nil {
 			ch <- migrationJobReport{
 				template.MultusNodeName,
+				pod.ObjectMeta.Name,
 				errors.Wrap(err, "failed to run job"),
 			}
 			continue
 		}
 
-		go func(nodeName string, migrationJob *batch.Job) {
+		go func(nodeName, podName string, migrationJob *batch.Job) {
 			ch <- migrationJobReport{
 				nodeName,
+				podName,
 				k8sutil.WaitForJobCompletion(r.opManagerContext, r.context.Clientset, migrationJob, 30*time.Second),
 			}
-		}(template.MultusNodeName, migrationJob)
+		}(template.MultusNodeName, pod.ObjectMeta.Name, migrationJob)
 	}
 
 	for range podList.Items {
@@ -817,9 +822,12 @@ func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) (bool, er
 		if jobReport.err != nil {
 			logger.Errorf("multus interface migration error on node %s: %v", jobReport.nodeName, jobReport.err)
 			logger.Infof("cleaning up multus on node %s", jobReport.nodeName)
-			err = r.cleanupMultusNode(jobReport.nodeName, cephCluster.ObjectMeta.Namespace, publicNetwork, multusRange)
+			// The migration job cleans up after itself, to ensure a clean state for retry,
+			// the multus holder pod is deleted and recreated by the daemonset so that multus will reconfigure its
+			// ip configuration.
+			err = r.context.Clientset.CoreV1().Pods(cephCluster.ObjectMeta.Namespace).Delete(r.opManagerContext, jobReport.podName, metav1.DeleteOptions{})
 			if err != nil {
-				logger.Errorf("failed to clean up node: %v; continuing", err)
+				logger.Errorf("failed to delete multus holder pod: %v; continuing", err)
 			}
 		}
 	}
@@ -836,7 +844,7 @@ func (r *ReconcileCSI) cleanupMultusNode(nodeName, namespace, publicNetwork, mul
 	template.MultusImage = r.opConfig.Image
 
 	// Run the cleanup job on the node.
-	// Deploy jobs to remove network interface host network namespace.
+	// Deploys job to remove network interface host network namespace.
 	podList, err := r.context.Clientset.CoreV1().Pods(namespace).List(r.opManagerContext, metav1.ListOptions{
 		LabelSelector: csiMultusLabel,
 	})
@@ -872,7 +880,7 @@ func (r *ReconcileCSI) cleanupMultusNode(nodeName, namespace, publicNetwork, mul
 			// Deleting the pod that belongs to the multus daemonset will cause a new one to be created on the node with a fresh IP.
 			err = r.context.Clientset.CoreV1().Pods(namespace).Delete(r.opManagerContext, pod.ObjectMeta.Name, metav1.DeleteOptions{})
 			if err != nil {
-				return errors.Wrap(err, " failed to delete multus holder pod")
+				return errors.Wrap(err, "failed to delete multus holder pod")
 			}
 		}
 	}

@@ -352,3 +352,17 @@ func determineMultusIPConfig(holderNS ns.NetNS, multusIP, multusLinkName string)
 
 	return mAddr, nil
 }
+
+func removeInterface(linkName string) error {
+	link, err := netlink.LinkByName(linkName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get the multus interface")
+	}
+
+	err = netlink.LinkDel(link)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete the multus interface")
+	}
+
+	return nil
+}
