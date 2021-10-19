@@ -25,23 +25,25 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/dependents"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
 	// must use plural kinds
-	cephClusterDependentPluralKinds []string = []string{
-		"CephBlockPools",
-		"CephRBDMirrors",
-		"CephFilesystems",
-		"CephFilesystemMirrors",
-		"CephObjectStores",
-		"CephObjectStoreUsers",
-		"CephObjectZones",
-		"CephObjectZoneGroups",
-		"CephObjectRealms",
-		"CephNFSes",
-		"CephClients",
+	cephClusterDependentListKinds []string = []string{
+		"CephBlockPoolList",
+		"CephRBDMirrorList",
+		"CephFilesystemList",
+		"CephFilesystemMirrorList",
+		"CephObjectStoreList",
+		"CephObjectStoreUserList",
+		"CephObjectZoneList",
+		"CephObjectZoneGroupList",
+		"CephObjectRealmList",
+		"CephNFSList",
+		"CephClientList",
 	}
 )
 
@@ -52,17 +54,22 @@ func CephClusterDependents(c *clusterd.Context, namespace string) (*dependents.D
 	dependents := dependents.NewDependentList()
 	errs := []error{}
 
-	for _, pluralKind := range cephClusterDependentPluralKinds {
-		resource := pluralKindToResource(pluralKind)
-		gvr := cephv1.SchemeGroupVersion.WithResource(resource)
-		list, err := c.DynamicClientset.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{})
+	for _, listKind := range cephClusterDependentListKinds {
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   cephv1.SchemeGroupVersion.Group,
+			Version: cephv1.SchemeGroupVersion.Version,
+			Kind:    listKind,
+		})
+
+		err := c.Client.List(ctx, list, client.InNamespace(namespace))
 		if err != nil {
-			errs = append(errs, errors.Wrapf(err, "failed to list %s", pluralKind))
+			errs = append(errs, errors.Wrapf(err, "failed to get %s", listKind))
 			continue
 		}
 		if len(list.Items) > 0 {
 			for _, obj := range list.Items {
-				dependents.Add(pluralKind, obj.GetName())
+				dependents.Add(listKindToSingularKind(listKind), obj.GetName())
 			}
 		}
 	}
@@ -72,8 +79,6 @@ func CephClusterDependents(c *clusterd.Context, namespace string) (*dependents.D
 	return dependents, outErr
 }
 
-func pluralKindToResource(pluralKind string) string {
-	// The dynamic client wants resources which are lower-case versions of the plural Kinds for
-	// Kubernetes CRDs in almost all cases.
-	return strings.ToLower(pluralKind)
+func listKindToSingularKind(listKind string) string {
+	return strings.TrimSuffix(listKind, "List")
 }

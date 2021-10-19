@@ -36,7 +36,6 @@ import (
 	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -142,11 +141,6 @@ func NewContext() *clusterd.Context {
 
 	context.RemoteExecutor.ClientSet = context.Clientset
 	context.RemoteExecutor.RestClient = context.KubeConfig
-
-	// Dynamic clientset allows dealing with resources that aren't statically typed but determined
-	// at runtime.
-	context.DynamicClientset, err = dynamic.NewForConfig(context.KubeConfig)
-	TerminateOnError(err, "failed to create dynamic clientset")
 
 	context.RookClientset, err = rookclient.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create rook clientset")

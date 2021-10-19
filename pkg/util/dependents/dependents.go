@@ -77,9 +77,9 @@ func (d *DependentList) PluralKinds() []string {
 	return kinds
 }
 
-// OfPluralKind returns the names of dependents of the Kind (plural), or an empty list if no
+// OfKind returns the names of dependents of the Kind (plural), or an empty list if no
 // dependents exist.
-func (d *DependentList) OfPluralKind(pluralKind string) []string {
+func (d *DependentList) OfKind(pluralKind string) []string {
 	names, ok := d.d[pluralKind]
 	if !ok {
 		return []string{}

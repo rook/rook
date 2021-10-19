@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -78,8 +77,6 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 		// set up clusterd.Context
 		clusterdCtx := &clusterd.Context{
 			Clientset: k8sfake.NewSimpleClientset(),
-			// reconcile looks for fake dependencies in the dynamic clientset
-			DynamicClientset: dynamicfake.NewSimpleDynamicClient(scheme, fakePool),
 		}
 
 		// create the cluster controller and tell it that the cluster has been deleted
@@ -89,7 +86,7 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 
 		// Create a fake client to mock API calls
 		// Make sure it has the fake CephCluster that is to be deleted in it
-		client := clientfake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(fakeCluster).Build()
+		client := clientfake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(fakeCluster, fakePool).Build()
 
 		err := corev1.AddToScheme(scheme)
 		assert.NoError(t, err)
@@ -108,7 +105,7 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotZero(t, resp.RequeueAfter)
 		event := <-fakeRecorder.Events
-		assert.Contains(t, event, "CephBlockPools")
+		assert.Contains(t, event, "CephBlockPool")
 		assert.Contains(t, event, "my-block-pool")
 
 		blockedCluster := &cephv1.CephCluster{}
@@ -121,8 +118,7 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 		assert.Equal(t, corev1.ConditionTrue, cephv1.FindStatusCondition(status.Conditions, cephv1.ConditionDeletionIsBlocked).Status)
 
 		// delete blocking dependency
-		gvr := cephv1.SchemeGroupVersion.WithResource("cephblockpools")
-		err = clusterdCtx.DynamicClientset.Resource(gvr).Namespace(cephNs).Delete(ctx, "my-block-pool", metav1.DeleteOptions{})
+		err = client.Delete(ctx, fakePool)
 		assert.NoError(t, err)
 
 		resp, err = reconcileCephCluster.Reconcile(ctx, req)
