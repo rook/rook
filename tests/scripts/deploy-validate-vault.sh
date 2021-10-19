@@ -1,7 +1,23 @@
-#!/bin/bash
-set -ex
+#!/usr/bin/env bash
+
+# Copyright 2021 The Rook Authors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -exEuo pipefail
 
 : "${ACTION:=${1}}"
+: "${KUBERNETES_AUTH:=false}"
 
 #############
 # VARIABLES #
@@ -9,6 +25,12 @@ set -ex
 SERVICE=vault
 NAMESPACE=default
 ROOK_NAMESPACE=rook-ceph
+ROOK_VAULT_SA=rook-vault-auth
+ROOK_SYSTEM_SA=rook-ceph-system
+ROOK_OSD_SA=rook-ceph-osd
+VAULT_POLICY_NAME=rook
+VAULT_ROOK_OP_ROLE_NAME=rook-op
+VAULT_ROOK_OSD_ROLE_NAME=rook-osd
 SECRET_NAME=vault-server-tls
 TMPDIR=$(mktemp -d)
 VAULT_SERVER=https://vault.default:8200
@@ -115,13 +137,18 @@ function deploy_vault {
   }
   path "sys/mounts" {
   capabilities = ["read"]
-  }'| kubectl exec -i vault-0 -- vault policy write -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook -
+  }'| kubectl exec -i vault-0 -- vault policy write -ca-cert /vault/userconfig/vault-server-tls/vault.crt "$VAULT_POLICY_NAME" -
 
-  # Create a token for Rook
-  ROOK_TOKEN=$(kubectl exec vault-0 -- vault token create -policy=rook -format json -ca-cert /vault/userconfig/vault-server-tls/vault.crt|jq -r '.auth.client_token'|base64)
+  # Configure Kubernetes auth
+  if [[ "${KUBERNETES_AUTH}" == "true" ]]; then
+    set_up_vault_kubernetes_auth
+  else
+    # Create a token for Rook
+    ROOK_TOKEN=$(kubectl exec vault-0 -- vault token create -policy=rook -format json -ca-cert /vault/userconfig/vault-server-tls/vault.crt|jq -r '.auth.client_token'|base64)
 
-  # Configure cluster
-  sed -i "s|ROOK_TOKEN|${ROOK_TOKEN//[$'\t\r\n']}|" tests/manifests/test-kms-vault.yaml
+    # Configure cluster
+    sed -i "s|ROOK_TOKEN|${ROOK_TOKEN//[$'\t\r\n']}|" tests/manifests/test-kms-vault.yaml
+  fi
 }
 
 function validate_rgw_token {
@@ -139,6 +166,56 @@ function validate_rgw_token {
     echo "The set key $ENCRYPTION_KEY is different from fetched key $FETCHED_KEY"
     exit 1
   fi
+}
+
+function set_up_vault_kubernetes_auth {
+  # create service account for vault to validate API token
+  kubectl -n "$ROOK_NAMESPACE" create serviceaccount "$ROOK_VAULT_SA"
+
+  # create the RBAC for this SA
+  kubectl -n "$ROOK_NAMESPACE" create clusterrolebinding vault-tokenreview-binding --clusterrole=system:auth-delegator --serviceaccount="$ROOK_NAMESPACE":"$ROOK_VAULT_SA"
+
+  # get the service account common.yaml created earlier
+  VAULT_SA_SECRET_NAME=$(kubectl -n "$ROOK_NAMESPACE" get sa "$ROOK_VAULT_SA" -o jsonpath="{.secrets[*]['name']}")
+
+  # Set SA_JWT_TOKEN value to the service account JWT used to access the TokenReview API
+  SA_JWT_TOKEN=$(kubectl -n "$ROOK_NAMESPACE" get secret "$VAULT_SA_SECRET_NAME" -o jsonpath="{.data.token}" | base64 --decode)
+
+  # Set SA_CA_CRT to the PEM encoded CA cert used to talk to Kubernetes API
+  SA_CA_CRT=$(kubectl -n "$ROOK_NAMESPACE" get secret "$VAULT_SA_SECRET_NAME" -o jsonpath="{.data['ca\.crt']}" | base64 --decode)
+
+  # get kubernetes endpoint
+  K8S_HOST=$(kubectl config view --minify --flatten -o jsonpath="{.clusters[0].cluster.server}")
+
+  # enable kubernetes auth
+  kubectl exec -ti vault-0 -- vault auth enable kubernetes
+
+  # To fetch the service account issuer
+  kubectl proxy &
+  proxy_pid=$!
+
+  # configure the kubernetes auth
+  kubectl exec -ti vault-0 -- vault write auth/kubernetes/config \
+    token_reviewer_jwt="$SA_JWT_TOKEN" \
+    kubernetes_host="$K8S_HOST" \
+    kubernetes_ca_cert="$SA_CA_CRT" \
+    issuer="$(curl --silent http://127.0.0.1:8001/.well-known/openid-configuration | jq -r .issuer)"
+
+  kill $proxy_pid
+
+  # configure a role for rook operator
+  kubectl exec -ti vault-0 -- vault write auth/kubernetes/role/"$VAULT_ROOK_OP_ROLE_NAME" \
+    bound_service_account_names="$ROOK_SYSTEM_SA" \
+    bound_service_account_namespaces="$ROOK_NAMESPACE" \
+    policies="$VAULT_POLICY_NAME" \
+    ttl=1440h
+
+  # configure a role for rook osds
+  kubectl exec -ti vault-0 -- vault write auth/kubernetes/role/"$VAULT_ROOK_OSD_ROLE_NAME" \
+    bound_service_account_names="$ROOK_OSD_SA" \
+    bound_service_account_namespaces="$ROOK_NAMESPACE" \
+    policies="$VAULT_POLICY_NAME" \
+    ttl=1440h
 }
 
 function validate_osd_deployment {

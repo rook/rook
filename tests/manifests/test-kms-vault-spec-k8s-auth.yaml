@@ -10,4 +10,6 @@ spec:
         VAULT_CLIENT_KEY: "vault-client-key"
         VAULT_CLIENT_CERT: "vault-client-cert"
         VAULT_CACERT: "vault-ca-cert"
-      tokenSecretName: rook-vault-token
+        VAULT_AUTH_METHOD: kubernetes
+        VAULT_AUTH_KUBERNETES_ROOK_OPERATOR_ROLE: rook-op
+        VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE: rook-osd

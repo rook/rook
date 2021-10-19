@@ -18,10 +18,12 @@ package kms
 
 import (
 	"os"
+	"reflect"
 	"sort"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
@@ -77,4 +79,52 @@ func TestConfigEnvsToMapString(t *testing.T) {
 	defer os.Unsetenv("foo")
 	envs = ConfigEnvsToMapString()
 	assert.Equal(t, 3, len(envs))
+	assert.True(t, envs["KMS_PROVIDER"] == "vault")
+	clusterSpec := &rookv1.ClusterSpec{Security: rookv1.SecuritySpec{KeyManagementService: rookv1.KeyManagementServiceSpec{ConnectionDetails: envs}}}
+	assert.True(t, clusterSpec.Security.KeyManagementService.IsEnabled())
+}
+
+func TestVaultConfigToEnvVar(t *testing.T) {
+	type args struct {
+		spec cephv1.ClusterSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want []v1.EnvVar
+	}{
+		{
+			"no backend path",
+			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}}},
+			[]v1.EnvVar{{Name: "VAULT_BACKEND_PATH", Value: "secret/"}},
+		},
+		{
+			"with backend path",
+			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"VAULT_BACKEND_PATH": "foo/"}}}}},
+			[]v1.EnvVar{{Name: "VAULT_BACKEND_PATH", Value: "foo/"}},
+		},
+		{
+			"test VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE",
+			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE": "rook-osd"}}}}},
+			[]v1.EnvVar{
+				{Name: "VAULT_AUTH_KUBERNETES_ROLE", Value: "rook-osd"},
+				{Name: "VAULT_BACKEND_PATH", Value: "secret/"},
+			},
+		},
+		{
+			"test with tls config",
+			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"VAULT_CACERT": "my-secret-name"}}}}},
+			[]v1.EnvVar{
+				{Name: "VAULT_BACKEND_PATH", Value: "secret/"},
+				{Name: "VAULT_CACERT", Value: "/etc/vault/vault.ca"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := VaultConfigToEnvVar(tt.args.spec); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("VaultConfigToEnvVar() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

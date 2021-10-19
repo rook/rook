@@ -151,11 +151,12 @@ func GetParam(kmsConfig map[string]string, param string) string {
 // ValidateConnectionDetails validates mandatory KMS connection details
 func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec *cephv1.SecuritySpec, ns string) error {
 	ctx := context.TODO()
-	// A token must be specified
-	if !securitySpec.KeyManagementService.IsTokenAuthEnabled() {
-		return errors.New("failed to validate kms configuration (missing token in spec)")
+	// A token must be specified if token-auth is used
+	if !securitySpec.KeyManagementService.IsK8sAuthEnabled() && securitySpec.KeyManagementService.TokenSecretName == "" {
+		if !securitySpec.KeyManagementService.IsTokenAuthEnabled() {
+			return errors.New("failed to validate kms configuration (missing token in spec)")
+		}
 	}
-
 	// KMS provider must be specified
 	provider := GetParam(securitySpec.KeyManagementService.ConnectionDetails, Provider)
 
@@ -189,7 +190,7 @@ func ValidateConnectionDetails(clusterdContext *clusterd.Context, securitySpec *
 		}
 	}
 
-	// Validate KMS provider connection details
+	// Validate KMS provider connection details for each provider
 	switch provider {
 	case "vault":
 		err := validateVaultConnectionDetails(clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)

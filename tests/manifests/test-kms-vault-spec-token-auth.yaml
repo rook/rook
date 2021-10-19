@@ -1,0 +1,14 @@
+spec:
+  security:
+    kms:
+      connectionDetails:
+        KMS_PROVIDER: vault
+        VAULT_ADDR: https://vault.default.svc.cluster.local:8200
+        VAULT_BACKEND_PATH: rook/ver1
+        VAULT_SECRET_ENGINE: kv
+        VAULT_SKIP_VERIFY: "true"
+        VAULT_CLIENT_KEY: "vault-client-key"
+        VAULT_CLIENT_CERT: "vault-client-cert"
+        VAULT_CACERT: "vault-ca-cert"
+        VAULT_AUTH_METHOD: token
+      tokenSecretName: rook-vault-token

@@ -278,7 +278,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		envVars = append(envVars, pvcNameEnvVar(osdProps.pvc.ClaimName))
 
 		if osdProps.encrypted {
-			// If a KMS is configured we populate
+			// If a KMS is configured we populate volume mounts and env variables
 			if c.spec.Security.KeyManagementService.IsEnabled() {
 				kmsProvider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
 				if kmsProvider == secrets.TypeVault {

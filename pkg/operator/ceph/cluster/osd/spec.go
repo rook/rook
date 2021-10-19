@@ -849,6 +849,8 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 func (c *Cluster) generateVaultGetKEK(osdProps osdProperties) v1.Container {
 	keyName := osdProps.pvc.ClaimName
 	keyPath := encryptionKeyPath()
+	envVars := c.getConfigEnvVars(osdProps, "")
+	envVars = append(envVars, kms.VaultConfigToEnvVar(c.spec)...)
 
 	return v1.Container{
 		Name:    blockEncryptionKMSGetKEKInitContainer,
@@ -860,7 +862,7 @@ func (c *Cluster) generateVaultGetKEK(osdProps osdProperties) v1.Container {
 			keyName,
 			keyPath,
 		},
-		Env:       c.getConfigEnvVars(osdProps, ""),
+		Env:       envVars,
 		Resources: osdProps.resources,
 	}
 }
@@ -873,22 +875,20 @@ func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(mountPath string, os
 		kmsProvider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
 		// Get Vault KEK from KMS container
 		if kmsProvider == secrets.TypeVault {
-			if c.spec.Security.KeyManagementService.IsTokenAuthEnabled() {
-				getKEKFromKMSContainer := c.generateVaultGetKEK(osdProps)
+			getKEKFromKMSContainer := c.generateVaultGetKEK(osdProps)
 
-				// Volume mount to store the encrypted key
-				_, volMount := c.getEncryptionVolume(osdProps)
-				getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, volMount)
+			// Volume mount to store the encrypted key
+			_, volMount := c.getEncryptionVolume(osdProps)
+			getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, volMount)
 
-				// Now let's see if there is a TLS config we need to mount as well
-				if c.spec.Security.KeyManagementService.IsTLSEnabled() {
-					_, vaultVolMount := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
-					getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, vaultVolMount)
-				}
-
-				// Add the container to the list of containers
-				containers = append(containers, getKEKFromKMSContainer)
+			// Now let's see if there is a TLS config we need to mount as well
+			if c.spec.Security.KeyManagementService.IsTLSEnabled() {
+				_, vaultVolMount := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+				getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, vaultVolMount)
 			}
+
+			// Add the container to the list of containers
+			containers = append(containers, getKEKFromKMSContainer)
 		}
 	}
 
