@@ -48,6 +48,11 @@ func setupMultus(cmd *cobra.Command, args []string) error {
 	logger.Infof("Starting multus setup")
 	err := multus.Setup()
 	if err != nil {
+		logger.Debug("failed to set up multus interface; cleaning node")
+		cleanupErr := multus.Teardown()
+		if cleanupErr != nil {
+			logger.Errorf("failed to clean node: %q", cleanupErr)
+		}
 		rook.TerminateFatal(err)
 	}
 

@@ -78,6 +78,11 @@ func Setup() error {
 	// The IP address is therefore passed to set up the interface.
 	err = setupInterface(newLinkName, multusIP)
 	if err != nil {
+		logger.Debug("failed to set up multus interface; removing interface")
+		cleanupErr := removeInterface(newLinkName)
+		if cleanupErr != nil {
+			logger.Errorf("manual removal of interface %q required; failed to remove multus interface: %q", newLinkName, cleanupErr)
+		}
 		return errors.Wrapf(err, "failed to set up the multus interface on the host network namespace")
 	}
 
