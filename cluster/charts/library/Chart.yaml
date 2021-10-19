@@ -1,0 +1,26 @@
+apiVersion: v2
+name: library
+description: A simple library chart to share content between Rook's charts
+version: 0.0.1
+type: library
+
+# Developer notes:
+# - all templates must start with an underscore, or Helm won't detect them
+# - library definitions should be named 'library.*'
+# - library definitions should avoid conditional logic unless necessary
+# - templates named with '_cluster-*' are for CephCluster-scoped resources
+# - cluster-scoped definitions are named 'library.cluster.*'
+# - prefer templates that are named to their purpose (prefer avoiding '_helper.tpl')
+# - prefer combining features that can be enabled/disabled together (e.g., monitoring or PSP) into
+#   feature templates rather than spreading the content among lower-level templates like
+#   '_*rolebinding.tpl'
+
+# Note on Rook's use of this chart as a chart dependency:
+# The library chart is a dependency of Rook's other charts; however, including the library chart in
+# the 'charts/' dir of dependent charts via a symlink does not require using
+# 'helm dependency update'. This is beneficial because Helm creates a tar file that changes each
+# time 'helm dependency update' is called, meaning we cannot use git to determine if someone failed
+# to update the chart upon submitting a pull request. A helm blog reports that symlinks work as
+# intended but are warned about because symlinked files could be sensitive, but we are just linking
+# our library and not anything outside of this repo.
+# https://helm.sh/blog/2019-10-30-helm-symlink-security-notice/

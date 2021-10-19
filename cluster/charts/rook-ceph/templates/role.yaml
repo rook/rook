@@ -1,10 +1,10 @@
 {{- if .Values.rbacEnable }}
-# The role for the operator to manage resources in its own namespace
+# Allow the operator to manage resources in its own namespace
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: rook-ceph-system
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{ .Release.Namespace }} # namespace:operator
   labels:
     operator: rook
     storage-backend: ceph
@@ -59,92 +59,8 @@ rules:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-osd
-  namespace:  {{  .Release.Namespace }}
-rules:
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
-- apiGroups: ["ceph.rook.io"]
-  resources: ["cephclusters", "cephclusters/finalizers"]
-  verbs: [ "get", "list", "create", "update", "delete" ]
----
-# Aspects of ceph-mgr that operate within the cluster's namespace
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-mgr
-  namespace:  {{  .Release.Namespace }}
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - services
-  - pods/log
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - ceph.rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
-- apiGroups:
-    - apps
-  resources:
-    - deployments/scale
-    - deployments
-  verbs:
-    - patch
-    - delete
-- apiGroups:
-    - ""
-  resources:
-    - persistentvolumeclaims
-  verbs:
-    - delete
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-cmd-reporter
-  namespace:  {{  .Release.Namespace }}
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
   name: cephfs-external-provisioner-cfg
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{ .Release.Namespace }} # namespace:operator
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]
@@ -160,7 +76,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-cfg
-  namespace:  {{  .Release.Namespace }}
+  namespace: {{ .Release.Namespace }} # namespace:operator
 rules:
   - apiGroups: [""]
     resources: ["endpoints"]
@@ -171,22 +87,4 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-purge-osd
-rules:
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get"]
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["get", "delete" ]
-  - apiGroups: ["batch"]
-    resources: ["jobs"]
-    verbs: ["get", "list", "delete" ]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "update", "delete"]
 {{- end }}

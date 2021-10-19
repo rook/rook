@@ -1,0 +1,33 @@
+{{/*
+These are resources scoped to the CephCluster namespace. They will be created in the operator
+namespace by default so that a user can easily install a CephCluster into the operator's namespace
+using example manifests.
+*/}}
+
+{{/*
+serviceaccounts
+*/}}
+{{ include "library.cluster.serviceaccounts" . }}
+
+{{/*
+clusterrolebindings
+*/}}
+---
+{{ include "library.cluster.clusterrolebindings" . }}
+
+{{- if .Values.pspEnable }}
+---
+{{ include "library.cluster.psp.rolebindings" . }}
+{{- end -}}
+
+{{/*
+roles
+*/}}
+---
+{{ include "library.cluster.roles" . }}
+
+{{/*
+rolebindings
+*/}}
+---
+{{ include "library.cluster.rolebindings" . }}
