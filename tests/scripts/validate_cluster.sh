@@ -27,8 +27,6 @@ OSD_COUNT=$2
 #############
 EXEC_COMMAND="kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}') -- ceph --connect-timeout 3"
 
-trap display_status SIGINT ERR
-
 function wait_for_daemon () {
   timeout=90
   daemon_to_test=$1
