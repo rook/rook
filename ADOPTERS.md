@@ -7,14 +7,14 @@ to share the details of their usage publicly at this time.
 
 * [Calit2 (California Institute for Telecommunications and Information
   Technology)](http://www.calit2.net/) is one of 4 institutes formed by a joint partnership of
-  University of California and the state of California with the goal of *“inventing the university
-  research environment of the future”*.  They operate one of the largest known Rook clusters in
+  University of California and the state of California with the goal of *"inventing the university
+  research environment of the future"*.  They operate one of the largest known Rook clusters in
   production and they are using Rook to provide cheap, reliable, and fast storage to scientific
   users.
 * [NAV (Norwegian Labour and Welfare Administration)](https://www.nav.no/) is the current Norwegian
   public welfare agency, responsible for 1/3 of the state budget of Norway. They find a massive
   simplification of management and maintenance for their Ceph clusters by adopting Rook.
-* [Replicated](https://www.replicated.com/) delivers *“SaaS On-Prem”* and are the creators of
+* [Replicated](https://www.replicated.com/) delivers *"SaaS On-Prem"* and are the creators of
   open-source [kURL](https://kurl.sh/): a custom Kubernetes distro creator that software vendors use
   to package and distribute production-grade Kubernetes infrastructure. Rook is a default add-on in
   kURL, so all installations include Rook to manage highly available storage that the software

@@ -366,7 +366,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the realm if it doesn't exist yet
 	output, err := RunAdminCommandNoMultisite(objContext, true, "realm", "get", realmArg)
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			updatePeriod = true
 			output, err = RunAdminCommandNoMultisite(objContext, false, "realm", "create", realmArg)
@@ -382,7 +382,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the zonegroup if it doesn't exist yet
 	output, err = RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			updatePeriod = true
 			output, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "create", "--master", realmArg, zoneGroupArg, endpointArg)
@@ -398,7 +398,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the zone if it doesn't exist yet
 	output, err = runAdminCommand(objContext, true, "zone", "get")
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			updatePeriod = true
 			output, err = runAdminCommand(objContext, false, "zone", "create", "--master", endpointArg)
@@ -415,7 +415,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	output, err = runAdminCommand(objContext, false, "period", "get")
 	if err != nil {
 		code, err := exec.ExtractExitCode(err)
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if err == nil && code == int(syscall.ENOENT) {
 			// period does not exist and so needs to be created
 			logger.Debugf("period must be updated for CephObjectStore %q because it does not exist", objContext.Name)
