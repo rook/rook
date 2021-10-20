@@ -4,7 +4,7 @@ Target version: 1.1
 
 Rook was designed for storage consumption in the same Kubernetes cluster as the clients who are consuming the storage. However, this scenario is not always sufficient.
 
-Another common scenario is when Ceph is running in an “external” cluster from the clients. There are a number of reasons for this scenario:
+Another common scenario is when Ceph is running in an "external" cluster from the clients. There are a number of reasons for this scenario:
 - Centralized Ceph management in a single cluster with multiple Kubernetes clusters that need to consume storage.
 - Customers already have a Ceph cluster running not in a K8s environment, likely deployed with Ansible, ceph-deploy, or even manually. They should be able to consume this storage from Kubernetes.
 - Fully independent storage for another level of isolation from their K8s compute nodes. This scenario can technically also be accomplished in a single Kubernetes cluster through labels, taints, and tolerations.
@@ -60,7 +60,7 @@ In order for Rook to provide the storage to clients in the local cluster, the Ce
 1. Before the CephCluster CRD is created, some metadata must be initialized in local configmaps/secrets to allow the local cluster to manage the external cluster.
    * mon endpoint(s) and admin keyring
 1. The mon, mgr, and osd daemons will not be managed by the local Rook operator. These daemons must be created and managed by the external cluster.
-1. The operator will make a “best effort” to keep the list of mons updated.
+1. The operator will make a "best effort" to keep the list of mons updated.
    * If the mons change in the external cluster, the list of mons must be updated in the local cluster.
    * The operator will need to query the Ceph status periodically (perhaps every minute). If there is a change to the mons, the operator will update the local configmaps/secrets.\
    * If the local operator fails to see changes to the external mons, perhaps because it is down, the mon list could become stale. In that case, the admin will need to update the list similarly to how it was initialized when the local cluster was first created.
@@ -75,7 +75,7 @@ The first bullet point above requires an extra manual configuration step by the 
 1. Load the yaml file into the local cluster
    * `kubectl create -f <config.yaml>`
 
-The CephCluster CRD will have a new property “external” to indicate whether the cluster is external. If true, the local operator will implement the described behavior.
+The CephCluster CRD will have a new property "external" to indicate whether the cluster is external. If true, the local operator will implement the described behavior.
 Other CRDs such as CephBlockPool, CephFilesystem, and CephObjectStore do not need this property since they all belong to the cluster and will effectively
 inherit the external property.
 

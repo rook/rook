@@ -382,7 +382,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the realm if it doesn't exist yet
 	output, err := RunAdminCommandNoMultisite(objContext, true, "realm", "get", realmArg)
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			output, err = RunAdminCommandNoMultisite(objContext, false, "realm", "create", realmArg)
 			if err != nil {
@@ -397,7 +397,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the zonegroup if it doesn't exist yet
 	output, err = RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			output, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "create", "--master", realmArg, zoneGroupArg, endpointArg)
 			if err != nil {
@@ -412,7 +412,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the zone if it doesn't exist yet
 	output, err = runAdminCommand(objContext, true, "zone", "get")
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			output, err = runAdminCommand(objContext, false, "zone", "create", "--master", endpointArg)
 			if err != nil {
