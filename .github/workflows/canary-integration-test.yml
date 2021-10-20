@@ -817,15 +817,19 @@ jobs:
 
     - name: copy block mirror peer secret into the other cluster for replicapool
       run: |
-        kubectl -n rook-ceph get secret pool-peer-token-replicapool -o yaml |\
-        sed 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g; s/name: pool-peer-token-replicapool/name: pool-peer-token-replicapool-config/g' |\
-        kubectl create --namespace=rook-ceph-secondary -f -
+        kubectl -n rook-ceph get secret pool-peer-token-replicapool -o yaml > pool-peer-token-replicapool.yaml
+        yq delete --inplace pool-peer-token-replicapool.yaml metadata.ownerReferences
+        yq write --inplace pool-peer-token-replicapool.yaml metadata.namespace rook-ceph-secondary
+        yq write --inplace pool-peer-token-replicapool.yaml metadata.name pool-peer-token-replicapool-config
+        kubectl create --namespace=rook-ceph-secondary -f pool-peer-token-replicapool.yaml
 
     - name: copy block mirror peer secret into the other cluster for replicapool2 (using cluster global peer)
       run: |
-        kubectl -n rook-ceph get secret cluster-peer-token-my-cluster -o yaml |\
-        sed 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g; s/name: cluster-peer-token-my-cluster/name: cluster-peer-token-my-cluster-config/g' |\
-        kubectl create --namespace=rook-ceph-secondary -f -
+        kubectl -n rook-ceph get secret cluster-peer-token-my-cluster -o yaml > cluster-peer-token-my-cluster.yaml
+        yq delete --inplace cluster-peer-token-my-cluster.yaml metadata.ownerReferences
+        yq write --inplace cluster-peer-token-my-cluster.yaml metadata.namespace rook-ceph-secondary
+        yq write --inplace cluster-peer-token-my-cluster.yaml metadata.name cluster-peer-token-my-cluster-config
+        kubectl create --namespace=rook-ceph-secondary -f cluster-peer-token-my-cluster.yaml
 
     - name: add block mirror peer secret to the other cluster for replicapool
       run: |
