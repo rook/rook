@@ -33,8 +33,15 @@ MANIFESTS_DIR=../../cluster/examples/kubernetes/ceph
 
 TEMP := $(shell mktemp -d)
 
+# Note: as of version 1.3 of operator-sdk, the url format changed to:
+# ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
+# (see: https://sdk.operatorframework.io/docs/installation/)
 ifeq ($(HOST_PLATFORM),linux_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
+INCLUDE_CSV_TEMPLATES = true
+endif
+ifeq ($(HOST_PLATFORM),linux_arm64)
+OPERATOR_SDK_PLATFORM = aarch64-linux-gnu
 INCLUDE_CSV_TEMPLATES = true
 endif
 ifeq ($(HOST_PLATFORM),darwin_amd64)
@@ -130,6 +137,7 @@ $(OPERATOR_SDK):
 	@curl -JL -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) \
 		https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)
 	@chmod +x $(OPERATOR_SDK)
+	@$(OPERATOR_SDK) version
 
 csv: $(OPERATOR_SDK) $(YQ) ## Generate a CSV file for OLM.
 	@echo Generating CSV manifests
