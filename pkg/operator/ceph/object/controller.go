@@ -468,7 +468,7 @@ func (r *ReconcileCephObjectStore) reconcileCephZone(store *cephv1.CephObjectSto
 
 	_, err := RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err != nil {
-		// ENOENT mean “No such file or directory”
+		// ENOENT mean "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			return waitForRequeueIfObjectStoreNotReady, errors.Wrapf(err, "ceph zone %q not found", store.Spec.Zone.Name)
 		} else {

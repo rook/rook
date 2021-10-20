@@ -41,11 +41,11 @@ The precedence of values is:
 A Kubernetes resource requirement object looks like this:
 ```yaml
 requests:
-  cpu: “2”
-  memory: “1Gi”
+  cpu: "2"
+  memory: "1Gi"
 limits:
-  cpu: “3”
-  memory: “2Gi”
+  cpu: "3"
+  memory: "2Gi"
 ```
 
 The key in the CRDs to set resource requirements is named `resources`.
