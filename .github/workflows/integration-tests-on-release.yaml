@@ -33,7 +33,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
       with:
-        minikube version: 'v1.18.1'
+        minikube version: 'v1.23.2'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -93,7 +93,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.22.0'
+        minikube version: 'v1.23.2'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -149,7 +149,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.22.0'
+        minikube version: 'v1.23.2'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -204,7 +204,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.22.0'
+        minikube version: 'v1.23.2'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}
@@ -260,7 +260,7 @@ jobs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.22.0'
+        minikube version: 'v1.23.2'
         kubernetes version: ${{ matrix.kubernetes-versions }}
         start args: --memory 6g --cpus=2
         github token: ${{ secrets.GITHUB_TOKEN }}

@@ -104,8 +104,8 @@ jobs:
       - name: setup minikube
         uses: manusa/actions-setup-minikube@v2.4.2
         with:
-          minikube version: "v1.22.0"
-          kubernetes version: "v1.22.0"
+          minikube version: "v1.23.2"
+          kubernetes version: "v1.22.2"
           start args: --memory 6g --cpus=2
           github token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -154,8 +154,8 @@ jobs:
       - name: setup minikube
         uses: manusa/actions-setup-minikube@v2.4.2
         with:
-          minikube version: "v1.22.0"
-          kubernetes version: "v1.22.0"
+          minikube version: "v1.23.2"
+          kubernetes version: "v1.22.2"
           start args: --memory 6g --cpus=2
           github token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -204,8 +204,8 @@ jobs:
       - name: setup minikube
         uses: manusa/actions-setup-minikube@v2.4.2
         with:
-          minikube version: "v1.22.0"
-          kubernetes version: "v1.22.0"
+          minikube version: "v1.23.2"
+          kubernetes version: "v1.22.2"
           start args: --memory 6g --cpus=2
           github token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -254,8 +254,8 @@ jobs:
       - name: setup minikube
         uses: manusa/actions-setup-minikube@v2.4.2
         with:
-          minikube version: "v1.22.0"
-          kubernetes version: "v1.22.0"
+          minikube version: "v1.23.2"
+          kubernetes version: "v1.22.2"
           start args: --memory 6g --cpus=2
           github token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -304,8 +304,8 @@ jobs:
       - name: setup minikube
         uses: manusa/actions-setup-minikube@v2.4.2
         with:
-          minikube version: "v1.22.0"
-          kubernetes version: "v1.22.0"
+          minikube version: "v1.23.2"
+          kubernetes version: "v1.22.2"
           start args: --memory 6g --cpus=2
           github token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -354,8 +354,8 @@ jobs:
       - name: setup minikube
         uses: manusa/actions-setup-minikube@v2.4.2
         with:
-          minikube version: "v1.22.0"
-          kubernetes version: "v1.22.0"
+          minikube version: "v1.23.2"
+          kubernetes version: "v1.22.2"
           start args: --memory 6g --cpus=2
           github token: ${{ secrets.GITHUB_TOKEN }}
 

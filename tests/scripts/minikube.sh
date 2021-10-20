@@ -20,11 +20,8 @@ function wait_for_ssh() {
 function copy_image_to_cluster() {
     local build_image=$1
     local final_image=$2
-    local docker_env_tag="${DOCKERCMD}-env"
-    ${DOCKERCMD} save "${build_image}" | \
-        (eval "$(minikube "${docker_env_tag}" --shell bash)" && \
-        ${DOCKERCMD} load && \
-        ${DOCKERCMD} tag "${build_image}" "${final_image}")
+    ${DOCKERCMD} tag "${build_image}" "${final_image}"
+    minikube image load "${final_image}"
 }
 
 function copy_images() {
