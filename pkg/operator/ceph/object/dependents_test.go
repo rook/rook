@@ -37,7 +37,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
 func TestCephObjectStoreDependents(t *testing.T) {
@@ -62,9 +61,8 @@ func TestCephObjectStoreDependents(t *testing.T) {
 
 	newClusterdCtx := func(executor exec.Executor, objects ...runtime.Object) *clusterd.Context {
 		return &clusterd.Context{
-			DynamicClientset: dynamicfake.NewSimpleDynamicClient(scheme, objects...),
-			RookClientset:    rookclient.NewSimpleClientset(),
-			Executor:         executor,
+			RookClientset: rookclient.NewSimpleClientset(),
+			Executor:      executor,
 		}
 	}
 
@@ -208,7 +206,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 		deps, err := CephObjectStoreDependents(c, clusterInfo, store, NewContext(c, clusterInfo, store.Name), &AdminOpsContext{AdminOpsClient: client})
 		assert.NoError(t, err)
 		assert.False(t, deps.Empty())
-		assert.ElementsMatch(t, []string{"u1"}, deps.OfPluralKind("CephObjectStoreUsers"))
+		assert.ElementsMatch(t, []string{"u1"}, deps.OfKind("CephObjectStoreUsers"))
 	})
 
 	t.Run("no objectstore users and buckets", func(t *testing.T) {
@@ -237,6 +235,6 @@ func TestCephObjectStoreDependents(t *testing.T) {
 		deps, err := CephObjectStoreDependents(c, clusterInfo, store, NewContext(c, clusterInfo, store.Name), &AdminOpsContext{AdminOpsClient: client})
 		assert.NoError(t, err)
 		assert.False(t, deps.Empty())
-		assert.ElementsMatch(t, []string{"my-bucket"}, deps.OfPluralKind("buckets in the object store (could be from ObjectBucketClaims or COSI Buckets)"), deps)
+		assert.ElementsMatch(t, []string{"my-bucket"}, deps.OfKind("buckets in the object store (could be from ObjectBucketClaims or COSI Buckets)"), deps)
 	})
 }
