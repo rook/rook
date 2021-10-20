@@ -1,14 +1,4 @@
 pull_request_rules:
-  # auto label PRs based on title content
-  - name: auto ceph label pr storage backend
-    conditions:
-      - title~=^ceph
-      - base=master
-    actions:
-      label:
-        add:
-          - ceph
-
   # if there is a conflict in a backport PR, ping the author to send a proper backport PR
   - name: ping author on conflicts
     conditions:
