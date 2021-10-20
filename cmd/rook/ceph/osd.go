@@ -263,6 +263,8 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 
+	clusterInfo.Context = ctx.Background()
+
 	// Run OSD remove sequence
 	err := osddaemon.RemoveOSDs(context, &clusterInfo, strings.Split(osdIDsToRemove, ","), preservePVC)
 	if err != nil {
