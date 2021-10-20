@@ -382,7 +382,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the realm if it doesn't exist yet
 	output, err := RunAdminCommandNoMultisite(objContext, true, "realm", "get", realmArg)
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			output, err = RunAdminCommandNoMultisite(objContext, false, "realm", "create", realmArg)
 			if err != nil {
@@ -397,7 +397,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the zonegroup if it doesn't exist yet
 	output, err = RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			output, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "create", "--master", realmArg, zoneGroupArg, endpointArg)
 			if err != nil {
@@ -412,7 +412,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	// create the zone if it doesn't exist yet
 	output, err = runAdminCommand(objContext, true, "zone", "get")
 	if err != nil {
-		// ENOENT means “No such file or directory”
+		// ENOENT means "No such file or directory"
 		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
 			output, err = runAdminCommand(objContext, false, "zone", "create", "--master", endpointArg)
 			if err != nil {
@@ -424,9 +424,27 @@ func createMultisite(objContext *Context, endpointArg string) error {
 		}
 	}
 
-	if err := commitConfigChanges(objContext); err != nil {
-		nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
-		return errors.Wrapf(err, "failed to commit config changes after creating multisite config for CephObjectStore %q", nsName)
+	// check if the period exists
+	output, err = runAdminCommand(objContext, false, "period", "get")
+	if err != nil {
+		code, err := exec.ExtractExitCode(err)
+		// ENOENT means "No such file or directory"
+		if err == nil && code == int(syscall.ENOENT) {
+			// period does not exist and so needs to be created
+			logger.Debugf("period must be updated for CephObjectStore %q because it does not exist", objContext.Name)
+			updatePeriod = true
+		} else {
+			return errorOrIsNotFound(err, "'radosgw-admin period get' failed with code %d, for reason %q", strconv.Itoa(code), output)
+		}
+	}
+
+	if updatePeriod {
+		// the period will help notify other zones of changes if there are multi-zones
+		_, err = runAdminCommand(objContext, false, "period", "update", "--commit")
+		if err != nil {
+			return errorOrIsNotFound(err, "failed to update period")
+		}
+		logger.Debugf("updated period for realm %q", objContext.Realm)
 	}
 
 	logger.Infof("Multisite for object-store: realm=%s, zonegroup=%s, zone=%s", objContext.Realm, objContext.ZoneGroup, objContext.Zone)

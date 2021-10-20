@@ -103,10 +103,10 @@ Each operator pod would watch the same custom resource types with their own indi
 
 For storage backends that fit the patterns that [Metacontroller](https://github.com/GoogleCloudPlatform/metacontroller) supports (`CompositeController` and `DecoratorController`), this could be an option to incorporate into Rook.
 Basically, a storage backend defines their custom types and the parent/child relationships between them.
-The metacontroller handles all the K8s API interactions and regularly calls into storage backend defined “hooks”.
+The metacontroller handles all the K8s API interactions and regularly calls into storage backend defined "hooks".
 The storage backend is given JSON representing the current state in K8s types and then returns JSON defining in K8s types what the desired state should be.
 The metacontroller then makes that desired state a reality via the K8s API.
-This pattern does allow for fairly complicated stateful apps (e.g. [Vitess](https://github.com/GoogleCloudPlatform/metacontroller/tree/master/examples/vitess)) that have well defined parent/children hierarchies, and can allow for the storage backend operator to perform “imperative” operations to manipulate cluster state by launching Jobs.
+This pattern does allow for fairly complicated stateful apps (e.g. [Vitess](https://github.com/GoogleCloudPlatform/metacontroller/tree/master/examples/vitess)) that have well defined parent/children hierarchies, and can allow for the storage backend operator to perform "imperative" operations to manipulate cluster state by launching Jobs.
 
 ### Recommendation
 

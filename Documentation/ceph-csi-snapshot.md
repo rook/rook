@@ -18,8 +18,8 @@ documentation](https://kubernetes.io/docs/concepts/storage/volume-snapshot-class
 In short, as the documentation describes it:
 
 > Just like StorageClass provides a way for administrators to describe the
-> “classes” of storage they offer when provisioning a volume,
-> VolumeSnapshotClass provides a way to describe the “classes” of storage when
+> "classes" of storage they offer when provisioning a volume,
+> VolumeSnapshotClass provides a way to describe the "classes" of storage when
 > provisioning a volume snapshot.
 
 ## Upgrade Snapshot API
