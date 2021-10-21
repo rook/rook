@@ -14,11 +14,13 @@ allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
 allowHostPID: false
 # set to true if running rook with host networking enabled
-allowHostNetwork: false
+allowHostNetwork: true
 # set to true if running rook with the provider as host
 allowHostPorts: false
 priority:
-allowedCapabilities: ["MKNOD"]
+# SYS_ADMIN is needed for multus-related network interface operations
+# NET_ADMIN is needed for multus-related namespace operations
+allowedCapabilities: ["MKNOD", "SYS_ADMIN", "NET_ADMIN"]
 allowHostIPC: true
 readOnlyRootFilesystem: false
 requiredDropCapabilities: []
@@ -47,6 +49,7 @@ users:
   - system:serviceaccount:rook-ceph:default # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-mgr # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-osd # serviceaccount:namespace:cluster
+  - system:serviceaccount:rook-ceph:rook-csi-multus
 ---
 # scc for the CSI driver
 kind: SecurityContextConstraints
@@ -93,7 +96,6 @@ users:
   - system:serviceaccount:rook-ceph:rook-csi-rbd-provisioner-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-plugin-sa # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator
-  - system:serviceaccount:rook-ceph:rook-csi-multus
 ---
 # Rook Ceph Operator Config
 # Use this ConfigMap to override operator configurations
