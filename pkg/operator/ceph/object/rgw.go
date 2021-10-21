@@ -18,7 +18,6 @@ limitations under the License.
 package object
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -322,7 +321,7 @@ func BuildDNSEndpoint(domainName string, port int32, secure bool) string {
 
 // GetTLSCACert fetch cacert for internal RGW requests
 func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) ([]byte, error) {
-	ctx := context.TODO()
+	ctx := objContext.clusterInfo.Context
 	var (
 		tlsCert []byte
 		err     error
