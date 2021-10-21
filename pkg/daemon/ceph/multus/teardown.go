@@ -39,10 +39,10 @@ func Teardown() error {
 		return nil
 	}
 
-	logger.Info("removing interface")
+	logger.Info("removing interface %q", linkName)
 	err = removeInterface(linkName)
 	if err != nil {
-		return errors.Wrap(err, "failed to remove multus interface")
+		return errors.Wrapf(err, "failed to remove multus interface %q", linkName)
 	}
 
 	return nil

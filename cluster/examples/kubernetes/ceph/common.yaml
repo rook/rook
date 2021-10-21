@@ -1267,6 +1267,5 @@ metadata:
     storage-backend: ceph
 # imagePullSecrets:
 # - name: my-registry-secret
-
 # OLM: END SERVICE ACCOUNT SYSTEM
 # OLM: BEGIN OPERATOR ROLEBINDING

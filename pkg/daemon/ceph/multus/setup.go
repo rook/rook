@@ -17,7 +17,6 @@ limitations under the License.
 package multus
 
 import (
-	gerrors "errors"
 	"os"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -41,7 +40,7 @@ func Setup() error {
 
 	migrated, _, err := checkMigration(multusIpStr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to check if interface has already been migrated")
+		return errors.Wrap(err, "failed to check if interface has already been migrated")
 	}
 	if migrated {
 		logger.Info("interface already migrated. exiting.")
@@ -50,26 +49,27 @@ func Setup() error {
 
 	holderNS, err := determineHolderNS()
 	if err != nil {
-		return errors.Wrapf(err, "failed to determine the holder network namespace id")
+		return errors.Wrap(err, "failed to determine the holder network namespace id")
 	}
 
 	newLinkName, err := determineNewLinkName()
 	if err != nil {
-		return errors.Wrapf(err, "failed to determine the new multus interface name")
+		return errors.Wrap(err, "failed to determine the new multus interface name")
 	}
 
 	multusIP, err := determineMultusIPConfig(holderNS, multusIpStr, multusLinkName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to determine the multus ip address configuration")
+		return errors.Wrap(err, "failed to determine the multus ip address configuration")
 	}
 
 	hostNS, err := ns.GetCurrentNS()
 	if err != nil {
-		return errors.Wrapf(err, "failed to get the host network namespace")
+		return errors.Wrap(err, "failed to get the host network namespace")
 	}
+
 	err = migrateInterface(hostNS, holderNS, multusLinkName, newLinkName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to migrate the interface to the host network namespace")
+		return errors.Wrap(err, "failed to migrate the interface to the host network namespace")
 	}
 
 	logger.Info("setting up interface on host network namespace")
@@ -78,22 +78,22 @@ func Setup() error {
 	// The IP address is therefore passed to set up the interface.
 	err = setupInterface(newLinkName, multusIP)
 	if err != nil {
-		logger.Debug("failed to set up multus interface; removing interface")
+		logger.Error("failed to set up multus interface; removing interface")
 		cleanupErr := removeInterface(newLinkName)
 		if cleanupErr != nil {
-			logger.Errorf("manual removal of interface %q required; failed to remove multus interface: %q", newLinkName, cleanupErr)
+			logger.Errorf("manual removal of interface %q required; failed to remove multus interface: %v", newLinkName, cleanupErr)
 		}
-		return errors.Wrapf(err, "failed to set up the multus interface on the host network namespace")
+		return errors.Wrap(err, "failed to set up the multus interface on the host network namespace")
 	}
 
 	migrated, _, err = checkMigration(multusIpStr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to verify interface migration")
+		return errors.Wrap(err, "failed to verify interface migration")
 	}
 	if migrated {
 		logger.Info("interface migration verified")
 	} else {
-		return gerrors.New("interface migration not validated")
+		return errors.New("failed to validate interface migration")
 	}
 
 	logger.Info("interface migration complete!")
