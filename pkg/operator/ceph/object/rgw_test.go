@@ -25,14 +25,14 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
-
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	testop "github.com/rook/rook/pkg/operator/test"
+	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	fclient "k8s.io/client-go/kubernetes/fake"
@@ -41,7 +41,7 @@ import (
 
 func TestStartRGW(t *testing.T) {
 	ctx := context.TODO()
-	clientset := testop.New(t, 3)
+	clientset := test.New(t, 3)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
@@ -66,7 +66,7 @@ func TestStartRGW(t *testing.T) {
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 
 	// start a basic cluster
-	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
 	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
 	err := c.startRGWPods(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
@@ -102,7 +102,7 @@ func TestCreateObjectStore(t *testing.T) {
 	}
 
 	store := simpleStore()
-	clientset := testop.New(t, 3)
+	clientset := test.New(t, 3)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 	info := clienttest.CreateTestClusterInfo(1)
 	data := config.NewStatelessDaemonDataPathMap(config.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
@@ -112,7 +112,7 @@ func TestCreateObjectStore(t *testing.T) {
 	object := []runtime.Object{&cephv1.CephObjectStore{}}
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
-	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
 	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
 	err := c.createOrUpdateStore(store.Name, store.Name, store.Name)
 	assert.Nil(t, err)
@@ -134,7 +134,7 @@ func TestGenerateSecretName(t *testing.T) {
 
 	// start a basic cluster
 	c := &clusterConfig{&clusterd.Context{},
-		&cephclient.ClusterInfo{},
+		&client.ClusterInfo{},
 		&cephv1.CephObjectStore{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"}},
 		"v1.1.0",
 		&cephv1.ClusterSpec{},
@@ -173,4 +173,97 @@ func TestBuildDomainNameAndEndpoint(t *testing.T) {
 	var securePort int32 = 443
 	ep = BuildDNSEndpoint(dns, securePort, true)
 	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph.svc:443", ep)
+}
+
+func TestGetTlsCaCert(t *testing.T) {
+	objContext := &Context{
+		Context: &clusterd.Context{
+			Clientset: test.New(t, 3),
+		},
+		clusterInfo: client.AdminClusterInfo("rook-ceph"),
+	}
+	objectStore := simpleStore()
+
+	t.Run("no gateway cert ref", func(t *testing.T) {
+		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		assert.NoError(t, err)
+		assert.False(t, insesure)
+		assert.Nil(t, tlsCert)
+	})
+
+	t.Run("gateway cert ref but secret no found", func(t *testing.T) {
+		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
+		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		assert.Error(t, err)
+		assert.False(t, insesure)
+		assert.Nil(t, tlsCert)
+	})
+
+	t.Run("gateway cert ref and secret found but no key and wrong type", func(t *testing.T) {
+		s := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-secret",
+				Namespace: "rook-ceph",
+			},
+			Type: "Yolo",
+		}
+		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
+		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to get TLS certificate from secret, unknown secret type \"Yolo\"")
+		assert.False(t, insesure)
+		assert.Nil(t, tlsCert)
+		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("gateway cert ref and Opaque secret found and no key is present", func(t *testing.T) {
+		s := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-secret",
+				Namespace: "rook-ceph",
+			},
+			Type: "Opaque",
+		}
+		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
+		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to get TLS certificate from secret, token is \"Opaque\" but key \"cert\" does not exist")
+		assert.False(t, insesure)
+		assert.Nil(t, tlsCert)
+		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("gateway cert ref and Opaque secret found and key is present", func(t *testing.T) {
+		s := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-secret",
+				Namespace: "rook-ceph",
+			},
+			Data: map[string][]byte{"cert": []byte(`-----BEGIN CERTIFICATE-----
+MIIBJTCB0AIJAPNFNz1CNlDOMA0GCSqGSIb3DQEBCwUAMBoxCzAJBgNVBAYTAkZS
+MQswCQYDVQQIDAJGUjAeFw0yMTA5MzAwODAzNDBaFw0yNDA2MjYwODAzNDBaMBox
+CzAJBgNVBAYTAkZSMQswCQYDVQQIDAJGUjBcMA0GCSqGSIb3DQEBAQUAA0sAMEgC
+QQDHeZ47hVBcryl6SCghM8Zj3Q6DQzJzno1J7EjPXef5m+pIVAEylS9sQuwKtFZc
+vv3qS/OVFExmMdbrvfKEIfbBAgMBAAEwDQYJKoZIhvcNAQELBQADQQAAnflLuUM3
+4Dq0v7If4cgae2mr7jj3U/lIpHVtFbF7kVjC/eqmeN1a9u0UbRHKkUr+X1mVX3rJ
+BvjQDN6didwQ
+-----END CERTIFICATE-----`)},
+			Type: "Opaque",
+		}
+		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
+		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		assert.NoError(t, err)
+		assert.False(t, insesure)
+		assert.NotNil(t, tlsCert)
+		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
 }
