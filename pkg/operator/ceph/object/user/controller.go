@@ -148,7 +148,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStoreUser)
+	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectStoreUser)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
@@ -159,7 +159,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteUser() function since everything is gone already
@@ -169,7 +169,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// Remove finalizer
-			err = opcontroller.RemoveFinalizer(r.client, cephObjectStoreUser)
+			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStoreUser)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 			}
@@ -192,7 +192,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	if err != nil {
 		if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
 			// Remove finalizer
-			err = opcontroller.RemoveFinalizer(r.client, cephObjectStoreUser)
+			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStoreUser)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 			}
@@ -219,7 +219,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		}
 
 		// Remove finalizer
-		err = opcontroller.RemoveFinalizer(r.client, cephObjectStoreUser)
+		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStoreUser)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 		}
@@ -439,7 +439,7 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 	}
 
 	// Create Kubernetes Secret
-	err = opcontroller.CreateOrUpdateObject(r.client, secret)
+	err = opcontroller.CreateOrUpdateObject(r.opManagerContext, r.client, secret)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object user %q secret", secret.Name)
 	}

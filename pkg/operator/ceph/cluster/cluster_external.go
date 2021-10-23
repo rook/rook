@@ -44,7 +44,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		return errors.Wrap(err, "failed to validate external cluster specs")
 	}
 
-	opcontroller.UpdateCondition(c.context, c.namespacedName, cephv1.ConditionConnecting, v1.ConditionTrue, cephv1.ClusterConnectingReason, "Attempting to connect to an external Ceph cluster")
+	opcontroller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, cephv1.ConditionConnecting, v1.ConditionTrue, cephv1.ClusterConnectingReason, "Attempting to connect to an external Ceph cluster")
 
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo

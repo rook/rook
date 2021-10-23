@@ -90,7 +90,7 @@ type fsHealth struct {
 // Add creates a new CephFilesystem Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
-	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
+	return add(opManagerContext, mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -105,7 +105,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 	}
 }
 
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -132,7 +132,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Build Handler function to return the list of ceph filesystems
 	// This is used by the watchers below
-	handlerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephFilesystemList{}, mgr.GetScheme())
+	handlerFunc, err := opcontroller.ObjectToCRMapper(opManagerContext, mgr.GetClient(), &cephv1.CephFilesystemList{}, mgr.GetScheme())
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephFilesystem)
+	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephFilesystem)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
@@ -185,7 +185,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteFilesystem() function since everything is gone already
@@ -195,7 +195,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephFilesystem.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// Remove finalizer
-			err := opcontroller.RemoveFinalizer(r.client, cephFilesystem)
+			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephFilesystem)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 			}
@@ -250,7 +250,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		}
 
 		// Remove finalizer
-		err = opcontroller.RemoveFinalizer(r.client, cephFilesystem)
+		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephFilesystem)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 		}

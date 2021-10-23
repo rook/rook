@@ -33,7 +33,7 @@ import (
 // It is used to trigger a reconcile object Kind A when watching object Kind B
 // So we reconcile Kind A instead of Kind B
 // For instance, we watch for CephCluster CR changes but want to reconcile CephFilesystem based on a Spec change
-func ObjectToCRMapper(c client.Client, ro runtime.Object, scheme *runtime.Scheme) (handler.MapFunc, error) {
+func ObjectToCRMapper(ctx context.Context, c client.Client, ro runtime.Object, scheme *runtime.Scheme) (handler.MapFunc, error) {
 	if _, ok := ro.(metav1.ListInterface); !ok {
 		return nil, errors.Errorf("expected a metav1.ListInterface, got %T instead", ro)
 	}
@@ -47,7 +47,7 @@ func ObjectToCRMapper(c client.Client, ro runtime.Object, scheme *runtime.Scheme
 	return handler.MapFunc(func(o client.Object) []ctrl.Request {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk)
-		err := c.List(context.TODO(), list)
+		err := c.List(ctx, list)
 		if err != nil {
 			return nil
 		}

@@ -104,7 +104,7 @@ type ReconcileCephCluster struct {
 // Add creates a new CephCluster Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterController, opManagerContext context.Context) error {
-	return add(mgr, newReconciler(mgr, ctx, clusterController, opManagerContext), ctx)
+	return add(opManagerContext, mgr, newReconciler(mgr, ctx, clusterController, opManagerContext), ctx)
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -123,7 +123,7 @@ func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController
 	}
 }
 
-func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context) error {
+func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -162,7 +162,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context)
 
 	// Build Handler function to return the list of ceph clusters
 	// This is used by the watchers below
-	handlerFunc, err := opcontroller.ObjectToCRMapper(mgr.GetClient(), &cephv1.CephClusterList{}, mgr.GetScheme())
+	handlerFunc, err := opcontroller.ObjectToCRMapper(opManagerContext, mgr.GetClient(), &cephv1.CephClusterList{}, mgr.GetScheme())
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephCluster)
+	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephCluster)
 	if err != nil {
 		return reconcile.Result{}, cephCluster, errors.Wrap(err, "failed to add finalizer")
 	}
@@ -496,12 +496,12 @@ func (r *ReconcileCephCluster) removeFinalizer(client client.Client, name types.
 	}
 
 	if finalizer == "" {
-		err = opcontroller.RemoveFinalizer(client, obj)
+		err = opcontroller.RemoveFinalizer(r.opManagerContext, client, obj)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove finalizer")
 		}
 	} else {
-		err = opcontroller.RemoveFinalizerWithName(client, obj, finalizer)
+		err = opcontroller.RemoveFinalizerWithName(r.opManagerContext, client, obj, finalizer)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove finalizer %q", finalizer)
 		}
