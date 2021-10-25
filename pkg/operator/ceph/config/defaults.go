@@ -63,15 +63,6 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
 		configOverride("global", "mon cluster log file", ""),
 	}
 
-	// We disable "bluestore warn on legacy statfs"
-	// This setting appeared on 14.2.2, so if detected we disable the warning
-	// As of 14.2.5 (https://github.com/rook/rook/issues/3539#issuecomment-531287051), Ceph will disable this flag by default so there is no need to apply it
-	if cephVersion.IsAtLeast(version.CephVersion{Major: 14, Minor: 2, Extra: 2}) && version.IsInferior(cephVersion, version.CephVersion{Major: 14, Minor: 2, Extra: 5}) {
-		overrides = append(overrides, []Option{
-			configOverride("global", "bluestore warn on legacy statfs", "false"),
-		}...)
-	}
-
 	// For Pacific
 	if cephVersion.IsAtLeastPacific() {
 		overrides = append(overrides, []Option{

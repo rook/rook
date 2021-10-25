@@ -87,7 +87,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		MultipleMgrs:              true,
 		EnableAdmissionController: true,
 		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.NautilusVersion,
+		CephVersion:               installer.OctopusVersion,
 	}
 	s.settings.ApplyEnvVars()
 	externalSettings := &installer.TestCephSettings{

@@ -290,12 +290,6 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.NotContains(t, mapping.Entries, "sdc")  // sdc is too small
 	assert.NotContains(t, mapping.Entries, "sdv1") // sdv1 has a filesystem
 
-	// Partition is skipped
-	agent.clusterInfo.CephVersion = cephver.Nautilus
-	mapping, err = getAvailableDevices(context, agent)
-	assert.Nil(t, err)
-	assert.Equal(t, 6, len(mapping.Entries))
-
 	// Do not skip partition anymore
 	agent.clusterInfo.CephVersion = cephver.Octopus
 

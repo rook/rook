@@ -29,7 +29,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -251,18 +250,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to fetch ceph version from cephcluster %q", cephCluster.Name)
 	}
 	r.clusterInfo.CephVersion = *cephVersion
-
-	// If the CephCluster has enabled the "pg_autoscaler" module and is running Nautilus
-	// we force the pg_autoscale_mode to "on"
-	_, propertyExists := cephBlockPool.Spec.Parameters[cephclient.PgAutoscaleModeProperty]
-	if mgr.IsModuleInSpec(cephCluster.Spec.Mgr.Modules, mgr.PgautoscalerModuleName) &&
-		!cephVersion.IsAtLeastOctopus() &&
-		!propertyExists {
-		if len(cephBlockPool.Spec.Parameters) == 0 {
-			cephBlockPool.Spec.Parameters = make(map[string]string)
-		}
-		cephBlockPool.Spec.Parameters[cephclient.PgAutoscaleModeProperty] = cephclient.PgAutoscaleModeOn
-	}
 
 	// CREATE/UPDATE
 	reconcileResponse, err = r.reconcileCreatePool(clusterInfo, &cephCluster.Spec, cephBlockPool)

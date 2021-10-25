@@ -97,7 +97,7 @@ func TestDeploymentSpec(t *testing.T) {
 		context: c,
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
-			CephVersion: cephver.Nautilus,
+			CephVersion: cephver.Octopus,
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{

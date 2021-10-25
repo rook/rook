@@ -54,9 +54,8 @@ var (
 	lvmConfPath   = "/etc/lvm/lvm.conf"
 	cvLogDir      = ""
 	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
-	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 8}
-	// The Ceph Nautilus to include a retry to acquire device lock
-	cephFlockFixNautilusMinCephVersion = cephver.CephVersion{Major: 14, Minor: 2, Extra: 14}
+	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}
+
 	// The Ceph Octopus to include a retry to acquire device lock
 	cephFlockFixOctopusMinCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}
 	isEncrypted                       = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
@@ -104,10 +103,6 @@ type cephVolReportV2 struct {
 }
 
 func isNewStyledLvmBatch(version cephver.CephVersion) bool {
-	if version.IsNautilus() && version.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 13}) {
-		return true
-	}
-
 	if version.IsOctopus() && version.IsAtLeast(cephver.CephVersion{Major: 15, Minor: 2, Extra: 8}) {
 		return true
 	}
@@ -490,13 +485,6 @@ func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, 
 	}
 
 	var useRawMode bool
-	// Can we safely use ceph-volume raw mode in the non-PVC case?
-	// On non-PVC we see a race between systemd-udev and the osd process to acquire the lock on the device
-	if a.clusterInfo.CephVersion.IsNautilus() && a.clusterInfo.CephVersion.IsAtLeast(cephFlockFixNautilusMinCephVersion) {
-		logger.Debugf("will use raw mode since cluster version is at least %v", cephFlockFixNautilusMinCephVersion)
-		useRawMode = true
-	}
-
 	if a.clusterInfo.CephVersion.IsOctopus() && a.clusterInfo.CephVersion.IsAtLeast(cephFlockFixOctopusMinCephVersion) {
 		logger.Debugf("will use raw mode since cluster version is at least %v", cephFlockFixOctopusMinCephVersion)
 		useRawMode = true

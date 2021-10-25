@@ -183,13 +183,13 @@ func TestStartMonPods(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
 	assert.NoError(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op
-	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
 	assert.NoError(t, err)
 
 	validateStart(t, c)
@@ -203,7 +203,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
 	assert.NoError(t, err)
 	assert.True(t, info.IsInitialized(true))
 
@@ -213,7 +213,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
 	assert.NoError(t, err)
 	assert.True(t, info.IsInitialized(true))
 
@@ -231,7 +231,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
 	assert.NoError(t, err)
 	assert.True(t, info.IsInitialized(true))
 
@@ -243,7 +243,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Nautilus, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
 	assert.NoError(t, err)
 	assert.True(t, info.IsInitialized(true), info)
 

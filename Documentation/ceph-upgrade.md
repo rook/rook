@@ -402,11 +402,9 @@ To migrate the setting, follow these steps:
 Rook v1.7 supports the following Ceph versions:
  - Ceph Pacific 16.2.0 or newer
  - Ceph Octopus v15.2.0 or newer
- - Ceph Nautilus 14.2.5 or newer
 
-These are the only supported versions of Ceph. Rook v1.8 will no longer support Ceph Nautilus
-(14.2.x), and users will have to upgrade Ceph to Octopus (15.2.x) or Pacific (16.2.x) upgrading to
-Rook v1.8.
+These are the only supported versions of Ceph. Rook v1.8 no longer supports Ceph Nautilus
+(14.2.x), and users will have to upgrade Ceph to Octopus (15.2.x) or Pacific (16.2.x) before upgrading to Rook v1.8.
 
 > **IMPORTANT: When an update is requested, the operator will check Ceph's status, if it is in `HEALTH_ERR` it will refuse to do the upgrade.**
 

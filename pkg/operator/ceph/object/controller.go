@@ -30,7 +30,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -324,18 +323,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// validate the store settings
 	if err := r.validateStore(cephObjectStore); err != nil {
 		return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "invalid object store %q arguments", cephObjectStore.Name)
-	}
-
-	// If the CephCluster has enabled the "pg_autoscaler" module and is running Nautilus
-	// we force the pg_autoscale_mode to "on"
-	_, propertyExists := cephObjectStore.Spec.DataPool.Parameters[cephclient.PgAutoscaleModeProperty]
-	if mgr.IsModuleInSpec(cephCluster.Spec.Mgr.Modules, mgr.PgautoscalerModuleName) &&
-		!desiredCephVersion.IsAtLeastOctopus() &&
-		!propertyExists {
-		if len(cephObjectStore.Spec.DataPool.Parameters) == 0 {
-			cephObjectStore.Spec.DataPool.Parameters = make(map[string]string)
-		}
-		cephObjectStore.Spec.DataPool.Parameters[cephclient.PgAutoscaleModeProperty] = cephclient.PgAutoscaleModeOn
 	}
 
 	// CREATE/UPDATE

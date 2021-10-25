@@ -71,10 +71,10 @@ func TestClusterIsCephVolumeRAwModeSupported(t *testing.T) {
 		fields fields
 		want   bool
 	}{
-		{"nok-14.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, false},
-		{"ok-14.2.11", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 14, Minor: 2, Extra: 11}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, true},
 		{"nok-15.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, false},
 		{"ok-15.2.5", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, true},
+		{"nok-16.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, false},
+		{"ok-16.2.5", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestClusterIsCephVolumeRAwModeSupported(t *testing.T) {
 				ValidStorage: tt.fields.ValidStorage,
 				kv:           tt.fields.kv,
 			}
-			if got := c.isCephVolumeRawModeSupported(); got != tt.want {
+			if got := c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinOctopusCephVersion); got != tt.want {
 				t.Errorf("Cluster.isCephVolumeRAwModeSupported() = %v, want %v", got, tt.want)
 			}
 		})

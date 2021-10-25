@@ -492,7 +492,7 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Nautilus,
+		CephVersion: cephver.Octopus,
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -524,7 +524,7 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 		// osd.1 and 3 in another namespace (another Rook cluster)
 		clusterInfo2 := &cephclient.ClusterInfo{
 			Namespace:   "other-namespace",
-			CephVersion: cephver.Nautilus,
+			CephVersion: cephver.Octopus,
 		}
 		clusterInfo2.SetName("other-cluster")
 		clusterInfo2.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

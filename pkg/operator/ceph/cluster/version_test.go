@@ -33,7 +33,7 @@ import (
 func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 
 	// 1st test
-	fakeImageVersion := cephver.Nautilus
+	fakeImageVersion := cephver.Octopus
 	fakeRunningVersions := []byte(`
 	{
 		"mon": {
@@ -153,18 +153,16 @@ func TestMinVersion(t *testing.T) {
 	c.Spec.CephVersion.AllowUnsupported = true
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
-	// All versions less than 14.2.5 are invalid
-	v := &cephver.CephVersion{Major: 13, Minor: 2, Extra: 3}
-	assert.Error(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 14, Minor: 2, Extra: 1}
+	// All versions less than 15.2.0 or invalid tag are invalid
+	v := &cephver.CephVersion{Major: 15, Minor: 1, Extra: 999}
 	assert.Error(t, c.validateCephVersion(v))
 	v = &cephver.CephVersion{Major: 14}
 	assert.Error(t, c.validateCephVersion(v))
 
-	// All versions at least 14.2.5 are valid
-	v = &cephver.CephVersion{Major: 14, Minor: 2, Extra: 5}
+	// All versions at least 15.2.0 are valid
+	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 15}
+	v = &cephver.CephVersion{Major: 16}
 	assert.NoError(t, c.validateCephVersion(v))
 }
 
@@ -173,11 +171,7 @@ func TestSupportedVersion(t *testing.T) {
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
 	// Supported versions are valid
-	v := &cephver.CephVersion{Major: 14, Minor: 2, Extra: 12}
-	assert.NoError(t, c.validateCephVersion(v))
-
-	// Supported versions are valid
-	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
+	v := &cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
 	assert.NoError(t, c.validateCephVersion(v))
 
 	// Supported versions are valid

@@ -83,7 +83,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		Mons:              1,
 		SkipOSDCreation:   false,
 		RookVersion:       installer.Version1_6,
-		CephVersion:       installer.NautilusPartitionVersion,
+		CephVersion:       installer.OctopusVersion,
 	}
 
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
@@ -100,7 +100,7 @@ func (s *UpgradeSuite) TestUpgradeRookToMaster() {
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
 	numOSDs, filesystemName, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectStoreName, objectUserID, message, preFilename)
-	s.settings.CephVersion = installer.NautilusVersion
+	s.settings.CephVersion = installer.OctopusVersion
 
 	clusterInfo := client.AdminClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
@@ -139,19 +139,6 @@ func (s *UpgradeSuite) TestUpgradeRookToMaster() {
 	assert.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
 
 	logger.Infof("Verified upgrade from %s to master", installer.Version1_6)
-
-	//
-	// Upgrade from nautilus to octopus
-	//
-	logger.Infof("*** UPGRADING CEPH FROM Nautilus TO Octopus ***")
-	s.gatherLogs(s.settings.OperatorNamespace, "_before_octopus_upgrade")
-	s.upgradeCephVersion(installer.OctopusVersion.Image, numOSDs)
-	// Verify reading and writing to the test clients
-	newFile = "post-octopus-upgrade-file"
-	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
-	logger.Infof("Verified upgrade from nautilus to octopus")
-
-	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, objectStoreName, objectUserID, true, false)
 
 	//
 	// Upgrade from octopus to pacific

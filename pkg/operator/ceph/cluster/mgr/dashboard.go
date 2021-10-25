@@ -208,8 +208,7 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 
 // FileBasedPasswordSupported check if Ceph versions have the latest Ceph dashboard command
 func FileBasedPasswordSupported(c *client.ClusterInfo) bool {
-	if (c.CephVersion.IsNautilus() && c.CephVersion.IsAtLeast(cephver.CephVersion{Major: 14, Minor: 2, Extra: 17})) ||
-		(c.CephVersion.IsOctopus() && c.CephVersion.IsAtLeast(cephver.CephVersion{Major: 15, Minor: 2, Extra: 10})) ||
+	if (c.CephVersion.IsOctopus() && c.CephVersion.IsAtLeast(cephver.CephVersion{Major: 15, Minor: 2, Extra: 10})) ||
 		c.CephVersion.IsAtLeastPacific() {
 		return true
 	}

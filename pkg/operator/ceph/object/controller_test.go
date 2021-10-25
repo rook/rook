@@ -142,7 +142,7 @@ const (
 	dummyVersionsRaw          = `
 	{
 		"mon": {
-			"ceph version 14.2.8 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) nautilus (stable)": 3
+			"ceph version 15.2.11 (0000000000000000) octopus (stable)": 3
 		}
 	}`
 	userCreateJSON = `{

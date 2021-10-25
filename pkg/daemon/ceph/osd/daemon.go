@@ -126,13 +126,7 @@ func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 
 	// shut down the osd-ceph process so that lvm release does not show device in use error.
 	if pid != "" {
-		// The OSD needs to exit as quickly as possible in order for the IO requests
-		// to be redirected to other OSDs in the cluster. The OSD is designed to tolerate failures
-		// of any kind, including power loss or kill -9. The upstream Ceph tests have for many years
-		// been testing with kill -9 so this is expected to be safe. There is a fix upstream Ceph that will
-		// improve the shutdown time of the OSD. For cleanliness we should consider removing the -9
-		// once it is backported to Nautilus: https://github.com/ceph/ceph/pull/31677.
-		if err := context.Executor.ExecuteCommand("kill", "-9", pid); err != nil {
+		if err := context.Executor.ExecuteCommand("kill", pid); err != nil {
 			return errors.Wrap(err, "failed to kill ceph-osd process")
 		}
 	}
@@ -317,13 +311,6 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		}
 
 		if device.Type == sys.PartType {
-			// If we detect a partition we have to make sure that ceph-volume will be able to consume it
-			// ceph-volume version 14.2.8 has the right code to support partitions
-			if !agent.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
-				logger.Infof("skipping device %q because it is a partition and ceph version is too old %q, you need at least ceph %q", device.Name, agent.clusterInfo.CephVersion.String(), cephVolumeRawModeMinCephVersion.String())
-				continue
-			}
-
 			device, err := clusterd.PopulateDeviceUdevInfo(device.Name, context.Executor, device)
 			if err != nil {
 				logger.Errorf("failed to get udev info of partition %q. %v", device.Name, err)
