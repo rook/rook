@@ -17,6 +17,7 @@ limitations under the License.
 package multus
 
 import (
+	"net"
 	"os"
 
 	"github.com/pkg/errors"
@@ -30,7 +31,11 @@ func Teardown() error {
 		return errors.Errorf("failed to get value for environment variable %q", multusIpEnv)
 	}
 
-	migrated, linkName, err := checkMigration(multusIpStr)
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return errors.Wrap(err, "failed to get interfaces")
+	}
+	migrated, linkName, err := checkMigration(interfaces, multusIpStr)
 	if err != nil {
 		return errors.Wrap(err, "failed to check if the interface has already been removed")
 	}

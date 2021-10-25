@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -34,16 +33,18 @@ import (
 )
 
 var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "multus")
+	logger          = capnslog.NewPackageLogger("github.com/rook/rook", "multus")
+	unsupportedIPAM = errors.New("unsupported ipam type")
 )
 
 const (
-	ifBase        = "mlink"
-	nsDir         = "/var/run/netns"
-	supportedIPAM = "whereabouts"
-	holderIpEnv   = "HOLDERIP"
-	multusIpEnv   = "MULTUSIP"
-	multusLinkEnv = "MULTUSLINK"
+	ifBase           = "mlink"
+	nsDir            = "/var/run/netns"
+	supportedIPAM    = "whereabouts"
+	holderIpEnv      = "HOLDERIP"
+	multusIpEnv      = "MULTUSIP"
+	multusLinkEnv    = "MULTUSLINK"
+	multusAnnotation = "k8s.v1.cni.cncf.io/networks-status"
 )
 
 type multusConfig struct {
@@ -61,6 +62,11 @@ type multusNetConfiguration struct {
 	Ips           []string `json:"ips"`
 }
 
+type MultusData struct {
+	IP            string
+	InterfaceName string
+}
+
 func GetAddressRange(config string) (string, error) {
 	var multusConf multusConfig
 	err := json.Unmarshal([]byte(config), &multusConf)
@@ -69,7 +75,7 @@ func GetAddressRange(config string) (string, error) {
 	}
 
 	if multusConf.IPAM.Type != supportedIPAM {
-		return "", errors.New("unsupported ipam type")
+		return "", unsupportedIPAM
 	}
 	return multusConf.IPAM.Range, nil
 }
@@ -94,47 +100,61 @@ func inAddrRange(ip, multusNet string) (bool, error) {
 	return false, nil
 }
 
-func GetMultusConf(pod corev1.Pod, multusName string, multusNamespace string, addrRange string) (string, string, error) {
+func FindMultusData(pod corev1.Pod, multusName string, multusNamespace string, addrRange string) (MultusData, error) {
+	var multusData MultusData
+
+	multusConfs, err := getMultusConfs(pod)
+	if err != nil {
+		return multusData, errors.Wrap(err, "failed to get multus configuration")
+	}
+
+	multusData, err = findMultusData(multusConfs, multusName, multusNamespace, addrRange)
+
+	if err != nil {
+		return multusData, errors.Wrap(err, "failed to get multus data")
+	}
+	return multusData, nil
+}
+
+func getMultusConfs(pod corev1.Pod) ([]multusNetConfiguration, error) {
+	var multusConfs []multusNetConfiguration
+
+	if val, ok := pod.ObjectMeta.Annotations[multusAnnotation]; ok {
+		err := json.Unmarshal([]byte(val), &multusConfs)
+		if err != nil {
+			return multusConfs, errors.Wrap(err, "failed to unmarshal json")
+		}
+		return multusConfs, nil
+	}
+	return multusConfs, fmt.Errorf("failed to find multus annotation for pod %q in namespace %q", pod.ObjectMeta.Name, pod.ObjectMeta.Namespace)
+}
+
+func findMultusData(multusConfs []multusNetConfiguration, multusName string, multusNamespace string, addrRange string) (MultusData, error) {
+	var multusData MultusData
+
 	// The network name includes its namespace.
 	multusNetwork := fmt.Sprintf("%s/%s", multusNamespace, multusName)
 
-	if val, ok := pod.ObjectMeta.Annotations["k8s.v1.cni.cncf.io/networks-status"]; ok {
-		var multusConfs []multusNetConfiguration
-
-		err := json.Unmarshal([]byte(val), &multusConfs)
-		if err != nil {
-			return "", "", errors.Wrap(err, "failed to unmarshal json")
-		}
-
-		for _, multusConf := range multusConfs {
-			if multusConf.NetworkName == multusNetwork {
-				for _, ip := range multusConf.Ips {
-					inRange, err := inAddrRange(ip, addrRange)
-					if err != nil {
-						return "", "", errors.Wrap(err, "failed to check address range")
-					}
-					if inRange {
-						return ip, multusConf.InterfaceName, nil
-					}
+	for _, multusConf := range multusConfs {
+		if multusConf.NetworkName == multusNetwork {
+			for _, ip := range multusConf.Ips {
+				inRange, err := inAddrRange(ip, addrRange)
+				if err != nil {
+					return multusData, errors.Wrap(err, "failed to check address range")
+				}
+				if inRange {
+					multusData.IP = ip
+					multusData.InterfaceName = multusConf.InterfaceName
+					return multusData, nil
 				}
 			}
 		}
-	} else {
-		return "", "", errors.New("failed to find multus annotation")
 	}
-
-	return "", "", errors.New("failed to find multus address")
+	return multusData, errors.New("failed to find multus interface")
 }
 
-func determineHolderNS() (ns.NetNS, error) {
+func determineHolderNS(holderIP string) (ns.NetNS, error) {
 	var holderNS ns.NetNS
-
-	holderIP, found := os.LookupEnv(holderIpEnv)
-	if !found {
-		return holderNS, fmt.Errorf("failed to get value for %q", holderIpEnv)
-	}
-
-	logger.Info("finding the pod namespace handle")
 
 	nsFiles, err := ioutil.ReadDir(nsDir)
 	if err != nil {
@@ -182,7 +202,7 @@ func determineHolderNS() (ns.NetNS, error) {
 
 		if err != nil {
 			// Don't quit, just keep looking.
-			logger.Warningf("failed to find holder network namespace, continuing search: %v", err)
+			logger.Warningf("failed to find holder network namespace: %v; continuing search", err)
 			continue
 		}
 
@@ -195,14 +215,8 @@ func determineHolderNS() (ns.NetNS, error) {
 	return holderNS, nil
 }
 
-func determineNewLinkName() (string, error) {
+func determineNewLinkName(interfaces []net.Interface) (string, error) {
 	var newLinkName string
-
-	// Finding the most recent multus network link on the host namespace
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return newLinkName, errors.Wrap(err, "failed to list interfaces")
-	}
 
 	linkNumber := -1
 	for _, iface := range interfaces {
@@ -277,14 +291,9 @@ func setupInterface(mLinkName string, multusIP netlink.Addr) error {
 	return nil
 }
 
-func checkMigration(multusIpStr string) (bool, string, error) {
+func checkMigration(interfaces []net.Interface, multusIpStr string) (bool, string, error) {
 	var migrated bool
 	var linkName string
-
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return migrated, linkName, errors.Wrap(err, "failed to get interfaces")
-	}
 
 	for _, iface := range interfaces {
 		link, err := netlink.LinkByName(iface.Name)

@@ -17,6 +17,7 @@ limitations under the License.
 package multus
 
 import (
+	"net"
 	"os"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -38,7 +39,16 @@ func Setup() error {
 	}
 	logger.Infof("multus link: %q", multusLinkName)
 
-	migrated, _, err := checkMigration(multusIpStr)
+	holderIP, found := os.LookupEnv(holderIpEnv)
+	if !found {
+		return errors.Errorf("failed to get value for environment variable %q", holderIpEnv)
+	}
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return errors.Wrap(err, "failed to get interfaces")
+	}
+	migrated, _, err := checkMigration(interfaces, multusIpStr)
 	if err != nil {
 		return errors.Wrap(err, "failed to check if interface has already been migrated")
 	}
@@ -47,12 +57,16 @@ func Setup() error {
 		return nil
 	}
 
-	holderNS, err := determineHolderNS()
+	holderNS, err := determineHolderNS(holderIP)
 	if err != nil {
 		return errors.Wrap(err, "failed to determine the holder network namespace id")
 	}
 
-	newLinkName, err := determineNewLinkName()
+	interfaces, err = net.Interfaces()
+	if err != nil {
+		return errors.Wrap(err, "failed to list interfaces")
+	}
+	newLinkName, err := determineNewLinkName(interfaces)
 	if err != nil {
 		return errors.Wrap(err, "failed to determine the new multus interface name")
 	}
@@ -86,7 +100,11 @@ func Setup() error {
 		return errors.Wrap(err, "failed to set up the multus interface on the host network namespace")
 	}
 
-	migrated, _, err = checkMigration(multusIpStr)
+	interfaces, err = net.Interfaces()
+	if err != nil {
+		return errors.Wrap(err, "failed to get interfaces")
+	}
+	migrated, _, err = checkMigration(interfaces, multusIpStr)
 	if err != nil {
 		return errors.Wrap(err, "failed to verify interface migration")
 	}
