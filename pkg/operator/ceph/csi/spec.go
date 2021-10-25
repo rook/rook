@@ -774,7 +774,7 @@ func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) (bool, er
 		template.MultusNodeName = pod.Spec.NodeName
 		template.MultusPodIP = pod.Status.PodIP
 
-		template.MultusIP, template.MultusLink, err = multus.GetMultusConf(pod, publicNetwork, nad.ObjectMeta.Namespace, multusRange)
+		multusData, err := multus.FindMultusData(pod, publicNetwork, nad.ObjectMeta.Namespace, multusRange)
 		if err != nil {
 			ch <- migrationJobReport{
 				template.MultusNodeName,
@@ -783,6 +783,8 @@ func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) (bool, er
 			}
 			continue
 		}
+		template.MultusIP = multusData.IP
+		template.MultusLink = multusData.InterfaceName
 
 		migrationJob, err := templateToJob(csiMultusSetup, MultusSetupJobTemplatePath, template)
 		if err != nil {
@@ -851,10 +853,11 @@ func (r *ReconcileCSI) cleanupMultusNode(nodeName, namespace, publicNetwork, mul
 		if pod.Spec.NodeName == nodeName {
 			template.MultusNodeName = pod.Spec.NodeName
 
-			template.MultusIP, _, err = multus.GetMultusConf(pod, publicNetwork, namespace, multusRange)
+			multusData, err := multus.FindMultusData(pod, publicNetwork, namespace, multusRange)
 			if err != nil {
 				return errors.Wrap(err, "failed to get  multus configuration")
 			}
+			template.MultusIP = multusData.IP
 
 			// Will deploy job and wait for completion before moving on to next one.
 			// If a job fails, the nodes that have been modified will be reverted.
