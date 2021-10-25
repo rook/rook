@@ -147,7 +147,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			updatedDep, err = deploymentOnPVCFunc(c.cluster, osdInfo, nodeOrPVCName, c.provisionConfig)
 
 			message := fmt.Sprintf("Processing OSD %d on PVC %q", osdID, nodeOrPVCName)
-			updateConditionFunc(c.cluster.context, c.cluster.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
+			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 		} else {
 			if !c.cluster.ValidStorage.NodeExists(nodeOrPVCName) {
 				// node will not reconcile, so don't update the deployment
@@ -164,7 +164,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			updatedDep, err = deploymentOnNodeFunc(c.cluster, osdInfo, nodeOrPVCName, c.provisionConfig)
 
 			message := fmt.Sprintf("Processing OSD %d on node %q", osdID, nodeOrPVCName)
-			updateConditionFunc(c.cluster.context, c.cluster.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
+			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 		}
 		if err != nil {
 			errs.addError("%v", errors.Wrapf(err, "failed to update OSD %d", osdID))

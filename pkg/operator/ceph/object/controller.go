@@ -173,7 +173,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephObjectStore)
+	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectStore)
 	if err != nil {
 		return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to add finalizer")
 	}
@@ -185,7 +185,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteStore() function since everything is gone already
@@ -195,7 +195,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephObjectStore.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// Remove finalizer
-			err := opcontroller.RemoveFinalizer(r.client, cephObjectStore)
+			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStore)
 			if err != nil {
 				return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to remove finalizer")
 			}
@@ -283,7 +283,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		}
 
 		// Remove finalizer
-		err = opcontroller.RemoveFinalizer(r.client, cephObjectStore)
+		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStore)
 		if err != nil {
 			return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to remove finalizer")
 		}

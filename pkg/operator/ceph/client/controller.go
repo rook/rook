@@ -141,7 +141,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
-	err = opcontroller.AddFinalizerIfNotPresent(r.client, cephClient)
+	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephClient)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
 	}
@@ -152,7 +152,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, r.context, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deletePool() function since everything is gone already
@@ -162,7 +162,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephClient.GetDeletionTimestamp().IsZero() && !cephClusterExists {
 			// Remove finalizer
-			err = opcontroller.RemoveFinalizer(r.client, cephClient)
+			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephClient)
 			if err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to remove finalizer")
 			}
@@ -189,7 +189,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		// Remove finalizer
-		err = opcontroller.RemoveFinalizer(r.client, cephClient)
+		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephClient)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
 		}

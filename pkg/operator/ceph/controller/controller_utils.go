@@ -114,14 +114,14 @@ func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, control
 }
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
-func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.CephCluster, bool, bool, reconcile.Result) {
+func IsReadyToReconcile(ctx context.Context, c client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.CephCluster, bool, bool, reconcile.Result) {
 	cephClusterExists := false
 
 	// Running ceph commands won't work and the controller will keep re-queuing so I believe it's fine not to check
 	// Make sure a CephCluster exists before doing anything
 	var cephCluster cephv1.CephCluster
 	clusterList := &cephv1.CephClusterList{}
-	err := c.List(context.TODO(), clusterList, client.InNamespace(namespacedName.Namespace))
+	err := c.List(ctx, clusterList, client.InNamespace(namespacedName.Namespace))
 	if err != nil {
 		logger.Errorf("%q: failed to fetch CephCluster %v", controllerName, err)
 		return cephCluster, false, cephClusterExists, ImmediateRetryResult
