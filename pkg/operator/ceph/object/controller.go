@@ -391,6 +391,10 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		if err != nil {
 			return r.setFailedStatus(namespacedName, "failed to reconcile external endpoint", err)
 		}
+
+		if err := UpdateEndpoint(objContext, &cephObjectStore.Spec); err != nil {
+			return r.setFailedStatus(namespacedName, "failed to set endpoint", err)
+		}
 	} else {
 		logger.Info("reconciling object store deployments")
 
