@@ -72,11 +72,17 @@ func setKEKinEnv(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo)
 			return errors.Wrapf(err, "failed to retrieve key encryption key from %q kms", kmsConfig.Provider)
 		}
 
+		if kek == "" {
+			return errors.New("key encryption key is empty")
+		}
+
 		// Set the KEK as an env variable for ceph-volume
 		err = os.Setenv(oposd.CephVolumeEncryptedKeyEnvVarName, kek)
 		if err != nil {
 			return errors.Wrap(err, "failed to set key encryption key env variable for ceph-volume")
 		}
+
+		logger.Debug("successfully set vault env variables")
 	}
 
 	return nil

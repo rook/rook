@@ -227,7 +227,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the OSDs are `out` and `safe-to-destroy` when they are removed.
 * `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
-* `security`: [security settings](#security)
+* `security`: [security page for key management configuration](ceph-kms.md)
 
 ### Ceph container images
 
@@ -1478,131 +1478,6 @@ spec:
   cephVersion:
     image: quay.io/ceph/ceph:v16.2.6 # Should match external cluster version
 ```
-
-### Security
-
-Rook has the ability to encrypt OSDs of clusters running on PVC via the flag (`encrypted: true`) in your `storageClassDeviceSets` [template](#pvc-based-cluster).
-By default, the Key Encryption Keys (also known as Data Encryption Keys) are stored in a Kubernetes Secret.
-
-However, if a Key Management System exists Rook is capable of using it. HashiCorp Vault is the only KMS currently supported by Rook.
-Please refer to the next section.
-
-The `security` section contains settings related to encryption of the cluster.
-
-* `security`:
-  * `kms`: Key Management System settings
-    * `connectionDetails`: the list of parameters representing kms connection details
-    * `tokenSecretName`: the name of the Kubernetes Secret containing the kms authentication token
-
-#### Vault KMS
-
-In order for Rook to connect to Vault, you must configure the following in your `CephCluster` template:
-
-```yaml
-security:
-  kms:
-    # name of the k8s config map containing all the kms connection details
-    connectionDetails:
-      KMS_PROVIDER: vault
-      VAULT_ADDR: https://vault.default.svc.cluster.local:8200
-      VAULT_BACKEND_PATH: rook
-      VAULT_SECRET_ENGINE: kv
-    # name of the k8s secret containing the kms authentication token
-    tokenSecretName: rook-vault-token
-```
-
-Note: Rook supports **all** the Vault [environment variables](https://www.vaultproject.io/docs/commands#environment-variables).
-
-The Kubernetes Secret `rook-vault-token` should contain:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: rook-vault-token
-  namespace: rook-ceph
-data:
-  token: <TOKEN> # base64 of a token to connect to Vault, for example: cy5GWXpsbzAyY2duVGVoRjhkWG5Bb3EyWjkK
-```
-
-As part of the token, here is an example of a policy that can be used:
-
-```hcl
-path "rook/*" {
-  capabilities = ["create", "read", "update", "delete", "list"]
-}
-path "sys/mounts" {
-capabilities = ["read"]
-}
-```
-
-You can write the policy like so and then create a token:
-
-```console
-vault policy write rook /tmp/rook.hcl
-vault token create -policy=rook
-```
->```
->Key                  Value
->---                  -----
->token                s.FYzlo02cgnTehF8dXnAoq2Z9
->token_accessor       oMo7sAXQKbYtxU4HtO8k3pko
->token_duration       768h
->token_renewable      true
->token_policies       ["default" "rook"]
->identity_policies    []
->policies             ["default" "rook"]
->```
-
-In this example the backend path named `rook` is used it must be enabled in Vault with the following:
-
-```console
-vault secrets enable -path=rook kv
-```
-
-If a different path is used, the `VAULT_BACKEND_PATH` key in `connectionDetails` must be changed.
-
-Currently the token-based authentication is the only supported method.
-Later Rook is planning on supporting the [Vault Kubernetes native authentication](https://www.vaultproject.io/docs/auth/kubernetes).
-
-##### TLS configuration
-
-This is an advanced but recommended configuration for production deployments, in this case the `vault-connection-details` will look like:
-
-```yaml
-security:
-  kms:
-    # name of the k8s config map containing all the kms connection details
-    connectionDetails:
-      KMS_PROVIDER: vault
-      VAULT_ADDR: https://vault.default.svc.cluster.local:8200
-      VAULT_CACERT: <name of the k8s secret containing the PEM-encoded CA certificate>
-      VAULT_CLIENT_CERT: <name of the k8s secret containing the PEM-encoded client certificate>
-      VAULT_CLIENT_KEY: <name of the k8s secret containing the PEM-encoded private key>
-    # name of the k8s secret containing the kms authentication token
-    tokenSecretName: rook-vault-token
-```
-
-Each secret keys are expected to be:
-
-* VAULT_CACERT: `cert`
-* VAULT_CLIENT_CERT: `cert`
-* VAULT_CLIENT_KEY: `key`
-
-For instance `VAULT_CACERT` Secret named `vault-tls-ca-certificate` will look like:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: vault-tls-ca-certificate
-  namespace: rook-ceph
-data:
-  cert: <PEM base64 encoded CA certificate>
-```
-
-Note: if you are using self-signed certificates (not known/approved by a proper CA) you must pass `VAULT_SKIP_VERIFY: true`.
-Communications will remain encrypted but the validity of the certificate will not be verified.
 
 ### Deleting a CephCluster
 

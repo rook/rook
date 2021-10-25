@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -189,7 +190,7 @@ func OkToContinue(context *clusterd.Context, clusterInfo *ClusterInfo, deploymen
 }
 
 func okToStopDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, daemonType, daemonName string) error {
-	if !StringInSlice(daemonType, daemonNoCheck) {
+	if !sets.NewString(daemonNoCheck...).Has(daemonType) {
 		args := []string{daemonType, "ok-to-stop", daemonName}
 		buf, err := NewCephCommand(context, clusterInfo, args).Run()
 		if err != nil {
@@ -220,16 +221,6 @@ func okToContinueMDSDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, 
 	}
 
 	return nil
-}
-
-// StringInSlice return whether an element is in a slice
-func StringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
 }
 
 // LeastUptodateDaemonVersion returns the ceph version of the least updated daemon type

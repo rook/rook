@@ -17,7 +17,6 @@ limitations under the License.
 package kms
 
 import (
-	"os"
 	"strings"
 
 	"github.com/libopenstorage/secrets/vault"
@@ -79,15 +78,22 @@ func newVaultClient(clusterdContext *clusterd.Context, namespace string, secretC
 		return nil, err
 	}
 
-	// Set the token if provided, token should be set by ValidateConnectionDetails() if applicable
-	// api.NewClient() already looks up the token from the environment but we need to set it here and remove potential malformed tokens
-	client.SetToken(strings.TrimSuffix(os.Getenv(api.EnvVaultToken), "\n"))
-
 	// Set Vault address, was validated by ValidateConnectionDetails()
 	err = client.SetAddress(strings.TrimSuffix(localSecretConfig[api.EnvVaultAddress], "\n"))
 	if err != nil {
 		return nil, err
 	}
+
+	// Configure the authentication method, either Token or Kubernetes.
+	// Both return a token
+	token, _, err := utils.Authenticate(client, c)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get vault authentication token")
+	}
+
+	// Set the token if provided, token should be set by ValidateConnectionDetails() if applicable
+	// api.NewClient() already looks up the token from the environment but we need to set it here and remove potential malformed tokens
+	client.SetToken(token)
 
 	return client, nil
 }

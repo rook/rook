@@ -600,11 +600,11 @@ jobs:
       run: |
         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
         cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec.yaml
+        yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-        yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec.yaml
+        yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
         sed -i 's/ver1/ver2/g' tests/manifests/test-object.yaml
         kubectl create -f tests/manifests/test-object.yaml
         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
@@ -640,6 +640,90 @@ jobs:
         name: encryption-pvc-kms-vault-token-auth
         path: test
 
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60
+
+  encryption-pvc-kms-vault-k8s-auth:
+    runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: setup minikube
+      uses: manusa/actions-setup-minikube@v2.4.2
+      with:
+        minikube version: 'v1.21.0'
+        kubernetes version: 'v1.19.2'
+        start args: --memory 6g --cpus=2
+        github token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: print k8s cluster status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    - name: install deps
+      run: tests/scripts/github-action-helper.sh install_deps
+
+    - name: use local disk and create partitions for osds
+      run: |
+        tests/scripts/github-action-helper.sh use_local_disk
+        tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+    - name: build rook
+      run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: create cluster prerequisites
+      run: |
+        tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+    - name: deploy vault
+      run: KUBERNETES_AUTH=true tests/scripts/deploy-validate-vault.sh deploy
+
+    - name: deploy cluster
+      run: |
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/operator.yaml
+        yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-k8s-auth.yaml
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+        yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+        kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+        tests/scripts/github-action-helper.sh deploy_manifest_with_local_build cluster/examples/kubernetes/ceph/toolbox.yaml
+
+    - name: wait for prepare pod
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+    - name: wait for ceph to be ready
+      run: |
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+        kubectl -n rook-ceph get pods
+        kubectl -n rook-ceph get secrets
+
+    - name: validate osd vault
+      run: |
+        tests/scripts/deploy-validate-vault.sh validate_osd
+        sudo lsblk
+
+    - name: collect common logs
+      if: always()
+      run: |
+        tests/scripts/collect-logs.sh
+
+    - name: Upload canary test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: canary
+        path: test
+        
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
