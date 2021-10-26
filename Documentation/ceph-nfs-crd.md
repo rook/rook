@@ -90,7 +90,8 @@ ceph dashboard set-ganesha-clusters-rados-pool-namespace <cluster_id>:<pool_name
 
 ### RADOS Settings
 
-* `pool`: The pool where ganesha recovery backend and supplemental configuration objects will be stored
+* `poolConfig`: The pool settings to use for the RADOS pool. It matches the CephBlockPool
+  specification. The settings will be applied to a pool named `.nfs` on Ceph v16.2.7 or newer. 
 * `namespace`: The namespace in `pool` where ganesha recovery backend and supplemental configuration objects will be stored
 
 > **NOTE**: The RADOS settings aren't used in Ceph versions equal to or greater than Pacific 16.2.7, default values are used instead ".nfs" for the RADOS pool and the CephNFS CR's name for the RADOS namespace. However, RADOS settings are mandatory for versions preceding Pacific 16.2.7.

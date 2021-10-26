@@ -1630,8 +1630,16 @@ type NFSGaneshaSpec struct {
 
 // GaneshaRADOSSpec represents the specification of a Ganesha RADOS object
 type GaneshaRADOSSpec struct {
-	// Pool is the RADOS pool where NFS client recovery data is stored.
-	Pool string `json:"pool"`
+	// Pool used to represent the Ganesha's pool name in version older than 16.2.7
+	// As of Ceph Pacific 16.2.7, NFS Ganesha's pool name is hardcoded to ".nfs", so this
+	// setting will be ignored.
+	// +optional
+	Pool string `json:"pool,omitempty"`
+
+	// PoolConfig is the RADOS pool where Ganesha data is stored.
+	// +nullable
+	// +optional
+	PoolConfig *PoolSpec `json:"poolConfig,omitempty"`
 
 	// Namespace is the RADOS namespace where NFS client recovery data is stored.
 	Namespace string `json:"namespace"`
