@@ -1,0 +1,11 @@
+apiVersion: replication.storage.openshift.io/v1alpha1
+kind: VolumeReplication
+metadata:
+  name: pvc-volumereplication
+spec:
+  volumeReplicationClass: rbd-volumereplicationclass
+  replicationState: primary
+  dataSource:
+    apiGroup: ""
+    kind: PersistentVolumeClaim
+    name: rbd-pvc # Name of the PVC on which mirroring is to be enabled.
