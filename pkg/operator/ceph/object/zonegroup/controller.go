@@ -142,7 +142,7 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, r.context, request.NamespacedName, controllerName)
+	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		if !cephObjectZoneGroup.GetDeletionTimestamp().IsZero() && !cephClusterExists {
