@@ -163,7 +163,16 @@ function build_rook_all() {
 
 function validate_yaml() {
   cd cluster/examples/kubernetes/ceph
+
+  # create the Rook CRDs and other resources
   kubectl create -f crds.yaml -f common.yaml
+
+  # create the volume replication CRDs
+  replication_version=v0.1.0
+  replication_url="https://raw.githubusercontent.com/csi-addons/volume-replication-operator/${replication_version}/config/crd/bases"
+  kubectl create -f "${replication_url}/replication.storage.openshift.io_volumereplications.yaml"
+  kubectl create -f "${replication_url}/replication.storage.openshift.io_volumereplicationclasses.yaml"
+
   # skipping folders and some yamls that are only for openshift.
   manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*')"
   with_f_arg="$(echo "$manifests" | awk '{printf " -f %s",$1}')" # don't add newline
