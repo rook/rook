@@ -723,7 +723,7 @@ jobs:
       with:
         name: canary
         path: test
-        
+
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
       uses: mxschmitt/action-tmate@v3
@@ -962,7 +962,7 @@ jobs:
         cp cluster/examples/kubernetes/ceph/filesystem-test.yaml "$PRIMARY_YAML"
         yq merge --inplace --arrays append "$PRIMARY_YAML" tests/manifests/test-fs-mirror-spec.yaml
         kubectl create -f "$PRIMARY_YAML"
-        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
+        timeout 120 sh -c 'until [ "$(kubectl -n rook-ceph get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
 
     - name: create replicated mirrored filesystem on cluster 2
       run: |
@@ -970,7 +970,7 @@ jobs:
         yq w -i filesystem-test.yaml metadata.namespace rook-ceph-secondary
         yq w -i filesystem-test.yaml spec.mirroring.enabled true
         kubectl create -f filesystem-test.yaml
-        timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
+        timeout 120 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
 
     - name: copy filesystem mirror peer secret from the secondary cluster to the primary one
       run: |
