@@ -96,6 +96,15 @@ function test_csi {
 EOF
 }
 
+function test_nfs {
+  timeout 180 bash <<-'EOF'
+    until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^nfs-)" -eq 1 ]]; do
+      echo "waiting for nfs pods to be ready"
+      sleep 5
+    done
+EOF
+}
+
 ########
 # MAIN #
 ########
@@ -104,7 +113,7 @@ test_demo_mon
 test_demo_mgr
 
 if [[ "$DAEMON_TO_VALIDATE" == "all" ]]; then
-  daemons_list="osd mds rgw rbd_mirror fs_mirror"
+  daemons_list="osd mds rgw rbd_mirror fs_mirror nfs"
 else
   # change commas to space
   comma_to_space=${DAEMON_TO_VALIDATE//,/ }
@@ -138,6 +147,9 @@ for daemon in $daemons_list; do
       ;;
     fs_mirror)
       test_demo_fs_mirror
+      ;;
+    nfs)
+      test_nfs
       ;;
     *)
       log "ERROR: unknown daemon to validate!"
