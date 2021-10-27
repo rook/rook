@@ -178,6 +178,7 @@ spec:
 # monitoring is a list of key-value pairs. It is injected into all the monitoring resources created by operator.
 # These labels can be passed as LabelSelector to Prometheus
 #    monitoring:
+#    crashcollector:
   resources:
 # The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
 #    mgr:

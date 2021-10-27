@@ -21,13 +21,14 @@ import (
 )
 
 const (
-	KeyAll                         = "all"
-	KeyMds        rookcore.KeyType = "mds"
-	KeyMon        rookcore.KeyType = "mon"
-	KeyMonArbiter rookcore.KeyType = "arbiter"
-	KeyMgr        rookcore.KeyType = "mgr"
-	KeyOSDPrepare rookcore.KeyType = "prepareosd"
-	KeyOSD        rookcore.KeyType = "osd"
-	KeyCleanup    rookcore.KeyType = "cleanup"
-	KeyMonitoring rookcore.KeyType = "monitoring"
+	KeyAll                             = "all"
+	KeyMds            rookcore.KeyType = "mds"
+	KeyMon            rookcore.KeyType = "mon"
+	KeyMonArbiter     rookcore.KeyType = "arbiter"
+	KeyMgr            rookcore.KeyType = "mgr"
+	KeyOSDPrepare     rookcore.KeyType = "prepareosd"
+	KeyOSD            rookcore.KeyType = "osd"
+	KeyCleanup        rookcore.KeyType = "cleanup"
+	KeyMonitoring     rookcore.KeyType = "monitoring"
+	KeyCrashCollector rookcore.KeyType = "crashcollector"
 )

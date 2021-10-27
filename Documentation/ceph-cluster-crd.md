@@ -517,6 +517,8 @@ You can set annotations / labels for Rook components for the list of key value p
 * `mon`: Set annotations / labels for mons
 * `osd`: Set annotations / labels for OSDs
 * `prepareosd`: Set annotations / labels for OSD Prepare Jobs
+* `monitoring`: Set annotations / labels for service monitor
+* `crashcollector`: Set annotations / labels for crash collectors
 When other keys are set, `all` will be merged together with the specific component.
 
 ### Placement Configuration Settings
