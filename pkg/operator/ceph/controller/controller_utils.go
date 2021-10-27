@@ -126,7 +126,7 @@ func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, control
 }
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not
-func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, namespacedName types.NamespacedName, controllerName string) (cephv1.CephCluster, bool, bool, reconcile.Result) {
+func IsReadyToReconcile(c client.Client, namespacedName types.NamespacedName, controllerName string) (cephv1.CephCluster, bool, bool, reconcile.Result) {
 	cephClusterExists := false
 
 	// Running ceph commands won't work and the controller will keep re-queuing so I believe it's fine not to check
@@ -142,9 +142,15 @@ func IsReadyToReconcile(c client.Client, clustercontext *clusterd.Context, names
 		logger.Debugf("%q: no CephCluster resource found in namespace %q", controllerName, namespacedName.Namespace)
 		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 	}
-	cephClusterExists = true
 	cephCluster = clusterList.Items[0]
 
+	// If the cluster has a cleanup policy to destroy the cluster and it has been marked for deletion, treat it as if it does not exist
+	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.DeletionTimestamp.IsZero() {
+		logger.Infof("%q: CephCluster %q has a destructive cleanup policy, allowing resources to be deleted", controllerName, namespacedName)
+		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
+	}
+
+	cephClusterExists = true
 	logger.Debugf("%q: CephCluster resource %q found in namespace %q", controllerName, cephCluster.Name, namespacedName.Namespace)
 
 	// read the CR status of the cluster

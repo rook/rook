@@ -22,12 +22,16 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	kfake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func CreateTestClusterFromStatusDetails(details map[string]cephv1.CephHealthMessage) cephv1.CephCluster {
@@ -79,7 +83,7 @@ func TestCanIgnoreHealthErrStatusInReconcile(t *testing.T) {
 }
 
 func TestSetCephCommandsTimeout(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
+	clientset := kfake.NewSimpleClientset()
 	ctx := context.TODO()
 	cm := &v1.ConfigMap{}
 	cm.Name = "rook-ceph-operator-config"
@@ -103,4 +107,89 @@ func TestSetCephCommandsTimeout(t *testing.T) {
 	assert.NoError(t, err)
 	SetCephCommandsTimeout(context)
 	assert.Equal(t, 1*time.Second, exec.CephCommandsTimeout)
+}
+
+func TestIsReadyToReconcile(t *testing.T) {
+	scheme := scheme.Scheme
+	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+
+	controllerName := "testing"
+	clusterName := types.NamespacedName{Name: "mycluster", Namespace: "myns"}
+
+	t.Run("non-existent cephcluster", func(t *testing.T) {
+		client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects().Build()
+		c, ready, clusterExists, reconcileResult := IsReadyToReconcile(client, clusterName, controllerName)
+		assert.NotNil(t, c)
+		assert.False(t, ready)
+		assert.False(t, clusterExists)
+		assert.Equal(t, WaitForRequeueIfCephClusterNotReady, reconcileResult)
+	})
+
+	t.Run("valid cephcluster", func(t *testing.T) {
+		cephCluster := &cephv1.CephCluster{}
+		objects := []runtime.Object{cephCluster}
+		client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
+		c, ready, clusterExists, reconcileResult := IsReadyToReconcile(client, clusterName, controllerName)
+		assert.NotNil(t, c)
+		assert.False(t, ready)
+		assert.False(t, clusterExists)
+		assert.Equal(t, WaitForRequeueIfCephClusterNotReady, reconcileResult)
+	})
+
+	t.Run("deleted cephcluster with no cleanup policy", func(t *testing.T) {
+		cephCluster := &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              clusterName.Name,
+				Namespace:         clusterName.Namespace,
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+		}
+
+		objects := []runtime.Object{cephCluster}
+		client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
+		c, ready, clusterExists, reconcileResult := IsReadyToReconcile(client, clusterName, controllerName)
+		assert.NotNil(t, c)
+		assert.False(t, ready)
+		assert.True(t, clusterExists)
+		assert.Equal(t, WaitForRequeueIfCephClusterNotReady, reconcileResult)
+	})
+
+	t.Run("cephcluster with cleanup policy when not deleted", func(t *testing.T) {
+		cephCluster := &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clusterName.Name,
+				Namespace: clusterName.Namespace,
+			},
+			Spec: cephv1.ClusterSpec{
+				CleanupPolicy: cephv1.CleanupPolicySpec{
+					Confirmation: cephv1.DeleteDataDirOnHostsConfirmation,
+				},
+			}}
+		objects := []runtime.Object{cephCluster}
+		client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
+		c, ready, clusterExists, _ := IsReadyToReconcile(client, clusterName, controllerName)
+		assert.NotNil(t, c)
+		assert.False(t, ready)
+		assert.True(t, clusterExists)
+	})
+
+	t.Run("cephcluster with cleanup policy when deleted", func(t *testing.T) {
+		cephCluster := &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              clusterName.Name,
+				Namespace:         clusterName.Namespace,
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Spec: cephv1.ClusterSpec{
+				CleanupPolicy: cephv1.CleanupPolicySpec{
+					Confirmation: cephv1.DeleteDataDirOnHostsConfirmation,
+				},
+			}}
+		objects := []runtime.Object{cephCluster}
+		client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
+		c, ready, clusterExists, _ := IsReadyToReconcile(client, clusterName, controllerName)
+		assert.NotNil(t, c)
+		assert.False(t, ready)
+		assert.False(t, clusterExists)
+	})
 }
