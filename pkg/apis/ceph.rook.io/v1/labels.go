@@ -63,6 +63,11 @@ func GetMonitoringLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyMonitoring)
 }
 
+// GetCrashCollectorLabels returns the Labels for the crash collector resources
+func GetCrashCollectorLabels(a LabelsSpec) Labels {
+	return mergeAllLabelsWithKey(a, KeyCrashCollector)
+}
+
 func mergeAllLabelsWithKey(a LabelsSpec, name KeyType) Labels {
 	all := a.All()
 	if all != nil {
