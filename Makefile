@@ -38,7 +38,8 @@ SHELL := /bin/bash
 # Can be used or additional go build flags
 BUILDFLAGS ?=
 LDFLAGS ?=
-TAGS ?=
+# use the "ceph_preview" tag to consume go-ceph preview APIs, remove this once go-ceph 0.13 is out
+TAGS ?= ceph_preview
 
 # turn on more verbose build
 V ?= 0

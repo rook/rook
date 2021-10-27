@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/aws/aws-sdk-go v1.37.19
 	github.com/banzaicloud/k8s-objectmatcher v1.1.0
-	github.com/ceph/go-ceph v0.11.0
+	github.com/ceph/go-ceph v0.12.0
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/go-ini/ini v1.51.1
 	github.com/google/go-cmp v0.5.5
