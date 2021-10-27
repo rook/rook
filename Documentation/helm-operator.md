@@ -50,8 +50,7 @@ To deploy from a local build from your development environment:
 
 ```console
 cd cluster/charts/rook-ceph
-kubectl create namespace rook-ceph
-helm install --namespace rook-ceph rook-ceph .
+helm install --create-namespace --namespace rook-ceph rook-ceph .
 ```
 
 ## Uninstalling the Chart
