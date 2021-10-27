@@ -95,6 +95,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		}
 
 		deploy.ObjectMeta.Labels = deploymentLabels
+		cephv1.GetCrashCollectorLabels(cephCluster.Spec.Labels).ApplyToObjectMeta(&deploy.ObjectMeta)
 		k8sutil.AddRookVersionLabelToDeployment(deploy)
 		if cephVersion != nil {
 			controller.AddCephVersionLabelToDeployment(*cephVersion, deploy)
