@@ -12,6 +12,7 @@ metadata:
   name: rook-ceph
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
+allowHostPID: false
 # set to true if running rook with host networking enabled
 allowHostNetwork: false
 # set to true if running rook with the provider as host
