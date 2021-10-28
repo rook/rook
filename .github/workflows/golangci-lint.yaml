@@ -32,7 +32,7 @@ jobs:
           # working-directory: somedir
 
           # Optional: golangci-lint command line arguments.
-          args: -E gosec  --timeout=6m
+          args: -E gosec --timeout=6m --build-tags ceph_preview
 
           # Optional: show only new issues if it's a pull request. The default value is `false`.
           # only-new-issues: true

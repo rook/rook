@@ -63,7 +63,12 @@ const (
 		}
 	],
 	"swift_keys": [],
-	"caps": [],
+	"caps": [
+		{
+			"type": "users",
+			"perms": "*"
+		}
+	],
 	"op_mask": "read, write, delete",
 	"default_placement": "",
 	"default_storage_class": "",
@@ -86,6 +91,7 @@ const (
 	"type": "rgw",
 	"mfa_ids": []
 }`
+	userCapsJSON = `[{"type":"users","perm":"read"}]`
 )
 
 var (
@@ -366,6 +372,14 @@ func TestCreateorUpdateCephUser(t *testing.T) {
 				}
 			}
 
+			if req.Method == http.MethodDelete {
+				if req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dread%3B" {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       ioutil.NopCloser(bytes.NewReader([]byte(`[]`))),
+					}, nil
+				}
+			}
 			if req.Method == http.MethodPut {
 				if req.URL.RawQuery == "enabled=false&format=json&max-objects=-1&max-size=-1&quota=&quota-type=user&uid=my-user" ||
 					req.URL.RawQuery == "enabled=true&format=json&max-objects=10000&max-size=-1&quota=&quota-type=user&uid=my-user" ||
@@ -374,6 +388,11 @@ func TestCreateorUpdateCephUser(t *testing.T) {
 					return &http.Response{
 						StatusCode: 200,
 						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+					}, nil
+				} else if req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dread%3B" {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCapsJSON))),
 					}, nil
 				}
 			}

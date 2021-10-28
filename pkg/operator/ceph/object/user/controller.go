@@ -283,11 +283,29 @@ func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectSt
 		} else {
 			return errors.Wrapf(err, "failed to get details from ceph object user %q", u.Name)
 		}
-	} else if *user.MaxBuckets != *r.userConfig.MaxBuckets {
-		// TODO: handle update for user capabilities, depends on https://github.com/ceph/go-ceph/pull/571
+	}
+
+	// Update max bucket if necessary
+	if *user.MaxBuckets != *r.userConfig.MaxBuckets {
 		user, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *r.userConfig)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create ceph object user %v", &r.userConfig.ID)
+			return errors.Wrapf(err, "failed to update ceph object user %q max buckets", r.userConfig.ID)
+		}
+		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
+	}
+
+	// Update caps if necessary
+	if user.UserCaps != r.userConfig.UserCaps {
+		// If they are no caps to be removed, the API will return an error "missing user capabilities"
+		if user.UserCaps != "" {
+			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, r.userConfig.ID, user.UserCaps)
+			if err != nil {
+				return errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", r.userConfig.ID)
+			}
+		}
+		_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, r.userConfig.ID, r.userConfig.UserCaps)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph object user %q capabilities", r.userConfig.ID)
 		}
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
