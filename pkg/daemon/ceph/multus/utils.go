@@ -33,8 +33,9 @@ import (
 )
 
 var (
-	logger          = capnslog.NewPackageLogger("github.com/rook/rook", "multus")
-	unsupportedIPAM = errors.New("unsupported ipam type")
+	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "multus")
+	unsupportedIPAM     = errors.New("unsupported ipam type")
+	invalidAddressRange = errors.New("invalid address range")
 )
 
 const (
@@ -84,14 +85,14 @@ func inAddrRange(ip, multusNet string) (bool, error) {
 	// Getting netmask prefix length.
 	tmp := strings.Split(multusNet, "/")
 	if len(tmp) < 2 {
-		return false, errors.New("invalid address range")
+		return false, invalidAddressRange
 	}
 	prefix := tmp[1]
 
 	cidr := fmt.Sprintf("%s/%s", ip, prefix)
 	_, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to parse CIDR %s", cidr)
+		return false, errors.Wrapf(err, "failed to parse CIDR %q", cidr)
 	}
 
 	if ipNet.String() == multusNet {
@@ -102,14 +103,12 @@ func inAddrRange(ip, multusNet string) (bool, error) {
 
 func FindMultusData(pod corev1.Pod, multusName string, multusNamespace string, addrRange string) (MultusData, error) {
 	var multusData MultusData
-
 	multusConfs, err := getMultusConfs(pod)
 	if err != nil {
 		return multusData, errors.Wrap(err, "failed to get multus configuration")
 	}
 
 	multusData, err = findMultusData(multusConfs, multusName, multusNamespace, addrRange)
-
 	if err != nil {
 		return multusData, errors.Wrap(err, "failed to get multus data")
 	}
@@ -118,7 +117,6 @@ func FindMultusData(pod corev1.Pod, multusName string, multusNamespace string, a
 
 func getMultusConfs(pod corev1.Pod) ([]multusNetConfiguration, error) {
 	var multusConfs []multusNetConfiguration
-
 	if val, ok := pod.ObjectMeta.Annotations[multusAnnotation]; ok {
 		err := json.Unmarshal([]byte(val), &multusConfs)
 		if err != nil {
@@ -126,7 +124,7 @@ func getMultusConfs(pod corev1.Pod) ([]multusNetConfiguration, error) {
 		}
 		return multusConfs, nil
 	}
-	return multusConfs, fmt.Errorf("failed to find multus annotation for pod %q in namespace %q", pod.ObjectMeta.Name, pod.ObjectMeta.Namespace)
+	return multusConfs, errors.Errorf("failed to find multus annotation for pod %q in namespace %q", pod.ObjectMeta.Name, pod.ObjectMeta.Namespace)
 }
 
 func findMultusData(multusConfs []multusNetConfiguration, multusName string, multusNamespace string, addrRange string) (MultusData, error) {
