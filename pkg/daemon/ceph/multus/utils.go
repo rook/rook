@@ -231,7 +231,7 @@ func determineNewLinkName(interfaces []net.Interface) (string, error) {
 	linkNumber += 1
 
 	newLinkName = fmt.Sprintf("%s%d", ifBase, linkNumber)
-	logger.Debugf("new multus link name determined: %q", newLinkName)
+	logger.Infof("new multus link name determined: %q", newLinkName)
 
 	return newLinkName, nil
 }
