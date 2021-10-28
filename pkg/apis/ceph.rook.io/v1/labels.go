@@ -57,6 +57,11 @@ func GetMonitoringLabels(a LabelsSpec) rook.Labels {
 	return mergeAllLabelsWithKey(a, KeyMonitoring)
 }
 
+// GetCrashCollectorLabels returns the Labels for the crash collector resources
+func GetCrashCollectorLabels(a LabelsSpec) rook.Labels {
+	return mergeAllLabelsWithKey(a, KeyCrashCollector)
+}
+
 func mergeAllLabelsWithKey(a LabelsSpec, name rook.KeyType) rook.Labels {
 	all := a.All()
 	if all != nil {
