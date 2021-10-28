@@ -56,6 +56,7 @@ type Provisioner struct {
 	endpoint             string
 	additionalConfigData map[string]string
 	tlsCert              []byte
+	insecureTLS          bool
 	adminOpsClient       *admin.API
 }
 
@@ -607,7 +608,7 @@ func (p *Provisioner) setTlsCaCert() error {
 	}
 	p.tlsCert = make([]byte, 0)
 	if objStore.Spec.Gateway.SecurePort == p.storePort {
-		p.tlsCert, err = cephObject.GetTlsCaCert(p.objectContext, &objStore.Spec)
+		p.tlsCert, p.insecureTLS, err = cephObject.GetTlsCaCert(p.objectContext, &objStore.Spec)
 		if err != nil {
 			return err
 		}
@@ -622,8 +623,7 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 		Timeout: cephObject.HttpTimeOut,
 	}
 	if p.tlsCert != nil {
-		insecure := false
-		httpClient.Transport = cephObject.BuildTransportTLS(p.tlsCert, insecure)
+		httpClient.Transport = cephObject.BuildTransportTLS(p.tlsCert, p.insecureTLS)
 	}
 
 	// Fetch the ceph object store
