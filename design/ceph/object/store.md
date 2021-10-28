@@ -79,7 +79,15 @@ If there is a `zone` section in object-store configuration, then the pool sectio
 
 The gateway settings correspond to the RGW service.
 - `type`: Can be `s3`. In the future support for `swift` can be added.
-- `sslCertificateRef`: If specified, this is the name of the Kubernetes secret that contains the SSL certificate to be used for secure connections to the object store. The secret must be in the same namespace as the Rook cluster. Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be in the format expected by the [RGW service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb): "The server key, server certificate, and any other CA or intermediate certificates be supplied in one file. Each of these items must be in pem form." If the certificate is not specified, SSL will not be configured.
+- `sslCertificateRef`: If specified, this is the name of the Kubernetes secret that contains the SSL
+  certificate to be used for secure connections to the object store. The secret must be in the same
+  namespace as the Rook cluster. If it is an opaque Kubernetes Secret, Rook will look in the secret
+  provided at the `cert` key name. The value of the `cert` key must be in the format expected by the
+  [RGW
+  service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb):
+  "The server key, server certificate, and any other CA or intermediate certificates be supplied in
+  one file. Each of these items must be in pem form." If the certificate is not specified, SSL will
+  not be configured.
 - `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that contains ca-bundle to use. The secret must be in the same namespace as the Rook cluster. Rook will look in the secret provided at the `cabundle` key name.
 - `port`: The service port where the RGW service will be listening (http)
 - `securePort`: The service port where the RGW service will be listening (https)
