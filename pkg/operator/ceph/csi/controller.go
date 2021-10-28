@@ -147,7 +147,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			if err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to clean up multus interfaces")
 			}
-			if err := opcontroller.RemoveFinalizerWithName(context.TODO(), r.client, &cluster, multusFinalizer); err != nil {
+			if err := opcontroller.RemoveFinalizerWithName(r.opManagerContext, r.client, &cluster, multusFinalizer); err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to remove multus finalizer")
 			}
 		}
