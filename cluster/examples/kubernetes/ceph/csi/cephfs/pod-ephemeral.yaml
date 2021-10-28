@@ -1,0 +1,21 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: csi-cephfs-demo-ephemeral-pod
+spec:
+  containers:
+    - name: web-server
+      image: docker.io/library/nginx:latest
+      volumeMounts:
+        - mountPath: "/myspace"
+          name: mypvc
+  volumes:
+    - name: mypvc
+      ephemeral:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteMany"]
+            storageClassName: "rook-cephfs"
+            resources:
+              requests:
+                storage: 1Gi
