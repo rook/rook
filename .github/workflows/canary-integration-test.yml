@@ -1074,12 +1074,6 @@ jobs:
         # wait for realms to be pulled and zone-b-multisite-store to be created
         tests/scripts/github-action-helper.sh wait_for_rgw_pods rook-ceph-secondary
 
-    - name: wait for ceph cluster 1 to be ready
-      run: |
-        mkdir test
-        tests/scripts/validate_cluster.sh osd 1
-        kubectl -n rook-ceph get pods
-
     - name: write an object to one cluster, read from the other
       run: tests/scripts/github-action-helper.sh write_object_to_cluster1_read_from_cluster2
 
