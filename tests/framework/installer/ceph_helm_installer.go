@@ -47,9 +47,6 @@ func (h *CephInstaller) CreateRookOperatorViaHelm(values map[string]interface{})
 	if err := h.k8shelper.CreateNamespace(h.settings.OperatorNamespace); err != nil {
 		return errors.Errorf("failed to create namespace %s. %v", h.settings.Namespace, err)
 	}
-	if err := h.k8shelper.CreateOpConfigMap(h.settings.OperatorNamespace); err != nil {
-		return errors.Errorf("failed to create operator config map. %v", err)
-	}
 	if err := h.startAdmissionController(); err != nil {
 		return errors.Errorf("failed to start admission controllers. %v", err)
 	}

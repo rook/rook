@@ -37,7 +37,6 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
@@ -370,22 +369,6 @@ func (k8sh *K8sHelper) CreateNamespace(namespace string) error {
 	_, err := k8sh.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create namespace %s. %+v", namespace, err)
-	}
-
-	return nil
-}
-
-func (k8sh *K8sHelper) CreateOpConfigMap(namespace string) error {
-	ctx := context.TODO()
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      controller.OperatorSettingConfigMapName,
-			Namespace: namespace,
-		},
-	}
-	_, err := k8sh.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
-	if err != nil && !kerrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create operator config map %s. %+v", controller.OperatorSettingConfigMapName, err)
 	}
 
 	return nil
