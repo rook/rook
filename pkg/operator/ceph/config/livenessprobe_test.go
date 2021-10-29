@@ -74,7 +74,7 @@ func configLivenessProbeHelper(t *testing.T, keyType cephv1.KeyType) {
 	}
 }
 
-func TestGetLivenessProbeWithDefaults(t *testing.T) {
+func TestGetProbeWithDefaults(t *testing.T) {
 	t.Run("using default probe", func(t *testing.T) {
 		currentProb := &v1.Probe{
 			Handler: v1.Handler{
@@ -93,7 +93,7 @@ func TestGetLivenessProbeWithDefaults(t *testing.T) {
 		}
 		// in case of default probe
 		desiredProbe := &v1.Probe{}
-		desiredProbe = GetLivenessProbeWithDefaults(desiredProbe, currentProb)
+		desiredProbe = GetProbeWithDefaults(desiredProbe, currentProb)
 		assert.Equal(t, desiredProbe, currentProb)
 	})
 
@@ -133,7 +133,7 @@ func TestGetLivenessProbeWithDefaults(t *testing.T) {
 			SuccessThreshold:    4,
 			TimeoutSeconds:      5,
 		}
-		desiredProbe = GetLivenessProbeWithDefaults(desiredProbe, currentProb)
+		desiredProbe = GetProbeWithDefaults(desiredProbe, currentProb)
 		assert.Equal(t, desiredProbe.Exec.Command, []string{"env", "-i", "sh", "-c", "ceph --admin-daemon /run/ceph/ceph-mon.c.asok mon_status"})
 		assert.Equal(t, desiredProbe.InitialDelaySeconds, int32(1))
 		assert.Equal(t, desiredProbe.FailureThreshold, int32(2))

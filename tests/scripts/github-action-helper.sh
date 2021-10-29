@@ -286,16 +286,23 @@ function deploy_second_rook_cluster() {
   deploy_manifest_with_local_build toolbox.yaml toolbox.yaml
 }
 
-function wait_for_rgw_pods() {
+function wait_for_rgw() {
   for _ in {1..120}; do
-    if [ "$(kubectl -n "$1" get pod -l app=rook-ceph-rgw --field-selector=status.phase=Running|wc -l)" -gt 1 ] ; then
-        echo "rgw pods found"
+    if [ "$(kubectl -n "$1" get pod -l app=rook-ceph-rgw --no-headers --field-selector=status.phase=Running|wc -l)" -ge 1 ] ; then
+        echo "rgw pod is found"
         break
     fi
     echo "waiting for rgw pods"
-    sleep 5;
+    sleep 5
   done
-
+  for _ in {1..120}; do
+    if [ "$(kubectl -n "$1" get deployment -l app=rook-ceph-rgw -o yaml | yq read - 'items[0].status.readyReplicas')" -ge 1 ] ; then
+        echo "rgw is ready"
+        break
+    fi
+    echo "waiting for rgw becomes ready"
+    sleep 5
+  done
 }
 
 function verify_operator_log_message() {

@@ -35,6 +35,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestPodSpecs(t *testing.T) {
@@ -282,7 +283,7 @@ func TestValidateSpec(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestGenerateLiveProbe(t *testing.T) {
+func TestDefaultLivenessProbe(t *testing.T) {
 	store := simpleStore()
 	c := &clusterConfig{
 		store: store,
@@ -293,33 +294,93 @@ func TestGenerateLiveProbe(t *testing.T) {
 		},
 	}
 
+	desiredProbe := &v1.Probe{
+		Handler: v1.Handler{
+			TCPSocket: &v1.TCPSocketAction{
+				Port: intstr.FromInt(8080),
+			},
+		},
+		InitialDelaySeconds: 10,
+	}
 	// No SSL - HostNetwork is disabled - using internal port
-	p := c.generateLiveProbe()
-	assert.Equal(t, int32(8080), p.Handler.HTTPGet.Port.IntVal)
-	assert.Equal(t, v1.URISchemeHTTP, p.Handler.HTTPGet.Scheme)
+	p := c.defaultLivenessProbe()
+	assert.Equal(t, desiredProbe, p)
 
 	// No SSL - HostNetwork is enabled
 	c.store.Spec.Gateway.Port = 123
 	c.store.Spec.Gateway.SecurePort = 0
 	c.clusterSpec.Network.HostNetwork = true
-	p = c.generateLiveProbe()
-	assert.Equal(t, int32(123), p.Handler.HTTPGet.Port.IntVal)
+	p = c.defaultLivenessProbe()
+	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(123)
+	assert.Equal(t, desiredProbe, p)
 
 	// SSL - HostNetwork is enabled
 	c.store.Spec.Gateway.Port = 0
 	c.store.Spec.Gateway.SecurePort = 321
 	c.store.Spec.Gateway.SSLCertificateRef = "foo"
-	p = c.generateLiveProbe()
-	assert.Equal(t, int32(321), p.Handler.HTTPGet.Port.IntVal)
+	p = c.defaultLivenessProbe()
+	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(321)
+	assert.Equal(t, desiredProbe, p)
 
 	// Both Non-SSL and SSL are enabled
-	// liveprobe just on Non-SSL
+	// livenessProbe just on Non-SSL
 	c.store.Spec.Gateway.Port = 123
 	c.store.Spec.Gateway.SecurePort = 321
+	p = c.defaultLivenessProbe()
+	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(123)
+	assert.Equal(t, desiredProbe, p)
+}
+
+func TestDefaultReadinessProbe(t *testing.T) {
+	store := simpleStore()
+	c := &clusterConfig{
+		store: store,
+		clusterSpec: &cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				HostNetwork: false,
+			},
+		},
+	}
+
+	desiredProbe := &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path:   readinessProbePath,
+				Port:   intstr.FromInt(8080),
+				Scheme: v1.URISchemeHTTP,
+			},
+		},
+		InitialDelaySeconds: 10,
+	}
+	// No SSL - HostNetwork is disabled - using internal port
+	p := c.defaultReadinessProbe()
+	assert.Equal(t, desiredProbe, p)
+
+	// No SSL - HostNetwork is enabled
+	c.store.Spec.Gateway.Port = 123
+	c.store.Spec.Gateway.SecurePort = 0
+	c.clusterSpec.Network.HostNetwork = true
+	p = c.defaultReadinessProbe()
+	desiredProbe.Handler.HTTPGet.Port = intstr.FromInt(123)
+	assert.Equal(t, desiredProbe, p)
+
+	// SSL - HostNetwork is enabled
+	c.store.Spec.Gateway.Port = 0
+	c.store.Spec.Gateway.SecurePort = 321
 	c.store.Spec.Gateway.SSLCertificateRef = "foo"
-	p = c.generateLiveProbe()
-	assert.Equal(t, v1.URISchemeHTTP, p.Handler.HTTPGet.Scheme)
-	assert.Equal(t, int32(123), p.Handler.HTTPGet.Port.IntVal)
+	p = c.defaultReadinessProbe()
+	desiredProbe.Handler.HTTPGet.Port = intstr.FromInt(321)
+	desiredProbe.Handler.HTTPGet.Scheme = v1.URISchemeHTTPS
+	assert.Equal(t, desiredProbe, p)
+
+	// Both Non-SSL and SSL are enabled
+	// readinessProbe just on Non-SSL
+	c.store.Spec.Gateway.Port = 123
+	c.store.Spec.Gateway.SecurePort = 321
+	p = c.defaultReadinessProbe()
+	desiredProbe.Handler.HTTPGet.Port = intstr.FromInt(123)
+	desiredProbe.Handler.HTTPGet.Scheme = v1.URISchemeHTTP
+	assert.Equal(t, desiredProbe, p)
 }
 
 func TestCheckRGWKMS(t *testing.T) {

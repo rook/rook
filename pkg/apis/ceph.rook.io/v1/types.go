@@ -1285,6 +1285,8 @@ type BucketHealthCheckSpec struct {
 	Bucket HealthCheckSpec `json:"bucket,omitempty"`
 	// +optional
 	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
+	// +optional
+	ReadinessProbe *ProbeSpec `json:"readinessProbe,omitempty"`
 }
 
 // HealthCheckSpec represents the health check of an object store bucket

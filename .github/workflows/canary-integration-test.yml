@@ -1055,7 +1055,7 @@ jobs:
         tests/scripts/github-action-helper.sh deploy_first_rook_cluster
         kubectl create -f cluster/examples/kubernetes/ceph/object-multisite-test.yaml
         # wait for multisite store to be created
-        tests/scripts/github-action-helper.sh wait_for_rgw_pods rook-ceph
+        tests/scripts/github-action-helper.sh wait_for_rgw rook-ceph
 
     - name: prep second cluster pull realm config
       run: |
@@ -1072,7 +1072,7 @@ jobs:
         tests/scripts/github-action-helper.sh deploy_second_rook_cluster
         kubectl create -f cluster/examples/kubernetes/ceph/object-multisite-pull-realm-test.yaml
         # wait for realms to be pulled and zone-b-multisite-store to be created
-        tests/scripts/github-action-helper.sh wait_for_rgw_pods rook-ceph-secondary
+        tests/scripts/github-action-helper.sh wait_for_rgw rook-ceph-secondary
 
     - name: write an object to one cluster, read from the other
       run: tests/scripts/github-action-helper.sh write_object_to_cluster1_read_from_cluster2

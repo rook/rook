@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	livenessProbePath = "/swift/healthcheck"
+	readinessProbePath = "/swift/healthcheck"
 	// #nosec G101 since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
@@ -270,13 +270,16 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		),
 		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources:       c.store.Spec.Gateway.Resources,
-		LivenessProbe:   c.generateLiveProbe(),
+		LivenessProbe:   c.defaultLivenessProbe(),
+		ReadinessProbe:  c.defaultReadinessProbe(),
 		SecurityContext: controller.PodSecurityContext(),
 		WorkingDir:      cephconfig.VarLogCephDir,
 	}
 
 	// If the liveness probe is enabled
 	configureLivenessProbe(&container, c.store.Spec.HealthCheck)
+	// If the readiness probe is enabled
+	configureReadinessProbe(&container, c.store.Spec.HealthCheck)
 	if c.store.Spec.IsTLSEnabled() {
 		// Add a volume mount for the ssl certificate
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certDir, ReadOnly: true}
@@ -320,7 +323,7 @@ func configureLivenessProbe(container *v1.Container, healthCheck cephv1.BucketHe
 			// If the spec value is empty, let's use a default
 			if probe != nil {
 				// Set the liveness probe on the container to overwrite the default probe created by Rook
-				container.LivenessProbe = cephconfig.GetLivenessProbeWithDefaults(probe, container.LivenessProbe)
+				container.LivenessProbe = cephconfig.GetProbeWithDefaults(probe, container.LivenessProbe)
 			}
 		} else {
 			container.LivenessProbe = nil
@@ -328,20 +331,47 @@ func configureLivenessProbe(container *v1.Container, healthCheck cephv1.BucketHe
 	}
 }
 
-func (c *clusterConfig) generateLiveProbe() *v1.Probe {
+// configureReadinessProbe returns the desired readiness probe for a given daemon
+func configureReadinessProbe(container *v1.Container, healthCheck cephv1.BucketHealthCheckSpec) {
+	if ok := healthCheck.ReadinessProbe; ok != nil {
+		if !healthCheck.ReadinessProbe.Disabled {
+			probe := healthCheck.ReadinessProbe.Probe
+			// If the spec value is empty, let's use a default
+			if probe != nil {
+				// Set the readiness probe on the container to overwrite the default probe created by Rook
+				container.ReadinessProbe = cephconfig.GetProbeWithDefaults(probe, container.ReadinessProbe)
+			}
+		} else {
+			container.ReadinessProbe = nil
+		}
+	}
+}
+
+func (c *clusterConfig) defaultLivenessProbe() *v1.Probe {
 	return &v1.Probe{
 		Handler: v1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Path:   livenessProbePath,
-				Port:   c.generateLiveProbePort(),
-				Scheme: c.generateLiveProbeScheme(),
+			TCPSocket: &v1.TCPSocketAction{
+				Port: c.generateProbePort(),
 			},
 		},
 		InitialDelaySeconds: 10,
 	}
 }
 
-func (c *clusterConfig) generateLiveProbeScheme() v1.URIScheme {
+func (c *clusterConfig) defaultReadinessProbe() *v1.Probe {
+	return &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path:   readinessProbePath,
+				Port:   c.generateProbePort(),
+				Scheme: c.generateReadinessProbeScheme(),
+			},
+		},
+		InitialDelaySeconds: 10,
+	}
+}
+
+func (c *clusterConfig) generateReadinessProbeScheme() v1.URIScheme {
 	// Default to HTTP
 	uriScheme := v1.URISchemeHTTP
 
@@ -354,7 +384,7 @@ func (c *clusterConfig) generateLiveProbeScheme() v1.URIScheme {
 	return uriScheme
 }
 
-func (c *clusterConfig) generateLiveProbePort() intstr.IntOrString {
+func (c *clusterConfig) generateProbePort() intstr.IntOrString {
 	// The port the liveness probe needs to probe
 	// Assume we run on SDN by default
 	port := intstr.FromInt(int(rgwPortInternalPort))
@@ -386,7 +416,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
-	destPort := c.generateLiveProbePort()
+	destPort := c.generateProbePort()
 
 	// When the cluster is external we must use the same one as the gateways are listening on
 	if cephObjectStore.Spec.IsExternal() {

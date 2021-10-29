@@ -104,6 +104,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		}
 		assert.True(t, k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, replicaSize, "Running"))
 		logger.Info("RGW pods are running")
+		assert.NoError(t, k8sh.WaitForLabeledDeploymentsToBeReady("app=rook-ceph-rgw", namespace))
 		logger.Infof("Object store %q created successfully", storeName)
 	})
 
