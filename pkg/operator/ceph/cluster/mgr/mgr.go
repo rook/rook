@@ -361,14 +361,18 @@ func (c *Cluster) enableCrashModule() error {
 func (c *Cluster) enableBalancerModule() error {
 	// The order MATTERS, always configure this module first, then turn it on
 
-	// This sets min compat client to luminous and the balancer module mode
-	err := cephclient.ConfigureBalancerModule(c.context, c.clusterInfo, balancerModuleMode)
-	if err != nil {
-		return errors.Wrapf(err, "failed to configure module %q", balancerModuleName)
+	// This enables the balancer module mode only in versions older than Pacific
+	// This let's the user change the default mode if desired
+	if !c.clusterInfo.CephVersion.IsAtLeastPacific() {
+		// This sets min compat client to luminous and the balancer module mode
+		err := cephclient.ConfigureBalancerModule(c.context, c.clusterInfo, balancerModuleMode)
+		if err != nil {
+			return errors.Wrapf(err, "failed to configure module %q", balancerModuleName)
+		}
 	}
 
 	// This turns "on" the balancer
-	err = cephclient.MgrEnableModule(c.context, c.clusterInfo, balancerModuleName, false)
+	err := cephclient.MgrEnableModule(c.context, c.clusterInfo, balancerModuleName, false)
 	if err != nil {
 		return errors.Wrapf(err, "failed to turn on mgr %q module", balancerModuleName)
 	}

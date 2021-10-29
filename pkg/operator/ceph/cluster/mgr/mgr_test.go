@@ -24,14 +24,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
-	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -40,8 +39,9 @@ import (
 	apps "k8s.io/api/apps/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestStartMgr(t *testing.T) {
@@ -172,7 +172,7 @@ func validateServices(t *testing.T, c *Cluster) {
 			assert.Equal(t, ds.Spec.Ports[0].Port, int32(c.spec.Dashboard.Port))
 		}
 	} else {
-		assert.True(t, errors.IsNotFound(err))
+		assert.True(t, kerrors.IsNotFound(err))
 	}
 }
 
@@ -227,7 +227,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 	assert.True(t, calledMgrStat)
 	assert.False(t, calledMgrDump)
 	_, err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
-	assert.True(t, errors.IsNotFound(err))
+	assert.True(t, kerrors.IsNotFound(err))
 
 	// nothing is updated when the requested mgr is not the active mgr
 	activeMgr = "b"
@@ -377,4 +377,59 @@ func TestApplyMonitoringLabels(t *testing.T) {
 	sm.Spec.Endpoints[0].RelabelConfigs = nil
 	applyMonitoringLabels(c, sm)
 	assert.Nil(t, sm.Spec.Endpoints[0].RelabelConfigs)
+}
+
+func TestCluster_enableBalancerModule(t *testing.T) {
+	c := &Cluster{
+		context:     &clusterd.Context{Executor: &exectest.MockExecutor{}, Clientset: testop.New(t, 3)},
+		clusterInfo: cephclient.AdminClusterInfo("mycluster"),
+	}
+
+	t.Run("on octopus we configure the balancer AND enable the upmap mode", func(t *testing.T) {
+		c.clusterInfo.CephVersion = cephver.Octopus
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				logger.Infof("Command: %s %v", command, args)
+				if command == "ceph" {
+					if args[0] == "osd" && args[1] == "set-require-min-compat-client" {
+						return "", nil
+					}
+					if args[0] == "balancer" && args[1] == "mode" {
+						return "", nil
+					}
+					if args[0] == "balancer" && args[1] == "on" {
+						return "", nil
+					}
+				}
+				return "", errors.New("unknown command")
+			},
+		}
+		c.context.Executor = executor
+		err := c.enableBalancerModule()
+		assert.NoError(t, err)
+	})
+
+	t.Run("on pacific we configure the balancer ONLY and don't set a mode", func(t *testing.T) {
+		c.clusterInfo.CephVersion = cephver.Pacific
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				logger.Infof("Command: %s %v", command, args)
+				if command == "ceph" {
+					if args[0] == "osd" && args[1] == "set-require-min-compat-client" {
+						return "", nil
+					}
+					if args[0] == "balancer" && args[1] == "mode" {
+						return "", errors.New("balancer mode must not be set")
+					}
+					if args[0] == "balancer" && args[1] == "on" {
+						return "", nil
+					}
+				}
+				return "", errors.New("unknown command")
+			},
+		}
+		c.context.Executor = executor
+		err := c.enableBalancerModule()
+		assert.NoError(t, err)
+	})
 }
