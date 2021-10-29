@@ -263,13 +263,21 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 			cephNFS.Spec.RADOS.Pool = preNFSChangeDefaultPoolName
 		}
 		cephNFS.Spec.RADOS.Namespace = cephNFS.Name
+	} else {
+		// This handles the case where the user has not provided a pool name and the cluster version
+		// is Octopus. We need to do this since the pool name is optional in the API due to the
+		// changes in Pacific defaulting to the ".nfs" pool.
+		// We default to the new name so that nothing will break on upgrades
+		if cephNFS.Spec.RADOS.Pool == "" {
+			cephNFS.Spec.RADOS.Pool = postNFSChangeDefaultPoolName
+		}
 	}
 
 	// validate the store settings
 	if err := validateGanesha(r.context, r.clusterInfo, cephNFS); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "invalid ceph nfs %q arguments", cephNFS.Name)
 	}
-	if err := fetchOrCreatePool(r.context, r.clusterInfo, cephNFS); err != nil {
+	if err := r.fetchOrCreatePool(cephNFS); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to fetch or create RADOS pool")
 	}
 

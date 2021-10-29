@@ -6,10 +6,10 @@ metadata:
 spec:
   # rados settings aren't necessary in Ceph Versions equal to or greater than Pacific 16.2.7
   rados:
-    # RADOS pool where NFS client recovery data is stored.
-    # In this example the data pool for the "myfs" filesystem is used.
-    # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
-    pool: myfs-data0
+    poolConfig:
+      failureDomain: osd
+      replicated:
+        size: 1
     # RADOS namespace where NFS client recovery data is stored in the pool.
     namespace: nfs-ns
   # Settings for the NFS server

@@ -282,26 +282,27 @@ func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 }
 
 // create and enable default RADOS pool
-func createDefaultNFSRADOSPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, defaultRadosPoolName string) error {
-	args := []string{"osd", "pool", "create", defaultRadosPoolName}
-	_, err := cephclient.NewCephCommand(context, clusterInfo, args).Run()
+func (r *ReconcileCephNFS) createDefaultNFSRADOSPool(n *cephv1.CephNFS) error {
+	poolName := n.Spec.RADOS.Pool
+	// Settings are not always declared and CreateReplicatedPoolForApp does not accept a pointer for
+	// the pool spec
+	if n.Spec.RADOS.PoolConfig == nil {
+		n.Spec.RADOS.PoolConfig = &cephv1.PoolSpec{}
+	}
+	err := cephclient.CreateReplicatedPoolForApp(r.context, r.clusterInfo, r.cephClusterSpec, poolName, *n.Spec.RADOS.PoolConfig, cephclient.DefaultPGCount, "nfs")
 	if err != nil {
 		return err
 	}
-	args = []string{"osd", "pool", "application", "enable", defaultRadosPoolName, "nfs"}
-	_, err = cephclient.NewCephCommand(context, clusterInfo, args).Run()
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 
-func fetchOrCreatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, n *cephv1.CephNFS) error {
+func (r *ReconcileCephNFS) fetchOrCreatePool(n *cephv1.CephNFS) error {
 	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
-	_, err := cephclient.GetPoolDetails(context, clusterInfo, n.Spec.RADOS.Pool)
+	_, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, n.Spec.RADOS.Pool)
 	if err != nil {
-		if strings.Contains(err.Error(), "unrecognized pool") && clusterInfo.CephVersion.IsAtLeastPacific() {
-			err := createDefaultNFSRADOSPool(context, clusterInfo, n.Spec.RADOS.Pool)
+		if strings.Contains(err.Error(), "unrecognized pool") && r.clusterInfo.CephVersion.IsAtLeastPacific() {
+			err := r.createDefaultNFSRADOSPool(n)
 			if err != nil {
 				return errors.Wrapf(err, "failed to find %q pool and unable to create it", n.Spec.RADOS.Pool)
 			}
