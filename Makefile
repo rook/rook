@@ -17,6 +17,7 @@ include build/makelib/helm.mk
 
 .PHONY: all
 all: build
+.DEFAULT_GOAL := all
 
 # ====================================================================================
 # Build Options
