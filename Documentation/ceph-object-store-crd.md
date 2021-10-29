@@ -37,6 +37,7 @@ spec:
   preservePoolsOnDelete: true
   gateway:
     # sslCertificateRef:
+    # caBundleRef:
     port: 80
     # securePort: 443
     instances: 1
@@ -103,6 +104,9 @@ The gateway settings correspond to the RGW daemon settings.
   secret's data: `insecureSkipVerify: true` to skip the certificate verification. It is not
   recommended to enable this option since TLS is susceptible to machine-in-the-middle attacks unless
   custom verification is used.
+* `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that
+  contains additional custom ca-bundle to use. The secret must be in the same namespace as the Rook
+  cluster. Rook will look in the secret provided at the `cabundle` key name.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be specified either via `sslCerticateRef` or `service.annotations`
 * `instances`: The number of pods that will be started to load balance this object store.
