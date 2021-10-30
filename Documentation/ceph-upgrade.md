@@ -194,8 +194,8 @@ In the output above, note the following indications that the cluster is in a hea
 * Manager (mgr): The Ceph manager is in the `active` state.
 * OSDs (osd): All OSDs are `up` and `in`.
 * Placement groups (pgs): All PGs are in the `active+clean` state.
-* (If applicable) Ceph filesystem metadata server (mds): all MDSes are `active` for all filesystems
-* (If applicable) Ceph object store RADOS gateways (rgw): all daemons are `active`
+* (If applicable) Ceph filesystem metadata server (mds): all MDSes are `active` for all filesystems.
+* (If applicable) Ceph object store RADOS gateways (rgw): all daemons are `active`.
 
 If your `ceph status` output has deviations from the general good health described above, there may
 be an issue that needs to be investigated further. There are other commands you may run for more
