@@ -229,6 +229,29 @@ In a healthy Rook cluster, the operator, the agents and all Rook namespace pods 
 kubectl -n $ROOK_NAMESPACE get pods
 ```
 
+### Verify CephCluster Resource Health
+
+The upgrade health checks for Ceph and Rook may pass, but sanity checks will still prevent the upgrades from progressing if cluster components are not in good standing.
+For example, the MON health checks validate that the monitors are in quorum before allowing the upgrade, but also validate that there are an **odd number** of them in the config.
+
+To verify this, run the following command:
+
+```sh
+kubectl -n rook-ceph get cephclusters.ceph.rook.io 
+```
+
+In case the resource is not healthy (in this case the cluster has an even number MONs), or still `Progressing` you will see the following output:
+```console
+NAME        DATADIRHOSTPATH   MONCOUNT   AGE    PHASE   MESSAGE                        HEALTH
+rook-ceph   /var/lib/rook     4          492d   Progressing   failed to perform validation before cluster creation: mon count 4 cannot be even, must be odd to support a healthy quorum   HEALTH_WARN
+```
+
+For a healthy resource you should see the following:
+```console
+NAME        DATADIRHOSTPATH   MONCOUNT   AGE    PHASE   MESSAGE                        HEALTH
+rook-ceph   /var/lib/rook     3          556d   Ready   Cluster created successfully   HEALTH_OK
+```
+
 ### Status Output
 
 The Rook toolbox contains the Ceph tools that can give you status details of the cluster with the
