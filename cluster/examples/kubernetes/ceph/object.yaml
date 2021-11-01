@@ -107,8 +107,10 @@ spec:
     bucket:
       disabled: false
       interval: 60s
-    # Configure the pod liveness probe for the rgw daemon
+    # Configure the pod probes for the rgw daemon
     livenessProbe:
+      disabled: false
+    readinessProbe:
       disabled: false
   # security oriented settings
   # security:
