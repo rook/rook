@@ -21,6 +21,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -42,8 +43,8 @@ type mirrorChecker struct {
 	fsName         string
 }
 
-// newMirrorChecker creates a new HealthChecker
-func newMirrorChecker(context *clusterd.Context, client client.Client, clusterInfo *cephclient.ClusterInfo, namespacedName types.NamespacedName, fsSpec *cephv1.FilesystemSpec, fsName string) *mirrorChecker {
+// newChecker creates a new HealthChecker
+func newChecker(context *clusterd.Context, client client.Client, clusterInfo *cephclient.ClusterInfo, namespacedName types.NamespacedName, fsSpec *cephv1.FilesystemSpec, fsName string) *mirrorChecker {
 	c := &mirrorChecker{
 		context:        context,
 		interval:       defaultHealthCheckInterval,
@@ -64,12 +65,12 @@ func newMirrorChecker(context *clusterd.Context, client client.Client, clusterIn
 	return c
 }
 
-// checkMirroring periodically checks the health of the cluster
-func (c *mirrorChecker) checkMirroring(context context.Context) {
+// checkHealth periodically checks the health of the cluster
+func (c *mirrorChecker) checkHealth(context context.Context) {
 	// check the mirroring health immediately before starting the loop
-	err := c.checkMirroringHealth()
+	err := c.checkFilesystemHealth()
 	if err != nil {
-		c.updateStatusMirroring(nil, nil, err.Error())
+		c.updateStatusMirroring(nil, nil, nil, err.Error())
 		logger.Debugf("failed to check filesystem mirroring status %q. %v", c.namespacedName.Name, err)
 	}
 
@@ -81,33 +82,60 @@ func (c *mirrorChecker) checkMirroring(context context.Context) {
 
 		case <-time.After(c.interval):
 			logger.Debugf("checking filesystem mirroring status %q", c.namespacedName.Name)
-			err := c.checkMirroringHealth()
+			err := c.checkFilesystemHealth()
 			if err != nil {
-				c.updateStatusMirroring(nil, nil, err.Error())
+				c.updateStatusMirroring(nil, nil, nil, err.Error())
 				logger.Debugf("failed to check filesystem %q mirroring status. %v", c.namespacedName.Name, err)
 			}
 		}
 	}
 }
 
-func (c *mirrorChecker) checkMirroringHealth() error {
-	mirrorStatus, err := cephclient.GetFSMirrorDaemonStatus(c.context, c.clusterInfo, c.fsName)
-	if err != nil {
-		c.updateStatusMirroring(nil, nil, err.Error())
-		return err
+func (c *mirrorChecker) checkFilesystemHealth() error {
+	var err error
+	var snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec
+	var mirrorStatus []cephv1.FilesystemMirroringInfo
+	var perfStats *cephv1.FilesystemStats
+
+	if c.fsSpec.EnablePerfStats {
+		isPerfModuleEnabled, err := cephclient.IsModuleEnabled(c.context, c.clusterInfo, cephclient.FilesystemPerfModuleName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to check whether the mgr %q module is enabled", cephclient.FilesystemPerfModuleName)
+		}
+
+		if !isPerfModuleEnabled {
+			err := cephclient.MgrEnableModule(c.context, c.clusterInfo, cephclient.FilesystemPerfModuleName, false)
+			if err != nil {
+				return errors.Wrapf(err, "failed to enable mgr module %q to collect filesystem performance metrics", cephclient.FilesystemPerfModuleName)
+			}
+		}
+
+		perfStats, err = cephclient.GetPerfStats(c.context, c.clusterInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to get filesystem performance statistics")
+		}
 	}
 
-	var snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec
-	if c.fsSpec.Mirroring.SnapShotScheduleEnabled() {
-		snapSchedStatus, err = cephclient.GetSnapshotScheduleStatus(c.context, c.clusterInfo, c.fsName)
-		if err != nil {
-			c.updateStatusMirroring(nil, nil, err.Error())
-			return err
+	if c.fsSpec.Mirroring != nil {
+		if c.fsSpec.Mirroring.Enabled {
+			mirrorStatus, err = cephclient.GetFSMirrorDaemonStatus(c.context, c.clusterInfo, c.fsName)
+			if err != nil {
+				c.updateStatusMirroring(nil, nil, nil, err.Error())
+				return err
+			}
+
+			if c.fsSpec.Mirroring.SnapShotScheduleEnabled() {
+				snapSchedStatus, err = cephclient.GetSnapshotScheduleStatus(c.context, c.clusterInfo, c.fsName)
+				if err != nil {
+					c.updateStatusMirroring(nil, nil, nil, err.Error())
+					return err
+				}
+			}
 		}
 	}
 
 	// On success
-	c.updateStatusMirroring(mirrorStatus, snapSchedStatus, "")
+	c.updateStatusMirroring(mirrorStatus, snapSchedStatus, perfStats, "")
 
 	return nil
 }

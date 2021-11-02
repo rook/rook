@@ -41,6 +41,8 @@ spec:
         #target_size_ratio: ".5"
   # Whether to preserve filesystem after CephFilesystem CRD deletion
   preserveFilesystemOnDelete: true
+  # report filesystem performance statistics
+  # enablePerfStats: false
   # The metadata service (mds) configuration
   metadataServer:
     # The number of active MDS instances

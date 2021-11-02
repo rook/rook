@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -380,4 +381,23 @@ func GetMDSDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*MDSDump, 
 		return nil, errors.Wrapf(err, "failed to unmarshal fs dump. %s", buf)
 	}
 	return &dump, nil
+}
+
+func GetPerfStats(context *clusterd.Context, clusterInfo *ClusterInfo) (*cephv1.FilesystemStats, error) {
+	args := []string{"fs", "perf", "stats"}
+	cmd := NewCephCommand(context, clusterInfo, args)
+
+	logger.Debug("retrieving fs perf stats")
+	buf, err := cmd.Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get fs perf stats. %s", buf)
+	}
+
+	var perfStats cephv1.FilesystemStats
+	if err := json.Unmarshal(buf, &perfStats); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal fs perf stats. %s", string(buf))
+	}
+
+	logger.Debug("successfully retrieved fs perf stats")
+	return &perfStats, nil
 }

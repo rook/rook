@@ -191,6 +191,8 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 * (deprecated) `preservePoolsOnDelete`: This option is replaced by the above
   `preserveFilesystemOnDelete`. For backwards compatibility and upgradeability, if this is set to
   'true', Rook will treat `preserveFilesystemOnDelete` as being set to 'true'.
+* `enablePerfStats`: If set to 'true', performance statistics will be collected for the
+  filesystem. The default value is 'false'.
 
 ## Metadata Server Settings
 

@@ -26,6 +26,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	// mgrModuleList was produced by the running "ceph mgr module ls" on Ceph Pacific v16.2.6
+	mgrModuleList = `{
+    "always_on_modules": [
+        "balancer",
+        "crash",
+        "devicehealth",
+        "orchestrator",
+        "pg_autoscaler",
+        "progress",
+        "rbd_support",
+        "status",
+        "telemetry",
+        "volumes"
+    ],
+    "enabled_modules": [
+        "dashboard",
+        "iostat",
+        "nfs",
+        "prometheus",
+        "restful",
+        "stats"
+    ]
+}`
+)
+
 func TestEnableModuleRetries(t *testing.T) {
 	moduleEnableRetries := 0
 	moduleEnableWaitTime = 0
@@ -142,4 +168,20 @@ func TestSetBalancerMode(t *testing.T) {
 
 	err := setBalancerMode(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"), "upmap")
 	assert.NoError(t, err)
+}
+
+func TestIsModuleEnabled(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		ok := assert.Subset(t, args, []string{"mgr", "module", "ls"})
+		if !ok {
+			return "", errors.Errorf("unexpected ceph command %q", args)
+		}
+		return mgrModuleList, nil
+	}
+
+	isEnabled, err := IsModuleEnabled(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"), "stats")
+	assert.NoError(t, err)
+	assert.True(t, isEnabled)
 }

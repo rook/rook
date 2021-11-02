@@ -305,6 +305,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	statusUpdated := false
+	startMirrorHealthCheck := false
 
 	// Enable mirroring if needed
 	if r.clusterInfo.CephVersion.IsAtLeast(mirror.PeerAdditionMinVersion) {
@@ -339,18 +340,24 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 				// Set Ready status, we are done reconciling
 				r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem))
 				statusUpdated = true
-
-				// Run go routine check for mirroring status
-				if !cephFilesystem.Spec.StatusCheck.Mirror.Disabled {
-					// Start monitoring cephfs-mirror status
-					if r.fsContexts[fsChannelKeyName(cephFilesystem)].started {
-						logger.Debug("ceph filesystem mirror status monitoring go routine already running!")
-					} else {
-						checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &cephFilesystem.Spec, cephFilesystem.Name)
-						go checker.checkMirroring(r.fsContexts[fsChannelKeyName(cephFilesystem)].internalCtx)
-						r.fsContexts[fsChannelKeyName(cephFilesystem)].started = true
-					}
-				}
+				startMirrorHealthCheck = true
+			}
+		}
+		// Filesystem performance metrics are new in Ceph Pacific
+		if cephFilesystem.Spec.EnablePerfStats {
+			startMirrorHealthCheck = true
+		}
+	}
+	if startMirrorHealthCheck {
+		// Run go routine check for mirroring status
+		if !cephFilesystem.Spec.StatusCheck.Mirror.Disabled {
+			// Start monitoring cephfs-mirror status
+			if r.fsContexts[fsChannelKeyName(cephFilesystem)].started {
+				logger.Debug("ceph filesystem mirror status monitoring go routine already running!")
+			} else {
+				checker := newChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &cephFilesystem.Spec, cephFilesystem.Name)
+				go checker.checkHealth(r.fsContexts[fsChannelKeyName(cephFilesystem)].internalCtx)
+				r.fsContexts[fsChannelKeyName(cephFilesystem)].started = true
 			}
 		}
 	}

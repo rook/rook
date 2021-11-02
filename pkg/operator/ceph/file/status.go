@@ -53,8 +53,12 @@ func (r *ReconcileCephFilesystem) updateStatus(client client.Client, namespacedN
 	logger.Debugf("filesystem %q status updated to %q", fs.Name, status)
 }
 
-// updateStatusBucket updates an object with a given status
-func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMirroringInfo, snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec, details string) {
+// updateStatusMirroring updates an object with a given status
+func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMirroringInfo,
+	snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec,
+	perfStats *cephv1.FilesystemStats,
+	details string,
+) {
 	fs := &cephv1.CephFilesystem{}
 	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, fs); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -69,7 +73,7 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMi
 	}
 
 	// Update the CephFilesystem CR status field
-	fs.Status = toCustomResourceStatus(fs.Status, mirrorStatus, snapSchedStatus, details)
+	fs.Status = toCustomResourceStatus(fs.Status, mirrorStatus, snapSchedStatus, perfStats, details)
 	if err := reporting.UpdateStatus(c.client, fs); err != nil {
 		logger.Errorf("failed to set ceph filesystem %q mirroring status. %v", c.namespacedName.Name, err)
 		return
@@ -78,9 +82,15 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMi
 	logger.Debugf("ceph filesystem %q mirroring status updated", c.namespacedName.Name)
 }
 
-func toCustomResourceStatus(currentStatus *cephv1.CephFilesystemStatus, mirrorStatus []cephv1.FilesystemMirroringInfo, snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec, details string) *cephv1.CephFilesystemStatus {
+func toCustomResourceStatus(currentStatus *cephv1.CephFilesystemStatus,
+	mirrorStatus []cephv1.FilesystemMirroringInfo,
+	snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec,
+	perfStats *cephv1.FilesystemStats,
+	details string,
+) *cephv1.CephFilesystemStatus {
 	mirrorStatusSpec := &cephv1.FilesystemMirroringInfoSpec{}
 	mirrorSnapScheduleStatusSpec := &cephv1.FilesystemSnapshotScheduleStatusSpec{}
+	perfStatsSpec := &cephv1.FilesystemStatsSpec{}
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	// MIRROR
@@ -88,7 +98,6 @@ func toCustomResourceStatus(currentStatus *cephv1.CephFilesystemStatus, mirrorSt
 		mirrorStatusSpec.LastChecked = now
 		mirrorStatusSpec.FilesystemMirroringAllInfo = mirrorStatus
 	}
-
 	// Always display the details, typically an error
 	mirrorStatusSpec.Details = details
 
@@ -98,6 +107,9 @@ func toCustomResourceStatus(currentStatus *cephv1.CephFilesystemStatus, mirrorSt
 		}
 		if currentStatus.SnapshotScheduleStatus != nil {
 			mirrorStatusSpec.LastChanged = currentStatus.SnapshotScheduleStatus.LastChanged
+		}
+		if currentStatus.PerfStats != nil {
+			mirrorStatusSpec.LastChanged = currentStatus.PerfStats.LastChanged
 		}
 	}
 
@@ -109,5 +121,19 @@ func toCustomResourceStatus(currentStatus *cephv1.CephFilesystemStatus, mirrorSt
 	// Always display the details, typically an error
 	mirrorSnapScheduleStatusSpec.Details = details
 
-	return &cephv1.CephFilesystemStatus{MirroringStatus: mirrorStatusSpec, SnapshotScheduleStatus: mirrorSnapScheduleStatusSpec, Phase: currentStatus.Phase, Info: currentStatus.Info}
+	// Performance metrics
+	if perfStats != nil {
+		perfStatsSpec.LastChecked = now
+		perfStatsSpec.FilesystemStats = perfStats
+	}
+	// Always display the details, typically an error
+	perfStatsSpec.Details = details
+
+	return &cephv1.CephFilesystemStatus{
+		MirroringStatus:        mirrorStatusSpec,
+		SnapshotScheduleStatus: mirrorSnapScheduleStatusSpec,
+		PerfStats:              perfStatsSpec,
+		Phase:                  currentStatus.Phase,
+		Info:                   currentStatus.Info,
+	}
 }

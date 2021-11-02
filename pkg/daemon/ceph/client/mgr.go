@@ -22,11 +22,21 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"k8s.io/apimachinery/pkg/util/sets"
+)
+
+const (
+	FilesystemPerfModuleName = "stats"
 )
 
 var (
 	moduleEnableWaitTime = 5 * time.Second
 )
+
+type ModuleList struct {
+	AlwaysOnModules []string `json:"always_on_modules"`
+	EnabledModules  []string `json:"enabled_modules"`
+}
 
 func CephMgrMap(context *clusterd.Context, clusterInfo *ClusterInfo) (*MgrMap, error) {
 	args := []string{"mgr", "dump"}
@@ -183,4 +193,26 @@ func ConfigureBalancerModule(context *clusterd.Context, clusterInfo *ClusterInfo
 	}
 
 	return nil
+}
+
+// IsModuleEnabled returns true if a given manager module is enabled
+func IsModuleEnabled(context *clusterd.Context, clusterInfo *ClusterInfo, moduleName string) (bool, error) {
+	args := []string{"mgr", "module", "ls"}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get mgr module list. %s", string(buf))
+	}
+
+	var mgrModuleList ModuleList
+	if err := json.Unmarshal(buf, &mgrModuleList); err != nil {
+		return false, errors.Wrapf(err, "failed to unmarshal mgr module list. %s", string(buf))
+	}
+
+	s := sets.NewString(mgrModuleList.AlwaysOnModules...)
+	s.Insert(mgrModuleList.EnabledModules...)
+	if s.Has(moduleName) {
+		return true, nil
+	}
+
+	return false, nil
 }

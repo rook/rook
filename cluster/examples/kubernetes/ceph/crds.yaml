@@ -4697,6 +4697,9 @@ spec:
                     type: object
                   nullable: true
                   type: array
+                enablePerfStats:
+                  description: EnablePerfStats is used to enable gathering of statistics for all CephFS performance related metrics
+                  type: boolean
                 metadataPool:
                   description: The metadata pool settings
                   nullable: true
@@ -5676,6 +5679,95 @@ spec:
                         type: object
                       nullable: true
                       type: array
+                  type: object
+                stats:
+                  description: Stats represents the statistics of the filesystem. Ceph Filesystem clients periodically forward various metrics to Ceph Metadata Servers (MDS) which in turn get forwarded to Ceph Manager by MDS rank zero. Each active MDS forward its respective set of metrics to MDS rank zero. Metrics are aggregated and forwarded to Ceph Manager.
+                  nullable: true
+                  properties:
+                    client_metadata:
+                      additionalProperties:
+                        description: FilesystemClient represents the client metadata of a mounted Ceph Filesystem
+                        properties:
+                          IP:
+                            description: IP is the IP address of the client
+                            nullable: true
+                            type: string
+                          hostname:
+                            description: Hostname is the hostname of the client
+                            nullable: true
+                            type: string
+                          mount_point:
+                            description: Mountpoint is the mountpoint of the client
+                            nullable: true
+                            type: string
+                          root:
+                            description: Root is the root path of the client mountpoint
+                            nullable: true
+                            type: string
+                          valid_metrics:
+                            description: ValidMetrics is the list of existing metrics (cap_hit, read_latency, write_latency, metadata_latency, dentry_lease...)
+                            items:
+                              type: string
+                            nullable: true
+                            type: array
+                        type: object
+                      description: ClientMetadata are Ceph Filesystem client metadata
+                      nullable: true
+                      type: object
+                    counters:
+                      description: Counters is the list of per-mds performance metrics
+                      items:
+                        description: RawMessage is a raw encoded JSON value. It implements Marshaler and Unmarshaler and can be used to delay JSON decoding or precompute a JSON encoding.
+                        format: byte
+                        type: string
+                      type: array
+                    details:
+                      description: Details contains potential status errors
+                      type: string
+                    global_counters:
+                      description: GlobalCounters is the list of global performance metrics
+                      items:
+                        type: string
+                      type: array
+                    global_metrics:
+                      additionalProperties:
+                        description: GlobalMetricsSpec is a list of performance counters
+                        items:
+                          items:
+                            type: integer
+                          type: array
+                        type: array
+                      description: GlobalMetrics are global performance counters
+                      nullable: true
+                      type: object
+                    lastChanged:
+                      description: LastChanged is the last time time the status last changed
+                      type: string
+                    lastChecked:
+                      description: LastChecked is the last time time the status was checked
+                      type: string
+                    metrics:
+                      description: Metrics are per-MDS performance counters (currently, empty) and delayed ranks
+                      nullable: true
+                      properties:
+                        '-':
+                          additionalProperties:
+                            additionalProperties:
+                              type: string
+                            description: MetadataServerList is the spec of a list of metadata servers and associated clients
+                            type: object
+                          description: MetadataServer is a list of metadata servers and associated clients
+                          nullable: true
+                          type: object
+                        delayed_ranks:
+                          description: DelayedRanks  is the set of active MDS ranks that are reporting stale metrics. This can happen in cases such as (temporary) network issue between MDS rank zero and other active MDSs. +nullable +optional
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    version:
+                      description: Version of stats output
+                      type: integer
                   type: object
               type: object
               x-kubernetes-preserve-unknown-fields: true

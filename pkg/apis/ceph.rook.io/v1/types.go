@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -978,6 +979,9 @@ type FilesystemSpec struct {
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
 
+	// EnablePerfStats is used to enable gathering of statistics for all CephFS performance related metrics
+	EnablePerfStats bool `json:"enablePerfStats,omitempty"`
+
 	// The mirroring settings
 	// +nullable
 	// +optional
@@ -1075,6 +1079,12 @@ type CephFilesystemStatus struct {
 	// MirroringStatus is the filesystem mirroring status
 	// +optional
 	MirroringStatus *FilesystemMirroringInfoSpec `json:"mirroringStatus,omitempty"`
+	// Stats represents the statistics of the filesystem. Ceph Filesystem clients periodically
+	// forward various metrics to Ceph Metadata Servers (MDS) which in turn get forwarded to Ceph
+	// Manager by MDS rank zero. Each active MDS forward its respective set of metrics to MDS rank
+	// zero. Metrics are aggregated and forwarded to Ceph Manager.
+	// +optional
+	PerfStats *FilesystemStatsSpec `json:"stats,omitempty"`
 }
 
 // FilesystemMirroringInfo is the status of the pool mirroring
@@ -1093,6 +1103,88 @@ type FilesystemMirroringInfoSpec struct {
 	// +optional
 	Details string `json:"details,omitempty"`
 }
+
+// FilesystemStatsSpec is the filesystem performance statistics with status update
+type FilesystemStatsSpec struct {
+	// PoolMirroringStatus is the mirroring status of a filesystem
+	// +nullable
+	// +optional
+	*FilesystemStats `json:",inline"`
+	// LastChecked is the last time time the status was checked
+	// +optional
+	LastChecked string `json:"lastChecked,omitempty"`
+	// LastChanged is the last time time the status last changed
+	// +optional
+	LastChanged string `json:"lastChanged,omitempty"`
+	// Details contains potential status errors
+	// +optional
+	Details string `json:"details,omitempty"`
+}
+
+// FilesystemStats represents the filesystem performance statistics
+type FilesystemStats struct {
+	// Version of stats output
+	Version int `json:"version,omitempty"`
+	// GlobalCounters is the list of global performance metrics
+	GlobalCounters []string `json:"global_counters,omitempty"`
+	// Counters is the list of per-mds performance metrics
+	Counters []json.RawMessage `json:"counters,omitempty"`
+	// ClientMetadata are Ceph Filesystem client metadata
+	// +nullable
+	// +optional
+	ClientMetadata map[string]FilesystemClient `json:"client_metadata,omitempty"`
+	// GlobalMetrics are global performance counters
+	// +nullable
+	// +optional
+	GlobalMetrics map[string]GlobalMetricsSpec `json:"global_metrics,omitempty"`
+	// +nullable
+	// +optional
+	// Metrics are per-MDS performance counters (currently, empty) and delayed ranks
+	Metrics *FilesystemMetrics `json:"metrics,omitempty"`
+}
+
+// FilesystemClient represents the client metadata of a mounted Ceph Filesystem
+type FilesystemClient struct {
+	// IP is the IP address of the client
+	// +nullable
+	// +optional
+	IP string `json:"IP,omitempty"`
+	// Hostname is the hostname of the client
+	// +nullable
+	// +optional
+	Hostname string `json:"hostname,omitempty"`
+	// Root is the root path of the client mountpoint
+	// +nullable
+	// +optional
+	Root string `json:"root,omitempty"`
+	// Mountpoint is the mountpoint of the client
+	// +nullable
+	// +optional
+	MountPoint string `json:"mount_point,omitempty"`
+	// ValidMetrics is the list of existing metrics (cap_hit, read_latency, write_latency,
+	// metadata_latency, dentry_lease...)
+	// +nullable
+	// +optional
+	ValidMetrics []string `json:"valid_metrics,omitempty"`
+}
+
+// FilesystemMetrics represents per-MDS performance counters (currently, empty) and delayed ranks
+type FilesystemMetrics struct {
+	// DelayedRanks  is the set of active MDS ranks that are reporting stale metrics. This can
+	// happen in cases such as (temporary) network issue between MDS rank zero and other active
+	// MDSs. +nullable +optional
+	DelayedRanks []string `json:"delayed_ranks,omitempty"`
+	// MetadataServer is a list of metadata servers and associated clients
+	// +nullable
+	// +optional
+	MetadataServer map[string]MetadataServerList `json:"-,omitempty"`
+}
+
+// MetadataServerList is the spec of a list of metadata servers and associated clients
+type MetadataServerList map[string]string
+
+// GlobalMetricsSpec is a list of performance counters
+type GlobalMetricsSpec [][]int
 
 // FilesystemSnapshotScheduleStatusSpec is the status of the snapshot schedule
 type FilesystemSnapshotScheduleStatusSpec struct {

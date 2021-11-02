@@ -54,7 +54,7 @@ func updateStatus(client client.Client, poolName types.NamespacedName, status ce
 	logger.Debugf("pool %q status updated to %q", poolName, status)
 }
 
-// updateStatusBucket updates an object with a given status
+// updateStatusMirroring updates an object with a given status
 func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.PoolMirroringStatusSummarySpec, mirrorInfo *cephv1.PoolMirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
 	blockPool := &cephv1.CephBlockPool{}
 	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, blockPool); err != nil {

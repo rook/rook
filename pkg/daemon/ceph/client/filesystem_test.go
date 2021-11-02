@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -35,6 +36,9 @@ const (
 
 	// this JSON was generated from the mon_command "fs get",  ExecuteMonCommand(conn, map[string]interface{}{"prefix": "fs get","fs_name": fsName,})
 	cephFilesystemGetResponseRaw = `{"mdsmap":{"epoch":6,"flags":1,"ever_allowed_features":0,"explicitly_allowed_features":0,"created":"2016-11-30 08:35:06.416438","modified":"2016-11-30 08:35:06.416438","tableserver":0,"root":0,"session_timeout":60,"session_autoclose":300,"max_file_size":1099511627776,"last_failure":0,"last_failure_osd_epoch":0,"compat":{"compat":{},"ro_compat":{},"incompat":{"feature_1":"base v0.20","feature_2":"client writeable ranges","feature_3":"default file layouts on dirs","feature_4":"dir inode in separate object","feature_5":"mds uses versioned encoding","feature_6":"dirfrag is stored in omap","feature_8":"file layout v2"}},"max_mds":1,"in":[0],"up":{"mds_0":4107},"failed":[],"damaged":[],"stopped":[],"info":{"gid_4107":{"gid":4107,"name":"1","rank":0,"incarnation":4,"state":"up:active","state_seq":3,"addr":"127.0.0.1:6804\/2981621686","standby_for_rank":-1,"standby_for_fscid":-1,"standby_for_name":"","standby_replay":false,"export_targets":[],"features":1152921504336314367}},"data_pools":[1],"metadata_pool":2,"enabled":true,"fs_name":"myfs1","balancer":""},"id":1}`
+
+	// this JSON was generated from the command "fs perf stats"
+	cephFilesystemPerfStatsRaw = `{"version": 1, "global_counters": ["cap_hit", "read_latency", "write_latency", "metadata_latency", "dentry_lease"], "counters": [], "client_metadata": {"client.614146": {"IP": "10.1.1.100", "hostname"  : "ceph-host1", "root": "/", "mount_point": "/mnt/cephfs", "valid_metrics": ["cap_hit", "read_latency", "write_latency", "metadata_latency", "dentry_lease"]}}, "global_metrics": {"client.614146": [[0,  0], [0, 0], [0, 0], [0, 0], [0, 0]]}, "metrics": {"delayed_ranks": [], "mds.0": {"client.614146": []}}}`
 )
 
 func TestFilesystemListMarshal(t *testing.T) {
@@ -586,4 +590,12 @@ func TestWaitForNoStandbys(t *testing.T) {
 	err = WaitForNoStandbys(context, AdminClusterInfo("mycluster"), 6*time.Second)
 	assert.NoError(t, err)
 
+}
+
+func TestGetPerfStatMarshal(t *testing.T) {
+	var fsStats cephv1.FilesystemStats
+	err := json.Unmarshal([]byte(cephFilesystemPerfStatsRaw), &fsStats)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, fsStats.Version)
+	assert.Equal(t, "10.1.1.100", fsStats.ClientMetadata["client.614146"].IP)
 }
