@@ -84,7 +84,7 @@ MANIFEST_TOOL := $(TOOLS_HOST_DIR)/manifest-tool-$(MANIFEST_TOOL_VERSION)
 $(MANIFEST_TOOL):
 	@echo === installing manifest-tool
 	mkdir -p $(TOOLS_HOST_DIR)
-	curl -sL https://github.com/estesp/manifest-tool/releases/download/$(MANIFEST_TOOL_VERSION)/manifest-tool-$(GOHOSTOS)-$(GOHOSTARCH) > $@
+	curl -sL https://github.com/estesp/manifest-tool/releases/download/$(MANIFEST_TOOL_VERSION)/manifest-tool-$(shell go env GOHOSTOS)-$(GOHOSTARCH) > $@
 	chmod +x $@
 
 # ====================================================================================
