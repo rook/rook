@@ -26,32 +26,18 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: print k8s cluster status
-      run:  tests/scripts/github-action-helper.sh print_k8s_cluster_status
+    - name: validate-yaml
+      run: tests/scripts/github-action-helper.sh validate_yaml
 
     - name: use local disk and create partitions for osds
       run: |
         tests/scripts/github-action-helper.sh use_local_disk
         tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
-
-    - name: validate-yaml
-      run: tests/scripts/github-action-helper.sh validate_yaml
 
     - name: deploy cluster
       run: tests/scripts/github-action-helper.sh deploy_cluster
@@ -85,15 +71,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload canary test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
         name: canary
-        path: test
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -109,32 +89,15 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: install deps
-      run: tests/scripts/github-action-helper.sh install_deps
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk and create partitions for osds
       run: |
         tests/scripts/github-action-helper.sh use_local_disk
         tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create cluster prerequisites
       run: |
@@ -162,15 +125,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload  pvc test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
-        name:  pvc
-        path: test
+        name: pvc
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -186,34 +143,16 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: install deps
-      run: tests/scripts/github-action-helper.sh install_deps
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: tests/scripts/github-action-helper.sh use_local_disk
 
     - name: create bluestore partitions and PVCs
       run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
-
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create cluster prerequisites
       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
@@ -232,17 +171,11 @@ jobs:
     - name: wait for ceph to be ready
       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
 
-    - name: collect common
+    - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload pvc-db test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
         name: pvc-db
-        path: test
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -258,35 +191,16 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: install deps
-      run: |
-        tests/scripts/github-action-helper.sh install_deps
-        sudo apt-get install -y gdisk
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: tests/scripts/github-action-helper.sh use_local_disk
 
     - name: create bluestore partitions and PVCs for wal
       run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create cluster prerequisites
       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
@@ -310,15 +224,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload pvc-db-wal test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
         name: pvc-db-wal
-        path: test
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -334,32 +242,15 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: install deps
-      run: tests/scripts/github-action-helper.sh install_deps
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk and create partitions for osds
       run: |
         tests/scripts/github-action-helper.sh use_local_disk
         tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create cluster prerequisites
       run: |
@@ -385,15 +276,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload encryption-pvc test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
         name: encryption-pvc
-        path: test
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -409,35 +294,16 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: install deps
-      run: |
-        tests/scripts/github-action-helper.sh install_deps
-        sudo apt-get install -y gdisk
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: tests/scripts/github-action-helper.sh use_local_disk
 
     - name: create bluestore partitions and PVCs
       run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create cluster prerequisites
       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
@@ -460,15 +326,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload encryption-pvc-db-wal test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
-        name: encryption-pvc-db-wal
-        path: test
+        name: encryption-pvc-db
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -484,35 +344,16 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: install deps
-      run: |
-        tests/scripts/github-action-helper.sh install_deps
-        sudo apt-get install -y gdisk
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: tests/scripts/github-action-helper.sh use_local_disk
 
     - name: create bluestore partitions and PVCs for wal
       run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create cluster prerequisites
       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
@@ -536,15 +377,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload encryption-pvc-db test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
-        name: encryption-pvc-db
-        path: test
+        name: encryption-pvc-db-wal
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -560,32 +395,15 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: install deps
-      run: tests/scripts/github-action-helper.sh install_deps
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk and create partitions for osds
       run: |
         tests/scripts/github-action-helper.sh use_local_disk
         tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create cluster prerequisites
       run: |
@@ -629,15 +447,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload encryption-pvc-kms-vault-token-auth test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
         name: encryption-pvc-kms-vault-token-auth
-        path: test
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -653,32 +465,15 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: install deps
-      run: tests/scripts/github-action-helper.sh install_deps
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk and create partitions for osds
       run: |
         tests/scripts/github-action-helper.sh use_local_disk
         tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create cluster prerequisites
       run: |
@@ -713,15 +508,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload canary test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
-        name: canary
-        path: test
+        name: encryption-pvc-kms-vault-k8s-auth
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -737,30 +526,13 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: install deps
-      run: tests/scripts/github-action-helper.sh install_deps
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk
       run: tests/scripts/github-action-helper.sh use_local_disk
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: create LV on disk
       run: tests/scripts/github-action-helper.sh create_LV_on_disk
@@ -783,15 +555,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: Upload pvc test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
         name: lvm-pvc
-        path: test
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -807,36 +573,17 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/setup-cluster-resources
       with:
-        go-version: 1.16
-
-    - name: install deps
-      run: tests/scripts/github-action-helper.sh install_deps
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: use local disk into two partitions
       run: |
+        tests/scripts/github-action-helper.sh use_local_disk
         BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-        BLOCK_DATA_PART=${BLOCK}1
-        sudo dmsetup version||true
-        sudo swapoff --all --verbose
-        sudo umount /mnt
-        # search for the device since it keeps changing between sda and sdb
-        sudo wipefs --all --force "$BLOCK_DATA_PART"
         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
 
     - name: deploy first cluster rook
       run: |
@@ -997,15 +744,9 @@ jobs:
 
     - name: collect common logs
       if: always()
-      run: |
-        tests/scripts/collect-logs.sh
-
-    - name: upload test result
-      uses: actions/upload-artifact@v2
-      if: always()
+      uses: ./.github/workflows/collect-logs
       with:
         name: multi-cluster-mirroring
-        path: test
 
     - name: setup tmate session for debugging when event is PR
       if: failure() && github.event_name == 'pull_request'
@@ -1030,7 +771,6 @@ jobs:
       run: |
         tests/scripts/github-action-helper.sh install_deps
         sudo apt-get install -y s3cmd
-
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.3.1
       with:
@@ -1045,7 +785,6 @@ jobs:
         tests/scripts/github-action-helper.sh use_local_disk
         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
-
     - name: build rook
       run: tests/scripts/github-action-helper.sh build_rook
 
@@ -1055,7 +794,6 @@ jobs:
         kubectl create -f cluster/examples/kubernetes/ceph/object-multisite-test.yaml
         # wait for multisite store to be created
         tests/scripts/github-action-helper.sh wait_for_rgw rook-ceph
-
     - name: prep second cluster pull realm config
       run: |
         cd cluster/examples/kubernetes/ceph/
@@ -1065,14 +803,12 @@ jobs:
         BASE64_SECRET_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.secret-key}")
         sed -i 's/VzFjNFltMVdWRTFJWWxZelZWQT0=/'"$BASE64_ACCESS_KEY"'/g' object-multisite-pull-realm-test.yaml
         sed -i 's/WVY1MFIxeExkbG84U3pKdlRseEZXVGR3T3k1U1dUSS9KaTFoUVE9PQ==/'"$BASE64_SECRET_KEY"'/g' object-multisite-pull-realm-test.yaml
-
     - name: deploy second cluster rook
       run: |
         tests/scripts/github-action-helper.sh deploy_second_rook_cluster
         kubectl create -f cluster/examples/kubernetes/ceph/object-multisite-pull-realm-test.yaml
         # wait for realms to be pulled and zone-b-multisite-store to be created
         tests/scripts/github-action-helper.sh wait_for_rgw rook-ceph-secondary
-
     - name: write an object to one cluster, read from the other
       run: tests/scripts/github-action-helper.sh write_object_to_cluster1_read_from_cluster2
 
@@ -1088,7 +824,6 @@ jobs:
         not_committed_msg="there are no changes to commit for RGW configuration period for CephObjectStore"
         tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary}" 120
         tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary}" 90
-
     - name: collect common logs
       if: always()
       run: |

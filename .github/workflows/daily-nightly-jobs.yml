@@ -78,8 +78,9 @@ jobs:
 
       - name: collect common logs
         if: always()
-        run: |
-          tests/scripts/collect-logs.sh
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: canary-arm64
 
       - name: upload canary test result
         uses: actions/upload-artifact@v2
@@ -96,27 +97,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup golang
-        uses: actions/setup-go@v2
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup
         with:
-          go-version: 1.16
-
-      - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.23.2"
-          kubernetes version: "v1.22.2"
-          start args: --memory 6g --cpus=2
-          github token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-
-      - name: build rook
-        run: tests/scripts/github-action-helper.sh build_rook
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: "1.22.2"
 
       - name: TestCephSmokeSuite
         run: |
@@ -146,27 +131,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup golang
-        uses: actions/setup-go@v2
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup
         with:
-          go-version: 1.16
-
-      - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.23.2"
-          kubernetes version: "v1.22.2"
-          start args: --memory 6g --cpus=2
-          github token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-
-      - name: build rook
-        run: tests/scripts/github-action-helper.sh build_rook
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: "1.22.2"
 
       - name: TestCephSmokeSuite
         run: |
@@ -196,27 +165,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup golang
-        uses: actions/setup-go@v2
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup
         with:
-          go-version: 1.16
-
-      - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.23.2"
-          kubernetes version: "v1.22.2"
-          start args: --memory 6g --cpus=2
-          github token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-
-      - name: build rook
-        run: tests/scripts/github-action-helper.sh build_rook
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: "1.22.2"
 
       - name: TestCephObjectSuite
         run: |
@@ -246,27 +199,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup golang
-        uses: actions/setup-go@v2
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup
         with:
-          go-version: 1.16
-
-      - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.23.2"
-          kubernetes version: "v1.22.2"
-          start args: --memory 6g --cpus=2
-          github token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-
-      - name: build rook
-        run: tests/scripts/github-action-helper.sh build_rook
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: "1.22.2"
 
       - name: TestCephObjectSuite
         run: |
@@ -296,27 +233,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup golang
-        uses: actions/setup-go@v2
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup
         with:
-          go-version: 1.16
-
-      - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.23.2"
-          kubernetes version: "v1.22.2"
-          start args: --memory 6g --cpus=2
-          github token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-
-      - name: build rook
-        run: tests/scripts/github-action-helper.sh build_rook
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: "1.22.2"
 
       - name: TestCephUpgradeSuite
         run: |
@@ -346,27 +267,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup golang
-        uses: actions/setup-go@v2
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-setup
         with:
-          go-version: 1.16
-
-      - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.23.2"
-          kubernetes version: "v1.22.2"
-          start args: --memory 6g --cpus=2
-          github token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-
-      - name: build rook
-        run: tests/scripts/github-action-helper.sh build_rook
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: "1.22.2"
 
       - name: TestCephUpgradeSuite
         run: |
