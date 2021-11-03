@@ -38,9 +38,8 @@ GOARCH := $(word 2, $(subst _, ,$(PLATFORM)))
 export GOOS GOARCH
 endif
 
-GOHOSTOS := $(shell go env GOHOSTOS)
-GOHOSTARCH := $(shell go env GOHOSTARCH)
-HOST_PLATFORM := $(GOHOSTOS)_$(GOHOSTARCH)
+# GOHOSTOS := $(shell go env GOHOSTOS)
+
 
 ALL_PLATFORMS ?= darwin_amd64 windows_amd64 linux_amd64 linux_arm64
 
@@ -51,18 +50,37 @@ ifeq ($(PLATFORM),linux_arm64)
 CROSS_TRIPLE = aarch64-linux-gnu
 endif
 ifeq ($(PLATFORM),darwin_amd64)
+# force the build of a linux binary when running on MacOS
+GOHOSTOS=linux
 CROSS_TRIPLE=x86_64-apple-darwin15
 endif
 ifeq ($(PLATFORM),windows_amd64)
+# force the build of a linux binary when running on Windows
+GOHOSTOS=linux
 CROSS_TRIPLE=x86_64-w64-mingw32
 endif
 export GOARM
 
+GOHOSTARCH := $(shell go env GOHOSTARCH)
+HOST_PLATFORM := $(GOHOSTOS)_$(GOHOSTARCH)
+
 ifneq ($(PLATFORM),$(HOST_PLATFORM))
+ifeq (,$(shell go env CC))
 CC := $(CROSS_TRIPLE)-gcc
-CXX := $(CROSS_TRIPLE)-g++
+else
+CC := $(shell go env CC)
+endif
+ifeq (,$(shell go env CXX))
+CXX := $(CROSS_TRIPLE)-gcc
+else
+CXX := $(shell go env CXX)
+endif
 export CC CXX
 endif
+
+# REAL_HOST_PLATFORM is used to determine the correct url to download the various binary tools from and it does not use
+# HOST_PLATFORM which is used to build the program.
+REAL_HOST_PLATFORM=$(shell go env GOHOSTOS)_$(GOHOSTARCH)
 
 # set the version number. you should not need to do this
 # for the majority of scenarios.

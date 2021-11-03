@@ -31,8 +31,8 @@ $(HELM_OUTPUT_DIR):
 $(HELM):
 	@echo === installing helm
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@curl -sL https://get.helm.sh/helm-$(HELM_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
-	@mv $(TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/helm $(HELM)
+	@curl -sL https://get.helm.sh/helm-$(HELM_VERSION)-$(shell go env GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@mv $(TOOLS_HOST_DIR)/tmp/$(shell go env GOHOSTOS)-$(GOHOSTARCH)/helm $(HELM)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 define helm.chart

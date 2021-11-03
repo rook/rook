@@ -36,15 +36,15 @@ TEMP := $(shell mktemp -d)
 # Note: as of version 1.3 of operator-sdk, the url format changed to:
 # ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
 # (see: https://sdk.operatorframework.io/docs/installation/)
-ifeq ($(HOST_PLATFORM),linux_amd64)
+ifeq ($(REAL_HOST_PLATFORM),linux_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
 INCLUDE_CSV_TEMPLATES = true
 endif
-ifeq ($(HOST_PLATFORM),linux_arm64)
+ifeq ($(REAL_HOST_PLATFORM),linux_arm64)
 OPERATOR_SDK_PLATFORM = aarch64-linux-gnu
 INCLUDE_CSV_TEMPLATES = true
 endif
-ifeq ($(HOST_PLATFORM),darwin_amd64)
+ifeq ($(REAL_HOST_PLATFORM),darwin_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-apple-darwin
 INCLUDE_CSV_TEMPLATES = true
 endif
@@ -126,13 +126,13 @@ get-volume-replication-crds:
 	@cp $(CACHE_DIR)/crds/* $(CRD_TEMPLATE_DIR)
 
 $(YQ):
-	@echo === installing yq $(GOHOST)
+	@echo === installing yq $(REAL_HOST_PLATFORM)
 	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(HOST_PLATFORM) -o $(YQ)
+	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQ)
 	@chmod +x $(YQ)
 
 $(OPERATOR_SDK):
-	@echo === installing operator-sdk $(GOHOST)
+	@echo === installing operator-sdk $(REAL_HOST_PLATFORM)
 	@mkdir -p $(TOOLS_HOST_DIR)
 	@curl -JL -o $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION) \
 		https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)

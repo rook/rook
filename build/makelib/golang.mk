@@ -189,7 +189,7 @@ $(GOLINT):
 $(GOFMT):
 	@echo === installing gofmt$(GOFMT_VERSION)
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@curl -sL https://dl.google.com/go/go$(GOFMT_VERSION).$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@curl -sL https://dl.google.com/go/go$(GOFMT_VERSION).$(shell go env GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
 	@mv $(TOOLS_HOST_DIR)/tmp/go/bin/gofmt $(GOFMT)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
