@@ -109,7 +109,8 @@ func diffImageSpecAndClusterRunningVersion(imageSpecVersion cephver.CephVersion,
 			}
 
 			if cephver.IsInferior(imageSpecVersion, clusterRunningVersion) {
-				return true, errors.Errorf("image spec version %s is lower than the running cluster version %s, downgrading is not supported", imageSpecVersion.String(), clusterRunningVersion.String())
+				logger.Warningf("image spec version %s is lower than the running cluster version %s, downgrading is not supported", imageSpecVersion.String(), clusterRunningVersion.String())
+				return true, nil
 			}
 		}
 	}
