@@ -5,11 +5,11 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   rados:
-    # RADOS pool where NFS client recovery data is stored, must be a replica pool. EC pools don't support omap which is required by ganesha.
-    # In this example the data pool for the "myfs" filesystem is used. Separate pool for storing ganesha recovery data is recommended.
-    # Due to this dashboard issue https://tracker.ceph.com/issues/46176.
-    # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
-    pool: myfs-data0
+    # The Ganesha pool spec. Must use replication.
+    poolConfig:
+      failureDomain: host
+      replicated:
+        size: 3
     # RADOS namespace where NFS client recovery data is stored in the pool.
     namespace: nfs-ns
   # Settings for the NFS server
