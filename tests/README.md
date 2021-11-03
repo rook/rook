@@ -6,32 +6,36 @@ quickly spin up a Kubernetes cluster. The Test framework is designed to install 
 
 ## Install Kubernetes
 
-You can choose any Kubernetes install of your choice.  The test framework only depends on `kubectl` being configured.
-An optional helper script is provided to install Kubernetes with minikube.
+You can choose any Kubernetes install of your choice. The test framework only depends on `kubectl`
+being configured. To install `kubectl`, please see the [official guide](https://kubernetes.io/docs/tasks/tools/#kubectl).
 
 ### Minikube
+
+To install Minikube follow the [official
+guide](https://minikube.sigs.k8s.io/docs/start/). It is recommended to use the
+kvm2 driver when running on a Linux machine and the hyperkit driver when running on a MacOS. Both
+allow to create and attach additional disks to the virtual machine. This is required for the Ceph
+OSD to consume one drive.  We don't recommend any other drivers for Rook. You will need a Minikube
+version 1.23 or higher.
 
 Starting the cluster on Minikube is as simple as running:
 
 ```console
-tests/scripts/minikube.sh up
+# On Linux
+minikube start --disk-size=40g --extra-disks=1 --driver kvm2
+
+# On MacOS
+minikube start --disk-size=40g --extra-disks=1 --driver hyperkit
 ```
 
-To copy Rook images generated from your local build into the Minikube VM, run the following commands after `minikube.sh up` succeeded:
+It is recommended to install a Docker client on your host system too. Depending on your operating
+system follow the [official guide](https://docs.docker.com/engine/install/binaries/).
+
+Stopping the cluster and destroying the Minikube virtual machine can be done with:
 
 ```console
-tests/scripts/minikube.sh update
-tests/scripts/minikube.sh helm
+minikube delete
 ```
-
-Stopping the cluster and destroying the Minikube VM can be done with:
-
-```console
-tests/scripts/minikube.sh clean
-```
-
-For faster iteration during development, take a snapshot of the fresh minikube VM and then reset
-the VM each time you need a clean environment.
 
 ## Install Helm
 
@@ -41,27 +45,35 @@ Use [helm.sh](/tests/scripts/helm.sh) to install Helm and set up Rook charts def
 - To clean up `tests/scripts/helm.sh clean`.
 
 **NOTE:** These helper scripts depend on some artifacts under the `_output/` directory generated during build time.
-These scripts should be run from the project root. e.g., `tests/script/minikube.sh up`.
+These scripts should be run from the project root.
 
 **NOTE**: If Helm is not available in your `PATH`, Helm will be downloaded to a temporary directory (`/tmp/rook-tests-scripts-helm`) and used from that directory.
 
 ## Run Tests
 
-From the project root do the following after bringing up your Kubernetes cluster such as minikube:
-
 ### 1. Build rook
 
-`make build`
-
-### 2. Start Kubernetes
-
-Start the minikube cluster and copy the local build into minikube:
+Now that the Kubernetes cluster is running we need to populate the Docker registry environment variables:
 
 ```console
-tests/scripts/minikube.sh up
+eval $(minikube docker-env -p minikube)
 ```
 
-### 3. Run integration tests
+The build process will build and push the images to the Docker registry **inside** the Minikube
+virtual machine.
+
+```console
+make build
+```
+
+Now tag the newly built images to `rook/ceph:local-build` for running tests, or `rook/ceph:master` if creating sample manifests::
+
+```console
+docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
+docker tag rook/ceph:local-build rook/ceph:master
+```
+
+### 2. Run integration tests
 
 Some settings are available to run the tests under different environments. The settings are all configured with environment variables.
 See [environment.go](/tests/framework/installer/environment.go) for the available environment variables.
@@ -70,7 +82,7 @@ At least you should set the following variables.
 ```console
 export TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/linux-amd64/helm
 export TEST_BASE_DIR=WORKING_DIR
-export TEST_SCRATCH_DEVICE=<block device> # for example, TEST_SCRATCH_DEVICE=/dev/sdb
+export TEST_SCRATCH_DEVICE=/dev/vdb
 ```
 
 Please note that the integration tests erase the contents of TEST_SCRATCH_DEVICE.
@@ -95,7 +107,7 @@ To run specific tests inside a suite:
 go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestARookClusterInstallation_SmokeTest
 ```
 
-### To run tests on OpenShift environment
+### 3. To run tests on OpenShift environment
 
 - Setup OpenShift environment and export KUBECONFIG before executing the tests.
 - Make sure `oc` executable file is in the PATH.

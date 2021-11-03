@@ -357,6 +357,12 @@ EOF
   diff 1M.dat 1M-get.dat
 }
 
+function create_helm_tag() {
+  helm_tag="$(cat _output/version)"
+  build_image="$(docker images | awk '/build-/ {print $1}')"
+  docker tag "${build_image}" "rook/ceph:${helm_tag}"
+}
+
 FUNCTION="$1"
 shift # remove function arg now that we've recorded it
 # call the function with the remainder of the user-provided args
