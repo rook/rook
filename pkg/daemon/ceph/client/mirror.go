@@ -371,7 +371,7 @@ func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterI
 		ClusterFSID: clusterInfo.FSID,
 		ClientID:    rbdMirrorPeerKeyringID,
 		Key:         key,
-		MonHost:     strings.Join(mons.UnsortedList(), ","),
+		MonHost:     strings.Join(mons.List(), ","),
 		Namespace:   clusterInfo.Namespace,
 	}
 
