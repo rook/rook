@@ -184,6 +184,10 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("cephObjectStore resource not found. Ignoring since object must be deleted.")
+			// If there was a previous error or if a user removed this resource's finalizer, it's
+			// possible Rook didn't clean up the monitoring routine for this resource. Ensure the
+			// routine is stopped when we see the resource is gone.
+			r.stopMonitoring(cephObjectStore)
 			return reconcile.Result{}, cephObjectStore, nil
 		}
 		// Error reading the object - requeue the request.
@@ -212,6 +216,9 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		// If not, we should wait for it to be ready
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephObjectStore.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// don't leak the health checker routine if we are force deleting
+			r.stopMonitoring(cephObjectStore)
+
 			// Remove finalizer
 			err := opcontroller.RemoveFinalizer(r.client, cephObjectStore)
 			if err != nil {
@@ -228,11 +235,20 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// Initialize the channel for this object store
 	// This allows us to track multiple ObjectStores in the same namespace
+<<<<<<< HEAD
 	_, ok := r.objectStoreChannels[cephObjectStore.Name]
 	if !ok {
 		r.objectStoreChannels[cephObjectStore.Name] = &objectStoreHealth{
 			stopChan:          make(chan struct{}),
 			monitoringRunning: false,
+=======
+	_, ok := r.objectStoreContexts[monitoringChannelKey(cephObjectStore)]
+	if !ok {
+		internalCtx, internalCancel := context.WithCancel(r.opManagerContext)
+		r.objectStoreContexts[monitoringChannelKey(cephObjectStore)] = &objectStoreHealth{
+			internalCtx:    internalCtx,
+			internalCancel: internalCancel,
+>>>>>>> 03ba7dec6 (pool: file: object: clean up stop health checkers)
 		}
 	}
 
@@ -257,6 +273,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
 		updateStatus(r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore))
 
+<<<<<<< HEAD
 		if ok {
 			select {
 			case <-r.objectStoreChannels[cephObjectStore.Name].stopChan:
@@ -303,7 +320,49 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 			// Remove object store from the map
 			delete(r.objectStoreChannels, cephObjectStore.Name)
+=======
+		// Detect running Ceph version
+		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
+		if err != nil {
+			return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
 		}
+		r.clusterInfo.CephVersion = runningCephVersion
+		r.clusterInfo.Context = r.opManagerContext
+
+		// get the latest version of the object to check dependencies
+		err = r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectStore)
+		if err != nil {
+			return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to get latest CephObjectStore %q", request.NamespacedName.String())
+>>>>>>> 03ba7dec6 (pool: file: object: clean up stop health checkers)
+		}
+		objCtx, err := NewMultisiteContext(r.context, r.clusterInfo, cephObjectStore)
+		if err != nil {
+			return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to check for object buckets. failed to get object context")
+		}
+		opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
+		if err != nil {
+			return reconcile.Result{}, cephObjectStore, errors.Wrapf(err, "failed to check for object buckets. failed to get admin ops API context")
+		}
+		deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
+		if err != nil {
+			return reconcile.Result{}, cephObjectStore, err
+		}
+		if !deps.Empty() {
+			err := reporting.ReportDeletionBlockedDueToDependents(logger, r.client, cephObjectStore, deps)
+			return opcontroller.WaitForRequeueIfFinalizerBlocked, cephObjectStore, err
+		}
+		reporting.ReportDeletionNotBlockedDueToDependents(logger, r.client, r.recorder, cephObjectStore)
+
+		// Cancel the context to stop monitoring the health of the object store
+		r.stopMonitoring(cephObjectStore)
+
+		cfg := clusterConfig{
+			context:     r.context,
+			store:       cephObjectStore,
+			clusterSpec: r.clusterSpec,
+			clusterInfo: r.clusterInfo,
+		}
+		cfg.deleteStore()
 
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.client, cephObjectStore)
@@ -517,9 +576,19 @@ func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1
 	return cephObjectStore.Name, cephObjectStore.Name, cephObjectStore.Name, reconcile.Result{}, nil
 }
 
+func monitoringChannelKey(o *cephv1.CephObjectStore) string {
+	return types.NamespacedName{Namespace: o.Namespace, Name: o.Name}.String()
+}
+
 func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjectStore, objContext *Context, namespacedName types.NamespacedName) error {
+	channelKey := monitoringChannelKey(objectstore)
+
 	// Start monitoring object store
+<<<<<<< HEAD
 	if r.objectStoreChannels[objectstore.Name].monitoringRunning {
+=======
+	if r.objectStoreContexts[channelKey].started {
+>>>>>>> 03ba7dec6 (pool: file: object: clean up stop health checkers)
 		logger.Info("external rgw endpoint monitoring go routine already running!")
 		return nil
 	}
@@ -530,10 +599,31 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 	}
 
 	logger.Infof("starting rgw health checker for CephObjectStore %q", namespacedName.String())
+<<<<<<< HEAD
 	go rgwChecker.checkObjectStore(r.objectStoreChannels[objectstore.Name].stopChan)
 
 	// Set the monitoring flag so we don't start more than one go routine
 	r.objectStoreChannels[objectstore.Name].monitoringRunning = true
+=======
+	go rgwChecker.checkObjectStore(r.objectStoreContexts[channelKey].internalCtx)
+
+	// Set the monitoring flag so we don't start more than one go routine
+	r.objectStoreContexts[channelKey].started = true
+>>>>>>> 03ba7dec6 (pool: file: object: clean up stop health checkers)
 
 	return nil
+}
+
+// cancel monitoring. This is a noop if monitoring is not running.
+func (r *ReconcileCephObjectStore) stopMonitoring(objectstore *cephv1.CephObjectStore) {
+	channelKey := monitoringChannelKey(objectstore)
+
+	_, monitoringContextExists := r.objectStoreContexts[channelKey]
+	if monitoringContextExists {
+		// stop the monitoring routine
+		r.objectStoreContexts[channelKey].internalCancel()
+
+		// remove the monitoring routine from the map
+		delete(r.objectStoreContexts, channelKey)
+	}
 }
