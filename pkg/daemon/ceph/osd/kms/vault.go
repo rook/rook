@@ -36,13 +36,6 @@ const (
 	EtcVaultDir = "/etc/vault"
 	// VaultSecretEngineKey is the type of secret engine used (kv, transit)
 	VaultSecretEngineKey = "VAULT_SECRET_ENGINE"
-	// RookOperatorVaultAuthKubernetesRole is the internal Rook mapping of the Vault role that maps
-	// operator's service account and namespace to the Vault policy that allows them to read the
-	// secrets
-	RookOperatorVaultAuthKubernetesRole = "VAULT_AUTH_KUBERNETES_ROOK_OPERATOR_ROLE"
-	// RookOSDVaultAuthKubernetesRole is the internal Rook mapping of the Vault role that maps OSD's
-	// service account and namespace to the Vault policy that allows them to read the secrets
-	RookOSDVaultAuthKubernetesRole = "VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE"
 	// VaultKVSecretEngineKey is a kv secret engine type
 	VaultKVSecretEngineKey = "kv"
 	// VaultTransitSecretEngineKey is a transit secret engine type
@@ -50,8 +43,7 @@ const (
 )
 
 var (
-	vaultMandatoryConnectionDetails              = []string{api.EnvVaultAddress}
-	vaultK8sAuthMethodMandatoryConnectionDetails = []string{RookOperatorVaultAuthKubernetesRole, RookOSDVaultAuthKubernetesRole}
+	vaultMandatoryConnectionDetails = []string{api.EnvVaultAddress}
 )
 
 // Used for unit tests mocking too as well as production code
@@ -258,28 +250,9 @@ func (c *Config) IsVault() bool {
 
 func validateVaultConnectionDetails(clusterdContext *clusterd.Context, ns string, kmsConfig map[string]string) error {
 	ctx := context.TODO()
-	// If Kubernetes authentication is enabled, let's merge into mandatory details
-	isK8sAuthEnabled := GetParam(kmsConfig, vault.AuthMethod) == vault.AuthMethodKubernetes
-	if isK8sAuthEnabled {
-		vaultMandatoryConnectionDetails = append(vaultMandatoryConnectionDetails, vaultK8sAuthMethodMandatoryConnectionDetails...)
-	}
 	for _, option := range vaultMandatoryConnectionDetails {
 		if GetParam(kmsConfig, option) == "" {
 			return errors.Errorf("failed to find connection details %q", option)
-		}
-	}
-
-	// When validating the connection details, we need to give a value to VAULT_AUTH_KUBERNETES_ROLE
-	// with the role we are currently running on. If we run from the operator we must use
-	// VAULT_AUTH_KUBERNETES_ROLE to VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE
-	// The CLI does not use the env var so VAULT_AUTH_KUBERNETES_ROLE is incorrect since it's
-	// setting the operator role.
-	if isK8sAuthEnabled {
-		// If ROOK_CRUSHMAP_ROOT is empty we are most likely running from the operator
-		if os.Getenv("ROOK_CRUSHMAP_ROOT") == "" {
-			kmsConfig[vault.AuthKubernetesRole] = kmsConfig[RookOperatorVaultAuthKubernetesRole]
-		} else {
-			kmsConfig[vault.AuthKubernetesRole] = kmsConfig[RookOSDVaultAuthKubernetesRole]
 		}
 	}
 

@@ -11,5 +11,4 @@ spec:
         VAULT_CLIENT_CERT: "vault-client-cert"
         VAULT_CACERT: "vault-ca-cert"
         VAULT_AUTH_METHOD: kubernetes
-        VAULT_AUTH_KUBERNETES_ROOK_OPERATOR_ROLE: rook-op
-        VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE: rook-osd
+        VAULT_AUTH_KUBERNETES_ROLE: "rook-ceph"
