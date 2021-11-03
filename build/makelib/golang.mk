@@ -118,13 +118,13 @@ go.init:
 go.build:
 	@echo === go build $(PLATFORM)
 	$(info Go version: $(shell $(GO) version))
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
-	$(foreach p,$(GO_TEST_PACKAGES),@CGO_ENABLED=0 $(GO) test -v -c -o $(GO_TEST_OUTPUT)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
+	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GO) build -v -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
+	$(foreach p,$(GO_TEST_PACKAGES),@CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GO) test -v -c -o $(GO_TEST_OUTPUT)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
 
 .PHONY: go.install
 go.install:
 	@echo === go install $(PLATFORM)
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) install -v $(GO_STATIC_FLAGS) $(p)${\n})
+	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GO) install -v $(GO_STATIC_FLAGS) $(p)${\n})
 
 # GOJUNIT need to happen in order and NOT in parallel, so call them explicitly
 .PHONY: go.test.unit
@@ -132,16 +132,16 @@ go.test.unit:
 	@$(MAKE) $(GOJUNIT)
 	@echo === go test unit-tests
 	@mkdir -p $(GO_TEST_OUTPUT)
-	CGO_ENABLED=0 $(GOHOST) test -v -cover $(GO_STATIC_FLAGS) $(GO_PACKAGES)
-	CGO_ENABLED=0 $(GOHOST) test -v -cover $(GO_TEST_FLAGS) $(GO_STATIC_FLAGS) $(GO_PACKAGES) 2>&1 | tee $(GO_TEST_OUTPUT)/unit-tests.log
+	CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GOHOST) test -v -cover $(GO_STATIC_FLAGS) $(GO_PACKAGES)
+	CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GOHOST) test -v -cover $(GO_TEST_FLAGS) $(GO_STATIC_FLAGS) $(GO_PACKAGES) 2>&1 | tee $(GO_TEST_OUTPUT)/unit-tests.log
 	@cat $(GO_TEST_OUTPUT)/unit-tests.log | $(GOJUNIT) -set-exit-code > $(GO_TEST_OUTPUT)/unit-tests.xml
 
 .PHONY:
 go.test.integration: $(GOJUNIT)
 	@echo === go test integration-tests
 	@mkdir -p $(GO_TEST_OUTPUT)
-	CGO_ENABLED=0 $(GOHOST) test -v -i $(GO_STATIC_FLAGS) $(GO_INTEGRATION_TEST_PACKAGES)
-	CGO_ENABLED=0 $(GOHOST) test -v -timeout 7200s $(GO_TEST_FLAGS) $(GO_STATIC_FLAGS) $(GO_INTEGRATION_TEST_PACKAGES) $(TEST_FILTER_PARAM) 2>&1 | tee $(GO_TEST_OUTPUT)/integration-tests.log
+	CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GOHOST) test -v -i $(GO_STATIC_FLAGS) $(GO_INTEGRATION_TEST_PACKAGES)
+	CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GOHOST) test -v -timeout 7200s $(GO_TEST_FLAGS) $(GO_STATIC_FLAGS) $(GO_INTEGRATION_TEST_PACKAGES) $(TEST_FILTER_PARAM) 2>&1 | tee $(GO_TEST_OUTPUT)/integration-tests.log
 	@cat $(GO_TEST_OUTPUT)/integration-tests.log | $(GOJUNIT) -set-exit-code > $(GO_TEST_OUTPUT)/integration-tests.xml
 
 .PHONY: go.lint
@@ -152,7 +152,8 @@ go.lint: $(GOLINT)
 .PHONY: go.vet
 go.vet:
 	@echo === go vet
-	@CGO_ENABLED=0 $(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
+	@echo CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
+	@CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
 
 .PHONY: go.fmt
 # ignore deepcopy generated files since the tool hardcoded the header with a "// +build" which in Golang 1.17 makes it fail gofmt since "////go:build" is preferred
@@ -208,7 +209,7 @@ $(CONTROLLER_GEN) $(YQ):
 		cd $$CONTROLLER_GEN_TMP_DIR ;\
 		go mod init tmp;\
 		unset GOOS GOARCH ;\
-		export CGO_ENABLED=0 ;\
+		export CGO_ENABLED=$(CGO_ENABLED_VALUE) ;\
 		export GOBIN=$$CONTROLLER_GEN_TMP_DIR ;\
 		echo === installing controller-gen ;\
 		go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION);\

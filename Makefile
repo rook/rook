@@ -76,6 +76,9 @@ GO_PROJECT=github.com/rook/rook
 # inject the version number into the golang version package using the -X linker flag
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
+# CGO_ENABLED value
+CGO_ENABLED_VALUE=0
+
 # ====================================================================================
 # Setup projects
 
