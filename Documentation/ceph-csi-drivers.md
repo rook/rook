@@ -3,7 +3,7 @@ title: Ceph CSI
 weight: 3200
 indent: true
 ---
-
+{% include_relative branch.liquid %}
 # Ceph CSI Drivers
 
 There are two CSI drivers integrated with Rook that will enable different scenarios:
@@ -92,3 +92,39 @@ kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replicatio
 2. Enable the volume replication controller:
    - For Helm deployments see the [csi.volumeReplication.enabled setting](helm-operator.md#configuration).
    - For non-Helm deployments set `CSI_ENABLE_VOLUME_REPLICATION: "true"` in operator.yaml
+
+## Ephemeral volume support
+
+The generic ephemeral volume feature adds support for specifying PVCs in the
+`volumes` field to indicate a user would like to create a Volume as part of the pod spec.
+This feature requires the GenericEphemeralVolume feature gate to be enabled.
+
+For example:
+
+```yaml
+kind: Pod
+apiVersion: v1
+...
+  volumes:
+    - name: mypvc
+      ephemeral:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            storageClassName: "rook-ceph-block"
+            resources:
+              requests:
+                storage: 1Gi
+```
+
+A volume claim template is defined inside the pod spec which refers to a volume
+provisioned and used by the pod with its lifecycle. The volumes are provisioned
+when pod get spawned and destroyed at time of pod delete.
+
+Refer to [ephemeral-doc]( https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes )
+for more info. Also, See the example manifests for an [RBD ephemeral volume]
+(https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/pod-ephemeral.yaml)
+and a [CephFS ephemeral volume](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/pod-ephemeral.yaml).
+
+### Prerequisites
+Kubernetes version 1.21 or greater is required.
