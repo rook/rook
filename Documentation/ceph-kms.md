@@ -8,7 +8,7 @@ indent: true
 
 Rook has the ability to encrypt OSDs of clusters running on PVC via the flag (`encrypted: true`) in your `storageClassDeviceSets` [template](#pvc-based-cluster).
 By default, the Key Encryption Keys (also known as Data Encryption Keys) are stored in a Kubernetes Secret.
-However, if a Key Management System exists Rook is capable of using it. 
+However, if a Key Management System exists Rook is capable of using it.
 
 The `security` section contains settings related to encryption of the cluster.
 
@@ -91,8 +91,6 @@ ROOK_VAULT_SA=rook-vault-auth
 ROOK_SYSTEM_SA=rook-ceph-system
 ROOK_OSD_SA=rook-ceph-osd
 VAULT_POLICY_NAME=rook
-VAULT_ROOK_OP_ROLE_NAME=rook-op
-VAULT_ROOK_OSD_ROLE_NAME=rook-osd
 
 # create service account for vault to validate API token
 kubectl -n "$ROOK_NAMESPACE" create serviceaccount "$ROOK_VAULT_SA"
@@ -128,16 +126,9 @@ vault write auth/kubernetes/config \
 
 kill $proxy_pid
 
-# configure a role for rook operator
-vault write auth/kubernetes/role/"$VAULT_ROOK_OP_ROLE_NAME" \
-    bound_service_account_names="$ROOK_SYSTEM_SA" \
-    bound_service_account_namespaces="$ROOK_NAMESPACE" \
-    policies="$VAULT_POLICY_NAME" \
-    ttl=1440h
-
-# configure a role for rook osds
-vault write auth/kubernetes/role/"$VAULT_ROOK_OSD_ROLE_NAME" \
-    bound_service_account_names="$ROOK_OSD_SA" \
+# configure a role for rook
+vault write auth/kubernetes/role/"$ROOK_NAMESPACE" \
+    bound_service_account_names="$ROOK_SYSTEM_SA","$ROOK_OSD_SA" \
     bound_service_account_namespaces="$ROOK_NAMESPACE" \
     policies="$VAULT_POLICY_NAME" \
     ttl=1440h
@@ -154,8 +145,7 @@ security:
         VAULT_BACKEND_PATH: rook/ver1
         VAULT_SECRET_ENGINE: kv
         VAULT_AUTH_METHOD: kubernetes
-        VAULT_AUTH_KUBERNETES_ROOK_OPERATOR_ROLE: rook-op
-        VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE: rook-osd
+        VAULT_AUTH_KUBERNETES_ROLE: rook-ceph
 ```
 
 ### General Vault configuration

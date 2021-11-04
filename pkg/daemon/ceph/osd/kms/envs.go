@@ -73,18 +73,11 @@ func VaultConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 	}
 	for k, v := range spec.Security.KeyManagementService.ConnectionDetails {
 		// Skip TLS and token env var to avoid env being set multiple times
-		toSkip := append(cephv1.VaultTLSConnectionDetails, api.EnvVaultToken, vault.AuthKubernetesRole)
+		toSkip := append(cephv1.VaultTLSConnectionDetails, api.EnvVaultToken)
 		if sets.NewString(toSkip...).Has(k) {
 			continue
 		}
-		// We need to apply the osd role to VAULT_AUTH_KUBERNETES_ROLE
-		// This is only called from the Operator but will run inside the prepare job so it's ok to
-		// force the vault osd role
-		if k == RookOSDVaultAuthKubernetesRole {
-			envs = append(envs, v1.EnvVar{Name: vault.AuthKubernetesRole, Value: v})
-		} else {
-			envs = append(envs, v1.EnvVar{Name: k, Value: v})
-		}
+		envs = append(envs, v1.EnvVar{Name: k, Value: v})
 	}
 
 	// Add the VAULT_TOKEN

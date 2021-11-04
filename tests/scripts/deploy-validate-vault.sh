@@ -29,8 +29,6 @@ ROOK_VAULT_SA=rook-vault-auth
 ROOK_SYSTEM_SA=rook-ceph-system
 ROOK_OSD_SA=rook-ceph-osd
 VAULT_POLICY_NAME=rook
-VAULT_ROOK_OP_ROLE_NAME=rook-op
-VAULT_ROOK_OSD_ROLE_NAME=rook-osd
 SECRET_NAME=vault-server-tls
 TMPDIR=$(mktemp -d)
 VAULT_SERVER=https://vault.default:8200
@@ -203,16 +201,9 @@ function set_up_vault_kubernetes_auth {
 
   kill $proxy_pid
 
-  # configure a role for rook operator
-  kubectl exec -ti vault-0 -- vault write auth/kubernetes/role/"$VAULT_ROOK_OP_ROLE_NAME" \
-    bound_service_account_names="$ROOK_SYSTEM_SA" \
-    bound_service_account_namespaces="$ROOK_NAMESPACE" \
-    policies="$VAULT_POLICY_NAME" \
-    ttl=1440h
-
-  # configure a role for rook osds
-  kubectl exec -ti vault-0 -- vault write auth/kubernetes/role/"$VAULT_ROOK_OSD_ROLE_NAME" \
-    bound_service_account_names="$ROOK_OSD_SA" \
+  # configure a role for rook
+  kubectl exec -ti vault-0 -- vault write auth/kubernetes/role/"$ROOK_NAMESPACE" \
+    bound_service_account_names="$ROOK_SYSTEM_SA","$ROOK_OSD_SA" \
     bound_service_account_namespaces="$ROOK_NAMESPACE" \
     policies="$VAULT_POLICY_NAME" \
     ttl=1440h

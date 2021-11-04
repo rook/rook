@@ -104,14 +104,6 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 			[]v1.EnvVar{{Name: "VAULT_BACKEND_PATH", Value: "foo/"}},
 		},
 		{
-			"test VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE",
-			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE": "rook-osd"}}}}},
-			[]v1.EnvVar{
-				{Name: "VAULT_AUTH_KUBERNETES_ROLE", Value: "rook-osd"},
-				{Name: "VAULT_BACKEND_PATH", Value: "secret/"},
-			},
-		},
-		{
 			"test with tls config",
 			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"VAULT_CACERT": "my-secret-name"}}}}},
 			[]v1.EnvVar{

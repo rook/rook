@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/libopenstorage/secrets/vault"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -77,14 +76,6 @@ func startSecret() *kms.Config {
 	err = kms.ValidateConnectionDetails(context, &cephCluster.Spec.Security, namespace)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrap(err, "failed to validate kms connection details"))
-	}
-
-	// If Kubernetes authentication is enabled (through Service Accounts), use the role provided by
-	// the cluster spec
-	// Here we use VAULT_AUTH_KUBERNETES_ROOK_OSD_ROLE since this CLI is being called from an OSD
-	// init container, so the pod will use the "rook-ceph-osd" service account, different than the operator
-	if cephCluster.Spec.Security.KeyManagementService.IsK8sAuthEnabled() {
-		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails[vault.AuthKubernetesRole] = cephCluster.Spec.Security.KeyManagementService.ConnectionDetails[kms.RookOSDVaultAuthKubernetesRole]
 	}
 
 	return kms.NewConfig(context, &cephCluster.Spec, clusterInfo)
