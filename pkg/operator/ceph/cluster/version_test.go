@@ -76,8 +76,9 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	err = json.Unmarshal([]byte(fakeRunningVersions), &dummyRunningVersions3)
 	assert.NoError(t, err)
 
+	// Allow the downgrade
 	m, err = diffImageSpecAndClusterRunningVersion(fakeImageVersion, dummyRunningVersions3)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 	assert.True(t, m)
 
 	// 4 test - spec version is higher than running cluster --> we upgrade
