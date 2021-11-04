@@ -1,0 +1,42 @@
+name: Tag
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.7.0)'
+        required: true
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+jobs:
+  Create-Tag:
+    runs-on: ubuntu-18.04
+    if: github.repository == 'rook/rook' && contains('travisn,leseb,BlaineEXE,jbw976,galexrt,satoru-takeuchi', github.actor)
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: set env
+        run: |
+          echo "FROM_BRANCH=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          echo "TO_TAG=$(git describe --abbrev=0 --tags)" >> $GITHUB_ENV
+          echo "GITHUB_USER=rook" >> $GITHUB_ENV
+
+      - name: Create Tag
+        uses: negz/create-tag@v1
+        with:
+          version: ${{ github.event.inputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Release Note
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_USER: ${{ env.GITHUB_USER }}
+          FROM_BRANCH: ${{ env.FROM_BRANCH }}
+          TO_TAG: ${{ env.TO_TAG }}
+        run: tests/scripts/gen_release_notes.sh
