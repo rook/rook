@@ -23,10 +23,12 @@
         "monitoring",
         "nfs",
         "object",
+        "operator",
         "osd",
         "pool",
         "rbd-mirror",
         "rgw",
+        "security",
         "test"
       ]
     ],
