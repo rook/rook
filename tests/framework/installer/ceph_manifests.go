@@ -45,6 +45,9 @@ type CephManifests interface {
 	GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string
 	GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region string) string
 	GetOBC(obcName, storageClassName, bucketName string, maxObject string, createBucket bool) string
+	GetOBCNotification(obcName, storageClassName, bucketName string, notificationName string, createBucket bool) string
+	GetBucketNotification(notificationName string, topicName string) string
+	GetBucketTopic(topicName string, storeName string, httpEndpointService string) string
 	GetClient(name string, caps map[string]string) string
 }
 
@@ -464,6 +467,47 @@ spec:
   storageClassName: ` + storageClassName + `
   additionalConfig:
     maxObjects: "` + maxObject + `"`
+}
+
+//GetOBCNotification returns the manifest to create object bucket claim
+func (m *CephManifestsMaster) GetOBCNotification(claimName string, storageClassName string, objectBucketName string, notificationName string, varBucketName bool) string {
+	bucketParameter := "generateBucketName"
+	if varBucketName {
+		bucketParameter = "bucketName"
+	}
+	return `apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: ` + claimName + `
+  labels:
+    bucket-notification-` + notificationName + `: ` + notificationName + `
+spec:
+  ` + bucketParameter + `: ` + objectBucketName + `
+  storageClassName: ` + storageClassName
+}
+
+//GetBucketNotification returns the manifest to create ceph bucket notification
+func (m *CephManifestsMaster) GetBucketNotification(notificationName string, topicName string) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephBucketNotification
+metadata:
+  name: ` + notificationName + `
+spec:
+  topic: ` + topicName
+}
+
+//GetBucketTopic returns the manifest to create ceph bucket topic
+func (m *CephManifestsMaster) GetBucketTopic(topicName string, storeName string, httpEndpointService string) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephBucketTopic
+metadata:
+  name: ` + topicName + `
+spec:
+  endpoint:
+    http:
+      uri: http://` + httpEndpointService + `
+  objectStoreName: ` + storeName + `
+  objectStoreNamespace: ` + m.settings.Namespace
 }
 
 func (m *CephManifestsMaster) GetClient(claimName string, caps map[string]string) string {

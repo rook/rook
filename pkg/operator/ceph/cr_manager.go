@@ -36,7 +36,9 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
+	"github.com/rook/rook/pkg/operator/ceph/object/notification"
 	"github.com/rook/rook/pkg/operator/ceph/object/realm"
+	"github.com/rook/rook/pkg/operator/ceph/object/topic"
 	objectuser "github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/object/zone"
 	"github.com/rook/rook/pkg/operator/ceph/object/zonegroup"
@@ -102,6 +104,8 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 	Add,
 	csi.Add,
 	bucket.Add,
+	topic.Add,
+	notification.Add,
 }
 
 // AddToManagerOpFunc is a list of functions to add all Controllers to the Manager (entrypoint for

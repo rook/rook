@@ -32,6 +32,14 @@ func (c *FakeCephV1) CephBlockPools(namespace string) v1.CephBlockPoolInterface 
 	return &FakeCephBlockPools{c, namespace}
 }
 
+func (c *FakeCephV1) CephBucketNotifications(namespace string) v1.CephBucketNotificationInterface {
+	return &FakeCephBucketNotifications{c, namespace}
+}
+
+func (c *FakeCephV1) CephBucketTopics(namespace string) v1.CephBucketTopicInterface {
+	return &FakeCephBucketTopics{c, namespace}
+}
+
 func (c *FakeCephV1) CephClients(namespace string) v1.CephClientInterface {
 	return &FakeCephClients{c, namespace}
 }

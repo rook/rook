@@ -185,6 +185,32 @@ func TestCephClusterDependents(t *testing.T) {
 		assert.ElementsMatch(t, []string{"client-1", "client-2", "client-3"}, deps.OfKind("CephClient"))
 	})
 
+	t.Run("CephBucketTopics", func(t *testing.T) {
+		c = newClusterdCtx(
+			&cephv1.CephBucketTopic{ObjectMeta: meta("topic-1")},
+			&cephv1.CephBucketTopic{ObjectMeta: meta("topic-2")},
+			&cephv1.CephBucketTopic{ObjectMeta: meta("topic-3")},
+		)
+		deps, err := CephClusterDependents(c, ns)
+		assert.NoError(t, err)
+		assert.False(t, deps.Empty())
+		assert.ElementsMatch(t, []string{"CephBucketTopic"}, deps.PluralKinds())
+		assert.ElementsMatch(t, []string{"topic-1", "topic-2", "topic-3"}, deps.OfKind("CephBucketTopic"))
+	})
+
+	t.Run("CephBucketNotifications", func(t *testing.T) {
+		c = newClusterdCtx(
+			&cephv1.CephBucketNotification{ObjectMeta: meta("notif-1")},
+			&cephv1.CephBucketNotification{ObjectMeta: meta("notif-2")},
+			&cephv1.CephBucketNotification{ObjectMeta: meta("notif-3")},
+		)
+		deps, err := CephClusterDependents(c, ns)
+		assert.NoError(t, err)
+		assert.False(t, deps.Empty())
+		assert.ElementsMatch(t, []string{"CephBucketNotification"}, deps.PluralKinds())
+		assert.ElementsMatch(t, []string{"notif-1", "notif-2", "notif-3"}, deps.OfKind("CephBucketNotification"))
+	})
+
 	t.Run("All", func(t *testing.T) {
 		c = newClusterdCtx(
 			&cephv1.CephBlockPool{ObjectMeta: meta("pool-1")},
@@ -200,13 +226,15 @@ func TestCephClusterDependents(t *testing.T) {
 			&cephv1.CephObjectRealm{ObjectMeta: meta("realm-1")},
 			&cephv1.CephNFS{ObjectMeta: meta("nfs-1")},
 			&cephv1.CephClient{ObjectMeta: meta("client-1")},
+			&cephv1.CephBucketTopic{ObjectMeta: meta("topic-1")},
+			&cephv1.CephBucketNotification{ObjectMeta: meta("notif-1")},
 		)
 		deps, err := CephClusterDependents(c, ns)
 		assert.NoError(t, err)
 		assert.False(t, deps.Empty())
 		assert.ElementsMatch(t, []string{"CephBlockPool", "CephRBDMirror", "CephFilesystem",
 			"CephFilesystemMirror", "CephObjectStore", "CephObjectStoreUser", "CephObjectZone",
-			"CephObjectZoneGroup", "CephObjectRealm", "CephNFS", "CephClient"}, deps.PluralKinds())
+			"CephObjectZoneGroup", "CephObjectRealm", "CephNFS", "CephClient", "CephBucketTopic", "CephBucketNotification"}, deps.PluralKinds())
 		assert.ElementsMatch(t, []string{"pool-1"}, deps.OfKind("CephBlockPool"))
 		assert.ElementsMatch(t, []string{"rbdmirror-1", "rbdmirror-2"}, deps.OfKind("CephRBDMirror"))
 		assert.ElementsMatch(t, []string{"filesystem-1"}, deps.OfKind("CephFilesystem"))
@@ -218,6 +246,8 @@ func TestCephClusterDependents(t *testing.T) {
 		assert.ElementsMatch(t, []string{"realm-1"}, deps.OfKind("CephObjectRealm"))
 		assert.ElementsMatch(t, []string{"nfs-1"}, deps.OfKind("CephNFS"))
 		assert.ElementsMatch(t, []string{"client-1"}, deps.OfKind("CephClient"))
+		assert.ElementsMatch(t, []string{"topic-1"}, deps.OfKind("CephBucketTopic"))
+		assert.ElementsMatch(t, []string{"notif-1"}, deps.OfKind("CephBucketNotification"))
 
 		t.Run("and no dependencies in another namespace", func(t *testing.T) {
 			deps, err := CephClusterDependents(c, "other-namespace")

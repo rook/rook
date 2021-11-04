@@ -20,3 +20,5 @@ v1.8...
 - Rook adds a finalizer `ceph.rook.io/disaster-protection` to resources critical to the Ceph cluster
   (rook-ceph-mon secrets and configmap) so that the resources will not be accidentally deleted.
 - Add support for [Kubernetes Authentication when using HashiCorp Vault Key Management Service](Documentation/ceph-kms.md##kubernetes-based-authentication).
+- Bucket notification supported via CRDs
+

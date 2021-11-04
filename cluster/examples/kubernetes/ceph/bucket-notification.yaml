@@ -1,0 +1,37 @@
+apiVersion: ceph.rook.io/v1
+kind: CephBucketNotification
+metadata:
+  name: my-notification
+  # the notification should be created in the app namespace
+spec:
+  topic: my-topic
+  filter:
+    # all filters must match for the notification to apply on an object
+    keyFilters:
+      # match objects with keys that start with "hello"
+      - name: prefix
+        value: hello
+      # match objects with keys that end with ".png"
+      - name: suffix
+        value: .png
+      # match objects with keys with only lowercase characters
+      - name: regex
+        value: "[a-z]*\\.*"
+    metadataFilters:
+      # match objects that have the below metadata fields and values
+      # (other metadata fields may exist for the object)
+      - name: x-amz-meta-color
+        value: blue
+      - name: x-amz-meta-user-type
+        value: free
+    tagFilters:
+      # match objects that have the below tags
+      # (other tags may exist for the object)
+      - name: project
+        value: brown
+  # notification apply for any of the events
+  # full list of supported events is here:
+  # https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
+  events:
+    - s3:ObjectCreated:Put
+    - s3:ObjectCreated:Copy

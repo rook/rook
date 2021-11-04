@@ -26,7 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
+	awssession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/pkg/errors"
 )
@@ -62,7 +62,7 @@ func newS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCe
 		tlsEnabled = true
 		client.Transport = BuildTransportTLS(tlsCert, insecure)
 	}
-	sess, err := session.NewSession(
+	session, err := awssession.NewSession(
 		aws.NewConfig().
 			WithRegion(cephRegion).
 			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
@@ -76,7 +76,7 @@ func newS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCe
 	if err != nil {
 		return nil, err
 	}
-	svc := s3.New(sess)
+	svc := s3.New(session)
 	return &S3Agent{
 		Client: svc,
 	}, nil
