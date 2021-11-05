@@ -53,19 +53,6 @@ func TestGetCephMonVersionsString(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestEnableMessenger2(t *testing.T) {
-	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-		assert.Equal(t, "mon", args[0])
-		assert.Equal(t, "enable-msgr2", args[1])
-		return "", nil
-	}
-	context := &clusterd.Context{Executor: executor}
-
-	err := EnableMessenger2(context, AdminTestClusterInfo("mycluster"))
-	assert.NoError(t, err)
-}
-
 func TestEnableReleaseOSDFunctionality(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {

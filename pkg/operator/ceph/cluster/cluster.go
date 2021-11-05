@@ -496,11 +496,6 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 	}
 
-	// Enable Ceph messenger 2 protocol on Nautilus
-	if err := client.EnableMessenger2(c.context, c.ClusterInfo); err != nil {
-		return errors.Wrap(err, "failed to enable Ceph messenger version 2")
-	}
-
 	// Always ensure the skip mds sanity checks setting is cleared, for all Pacific deployments
 	if c.ClusterInfo.CephVersion.IsPacific() {
 		if err := c.skipMDSSanityChecks(false); err != nil {

@@ -99,20 +99,6 @@ func GetAllCephDaemonVersions(context *clusterd.Context, clusterInfo *ClusterInf
 	return &cephVersionsResult, nil
 }
 
-// EnableMessenger2 enable the messenger 2 protocol on Nautilus clusters
-func EnableMessenger2(context *clusterd.Context, clusterInfo *ClusterInfo) error {
-	args := []string{"mon", "enable-msgr2"}
-	buf, err := NewCephCommand(context, clusterInfo, args).Run()
-	if err != nil {
-		return errors.Wrap(err, "failed to enable msgr2 protocol")
-	}
-	output := string(buf)
-	logger.Debug(output)
-	logger.Infof("successfully enabled msgr2 protocol")
-
-	return nil
-}
-
 // EnableReleaseOSDFunctionality disallows pre-Nautilus OSDs and enables all new Nautilus-only functionality
 func EnableReleaseOSDFunctionality(context *clusterd.Context, clusterInfo *ClusterInfo, release string) error {
 	args := []string{"osd", "require-osd-release", release}
