@@ -104,7 +104,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 				logger.Infof("removing the osd prepare job %q", prepareJob.GetName())
 				if err := k8sutil.DeleteBatchJob(clusterdContext.Clientset, clusterInfo.Namespace, prepareJob.GetName(), false); err != nil {
 					if err != nil {
-						// Continue deleting the OSD prepare job even if the deployment fails to be deleted
+						// Continue with the cleanup even if the job fails to be deleted
 						logger.Errorf("failed to delete prepare job for osd %q. %v", prepareJob.GetName(), err)
 					}
 				}

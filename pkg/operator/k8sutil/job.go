@@ -51,7 +51,7 @@ func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job, deleteIfF
 		logger.Infof("Removing previous job %s to start a new one", job.Name)
 		err := DeleteBatchJob(clientset, job.Namespace, existingJob.Name, true)
 		if err != nil {
-			logger.Warningf("failed to remove job %s. %+v", job.Name, err)
+			return fmt.Errorf("failed to remove job %s. %+v", job.Name, err)
 		}
 	}
 
@@ -103,8 +103,10 @@ func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait
 		return nil
 	}
 
-	retries := 20
-	sleepInterval := 2 * time.Second
+	// Retry for the job to be deleted for 90s. A pod can easily take 60s to timeout before
+	// deletion so we add some buffer to that time.
+	retries := 30
+	sleepInterval := 3 * time.Second
 	for i := 0; i < retries; i++ {
 		_, err := clientset.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil && errors.IsNotFound(err) {
