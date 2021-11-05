@@ -916,14 +916,15 @@ type QuotaSpec struct {
 
 // ErasureCodedSpec represents the spec for erasure code in a pool
 type ErasureCodedSpec struct {
-	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
+	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
+	// This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
 	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=9
 	CodingChunks uint `json:"codingChunks"`
 
-	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
+	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
+	// The number of chunks required to recover an object when any single OSD is lost is the same
+	// as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
 	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=9
 	DataChunks uint `json:"dataChunks"`
 
 	// The algorithm for erasure coding
