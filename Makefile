@@ -61,6 +61,8 @@ endif
 
 # platforms
 PLATFORMS ?= $(ALL_PLATFORMS)
+# PLATFORMS_TO_BUILD_FOR controls for which platforms to build the rook binary for
+PLATFORMS_TO_BUILD_FOR ?= linux_amd64 linux_arm64
 SERVER_PLATFORMS := $(filter linux_%,$(PLATFORMS))
 CLIENT_PLATFORMS := $(filter-out linux_%,$(PLATFORMS))
 
@@ -75,6 +77,9 @@ GO_PROJECT=github.com/rook/rook
 
 # inject the version number into the golang version package using the -X linker flag
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
+
+# CGO_ENABLED value
+CGO_ENABLED_VALUE=0
 
 # ====================================================================================
 # Setup projects
@@ -114,7 +119,7 @@ build.common: build.version helm.build mod.check
 do.build.platform.%:
 	@$(MAKE) PLATFORM=$* go.build
 
-do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
+do.build.parallel: $(foreach p,$(PLATFORMS_TO_BUILD_FOR), do.build.platform.$(p))
 
 build: csv-clean build.common ## Only build for linux platform
 	@$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
