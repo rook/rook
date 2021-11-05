@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -59,10 +60,12 @@ func isSecretPresent(ctx context.Context, context *clusterd.Context) (bool, erro
 
 	logger.Infof("admission webhook secret %q found", admissionControllerAppName)
 	for k, data := range s.Data {
-		path := fmt.Sprintf("%s/%s", certDir, k)
-		err := ioutil.WriteFile(path, data, 0400)
+		filePath := path.Join(certDir, k)
+		// We must use 0600 mode so that the files can be overridden each time the Secret is fetched
+		// to keep an updated content
+		err := ioutil.WriteFile(filePath, data, 0600)
 		if err != nil {
-			return false, errors.Wrapf(err, "failed to write secret content to file %q", path)
+			return false, errors.Wrapf(err, "failed to write secret content to file %q", filePath)
 		}
 	}
 

@@ -46,7 +46,7 @@ func Test_tlsSecretPath(t *testing.T) {
 }
 
 func TestTLSSecretVolumeAndMount(t *testing.T) {
-	m := int32(0400)
+	m := int32(0444)
 	type args struct {
 		config map[string]string
 	}
