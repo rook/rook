@@ -42,8 +42,10 @@ func TLSSecretVolumeAndMount(config map[string]string) []v1.VolumeProjection {
 	// Projection list
 	secretVolumeProjections := []v1.VolumeProjection{}
 
-	// File mode
-	mode := int32(0400)
+	// File mode, anybody can read, this is a must-have since the container runs as "rook" and the
+	// secret is mounted as root. There is no non-ugly way to change this behavior and it's
+	// probably as less safe as doing this mode.
+	mode := int32(0444)
 
 	// Vault TLS Secrets
 	for _, tlsOption := range cephv1.VaultTLSConnectionDetails {

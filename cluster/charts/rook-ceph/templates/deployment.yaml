@@ -26,6 +26,10 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args: ["ceph", "operator"]
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 2016
+          runAsGroup: 2016
         volumeMounts:
         - mountPath: /var/lib/rook
           name: rook-config

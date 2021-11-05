@@ -439,6 +439,10 @@ spec:
         - name: rook-ceph-operator
           image: rook/ceph:master
           args: ["ceph", "operator"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 2016
+            runAsGroup: 2016
           volumeMounts:
             - mountPath: /var/lib/rook
               name: rook-config
