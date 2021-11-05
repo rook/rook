@@ -1916,6 +1916,12 @@ type NetworkSpec struct {
 	// +optional
 	Selectors map[string]string `json:"selectors,omitempty"`
 
+	// Settings for network connections such as compression and encryption across the
+	// wire.
+	// +nullable
+	// +optional
+	Connections *ConnectionsSpec `json:"connections,omitempty"`
+
 	// HostNetwork to enable host network
 	// +optional
 	HostNetwork bool `json:"hostNetwork,omitempty"`
@@ -1929,6 +1935,36 @@ type NetworkSpec struct {
 	// DualStack determines whether Ceph daemons should listen on both IPv4 and IPv6
 	// +optional
 	DualStack bool `json:"dualStack,omitempty"`
+}
+
+type ConnectionsSpec struct {
+	// Encryption settings for the network connections.
+	// +nullable
+	// +optional
+	Encryption *EncryptionSpec `json:"encryption,omitempty"`
+
+	// Compression settings for the network connections.
+	// +nullable
+	// +optional
+	Compression *CompressionSpec `json:"compression,omitempty"`
+}
+
+type EncryptionSpec struct {
+	// Whether to encrypt the data in transit across the wire to prevent eavesdropping
+	// the data on the network. The default is not set. Even if encryption is not enabled,
+	// clients still establish a strong initial authentication for the connection
+	// and data integrity is still validated with a crc check. When encryption is enabled,
+	// all communication between clients and Ceph daemons, or between Ceph daemons will
+	// be encrypted.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+}
+
+type CompressionSpec struct {
+	// Whether to compress the data in transit across the wire.
+	// The default is not set. Requires Ceph Quincy (v17) or newer.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // DisruptionManagementSpec configures management of daemon disruptions

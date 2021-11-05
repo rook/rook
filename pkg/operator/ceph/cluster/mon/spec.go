@@ -303,8 +303,8 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		SecurityContext: controller.PodSecurityContext(),
 		Ports: []corev1.ContainerPort{
 			{
-				Name:          "tcp-msgr1",
-				ContainerPort: monConfig.Port,
+				Name:          "tcp-msgr2",
+				ContainerPort: DefaultMsgr2Port,
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
@@ -316,6 +316,15 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		StartupProbe:  controller.GenerateStartupProbeExecDaemon(config.MonType, monConfig.DaemonName),
 		LivenessProbe: controller.GenerateLivenessProbeExecDaemon(config.MonType, monConfig.DaemonName),
 		WorkingDir:    config.VarLogCephDir,
+	}
+
+	if !c.spec.RequireMsgr2() {
+		// Add messenger 1 port
+		container.Ports = append(container.Ports, v1.ContainerPort{
+			Name:          "tcp-msgr1",
+			ContainerPort: DefaultMsgr1Port,
+			Protocol:      v1.ProtocolTCP,
+		})
 	}
 
 	if monConfig.Zone != "" {
@@ -337,9 +346,6 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		container.Args = append(container.Args,
 			config.NewFlag("public-bind-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}
-
-	// Add messenger 2 port
-	addContainerPort(container, "tcp-msgr2", 3300)
 
 	return container
 }

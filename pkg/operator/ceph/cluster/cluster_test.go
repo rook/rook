@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -148,4 +149,72 @@ func TestPreMonChecks(t *testing.T) {
 		assert.False(t, setSkipSanity)
 		assert.False(t, unsetSkipSanity)
 	})
+}
+
+func TestConfigureMsgr2(t *testing.T) {
+	type fields struct {
+		encryptionExpected   bool
+		compressionExpected  bool
+		disabledBothExpected bool
+		cephVersion          version.CephVersion
+		Spec                 *cephv1.ClusterSpec
+	}
+	tests := []struct {
+		name   string
+		fields fields
+	}{
+		{"default settings", fields{false, false, false, version.CephVersion{Major: 15}, &cephv1.ClusterSpec{}}},
+		{"encryption enabled", fields{true, false, false, version.CephVersion{Major: 16}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: true}}}}}},
+		{"compression enabled old version", fields{false, false, false, version.CephVersion{Major: 16}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
+		{"compression enabled good version", fields{false, true, false, version.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
+		{"both enabled", fields{true, true, false, version.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: true}, Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
+		{"both disabled", fields{false, false, true, version.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: false}, Compression: &cephv1.CompressionSpec{Enabled: false}}}}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			enabledCompression := false
+			disabledCompression := false
+			enabledEncryption := false
+			disabledEncryption := false
+			executor := &exectest.MockExecutor{
+				MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+					logger.Infof("Execute: %s %v", command, args)
+					if args[0] == "config" && args[1] == "set" {
+						if args[3] == "ms_osd_compress_mode" {
+							if args[4] == "force" {
+								enabledCompression = true
+							} else if args[4] == "none" {
+								disabledCompression = true
+							}
+						}
+						if args[3] == "ms_cluster_mode" {
+							if args[4] == "secure" {
+								enabledEncryption = true
+							} else if args[4] == "crc secure" {
+								disabledEncryption = true
+							}
+						}
+
+						return "", nil
+					}
+					return "", errors.Errorf("unrecognized command")
+				},
+			}
+			clusterInfo := client.AdminTestClusterInfo("rook-ceph")
+			clusterInfo.CephVersion = tt.fields.cephVersion
+			context := &clusterd.Context{Clientset: testop.New(t, 3), Executor: executor}
+			c := &cluster{
+				ClusterInfo: clusterInfo,
+				Spec:        tt.fields.Spec,
+				context:     context,
+			}
+
+			err := c.configureMsgr2()
+			assert.NoError(t, err)
+			assert.Equal(t, tt.fields.compressionExpected, enabledCompression)
+			assert.Equal(t, tt.fields.encryptionExpected, enabledEncryption)
+			assert.Equal(t, tt.fields.disabledBothExpected, disabledCompression)
+			assert.Equal(t, tt.fields.disabledBothExpected, disabledEncryption)
+		})
+	}
 }

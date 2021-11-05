@@ -81,6 +81,19 @@ spec:
     # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
     rulesNamespace: rook-ceph
   network:
+    connections:
+      # Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network.
+      # The default is false. When encryption is enabled, all communication between clients and Ceph daemons, or between Ceph daemons will be encrypted.
+      # When encryption is not enabled, clients still establish a strong initial authentication and data integrity is still validated with a crc check.
+      # IMPORTANT: Encryption requires the 5.11 kernel for the latest nbd and cephfs drivers. Alternatively for testing only,
+      # you can set the "mounter: rbd-nbd" in the rbd storage class, or "mounter: fuse" in the cephfs storage class.
+      # The nbd and fuse drivers are *not* recommended in production since restarting the csi driver pod will disconnect the volumes.
+      encryption:
+        enabled: false
+      # Whether to compress the data in transit across the wire. The default is false.
+      # Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.
+      compression:
+        enabled: false
     # enable host networking
     #provider: host
     # enable the Multus network provider

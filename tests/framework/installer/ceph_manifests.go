@@ -156,6 +156,11 @@ spec:
     enabled: true
   network:
     hostNetwork: false
+    connections:
+      encryption:
+        enabled: ` + strconv.FormatBool(m.settings.ConnectionsEncrypted) + `
+      compression:
+        enabled: ` + strconv.FormatBool(m.settings.ConnectionsCompressed) + `
   crashCollector:
     disable: false
     ` + pruner + `
@@ -199,6 +204,11 @@ spec:
   dataDirHostPath: ` + m.settings.DataDirHostPath + `
   network:
     hostNetwork: false
+    connections:
+      encryption:
+        enabled: ` + strconv.FormatBool(m.settings.ConnectionsEncrypted) + `
+      compression:
+        enabled: ` + strconv.FormatBool(m.settings.ConnectionsCompressed) + `
   crashCollector:
     disable: false
     ` + pruner + `

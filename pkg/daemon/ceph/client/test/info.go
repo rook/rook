@@ -61,7 +61,7 @@ func CreateTestClusterInfo(monCount int) *client.ClusterInfo {
 		id := mons[i]
 		c.Monitors[id] = &client.MonInfo{
 			Name:     id,
-			Endpoint: fmt.Sprintf("1.2.3.%d:6789", (i + 1)),
+			Endpoint: fmt.Sprintf("1.2.3.%d:3300", (i + 1)),
 		}
 	}
 	c.SetName(c.Namespace)
