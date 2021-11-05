@@ -26,7 +26,6 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/version"
 )
@@ -368,11 +367,7 @@ func (c *Cluster) runPrepareJob(osdProps *osdProperties, config *provisionConfig
 	}
 
 	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {
-		if !kerrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to run provisioning job for %s %q", nodeOrPVC, nodeOrPVCName)
-		}
-		logger.Infof("letting preexisting OSD provisioning job run to completion for %s %q", nodeOrPVC, nodeOrPVCName)
-		return nil
+		return errors.Wrapf(err, "failed to run osd provisioning job for %s %q", nodeOrPVC, nodeOrPVCName)
 	}
 
 	logger.Infof("started OSD provisioning job for %s %q", nodeOrPVC, nodeOrPVCName)
