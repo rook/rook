@@ -63,13 +63,11 @@ spec:
                       description: The algorithm for erasure coding
                       type: string
                     codingChunks:
-                      description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                      maximum: 9
+                      description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type). This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                       minimum: 0
                       type: integer
                     dataChunks:
-                      description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                      maximum: 9
+                      description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                       minimum: 0
                       type: integer
                   required:
@@ -4482,13 +4480,11 @@ spec:
                             description: The algorithm for erasure coding
                             type: string
                           codingChunks:
-                            description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                            maximum: 9
+                            description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type). This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                             minimum: 0
                             type: integer
                           dataChunks:
-                            description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                            maximum: 9
+                            description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                             minimum: 0
                             type: integer
                         required:
@@ -4649,13 +4645,11 @@ spec:
                           description: The algorithm for erasure coding
                           type: string
                         codingChunks:
-                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type). This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
                         dataChunks:
-                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
                       required:
@@ -5690,13 +5684,11 @@ spec:
                               description: The algorithm for erasure coding
                               type: string
                             codingChunks:
-                              description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                              maximum: 9
+                              description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type). This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                               minimum: 0
                               type: integer
                             dataChunks:
-                              description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                              maximum: 9
+                              description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                               minimum: 0
                               type: integer
                           required:
@@ -6570,13 +6562,11 @@ spec:
                           description: The algorithm for erasure coding
                           type: string
                         codingChunks:
-                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type). This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
                         dataChunks:
-                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
                       required:
@@ -7604,13 +7594,11 @@ spec:
                           description: The algorithm for erasure coding
                           type: string
                         codingChunks:
-                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type). This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
                         dataChunks:
-                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
                       required:
@@ -8096,13 +8084,11 @@ spec:
                           description: The algorithm for erasure coding
                           type: string
                         codingChunks:
-                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type). This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
                         dataChunks:
-                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
                       required:
@@ -8261,13 +8247,11 @@ spec:
                           description: The algorithm for erasure coding
                           type: string
                         codingChunks:
-                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type). This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                           minimum: 0
                           type: integer
                         dataChunks:
-                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-                          maximum: 9
+                          description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
                       required:
