@@ -188,18 +188,12 @@ function set_up_vault_kubernetes_auth {
   # enable kubernetes auth
   kubectl exec -ti vault-0 -- vault auth enable kubernetes
 
-  # To fetch the service account issuer
-  kubectl proxy &
-  proxy_pid=$!
-
   # configure the kubernetes auth
   kubectl exec -ti vault-0 -- vault write auth/kubernetes/config \
     token_reviewer_jwt="$SA_JWT_TOKEN" \
     kubernetes_host="$K8S_HOST" \
     kubernetes_ca_cert="$SA_CA_CRT" \
-    issuer="$(curl --silent http://127.0.0.1:8001/.well-known/openid-configuration | jq -r .issuer)"
-
-  kill $proxy_pid
+    issuer="https://kubernetes.default.svc.cluster.local"
 
   # configure a role for rook
   kubectl exec -ti vault-0 -- vault write auth/kubernetes/role/"$ROOK_NAMESPACE" \
