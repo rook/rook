@@ -69,7 +69,7 @@ jobs:
         run: timeout 900 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done' || kubectl -n rook-ceph get all && kubectl logs -n rook-ceph deploy/rook-ceph-operator
 
       - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 1
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready "mon,mgr,osd,mds,rgw,rbd_mirror,fs_mirror" 1
 
       - name: teardown minikube and docker
         run: |
