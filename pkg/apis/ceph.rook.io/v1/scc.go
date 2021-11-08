@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	_ "embed"
 	"fmt"
 
 	secv1 "github.com/openshift/api/security/v1"
