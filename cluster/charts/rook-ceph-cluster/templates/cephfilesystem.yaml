@@ -22,5 +22,6 @@ parameters:
   clusterID: {{ $root.Release.Namespace }}
 {{ toYaml $filesystem.storageClass.parameters | indent 2 }}
 reclaimPolicy: {{ default "Delete" $filesystem.storageClass.reclaimPolicy }}
+allowVolumeExpansion: {{ default "true" $filesystem.storageClass.allowVolumeExpansion }}
 {{ end }}
 {{ end }}
