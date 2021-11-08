@@ -38,6 +38,7 @@ func NewSecurityContextConstraints(name, namespace string) *secv1.SecurityContex
 			Namespace: namespace,
 		},
 		AllowPrivilegedContainer: true,
+		AllowHostDirVolumePlugin: true,
 		ReadOnlyRootFilesystem:   false,
 		AllowHostIPC:             true,
 		AllowHostNetwork:         false,
