@@ -15,7 +15,17 @@
 # see Makefile for the BASEIMAGE definition
 FROM BASEIMAGE
 
-ARG ARCH
+# env vars for s5cmd
+ARG S5CMD_VERSION
+ARG S5CMD_ARCH
+
+# Install the s5cmd package to interact with s3 gateway
+RUN curl --fail -sSL -o /s5cmd.tar.gz https://github.com/peak/s5cmd/releases/download/v${S5CMD_VERSION}/s5cmd_${S5CMD_VERSION}_${S5CMD_ARCH}.tar.gz && \
+    mkdir /s5cmd && \
+    tar xf /s5cmd.tar.gz -C /s5cmd && \
+    install /s5cmd/s5cmd /usr/local/bin/s5cmd && \
+    rm -rf /s5cmd.tar.gz /s5cmd
+
 COPY rook toolbox.sh set-ceph-debug-level /usr/local/bin/
 COPY ceph-monitoring /etc/ceph-monitoring
 COPY rook-external /etc/rook-external/

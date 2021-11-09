@@ -225,12 +225,17 @@ export AWS_SECRET_ACCESS_KEY=7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l
 The access key and secret key can be retrieved as described in the section above on [client connections](#client-connections) or
 below in the section [creating a user](#create-a-user) if you are not creating the buckets with an `ObjectBucketClaim`.
 
-### Install s3cmd
+### Configure s5cmd
 
-To test the `CephObjectStore` we will install the `s3cmd` tool into the toolbox pod.
+To test the `CephObjectStore`, set the object store credentials in the toolbox pod for the `s5cmd` tool.
 
 ```console
-yum --assumeyes install s3cmd
+mkdir ~/.aws
+cat > ~/.aws/credentials << EOF
+[default]
+aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+EOF
 ```
 
 ### PUT or GET an object
@@ -239,13 +244,13 @@ Upload a file to the newly created bucket
 
 ```console
 echo "Hello Rook" > /tmp/rookObj
-s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
+s5cmd --endpoint-url http://$AWS_ENDPOINT cp /tmp/rookObj s3://rookbucket
 ```
 
 Download and verify the file from the bucket
 
 ```console
-s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
+s5cmd --endpoint-url http://$AWS_ENDPOINT cp s3://rookbucket/rookObj /tmp/rookObj-download
 cat /tmp/rookObj-download
 ```
 

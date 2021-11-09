@@ -39,10 +39,12 @@ TEMP := $(shell mktemp -d)
 ifeq ($(REAL_HOST_PLATFORM),linux_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
 INCLUDE_CSV_TEMPLATES = true
+S5CMD_ARCH = Linux-64bit
 endif
 ifeq ($(REAL_HOST_PLATFORM),linux_arm64)
 OPERATOR_SDK_PLATFORM = aarch64-linux-gnu
 INCLUDE_CSV_TEMPLATES = true
+S5CMD_ARCH = Linux-arm64
 endif
 ifeq ($(REAL_HOST_PLATFORM),darwin_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-apple-darwin
@@ -53,6 +55,9 @@ $(info )
 $(info NOT INCLUDING OLM/CSV TEMPLATES!)
 $(info )
 endif
+
+# s5cmd's version
+S5CMD_VERSION = 1.4.0
 
 VOL_REPL_VERSION = v0.1.0
 VOL_REPL_URL = https://raw.githubusercontent.com/csi-addons/volume-replication-operator/$(VOL_REPL_VERSION)/config/crd/bases
@@ -87,8 +92,8 @@ endif
 	@cd $(TEMP) && $(SED_IN_PLACE) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@if [ -z "$(BUILD_CONTAINER_IMAGE)" ]; then\
 		$(DOCKERCMD) build $(BUILD_ARGS) \
-		--build-arg ARCH=$(GOARCH) \
-		--build-arg TINI_VERSION=$(TINI_VERSION) \
+		--build-arg S5CMD_VERSION=$(S5CMD_VERSION) \
+		--build-arg S5CMD_ARCH=$(S5CMD_ARCH) \
 		-t $(CEPH_IMAGE) \
 		$(TEMP);\
 	fi
