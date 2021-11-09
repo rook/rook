@@ -22,3 +22,4 @@ v1.8...
 - Add support for [Kubernetes Authentication when using HashiCorp Vault Key Management Service](Documentation/ceph-kms.md##kubernetes-based-authentication).
 - Bucket notification supported via CRDs
 - The Rook Operator and the toolbox now run under the "rook" user and does not use "root" anymore.
+- The Operator image now includes the `s5cmd` binary to interact with S3 gateways.

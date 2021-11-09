@@ -25,6 +25,8 @@ do.build:
 	@$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
 		--build-arg TINI_VERSION=$(TINI_VERSION) \
+		--build-arg S5CMD_VERSION=$(S5CMD_VERSION) \
+		--build-arg S5CMD_ARCH=$(S5CMD_ARCH) \
 		-t $(IMAGE) \
 		$(TEMP)
 	@rm -fr $(TEMP)
