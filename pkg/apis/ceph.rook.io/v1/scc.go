@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	_ "embed"
 	"fmt"
 
 	secv1 "github.com/openshift/api/security/v1"
@@ -38,6 +37,7 @@ func NewSecurityContextConstraints(name, namespace string) *secv1.SecurityContex
 			Namespace: namespace,
 		},
 		AllowPrivilegedContainer: true,
+		AllowHostDirVolumePlugin: true,
 		ReadOnlyRootFilesystem:   false,
 		AllowHostIPC:             true,
 		AllowHostNetwork:         false,
