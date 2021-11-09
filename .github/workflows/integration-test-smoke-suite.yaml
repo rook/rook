@@ -24,28 +24,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: setup golang
-      uses: actions/setup-go@v2
+    - name: setup cluster resources
+      uses: ./.github/workflows/integration-test-setup
       with:
-        go-version: 1.16
-
-    - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.4.2
-      with:
-        minikube version: 'v1.23.2'
-        kubernetes version: ${{ matrix.kubernetes-versions }}
-        start args: --memory 6g --cpus=2
-        github token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: print k8s cluster status
-      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
-
-    - name: use local disk
-      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-
-    - name: build rook
-      run: tests/scripts/github-action-helper.sh build_rook
-
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        kubernetes-version: ${{ matrix.kubernetes-versions }}
 
     - name: TestCephSmokeSuite
       run: |

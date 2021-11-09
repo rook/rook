@@ -1,0 +1,21 @@
+# This isn't to be used for the go integration tests because their logs are placed in a different location and require few extra steps.
+name: Log Collector
+description: Log collector for canary test
+inputs:
+  name:
+    description: Name to use for the workflow
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: collect common logs
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/collect-logs.sh
+
+    - name: Upload canary test result
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ inputs.name }}
+        path: test
