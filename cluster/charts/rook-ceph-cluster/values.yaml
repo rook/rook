@@ -375,6 +375,7 @@ cephFileSystems:
       isDefault: false
       name: ceph-filesystem
       reclaimPolicy: Delete
+      allowVolumeExpansion: true
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem.md#provision-storage for available configuration
       parameters:
         # The secrets contain Ceph admin credentials.
