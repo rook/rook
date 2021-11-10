@@ -140,7 +140,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		// Create deployment
 		deployment, err := c.createDeployment(rgwConfig)
 		if err != nil {
-			return nil
+			return errors.Wrap(err, "failed to create rgw deployment")
 		}
 		logger.Infof("object store %q deployment %q created", c.store.Name, deployment.Name)
 
