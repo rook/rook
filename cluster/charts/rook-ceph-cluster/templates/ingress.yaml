@@ -24,11 +24,11 @@ spec:
               service:
                 name: rook-ceph-mgr-dashboard
                 port:
-                  name: http-dashboard
+                  name: https-dashboard
             pathType: Prefix
 {{- else }}
               serviceName: rook-ceph-mgr-dashboard
-              servicePort: http-dashboard
+              servicePort: https-dashboard
 {{- end }}
   {{- if .Values.ingress.dashboard.tls }}
   tls: {{- toYaml .Values.ingress.dashboard.tls | nindent 4 }}
