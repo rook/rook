@@ -533,7 +533,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		}
 	}
 	if EnableCephFS {
-		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, CephFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy)))
+		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, CephFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.NoneFSGroupPolicy)))
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
