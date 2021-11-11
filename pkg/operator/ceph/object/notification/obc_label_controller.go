@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package notification to manage a rook bucket notifications.
 package notification
 
 import (
@@ -24,9 +25,8 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	"github.com/rook/rook/pkg/operator/ceph/object/topic"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,8 +46,6 @@ const (
 type ReconcileOBCLabels struct {
 	client           client.Client
 	context          *clusterd.Context
-	clusterInfo      *cephclient.ClusterInfo
-	clusterSpec      *cephv1.ClusterSpec
 	opManagerContext context.Context
 }
 
@@ -96,6 +94,13 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve ObjectBucketClaim %q", request.NamespacedName)
 	}
 
+	// DELETE: the CR was deleted
+	if !obc.GetDeletionTimestamp().IsZero() {
+		logger.Debugf("ObjectBucketClaim %q was deleted", request.NamespacedName)
+		// Return and do not requeue. Successful deletion.
+		return reconcile.Result{}, nil
+	}
+
 	// reschedule if ObjectBucket was not created yet
 	if obc.Spec.ObjectBucketName == "" {
 		logger.Infof("ObjectBucketClaim %q resource did not create the bucket yet. will retry", request.NamespacedName)
@@ -113,54 +118,25 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 		return reconcile.Result{}, errors.Wrapf(err, "failed to get object store from ObjectBucket %q", bucketName)
 	}
 
-	// find the namespace for the ceph cluster (may be different than the namespace of the topic CR)
-	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(
-		r.opManagerContext,
-		r.client,
-		types.NamespacedName{Namespace: objectStoreName.Namespace},
-		controllerName,
-	)
-	if !isReadyToReconcile {
-		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
-		if !obc.GetDeletionTimestamp().IsZero() && !cephClusterExists {
-			// Return and do not requeue. Successful deletion.
-			return reconcile.Result{}, nil
-		}
-		logger.Debug("Ceph cluster not yet present")
-		return reconcileResponse, nil
-	}
-	r.clusterSpec = &cephCluster.Spec
-
-	// DELETE: the CR was deleted
-	if !obc.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("ObjectBucketClaim %q was deleted", request.NamespacedName)
-		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, nil
-	}
-
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace)
+	clusterInfo, clusterSpec, err := getReadyCluster(r.client, r.opManagerContext, *r.context, objectStoreName.Namespace)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		return opcontroller.WaitForRequeueIfCephClusterNotReady, errors.Wrapf(err, "cluster is not ready")
+	}
+	if clusterInfo == nil || clusterSpec == nil {
+		return opcontroller.WaitForRequeueIfCephClusterNotReady, nil
 	}
 
 	// delete all existing notifications
-	provisioner := Provisioner{
-		Client:           r.client,
-		Context:          r.context,
-		ClusterInfo:      r.clusterInfo,
-		ClusterSpec:      r.clusterSpec,
+	p := provisioner{
+		context:          r.context,
+		clusterInfo:      clusterInfo,
+		clusterSpec:      clusterSpec,
 		opManagerContext: r.opManagerContext,
+		owner:            ob.Spec.AdditionalState[bucket.CephUser],
+		objectStoreName:  objectStoreName,
 	}
-	session, err := provisioner.createSession(
-		ob.Spec.AdditionalState["cephUser"],
-		objectStoreName,
-	)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create session for bucket notification provisioning for ObjectBucketClaim %q", bucketName)
-	}
-	err = provisioner.DeleteAll(&ob, session)
+	err = deleteAllNotificationsFunc(p, &ob)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed delete all bucket notifications from ObjectbucketClaim %q", bucketName)
 	}
@@ -185,19 +161,12 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 				return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve CephBucketNotification %q", bnName)
 			}
 
-			// verify that the associated topic configuration exists with an ARN
-			bucketTopic := &cephv1.CephBucketTopic{}
-			topicName := types.NamespacedName{Namespace: obc.Namespace, Name: notification.Spec.Topic}
-			if err := r.client.Get(r.opManagerContext, topicName, bucketTopic); err != nil {
-				if kerrors.IsNotFound(err) {
-					logger.Infof("CephBucketTopic %q not found", topicName)
-					return waitForRequeueIfTopicNotReady, nil
-				}
-				return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve CephBucketTopic %q", topicName)
-			}
-			topicARN, err := topic.GetARN(bucketTopic)
+			// get the topic associated with the notification, and make sure it is provisioned
+			topicName := types.NamespacedName{Namespace: notification.Namespace, Name: notification.Spec.Topic}
+			bucketTopic, err := topic.GetProvisioned(r.client, r.opManagerContext, topicName)
 			if err != nil {
-				return waitForRequeueIfTopicNotReady, errors.Wrapf(err, "CephBucketTopic %q not provisioned", topicName)
+				logger.Infof("CephBucketTopic %q not provisioned yet", topicName)
+				return waitForRequeueIfTopicNotReady, nil
 			}
 
 			if err = validateObjectStoreName(bucketTopic, objectStoreName); err != nil {
@@ -205,7 +174,7 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 			}
 
 			// provision the notification
-			err = provisioner.Create(&ob, topicARN, notification, session)
+			err = createNotificationFunc(p, &ob, *bucketTopic.Status.ARN, notification)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to provision CephBucketNotification %q", bnName)
 			}

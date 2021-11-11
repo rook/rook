@@ -21,9 +21,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	awssession "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
@@ -35,25 +32,23 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Provisioner struct {
-	Client           client.Client
-	Context          *clusterd.Context
-	ClusterInfo      *cephclient.ClusterInfo
-	ClusterSpec      *cephv1.ClusterSpec
+type provisioner struct {
+	context          *clusterd.Context
+	clusterInfo      *cephclient.ClusterInfo
+	clusterSpec      *cephv1.ClusterSpec
 	opManagerContext context.Context
+	owner            string
+	objectStoreName  types.NamespacedName
 }
 
-func (p *Provisioner) getCephUser(username string, objStore *cephv1.CephObjectStore, objContext *object.Context) (accessKey string, secretKey string, err error) {
+func getUserCredentials(opManagerContext context.Context, username string, objStore *cephv1.CephObjectStore, objContext *object.Context) (accessKey string, secretKey string, err error) {
 	if len(username) == 0 {
 		err = errors.New("no user name provided")
 		return
 	}
 
-	// CephClusterSpec is needed for GetAdminOPSUserCredentials()
-	objContext.CephClusterSpec = *p.ClusterSpec
 	adminAccessKey, adminSecretKey, err := object.GetAdminOPSUserCredentials(objContext, &objStore.Spec)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to get Ceph RGW admin ops user credentials when getting user %q", username)
@@ -67,7 +62,7 @@ func (p *Provisioner) getCephUser(username string, objStore *cephv1.CephObjectSt
 	}
 
 	var u admin.User
-	u, err = adminOpsClient.GetUser(p.opManagerContext, admin.User{ID: username})
+	u, err = adminOpsClient.GetUser(opManagerContext, admin.User{ID: username})
 	if err != nil {
 		err = errors.Wrapf(err, "failed to get ceph user %q", username)
 		return
@@ -79,61 +74,25 @@ func (p *Provisioner) getCephUser(username string, objStore *cephv1.CephObjectSt
 	return
 }
 
-func (p *Provisioner) createSession(owner string, objectStoreName types.NamespacedName) (*awssession.Session, error) {
-	objStore, err := p.Context.RookClientset.CephV1().CephObjectStores(objectStoreName.Namespace).Get(p.opManagerContext, objectStoreName.Name, metav1.GetOptions{})
+func newS3Agent(p provisioner) (*object.S3Agent, error) {
+	objStore, err := p.context.RookClientset.CephV1().CephObjectStores(p.objectStoreName.Namespace).Get(p.opManagerContext, p.objectStoreName.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get CephObjectStore %v", objectStoreName)
+		return nil, errors.Wrapf(err, "failed to get CephObjectStore %v", p.objectStoreName)
 	}
 
-	objContext, err := object.NewMultisiteContext(p.Context, p.ClusterInfo, objStore)
+	objContext, err := object.NewMultisiteContext(p.context, p.clusterInfo, objStore)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get object context for CephObjectStore %v", objectStoreName)
+		return nil, errors.Wrapf(err, "failed to get object context for CephObjectStore %v", p.objectStoreName)
 	}
+	// CephClusterSpec is needed for GetAdminOPSUserCredentials()
+	objContext.CephClusterSpec = *p.clusterSpec
 
-	accessKey, secretKey, err := p.getCephUser(owner, objStore, objContext)
+	accessKey, secretKey, err := getUserCredentials(p.opManagerContext, p.owner, objStore, objContext)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get owner credentials for %q", owner)
+		return nil, errors.Wrapf(err, "failed to get owner credentials for %q", p.owner)
 	}
 
-	// pass log level to AWS session
-	logLevel := aws.LogOff
-	if logger.LevelAt(capnslog.DEBUG) {
-		logLevel = aws.LogDebugWithHTTPBody
-	}
-
-	// pass TLS indication and certificates to AWS session
-	client := http.Client{
-		Timeout: object.HttpTimeOut,
-	}
-	tlsEnabled := objStore.Spec.IsTLSEnabled()
-	if tlsEnabled {
-		tlsCert := objContext.Context.KubeConfig.CertData
-		if len(tlsCert) > 0 {
-			client.Transport = object.BuildTransportTLS(tlsCert, false)
-		}
-	}
-
-	session, err := awssession.NewSession(
-		aws.NewConfig().
-			WithHTTPClient(&client).
-			WithRegion(objContext.ZoneGroup).
-			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
-			WithEndpoint(objContext.Endpoint).
-			WithMaxRetries(3).
-			WithDisableSSL(!tlsEnabled).
-			WithS3ForcePathStyle(true).
-			WithLogLevel(logLevel),
-	)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create a new session for CephBucketNotification provisioning with %q", objectStoreName)
-	}
-
-	logger.Debugf("session created. endpoint %q region %q secure %v",
-		*session.Config.Endpoint,
-		*session.Config.Region,
-		tlsEnabled,
-	)
-	return session, nil
+	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, objContext.ZoneGroup, logger.LevelAt(capnslog.DEBUG), objContext.Context.KubeConfig.CertData)
 }
 
 // TODO: convert all rules without restrictions once the AWS SDK supports that
@@ -174,10 +133,17 @@ func createS3Events(events []cephv1.BucketNotificationEvent) []*string {
 	return s3Events
 }
 
-func (p *Provisioner) Create(bucket *bktv1alpha1.ObjectBucket, topicARN string, notification *cephv1.CephBucketNotification, sess *awssession.Session) error {
+// Allow overriding this function for unit tests
+var createNotificationFunc = createNotification
+
+var createNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, topicARN string, notification *cephv1.CephBucketNotification) error {
 	bucketName := bucket.Spec.Endpoint.BucketName
 	bnName := types.NamespacedName{Namespace: notification.Namespace, Name: notification.Name}
-	_, err := s3.New(sess).PutBucketNotificationConfiguration(&s3.PutBucketNotificationConfigurationInput{
+	s3Agent, err := newS3Agent(p)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create S3 agent for CephBucketNotification %q provisioning for bucket %q", bnName, bucketName)
+	}
+	_, err = s3Agent.Client.PutBucketNotificationConfiguration(&s3.PutBucketNotificationConfigurationInput{
 		Bucket: &bucketName,
 		NotificationConfiguration: &s3.NotificationConfiguration{
 			TopicConfigurations: []*s3.TopicConfiguration{
@@ -199,9 +165,16 @@ func (p *Provisioner) Create(bucket *bktv1alpha1.ObjectBucket, topicARN string, 
 	return nil
 }
 
-func (p *Provisioner) DeleteAll(bucket *bktv1alpha1.ObjectBucket, sess *awssession.Session) error {
+// Allow overriding this function for unit tests
+var deleteAllNotificationsFunc = deleteAllNotifications
+
+var deleteAllNotifications = func(p provisioner, bucket *bktv1alpha1.ObjectBucket) error {
 	bucketName := types.NamespacedName{Namespace: bucket.Namespace, Name: bucket.Name}
-	if err := DeleteBucketNotification(s3.New(sess), &DeleteBucketNotificationRequestInput{
+	s3Agent, err := newS3Agent(p)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create S3 agent for deleting all bucket notifications from bucket %q", bucketName)
+	}
+	if err := DeleteBucketNotification(s3Agent.Client, &DeleteBucketNotificationRequestInput{
 		Bucket: &bucket.Spec.Endpoint.BucketName,
 	}); err != nil {
 		return errors.Wrapf(err, "failed to delete all bucket notifications from bucket %q", bucketName)

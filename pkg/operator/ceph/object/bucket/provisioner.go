@@ -428,7 +428,7 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 			},
 		},
 		AdditionalState: map[string]string{
-			cephUser: p.cephUserName,
+			CephUser: p.cephUserName,
 		},
 	}
 
@@ -685,7 +685,7 @@ func (p Provisioner) updateAdditionalSettings(ob *bktv1alpha1.ObjectBucket) erro
 			return errors.Wrapf(err, "failed to parse maxSize quota for user %q", p.cephUserName)
 		}
 	}
-	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: ob.Spec.Connection.AdditionalState[cephUser]})
+	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: ob.Spec.Connection.AdditionalState[CephUser]})
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch user %q", p.cephUserName)
 	}
