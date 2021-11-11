@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -38,6 +39,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -313,6 +315,22 @@ func emptyPool(pool cephv1.PoolSpec) bool {
 // BuildDomainName build the dns name to reach out the service endpoint
 func BuildDomainName(name, namespace string) string {
 	return fmt.Sprintf("%s-%s.%s.%s", AppName, name, namespace, svcDNSSuffix)
+}
+
+// ParseDomainName parse the name and namespace from the dns name
+func ParseDomainName(domainName string) (types.NamespacedName, error) {
+	parsedDomain := strings.Split(domainName, ".")
+	if len(parsedDomain) != 3 ||
+		parsedDomain[0] == "" ||
+		parsedDomain[1] == "" ||
+		parsedDomain[2] != svcDNSSuffix {
+		return types.NamespacedName{}, errors.Errorf("malformed domain name %q", domainName)
+	}
+	name := strings.TrimPrefix(parsedDomain[0], AppName+"-")
+	if name == parsedDomain[0] || name == "" {
+		return types.NamespacedName{}, errors.Errorf("malformed subdomain name %q", parsedDomain[0])
+	}
+	return types.NamespacedName{Name: name, Namespace: parsedDomain[1]}, nil
 }
 
 // BuildDNSEndpoint build the dns name to reach out the service endpoint

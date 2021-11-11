@@ -35,7 +35,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-bucket-prov")
 
 const (
 	genUserLen           = 8
-	cephUser             = "cephUser"
+	CephUser             = "cephUser"
 	objectStoreName      = "objectStoreName"
 	objectStoreNamespace = "objectStoreNamespace"
 	objectStoreEndpoint  = "endpoint"
@@ -72,7 +72,7 @@ func isStaticBucket(sc *storagev1.StorageClass) (string, bool) {
 }
 
 func getCephUser(ob *bktv1alpha1.ObjectBucket) string {
-	return ob.Spec.AdditionalState[cephUser]
+	return ob.Spec.AdditionalState[CephUser]
 }
 
 func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
