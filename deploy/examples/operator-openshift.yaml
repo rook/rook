@@ -146,7 +146,7 @@ data:
 
   # (Optional) policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  CSI_RBD_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
+  CSI_RBD_FSGROUPPOLICY: "None"
 
   # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
