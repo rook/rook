@@ -121,10 +121,8 @@ A volume claim template is defined inside the pod spec which refers to a volume
 provisioned and used by the pod with its lifecycle. The volumes are provisioned
 when pod get spawned and destroyed at time of pod delete.
 
-Refer to [ephemeral-doc]( https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes )
-for more info. Also, See the example manifests for an [RBD ephemeral volume]
-(https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/pod-ephemeral.yaml)
-and a [CephFS ephemeral volume](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/pod-ephemeral.yaml).
+Refer to [ephemeral-doc](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) for more info.
+Also, See the example manifests for an [RBD ephemeral volume](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/pod-ephemeral.yaml) and a [CephFS ephemeral volume](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/pod-ephemeral.yaml).
 
 ### Prerequisites
 Kubernetes version 1.21 or greater is required.
