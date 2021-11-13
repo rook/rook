@@ -279,7 +279,7 @@ func (s *CephMgrSuite) TestHostLs() {
 	sort.Strings(hostOutput)
 
 	// get the k8s nodes
-	nodes, err := k8sutil.GetNodeHostNames(s.k8sh.Clientset)
+	nodes, err := k8sutil.GetNodeHostNames(context.TODO(), s.k8sh.Clientset)
 	assert.Nil(s.T(), err)
 
 	k8sNodes := make([]string, 0, len(nodes))

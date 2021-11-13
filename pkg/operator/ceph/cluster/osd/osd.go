@@ -428,7 +428,7 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 		return "", errors.Wrapf(err, "failed to get pod for osd with pvc %q", pvcName)
 	}
 	for _, pod := range pods.Items {
-		name, err := k8sutil.GetNodeHostName(c.context.Clientset, pod.Spec.NodeName)
+		name, err := k8sutil.GetNodeHostName(c.clusterInfo.Context, c.context.Clientset, pod.Spec.NodeName)
 		if err != nil {
 			logger.Warningf("falling back to node name %s since hostname not found for node", pod.Spec.NodeName)
 			name = pod.Spec.NodeName
@@ -515,7 +515,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 
 	// if the ROOK_TOPOLOGY_AFFINITY env var was not found in the loop above, detect it from the node
 	if isPVC && osd.TopologyAffinity == "" {
-		osd.TopologyAffinity, err = getTopologyFromNode(c.context.Clientset, d, osd)
+		osd.TopologyAffinity, err = getTopologyFromNode(c.clusterInfo.Context, c.context.Clientset, d, osd)
 		if err != nil {
 			logger.Errorf("failed to get topology affinity for osd %d. %v", osd.ID, err)
 		}
@@ -533,7 +533,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	}
 
 	if !locationFound {
-		location, _, err := getLocationFromPod(c.context.Clientset, d, cephclient.GetCrushRootFromSpec(&c.spec))
+		location, _, err := getLocationFromPod(c.clusterInfo.Context, c.context.Clientset, d, cephclient.GetCrushRootFromSpec(&c.spec))
 		if err != nil {
 			logger.Errorf("failed to get location. %v", err)
 		} else {
@@ -594,14 +594,13 @@ func getBlockPathFromActivateInitContainer(d *appsv1.Deployment) (string, error)
 	return "", errors.Errorf("failed to find activate init container")
 }
 
-func getLocationFromPod(clientset kubernetes.Interface, d *appsv1.Deployment, crushRoot string) (string, string, error) {
-	ctx := context.TODO()
+func getLocationFromPod(ctx context.Context, clientset kubernetes.Interface, d *appsv1.Deployment, crushRoot string) (string, string, error) {
 	pods, err := clientset.CoreV1().Pods(d.Namespace).List(ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OsdIdLabelKey, d.Labels[OsdIdLabelKey])})
 	if err != nil || len(pods.Items) == 0 {
 		return "", "", err
 	}
 	nodeName := pods.Items[0].Spec.NodeName
-	hostName, err := k8sutil.GetNodeHostName(clientset, nodeName)
+	hostName, err := k8sutil.GetNodeHostName(ctx, clientset, nodeName)
 	if err != nil {
 		return "", "", err
 	}
@@ -612,10 +611,10 @@ func getLocationFromPod(clientset kubernetes.Interface, d *appsv1.Deployment, cr
 			hostName = pvcName
 		}
 	}
-	return GetLocationWithNode(clientset, nodeName, crushRoot, hostName)
+	return GetLocationWithNode(ctx, clientset, nodeName, crushRoot, hostName)
 }
 
-func getTopologyFromNode(clientset kubernetes.Interface, d *appsv1.Deployment, osd OSDInfo) (string, error) {
+func getTopologyFromNode(ctx context.Context, clientset kubernetes.Interface, d *appsv1.Deployment, osd OSDInfo) (string, error) {
 	portable, ok := d.GetLabels()[portableKey]
 	if !ok || portable != "true" {
 		// osd is not portable, no need to load the topology affinity
@@ -624,7 +623,6 @@ func getTopologyFromNode(clientset kubernetes.Interface, d *appsv1.Deployment, o
 	logger.Infof("detecting topology affinity for osd %d after upgrade", osd.ID)
 
 	// Get the osd pod and its assigned node, then look up the node labels
-	ctx := context.TODO()
 	pods, err := clientset.CoreV1().Pods(d.Namespace).List(ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", OsdIdLabelKey, d.Labels[OsdIdLabelKey])})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get osd pod")
@@ -636,7 +634,7 @@ func getTopologyFromNode(clientset kubernetes.Interface, d *appsv1.Deployment, o
 	if nodeName == "" {
 		return "", errors.Errorf("osd %d is not assigned to a node, cannot detect topology affinity", osd.ID)
 	}
-	node, err := getNode(clientset, nodeName)
+	node, err := getNode(ctx, clientset, nodeName)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get the node for topology affinity")
 	}
@@ -649,8 +647,8 @@ func getTopologyFromNode(clientset kubernetes.Interface, d *appsv1.Deployment, o
 //  location: The CRUSH properties for the OSD to apply
 //  topologyAffinity: The label to be applied to the OSD daemon to guarantee it will start in the same
 //		topology as the OSD prepare job.
-func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushRoot, crushHostname string) (string, string, error) {
-	node, err := getNode(clientset, nodeName)
+func GetLocationWithNode(ctx context.Context, clientset kubernetes.Interface, nodeName string, crushRoot, crushHostname string) (string, string, error) {
+	node, err := getNode(ctx, clientset, nodeName)
 	if err != nil {
 		return "", "", errors.Wrap(err, "could not get the node for topology labels")
 	}
@@ -679,8 +677,7 @@ func GetLocationWithNode(clientset kubernetes.Interface, nodeName string, crushR
 
 // getNode will try to get the node object for the provided nodeName
 // it will try using the node's name it's hostname label
-func getNode(clientset kubernetes.Interface, nodeName string) (*corev1.Node, error) {
-	ctx := context.TODO()
+func getNode(ctx context.Context, clientset kubernetes.Interface, nodeName string) (*corev1.Node, error) {
 	var node *corev1.Node
 	var err error
 	// try to find by the node by matching the provided nodeName

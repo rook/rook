@@ -250,12 +250,11 @@ func getEnvVar(varName string, defaultValue string) string {
 }
 
 // ListDevices lists all devices discovered on all nodes or specific node if node name is provided.
-func ListDevices(clusterdContext *clusterd.Context, namespace, nodeName string) (map[string][]sys.LocalDisk, error) {
-	ctx := context.TODO()
+func ListDevices(ctx context.Context, clusterdContext *clusterd.Context, namespace, nodeName string) (map[string][]sys.LocalDisk, error) {
 	// convert the host name label to the k8s node name to look up the configmap  with the devices
 	if len(nodeName) > 0 {
 		var err error
-		nodeName, err = k8sutil.GetNodeNameFromHostname(clusterdContext.Clientset, nodeName)
+		nodeName, err = k8sutil.GetNodeNameFromHostname(ctx, clusterdContext.Clientset, nodeName)
 		if err != nil {
 			logger.Warningf("failed to get node name from hostname. %+v", err)
 		}
@@ -314,8 +313,7 @@ func ListDevices(clusterdContext *clusterd.Context, namespace, nodeName string) 
 }
 
 // ListDevicesInUse lists all devices on a node that are already used by existing clusters.
-func ListDevicesInUse(clusterdContext *clusterd.Context, namespace, nodeName string) ([]sys.LocalDisk, error) {
-	ctx := context.TODO()
+func ListDevicesInUse(ctx context.Context, clusterdContext *clusterd.Context, namespace, nodeName string) ([]sys.LocalDisk, error) {
 	var devices []sys.LocalDisk
 
 	if len(nodeName) == 0 {
@@ -364,15 +362,14 @@ func matchDeviceFullPath(devLinks, fullpath string) bool {
 }
 
 // GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.
-func GetAvailableDevices(clusterdContext *clusterd.Context, nodeName, clusterName string, devices []cephv1.Device, filter string, useAllDevices bool) ([]cephv1.Device, error) {
-	ctx := context.TODO()
+func GetAvailableDevices(ctx context.Context, clusterdContext *clusterd.Context, nodeName, clusterName string, devices []cephv1.Device, filter string, useAllDevices bool) ([]cephv1.Device, error) {
 	results := []cephv1.Device{}
 	if len(devices) == 0 && len(filter) == 0 && !useAllDevices {
 		return results, nil
 	}
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	// find all devices
-	allDevices, err := ListDevices(clusterdContext, namespace, nodeName)
+	allDevices, err := ListDevices(ctx, clusterdContext, namespace, nodeName)
 	if err != nil {
 		return results, err
 	}
@@ -382,7 +379,7 @@ func GetAvailableDevices(clusterdContext *clusterd.Context, nodeName, clusterNam
 		return results, fmt.Errorf("node %s has no devices", nodeName)
 	}
 	// find those in use on the node
-	devicesInUse, err := ListDevicesInUse(clusterdContext, namespace, nodeName)
+	devicesInUse, err := ListDevicesInUse(ctx, clusterdContext, namespace, nodeName)
 	if err != nil {
 		return results, err
 	}

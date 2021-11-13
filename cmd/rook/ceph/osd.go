@@ -17,7 +17,7 @@ limitations under the License.
 package ceph
 
 import (
-	ctx "context"
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -216,7 +216,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 	commonOSDInit(provisionCmd)
-	crushLocation, topologyAffinity, err := getLocation(context.Clientset)
+	crushLocation, topologyAffinity, err := getLocation(cmd.Context(), context.Clientset)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -227,7 +227,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := opcontroller.ClusterOwnerRef(clusterName, ownerRefID)
 	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(&ownerRef, clusterInfo.Namespace)
 	clusterInfo.OwnerInfo = ownerInfo
-	clusterInfo.Context = ctx.Background()
+	clusterInfo.Context = cmd.Context()
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerInfo)
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
@@ -263,7 +263,7 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 
 	context := createContext()
 
-	clusterInfo.Context = ctx.Background()
+	clusterInfo.Context = cmd.Context()
 
 	// Run OSD remove sequence
 	err := osddaemon.RemoveOSDs(context, &clusterInfo, strings.Split(osdIDsToRemove, ","), preservePVC)
@@ -281,13 +281,13 @@ func commonOSDInit(cmd *cobra.Command) {
 }
 
 // use zone/region/hostname labels in the crushmap
-func getLocation(clientset kubernetes.Interface) (string, string, error) {
+func getLocation(ctx context.Context, clientset kubernetes.Interface) (string, string, error) {
 	// get the value the operator instructed to use as the host name in the CRUSH map
 	hostNameLabel := os.Getenv("ROOK_CRUSHMAP_HOSTNAME")
 
 	rootLabel := os.Getenv(oposd.CrushRootVarName)
 
-	loc, topologyAffinity, err := oposd.GetLocationWithNode(clientset, os.Getenv(k8sutil.NodeNameEnvVar), rootLabel, hostNameLabel)
+	loc, topologyAffinity, err := oposd.GetLocationWithNode(ctx, clientset, os.Getenv(k8sutil.NodeNameEnvVar), rootLabel, hostNameLabel)
 	if err != nil {
 		return "", "", err
 	}
