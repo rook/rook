@@ -176,7 +176,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 		},
 	}
 	// Get the operator pod details to attach the owner reference to the discover daemon set
-	operatorPod, err := k8sutil.GetRunningPod(d.clientset)
+	operatorPod, err := k8sutil.GetRunningPod(ctx, d.clientset)
 	if err != nil {
 		logger.Errorf("failed to get operator pod. %+v", err)
 	} else {

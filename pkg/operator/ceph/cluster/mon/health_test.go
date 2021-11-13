@@ -68,12 +68,12 @@ func TestCheckHealth(t *testing.T) {
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})
 	// clusterInfo is nil so we return err
-	err := c.checkHealth()
+	err := c.checkHealth(ctx)
 	assert.NotNil(t, err)
 
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0, AllowMultiplePerNode: true}, "myversion")
 	// mon count is 0 so we return err
-	err = c.checkHealth()
+	err = c.checkHealth(ctx)
 	assert.NotNil(t, err)
 
 	c.spec.Mon.Count = 3
@@ -94,7 +94,7 @@ func TestCheckHealth(t *testing.T) {
 	}
 
 	c.ClusterInfo.Context = ctx
-	err = c.checkHealth()
+	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	logger.Infof("mons after checkHealth: %v", c.ClusterInfo.Monitors)
 	assert.ElementsMatch(t, []string{"rook-ceph-mon-a", "rook-ceph-mon-f"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -332,7 +332,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 
 	// Because the mon a isn't in the MonInQuorumResponse() this will create a new mon
 	delete(c.mapping.Schedule, "b")
-	err = c.checkHealth()
+	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	// No updates in unit tests w/ workaround
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -347,6 +347,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 }
 
 func TestAddRemoveMons(t *testing.T) {
+	ctx := context.TODO()
 	var deploymentsUpdated *[]*apps.Deployment
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
@@ -376,7 +377,7 @@ func TestAddRemoveMons(t *testing.T) {
 	defer os.RemoveAll(c.context.ConfigDir)
 
 	// checking the health will increase the mons as desired all in one go
-	err := c.checkHealth()
+	err := c.checkHealth(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(c.ClusterInfo.Monitors), fmt.Sprintf("mons: %v", c.ClusterInfo.Monitors))
 	assert.ElementsMatch(t, []string{
@@ -391,7 +392,7 @@ func TestAddRemoveMons(t *testing.T) {
 	// reducing the mon count to 3 will reduce the mon count once each time we call checkHealth
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	c.spec.Mon.Count = 3
-	err = c.checkHealth()
+	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
@@ -400,7 +401,7 @@ func TestAddRemoveMons(t *testing.T) {
 
 	// after the second call we will be down to the expected count of 3
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
-	err = c.checkHealth()
+	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
@@ -410,7 +411,7 @@ func TestAddRemoveMons(t *testing.T) {
 	// now attempt to reduce the mons down to quorum size 1
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
 	c.spec.Mon.Count = 1
-	err = c.checkHealth()
+	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround
@@ -419,7 +420,7 @@ func TestAddRemoveMons(t *testing.T) {
 
 	// cannot reduce from quorum size of 2 to 1
 	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.Monitors)
-	err = c.checkHealth()
+	err = c.checkHealth(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(c.ClusterInfo.Monitors))
 	// No updates in unit tests w/ workaround

@@ -388,7 +388,7 @@ func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
 	if checkOSDPods {
 		// Wait for the OSD pods to be running
 		// can't use osd.AppName due to a circular dependency
-		allRunning, err := k8sutil.PodsWithLabelAreAllRunning(c.context.Clientset, c.Namespace, fmt.Sprintf("%s=rook-ceph-osd", k8sutil.AppAttr))
+		allRunning, err := k8sutil.PodsWithLabelAreAllRunning(c.ClusterInfo.Context, c.context.Clientset, c.Namespace, fmt.Sprintf("%s=rook-ceph-osd", k8sutil.AppAttr))
 		if err != nil {
 			return false, errors.Wrap(err, "failed to check whether all osds are running before enabling the arbiter")
 		}
@@ -1334,7 +1334,7 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.Cl
 		allPodsRunning := true
 		var runningMonNames []string
 		for _, m := range mons {
-			running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterInfo.Namespace, fmt.Sprintf("app=%s,mon=%s", AppName, m))
+			running, err := k8sutil.PodsRunningWithLabel(clusterInfo.Context, context.Clientset, clusterInfo.Namespace, fmt.Sprintf("app=%s,mon=%s", AppName, m))
 			if err != nil {
 				logger.Infof("failed to query mon pod status, trying again. %v", err)
 				continue

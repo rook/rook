@@ -156,8 +156,7 @@ func AddUnreachableNodeToleration(podSpec *v1.PodSpec) {
 
 // GetRunningPod reads the name and namespace of a pod from the
 // environment, and returns the pod (if it exists).
-func GetRunningPod(clientset kubernetes.Interface) (*v1.Pod, error) {
-	ctx := context.TODO()
+func GetRunningPod(ctx context.Context, clientset kubernetes.Interface) (*v1.Pod, error) {
 	podName := os.Getenv(PodNameEnvVar)
 	if podName == "" {
 		return nil, fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")
@@ -202,14 +201,14 @@ func GetMatchingContainer(containers []v1.Container, name string) (v1.Container,
 }
 
 // PodsRunningWithLabel returns the number of running pods with the given label
-func PodsRunningWithLabel(clientset kubernetes.Interface, namespace, label string) (int, error) {
-	running, _, err := podStatusWithLabel(clientset, namespace, label)
+func PodsRunningWithLabel(ctx context.Context, clientset kubernetes.Interface, namespace, label string) (int, error) {
+	running, _, err := podStatusWithLabel(ctx, clientset, namespace, label)
 	return running, err
 }
 
 // PodsWithLabelAreAllRunning returns whether all pods with the label are in running state
-func PodsWithLabelAreAllRunning(clientset kubernetes.Interface, namespace, label string) (bool, error) {
-	running, notRunning, err := podStatusWithLabel(clientset, namespace, label)
+func PodsWithLabelAreAllRunning(ctx context.Context, clientset kubernetes.Interface, namespace, label string) (bool, error) {
+	running, notRunning, err := podStatusWithLabel(ctx, clientset, namespace, label)
 	if err != nil {
 		return false, err
 	}
@@ -217,8 +216,7 @@ func PodsWithLabelAreAllRunning(clientset kubernetes.Interface, namespace, label
 	return running > 0 && notRunning == 0, err
 }
 
-func podStatusWithLabel(clientset kubernetes.Interface, namespace, label string) (int, int, error) {
-	ctx := context.TODO()
+func podStatusWithLabel(ctx context.Context, clientset kubernetes.Interface, namespace, label string) (int, int, error) {
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: label})
 	if err != nil {
 		return 0, 0, err
@@ -256,8 +254,7 @@ func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
 
 // GetJobLog gets the logs for the pod. If there is more than one pod with the label selector, the logs from
 // the first pod will be returned.
-func GetPodLog(clientset kubernetes.Interface, namespace string, labelSelector string) (string, error) {
-	ctx := context.TODO()
+func GetPodLog(ctx context.Context, clientset kubernetes.Interface, namespace string, labelSelector string) (string, error) {
 	opts := metav1.ListOptions{
 		LabelSelector: labelSelector,
 	}
@@ -347,8 +344,7 @@ func SetNodeAntiAffinityForPod(pod *v1.PodSpec, requiredDuringScheduling bool, t
 	}
 }
 
-func ForceDeletePodIfStuck(clusterdContext *clusterd.Context, pod v1.Pod) error {
-	ctx := context.TODO()
+func ForceDeletePodIfStuck(ctx context.Context, clusterdContext *clusterd.Context, pod v1.Pod) error {
 	logger.Debugf("checking if pod %q is stuck and should be force deleted", pod.Name)
 	if pod.DeletionTimestamp.IsZero() {
 		logger.Debugf("skipping pod %q restart since the pod is not deleted", pod.Name)
@@ -398,9 +394,9 @@ func removeDuplicateEnvVarsFromContainer(container *v1.Container) {
 	container.Env = vars
 }
 
-func IsPodScheduled(clientSet kubernetes.Interface, namespace, selector string) (bool, error) {
+func IsPodScheduled(ctx context.Context, clientSet kubernetes.Interface, namespace, selector string) (bool, error) {
 	listOpts := metav1.ListOptions{LabelSelector: selector}
-	podList, err := clientSet.CoreV1().Pods(namespace).List(context.TODO(), listOpts)
+	podList, err := clientSet.CoreV1().Pods(namespace).List(ctx, listOpts)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to list pods with label selector %q in namespace %q", selector, namespace)
 	}

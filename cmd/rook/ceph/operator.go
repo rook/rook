@@ -60,8 +60,8 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(errors.Errorf("rook operator namespace is not provided. expose it via downward API in the rook operator manifest file using environment variable %q", k8sutil.PodNamespaceEnvVar))
 	}
 
-	rook.CheckOperatorResources(context.Clientset)
-	rookImage := rook.GetOperatorImage(context.Clientset, containerName)
+	rook.CheckOperatorResources(cmd.Context(), context.Clientset)
+	rookImage := rook.GetOperatorImage(cmd.Context(), context.Clientset, containerName)
 	rookBaseImageCephVersion, err := rook.GetOperatorBaseImageCephVersion(context)
 	if err != nil {
 		logger.Errorf("failed to get operator base image ceph version. %v", err)
@@ -69,7 +69,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	opcontroller.OperatorCephBaseImageVersion = rookBaseImageCephVersion
 	logger.Infof("base ceph version inside the rook operator image is %q", opcontroller.OperatorCephBaseImageVersion)
 
-	serviceAccountName := rook.GetOperatorServiceAccount(context.Clientset)
+	serviceAccountName := rook.GetOperatorServiceAccount(cmd.Context(), context.Clientset)
 	op := operator.New(context, rookImage, serviceAccountName)
 	err = op.Run()
 	if err != nil {

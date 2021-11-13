@@ -238,7 +238,7 @@ func TestIsMonScheduled(t *testing.T) {
 	}
 
 	// no pods running
-	isScheduled, err := IsPodScheduled(clientset, "ns", "a")
+	isScheduled, err := IsPodScheduled(ctx, clientset, "ns", "a")
 	assert.Error(t, err)
 	assert.False(t, isScheduled)
 
@@ -247,7 +247,7 @@ func TestIsMonScheduled(t *testing.T) {
 	// unscheduled pod
 	_, err = clientset.CoreV1().Pods("ns").Create(ctx, &pod, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	isScheduled, err = IsPodScheduled(clientset, "ns", selector)
+	isScheduled, err = IsPodScheduled(ctx, clientset, "ns", selector)
 	assert.NoError(t, err)
 	assert.False(t, isScheduled)
 
@@ -255,13 +255,13 @@ func TestIsMonScheduled(t *testing.T) {
 	pod.Spec.NodeName = "node0"
 	_, err = clientset.CoreV1().Pods("ns").Update(ctx, &pod, metav1.UpdateOptions{})
 	assert.NoError(t, err)
-	isScheduled, err = IsPodScheduled(clientset, "ns", selector)
+	isScheduled, err = IsPodScheduled(ctx, clientset, "ns", selector)
 	assert.NoError(t, err)
 	assert.True(t, isScheduled)
 
 	// no pods found
 	assert.NoError(t, err)
-	isScheduled, err = IsPodScheduled(clientset, "ns", "b")
+	isScheduled, err = IsPodScheduled(ctx, clientset, "ns", "b")
 	assert.Error(t, err)
 	assert.False(t, isScheduled)
 }
