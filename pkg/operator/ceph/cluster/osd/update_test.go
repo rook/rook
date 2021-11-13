@@ -132,6 +132,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 
 	updateMultipleDeploymentsAndWaitFunc =
 		func(
+			ctx context.Context,
 			clientset kubernetes.Interface,
 			deployments []*appsv1.Deployment,
 			listFunc func() (*appsv1.DeploymentList, error),

@@ -135,7 +135,7 @@ func toObj(in string) (PeerIDMappings, error) {
 	return mappings, nil
 }
 
-func ReconcilePoolIDMap(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo, pool *cephv1.CephBlockPool) error {
+func ReconcilePoolIDMap(ctx context.Context, clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo, pool *cephv1.CephBlockPool) error {
 	if pool.Spec.Mirroring.Peers == nil {
 		logger.Infof("no peer secrets added in ceph block pool %q. skipping pool ID mappings with peer cluster", pool.Name)
 		return nil
@@ -146,7 +146,7 @@ func ReconcilePoolIDMap(clusterContext *clusterd.Context, clusterInfo *cephclien
 		return errors.Wrapf(err, "failed to get peer pool ID mappings for the pool %q", pool.Name)
 	}
 
-	err = CreateOrUpdateConfig(clusterContext, mappings)
+	err = CreateOrUpdateConfig(ctx, clusterContext, mappings)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create or update peer pool ID mappings configMap for the pool %q", pool.Name)
 	}
@@ -236,8 +236,7 @@ func getClusterPoolIDMap(clusterContext *clusterd.Context, clusterInfo *cephclie
 	return mappings, nil
 }
 
-func CreateOrUpdateConfig(clusterContext *clusterd.Context, mappings *PeerIDMappings) error {
-	ctx := context.TODO()
+func CreateOrUpdateConfig(ctx context.Context, clusterContext *clusterd.Context, mappings *PeerIDMappings) error {
 	data, err := mappings.String()
 	if err != nil {
 		return errors.Wrap(err, "failed to convert peer cluster mappings struct to string")
@@ -251,7 +250,7 @@ func CreateOrUpdateConfig(clusterContext *clusterd.Context, mappings *PeerIDMapp
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			// Create new configMap
-			return createConfig(clusterContext, request, data)
+			return createConfig(ctx, clusterContext, request, data)
 		}
 		return errors.Wrapf(err, "failed to get existing mapping config map %q", existingConfigMap.Name)
 	}
@@ -295,7 +294,7 @@ func UpdateExistingData(existingMappings, newMappings *PeerIDMappings) (string, 
 	return data, nil
 }
 
-func createConfig(clusterContext *clusterd.Context, request types.NamespacedName, data string) error {
+func createConfig(ctx context.Context, clusterContext *clusterd.Context, request types.NamespacedName, data string) error {
 	newConfigMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      request.Name,
@@ -308,7 +307,7 @@ func createConfig(clusterContext *clusterd.Context, request types.NamespacedName
 
 	// Get Operator owner reference
 	operatorPodName := os.Getenv(k8sutil.PodNameEnvVar)
-	ownerRef, err := k8sutil.GetDeploymentOwnerReference(clusterContext.Clientset, operatorPodName, request.Namespace)
+	ownerRef, err := k8sutil.GetDeploymentOwnerReference(ctx, clusterContext.Clientset, operatorPodName, request.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "failed to get operator owner reference")
 	}
@@ -325,7 +324,7 @@ func createConfig(clusterContext *clusterd.Context, request types.NamespacedName
 		return errors.Wrapf(err, "failed to set owner reference on configMap %q", newConfigMap.Name)
 	}
 
-	err = clusterContext.Client.Create(context.TODO(), newConfigMap)
+	err = clusterContext.Client.Create(ctx, newConfigMap)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create mapping configMap %q", newConfigMap.Name)
 	}

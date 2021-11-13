@@ -39,8 +39,7 @@ var (
 )
 
 // GetDeploymentImage returns the version of the image running in the pod spec for the desired container
-func GetDeploymentImage(clientset kubernetes.Interface, namespace, name, container string) (string, error) {
-	ctx := context.TODO()
+func GetDeploymentImage(ctx context.Context, clientset kubernetes.Interface, namespace, name, container string) (string, error) {
 	d, err := clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to find deployment %s. %v", name, err)
@@ -66,8 +65,7 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d appsv1.Deployment,
 //   2. verify that we can continue the update procedure
 // Basically, we go one resource by one and check if we can stop and then if the resource has been successfully updated
 // we check if we can go ahead and move to the next one.
-func UpdateDeploymentAndWait(clusterContext *clusterd.Context, modifiedDeployment *appsv1.Deployment, namespace string, verifyCallback func(action string) error) error {
-	ctx := context.TODO()
+func UpdateDeploymentAndWait(ctx context.Context, clusterContext *clusterd.Context, modifiedDeployment *appsv1.Deployment, namespace string, verifyCallback func(action string) error) error {
 	currentDeployment, err := clusterContext.Clientset.AppsV1().Deployments(namespace).Get(ctx, modifiedDeployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get deployment %s. %+v", modifiedDeployment.Name, err)
@@ -105,7 +103,7 @@ func UpdateDeploymentAndWait(clusterContext *clusterd.Context, modifiedDeploymen
 		return fmt.Errorf("failed to update deployment %q. %v", modifiedDeployment.Name, err)
 	}
 
-	if err := WaitForDeploymentToStart(clusterContext, currentDeployment); err != nil {
+	if err := WaitForDeploymentToStart(ctx, clusterContext, currentDeployment); err != nil {
 		return err
 	}
 
@@ -116,13 +114,13 @@ func UpdateDeploymentAndWait(clusterContext *clusterd.Context, modifiedDeploymen
 	return nil
 }
 
-func WaitForDeploymentToStart(clusterdContext *clusterd.Context, deployment *appsv1.Deployment) error {
+func WaitForDeploymentToStart(ctx context.Context, clusterdContext *clusterd.Context, deployment *appsv1.Deployment) error {
 	// wait for the deployment to be restarted up to 300s
 	sleepTime := 3
 	attempts := 100
 	for i := 0; i < attempts; i++ {
 		// check for the status of the deployment
-		d, err := clusterdContext.Clientset.AppsV1().Deployments(deployment.Namespace).Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+		d, err := clusterdContext.Clientset.AppsV1().Deployments(deployment.Namespace).Get(ctx, deployment.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get deployment %q. %v", deployment.Name, err)
 		}
@@ -188,6 +186,7 @@ func (failures *Failures) CollatedErrors() error {
 // Also returns a list of failures. Each failure returned includes the name of the deployment which
 // could not be updated and the error experienced when attempting to update the deployment.
 func UpdateMultipleDeployments(
+	ctx context.Context,
 	clientset kubernetes.Interface,
 	deployments []*appsv1.Deployment,
 ) (DeploymentsUpdated, Failures, *int32) {
@@ -196,7 +195,7 @@ func UpdateMultipleDeployments(
 	var maxProgressDeadlineSeconds *int32
 
 	for _, dep := range deployments {
-		oldDep, newDep, err := updateDeployment(clientset, dep)
+		oldDep, newDep, err := updateDeployment(ctx, clientset, dep)
 		if err != nil {
 			failures = append(failures, Failure{
 				ResourceName: dep.Name,
@@ -302,11 +301,12 @@ func WaitForDeploymentsToUpdate(
 }
 
 func UpdateMultipleDeploymentsAndWait(
+	ctx context.Context,
 	clientset kubernetes.Interface,
 	deployments []*appsv1.Deployment,
 	listFunc func() (*appsv1.DeploymentList, error),
 ) Failures {
-	depsUpdated, updateFailures, maxProgressDeadline := UpdateMultipleDeployments(clientset, deployments)
+	depsUpdated, updateFailures, maxProgressDeadline := UpdateMultipleDeployments(ctx, clientset, deployments)
 	waitFailures := WaitForDeploymentsToUpdate(depsUpdated, maxProgressDeadline, listFunc)
 
 	return append(updateFailures, waitFailures...)
@@ -327,10 +327,10 @@ func progressDeadlineExceeded(d *appsv1.Deployment) error {
 }
 
 func updateDeployment(
+	ctx context.Context,
 	clientset kubernetes.Interface,
 	deployment *appsv1.Deployment,
 ) (oldDeployment, newDeployment *appsv1.Deployment, err error) {
-	ctx := context.TODO()
 	namespace := deployment.Namespace
 
 	oldDeployment, err = clientset.AppsV1().Deployments(namespace).Get(ctx, deployment.Name, metav1.GetOptions{})
@@ -370,9 +370,8 @@ func updateDeployment(
 // GetDeployments returns a list of deployment names labels matching a given selector
 // example of a label selector might be "app=rook-ceph-mon, mon!=b"
 // more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector string) (*appsv1.DeploymentList, error) {
+func GetDeployments(ctx context.Context, clientset kubernetes.Interface, namespace, labelSelector string) (*appsv1.DeploymentList, error) {
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
-	ctx := context.TODO()
 	deployments, err := clientset.AppsV1().Deployments(namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
@@ -381,9 +380,8 @@ func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector str
 }
 
 // DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
-func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
+func DeleteDeployment(ctx context.Context, clientset kubernetes.Interface, namespace, name string) error {
 	logger.Debugf("removing %s deployment if it exists", name)
-	ctx := context.TODO()
 	deleteAction := func(options *metav1.DeleteOptions) error {
 		return clientset.AppsV1().Deployments(namespace).Delete(ctx, name, *options)
 	}
@@ -395,8 +393,7 @@ func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) er
 }
 
 // GetDeploymentOwnerReference returns an OwnerReference to the deployment that is running the given pod name
-func GetDeploymentOwnerReference(clientset kubernetes.Interface, podName, namespace string) (*metav1.OwnerReference, error) {
-	ctx := context.TODO()
+func GetDeploymentOwnerReference(ctx context.Context, clientset kubernetes.Interface, podName, namespace string) (*metav1.OwnerReference, error) {
 	var deploymentRef *metav1.OwnerReference
 	pod, err := clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
@@ -424,8 +421,7 @@ func GetDeploymentOwnerReference(clientset kubernetes.Interface, podName, namesp
 
 // WaitForDeploymentImage waits for all deployments with the given labels are running.
 // WARNING:This is currently only useful for testing!
-func WaitForDeploymentImage(clientset kubernetes.Interface, namespace, label, container string, initContainer bool, desiredImage string) error {
-	ctx := context.TODO()
+func WaitForDeploymentImage(ctx context.Context, clientset kubernetes.Interface, namespace, label, container string, initContainer bool, desiredImage string) error {
 	sleepTime := 3
 	attempts := 120
 	for i := 0; i < attempts; i++ {
@@ -515,9 +511,7 @@ func addLabel(key, value string, labels map[string]string) {
 }
 
 // CreateDeployment creates a deployment with a last applied hash annotation added
-func CreateDeployment(clientset kubernetes.Interface, dep *appsv1.Deployment) (*appsv1.Deployment, error) {
-	ctx := context.TODO()
-
+func CreateDeployment(ctx context.Context, clientset kubernetes.Interface, dep *appsv1.Deployment) (*appsv1.Deployment, error) {
 	// Set hash annotation to the newly generated deployment
 	err := patch.DefaultAnnotator.SetLastAppliedAnnotation(dep)
 	if err != nil {
@@ -527,10 +521,8 @@ func CreateDeployment(clientset kubernetes.Interface, dep *appsv1.Deployment) (*
 	return clientset.AppsV1().Deployments(dep.Namespace).Create(ctx, dep, metav1.CreateOptions{})
 }
 
-func CreateOrUpdateDeployment(clientset kubernetes.Interface, dep *appsv1.Deployment) (*appsv1.Deployment, error) {
-	ctx := context.TODO()
-
-	newDep, err := CreateDeployment(clientset, dep)
+func CreateOrUpdateDeployment(ctx context.Context, clientset kubernetes.Interface, dep *appsv1.Deployment) (*appsv1.Deployment, error) {
+	newDep, err := CreateDeployment(ctx, clientset, dep)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			// annotation was added in CreateDeployment to dep passed by reference

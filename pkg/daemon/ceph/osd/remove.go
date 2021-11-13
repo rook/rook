@@ -87,7 +87,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 		logger.Errorf("failed to fetch the deployment %q. %v", deploymentName, err)
 	} else {
 		logger.Infof("removing the OSD deployment %q", deploymentName)
-		if err := k8sutil.DeleteDeployment(clusterdContext.Clientset, clusterInfo.Namespace, deploymentName); err != nil {
+		if err := k8sutil.DeleteDeployment(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, deploymentName); err != nil {
 			if err != nil {
 				// Continue purging the OSD even if the deployment fails to be deleted
 				logger.Errorf("failed to delete deployment for OSD %d. %v", osdID, err)

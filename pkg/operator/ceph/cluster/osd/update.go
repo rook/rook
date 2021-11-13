@@ -178,7 +178,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 	// when waiting on deployments to be updated, only list OSDs we intend to update specifically by ID
 	listFunc := c.cluster.getFuncToListDeploymentsWithIDs(listIDs)
 
-	failures := updateMultipleDeploymentsAndWaitFunc(c.cluster.context.Clientset, updatedDeployments, listFunc)
+	failures := updateMultipleDeploymentsAndWaitFunc(c.cluster.clusterInfo.Context, c.cluster.context.Clientset, updatedDeployments, listFunc)
 	for _, f := range failures {
 		errs.addError("%v", errors.Wrapf(f.Error, "failed to update OSD deployment %q", f.ResourceName))
 	}
