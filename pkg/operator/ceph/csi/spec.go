@@ -410,7 +410,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if multusApplied {
 			rbdPlugin.Spec.Template.Spec.HostNetwork = false
 		}
-		err = k8sutil.CreateDaemonSet(csiRBDPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
+		err = k8sutil.CreateDaemonSet(r.opManagerContext, csiRBDPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbdplugin daemonset %q", rbdPlugin.Name)
 		}
@@ -478,7 +478,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if multusApplied {
 			cephfsPlugin.Spec.Template.Spec.HostNetwork = false
 		}
-		err = k8sutil.CreateDaemonSet(csiCephFSPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, cephfsPlugin)
+		err = k8sutil.CreateDaemonSet(r.opManagerContext, csiCephFSPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, cephfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs plugin daemonset %q", cephfsPlugin.Name)
 		}
@@ -570,7 +570,7 @@ func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, de
 	if ver.Major > KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor >= kubeMinVerForV1csiDriver {
 		csiDriverobj = v1CsiDriver{}
 	}
-	err := k8sutil.DeleteDaemonset(r.context.Clientset, r.opConfig.OperatorNamespace, daemonset)
+	err := k8sutil.DeleteDaemonset(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, daemonset)
 	if err != nil {
 		logger.Errorf("failed to delete the %q. %v", daemonset, err)
 		succeeded = false
