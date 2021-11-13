@@ -188,6 +188,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 
 	// Detect desired CephCluster version
 	runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
+		r.opManagerContext,
 		r.opConfig.Image,
 		cephRBDMirror.Namespace,
 		controllerName,

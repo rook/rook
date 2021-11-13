@@ -28,6 +28,7 @@ import (
 
 func (c *ClusterController) detectAndValidateCephVersion(cluster *cluster) (*cephver.CephVersion, bool, error) {
 	version, err := controller.DetectCephVersion(
+		c.OpManagerCtx,
 		c.rookImage,
 		cluster.Namespace,
 		detectVersionName,

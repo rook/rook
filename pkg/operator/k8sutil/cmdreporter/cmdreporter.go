@@ -144,8 +144,7 @@ func (cr *CmdReporter) Job() *batch.Job {
 // and retcode of the command as long as the image ran it, even if the retcode is nonzero (failure).
 // An error is reported only if the command was not run to completion successfully. When this
 // returns, the ConfigMap is cleaned up (destroyed).
-func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcode int, retErr error) {
-	ctx := context.TODO()
+func (cr *CmdReporter) Run(ctx context.Context, timeout time.Duration) (stdout, stderr string, retcode int, retErr error) {
 	jobName := cr.job.Name
 	namespace := cr.job.Namespace
 	errMsg := fmt.Sprintf("failed to run CmdReporter %s successfully", jobName)
@@ -161,11 +160,11 @@ func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcod
 		return "", "", -1, fmt.Errorf("%s. failed to delete existing results ConfigMap %s. %+v", errMsg, jobName, err)
 	}
 
-	if err := k8sutil.RunReplaceableJob(cr.clientset, cr.job, true); err != nil {
+	if err := k8sutil.RunReplaceableJob(ctx, cr.clientset, cr.job, true); err != nil {
 		return "", "", -1, fmt.Errorf("%s. failed to run job. %+v", errMsg, err)
 	}
 
-	if err := cr.waitForConfigMap(timeout); err != nil {
+	if err := cr.waitForConfigMap(ctx, timeout); err != nil {
 		return "", "", -1, fmt.Errorf("%s. failed waiting for results ConfigMap %s. %+v", errMsg, jobName, err)
 	}
 	logger.Debugf("job %s has returned results", jobName)
@@ -175,7 +174,7 @@ func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcod
 		return "", "", -1, fmt.Errorf("%s. results ConfigMap %s should be available, but got an error instead. %+v", errMsg, jobName, err)
 	}
 
-	if err := k8sutil.DeleteBatchJob(cr.clientset, namespace, jobName, false); err != nil {
+	if err := k8sutil.DeleteBatchJob(ctx, cr.clientset, namespace, jobName, false); err != nil {
 		logger.Errorf("continuing after failing delete job %s; user may need to delete it manually. %+v", jobName, err)
 	}
 
@@ -206,8 +205,7 @@ func (cr *CmdReporter) Run(timeout time.Duration) (stdout, stderr string, retcod
 }
 
 // return watcher or nil if configmap exists
-func (cr *CmdReporter) newWatcher() (watch.Interface, error) {
-	ctx := context.TODO()
+func (cr *CmdReporter) newWatcher(ctx context.Context) (watch.Interface, error) {
 	jobName := cr.job.Name
 	namespace := cr.job.Namespace
 
@@ -239,10 +237,10 @@ func (cr *CmdReporter) newWatcher() (watch.Interface, error) {
 }
 
 // return nil when configmap exists
-func (cr *CmdReporter) waitForConfigMap(timeout time.Duration) error {
+func (cr *CmdReporter) waitForConfigMap(ctx context.Context, timeout time.Duration) error {
 	jobName := cr.job.Name
 
-	watcher, err := cr.newWatcher()
+	watcher, err := cr.newWatcher(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start watcher for the results ConfigMap. %+v", err)
 	}
@@ -257,7 +255,8 @@ func (cr *CmdReporter) waitForConfigMap(timeout time.Duration) error {
 
 	// timeout timer cannot be started inline in the select statement, or the timeout will be
 	// restarted any time k8s hangs up on the watcher and a new watcher is started
-	timeoutCh := time.After(timeout)
+	ctxWithTimeout, cancelFunc := context.WithTimeout(ctx, timeout)
+	defer cancelFunc()
 
 	for {
 		select {
@@ -269,14 +268,14 @@ func (cr *CmdReporter) waitForConfigMap(timeout time.Duration) error {
 			// clears its change history, which it keeps for only a limited time (~5 mins default)
 			logger.Infof("Kubernetes hung up the watcher for CmdReporter %s result ConfigMap %s; starting a replacement watcher", jobName, jobName)
 			watcher.Stop() // must clean up existing watcher before replacing it with a new one
-			watcher, err = cr.newWatcher()
+			watcher, err = cr.newWatcher(ctxWithTimeout)
 			if err != nil {
 				return fmt.Errorf("failed to start replacement watcher for the results ConfigMap. %+v", err)
 			}
 			if watcher == nil {
 				return nil
 			}
-		case <-timeoutCh:
+		case <-ctxWithTimeout.Done():
 			return fmt.Errorf("timed out waiting for results ConfigMap")
 		}
 	}
