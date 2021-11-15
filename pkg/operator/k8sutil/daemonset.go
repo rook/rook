@@ -27,8 +27,7 @@ import (
 )
 
 // CreateDaemonSet creates
-func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds *appsv1.DaemonSet) error {
-	ctx := context.TODO()
+func CreateDaemonSet(ctx context.Context, name, namespace string, clientset kubernetes.Interface, ds *appsv1.DaemonSet) error {
 	_, err := clientset.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
@@ -42,8 +41,7 @@ func CreateDaemonSet(name, namespace string, clientset kubernetes.Interface, ds 
 }
 
 // DeleteDaemonset makes a best effort at deleting a daemonset and its pods, then waits for them to be deleted
-func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) error {
-	ctx := context.TODO()
+func DeleteDaemonset(ctx context.Context, clientset kubernetes.Interface, namespace, name string) error {
 	deleteAction := func(options *metav1.DeleteOptions) error {
 		return clientset.AppsV1().DaemonSets(namespace).Delete(ctx, name, *options)
 	}
@@ -69,9 +67,8 @@ func AddRookVersionLabelToDaemonSet(d *appsv1.DaemonSet) {
 // GetDaemonsets returns a list of daemonsets names labels matching a given selector
 // example of a label selector might be "app=rook-ceph-mon, mon!=b"
 // more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-func GetDaemonsets(clientset kubernetes.Interface, namespace, labelSelector string) (*appsv1.DaemonSetList, error) {
+func GetDaemonsets(ctx context.Context, clientset kubernetes.Interface, namespace, labelSelector string) (*appsv1.DaemonSetList, error) {
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
-	ctx := context.TODO()
 	daemonsets, err := clientset.AppsV1().DaemonSets(namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
