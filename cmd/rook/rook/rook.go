@@ -17,6 +17,7 @@ limitations under the License.
 package rook
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
@@ -151,7 +152,7 @@ func NewContext() *clusterd.Context {
 	return context
 }
 
-func GetOperatorImage(clientset kubernetes.Interface, containerName string) string {
+func GetOperatorImage(ctx context.Context, clientset kubernetes.Interface, containerName string) string {
 
 	// If provided as a flag then use that value
 	if operatorImage != "" {
@@ -159,7 +160,7 @@ func GetOperatorImage(clientset kubernetes.Interface, containerName string) stri
 	}
 
 	// Getting the info of the operator pod
-	pod, err := k8sutil.GetRunningPod(clientset)
+	pod, err := k8sutil.GetRunningPod(ctx, clientset)
 	TerminateOnError(err, "failed to get pod")
 
 	// Get the actual operator container image name
@@ -169,7 +170,7 @@ func GetOperatorImage(clientset kubernetes.Interface, containerName string) stri
 	return containerImage
 }
 
-func GetOperatorServiceAccount(clientset kubernetes.Interface) string {
+func GetOperatorServiceAccount(ctx context.Context, clientset kubernetes.Interface) string {
 
 	// If provided as a flag then use that value
 	if serviceAccountName != "" {
@@ -177,15 +178,15 @@ func GetOperatorServiceAccount(clientset kubernetes.Interface) string {
 	}
 
 	// Getting the info of the operator pod
-	pod, err := k8sutil.GetRunningPod(clientset)
+	pod, err := k8sutil.GetRunningPod(ctx, clientset)
 	TerminateOnError(err, "failed to get pod")
 
 	return pod.Spec.ServiceAccountName
 }
 
-func CheckOperatorResources(clientset kubernetes.Interface) {
+func CheckOperatorResources(ctx context.Context, clientset kubernetes.Interface) {
 	// Getting the info of the operator pod
-	pod, err := k8sutil.GetRunningPod(clientset)
+	pod, err := k8sutil.GetRunningPod(ctx, clientset)
 	TerminateOnError(err, "failed to get pod")
 	resource := pod.Spec.Containers[0].Resources
 	// set env var if operator pod resources are set

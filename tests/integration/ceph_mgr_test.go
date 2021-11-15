@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -311,7 +312,7 @@ func (s *CephMgrSuite) TestServiceLs() {
 		} else {
 			labelFilter = "app=rook-ceph-crashcollector"
 		}
-		k8sPods, err := k8sutil.PodsRunningWithLabel(s.k8sh.Clientset, s.namespace, labelFilter)
+		k8sPods, err := k8sutil.PodsRunningWithLabel(context.TODO(), s.k8sh.Clientset, s.namespace, labelFilter)
 		logger.Infof("Service: %+v", svc)
 		logger.Infof("k8s pods for svc %q using label <%q>: %d", svc.ServiceName, labelFilter, k8sPods)
 		assert.Nil(s.T(), err)

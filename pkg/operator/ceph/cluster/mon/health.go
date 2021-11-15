@@ -125,7 +125,7 @@ func (hc *HealthChecker) Check(context context.Context) {
 
 		case <-time.After(hc.interval):
 			logger.Debugf("checking health of mons")
-			err := hc.monCluster.checkHealth()
+			err := hc.monCluster.checkHealth(context)
 			if err != nil {
 				logger.Warningf("failed to check mon health. %v", err)
 			}
@@ -133,7 +133,7 @@ func (hc *HealthChecker) Check(context context.Context) {
 	}
 }
 
-func (c *Cluster) checkHealth() error {
+func (c *Cluster) checkHealth(ctx context.Context) error {
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
 
@@ -253,7 +253,7 @@ func (c *Cluster) checkHealth() error {
 
 		// retry only once before the mon failover if the mon pod is not scheduled
 		monLabelSelector := fmt.Sprintf("%s=%s,%s=%s", k8sutil.AppAttr, AppName, controller.DaemonIDLabel, mon.Name)
-		isScheduled, err := k8sutil.IsPodScheduled(c.context.Clientset, c.Namespace, monLabelSelector)
+		isScheduled, err := k8sutil.IsPodScheduled(ctx, c.context.Clientset, c.Namespace, monLabelSelector)
 		if err != nil {
 			logger.Warningf("failed to check if mon %q is assigned to a node, continuing with mon failover. %v", mon.Name, err)
 		} else if !isScheduled && retriesBeforeNodeDrainFailover > 0 {

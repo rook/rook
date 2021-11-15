@@ -86,7 +86,7 @@ func newCephStatusChecker(context *clusterd.Context, clusterInfo *cephclient.Clu
 // checkCephStatus periodically checks the health of the cluster
 func (c *cephStatusChecker) checkCephStatus(context context.Context) {
 	// check the status immediately before starting the loop
-	c.checkStatus()
+	c.checkStatus(context)
 
 	for {
 		select {
@@ -95,13 +95,13 @@ func (c *cephStatusChecker) checkCephStatus(context context.Context) {
 			return
 
 		case <-time.After(*c.interval):
-			c.checkStatus()
+			c.checkStatus(context)
 		}
 	}
 }
 
 // checkStatus queries the status of ceph health then updates the CR status
-func (c *cephStatusChecker) checkStatus() {
+func (c *cephStatusChecker) checkStatus(ctx context.Context) {
 	var status cephclient.CephStatus
 	var err error
 
@@ -141,7 +141,7 @@ func (c *cephStatusChecker) checkStatus() {
 
 	if status.Health.Status != "HEALTH_OK" {
 		logger.Debug("checking for stuck pods on not ready nodes")
-		if err := c.forceDeleteStuckRookPodsOnNotReadyNodes(); err != nil {
+		if err := c.forceDeleteStuckRookPodsOnNotReadyNodes(ctx); err != nil {
 			logger.Errorf("failed to delete pod on not ready nodes. %v", err)
 		}
 	}
@@ -285,7 +285,7 @@ func cephStatusOnError(errorMessage string) *cephclient.CephStatus {
 
 // forceDeleteStuckPodsOnNotReadyNodes lists all the nodes that are in NotReady state and
 // gets all the pods on the failed node and force delete the pods stuck in terminating state.
-func (c *cephStatusChecker) forceDeleteStuckRookPodsOnNotReadyNodes() error {
+func (c *cephStatusChecker) forceDeleteStuckRookPodsOnNotReadyNodes(ctx context.Context) error {
 	nodes, err := k8sutil.GetNotReadyKubernetesNodes(c.context.Clientset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get NotReady nodes")
@@ -296,7 +296,7 @@ func (c *cephStatusChecker) forceDeleteStuckRookPodsOnNotReadyNodes() error {
 			logger.Errorf("failed to get pods on NotReady node %q. %v", node.Name, err)
 		}
 		for _, pod := range pods {
-			if err := k8sutil.ForceDeletePodIfStuck(c.context, pod); err != nil {
+			if err := k8sutil.ForceDeletePodIfStuck(ctx, c.context, pod); err != nil {
 				logger.Warningf("skipping forced delete of stuck pod %q. %v", pod.Name, err)
 			}
 		}

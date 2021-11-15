@@ -283,7 +283,7 @@ func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 	}
 
 	// There should be no error
-	err = c.forceDeleteStuckRookPodsOnNotReadyNodes()
+	err = c.forceDeleteStuckRookPodsOnNotReadyNodes(ctx)
 	assert.NoError(t, err)
 
 	// The pod should still exist since its not deleted.
@@ -297,7 +297,7 @@ func TestForceDeleteStuckRookPodsOnNotReadyNodes(t *testing.T) {
 	assert.NoError(t, err)
 
 	// There should be no error as the pod is deleted
-	err = c.forceDeleteStuckRookPodsOnNotReadyNodes()
+	err = c.forceDeleteStuckRookPodsOnNotReadyNodes(ctx)
 	assert.NoError(t, err)
 
 	// The pod should be deleted since the pod is marked as deleted and the node is in NotReady state
