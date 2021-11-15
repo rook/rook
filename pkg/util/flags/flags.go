@@ -16,7 +16,6 @@ limitations under the License.
 package flags
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"regexp"
@@ -55,6 +54,7 @@ func createRequiredFlagError(name string, flags []string) error {
 	return fmt.Errorf("%s are required for %s", strings.Join(flags, ","), name)
 }
 
+<<<<<<< HEAD
 func SetLoggingFlags(flags *pflag.FlagSet) {
 	//Add commandline flags to the flagset. We will always write to stderr
 	//and not to a file by default
@@ -67,6 +67,8 @@ func SetLoggingFlags(flags *pflag.FlagSet) {
 	}
 }
 
+=======
+>>>>>>> 77e7c249c (core: remove unnecessary option)
 func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) {
 	var errorFlag bool
 	var err error

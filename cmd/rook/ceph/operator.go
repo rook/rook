@@ -17,6 +17,12 @@ limitations under the License.
 package ceph
 
 import (
+<<<<<<< HEAD
+=======
+	"flag"
+	"os"
+
+>>>>>>> 77e7c249c (core: remove unnecessary option)
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
@@ -54,7 +60,10 @@ func init() {
 	operatorCmd.Flags().BoolVar(&cluster.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
-	flags.SetLoggingFlags(operatorCmd.Flags())
+	operatorCmd.Flags().AddGoFlagSet(flag.CommandLine)
+	if err := operatorCmd.Flags().Parse(nil); err != nil {
+		panic(err)
+	}
 	operatorCmd.RunE = startOperator
 }
 
