@@ -32,6 +32,7 @@ func TestGetServiceMonitor(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mgr", servicemonitor.GetName())
 	assert.Equal(t, "rook-ceph", servicemonitor.GetNamespace())
+	assert.NotNil(t, servicemonitor.GetLabels())
 	assert.NotNil(t, servicemonitor.Spec.NamespaceSelector.MatchNames)
 	assert.NotNil(t, servicemonitor.Spec.Endpoints)
 }

@@ -69,3 +69,46 @@ func mergeAllLabelsWithKey(a LabelsSpec, name rook.KeyType) rook.Labels {
 	}
 	return a[name]
 }
+<<<<<<< HEAD
+=======
+
+// ApplyToObjectMeta adds labels to object meta unless the keys are already defined.
+func (a Labels) ApplyToObjectMeta(t *metav1.ObjectMeta) {
+	if t.Labels == nil {
+		t.Labels = map[string]string{}
+	}
+	for k, v := range a {
+		if _, ok := t.Labels[k]; !ok {
+			t.Labels[k] = v
+		}
+	}
+}
+
+// OverwriteApplyToObjectMeta adds labels to object meta, overwriting keys that are already defined.
+func (a Labels) OverwriteApplyToObjectMeta(t *metav1.ObjectMeta) {
+	if t.Labels == nil {
+		t.Labels = map[string]string{}
+	}
+	for k, v := range a {
+		t.Labels[k] = v
+	}
+}
+
+// Merge returns a Labels which results from merging the attributes of the
+// original Labels with the attributes of the supplied one. The supplied
+// Labels attributes will override the original ones if defined.
+func (a Labels) Merge(with Labels) Labels {
+	ret := Labels{}
+	for k, v := range a {
+		if _, ok := ret[k]; !ok {
+			ret[k] = v
+		}
+	}
+	for k, v := range with {
+		if _, ok := ret[k]; !ok {
+			ret[k] = v
+		}
+	}
+	return ret
+}
+>>>>>>> 00a5debba (monitoring: allow overriding monitoring labels)
