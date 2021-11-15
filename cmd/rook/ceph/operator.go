@@ -17,6 +17,7 @@ limitations under the License.
 package ceph
 
 import (
+	"flag"
 	"os"
 
 	"github.com/pkg/errors"
@@ -43,7 +44,10 @@ func init() {
 	operatorCmd.Flags().BoolVar(&operator.EnableMachineDisruptionBudget, "enable-machine-disruption-budget", false, "enable fencing controllers")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
-	flags.SetLoggingFlags(operatorCmd.Flags())
+	operatorCmd.Flags().AddGoFlagSet(flag.CommandLine)
+	if err := operatorCmd.Flags().Parse(nil); err != nil {
+		panic(err)
+	}
 	operatorCmd.RunE = startOperator
 }
 
