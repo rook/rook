@@ -70,7 +70,7 @@ func TestValidNode(t *testing.T) {
 	assert.Nil(t, nodeErr)
 	nodeErr = createNode(nodeB, v1.NodeNetworkUnavailable, clientset)
 	assert.Nil(t, nodeErr)
-	validNodes := GetValidNodes(storage, clientset, placement)
+	validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
 	assert.Equal(t, len(validNodes), 1)
 }
 
@@ -214,7 +214,7 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 	}
 
 	// no rook nodes specified
-	nodes, err := GetKubernetesNodesMatchingRookNodes(rookNodes, clientset)
+	nodes, err := GetKubernetesNodesMatchingRookNodes(ctx, rookNodes, clientset)
 	assert.NoError(t, err)
 	assert.Empty(t, nodes)
 
@@ -223,7 +223,7 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 		{Name: "node0"},
 		{Name: "node2"},
 		{Name: "node5"}}
-	nodes, err = GetKubernetesNodesMatchingRookNodes(rookNodes, clientset)
+	nodes, err = GetKubernetesNodesMatchingRookNodes(ctx, rookNodes, clientset)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 2)
 	assert.Contains(t, nodes, getNode("node0"))
@@ -234,7 +234,7 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 		{Name: "node0"},
 		{Name: "node1"},
 		{Name: "node2"}}
-	nodes, err = GetKubernetesNodesMatchingRookNodes(rookNodes, clientset)
+	nodes, err = GetKubernetesNodesMatchingRookNodes(ctx, rookNodes, clientset)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 3)
 	assert.Contains(t, nodes, getNode("node0"))
@@ -243,7 +243,7 @@ func TestGetRookNodesMatchingKubernetesNodes(t *testing.T) {
 
 	// no k8s nodes exist
 	clientset = optest.New(t, 0)
-	nodes, err = GetKubernetesNodesMatchingRookNodes(rookNodes, clientset)
+	nodes, err = GetKubernetesNodesMatchingRookNodes(ctx, rookNodes, clientset)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 0)
 }
@@ -379,13 +379,13 @@ func TestGetNotReadyKubernetesNodes(t *testing.T) {
 	clientset := optest.New(t, 0)
 
 	//when there is no node
-	nodes, err := GetNotReadyKubernetesNodes(clientset)
+	nodes, err := GetNotReadyKubernetesNodes(ctx, clientset)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(nodes))
 
 	//when all the nodes are in ready state
 	clientset = optest.New(t, 2)
-	nodes, err = GetNotReadyKubernetesNodes(clientset)
+	nodes, err = GetNotReadyKubernetesNodes(ctx, clientset)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(nodes))
 
@@ -404,7 +404,7 @@ func TestGetNotReadyKubernetesNodes(t *testing.T) {
 	}
 	_, err = clientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	nodes, err = GetNotReadyKubernetesNodes(clientset)
+	nodes, err = GetNotReadyKubernetesNodes(ctx, clientset)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(nodes))
 
@@ -417,7 +417,7 @@ func TestGetNotReadyKubernetesNodes(t *testing.T) {
 		_, err := clientset.CoreV1().Nodes().Update(ctx, &updateNode, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 	}
-	nodes, err = GetNotReadyKubernetesNodes(clientset)
+	nodes, err = GetNotReadyKubernetesNodes(ctx, clientset)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(nodes))
 }

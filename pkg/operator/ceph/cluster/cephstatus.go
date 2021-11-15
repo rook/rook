@@ -286,7 +286,7 @@ func cephStatusOnError(errorMessage string) *cephclient.CephStatus {
 // forceDeleteStuckPodsOnNotReadyNodes lists all the nodes that are in NotReady state and
 // gets all the pods on the failed node and force delete the pods stuck in terminating state.
 func (c *cephStatusChecker) forceDeleteStuckRookPodsOnNotReadyNodes(ctx context.Context) error {
-	nodes, err := k8sutil.GetNotReadyKubernetesNodes(c.context.Clientset)
+	nodes, err := k8sutil.GetNotReadyKubernetesNodes(ctx, c.context.Clientset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get NotReady nodes")
 	}

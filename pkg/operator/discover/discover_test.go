@@ -129,15 +129,15 @@ func TestGetAvailableDevices(t *testing.T) {
 		},
 	}
 
-	nodeDevices, err := ListDevices(context, ns, "" /* all nodes */)
+	nodeDevices, err := ListDevices(ctx, context, ns, "" /* all nodes */)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(nodeDevices))
 
-	devices, err := GetAvailableDevices(context, nodeName, ns, d, "^sd.", pvcBackedOSD)
+	devices, err := GetAvailableDevices(ctx, context, nodeName, ns, d, "^sd.", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(devices))
 	// devices should be in use now, 2nd try gets the same list
-	devices, err = GetAvailableDevices(context, nodeName, ns, d, "^sd.", pvcBackedOSD)
+	devices, err = GetAvailableDevices(ctx, context, nodeName, ns, d, "^sd.", pvcBackedOSD)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(devices))
 }

@@ -232,7 +232,7 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 	logger.Infof("existing ceph daemons in the namespace %q. %s", namespace, b.String())
 
 	for nodeName := range nodeNameList {
-		podHostName, err := k8sutil.GetNodeHostName(c.context.Clientset, nodeName)
+		podHostName, err := k8sutil.GetNodeHostName(c.OpManagerCtx, c.context.Clientset, nodeName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get hostname from node %q", nodeName)
 		}
