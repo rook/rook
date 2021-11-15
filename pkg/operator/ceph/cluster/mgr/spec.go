@@ -239,14 +239,13 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Container {
 	_, adminKeyringVolMount := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
 	container := v1.Container{
-		Name:            client.CommandProxyInitContainerName,
-		Command:         []string{"sleep"},
-		Args:            []string{"infinity"},
-		Image:           c.spec.CephVersion.Image,
-		VolumeMounts:    append(controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName), adminKeyringVolMount),
-		Env:             append(controller.DaemonEnvVars(c.spec.CephVersion.Image), v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())}),
-		Resources:       cephv1.GetMgrResources(c.spec.Resources),
-		SecurityContext: controller.PodSecurityContext(),
+		Name:         client.CommandProxyInitContainerName,
+		Command:      []string{"sleep"},
+		Args:         []string{"infinity"},
+		Image:        c.spec.CephVersion.Image,
+		VolumeMounts: append(controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName), adminKeyringVolMount),
+		Env:          append(controller.DaemonEnvVars(c.spec.CephVersion.Image), v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())}),
+		Resources:    cephv1.GetMgrResources(c.spec.Resources),
 	}
 
 	return container

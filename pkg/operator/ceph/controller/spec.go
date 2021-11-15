@@ -485,7 +485,6 @@ func GenerateMinimalCephConfInitContainer(
 	containerImage string,
 	volumeMounts []v1.VolumeMount,
 	resources v1.ResourceRequirements,
-	securityContext *v1.SecurityContext,
 ) v1.Container {
 	cfgPath := client.DefaultConfigFilePath()
 	// Note that parameters like $(PARAM) will be replaced by Kubernetes with env var content before
@@ -506,14 +505,13 @@ chmod 444 ` + cfgPath + `
 cat ` + cfgPath + `
 `
 	return v1.Container{
-		Name:            "generate-minimal-ceph-conf",
-		Command:         []string{"/bin/bash", "-c", confScript},
-		Args:            []string{},
-		Image:           containerImage,
-		VolumeMounts:    volumeMounts,
-		Env:             config.StoredMonHostEnvVars(),
-		Resources:       resources,
-		SecurityContext: securityContext,
+		Name:         "generate-minimal-ceph-conf",
+		Command:      []string{"/bin/bash", "-c", confScript},
+		Args:         []string{},
+		Image:        containerImage,
+		VolumeMounts: volumeMounts,
+		Env:          config.StoredMonHostEnvVars(),
+		Resources:    resources,
 	}
 }
 

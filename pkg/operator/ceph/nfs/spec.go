@@ -187,7 +187,6 @@ func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS, na
 			keyring.VolumeMount().Resource(instanceName(nfs, name)),
 		},
 		nfs.Spec.Server.Resources,
-		controller.PodSecurityContext(),
 	)
 }
 
