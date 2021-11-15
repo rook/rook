@@ -153,6 +153,60 @@ func TestLabelsApply(t *testing.T) {
 	}
 }
 
+func TestLabelsOverwriteApply(t *testing.T) {
+	tcs := []struct {
+		name     string
+		target   *metav1.ObjectMeta
+		input    Labels
+		expected Labels
+	}{
+		{
+			name:   "it should be able to update meta with no label",
+			target: &metav1.ObjectMeta{},
+			input: Labels{
+				"foo": "bar",
+			},
+			expected: Labels{
+				"foo": "bar",
+			},
+		},
+		{
+			name: "it should keep the original labels when new labels are set",
+			target: &metav1.ObjectMeta{
+				Labels: Labels{
+					"foo": "bar",
+				},
+			},
+			input: Labels{
+				"hello": "world",
+			},
+			expected: Labels{
+				"foo":   "bar",
+				"hello": "world",
+			},
+		},
+		{
+			name: "it should overwrite the existing keys",
+			target: &metav1.ObjectMeta{
+				Labels: Labels{
+					"foo": "bar",
+				},
+			},
+			input: Labels{
+				"foo": "baz",
+			},
+			expected: Labels{
+				"foo": "baz",
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		tc.input.OverwriteApplyToObjectMeta(tc.target)
+		assert.Equal(t, map[string]string(tc.expected), tc.target.Labels)
+	}
+}
+
 func TestLabelsMerge(t *testing.T) {
 	testLabelsPart1 := Labels{
 		"foo":   "bar",
