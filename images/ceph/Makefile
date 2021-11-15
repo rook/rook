@@ -36,10 +36,10 @@ TEMP := $(shell mktemp -d)
 # Note: as of version 1.3 of operator-sdk, the url format changed to:
 # ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
 # (see: https://sdk.operatorframework.io/docs/installation/)
+S5CMD_ARCH = Linux-64bit
 ifeq ($(REAL_HOST_PLATFORM),linux_amd64)
 OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
 INCLUDE_CSV_TEMPLATES = true
-S5CMD_ARCH = Linux-64bit
 endif
 ifeq ($(REAL_HOST_PLATFORM),linux_arm64)
 OPERATOR_SDK_PLATFORM = aarch64-linux-gnu
