@@ -1,4 +1,3 @@
-
 /*
 Copyright 2021 The Rook Authors. All rights reserved.
 
@@ -46,7 +45,8 @@ func (n *NotificationOperation) UpdateNotification(notificationName string, topi
 }
 
 // CheckNotification if notification was set
-func (t *NotificationOperation) CheckNotification(notificationName string) bool {
+func (t *NotificationOperation) CheckNotificationCR(notificationName string) bool {
+	// TODO: return result based on reconcile status of the CR
 	const resourceName = "cephbucketnotification"
 	_, err := t.k8sh.GetResource(resourceName, notificationName)
 	if err != nil {
