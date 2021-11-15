@@ -33,8 +33,7 @@ import (
 // another call to this function with the same job name. For example, if a storage operator is
 // restarted/updated before the job can complete, the operator's next run of the job should replace
 // the previous job if deleteIfFound is set to true.
-func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job, deleteIfFound bool) error {
-	ctx := context.TODO()
+func RunReplaceableJob(ctx context.Context, clientset kubernetes.Interface, job *batch.Job, deleteIfFound bool) error {
 	// check if the job was already created and what its status is
 	existingJob, err := clientset.BatchV1().Jobs(job.Namespace).Get(ctx, job.Name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
@@ -49,7 +48,7 @@ func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job, deleteIfF
 
 		// delete the job that already exists from a previous run
 		logger.Infof("Removing previous job %s to start a new one", job.Name)
-		err := DeleteBatchJob(clientset, job.Namespace, existingJob.Name, true)
+		err := DeleteBatchJob(ctx, clientset, job.Namespace, existingJob.Name, true)
 		if err != nil {
 			return fmt.Errorf("failed to remove job %s. %+v", job.Name, err)
 		}
@@ -61,8 +60,7 @@ func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job, deleteIfF
 
 // WaitForJobCompletion waits for a job to reach the completed state.
 // Assumes that only one pod needs to complete.
-func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job, timeout time.Duration) error {
-	ctx := context.TODO()
+func WaitForJobCompletion(ctx context.Context, clientset kubernetes.Interface, job *batch.Job, timeout time.Duration) error {
 	logger.Infof("waiting for job %s to complete...", job.Name)
 	return wait.Poll(5*time.Second, timeout, func() (bool, error) {
 		job, err := clientset.BatchV1().Jobs(job.Namespace).Get(ctx, job.Name, metav1.GetOptions{})
@@ -87,11 +85,10 @@ func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job, timeou
 }
 
 // DeleteBatchJob deletes a Kubernetes job.
-func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait bool) error {
+func DeleteBatchJob(ctx context.Context, clientset kubernetes.Interface, namespace, name string, wait bool) error {
 	propagation := metav1.DeletePropagationForeground
 	gracePeriod := int64(0)
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	ctx := context.TODO()
 	if err := clientset.BatchV1().Jobs(namespace).Delete(ctx, name, *options); err != nil {
 		if errors.IsNotFound(err) {
 			return nil

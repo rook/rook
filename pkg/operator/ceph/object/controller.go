@@ -293,6 +293,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// Detect desired CephCluster version
 	runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
+		r.opManagerContext,
 		r.opConfig.Image,
 		cephObjectStore.Namespace,
 		controllerName,

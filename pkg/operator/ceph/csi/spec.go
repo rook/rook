@@ -645,7 +645,7 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 	job.Spec.Template.Spec.Affinity = &corev1.Affinity{
 		NodeAffinity: getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
 	}
-	stdout, _, retcode, err := versionReporter.Run(timeout)
+	stdout, _, retcode, err := versionReporter.Run(r.opManagerContext, timeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to complete ceph CSI version job")
 	}

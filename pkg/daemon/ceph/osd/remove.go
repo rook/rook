@@ -102,7 +102,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 			// Remove osd prepare job
 			for _, prepareJob := range prepareJobList.Items {
 				logger.Infof("removing the osd prepare job %q", prepareJob.GetName())
-				if err := k8sutil.DeleteBatchJob(clusterdContext.Clientset, clusterInfo.Namespace, prepareJob.GetName(), false); err != nil {
+				if err := k8sutil.DeleteBatchJob(clusterInfo.Context, clusterdContext.Clientset, clusterInfo.Namespace, prepareJob.GetName(), false); err != nil {
 					if err != nil {
 						// Continue with the cleanup even if the job fails to be deleted
 						logger.Errorf("failed to delete prepare job for osd %q. %v", prepareJob.GetName(), err)

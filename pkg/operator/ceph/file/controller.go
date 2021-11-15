@@ -261,6 +261,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// Detect desired CephCluster version
 	runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
+		r.opManagerContext,
 		r.opConfig.Image,
 		cephFilesystem.Namespace,
 		controllerName,

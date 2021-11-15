@@ -92,7 +92,7 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 		cephv1.GetCleanupAnnotations(cluster.Spec.Annotations).ApplyToObjectMeta(&job.ObjectMeta)
 		cephv1.GetCleanupLabels(cluster.Spec.Labels).ApplyToObjectMeta(&job.ObjectMeta)
 
-		if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, true); err != nil {
+		if err := k8sutil.RunReplaceableJob(c.OpManagerCtx, c.context.Clientset, job, true); err != nil {
 			logger.Errorf("failed to run cluster clean up job on node %q. %v", hostName, err)
 		}
 	}

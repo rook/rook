@@ -366,7 +366,7 @@ func (c *Cluster) runPrepareJob(osdProps *osdProperties, config *provisionConfig
 		return errors.Wrapf(err, "failed to generate osd provisioning job template for %s %q", nodeOrPVC, nodeOrPVCName)
 	}
 
-	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job, false); err != nil {
+	if err := k8sutil.RunReplaceableJob(c.clusterInfo.Context, c.context.Clientset, job, false); err != nil {
 		return errors.Wrapf(err, "failed to run osd provisioning job for %s %q", nodeOrPVC, nodeOrPVCName)
 	}
 
