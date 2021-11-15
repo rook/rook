@@ -3,5 +3,5 @@
 {% if currentVersion != 'latest' %}
 {% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
 {% else %}
-{% assign branchName = currentVersion %}
+{% assign branchName = 'master' %}
 {% endif %}
