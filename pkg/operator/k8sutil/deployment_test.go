@@ -146,7 +146,7 @@ func TestUpdateMultipleDeploymentsAndWait(t *testing.T) {
 			timesCalled++
 			return l, nil
 		}
-		failures = UpdateMultipleDeploymentsAndWait(clientset, deployments, listFunc)
+		failures = UpdateMultipleDeploymentsAndWait(context.TODO(), clientset, deployments, listFunc)
 		assert.Len(t, failures, 3)
 		assert.ElementsMatch(t,
 			[]string{failures[0].ResourceName, failures[1].ResourceName, failures[2].ResourceName},
@@ -191,7 +191,7 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 	t.Run("no deployments to be updated", func(t *testing.T) {
 		clientset = fake.NewSimpleClientset()
 		deployments = []*appsv1.Deployment{}
-		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(clientset, deployments)
+		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(context.TODO(), clientset, deployments)
 		assert.Len(t, deploymentsUpdated, 0)
 		assert.Len(t, failures, 0)
 	})
@@ -206,7 +206,7 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 			modifiedDeployment("d2", nil),
 			modifiedDeployment("d3", nil),
 		}
-		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(clientset, deployments)
+		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(context.TODO(), clientset, deployments)
 		assert.Len(t, deploymentsUpdated, 3)
 		assert.Len(t, failures, 0)
 		assert.Contains(t, deploymentsUpdated, "d1")
@@ -226,7 +226,7 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 			// d2 from before should also not be updated
 			d3, // should be updated
 		}
-		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(clientset, deployments)
+		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(context.TODO(), clientset, deployments)
 		assert.Len(t, deploymentsUpdated, 1)
 		assert.Len(t, failures, 0)
 		assert.Contains(t, deploymentsUpdated, "d3")
@@ -243,7 +243,7 @@ func TestUpdateMultipleDeployments(t *testing.T) {
 			modifiedDeployment("d3", newInt32(30)),
 			modifiedDeployment("d4", newInt32(30)),
 		}
-		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(clientset, deployments)
+		deploymentsUpdated, failures, pds = UpdateMultipleDeployments(context.TODO(), clientset, deployments)
 		assert.Len(t, deploymentsUpdated, 2)
 		assert.Len(t, failures, 2)
 		assert.Contains(t, deploymentsUpdated, "d1")

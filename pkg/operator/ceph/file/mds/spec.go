@@ -160,17 +160,16 @@ func (c *Cluster) podLabels(mdsConfig *mdsConfig, includeNewLabels bool) map[str
 	return labels
 }
 
-func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*apps.DeploymentList, error) {
+func getMdsDeployments(ctx context.Context, context *clusterd.Context, namespace, fsName string) (*apps.DeploymentList, error) {
 	fsLabelSelector := fmt.Sprintf("rook_file_system=%s", fsName)
-	deps, err := k8sutil.GetDeployments(context.Clientset, namespace, fsLabelSelector)
+	deps, err := k8sutil.GetDeployments(ctx, context.Clientset, namespace, fsLabelSelector)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not get deployments for filesystem %s (matching label selector %q)", fsName, fsLabelSelector)
 	}
 	return deps, nil
 }
 
-func deleteMdsDeployment(clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment) error {
-	ctx := context.TODO()
+func deleteMdsDeployment(ctx context.Context, clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment) error {
 	// Delete the mds deployment
 	logger.Infof("deleting mds deployment %s", deployment.Name)
 	var gracePeriod int64
@@ -182,8 +181,7 @@ func deleteMdsDeployment(clusterdContext *clusterd.Context, namespace string, de
 	return nil
 }
 
-func scaleMdsDeployment(clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment, replicas int32) error {
-	ctx := context.TODO()
+func scaleMdsDeployment(ctx context.Context, clusterdContext *clusterd.Context, namespace string, deployment *apps.Deployment, replicas int32) error {
 	// scale mds deployment
 	logger.Infof("scaling mds deployment %q to %d replicas", deployment.Name, replicas)
 	d, err := clusterdContext.Clientset.AppsV1().Deployments(namespace).Get(ctx, deployment.GetName(), metav1.GetOptions{})

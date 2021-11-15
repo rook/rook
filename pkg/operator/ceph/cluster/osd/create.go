@@ -383,7 +383,7 @@ func createDaemonOnPVC(c *Cluster, osd OSDInfo, pvcName string, config *provisio
 	message := fmt.Sprintf("Processing OSD %d on PVC %q", osd.ID, pvcName)
 	updateConditionFunc(c.clusterInfo.Context, c.context, c.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 
-	_, err = k8sutil.CreateDeployment(c.context.Clientset, d)
+	_, err = k8sutil.CreateDeployment(c.clusterInfo.Context, c.context.Clientset, d)
 	return errors.Wrapf(err, "failed to create deployment for OSD %d on PVC %q", osd.ID, pvcName)
 }
 
@@ -396,6 +396,6 @@ func createDaemonOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provis
 	message := fmt.Sprintf("Processing OSD %d on node %q", osd.ID, nodeName)
 	updateConditionFunc(c.clusterInfo.Context, c.context, c.clusterInfo.NamespacedName(), cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 
-	_, err = k8sutil.CreateDeployment(c.context.Clientset, d)
+	_, err = k8sutil.CreateDeployment(c.clusterInfo.Context, c.context.Clientset, d)
 	return errors.Wrapf(err, "failed to create deployment for OSD %d on node %q", osd.ID, nodeName)
 }

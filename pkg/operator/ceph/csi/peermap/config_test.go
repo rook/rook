@@ -389,7 +389,7 @@ func TestCreateOrUpdateConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create empty ID mapping configMap
-	err = CreateOrUpdateConfig(fakeContext, &PeerIDMappings{})
+	err = CreateOrUpdateConfig(context.TODO(), fakeContext, &PeerIDMappings{})
 	assert.NoError(t, err)
 	validateConfig(t, fakeContext, PeerIDMappings{})
 
@@ -405,7 +405,7 @@ func TestCreateOrUpdateConfig(t *testing.T) {
 		},
 	}
 
-	err = CreateOrUpdateConfig(fakeContext, actualMappings)
+	err = CreateOrUpdateConfig(context.TODO(), fakeContext, actualMappings)
 	assert.NoError(t, err)
 	//validateConfig(t, fakeContext, actualMappings)
 
@@ -420,7 +420,7 @@ func TestCreateOrUpdateConfig(t *testing.T) {
 		},
 	})
 
-	err = CreateOrUpdateConfig(fakeContext, &mappings)
+	err = CreateOrUpdateConfig(context.TODO(), fakeContext, &mappings)
 	assert.NoError(t, err)
 	validateConfig(t, fakeContext, mappings)
 }

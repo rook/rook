@@ -170,7 +170,7 @@ func (c *Cluster) Start() error {
 	// If the mgr is newly created, wait for it to start before continuing with the service and
 	// module configuration
 	for _, d := range deploymentsToWaitFor {
-		if err := waitForDeploymentToStart(c.context, d); err != nil {
+		if err := waitForDeploymentToStart(c.clusterInfo.Context, c.context, d); err != nil {
 			return errors.Wrapf(err, "failed to wait for mgr %q to start", d.Name)
 		}
 	}

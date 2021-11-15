@@ -57,7 +57,7 @@ func TestStartMgr(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
-	waitForDeploymentToStart = func(clusterdContext *clusterd.Context, deployment *apps.Deployment) error {
+	waitForDeploymentToStart = func(ctx context.Context, clusterdContext *clusterd.Context, deployment *apps.Deployment) error {
 		logger.Infof("simulated mgr deployment starting")
 		return nil
 	}

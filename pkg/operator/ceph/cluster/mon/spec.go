@@ -380,6 +380,6 @@ func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.
 		return nil
 	}
 
-	err := k8sutil.UpdateDeploymentAndWait(context, deployment, clusterInfo.Namespace, callback)
+	err := k8sutil.UpdateDeploymentAndWait(clusterInfo.Context, context, deployment, clusterInfo.Namespace, callback)
 	return err
 }

@@ -439,7 +439,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin provisioner deployment %q", rbdProvisionerDeployment.Name)
 		}
-		_, err = k8sutil.CreateOrUpdateDeployment(r.context.Clientset, rbdProvisionerDeployment)
+		_, err = k8sutil.CreateOrUpdateDeployment(r.opManagerContext, r.context.Clientset, rbdProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbd provisioner deployment %q", rbdProvisionerDeployment.Name)
 		}
@@ -508,7 +508,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin provisioner deployment %q", cephfsProvisionerDeployment.Name)
 		}
-		_, err = k8sutil.CreateOrUpdateDeployment(r.context.Clientset, cephfsProvisionerDeployment)
+		_, err = k8sutil.CreateOrUpdateDeployment(r.opManagerContext, r.context.Clientset, cephfsProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start cephfs provisioner deployment %q", cephfsProvisionerDeployment.Name)
 		}
@@ -576,7 +576,7 @@ func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, de
 		succeeded = false
 	}
 
-	err = k8sutil.DeleteDeployment(r.context.Clientset, r.opConfig.OperatorNamespace, deployment)
+	err = k8sutil.DeleteDeployment(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, deployment)
 	if err != nil {
 		logger.Errorf("failed to delete the %q. %v", deployment, err)
 		succeeded = false
