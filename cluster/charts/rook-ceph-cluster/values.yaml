@@ -98,6 +98,8 @@ cephClusterSpec:
     # urlPrefix: /ceph-dashboard
     # serve the dashboard at the given port.
     # port: 8443
+    # serve the dashboard using SSL
+    ssl: true
 
   # Network configuration, see: https://github.com/rook/rook/blob/master/Documentation/ceph-cluster-crd.md#network-configuration-settings
   # network:
