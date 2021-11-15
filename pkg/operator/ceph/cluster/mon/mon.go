@@ -208,7 +208,7 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string,
 	logger.Infof("start running mons")
 
 	logger.Debugf("establishing ceph cluster info")
-	if err := c.initClusterInfo(cephVersion); err != nil {
+	if err := c.initClusterInfo(cephVersion, c.ClusterInfo.NamespacedName().Name); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize ceph cluster info")
 	}
 
@@ -477,7 +477,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 
 // initClusterInfo retrieves the ceph cluster info if it already exists.
 // If a new cluster, create new keys.
-func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
+func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName string) error {
 	var err error
 
 	context := c.ClusterInfo.Context
@@ -490,6 +490,7 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion) error {
 	c.ClusterInfo.CephVersion = cephVersion
 	c.ClusterInfo.OwnerInfo = c.ownerInfo
 	c.ClusterInfo.Context = context
+	c.ClusterInfo.SetName(clusterName)
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {
