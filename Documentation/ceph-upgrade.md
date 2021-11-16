@@ -416,6 +416,49 @@ updated we wait for things to settle (monitors to be in a quorum, PGs to be clea
 MDSes, etc.), then only when the condition is met we move to the next daemon. We repeat this process
 until all the daemons have been updated.
 
+### Disable `bluestore_fsck_quick_fix_on_mount`
+> **WARNING: There is a notice from Ceph for users upgrading to Ceph Pacific v16.2.6 or lower from
+> an earlier major version of Ceph. If you are upgrading to Ceph Pacific (v16), please upgrade to
+> v16.2.7 or higher if possible.**
+
+If you must upgrade to a version lower than v16.2.7, ensure that all instances of
+`bluestore_fsck_quick_fix_on_mount` in Rook-Ceph configs are removed.
+
+First, Ensure no references to `bluestore_fsck_quick_fix_on_mount` are present in the
+`rook-config-override` [ConfigMap](ceph-advanced-configuration.md#custom-cephconf-settings). Remove
+them if they exist.
+
+Finally, ensure no references to `bluestore_fsck_quick_fix_on_mount` are present in Ceph's internal
+configuration. Run all commands below from the [toolbox](ceph-toolbox.md).
+
+In the example below, two instances of `bluestore_fsck_quick_fix_on_mount` are present and are
+commented, and some output text has been removed for brevity.
+```sh
+ceph config-key dump
+```
+```
+{
+    "config/global/bluestore_fsck_quick_fix_on_mount": "false",       # <-- FALSE
+    "config/global/osd_scrub_auto_repair": "true",
+    "config/mgr.a/mgr/dashboard/server_port": "7000",
+    "config/mgr/mgr/balancer/active": "true",
+    "config/osd/bluestore_fsck_quick_fix_on_mount": "true",           # <-- TRUE
+}
+```
+
+Remove the configs for both with the commands below. Note how the `config/...` paths correspond to
+the output above.
+```sh
+ceph config-key rm config/global/bluestore_fsck_quick_fix_on_mount
+ceph config-key rm config/osd/bluestore_fsck_quick_fix_on_mount
+```
+
+It's best to run `ceph config-key dump` again to verify references to
+`bluestore_fsck_quick_fix_on_mount` are gone after this.
+
+See for more information, see here: https://github.com/rook/rook/issues/9185
+
+
 ### **Ceph images**
 
 Official Ceph container images can be found on [Quay](https://quay.io/repository/ceph/ceph?tab=tags).
