@@ -2146,8 +2146,12 @@ type StorageScopeSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
-	Config    map[string]string `json:"config,omitempty"`
-	Selection `json:",inline"`
+	Config map[string]string `json:"config,omitempty"`
+	// ResourceClasses are the list of different classes of resource requests and limits to apply to OSDs
+	// +nullable
+	// +optional
+	ResourceClasses ResourceSpec `json:"resourceClasses,omitempty"`
+	Selection       `json:",inline"`
 	// +nullable
 	// +optional
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
@@ -2162,6 +2166,9 @@ type Node struct {
 	// +nullable
 	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	// ResourceClassName is the unique name to fetch specific resource requests and limits from the list of ResourceClasses defined in the storage spec
+	// +optional
+	ResourceClassName string `json:"resourceClassName,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
@@ -2179,6 +2186,9 @@ type Device struct {
 	// +nullable
 	// +optional
 	Config map[string]string `json:"config,omitempty"`
+	// ResourceClassName is the unique name to fetch specific resource requests and limits from the list of ResourceClasses defined in the storage spec
+	// +optional
+	ResourceClassName string `json:"resourceClassName,omitempty"`
 }
 
 type Selection struct {

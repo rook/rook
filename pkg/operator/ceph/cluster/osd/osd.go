@@ -314,9 +314,35 @@ func (c *Cluster) resolveNode(nodeName, deviceClass string) *cephv1.Node {
 	if rookNode == nil {
 		return nil
 	}
-	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, cephv1.GetOSDResources(c.spec.Resources, deviceClass))
 
+	rookNode.Resources = c.getOSDResources(rookNode, rookNode.ResourceClassName, deviceClass)
 	return rookNode
+}
+
+func resolveDevice(devices []cephv1.Device, deviceClass string) string {
+	var deviceResourceClass = ""
+	for _, i := range devices {
+		if i.Name == deviceClass {
+			deviceResourceClass = i.ResourceClassName
+			break
+		}
+	}
+	return deviceResourceClass
+}
+
+func (c *Cluster) getOSDResources(rookNode *cephv1.Node, nodeResourceClass, deviceClass string) corev1.ResourceRequirements {
+	// get Device ResourceClass
+	deviceResourceClass := resolveDevice(rookNode.Devices, deviceClass)
+	resourceRequirement := c.ValidStorage.ResourceClasses[deviceResourceClass]
+	if resourceRequirement.Size() != 0 {
+		return resourceRequirement
+	}
+	resourceRequirement = c.ValidStorage.ResourceClasses[nodeResourceClass]
+	if resourceRequirement.Size() != 0 {
+		return resourceRequirement
+	}
+
+	return k8sutil.MergeResourceRequirements(rookNode.Resources, cephv1.GetOSDResources(c.spec.Resources, deviceClass))
 }
 
 func (c *Cluster) getOSDPropsForNode(nodeName, deviceClass string) (osdProperties, error) {

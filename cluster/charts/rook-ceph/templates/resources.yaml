@@ -2201,6 +2201,9 @@ spec:
                             type: string
                           name:
                             type: string
+                          resourceClassName:
+                            description: ResourceClassName is the unique name to fetch specific resource requests and limits from the list of ResourceClasses defined in the storage spec
+                            type: string
                         type: object
                       nullable: true
                       type: array
@@ -2236,11 +2239,17 @@ spec:
                                   type: string
                                 name:
                                   type: string
+                                resourceClassName:
+                                  description: ResourceClassName is the unique name to fetch specific resource requests and limits from the list of ResourceClasses defined in the storage spec
+                                  type: string
                               type: object
                             nullable: true
                             type: array
                             x-kubernetes-preserve-unknown-fields: true
                           name:
+                            type: string
+                          resourceClassName:
+                            description: ResourceClassName is the unique name to fetch specific resource requests and limits from the list of ResourceClasses defined in the storage spec
                             type: string
                           resources:
                             description: ResourceRequirements describes the compute resource requirements.
@@ -2459,6 +2468,32 @@ spec:
                       type: array
                     onlyApplyOSDPlacement:
                       type: boolean
+                    resourceClasses:
+                      additionalProperties:
+                        description: ResourceRequirements describes the compute resource requirements.
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                            type: object
+                        type: object
+                      description: ResourceClasses are the list of different classes of resource requests and limits to apply to OSDs
+                      nullable: true
+                      type: object
                     storageClassDeviceSets:
                       items:
                         description: StorageClassDeviceSet is a storage class device set

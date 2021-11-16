@@ -3458,6 +3458,13 @@ func (in *StorageScopeSpec) DeepCopyInto(out *StorageScopeSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.ResourceClasses != nil {
+		in, out := &in.ResourceClasses, &out.ResourceClasses
+		*out = make(ResourceSpec, len(*in))
+		for key, val := range *in {
+			(*out)[key] = *val.DeepCopy()
+		}
+	}
 	in.Selection.DeepCopyInto(&out.Selection)
 	if in.StorageClassDeviceSets != nil {
 		in, out := &in.StorageClassDeviceSets, &out.StorageClassDeviceSets

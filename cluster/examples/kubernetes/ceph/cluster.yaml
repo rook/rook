@@ -222,16 +222,40 @@ spec:
 # nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
     # nodes:
     #   - name: "172.17.4.201"
+    #     resourceClassName: "small"
     #     devices: # specific devices to use for storage can be specified for each node
     #       - name: "sdb"
     #       - name: "nvme01" # multiple osds can be created on high performance devices
+    #       - name: "hdd"
     #         config:
     #           osdsPerDevice: "5"
+    #         resourceClassName: "medium"
     #       - name: "/dev/disk/by-id/ata-ST4000DM004-XXXX" # devices can be specified using full udev paths
     #     config: # configuration can be specified at the node level which overrides the cluster level config
-    #   - name: "172.17.4.301"
+    #   - name: "minikube-m03"
     #     deviceFilter: "^sd."
+    #     resourceClassName: "small"
+    #     devices:
+    #       - name: "vdc"
+    #       - name: "hdd"
+    #         # resourceClassName: "medium"
+    #   - name: "minikube-m02"
+    #     resources:  # default for all OSDs in this node
+    #       limits:
+    #         cpu: "250m"
+    #         memory: "128Mi"
+    #     devices:
+    #       - name: "hdd"
     # when onlyApplyOSDPlacement is false, will merge both placement.All() and placement.osd
+    # resourceClasses:
+    #   small:
+    #       limits:
+    #         cpu: "500m"
+    #         memory: "1024Mi"
+    #   medium:
+    #       limits:
+    #         cpu: "600m"
+    #         memory: "2048Mi"
     onlyApplyOSDPlacement: false
   # The section for configuring management of daemon disruptions during upgrade or fencing.
   disruptionManagement:
