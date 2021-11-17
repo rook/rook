@@ -290,24 +290,7 @@ Closes: https://github.com/rook/rook/issues/<NUMBER>
 Signed-off-by: First Name Last Name <email address>
 ```
 
-The `component` **MUST** be one of the following:
-- bot
-- build
-- ceph
-- cephfs-mirror
-- ci
-- core
-- csi
-- docs
-- mds
-- mgr
-- mon
-- monitoring
-- osd
-- pool
-- rbd-mirror
-- rgw
-- test
+The `component` **MUST** be in the [list checked by the CI](https://github.com/rook/rook/blob/master/.commitlintrc.json).
 
 Note: sometimes you will feel like there is not so much to say, for instance if you are fixing a typo in a text.
 In that case, it is acceptable to shorten the commit message.
