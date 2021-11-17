@@ -2,9 +2,6 @@
 set -e
 
 export OLM_SKIP_PKG_FILE_GEN="true"
-export OLM_INCLUDE_CEPHFS_CSI="true"
-export OLM_INCLUDE_RBD_CSI="true"
-export OLM_INCLUDE_REPORTER="true"
 
 if [ -f "Dockerfile" ]; then
     # if this is being executed from the images/ceph/ dir,

@@ -147,7 +147,7 @@ $(OPERATOR_SDK):
 	@chmod +x $(OPERATOR_SDK)
 	@$(OPERATOR_SDK) version
 
-csv: $(OPERATOR_SDK) $(YQv3) ## Generate a CSV file for OLM.
+csv: $(OPERATOR_SDK) $(YQv3) $(HELM) ## Generate a CSV file for OLM.
 	@echo Generating CSV manifests
 	@cd ../.. && deploy/olm/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
