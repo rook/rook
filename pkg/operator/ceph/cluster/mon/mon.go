@@ -568,7 +568,7 @@ func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 	return &monConfig{
 		ResourceName: resourceName(daemonName),
 		DaemonName:   daemonName,
-		Port:         DefaultMsgr1Port,
+		Port:         DefaultMsgr2Port,
 		Zone:         zone,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.spec.DataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),

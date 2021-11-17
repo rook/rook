@@ -20,11 +20,9 @@ package client
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -252,17 +250,7 @@ func PopulateMonHostMembers(monitors map[string]*MonInfo) ([]string, []string) {
 	for _, monitor := range monitors {
 		monMembers[i] = monitor.Name
 		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
-
-		// This tries to detect the current port if the mon already exists
-		// This basically handles the transition between monitors running on 6790 to msgr2
-		// So whatever the previous monitor port was we keep it
-		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
-
-		monPorts := [2]string{strconv.Itoa(int(Msgr2port)), strconv.Itoa(int(currentMonPort))}
-		msgr2Endpoint := net.JoinHostPort(monIP, monPorts[0])
-		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
-
-		monHosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+		monHosts[i] = fmt.Sprintf("[v2:%s:%d]", monIP, Msgr2port)
 		i++
 	}
 

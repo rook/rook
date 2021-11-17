@@ -334,8 +334,8 @@ func TestCheckHealthNotFound(t *testing.T) {
 	// recheck that the "not found" mon has been replaced with a new one
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	if cm.Data[EndpointDataKey] != "a=1.2.3.1:6789,f=:6789" {
-		assert.Equal(t, "f=:6789,a=1.2.3.1:6789", cm.Data[EndpointDataKey])
+	if cm.Data[EndpointDataKey] != "a=1.2.3.1:6789,f=:3300" {
+		assert.Equal(t, "f=:3300,a=1.2.3.1:6789", cm.Data[EndpointDataKey])
 	}
 }
 
