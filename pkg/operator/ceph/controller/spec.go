@@ -604,12 +604,13 @@ func (c *daemonConfig) buildAdminSocketCommand() string {
 	return command
 }
 
+func HostPathRequiresPrivileged() bool {
+	return os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"
+}
+
 // PodSecurityContext detects if the pod needs privileges to run
 func PodSecurityContext() *v1.SecurityContext {
-	privileged := false
-	if os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
-		privileged = true
-	}
+	privileged := HostPathRequiresPrivileged()
 
 	return &v1.SecurityContext{
 		Privileged: &privileged,

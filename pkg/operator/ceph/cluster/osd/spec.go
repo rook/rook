@@ -777,12 +777,15 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 // To be able to perform this action, the CAP_MKNOD capability is required.
 // Provide a securityContext which requests the MKNOD capability for the container to function properly.
 func getBlockDevMapperContext() *v1.SecurityContext {
+	privileged := controller.HostPathRequiresPrivileged()
+
 	return &v1.SecurityContext{
 		Capabilities: &v1.Capabilities{
 			Add: []v1.Capability{
 				"MKNOD",
 			},
 		},
+		Privileged: &privileged,
 	}
 }
 
