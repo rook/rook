@@ -315,17 +315,19 @@ ingress:
 
 cephBlockPools:
   - name: ceph-blockpool
-    # see https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md#spec for available configuration
     spec:
-      failureDomain: host
-      replicated:
-        size: 3
+      # Optional metadata pool definition. Required when the dataPool is an erasure coded pool.
+      # see https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md#spec for available configuration
+      #metadataPool: {}
+      # see https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md#spec for available configuration
+      dataPool:
+        failureDomain: host
+        replicated:
+          size: 3
     storageClass:
       enabled: true
       name: ceph-block
       isDefault: true
-      reclaimPolicy: Delete
-      allowVolumeExpansion: true
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-block.md#provision-storage for available configuration
       parameters:
         # (optional) mapOptions is a comma-separated list of map options.
@@ -342,21 +344,11 @@ cephBlockPools:
         # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
         # unmapOptions: force
 
-        # RBD image format. Defaults to "2".
-        imageFormat: "2"
-        # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
-        imageFeatures: layering
-        # The secrets contain Ceph admin credentials.
-        csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
-        csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
-        csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
-        csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
-        csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
-        csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
         # Specify the filesystem type of the volume. If not specified, csi-provisioner
         # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
         # in hyperconverged settings where the volume is mounted on the same node as the osds.
         csi.storage.k8s.io/fstype: ext4
+    snapshotClass: {}
 
 cephFileSystems:
   - name: ceph-filesystem
@@ -374,23 +366,13 @@ cephFileSystems:
         activeStandby: true
     storageClass:
       enabled: true
-      isDefault: false
-      name: ceph-filesystem
-      reclaimPolicy: Delete
-      allowVolumeExpansion: true
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem.md#provision-storage for available configuration
       parameters:
-        # The secrets contain Ceph admin credentials.
-        csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
-        csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
-        csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
-        csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
-        csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
-        csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
         # Specify the filesystem type of the volume. If not specified, csi-provisioner
         # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
         # in hyperconverged settings where the volume is mounted on the same node as the osds.
         csi.storage.k8s.io/fstype: ext4
+    snapshotClass: {}
 
 cephObjectStores:
   - name: ceph-objectstore
@@ -417,7 +399,6 @@ cephObjectStores:
     storageClass:
       enabled: true
       name: ceph-bucket
-      reclaimPolicy: Delete
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-object-bucket-claim.md#storageclass for available configuration
       parameters:
         # note: objectStoreNamespace and objectStoreName are configured by the chart

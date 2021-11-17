@@ -1,4 +1,3 @@
-{{- $root := . -}}
 {{- range $filesystem := .Values.cephFileSystems -}}
 ---
 apiVersion: ceph.rook.io/v1
@@ -6,22 +5,45 @@ kind: CephFilesystem
 metadata:
   name: {{ $filesystem.name }}
 spec:
-{{ toYaml $filesystem.spec | indent 2 }}
----
+  {{- toYaml $filesystem.spec | nindent 2 }}
 {{- if default false $filesystem.storageClass.enabled }}
+---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: {{ $filesystem.storageClass.name }}
+  name: {{ default $filesystem.name $filesystem.storageClass.name }}
   annotations:
-    storageclass.kubernetes.io/is-default-class: "{{ if default false $filesystem.storageClass.isDefault }}true{{ else }}false{{ end }}"
-provisioner: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
+    storageclass.kubernetes.io/is-default-class: "{{ printf "%v" (default false $filesystem.storageClass.isDefault) }}"
+provisioner: {{ $.Values.operatorNamespace }}.cephfs.csi.ceph.com
 parameters:
   fsName: {{ $filesystem.name }}
   pool: {{ $filesystem.name }}-data0
-  clusterID: {{ $root.Release.Namespace }}
-{{ toYaml $filesystem.storageClass.parameters | indent 2 }}
+  clusterID: {{ $.Release.Namespace }}
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: {{ $.Release.Namespace }}
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: {{ $.Release.Namespace }}
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-stage-secret-namespace: {{ $.Release.Namespace }}
+  {{- toYaml $filesystem.storageClass.parameters | nindent 2 }}
 reclaimPolicy: {{ default "Delete" $filesystem.storageClass.reclaimPolicy }}
 allowVolumeExpansion: {{ default "true" $filesystem.storageClass.allowVolumeExpansion }}
-{{ end }}
-{{ end }}
+{{- end }}
+{{- if default false $filesystem.snapshotClass.enabled }}
+---
+{{- if $.Capabilities.APIVersions.Has "snapshot.storage.k8s.io/v1" }}
+apiVersion: snapshot.storage.k8s.io/v1
+{{- else }}
+apiVersion: snapshot.storage.k8s.io/v1beta1
+{{- end }}
+kind: VolumeSnapshotClass
+metadata:
+  name: {{ default $filesystem.name $filesystem.snapshotClass.name }}
+driver: {{ $.Values.operatorNamespace }}.cephfs.csi.ceph.com
+parameters:
+  clusterID: {{ $.Values.operatorNamespace }}
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: {{ $.Values.operatorNamespace }}
+deletionPolicy: {{ default "Delete" $filesystem.snapshotClass.deletionPolicy }}
+{{- end }}
+{{- end }}

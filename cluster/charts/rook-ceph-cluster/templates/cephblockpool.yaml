@@ -1,26 +1,71 @@
-{{- $root := . -}}
 {{- range $blockpool := .Values.cephBlockPools -}}
+{{- if $blockpool.spec.metadataPool }}
+{{- if not $blockpool.spec.metadataPool.replicated }}
+{{- printf "metadataPool for BlockPool %s must be a replicated pool!" $blockpool.name | fail }}
+{{- end }}
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: {{ $blockpool.name }}-metadata
+spec:
+  {{- toYaml $blockpool.spec.metadataPool | nindent 2 }}
+{{- else }}
+{{- if $blockpool.spec.dataPool.erasureCoded }}
+{{- printf "BlockPool %s requires a replica metadataPool" $blockpool.name | fail }}
+{{- end }}
+{{- end }}
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
   name: {{ $blockpool.name }}
 spec:
-{{ toYaml $blockpool.spec | indent 2 }}
----
+  {{- toYaml $blockpool.spec.dataPool | nindent 2 }}
 {{- if default false $blockpool.storageClass.enabled }}
+---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: {{ $blockpool.storageClass.name }}
+  name: {{ default $blockpool.name $blockpool.storageClass.name }}
   annotations:
-    storageclass.kubernetes.io/is-default-class: "{{ if default false $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
-provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+    storageclass.kubernetes.io/is-default-class: "{{ printf "%v" (default false $blockpool.storageClass.isDefault) }}"
+provisioner: {{ $.Values.operatorNamespace }}.rbd.csi.ceph.com
 parameters:
+  {{- if $blockpool.metadataPool }}
+  pool: {{ $blockpool.name }}-metadata
+  dataPool: {{ $blockpool.name }}
+  {{- else }}
   pool: {{ $blockpool.name }}
-  clusterID: {{ $root.Release.Namespace }}
-{{ toYaml $blockpool.storageClass.parameters | indent 2 }}
+  {{- end }}
+  clusterID: {{ $.Release.Namespace }}
+  imageFormat: "2"
+  imageFeatures: layering
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: {{ $.Release.Namespace }}
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: {{ $.Release.Namespace }}
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: {{ $.Release.Namespace }}
+  {{- toYaml $blockpool.storageClass.parameters | nindent 2 }}
 reclaimPolicy: {{ default "Delete" $blockpool.storageClass.reclaimPolicy }}
 allowVolumeExpansion: {{ default "true" $blockpool.storageClass.allowVolumeExpansion }}
-{{ end }}
-{{ end }}
+{{- end }}
+{{- if default false $blockpool.snapshotClass.enabled }}
+---
+{{- if $.Capabilities.APIVersions.Has "snapshot.storage.k8s.io/v1" }}
+apiVersion: snapshot.storage.k8s.io/v1
+{{- else }}
+apiVersion: snapshot.storage.k8s.io/v1beta1
+{{- end }}
+kind: VolumeSnapshotClass
+metadata:
+  name: {{ default $blockpool.name $blockpool.snapshotClass.name }}
+driver: {{ $.Values.operatorNamespace }}.rbd.csi.ceph.com
+parameters:
+  clusterID: {{ $.Values.operatorNamespace }}
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: {{ $.Values.operatorNamespace }}
+deletionPolicy: {{ default "Delete" $blockpool.snapshotClass.deletionPolicy }}
+{{- end }}
+{{- end }}
