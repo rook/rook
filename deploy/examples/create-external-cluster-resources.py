@@ -195,6 +195,8 @@ class RadosJSON:
                                   help="Ceph Manager prometheus exporter port")
         output_group.add_argument("--rbd-metadata-ec-pool-name", default="", required=False,
                                   help="Provides the name of erasure coded RBD metadata pool")
+        output_group.add_argument("--dry-run", default=False, action='store_true',
+                                  help="Dry run prints the executed commands without running them")
 
         upgrade_group = argP.add_argument_group('upgrade')
         upgrade_group.add_argument("--upgrade", action='store_true', default=False,
@@ -249,6 +251,10 @@ class RadosJSON:
                 raise ExecutionFailureException(
                     "Provided rbd_data_pool name, {}, does not exist".format(rbd_pool_name))
             return rbd_metadata_ec_pool_name
+
+    def dry_run(self, msg):
+        if self._arg_parser.dry_run:
+            print("Execute: " + "'" + msg + "'")
 
     def validate_rgw_endpoint_tls_cert(self):
         if self._arg_parser.rgw_tls_cert_path:
@@ -352,6 +358,8 @@ class RadosJSON:
             self.cluster.shutdown()
 
     def get_fsid(self):
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph fsid")
         return str(self.cluster.get_fsid())
 
     def _common_cmd_json_gen(self, cmd_json):
@@ -370,6 +378,8 @@ class RadosJSON:
 
     def get_ceph_external_mon_data(self):
         cmd_json = {"prefix": "quorum_status", "format": "json"}
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + cmd_json['prefix'])
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -420,6 +430,8 @@ class RadosJSON:
         return ip
 
     def get_active_and_standby_mgrs(self):
+        if self._arg_parser.dry_run:
+            return "", self.dry_run("ceph status")
         monitoring_endpoint_port = self._arg_parser.monitoring_endpoint_port
         monitoring_endpoint_ip_list = self._arg_parser.monitoring_endpoint
         standby_mgrs = []
@@ -515,6 +527,8 @@ class RadosJSON:
                         "caps": ["mon", "allow r", "mgr", "allow rw",
                                  "osd", "allow rw tag cephfs metadata=*"],
                         "format": "json"}
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -550,6 +564,8 @@ class RadosJSON:
                                  "osd", "allow rw tag cephfs *=*",
                                  "mds", "allow rw"],
                         "format": "json"}
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -582,6 +598,8 @@ class RadosJSON:
                                  "mgr", "allow rw",
                                  "osd", "profile rbd"],
                         "format": "json"}
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -592,6 +610,8 @@ class RadosJSON:
 
     def get_cephfs_data_pool_details(self):
         cmd_json = {"prefix": "fs ls", "format": "json"}
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + cmd_json['prefix'])
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt, report an error
         if ret_val != 0:
@@ -699,6 +719,8 @@ class RadosJSON:
                         "caps": ["mon", "profile rbd",
                                  "osd", "profile rbd"],
                         "format": "json"}
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -714,6 +736,8 @@ class RadosJSON:
                              "mgr", self.MIN_USER_CAP_PERMISSIONS['mgr'],
                              "osd", self.MIN_USER_CAP_PERMISSIONS['osd'].format(self._arg_parser.rgw_pool_prefix)],
                     "format": "json"}
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -724,6 +748,8 @@ class RadosJSON:
 
     def get_ceph_dashboard_link(self):
         cmd_json = {"prefix": "mgr services", "format": "json"}
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + cmd_json['prefix'])
         ret_val, json_out, _ = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -735,6 +761,8 @@ class RadosJSON:
     def create_rgw_admin_ops_user(self):
         cmd = ['radosgw-admin', 'user', 'create', '--uid', self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME, '--display-name',
                'Rook RGW Admin Ops user', '--caps', 'buckets=*;users=*;usage=read;metadata=read;zone=read']
+        if self._arg_parser.dry_run:
+            return self.dry_run("ceph " + "".joing(cmd))
         try:
             output = subprocess.check_output(cmd,
                                              stderr=subprocess.PIPE)
@@ -967,6 +995,10 @@ class RadosJSON:
                     "cert": self.out_map['RGW_TLS_CERT'],
                 }
             })
+
+        if self._arg_parser.dry_run:
+            return ""
+
         return json.dumps(json_out)+LINESEP
 
     def upgrade_user_permissions(self):
