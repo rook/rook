@@ -995,7 +995,7 @@ You can see https://github.com/rook/rook/issues/7940 for more detailed informati
 
 ### Solution
 #### Recover from corruption (v1.6.0-v1.6.7)
-If you are using Rook v1.6, you must first update to v1.6.10 or higher to avoid further incidents of
+If you are using Rook v1.6, you must first update to v1.6.11 or higher to avoid further incidents of
 OSD corruption caused by these Atari partitions.
 
 An old workaround suggested using `deviceFilter: ^sd[a-z]+$`, but this still results in unexpected
@@ -1003,7 +1003,7 @@ partitions. Rook will merely stop creating new OSDs on the partitions. It does n
 issue that `ceph-volume` that is unaware of the Atari partition problem. Users who used this
 workaround are still at risk for OSD failures in the future.
 
-To resolve the issue, immediately update to v1.6.10 or higher. After the update, no corruption should
+To resolve the issue, immediately update to v1.6.11 or higher. After the update, no corruption should
 occur on OSDs created in the future. Next, to get back to a healthy Ceph cluster state, focus on one
 corruped disk at a time and [remove all OSDs on each corrupted disk](ceph-osd-mgmt.md#remove-an-osd)
 one disk at a time.
@@ -1024,4 +1024,4 @@ as well as a second corrupted disk `/dev/sde` with one unexpected partition (`/d
 5. Now Repeat steps 1-4 for `/dev/sde` and `/dev/sde2`, and continue for any other corruped disks.
 
 If your Rook-Ceph cluster does not have any critical data stored in it, it may be simpler to
-uninstall Rook completely and redeploy with v1.6.10 or higher.
+uninstall Rook completely and redeploy with v1.6.11 or higher.
