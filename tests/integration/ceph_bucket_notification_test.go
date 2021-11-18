@@ -44,7 +44,7 @@ func (s *ObjectSuite) TestBucketNotificationsInOrder() {
 	createCephObjectStore(s.T(), helper, k8sh, namespace, storeName, 3, tlsEnable)
 
 	ctx := context.TODO()
-	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo := client.AdminTestClusterInfo(namespace)
 	t := s.T()
 
 	t.Run("create CephObjectStoreUser", func(t *testing.T) {

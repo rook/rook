@@ -127,7 +127,7 @@ this line can't be parsed as json
 func TestRunAdminCommandNoMultisite(t *testing.T) {
 	objContext := &Context{
 		Context:     &clusterd.Context{RemoteExecutor: exec.RemotePodCommandExecutor{ClientSet: test.New(t, 3)}},
-		clusterInfo: client.AdminClusterInfo("mycluster"),
+		clusterInfo: client.AdminTestClusterInfo("mycluster"),
 	}
 
 	t.Run("no network provider - we run the radosgw-admin command from the operator", func(t *testing.T) {

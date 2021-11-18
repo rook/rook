@@ -45,7 +45,7 @@ import (
 )
 
 func TestCreatePool(t *testing.T) {
-	clusterInfo := client.AdminClusterInfo("mycluster")
+	clusterInfo := client.AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -78,7 +78,7 @@ func TestCreatePool(t *testing.T) {
 
 func TestDeletePool(t *testing.T) {
 	failOnDelete := false
-	clusterInfo := cephclient.AdminClusterInfo("mycluster")
+	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
@@ -497,7 +497,7 @@ func TestConfigureRBDStats(t *testing.T) {
 	context.Executor = executor
 	context.Client = fake.NewClientBuilder().WithScheme(s).Build()
 
-	clusterInfo := cephclient.AdminClusterInfo(namespace)
+	clusterInfo := cephclient.AdminTestClusterInfo(namespace)
 
 	// Case 1: CephBlockPoolList is not registered in scheme.
 	// So, an error is expected as List() operation would fail.

@@ -206,7 +206,7 @@ func (s *SmokeSuite) TestPoolResize() {
 	require.NoError(s.T(), err)
 
 	poolFound := false
-	clusterInfo := client.AdminClusterInfo(s.settings.Namespace)
+	clusterInfo := client.AdminTestClusterInfo(s.settings.Namespace)
 
 	// Wait for pool to appear
 	for i := 0; i < 10; i++ {
@@ -283,7 +283,7 @@ func (s *SmokeSuite) TestCreateClient() {
 		"mgr": "allow rwx",
 		"osd": "allow rwx",
 	}
-	clusterInfo := client.AdminClusterInfo(s.settings.Namespace)
+	clusterInfo := client.AdminTestClusterInfo(s.settings.Namespace)
 	err := s.helper.UserClient.Create(clientName, s.settings.Namespace, caps)
 	require.NoError(s.T(), err)
 

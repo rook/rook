@@ -37,7 +37,7 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	ctx := context.TODO()
 	store := "test-store"
 	namespace := "ns"
-	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo := client.AdminTestClusterInfo(namespace)
 	p := NewProvisioner(&clusterd.Context{RookClientset: rookclient.NewSimpleClientset(), Clientset: test.New(t, 1)}, clusterInfo)
 	p.objectContext = object.NewContext(p.context, clusterInfo, store)
 	sc := &storagev1.StorageClass{

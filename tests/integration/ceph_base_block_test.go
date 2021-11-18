@@ -260,7 +260,7 @@ func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	storageClassNameRetained := "rook-ceph-block-retained"
 	blockNameRetained := "block-pv-claim-retained"
 
-	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo := client.AdminTestClusterInfo(namespace)
 	defer blockTestDataCleanUp(helper, k8sh, s, clusterInfo, poolName, storageClassName, blockName, podName, true)
 	defer blockTestDataCleanUp(helper, k8sh, s, clusterInfo, poolNameRetained, storageClassNameRetained, blockNameRetained, podNameWithPVRetained, true)
 	logger.Infof("Block Storage End to End Integration Test - create, mount, write to, read from, and unmount")
@@ -405,7 +405,7 @@ func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings) {
 	logger.Infof("Block Storage End to End Integration Test - create storageclass,pool and pvc")
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
-	clusterInfo := client.AdminClusterInfo(settings.Namespace)
+	clusterInfo := client.AdminTestClusterInfo(settings.Namespace)
 	poolName := "rookpool"
 	storageClassName := "rook-ceph-block-lite"
 	blockName := "test-block-claim-lite"

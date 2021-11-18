@@ -97,7 +97,7 @@ func TestInjectCRUSHMapMap(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	err := injectCRUSHMap(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"), "/tmp/063990228.compiled")
+	err := injectCRUSHMap(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"), "/tmp/063990228.compiled")
 	assert.Nil(t, err)
 }
 
@@ -111,7 +111,7 @@ func TestSetCRUSHMapMap(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	err := setCRUSHMap(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"), "/tmp/063990228.compiled")
+	err := setCRUSHMap(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"), "/tmp/063990228.compiled")
 	assert.Nil(t, err)
 }
 

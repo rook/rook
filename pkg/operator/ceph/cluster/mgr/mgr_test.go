@@ -206,7 +206,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset,
 	}
-	clusterInfo := cephclient.AdminClusterInfo("mycluster")
+	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
 	clusterInfo.SetName("test")
 	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
 
@@ -281,7 +281,7 @@ func TestConfigureModules(t *testing.T) {
 
 	clientset := testop.New(t, 3)
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
-	clusterInfo := cephclient.AdminClusterInfo("mycluster")
+	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
 	c := &Cluster{
 		context:     context,
 		clusterInfo: clusterInfo,
@@ -382,7 +382,7 @@ func TestApplyMonitoringLabels(t *testing.T) {
 func TestCluster_enableBalancerModule(t *testing.T) {
 	c := &Cluster{
 		context:     &clusterd.Context{Executor: &exectest.MockExecutor{}, Clientset: testop.New(t, 3)},
-		clusterInfo: cephclient.AdminClusterInfo("mycluster"),
+		clusterInfo: cephclient.AdminTestClusterInfo("mycluster"),
 	}
 
 	t.Run("on octopus we configure the balancer AND enable the upmap mode", func(t *testing.T) {

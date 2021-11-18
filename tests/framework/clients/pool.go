@@ -97,7 +97,7 @@ func (p *PoolOperation) PoolCRDExists(namespace, name string) (bool, error) {
 }
 
 func (p *PoolOperation) CephPoolExists(namespace, name string) (bool, error) {
-	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo := client.AdminTestClusterInfo(namespace)
 	pools, err := p.ListCephPools(clusterInfo)
 	if err != nil {
 		return false, err

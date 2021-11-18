@@ -255,7 +255,7 @@ func getObjectRealmAndReconcileObjectRealm(t *testing.T) (*ReconcileObjectRealm,
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectRealm object with the scheme and fake client.
-	clusterInfo := cephclient.AdminClusterInfo("rook")
+	clusterInfo := cephclient.AdminTestClusterInfo("rook")
 	r := &ReconcileObjectRealm{client: cl, scheme: s, context: c, clusterInfo: clusterInfo}
 
 	return r, objectRealm

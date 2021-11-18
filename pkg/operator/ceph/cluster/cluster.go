@@ -72,7 +72,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		ClusterInfo:        client.AdminClusterInfo(c.Namespace),
+		ClusterInfo:        client.AdminClusterInfo(c.Namespace, c.Name),
 		Namespace:          c.Namespace,
 		Spec:               &c.Spec,
 		context:            context,

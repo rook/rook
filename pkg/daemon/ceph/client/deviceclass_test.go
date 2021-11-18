@@ -38,11 +38,11 @@ func TestGetDeviceClassOSDs(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command '%v'", args)
 	}
-	osds, err := GetDeviceClassOSDs(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"), "ssd")
+	osds, err := GetDeviceClassOSDs(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"), "ssd")
 	assert.Nil(t, err)
 	assert.Equal(t, []int{0, 1, 2}, osds)
 
-	osds, err = GetDeviceClassOSDs(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"), "hdd")
+	osds, err = GetDeviceClassOSDs(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"), "hdd")
 	assert.Nil(t, err)
 	assert.Equal(t, []int{}, osds)
 }

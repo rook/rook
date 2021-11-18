@@ -52,7 +52,7 @@ func TestEnableModuleRetries(t *testing.T) {
 
 	}
 
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 	_ = MgrEnableModule(&clusterd.Context{Executor: executor}, clusterInfo, "invalidModuleName", false)
 	assert.Equal(t, 5, moduleEnableRetries)
 
@@ -91,7 +91,7 @@ func TestEnableModule(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 	err := enableModule(&clusterd.Context{Executor: executor}, clusterInfo, "pg_autoscaler", true, "enable")
 	assert.NoError(t, err)
 
@@ -121,7 +121,7 @@ func TestEnableDisableBalancerModule(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 	err := enableDisableBalancerModule(&clusterd.Context{Executor: executor}, clusterInfo, "on")
 	assert.NoError(t, err)
 
@@ -140,6 +140,6 @@ func TestSetBalancerMode(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := setBalancerMode(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"), "upmap")
+	err := setBalancerMode(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"), "upmap")
 	assert.NoError(t, err)
 }

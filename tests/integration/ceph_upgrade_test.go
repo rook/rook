@@ -103,7 +103,7 @@ func (s *UpgradeSuite) TestUpgradeRookToMaster() {
 	numOSDs, filesystemName, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectStoreName, objectUserID, message, preFilename)
 	s.settings.CephVersion = installer.OctopusVersion
 
-	clusterInfo := client.AdminClusterInfo(s.namespace)
+	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
 		blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, clusterInfo, poolName, storageClassName, blockName, rbdPodName, requireBlockImagesRemoved)
@@ -162,7 +162,7 @@ func (s *UpgradeSuite) TestUpgradeCephToOctopusDevel() {
 	preFilename := "pre-upgrade-file"
 	s.settings.CephVersion = installer.OctopusVersion
 	numOSDs, filesystemName, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectStoreName, objectUserID, message, preFilename)
-	clusterInfo := client.AdminClusterInfo(s.namespace)
+	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
 		blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, clusterInfo, poolName, storageClassName, blockName, rbdPodName, requireBlockImagesRemoved)
@@ -195,7 +195,7 @@ func (s *UpgradeSuite) TestUpgradeCephToPacificDevel() {
 	preFilename := "pre-upgrade-file"
 	s.settings.CephVersion = installer.PacificVersion
 	numOSDs, filesystemName, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectStoreName, objectUserID, message, preFilename)
-	clusterInfo := client.AdminClusterInfo(s.namespace)
+	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
 		blockTestDataCleanUp(s.helper, s.k8sh, s.Suite, clusterInfo, poolName, storageClassName, blockName, rbdPodName, requireBlockImagesRemoved)
@@ -226,7 +226,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(objectStoreName, objectUserID, me
 	// Create block, object, and file storage before the upgrade
 	//
 	logger.Infof("Initializing block before the upgrade")
-	clusterInfo := client.AdminClusterInfo(s.namespace)
+	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	setupBlockLite(s.helper, s.k8sh, s.Suite, clusterInfo, poolName, storageClassName, blockName, rbdPodName)
 
 	createPodWithBlock(s.helper, s.k8sh, s.Suite, s.namespace, storageClassName, rbdPodName, blockName)
@@ -393,7 +393,7 @@ func (s *UpgradeSuite) verifyFilesAfterUpgrade(fsName, newFileToWrite, messageFo
 
 	if fsName != "" {
 		// wait for filesystem to be active
-		clusterInfo := client.AdminClusterInfo(s.namespace)
+		clusterInfo := client.AdminTestClusterInfo(s.namespace)
 		err := waitForFilesystemActive(s.k8sh, clusterInfo, fsName)
 		require.NoError(s.T(), err)
 

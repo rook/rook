@@ -46,7 +46,7 @@ func TestCephCrash(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	crash, err := GetCrashList(context, AdminClusterInfo("mycluster"))
+	crash, err := GetCrashList(context, AdminTestClusterInfo("mycluster"))
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(crash))
 }

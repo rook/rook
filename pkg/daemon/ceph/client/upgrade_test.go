@@ -37,7 +37,7 @@ func TestGetCephMonVersionString(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	_, err := getCephMonVersionString(context, AdminClusterInfo("mycluster"))
+	_, err := getCephMonVersionString(context, AdminTestClusterInfo("mycluster"))
 	assert.NoError(t, err)
 }
 
@@ -49,7 +49,7 @@ func TestGetCephMonVersionsString(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	_, err := getAllCephDaemonVersionsString(context, AdminClusterInfo("mycluster"))
+	_, err := getAllCephDaemonVersionsString(context, AdminTestClusterInfo("mycluster"))
 	assert.Nil(t, err)
 }
 
@@ -62,7 +62,7 @@ func TestEnableMessenger2(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := EnableMessenger2(context, AdminClusterInfo("mycluster"))
+	err := EnableMessenger2(context, AdminTestClusterInfo("mycluster"))
 	assert.NoError(t, err)
 }
 
@@ -75,7 +75,7 @@ func TestEnableReleaseOSDFunctionality(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := EnableReleaseOSDFunctionality(context, AdminClusterInfo("mycluster"), "octopus")
+	err := EnableReleaseOSDFunctionality(context, AdminTestClusterInfo("mycluster"), "octopus")
 	assert.NoError(t, err)
 }
 
@@ -92,7 +92,7 @@ func TestOkToStopDaemon(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	deployment := "rook-ceph-mon-a"
-	err := okToStopDaemon(context, AdminClusterInfo("mycluster"), deployment, "mon", "a")
+	err := okToStopDaemon(context, AdminTestClusterInfo("mycluster"), deployment, "mon", "a")
 	assert.NoError(t, err)
 
 	// Second test
@@ -105,7 +105,7 @@ func TestOkToStopDaemon(t *testing.T) {
 	context = &clusterd.Context{Executor: executor}
 
 	deployment = "rook-ceph-mgr-a"
-	err = okToStopDaemon(context, AdminClusterInfo("mycluster"), deployment, "mgr", "a")
+	err = okToStopDaemon(context, AdminTestClusterInfo("mycluster"), deployment, "mgr", "a")
 	assert.NoError(t, err)
 
 	// Third test
@@ -118,7 +118,7 @@ func TestOkToStopDaemon(t *testing.T) {
 	context = &clusterd.Context{Executor: executor}
 
 	deployment = "rook-ceph-dummy-a"
-	err = okToStopDaemon(context, AdminClusterInfo("mycluster"), deployment, "dummy", "a")
+	err = okToStopDaemon(context, AdminTestClusterInfo("mycluster"), deployment, "dummy", "a")
 	assert.NoError(t, err)
 }
 
@@ -126,7 +126,7 @@ func TestOkToContinue(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 
-	err := OkToContinue(context, AdminClusterInfo("mycluster"), "rook-ceph-mon-a", "mon", "a") // mon is not checked on ok-to-continue so nil is expected
+	err := OkToContinue(context, AdminTestClusterInfo("mycluster"), "rook-ceph-mon-a", "mon", "a") // mon is not checked on ok-to-continue so nil is expected
 	assert.NoError(t, err)
 }
 
@@ -300,7 +300,7 @@ func TestGetRetryConfig(t *testing.T) {
 }
 
 func TestOSDUpdateShouldCheckOkToStop(t *testing.T) {
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 	lsOutput := ""
 	treeOutput := ""
 	context := &clusterd.Context{

@@ -42,7 +42,7 @@ func CreateObjectUserOperation(k8sh *utils.K8sHelper, manifests installer.CephMa
 // ObjectUserGet Function to get the details of an object user from radosgw
 func (o *ObjectUserOperation) GetUser(namespace string, store string, userid string) (*rgw.ObjectUser, error) {
 	ctx := o.k8sh.MakeContext()
-	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo := client.AdminTestClusterInfo(namespace)
 	objectStore, err := o.k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(context.TODO(), store, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get objectstore info: %+v", err)

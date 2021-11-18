@@ -45,7 +45,7 @@ func TestCreateImage(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 	_, err := CreateImage(context, clusterInfo, "image1", "pool1", "", uint64(sizeMB)) // 1MB
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "mocked detailed ceph error output stream"))
@@ -156,7 +156,7 @@ func TestExpandImage(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 	err := ExpandImage(context, clusterInfo, "error-name", "kube", "mon1,mon2,mon3", "/tmp/keyring", 1000000)
 	assert.Error(t, err)
 
@@ -186,7 +186,7 @@ func TestListImageLogLevelInfo(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 	images, err = ListImages(context, clusterInfo, "pool1")
 	assert.Nil(t, err)
 	assert.NotNil(t, images)
@@ -250,7 +250,7 @@ func TestListImageLogLevelDebug(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 	images, err = ListImages(context, clusterInfo, "pool1")
 	assert.Nil(t, err)
 	assert.NotNil(t, images)

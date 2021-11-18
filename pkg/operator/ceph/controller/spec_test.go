@@ -249,7 +249,7 @@ func TestExtractMgrIP(t *testing.T) {
 }
 
 func TestConfigureExternalMetricsEndpoint(t *testing.T) {
-	clusterInfo := cephclient.AdminClusterInfo("rook-ceph")
+	clusterInfo := cephclient.AdminTestClusterInfo("rook-ceph")
 	t.Run("spec and current active mgr endpoint identical with no existing endpoint object", func(t *testing.T) {
 		monitoringSpec := cephv1.MonitoringSpec{
 			Enabled:              true,

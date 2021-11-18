@@ -59,7 +59,7 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 	}
 	cluster := &Cluster{
 		context:     context,
-		clusterInfo: client.AdminClusterInfo("testns"),
+		clusterInfo: client.AdminTestClusterInfo("testns"),
 		spec:        spec,
 	}
 
@@ -105,7 +105,7 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 	ns := "testns"
 	cluster := &Cluster{
 		context:     context,
-		clusterInfo: client.AdminClusterInfo(ns),
+		clusterInfo: client.AdminTestClusterInfo(ns),
 		spec:        spec,
 	}
 
@@ -255,7 +255,7 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 	}
 	cluster := &Cluster{
 		context:     context,
-		clusterInfo: client.AdminClusterInfo("testns"),
+		clusterInfo: client.AdminTestClusterInfo("testns"),
 		spec:        spec,
 	}
 

@@ -76,14 +76,14 @@ func TestHostTree(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	tree, err := HostTree(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"))
+	tree, err := HostTree(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"))
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(tree.Nodes))
 	assert.Equal(t, "minikube", tree.Nodes[0].Name)
 	assert.Equal(t, 3, len(tree.Nodes[0].Children))
 
 	emptyTreeResult = true
-	tree, err = HostTree(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"))
+	tree, err = HostTree(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"))
 	assert.Error(t, err)
 	assert.Equal(t, 0, len(tree.Nodes))
 
@@ -104,12 +104,12 @@ func TestOsdListNum(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	list, err := OsdListNum(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"))
+	list, err := OsdListNum(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"))
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(list))
 
 	emptyOsdListNumResult = true
-	list, err = OsdListNum(&clusterd.Context{Executor: executor}, AdminClusterInfo("mycluster"))
+	list, err = OsdListNum(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"))
 	assert.Error(t, err)
 	assert.Equal(t, 0, len(list))
 }
@@ -127,7 +127,7 @@ func TestOSDDeviceClasses(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 
 	t.Run("device classes returned", func(t *testing.T) {
 		deviceClasses, err := OSDDeviceClasses(context, clusterInfo, []string{"0"})
@@ -161,7 +161,7 @@ func TestOSDOkToStop(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 
 	doSetup := func() {
 		seenArgs = []string{}
