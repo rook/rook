@@ -45,34 +45,53 @@ func Test_tlsSecretPath(t *testing.T) {
 	}
 }
 
-func TestTLSSecretVolumeAndMount(t *testing.T) {
+func TestVaultSecretVolumeAndMount(t *testing.T) {
 	m := int32(0444)
 	type args struct {
-		config map[string]string
+		config          map[string]string
+		tokenSecretName string
 	}
 	tests := []struct {
 		name string
 		args args
 		want []v1.VolumeProjection
 	}{
-		{"empty", args{config: map[string]string{"foo": "bar"}}, []v1.VolumeProjection{}},
-		{"single ca", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}}, []v1.VolumeProjection{
+		{"empty", args{config: map[string]string{"foo": "bar"}, tokenSecretName: ""}, []v1.VolumeProjection{}},
+		{"single ca", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}, tokenSecretName: ""}, []v1.VolumeProjection{
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}}},
 		},
-		{"ca and client cert", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret", "VAULT_CLIENT_CERT": "vault-client-cert"}}, []v1.VolumeProjection{
+		{"ca and client cert", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret", "VAULT_CLIENT_CERT": "vault-client-cert"}, tokenSecretName: ""}, []v1.VolumeProjection{
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-client-cert"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.crt", Mode: &m}}, Optional: nil}},
 		}},
-		{"ca and client cert/key", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret", "VAULT_CLIENT_CERT": "vault-client-cert", "VAULT_CLIENT_KEY": "vault-client-key"}}, []v1.VolumeProjection{
+		{"ca and client cert/key", args{config: map[string]string{"VAULT_CACERT": "vault-ca-secret", "VAULT_CLIENT_CERT": "vault-client-cert", "VAULT_CLIENT_KEY": "vault-client-key"}, tokenSecretName: ""}, []v1.VolumeProjection{
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-client-cert"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.crt", Mode: &m}}, Optional: nil}},
 			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-client-key"}, Items: []v1.KeyToPath{{Key: "key", Path: "vault.key", Mode: &m}}, Optional: nil}},
 		}},
+		{"token file", args{tokenSecretName: "vault-token", config: map[string]string{"foo": "bar"}}, []v1.VolumeProjection{
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}}},
+		},
+		{"token and ca", args{tokenSecretName: "vault-token", config: map[string]string{"VAULT_CACERT": "vault-ca-secret"}}, []v1.VolumeProjection{
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}},
+		}},
+		{"token, ca, and client cert", args{tokenSecretName: "vault-token", config: map[string]string{"VAULT_CACERT": "vault-ca-secret", "VAULT_CLIENT_CERT": "vault-client-cert"}}, []v1.VolumeProjection{
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-client-cert"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.crt", Mode: &m}}, Optional: nil}},
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}},
+		}},
+		{"token, ca, and client cert/key", args{tokenSecretName: "vault-token", config: map[string]string{"VAULT_CACERT": "vault-ca-secret", "VAULT_CLIENT_CERT": "vault-client-cert", "VAULT_CLIENT_KEY": "vault-client-key"}}, []v1.VolumeProjection{
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-ca-secret"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.ca", Mode: &m}}, Optional: nil}},
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-client-cert"}, Items: []v1.KeyToPath{{Key: "cert", Path: "vault.crt", Mode: &m}}, Optional: nil}},
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-client-key"}, Items: []v1.KeyToPath{{Key: "key", Path: "vault.key", Mode: &m}}, Optional: nil}},
+			{Secret: &v1.SecretProjection{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Items: []v1.KeyToPath{{Key: "token", Path: "vault.token", Mode: &m}}, Optional: nil}},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := TLSSecretVolumeAndMount(tt.args.config); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TLSSecretVolumeAndMount() = %v, want %v", got, tt.want)
+			if got := VaultSecretVolumeAndMount(tt.args.config, tt.args.tokenSecretName); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("VaultSecretVolumeAndMount() = %v, want %v", got, tt.want)
 			}
 		})
 	}

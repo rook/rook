@@ -297,7 +297,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			// Somehow when this happens and we try to update a deployment spec it fails with:
 			//  ValidationError(Pod.spec.volumes[7].projected): missing required field "sources"
 			if c.spec.Security.KeyManagementService.IsEnabled() && c.spec.Security.KeyManagementService.IsTLSEnabled() {
-				encryptedVol, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+				encryptedVol, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
 				volumes = append(volumes, encryptedVol)
 			}
 		}
@@ -899,7 +899,7 @@ func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(mountPath string, os
 
 			// Now let's see if there is a TLS config we need to mount as well
 			if c.spec.Security.KeyManagementService.IsTLSEnabled() {
-				_, vaultVolMount := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails)
+				_, vaultVolMount := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
 				getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, vaultVolMount)
 			}
 

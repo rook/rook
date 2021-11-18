@@ -52,6 +52,8 @@ caps osd = "allow rwx"
 	rgwPortInternalPort       int32 = 8080
 	ServiceServingCertCAFile        = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
 	HttpTimeOut                     = time.Second * 15
+	rgwVaultVolumeName              = "rgw-vault-volume"
+	rgwVaultDirName                 = "/etc/vault/rgw/"
 )
 
 var (

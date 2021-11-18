@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -45,11 +46,11 @@ set -e
 VAULT_TOKEN_OLD_PATH=%s
 VAULT_TOKEN_NEW_PATH=%s
 
-cp --verbose $VAULT_TOKEN_OLD_PATH $VAULT_TOKEN_NEW_PATH
+cp --recursive --verbose $VAULT_TOKEN_OLD_PATH/..data/. $VAULT_TOKEN_NEW_PATH
 
-chmod --verbose 400 $VAULT_TOKEN_NEW_PATH
-
-chown --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
+chmod --recursive --verbose 400 $VAULT_TOKEN_NEW_PATH/*
+chmod --verbose 700 $VAULT_TOKEN_NEW_PATH
+chown --recursive --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
 `
 )
 
@@ -157,8 +158,16 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	}
 	if kmsEnabled {
 		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
-			podSpec.Volumes = append(podSpec.Volumes,
-				kms.VaultTokenFileVolume(c.store.Spec.Security.KeyManagementService.TokenSecretName))
+			vaultFileVol, _ := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails,
+				c.store.Spec.Security.KeyManagementService.TokenSecretName)
+			tmpvolume := v1.Volume{
+				Name: rgwVaultVolumeName,
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			}
+
+			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol, tmpvolume)
 			podSpec.InitContainers = append(podSpec.InitContainers,
 				c.vaultTokenInitContainer(rgwConfig))
 		}
@@ -211,25 +220,26 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 }
 
 // The vault token is passed as Secret for rgw container. So it is mounted as read only.
-// RGW has restrictions over vault token file, it should owned by same user(ceph) which
+// RGW has restrictions over vault token file, it should owned by same user (ceph) which
 // rgw daemon runs and all other permission should be nil or zero. Here ownership can be
 // changed with help of FSGroup but in openshift environments for security reasons it has
-// predefined value, so it won't work there. Hence the token file is copied to containerDataDir
-// from mounted secret then ownership/permissions are changed accordingly with help of a
-// init container.
+// predefined value, so it won't work there. Hence the token file and certs (if present)
+// are copied to other volume from mounted secrets then ownership/permissions are changed
+// accordingly with help of an init container.
 func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig) v1.Container {
-	_, volMount := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails)
+	_, srcVaultVolMount := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails, "")
+	tmpVaultMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
 	return v1.Container{
 		Name: "vault-initcontainer-token-file-setup",
 		Command: []string{
 			"/bin/bash",
 			"-c",
 			fmt.Sprintf(setupVaultTokenFile,
-				path.Join(kms.EtcVaultDir, kms.VaultFileName), path.Join(c.DataPathMap.ContainerDataDir, kms.VaultFileName)),
+				kms.EtcVaultDir, rgwVaultDirName),
 		},
 		Image: c.clusterSpec.CephVersion.Image,
 		VolumeMounts: append(
-			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), volMount),
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), srcVaultVolMount, tmpVaultMount),
 		Resources:       c.store.Spec.Gateway.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 	}
@@ -305,12 +315,31 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			container.Args = append(container.Args,
 				cephconfig.NewFlag("rgw crypt vault auth", kms.KMSTokenSecretNameKey),
 				cephconfig.NewFlag("rgw crypt vault token file",
-					path.Join(c.DataPathMap.ContainerDataDir, kms.VaultFileName)),
+					path.Join(rgwVaultDirName, kms.VaultFileName)),
 				cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
 				cephconfig.NewFlag("rgw crypt vault secret engine",
 					c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
 			)
 		}
+		if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() &&
+			c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}) {
+			container.Args = append(container.Args,
+				cephconfig.NewFlag("rgw crypt vault verify ssl", "true"))
+			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientCert) != "" {
+				container.Args = append(container.Args,
+					cephconfig.NewFlag("rgw crypt vault ssl clientcert", path.Join(rgwVaultDirName, kms.VaultCertFileName)))
+			}
+			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientKey) != "" {
+				container.Args = append(container.Args,
+					cephconfig.NewFlag("rgw crypt vault ssl clientkey", path.Join(rgwVaultDirName, kms.VaultKeyFileName)))
+			}
+			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultCACert) != "" {
+				container.Args = append(container.Args,
+					cephconfig.NewFlag("rgw crypt vault ssl cacert", path.Join(rgwVaultDirName, kms.VaultCAFileName)))
+			}
+		}
+		vaultVolMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
+		container.VolumeMounts = append(container.VolumeMounts, vaultVolMount)
 	}
 	return container
 }
