@@ -90,6 +90,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	if err != nil {
 		return errors.Wrap(err, "failed to populate config override config map")
 	}
+	c.ClusterInfo.SetName(c.namespacedName.Name)
 
 	// Start the mon pods
 	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mons")
