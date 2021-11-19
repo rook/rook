@@ -8,6 +8,9 @@ operatorNamespace: rook-ceph
 # The metadata.name of the CephCluster CR. The default name is the same as the namespace.
 # clusterName: rook-ceph
 
+# Ability to override the kubernetes version used in rendering the helm chart
+# kubeVersion: 1.21
+
 # Ability to override ceph.conf
 # configOverride: |
 #   [global]
