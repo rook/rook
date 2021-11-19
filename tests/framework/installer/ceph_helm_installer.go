@@ -72,6 +72,7 @@ func (h *CephInstaller) CreateRookCephClusterViaHelm(values map[string]interface
 	if err := yaml.Unmarshal([]byte(h.Manifests.GetCephCluster()), &clusterCRD); err != nil {
 		return err
 	}
+	values["cephClusterSpec"] = clusterCRD["spec"]
 
 	values["operatorNamespace"] = h.settings.OperatorNamespace
 	values["configOverride"] = clusterCustomSettings
@@ -79,7 +80,18 @@ func (h *CephInstaller) CreateRookCephClusterViaHelm(values map[string]interface
 		"enabled": true,
 		"image":   "rook/ceph:" + LocalBuildTag,
 	}
-	values["cephClusterSpec"] = clusterCRD["spec"]
+	values["ingress"] = map[string]interface{}{
+		"dashboard": map[string]interface{}{
+			"annotations": map[string]interface{}{
+				"kubernetes.io/ingress-class":                "nginx",
+				"nginx.ingress.kubernetes.io/rewrite-target": "/ceph-dashboard/$2",
+			},
+			"host": map[string]interface{}{
+				"name": "localhost",
+				"path": "/ceph-dashboard(/|$)(.*)",
+			},
+		},
+	}
 
 	if err := h.CreateBlockPoolConfiguration(values, blockPoolName, blockPoolSCName); err != nil {
 		return err

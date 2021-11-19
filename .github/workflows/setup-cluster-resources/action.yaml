@@ -16,9 +16,9 @@ runs:
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.23.2'
+        minikube version: 'v1.24.0'
         kubernetes version: 'v1.22.2'
-        start args: --memory 6g --cpus=2
+        start args: --memory 6g --cpus=2 --addons ingress
         github token: ${{ inputs.github-token }}
 
     - name: install deps
