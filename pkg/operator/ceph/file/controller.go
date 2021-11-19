@@ -167,6 +167,10 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("cephFilesystem resource not found. Ignoring since object must be deleted.")
+			// If there was a previous error or if a user removed this resource's finalizer, it's
+			// possible Rook didn't clean up the monitoring routine for this resource. Ensure the
+			// routine is stopped when we see the resource is gone.
+			r.cancelMirrorMonitoring(cephFilesystem)
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -194,6 +198,9 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		// If not, we should wait for it to be ready
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephFilesystem.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// don't leak the health checker routine if we are force deleting
+			r.cancelMirrorMonitoring(cephFilesystem)
+
 			// Remove finalizer
 			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephFilesystem)
 			if err != nil {
@@ -241,13 +248,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		}
 
 		// If the ceph fs still in the map, we must remove it during CR deletion
-		if fsContextsExists {
-			// Cancel the context to stop the mirroring status
-			r.fsContexts[fsChannelKeyName(cephFilesystem)].internalCancel()
-
-			// Remove ceph fs from the map
-			delete(r.fsContexts, fsChannelKeyName(cephFilesystem))
-		}
+		r.cancelMirrorMonitoring(cephFilesystem)
 
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephFilesystem)
@@ -473,6 +474,18 @@ func (r *ReconcileCephFilesystem) reconcileAddBoostrapPeer(cephFilesystem *cephv
 	return nil
 }
 
-func fsChannelKeyName(cephFilesystem *cephv1.CephFilesystem) string {
-	return fmt.Sprintf("%s-%s", cephFilesystem.Namespace, cephFilesystem.Name)
+func fsChannelKeyName(f *cephv1.CephFilesystem) string {
+	return types.NamespacedName{Namespace: f.Namespace, Name: f.Name}.String()
+}
+
+// cancel mirror monitoring. This is a noop if monitoring is not running.
+func (r *ReconcileCephFilesystem) cancelMirrorMonitoring(cephFilesystem *cephv1.CephFilesystem) {
+	_, fsContextsExists := r.fsContexts[fsChannelKeyName(cephFilesystem)]
+	if fsContextsExists {
+		// Cancel the context to stop the mirroring status
+		r.fsContexts[fsChannelKeyName(cephFilesystem)].internalCancel()
+
+		// Remove ceph fs from the map
+		delete(r.fsContexts, fsChannelKeyName(cephFilesystem))
+	}
 }
