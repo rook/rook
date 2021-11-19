@@ -16,6 +16,7 @@ limitations under the License.
 package client
 
 import (
+	"fmt"
 	"os/exec"
 	"reflect"
 	"strconv"
@@ -181,6 +182,88 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	} else {
 		assert.False(t, compressionModeCreated)
 	}
+}
+
+func TestUpdateFailureDomain(t *testing.T) {
+	var newCrushRule string
+	currentFailureDomain := "rack"
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[1] == "pool" {
+			if args[2] == "get" {
+				assert.Equal(t, "mypool", args[3])
+				return `{"crush_rule": "test_rule"}`, nil
+			}
+			if args[2] == "set" {
+				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, "crush_rule", args[4])
+				newCrushRule = args[5]
+				return "", nil
+			}
+		}
+		if args[1] == "crush" {
+			if args[2] == "rule" && args[3] == "dump" {
+				return fmt.Sprintf(`{"steps": [{"foo":"bar"},{"type":"%s"}]}`, currentFailureDomain), nil
+			}
+			newCrushRule = "foo"
+			return "", nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	t.Run("no desired failure domain", func(t *testing.T) {
+		p := cephv1.PoolSpec{
+			Replicated: cephv1.ReplicatedSpec{Size: 3},
+		}
+		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
+		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, "mypool", p)
+		assert.NoError(t, err)
+		assert.Equal(t, "", newCrushRule)
+	})
+
+	t.Run("same failure domain", func(t *testing.T) {
+		p := cephv1.PoolSpec{
+			FailureDomain: currentFailureDomain,
+			Replicated:    cephv1.ReplicatedSpec{Size: 3},
+		}
+		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
+		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, "mypool", p)
+		assert.NoError(t, err)
+		assert.Equal(t, "", newCrushRule)
+	})
+
+	t.Run("changing failure domain", func(t *testing.T) {
+		p := cephv1.PoolSpec{
+			FailureDomain: "zone",
+			Replicated:    cephv1.ReplicatedSpec{Size: 3},
+		}
+		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
+		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, "mypool", p)
+		assert.NoError(t, err)
+		assert.Equal(t, "mypool_zone", newCrushRule)
+	})
+}
+
+func TestExtractFailureDomain(t *testing.T) {
+	t.Run("complex crush rule skipped", func(t *testing.T) {
+		rule := ruleSpec{Steps: []stepSpec{
+			{Type: ""},
+			{Type: ""},
+			{Type: "zone"},
+		}}
+		failureDomain := extractFailureDomain(rule)
+		assert.Equal(t, "", failureDomain)
+	})
+	t.Run("valid crush rule", func(t *testing.T) {
+		rule := ruleSpec{Steps: []stepSpec{
+			{Type: ""},
+			{Type: "zone"},
+		}}
+		failureDomain := extractFailureDomain(rule)
+		assert.Equal(t, "zone", failureDomain)
+	})
 }
 
 func testIsStringInSlice(a string, list []string) bool {
