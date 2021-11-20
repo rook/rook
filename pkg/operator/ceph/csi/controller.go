@@ -214,15 +214,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to validate CSI parameters")
 	}
 
-	if CSIEnabled() {
-		requeue, err := r.setupCSINetwork(cluster)
-		if err != nil {
-			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure network for csi")
-		}
-		if requeue {
-			return opcontroller.ImmediateRetryResult, nil
-		}
-	} else {
+	if !CSIEnabled() {
 		logger.Debug("CSI not enabled")
 	}
 

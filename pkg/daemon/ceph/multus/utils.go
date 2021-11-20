@@ -46,6 +46,8 @@ const (
 	multusIpEnv      = "MULTUSIP"
 	multusLinkEnv    = "MULTUSLINK"
 	multusAnnotation = "k8s.v1.cni.cncf.io/networks-status"
+	MultusNamespace  = "NAMESPACE"
+	MultusLabel      = "app=rook-ceph-multus"
 )
 
 type multusConfig struct {
@@ -151,7 +153,7 @@ func findMultusData(multusConfs []multusNetConfiguration, multusName string, mul
 	return multusData, errors.New("failed to find multus interface")
 }
 
-func determineHolderNS(holderIP string) (ns.NetNS, error) {
+func determineHolderNS(ipList []string) (ns.NetNS, error) {
 	var holderNS ns.NetNS
 
 	nsFiles, err := ioutil.ReadDir(nsDir)
@@ -173,28 +175,16 @@ func determineHolderNS(holderIP string) (ns.NetNS, error) {
 				return errors.Wrap(err, "failed to list interfaces")
 			}
 
-			for _, iface := range interfaces {
-				link, err := netlink.LinkByName(iface.Name)
+			for _, ip := range ipList {
+				iface, err := findInterface(interfaces, ip)
 				if err != nil {
-					return errors.Wrap(err, "failed to get link")
+					return errors.Wrap(err, "failed to find needed interface")
 				}
-				if link == nil {
-					return errors.New("failed to find link")
-				}
-
-				addrs, err := netlink.AddrList(link, 0)
-				if err != nil {
-					return errors.Wrap(err, "failed to get IP address from link")
-				}
-
-				for _, addr := range addrs {
-					if addr.IP.String() == holderIP {
-						foundNS = true
-						return nil
-					}
+				if iface != "" {
+					foundNS = true
+					return nil
 				}
 			}
-
 			return nil
 		})
 
@@ -210,7 +200,7 @@ func determineHolderNS(holderIP string) (ns.NetNS, error) {
 		}
 	}
 
-	return holderNS, nil
+	return holderNS, errors.New("failed to find holder network namespace")
 }
 
 func determineNewLinkName(interfaces []net.Interface) (string, error) {
@@ -236,32 +226,85 @@ func determineNewLinkName(interfaces []net.Interface) (string, error) {
 	return newLinkName, nil
 }
 
-func migrateInterface(hostNS, holderNS ns.NetNS, ogLinkName, newLinkName string) error {
-	return holderNS.Do(func(ns ns.NetNS) error {
-		link, err := netlink.LinkByName(ogLinkName)
+func migrateInterfaces(hostNS, holderNS ns.NetNS) error {
+	return holderNS.Do(func(ns.NetNS) error {
+		interfaces, err := net.Interfaces()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to get interfaces on holder namespace")
 		}
 
-		logger.Info("setting multus link down to be renamed")
-		if err := netlink.LinkSetDown(link); err != nil {
-			return errors.Wrap(err, "failed to set link down")
-		}
+		for _, iface := range interfaces {
+			if iface.Name == "eth0" || iface.Name == "lo" {
+				continue
+			}
 
-		logger.Infof("renaming multus link to %s", newLinkName)
-		if err := netlink.LinkSetName(link, newLinkName); err != nil {
-			return errors.Wrap(err, "failed to rename link")
-		}
+			var hostInterfaces []net.Interface
+			err := hostNS.Do(func(ns.NetNS) error {
+				var err error
+				hostInterfaces, err = net.Interfaces()
+				return err
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to list interfaces on host namespace")
+			}
 
-		// After renaming the link, the link object must be updated or netlink will get confused.
-		link, err = netlink.LinkByName(newLinkName)
-		if err != nil {
-			return errors.Wrap(err, "failed to get link")
-		}
+			newLinkName, err := determineNewLinkName(hostInterfaces)
+			if err != nil {
+				return errors.Wrap(err, "failed to determine the new multus interface name")
+			}
 
-		logger.Info("moving the multus interface to the host network namespace")
-		if err = netlink.LinkSetNsFd(link, int(hostNS.Fd())); err != nil {
-			return errors.Wrap(err, "failed to change namespace")
+			link, err := netlink.LinkByName(iface.Name)
+			if err != nil {
+				return errors.Wrap(err, "failed to get link")
+			}
+
+			// Link IP configuration must be saved for reconfiguration after being migrated.
+			addrs, err := netlink.AddrList(link, 0)
+			if err != nil {
+				return errors.Wrap(err, "failed to get address from link")
+			}
+			if err := netlink.LinkSetDown(link); err != nil {
+				return errors.Wrap(err, "failed to set link down")
+			}
+
+			logger.Infof("renaming multus link to %s", newLinkName)
+			if err := netlink.LinkSetName(link, newLinkName); err != nil {
+				return errors.Wrap(err, "failed to rename link")
+			}
+
+			// After renaming the link, the link object must be updated or netlink will get confused.
+			link, err = netlink.LinkByName(newLinkName)
+			if err != nil {
+				return errors.Wrap(err, "failed to get link")
+			}
+
+			logger.Info("moving the multus interface to the host network namespace")
+			if err = netlink.LinkSetNsFd(link, int(hostNS.Fd())); err != nil {
+				return errors.Wrap(err, "failed to move interface to host namespace")
+			}
+
+			err = hostNS.Do(func(ns.NetNS) error {
+				iface, err := netlink.LinkByName(newLinkName)
+				if err != nil {
+					return errors.Wrap(err, "failed to get interface on host namespace")
+				}
+				for _, addr := range addrs {
+					// The IP address label must be changed to the new interface name
+					// for the AddrAdd call to succeed.
+					addr.Label = newLinkName
+					logger.Infof("Adding address: %q", addr)
+					if err := netlink.AddrAdd(iface, &addr); err != nil {
+						return errors.Wrap(err, "failed to configure ip address on interface")
+					}
+				}
+				if err := netlink.LinkSetUp(link); err != nil {
+					return errors.Wrap(err, "failed to set link up")
+				}
+				return nil
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to configure network interface on host namespace")
+			}
 		}
 		return nil
 	})
@@ -289,37 +332,35 @@ func setupInterface(mLinkName string, multusIP netlink.Addr) error {
 	return nil
 }
 
-func checkMigration(interfaces []net.Interface, multusIpStr string) (bool, string, error) {
-	var migrated bool
-	var linkName string
+func findInterface(interfaces []net.Interface, ipStr string) (string, error) {
+	var ifaceName string
 
 	for _, iface := range interfaces {
 		link, err := netlink.LinkByName(iface.Name)
 		if err != nil {
-			return migrated, linkName, errors.Wrap(err, "failed to get link")
+			return ifaceName, errors.Wrap(err, "failed to get link")
 		}
 		if link == nil {
-			return migrated, linkName, errors.New("failed to find link")
+			return ifaceName, errors.New("failed to find link")
 		}
 
 		addrs, err := netlink.AddrList(link, 0)
 		if err != nil {
-			return migrated, linkName, errors.Wrap(err, "failed to get address from link")
+			return ifaceName, errors.Wrap(err, "failed to get address from link")
 		}
 
 		for _, addr := range addrs {
-			if addr.IP.String() == multusIpStr {
-				migrated = true
+			if addr.IP.String() == ipStr {
 				linkAttrs := link.Attrs()
 				if linkAttrs != nil {
-					linkName = linkAttrs.Name
+					ifaceName = linkAttrs.Name
 				}
-				return migrated, linkName, nil
+				return ifaceName, nil
 			}
 		}
 	}
 
-	return migrated, linkName, nil
+	return ifaceName, nil
 }
 
 func determineMultusIPConfig(holderNS ns.NetNS, multusIP, multusLinkName string) (netlink.Addr, error) {

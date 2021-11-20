@@ -14,8 +14,6 @@ spec:
       labels:
         name: rook-ceph-multus
         app: rook-ceph-multus
-      annotations:
-        k8s.v1.cni.cncf.io/networks: {{ .MultusNetwork }}
     spec:
       serviceAccount: rook-csi-multus
       priorityClassName: system-node-critical

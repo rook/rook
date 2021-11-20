@@ -438,7 +438,73 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset %q", rbdPlugin.Name)
 		}
 		if multusApplied {
+			// The CSI plugin pods will run on the host network namespace.
+			// The host network namespace will need connectivity to the multus network.
+			multusTemplate := templateParam{
+				Namespace: r.opConfig.OperatorNamespace,
+			}
+
+			multusTemplate.MultusImage = r.opConfig.Image
+
+			multusHolder, err := templateToDaemonSet(csiMultusSetup, MultusDaemonsetTemplatePath, multusTemplate)
+			if err != nil {
+				return errors.Wrap(err, "failed to get daemonset template to set up the multus network")
+			}
+
+			// Applying affinity and toleration to multus daemonset.
+			// The multus network must be configured on every node that csi plugin pods run on.
+			applyToPodSpec(&multusHolder.Spec.Template.Spec, rbdPluginNodeAffinity, rbdPluginTolerations)
+
+			_, err = r.applyCephClusterNetworkConfig(r.opManagerContext, &multusHolder.Spec.Template.ObjectMeta)
+			if err != nil {
+				return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset %q", rbdPlugin.Name)
+			}
+
+			err = k8sutil.CreateOrUpdateDaemonSet(r.opManagerContext, csiMultusSetup, r.opConfig.OperatorNamespace, r.context.Clientset, multusHolder)
+			if err != nil {
+				return errors.Wrap(err, "failed to start daemonset to set up the multus network")
+			}
+
 			rbdPlugin.Spec.Template.Spec.HostNetwork = true
+			rbdPlugin.Spec.Template.Spec.InitContainers = []corev1.Container{
+				{
+					Name:  "multus-migration",
+					Image: r.opConfig.Image,
+					Args: []string{
+						"ceph",
+						"multus-setup",
+					},
+					Env: []corev1.EnvVar{
+						{
+							Name:  multus.MultusNamespace,
+							Value: r.opConfig.OperatorNamespace,
+						},
+					},
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: &[]bool{true}[0],
+						Capabilities: &corev1.Capabilities{
+							Add: []corev1.Capability{
+								"NET_ADMIN",
+								"SYS_ADMIN",
+							},
+						},
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "netns",
+							MountPath: "/var/run/netns",
+						},
+					},
+				},
+			}
+			rbdPlugin.Spec.Template.Spec.Volumes = append(rbdPlugin.Spec.Template.Spec.Volumes, corev1.Volume{
+				Name: "netns",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/run/netns",
+					},
+				},
+			})
 		}
 		err = k8sutil.CreateOrUpdateDaemonSet(r.opManagerContext, csiRBDPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
 		if err != nil {
@@ -744,13 +810,11 @@ func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) (bool, er
 		return false, errors.Wrap(err, "failed to start daemonset to set up the csi network")
 	}
 
-	// Wait for daemonset pods to come up.
-	// Will poll daemonset to ensure pods are available for interface migration.
+	// Ensure daemonset pods are up before continuing
 	daemonset, err := r.context.Clientset.AppsV1().DaemonSets(cephCluster.ObjectMeta.Namespace).Get(r.opManagerContext, csiMultusDaemonsetName, metav1.GetOptions{})
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get multus daemonset")
 	}
-
 	if daemonset.Status.NumberReady != daemonset.Status.DesiredNumberScheduled {
 		logger.Debug("multus daemonset not ready, requeue")
 		return true, nil

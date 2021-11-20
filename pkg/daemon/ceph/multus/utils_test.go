@@ -139,13 +139,13 @@ func TestDetermineNewLinkName(t *testing.T) {
 	assert.Equal(t, newLinkName, "mlink1")
 }
 
-func TestCheckMigration(t *testing.T) {
+func TestFindInterface(t *testing.T) {
 	interfaces, err := net.Interfaces()
 	assert.NoError(t, err, `Error occurred prior to test while getting network interfaces`)
 
 	// This test expects the loopback device present on the network namespace under test.
-	migrated, linkName, err := checkMigration(interfaces, "127.0.0.1")
+	linkName, err := findInterface(interfaces, "127.0.0.1")
 	assert.NoError(t, err)
-	assert.True(t, migrated, `checkMigration(interfaces, "127.0.0.1") did not find loopback network interface in current network namespace`)
+	assert.True(t, linkName != "", `findInterface(interfaces, "127.0.0.1") did not find loopback network interface in current network namespace`)
 	assert.Equal(t, linkName, "lo")
 }

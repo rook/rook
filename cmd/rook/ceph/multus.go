@@ -17,10 +17,13 @@ limitations under the License.
 package ceph
 
 import (
+	"os"
+
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/multus"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var multusSetupCmd = &cobra.Command{
@@ -45,8 +48,22 @@ func setupMultus(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(multusSetupCmd.Flags())
 
+	namespace, found := os.LookupEnv(multus.MultusNamespace)
+	if !found {
+		logger.Errorf("failed to get value for environment variable %q", multus.MultusNamespace)
+	}
+
+	context := createContext()
+	multusPods, err := context.Clientset.CoreV1().Pods(namespace).List(cmd.Context(), metav1.ListOptions{
+		LabelSelector: multus.MultusLabel,
+	})
+	if err != nil {
+		logger.Error("failed to get csi multus pods")
+		rook.TerminateFatal(err)
+	}
+
 	logger.Infof("Starting multus setup")
-	err := multus.Setup()
+	err = multus.Setup(multusPods)
 	if err != nil {
 		logger.Debug("failed to set up multus interface; cleaning node")
 		cleanupErr := multus.Teardown()
