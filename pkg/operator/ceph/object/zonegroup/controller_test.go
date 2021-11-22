@@ -176,7 +176,7 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	// Create a ReconcileObjectZoneGroup object with the scheme and fake client.
-	clusterInfo := cephclient.AdminClusterInfo("rook")
+	clusterInfo := cephclient.AdminTestClusterInfo("rook")
 
 	r := &ReconcileObjectZoneGroup{client: cl, scheme: s, context: c, clusterInfo: clusterInfo}
 

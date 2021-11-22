@@ -130,7 +130,7 @@ func (s *MultiClusterDeploySuite) createPools() {
 
 func (s *MultiClusterDeploySuite) deletePools() {
 	// create a test pool in each cluster so that we get some PGs
-	clusterInfo := client.AdminClusterInfo(s.settings.Namespace)
+	clusterInfo := client.AdminTestClusterInfo(s.settings.Namespace)
 	if err := s.testClient.PoolClient.DeletePool(s.testClient.BlockClient, clusterInfo, s.poolName); err != nil {
 		logger.Errorf("failed to delete pool %q. %v", s.poolName, err)
 	} else {

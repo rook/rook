@@ -188,7 +188,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executor.MockExecuteCommandWithTimeout = executorFuncWithTimeout
 	executor.MockExecuteCommandWithOutput = executorFunc
 	executor.MockExecuteCommandWithCombinedOutput = executorFunc
-	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: client.AdminClusterInfo("mycluster")}
+	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: client.AdminTestClusterInfo("mycluster")}
 
 	// Delete an object store without deleting the pools
 	spec := cephv1.ObjectStoreSpec{}

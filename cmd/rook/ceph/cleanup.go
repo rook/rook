@@ -67,7 +67,7 @@ func startCleanUp(cmd *cobra.Command, args []string) error {
 	}
 
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo := client.AdminClusterInfo(namespace, "")
 	clusterInfo.FSID = clusterFSID
 
 	// Build Sanitizer

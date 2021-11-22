@@ -275,7 +275,7 @@ var mockExecutor = &exectest.MockExecutor{
 }
 
 func TestSinglePeerMappings(t *testing.T) {
-	clusterInfo := cephclient.AdminClusterInfo(ns)
+	clusterInfo := cephclient.AdminTestClusterInfo(ns)
 	fakeContext := &clusterd.Context{
 		Executor:  mockExecutor,
 		Clientset: test.New(t, 3),
@@ -299,7 +299,7 @@ func TestSinglePeerMappings(t *testing.T) {
 }
 
 func TestMultiPeerMappings(t *testing.T) {
-	clusterInfo := cephclient.AdminClusterInfo(ns)
+	clusterInfo := cephclient.AdminTestClusterInfo(ns)
 	fakeContext := &clusterd.Context{
 		Executor:  mockExecutor,
 		Clientset: test.New(t, 3),

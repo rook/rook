@@ -39,7 +39,7 @@ import (
 func TestOSDHealthCheck(t *testing.T) {
 	ctx := context.TODO()
 	clientset := testexec.New(t, 2)
-	clusterInfo := client.AdminClusterInfo("fake")
+	clusterInfo := client.AdminTestClusterInfo("fake")
 
 	var execCount = 0
 	executor := &exectest.MockExecutor{
@@ -102,14 +102,14 @@ func TestOSDHealthCheck(t *testing.T) {
 
 func TestMonitorStart(t *testing.T) {
 	context, cancel := context.WithCancel(context.TODO())
-	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, client.AdminClusterInfo("ns"), true, cephv1.CephClusterHealthCheckSpec{})
+	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, client.AdminTestClusterInfo("ns"), true, cephv1.CephClusterHealthCheckSpec{})
 	logger.Infof("starting osd monitor")
 	go osdMon.Start(context)
 	cancel()
 }
 
 func TestNewOSDHealthMonitor(t *testing.T) {
-	clusterInfo := client.AdminClusterInfo("test")
+	clusterInfo := client.AdminTestClusterInfo("test")
 	c := &clusterd.Context{}
 	time10s, _ := time.ParseDuration("10s")
 	type args struct {
@@ -135,7 +135,7 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 }
 
 func TestDeviceClasses(t *testing.T) {
-	clusterInfo := client.AdminClusterInfo("fake")
+	clusterInfo := client.AdminTestClusterInfo("fake")
 	clusterInfo.SetName("rook-ceph")
 
 	var execCount = 0

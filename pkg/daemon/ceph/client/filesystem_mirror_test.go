@@ -51,7 +51,7 @@ func TestEnableFilesystemSnapshotMirror(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := EnableFilesystemSnapshotMirror(context, AdminClusterInfo("mycluster"), fs)
+	err := EnableFilesystemSnapshotMirror(context, AdminTestClusterInfo("mycluster"), fs)
 	assert.NoError(t, err)
 }
 
@@ -70,7 +70,7 @@ func TestDisableFilesystemSnapshotMirror(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := DisableFilesystemSnapshotMirror(context, AdminClusterInfo("mycluster"), fs)
+	err := DisableFilesystemSnapshotMirror(context, AdminTestClusterInfo("mycluster"), fs)
 	assert.NoError(t, err)
 }
 
@@ -92,7 +92,7 @@ func TestImportFilesystemMirrorPeer(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := ImportFSMirrorBootstrapPeer(context, AdminClusterInfo("mycluster"), fs, token)
+	err := ImportFSMirrorBootstrapPeer(context, AdminTestClusterInfo("mycluster"), fs, token)
 	assert.NoError(t, err)
 }
 
@@ -112,7 +112,7 @@ func TestCreateFSMirrorBootstrapPeer(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	token, err := CreateFSMirrorBootstrapPeer(context, AdminClusterInfo("mycluster"), fs)
+	token, err := CreateFSMirrorBootstrapPeer(context, AdminTestClusterInfo("mycluster"), fs)
 	assert.NoError(t, err)
 	_, err = base64.StdEncoding.DecodeString(string(token))
 	assert.NoError(t, err)
@@ -135,7 +135,7 @@ func TestRemoveFilesystemMirrorPeer(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := RemoveFilesystemMirrorPeer(context, AdminClusterInfo("mycluster"), peerUUID)
+	err := RemoveFilesystemMirrorPeer(context, AdminTestClusterInfo("mycluster"), peerUUID)
 	assert.NoError(t, err)
 }
 
@@ -155,7 +155,7 @@ func TestFSMirrorDaemonStatus(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	s, err := GetFSMirrorDaemonStatus(context, AdminClusterInfo("mycluster"), fs)
+	s, err := GetFSMirrorDaemonStatus(context, AdminTestClusterInfo("mycluster"), fs)
 	assert.NoError(t, err)
 	assert.Equal(t, "myfs", s[0].Filesystems[0].Name)
 }

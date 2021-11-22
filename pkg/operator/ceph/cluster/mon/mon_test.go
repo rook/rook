@@ -435,7 +435,7 @@ func TestWaitForQuorum(t *testing.T) {
 	assert.NoError(t, err)
 	requireAllInQuorum := false
 	expectedMons := []string{"a"}
-	clusterInfo := cephclient.AdminClusterInfo("mycluster")
+	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
 	err = waitForQuorumWithMons(context, clusterInfo, expectedMons, 0, requireAllInQuorum)
 	assert.NoError(t, err)
 }

@@ -44,7 +44,7 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
 	}
 
-	clusterInfo := AdminClusterInfo("rook")
+	clusterInfo := AdminTestClusterInfo("rook")
 	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
@@ -74,7 +74,7 @@ func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
 		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
 	}
 
-	clusterInfo := AdminClusterInfo("rook")
+	clusterInfo := AdminTestClusterInfo("rook")
 	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
 	assert.Exactly(t, expectedCommand, cmd)
 	assert.Exactly(t, expectedArgs, args)
@@ -99,7 +99,7 @@ func TestFinalizeCephCommandArgsToolBox(t *testing.T) {
 		"--connect-timeout=15",
 	}
 
-	clusterInfo := AdminClusterInfo("rook")
+	clusterInfo := AdminTestClusterInfo("rook")
 	exec.CephCommandsTimeout = 15 * time.Second
 	cmd, args := FinalizeCephCommandArgs(expectedCommand, clusterInfo, args, configDir)
 	assert.Exactly(t, "kubectl", cmd)
@@ -111,7 +111,7 @@ func TestNewRBDCommand(t *testing.T) {
 	args := []string{"create", "--size", "1G", "myvol"}
 
 	t.Run("rbd command with no multus", func(t *testing.T) {
-		clusterInfo := AdminClusterInfo("rook")
+		clusterInfo := AdminTestClusterInfo("rook")
 		executor := &exectest.MockExecutor{}
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			switch {
@@ -130,7 +130,7 @@ func TestNewRBDCommand(t *testing.T) {
 
 	})
 	t.Run("rbd command with multus", func(t *testing.T) {
-		clusterInfo := AdminClusterInfo("rook")
+		clusterInfo := AdminTestClusterInfo("rook")
 		clusterInfo.NetworkSpec.Provider = "multus"
 		executor := &exectest.MockExecutor{}
 		context := &clusterd.Context{Executor: executor, RemoteExecutor: exec.RemotePodCommandExecutor{ClientSet: test.New(t, 3)}}
@@ -144,7 +144,7 @@ func TestNewRBDCommand(t *testing.T) {
 	})
 
 	t.Run("context canceled nothing to run", func(t *testing.T) {
-		clusterInfo := AdminClusterInfo("rook")
+		clusterInfo := AdminTestClusterInfo("rook")
 		ctx, cancel := context.WithCancel(context.TODO())
 		clusterInfo.Context = ctx
 		cancel()

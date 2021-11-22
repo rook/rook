@@ -106,7 +106,7 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 		// Is the node in the CRUSH map already?
 		// If so we don't need to reconcile, this is done to avoid double reconcile on operator restart
 		// Assume the admin key since we are watching for node status to create OSDs
-		clusterInfo := cephclient.AdminClusterInfo(cluster.Namespace)
+		clusterInfo := cephclient.AdminClusterInfo(cluster.Namespace, cluster.Name)
 		osds, err := cephclient.GetOSDOnHost(c.context, clusterInfo, nodeName)
 		if err != nil {
 			if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {

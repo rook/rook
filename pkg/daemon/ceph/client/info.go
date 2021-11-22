@@ -87,20 +87,24 @@ func (c *ClusterInfo) NamespacedName() types.NamespacedName {
 }
 
 // AdminClusterInfo() creates a ClusterInfo with the basic info to access the cluster
-// as an admin. Only a few fields are set in the struct,
-// so this clusterInfo cannot be used to generate the mon config or request the
-// namespacedName. A full cluster info must be populated for those operations.
-func AdminClusterInfo(namespace string) *ClusterInfo {
+// as an admin.
+func AdminClusterInfo(namespace, name string) *ClusterInfo {
 	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(&metav1.OwnerReference{}, "")
 	return &ClusterInfo{
 		Namespace: namespace,
 		CephCred: CephCred{
 			Username: AdminUsername,
 		},
-		name:      "testing",
+		name:      name,
 		OwnerInfo: ownerInfo,
 		Context:   context.TODO(),
 	}
+}
+
+// AdminTestClusterInfo() creates a ClusterInfo with the basic info to access the cluster
+// as an admin. This cluster info should only be used by unit or integration tests.
+func AdminTestClusterInfo(namespace string) *ClusterInfo {
+	return AdminClusterInfo(namespace, "testing")
 }
 
 // IsInitialized returns true if the critical information in the ClusterInfo struct has been filled

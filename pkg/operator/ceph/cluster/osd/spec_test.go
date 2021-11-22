@@ -38,7 +38,7 @@ import (
 )
 
 func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{rookVersion: "23", clusterInfo: cephclient.AdminClusterInfo("myosd")}
+	cluster := &Cluster{rookVersion: "23", clusterInfo: cephclient.AdminTestClusterInfo("myosd")}
 	cluster.clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	osdProps := osdProperties{
 		crushHostname: "node",

@@ -35,7 +35,7 @@ type TestClient struct {
 	BucketClient       *BucketOperation
 	UserClient         *ClientOperation
 	RBDMirrorClient    *RBDMirrorOperation
-	TopicClient		   *TopicOperation
+	TopicClient        *TopicOperation
 	NotificationClient *NotificationOperation
 	k8sh               *utils.K8sHelper
 }
@@ -61,7 +61,7 @@ func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManife
 // Status returns rook status details
 func (c TestClient) Status(namespace string) (client.CephStatus, error) {
 	context := c.k8sh.MakeContext()
-	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo := client.AdminTestClusterInfo(namespace)
 	status, err := client.Status(context, clusterInfo)
 	if err != nil {
 		return client.CephStatus{}, fmt.Errorf("failed to get status: %+v", err)

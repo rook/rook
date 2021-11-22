@@ -30,7 +30,7 @@ import (
 func TestCephArgs(t *testing.T) {
 	// cluster a under /etc
 	args := []string{}
-	clusterInfo := AdminClusterInfo("a")
+	clusterInfo := AdminTestClusterInfo("a")
 	exec.CephCommandsTimeout = 15 * time.Second
 	command, args := FinalizeCephCommandArgs(CephTool, clusterInfo, args, "/etc")
 	assert.Equal(t, CephTool, command)
@@ -79,7 +79,7 @@ func TestStretchElectionStrategy(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 
 	err := EnableStretchElectionStrategy(context, clusterInfo)
 	assert.NoError(t, err)
@@ -108,7 +108,7 @@ func TestStretchClusterMonTiebreaker(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 
 	err := SetMonStretchTiebreaker(context, clusterInfo, monName, failureDomain)
 	assert.NoError(t, err)
@@ -139,7 +139,7 @@ func TestMonDump(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 	context := &clusterd.Context{Executor: executor}
-	clusterInfo := AdminClusterInfo("mycluster")
+	clusterInfo := AdminTestClusterInfo("mycluster")
 
 	dump, err := GetMonDump(context, clusterInfo)
 	assert.NoError(t, err)

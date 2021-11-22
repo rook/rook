@@ -180,7 +180,7 @@ func TestGetTlsCaCert(t *testing.T) {
 		Context: &clusterd.Context{
 			Clientset: test.New(t, 3),
 		},
-		clusterInfo: client.AdminClusterInfo("rook-ceph"),
+		clusterInfo: client.AdminTestClusterInfo("rook-ceph"),
 	}
 	objectStore := simpleStore()
 

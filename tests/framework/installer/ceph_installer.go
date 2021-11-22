@@ -224,7 +224,7 @@ func (h *CephInstaller) CreateRookToolbox(manifests CephManifests) (err error) {
 
 // Execute a command in the ceph toolbox
 func (h *CephInstaller) Execute(command string, parameters []string, namespace string) (error, string) {
-	clusterInfo := client.AdminClusterInfo(namespace)
+	clusterInfo := client.AdminTestClusterInfo(namespace)
 	cmd, args := client.FinalizeCephCommandArgs(command, clusterInfo, parameters, h.k8shelper.MakeContext().ConfigDir)
 	result, err := h.k8shelper.MakeContext().Executor.ExecuteCommandWithOutput(cmd, args...)
 	if err != nil {
@@ -570,7 +570,7 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 
 	const loopCount = 20
 	for i := 0; i < loopCount; i++ {
-		_, err = client.Status(h.k8shelper.MakeContext(), client.AdminClusterInfo(h.settings.Namespace))
+		_, err = client.Status(h.k8shelper.MakeContext(), client.AdminTestClusterInfo(h.settings.Namespace))
 		if err == nil {
 			logger.Infof("toolbox ready")
 			break

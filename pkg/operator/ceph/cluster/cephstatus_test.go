@@ -128,7 +128,7 @@ func TestCephStatus(t *testing.T) {
 }
 
 func TestNewCephStatusChecker(t *testing.T) {
-	clusterInfo := cephclient.AdminClusterInfo("ns")
+	clusterInfo := cephclient.AdminTestClusterInfo("ns")
 	c := &clusterd.Context{}
 	time10s, err := time.ParseDuration("10s")
 	assert.NoError(t, err)
@@ -159,7 +159,7 @@ func TestNewCephStatusChecker(t *testing.T) {
 func TestConfigureHealthSettings(t *testing.T) {
 	c := &cephStatusChecker{
 		context:     &clusterd.Context{},
-		clusterInfo: cephclient.AdminClusterInfo("ns"),
+		clusterInfo: cephclient.AdminTestClusterInfo("ns"),
 	}
 	setGlobalIDReclaim := false
 	c.context.Executor = &exectest.MockExecutor{

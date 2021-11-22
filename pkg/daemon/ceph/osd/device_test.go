@@ -40,7 +40,7 @@ func TestOSDBootstrap(t *testing.T) {
 
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 	defer os.RemoveAll(context.ConfigDir)
-	err := createOSDBootstrapKeyring(context, client.AdminClusterInfo("mycluster"), configDir)
+	err := createOSDBootstrapKeyring(context, client.AdminTestClusterInfo("mycluster"), configDir)
 	assert.Nil(t, err)
 
 	targetPath := path.Join(configDir, bootstrapOsdKeyring)

@@ -91,7 +91,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 		}
 	}
 
-	clusterInfo := client.AdminClusterInfo(ns)
+	clusterInfo := client.AdminTestClusterInfo(ns)
 	// Create objectmeta with the given name in our test namespace
 	meta := func(name string) v1.ObjectMeta {
 		return v1.ObjectMeta{
