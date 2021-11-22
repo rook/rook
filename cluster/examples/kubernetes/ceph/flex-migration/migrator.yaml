@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rook-ceph-migrator
+  namespace: rook-ceph # namespace:cluster
+  labels:
+    app: rook-ceph-migrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-ceph-migrator
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-migrator
+    spec:
+      serviceAccountName: rook-ceph-migrator # only this field was newly added
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: rook-ceph-migrator
+          image: rook/ceph:v1.7.5
+          command: ["/bin/bash"]
+          args: ["-m", "-c", "/usr/local/bin/toolbox.sh"]
+          imagePullPolicy: IfNotPresent
+          tty: true
+          env:
+            - name: ROOK_CEPH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-username
+            - name: ROOK_CEPH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: rook-ceph-mon
+                  key: ceph-secret
+          volumeMounts:
+            - mountPath: /etc/ceph
+              name: ceph-config
+            - name: mon-endpoint-volume
+              mountPath: /etc/rook
+      volumes:
+        - name: mon-endpoint-volume
+          configMap:
+            name: rook-ceph-mon-endpoints
+            items:
+              - key: data
+                path: mon-endpoints
+        - name: ceph-config
+          emptyDir: {}
+      tolerations:
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 5

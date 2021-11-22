@@ -1,0 +1,109 @@
+###################################################################################################################
+# Create the rbac resources that are necessary to start the migrator pod.
+###################################################################################################################
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-tools
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update", "delete", "create", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+---
+
+# Allow the ceph osd to access cluster-wide resources necessary for determining their topology location
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-tools
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-tools
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-tools
+    namespace: rook-ceph # namespace:cluster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-tools
+  namespace: rook-ceph # namespace:cluster
+# imagePullSecrets:
+# - name: my-registry-secret
+
+# OLM: END SERVICE ACCOUNT OSD
+# OLM: BEGIN SERVICE ACCOUNT MGR
+---
+
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-tools
+  namespace: rook-ceph # namespace:cluster
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["ceph.rook.io"]
+    resources: ["cephclusters", "cephclusters/finalizers"]
+    verbs: ["get", "list", "create", "update", "delete"]
+---
+
+# Allow the osd pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-tools
+  namespace: rook-ceph # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-tools
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-tools
+    namespace: rook-ceph # namespace:cluster
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-tools-psp
+  namespace: rook-ceph # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: psp:rook
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-tools
+    namespace: rook-ceph # namespace:cluster
+---
