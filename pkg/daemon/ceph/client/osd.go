@@ -263,7 +263,7 @@ func OsdSafeToDestroy(context *clusterd.Context, clusterInfo *ClusterInfo, osdID
 
 	var output SafeToDestroyStatus
 	if err := json.Unmarshal(buf, &output); err != nil {
-		return false, errors.Wrap(err, "failed to unmarshal safe-to-destroy response")
+		return false, errors.Wrapf(err, "failed to unmarshal safe-to-destroy response. %s", string(buf))
 	}
 	if len(output.SafeToDestroy) != 0 && output.SafeToDestroy[0] == osdID {
 		return true, nil

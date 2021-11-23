@@ -57,26 +57,31 @@ type CrashList struct {
 
 // GetCrashList gets the list of Crashes.
 func GetCrashList(context *clusterd.Context, clusterInfo *ClusterInfo) ([]CrashList, error) {
-	crashargs := []string{"crash", "ls"}
-	output, err := NewCephCommand(context, clusterInfo, crashargs).Run()
+	crashArgs := []string{"crash", "ls"}
+	output, err := NewCephCommand(context, clusterInfo, crashArgs).Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list ceph crash")
 	}
+
 	var crash []CrashList
 	err = json.Unmarshal(output, &crash)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to unmarshal crash ls response. %s", string(output))
 	}
+
 	return crash, err
 }
 
 // ArchiveCrash archives the crash with respective crashID
 func ArchiveCrash(context *clusterd.Context, clusterInfo *ClusterInfo, crashID string) error {
-	crashsilenceargs := []string{"crash", "archive", crashID}
-	_, err := NewCephCommand(context, clusterInfo, crashsilenceargs).Run()
+	logger.Infof("silencing crash %q", crashID)
+	crashSilenceArgs := []string{"crash", "archive", crashID}
+	_, err := NewCephCommand(context, clusterInfo, crashSilenceArgs).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to archive crash %q", crashID)
 	}
+
+	logger.Infof("successfully silenced crash %q", crashID)
 	return nil
 }
 
@@ -86,5 +91,6 @@ func GetCrash(context *clusterd.Context, clusterInfo *ClusterInfo) ([]CrashList,
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list ceph crash")
 	}
+
 	return crash, nil
 }

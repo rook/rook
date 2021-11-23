@@ -29,7 +29,19 @@ spec:
           # TODO: Insert the OSD ID in the last parameter that is to be removed
           # The OSD IDs are a comma-separated list. For example: "0" or "0,2".
           # If you want to preserve the OSD PVCs, set `--preserve-pvc true`.
-          args: ["ceph", "osd", "remove", "--preserve-pvc", "false", "--osd-ids", "<OSD-IDs>"]
+          #
+          # A --force-osd-removal option is available if the OSD should be destroyed even though the
+          # removal could lead to data loss.
+          args:
+            - "ceph"
+            - "osd"
+            - "remove"
+            - "--preserve-pvc"
+            - "false"
+            - "--force-osd-removal"
+            - "false"
+            - "--osd-ids"
+            - "<OSD-IDs>"
           env:
             - name: POD_NAMESPACE
               valueFrom:
