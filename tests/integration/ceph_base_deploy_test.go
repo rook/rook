@@ -74,6 +74,12 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	require.Nil(s.T(), err)
 }
 
+func checkIfRookClusterHasHealthyIngress(s suite.Suite, k8sh *utils.K8sHelper, clusterNamespace string) {
+	logger.Infof("Testing ingress %s health", clusterNamespace)
+	_, err := k8sh.GetResourceStatus("Ingress", clusterNamespace + "-dashboard", clusterNamespace)
+	assert.NoError(s.T(), err)
+}
+
 func HandlePanics(r interface{}, uninstaller func(), t func() *testing.T) {
 	if r != nil {
 		logger.Infof("unexpected panic occurred during test %s, --> %v", t().Name(), r)

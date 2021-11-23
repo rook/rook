@@ -91,6 +91,7 @@ func (h *HelmSuite) AfterTest(suiteName, testName string) {
 // Test to make sure all rook components are installed and Running
 func (h *HelmSuite) TestARookInstallViaHelm() {
 	checkIfRookClusterIsInstalled(h.Suite, h.k8shelper, h.settings.Namespace, h.settings.Namespace, 1)
+ 	checkIfRookClusterHasHealthyIngress(h.Suite, h.k8shelper, h.settings.Namespace)
 }
 
 // Test BlockCreation on Rook that was installed via Helm
