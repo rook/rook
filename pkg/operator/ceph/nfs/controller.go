@@ -278,8 +278,11 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	if err := validateGanesha(r.context, r.clusterInfo, cephNFS); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "invalid ceph nfs %q arguments", cephNFS.Name)
 	}
-	if err := r.fetchOrCreatePool(cephNFS); err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to fetch or create RADOS pool")
+
+	// Always create the default pool
+	err = r.createDefaultNFSRADOSPool(cephNFS)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create default pool %q", cephNFS.Spec.RADOS.Pool)
 	}
 
 	// CREATE/UPDATE

@@ -19,7 +19,6 @@ package nfs
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
@@ -294,21 +293,5 @@ func (r *ReconcileCephNFS) createDefaultNFSRADOSPool(n *cephv1.CephNFS) error {
 		return err
 	}
 
-	return nil
-}
-
-func (r *ReconcileCephNFS) fetchOrCreatePool(n *cephv1.CephNFS) error {
-	// The existence of the pool provided in n.Spec.RADOS.Pool is necessary otherwise addRADOSConfigFile() will fail
-	_, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, n.Spec.RADOS.Pool)
-	if err != nil {
-		if strings.Contains(err.Error(), "unrecognized pool") && r.clusterInfo.CephVersion.IsAtLeastPacific() {
-			err := r.createDefaultNFSRADOSPool(n)
-			if err != nil {
-				return errors.Wrapf(err, "failed to find %q pool and unable to create it", n.Spec.RADOS.Pool)
-			}
-			return nil
-		}
-		return errors.Wrapf(err, "pool %q not found", n.Spec.RADOS.Pool)
-	}
 	return nil
 }
