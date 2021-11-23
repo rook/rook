@@ -408,8 +408,11 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 
 	if !clusterSpec.IsStretchCluster() {
 		// the pool is type replicated, set the size for the pool now that it's been created
-		if err := SetPoolReplicatedSizeProperty(context, clusterInfo, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
-			return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolName, pool.Replicated.Size)
+		// Only set the size if not 0, otherwise ceph will fail to set size to 0
+		if pool.Replicated.Size > 0 {
+			if err := SetPoolReplicatedSizeProperty(context, clusterInfo, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
+				return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolName, pool.Replicated.Size)
+			}
 		}
 	}
 
