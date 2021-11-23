@@ -88,6 +88,16 @@ func (a Labels) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 	}
 }
 
+// OverwriteApplyToObjectMeta adds labels to object meta, overwriting keys that are already defined.
+func (a Labels) OverwriteApplyToObjectMeta(t *metav1.ObjectMeta) {
+	if t.Labels == nil {
+		t.Labels = map[string]string{}
+	}
+	for k, v := range a {
+		t.Labels[k] = v
+	}
+}
+
 // Merge returns a Labels which results from merging the attributes of the
 // original Labels with the attributes of the supplied one. The supplied
 // Labels attributes will override the original ones if defined.
