@@ -27,7 +27,7 @@ BASEIMAGE = $(REGISTRY_NAME)/ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 OPERATOR_SDK_VERSION = v0.17.1
 # TODO: update to yq v4 - v3 end of life in Aug 2021 ; v4 removes the 'yq delete' cmd and changes syntax
-YQ_VERSION = 3.3.0
+YQv3_VERSION = 3.3.0
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 MANIFESTS_DIR=../../deploy/examples
 
@@ -65,8 +65,8 @@ VOLUME_REPLICATION_CRD = replication.storage.openshift.io_volumereplications.yam
 VOLUME_REPLICATION_CLASS_CRD = replication.storage.openshift.io_volumereplicationclasses.yaml
 
 OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
-YQ := $(TOOLS_HOST_DIR)/yq-$(YQ_VERSION)
-export OPERATOR_SDK YQ
+YQv3 := $(TOOLS_HOST_DIR)/yq-$(YQv3_VERSION)
+export OPERATOR_SDK YQv3
 
 # ====================================================================================
 # Build Rook
@@ -101,7 +101,7 @@ endif
 
 # generate CSV template files into the directory defined by the env var CSV_TEMPLATE_DIR
 # CSV_TEMPLATE_DIR will be created if it doesn't already exist
-generate-csv-templates: $(OPERATOR_SDK) $(YQ) ## Generate CSV templates for OLM into CSV_TEMPLATE_DIR
+generate-csv-templates: $(OPERATOR_SDK) $(YQv3) ## Generate CSV templates for OLM into CSV_TEMPLATE_DIR
 	@if [[ -z "$(CSV_TEMPLATE_DIR)" ]]; then echo "CSV_TEMPLATE_DIR is not set"; exit 1; fi
 	@# first, copy the existing CRDs and OLM catalog directory to CSV_TEMPLATE_DIR
 	@# then, generate or copy all prerequisites into CSV_TEMPLATE_DIR (e.g., CRDs)
@@ -130,11 +130,11 @@ get-volume-replication-crds:
 	fi
 	@cp $(CACHE_DIR)/crds/* $(CRD_TEMPLATE_DIR)
 
-$(YQ):
-	@echo === installing yq $(REAL_HOST_PLATFORM)
+$(YQv3):
+	@echo === installing yq $(YQv3_VERSION) $(REAL_HOST_PLATFORM)
 	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQ)
-	@chmod +x $(YQ)
+	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQv3_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQv3)
+	@chmod +x $(YQv3)
 
 $(OPERATOR_SDK):
 	@echo === installing operator-sdk $(REAL_HOST_PLATFORM)
@@ -144,11 +144,11 @@ $(OPERATOR_SDK):
 	@chmod +x $(OPERATOR_SDK)
 	@$(OPERATOR_SDK) version
 
-csv: $(OPERATOR_SDK) $(YQ) ## Generate a CSV file for OLM.
+csv: $(OPERATOR_SDK) $(YQv3) ## Generate a CSV file for OLM.
 	@echo Generating CSV manifests
 	@cd ../.. && deploy/olm/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
-csv-clean: $(OPERATOR_SDK) $(YQ) ## Remove existing OLM files.
+csv-clean: ## Remove existing OLM files.
 	@rm -fr ../../deploy/olm/deploy/* ../../deploy/olm/templates/*
 
 # reading from a file and outputting to the same file can have undefined results, so use this intermediate

@@ -54,17 +54,6 @@ jobs:
       working-directory: /Users/runner/go/src/github.com/rook/rook
       run: tests/scripts/validate_modified_files.sh crd
 
-    # needed for gen-rbac
-    - name: Setup python
-      uses: actions/setup-python@v2
-      with:
-        python-version: "3.9"
-
-    - name: Install pip dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install ruamel.yaml==0.17.16
-
     - name: run gen-rbac
       working-directory: /Users/runner/go/src/github.com/rook/rook
       run: GOPATH=$(go env GOPATH) make gen-rbac

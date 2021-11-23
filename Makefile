@@ -183,7 +183,7 @@ crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
 
-gen-rbac: $(HELM) ## generate RBAC from Helm charts
+gen-rbac: $(HELM) $(YQ) ## generate RBAC from Helm charts
 	HELM=$(HELM) ./build/rbac/get-helm-rbac.sh
 
 .PHONY: all build.common cross.build.parallel
