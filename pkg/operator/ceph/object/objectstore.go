@@ -478,10 +478,14 @@ func createSystemUser(objContext *Context, namespace string) error {
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	output, err := RunAdminCommandNoMultisite(objContext, false, "user", "info", uidArg, realmArg, zoneGroupArg, zoneArg)
 =======
 	output, err := RunAdminCommandNoMultisite(objContext, false, "user", "info", uidArg, realmArg)
 >>>>>>> 184f2fdb3 (operator: fix search user in objectstore)
+=======
+	output, err := RunAdminCommandNoMultisite(objContext, false, "user", "info", uidArg, realmArg, zoneGroupArg, zoneArg)
+>>>>>>> e06c6fc3e (object: fix search user in objectstore)
 	if err == nil {
 		logger.Debugf("realm system user %q has already been created", uid)
 		return nil
