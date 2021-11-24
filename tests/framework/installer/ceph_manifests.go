@@ -154,6 +154,8 @@ spec:
     allowMultiplePerNode: true
   dashboard:
     enabled: true
+    port: 7000
+    ssl: true
   network:
     hostNetwork: false
   crashCollector:
@@ -207,6 +209,8 @@ spec:
     allowMultiplePerNode: true
   dashboard:
     enabled: true
+    port: 7000
+    ssl: true
   skipUpgradeChecks: true
   metadataDevice:
   storage:

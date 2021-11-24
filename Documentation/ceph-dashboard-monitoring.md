@@ -65,7 +65,7 @@ monitoring:
 
 ## Prometheus Operator
 
-The Prometheus operator allows you to set up a Prometheus instance in you kubernetes cluster. Follow the instructions provided in [Prometheus Monitoring](https://github.com/rook/rook/blob/{{ branchName }}/Documentation/ceph-monitoring.md).
+The Prometheus operator allows you to set up a Prometheus instance in you kubernetes cluster. Follow the instructions provided in [Prometheus Monitoring](https://github.com/rook/rook/blob/master/Documentation/ceph-monitoring.md).
 
 To verify that prometheus is running you can try to access the prometheus instance.
 
@@ -293,7 +293,6 @@ kubectl patch prometheus rook-prometheus -n rook-ceph --type merge --patch "$(ca
 Verify that the Prometheus Configuration is set, accessing the Prometehus server UI, go to "Status-configuration" you should see the reference to the alert manager in the configuration file:
 
 ```yaml
-alertmanagers:
 - kubernetes_sd_configs:
       - role: endpoints
         namespaces:

@@ -227,11 +227,34 @@ func (h *CephInstaller) Execute(command string, parameters []string, namespace s
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	cmd, args := client.FinalizeCephCommandArgs(command, clusterInfo, parameters, h.k8shelper.MakeContext().ConfigDir)
 	result, err := h.k8shelper.MakeContext().Executor.ExecuteCommandWithOutput(cmd, args...)
+	logger.Info("==============================================================================")
+	logger.Infof("cmd ===> %s", cmd)
+	logger.Infof("args ===> %s", args)
+	logger.Info("------------------------------------------------------------------------------")
 	if err != nil {
 		logger.Warningf("Error executing command %q: <%v>", command, err)
 		return err, result
 	}
 	return nil, result
+}
+
+func (h *CephInstaller) ExecuteWithRetry(command string, parameters []string, namespace string, maxRetries int) (error, string) {
+	tries := 0
+	for {
+		err, output := h.Execute(command, parameters, namespace)
+		tries++
+		if err != nil  {
+			if maxRetries == 1 {
+				return  err, output
+			}
+			if tries == maxRetries {
+				return fmt.Errorf("max retries(%d) reached, last err: %v", tries, err), ""
+			}
+			logger.Infof("retrying command <<%s>>: last error: %v", command, err)
+			continue
+		}
+		return  nil, output
+	}
 }
 
 // CreateCephCluster creates rook cluster via kubectl
