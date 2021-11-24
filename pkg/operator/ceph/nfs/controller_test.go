@@ -19,11 +19,11 @@ package nfs
 
 import (
 	"context"
-	"errors"
 	"os"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -46,25 +46,6 @@ var (
 	name                      = "my-nfs"
 	namespace                 = "rook-ceph"
 	nfsCephAuthGetOrCreateKey = `{"key":"AQCvzWBeIV9lFRAAninzm+8XFxbSfTiPwoX50g=="}`
-	poolDetails               = `{
-		"pool": "foo",
-		"pool_id": 1,
-		"size": 3,
-		"min_size": 2,
-		"pg_num": 8,
-		"pgp_num": 8,
-		"crush_rule": "replicated_rule",
-		"hashpspool": true,
-		"nodelete": false,
-		"nopgchange": false,
-		"nosizechange": false,
-		"write_fadvise_dontneed": false,
-		"noscrub": false,
-		"nodeep-scrub": false,
-		"use_gmt_hitset": true,
-		"fast_read": 0,
-		"pg_autoscale_mode": "on"
-	  }`
 )
 
 func TestCephNFSController(t *testing.T) {
@@ -202,10 +183,16 @@ func TestCephNFSController(t *testing.T) {
 				if args[0] == "auth" && args[1] == "get-or-create-key" {
 					return nfsCephAuthGetOrCreateKey, nil
 				}
-				if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
-					return poolDetails, nil
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "create" {
+					return "", nil
 				}
-				return "", errors.New("unknown command")
+				if args[0] == "osd" && args[1] == "crush" && args[2] == "rule" {
+					return "", nil
+				}
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "application" {
+					return "", nil
+				}
+				return "", errors.Errorf("unknown command %q %v", command, args)
 			},
 			MockExecuteCommand: func(command string, args ...string) error {
 				if command == "rados" {
