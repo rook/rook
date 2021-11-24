@@ -275,15 +275,15 @@ csi:
   #cephcsi:
     #image: quay.io/cephcsi/cephcsi:v3.4.0
   #registrar:
-    #image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.2.0
+    #image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.3.0
   #provisioner:
-    #image: k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2
+    #image: k8s.gcr.io/sig-storage/csi-provisioner:v3.0.0
   #snapshotter:
-    #image: k8s.gcr.io/sig-storage/csi-snapshotter:v4.1.1
+    #image: k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.0
   #attacher:
-    #image: k8s.gcr.io/sig-storage/csi-attacher:v3.2.1
+    #image: k8s.gcr.io/sig-storage/csi-attacher:v3.3.0
   #resizer:
-    #image: k8s.gcr.io/sig-storage/csi-resizer:v1.2.0
+    #image: k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
   # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
   #cephfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
