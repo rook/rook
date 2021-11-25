@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:impish-20211015
+FROM ubuntu:xenial-20210114
 
 # install build tools, compilers and cross compilers for all supported platforms
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
