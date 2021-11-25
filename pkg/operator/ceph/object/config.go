@@ -110,16 +110,16 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	return keyring, s.CreateOrUpdate(rgwConfig.ResourceName, keyring)
 }
 
-func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwName string) error {
+func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
-	who := generateCephXUser(rgwName)
+	who := generateCephXUser(rgwConfig.ResourceName)
 	configOptions := make(map[string]string)
 
 	configOptions["rgw_log_nonexistent_bucket"] = "true"
 	configOptions["rgw_log_object_name_utc"] = "true"
 	configOptions["rgw_enable_usage_log"] = "true"
-	configOptions["rgw_zone"] = c.store.Name
-	configOptions["rgw_zonegroup"] = c.store.Name
+	configOptions["rgw_zone"] = rgwConfig.Zone
+	configOptions["rgw_zonegroup"] = rgwConfig.ZoneGroup
 
 	for flag, val := range configOptions {
 		err := monStore.Set(who, flag, val)

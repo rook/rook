@@ -127,7 +127,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		// Unfortunately, on upgrade we would not set the flags which is not ideal for old clusters where we were no setting those flags
 		// The KV supports setting those flags even if the RGW is running
 		logger.Info("setting rgw config flags")
-		err = c.setDefaultFlagsMonConfigStore(rgwConfig.ResourceName)
+		err = c.setDefaultFlagsMonConfigStore(rgwConfig)
 		if err != nil {
 			// Getting EPERM typically happens when the flag may not be modified at runtime
 			// This is fine to ignore
