@@ -197,6 +197,16 @@ function deploy_manifest_with_local_build() {
   kubectl create -f $1
 }
 
+function replace_ceph_image() {
+  local file="$1"  # parameter 1: the file in which to replace the ceph image
+  local ceph_image="${2:-}"  # parameter 2: the new ceph image to use
+  if [[ -z ${ceph_image} ]]; then
+    echo "No Ceph image given. Not adjusting manifests."
+    return 0
+  fi
+  sed -i "s|image: .*ceph/ceph:.*|image: ${ceph_image}|g" "${file}"
+}
+
 function deploy_cluster() {
   cd cluster/examples/kubernetes/ceph
   deploy_manifest_with_local_build operator.yaml
@@ -270,7 +280,6 @@ function deploy_first_rook_cluster() {
   BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
   create_cluster_prerequisites
   cd cluster/examples/kubernetes/ceph/
-
   deploy_manifest_with_local_build operator.yaml
   yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
   yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
@@ -288,7 +297,7 @@ function deploy_second_rook_cluster() {
   yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
   kubectl create -f cluster-test.yaml
   yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
-  deploy_manifest_with_local_build toolbox.yaml toolbox.yaml
+  deploy_manifest_with_local_build toolbox.yaml
 }
 
 function wait_for_rgw() {
