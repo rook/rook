@@ -126,7 +126,9 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		}
 
 		// backward compatibility for old deployments
-		if osdInfo.DeviceClass == "" {
+		// Checking DeviceClass with None too, because ceph-volume lvm list return crush device class as None
+		// Tracker https://tracker.ceph.com/issues/53425
+		if osdInfo.DeviceClass == "" || osdInfo.DeviceClass == "None" {
 			deviceClassInfo, err := cephclient.OSDDeviceClasses(c.cluster.context, c.cluster.clusterInfo, []string{strconv.Itoa(osdID)})
 			if err != nil {
 				logger.Errorf("failed to get device class for existing deployment %q. %v", depName, err)
