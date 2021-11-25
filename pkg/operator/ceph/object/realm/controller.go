@@ -258,6 +258,11 @@ func (r *ReconcileObjectRealm) createCephRealm(realm *cephv1.CephObjectRealm) (r
 
 func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
 	ctx := context.TODO()
+	secretName := realm.Name + "-keys"
+	if _, err := r.context.Clientset.CoreV1().Secrets(realm.Namespace).Get(ctx, secretName, metav1.GetOptions{}); err == nil {
+		logger.Debugf("rgw secret %q already defined", secretName)
+		return reconcile.Result{}, nil
+	}
 	logger.Debugf("generating access and secret keys for new realm %q", realm.Name)
 
 	// the realm's secret key and access key are randomly generated and then encoded to base64
@@ -280,7 +285,6 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 		object.SecretKeyName: []byte(secretKey),
 	}
 
-	secretName := realm.Name + "-keys"
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
