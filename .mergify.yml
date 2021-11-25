@@ -7,6 +7,14 @@ pull_request_rules:
       comment:
         message: This pull request has merge conflicts that must be resolved before it can be merged. @{{author}} please rebase it. https://rook.io/docs/rook/latest/development-flow.html#updating-your-fork
 
+  - name: ping author on direct push to release branch
+    conditions:
+      - base~=^release-
+      - author!=mergify[bot]
+    actions:
+      comment:
+        message: Hi @{{author}}, this pull request was opened against a release branch, is it expected? Normally patches should go in the master branch first and then be backported to release branches.
+
   # automerge on master only under certain strict conditions
   - name: automerge merge master with specific label and approvals with code change
     conditions:
