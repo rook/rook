@@ -26,9 +26,13 @@ done
 kubectl -n "${OPERATOR_NAMESPACE}" logs deploy/rook-ceph-operator > "${LOG_DIR}"/operator-logs.txt
 kubectl -n "${OPERATOR_NAMESPACE}" get pods -o wide > "${LOG_DIR}"/operator-pods-list.txt
 kubectl -n "${CLUSTER_NAMESPACE}" get pods -o wide > "${LOG_DIR}"/cluster-pods-list.txt
+kubectl -n "${CLUSTER_NAMESPACE}" get jobs -o wide > "${LOG_DIR}"/cluster-jobs-list.txt
 prepare_job="$(kubectl -n "${CLUSTER_NAMESPACE}" get job -l app=rook-ceph-osd-prepare --output name | awk 'FNR <= 1')" # outputs job/<name>
+removal_job="$(kubectl -n "${CLUSTER_NAMESPACE}" get job -l app=rook-ceph-purge-osd --output name | awk 'FNR <= 1')" # outputs job/<name>
 kubectl -n "${CLUSTER_NAMESPACE}" describe "${prepare_job}" > "${LOG_DIR}"/osd-prepare-describe.txt
 kubectl -n "${CLUSTER_NAMESPACE}" logs "${prepare_job}" > "${LOG_DIR}"/osd-prepare-logs.txt
+kubectl -n "${CLUSTER_NAMESPACE}" describe "${removal_job}" > "${LOG_DIR}"/osd-removal-describe.txt
+kubectl -n "${CLUSTER_NAMESPACE}" logs "${removal_job}" > "${LOG_DIR}"/osd-removal-logs.txt
 kubectl -n "${CLUSTER_NAMESPACE}" logs deploy/rook-ceph-osd-0 --all-containers > "${LOG_DIR}"/rook-ceph-osd-0-logs.txt
 kubectl -n "${CLUSTER_NAMESPACE}" logs deploy/rook-ceph-osd-1 --all-containers > "${LOG_DIR}"/rook-ceph-osd-1-logs.txt
 kubectl get all -n "${OPERATOR_NAMESPACE}" -o wide > "${LOG_DIR}"/operator-wide.txt

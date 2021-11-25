@@ -69,6 +69,21 @@ jobs:
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
 
+    - name: test osd removal jobs
+      run: |
+        kubectl -n rook-ceph delete deploy/rook-ceph-operator
+        kubectl -n rook-ceph delete deploy/rook-ceph-osd-1 --grace-period=0 --force
+        sed -i 's/<OSD-IDs>/1/' cluster/examples/kubernetes/ceph/osd-purge.yaml
+        # the CI must force the deletion since we use replica 1 on 2 OSDs
+        sed -i 's/false/true/' cluster/examples/kubernetes/ceph/osd-purge.yaml
+        sed -i 's|rook/ceph:master|rook/ceph:local-build|' cluster/examples/kubernetes/ceph/osd-purge.yaml
+        kubectl -n rook-ceph create -f cluster/examples/kubernetes/ceph/osd-purge.yaml
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        kubectl -n rook-ceph exec $toolbox -- ceph status
+        timeout 120 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1.*.destroyed'; do echo 'waiting for ceph osd 1 to be destroyed'; sleep 1; done"
+        kubectl -n rook-ceph exec $toolbox -- ceph status
+        kubectl -n rook-ceph exec $toolbox -- ceph osd tree
+
     - name: collect common logs
       if: always()
       uses: ./.github/workflows/collect-logs
