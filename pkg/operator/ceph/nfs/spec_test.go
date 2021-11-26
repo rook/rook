@@ -109,8 +109,9 @@ func TestDeploymentSpec(t *testing.T) {
 	id := "i"
 	configName := "rook-ceph-nfs-my-nfs-i"
 	cfg := daemonConfig{
-		ID:              id,
-		ConfigConfigMap: configName,
+		ID:                  id,
+		ConfigConfigMap:     configName,
+		ConfigConfigMapHash: "dcb0d2f5f5e86ec4929d8243cd640b8154165f8ff9b89809964fc7993e9b0101",
 		DataPathMap: &config.DataPathMap{
 			HostDataDir:        "",                          // nfs daemon does not store data on host, ...
 			ContainerDataDir:   cephclient.DefaultConfigDir, // does share data in containers using emptyDir, ...
@@ -120,6 +121,8 @@ func TestDeploymentSpec(t *testing.T) {
 
 	d, err := r.makeDeployment(nfs, cfg)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, d.Spec.Template.Annotations)
+	assert.Equal(t, "dcb0d2f5f5e86ec4929d8243cd640b8154165f8ff9b89809964fc7993e9b0101", d.Spec.Template.Annotations["config-hash"])
 
 	// Deployment should have Ceph labels
 	optest.AssertLabelsContainRookRequirements(t, d.ObjectMeta.Labels, AppName)

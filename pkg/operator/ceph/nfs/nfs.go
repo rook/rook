@@ -18,6 +18,7 @@ limitations under the License.
 package nfs
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -45,9 +46,10 @@ const (
 var updateDeploymentAndWait = opmon.UpdateCephDeploymentAndWait
 
 type daemonConfig struct {
-	ID              string              // letter ID of daemon (e.g., a, b, c, ...)
-	ConfigConfigMap string              // name of configmap holding config
-	DataPathMap     *config.DataPathMap // location to store data in container
+	ID                  string              // letter ID of daemon (e.g., a, b, c, ...)
+	ConfigConfigMap     string              // name of configmap holding config
+	ConfigConfigMapHash string              // hash of configmap holding config
+	DataPathMap         *config.DataPathMap // location to store data in container
 }
 
 // Create the ganesha server
@@ -55,7 +57,7 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
 	for i := 0; i < n.Spec.Server.Active; i++ {
 		id := k8sutil.IndexToName(i)
 
-		configName, err := r.createConfigMap(n, id)
+		configName, configHash, err := r.createConfigMap(n, id)
 		if err != nil {
 			return errors.Wrap(err, "failed to create config")
 		}
@@ -66,8 +68,9 @@ func (r *ReconcileCephNFS) upCephNFS(n *cephv1.CephNFS) error {
 		}
 
 		cfg := daemonConfig{
-			ID:              id,
-			ConfigConfigMap: configName,
+			ID:                  id,
+			ConfigConfigMap:     configName,
+			ConfigConfigMapHash: configHash,
 			DataPathMap: &config.DataPathMap{
 				HostDataDir:        "",                          // nfs daemon does not store data on host, ...
 				ContainerDataDir:   cephclient.DefaultConfigDir, // does share data in containers using emptyDir, ...
@@ -190,28 +193,35 @@ func (r *ReconcileCephNFS) generateConfigMap(n *cephv1.CephNFS, name string) *v1
 	return configMap
 }
 
-func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (string, error) {
+// return the name of the configmap, plus a hash of the data
+func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (string, string, error) {
 	// Generate configMap
 	configMap := r.generateConfigMap(n, name)
 
 	// Set owner reference
 	err := controllerutil.SetControllerReference(n, configMap, r.scheme)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to set owner reference for ceph ganesha configmap %q", configMap.Name)
+		return "", "", errors.Wrapf(err, "failed to set owner reference for ceph ganesha configmap %q", configMap.Name)
 	}
 
 	if _, err := r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Create(r.opManagerContext, configMap, metav1.CreateOptions{}); err != nil {
 		if !kerrors.IsAlreadyExists(err) {
-			return "", errors.Wrap(err, "failed to create ganesha config map")
+			return "", "", errors.Wrap(err, "failed to create ganesha config map")
 		}
 
 		logger.Debugf("updating config map %q that already exists", configMap.Name)
 		if _, err = r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Update(r.opManagerContext, configMap, metav1.UpdateOptions{}); err != nil {
-			return "", errors.Wrap(err, "failed to update ganesha config map")
+			return "", "", errors.Wrap(err, "failed to update ganesha config map")
 		}
 	}
 
-	return configMap.Name, nil
+	h := sha256.New()
+	if _, err := h.Write([]byte(fmt.Sprintf("%v", configMap.Data))); err != nil {
+		return "", "", errors.Wrapf(err, "failed to get hash of ganesha config map")
+	}
+	configHash := fmt.Sprintf("%x", h.Sum(nil))
+
+	return configMap.Name, configHash, nil
 }
 
 // Down scale the ganesha server

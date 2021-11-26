@@ -141,6 +141,12 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   resourceName,
 			Labels: getLabels(nfs, cfg.ID, true),
+			Annotations: map[string]string{
+				// set an annotation with the hash of the configmap data so that the pod will be
+				// re-deployed if the config in the configmap changes. otherwise, the pod won't
+				// restart when the config is updated.
+				"config-hash": cfg.ConfigConfigMapHash,
+			},
 		},
 		Spec: podSpec,
 	}
