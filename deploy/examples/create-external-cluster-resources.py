@@ -193,6 +193,8 @@ class RadosJSON:
                                   help="Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)")
         output_group.add_argument("--monitoring-endpoint-port", default="", required=False,
                                   help="Ceph Manager prometheus exporter port")
+        output_group.add_argument("--rbd-metadata-ec-pool-name", default="", required=False,
+                                  help="Provides the name of erasure coded RBD metadata pool")
 
         upgrade_group = argP.add_argument_group('upgrade')
         upgrade_group.add_argument("--upgrade", action='store_true', default=False,
@@ -204,6 +206,49 @@ class RadosJSON:
         else:
             args_to_parse = sys.argv[1:]
         return argP.parse_args(args_to_parse)
+
+    def validate_rgw_metadata_ec_pool_name(self):
+        if self._arg_parser.rbd_metadata_ec_pool_name:
+            rbd_metadata_ec_pool_name = self._arg_parser.rbd_metadata_ec_pool_name
+            rbd_pool_name = self._arg_parser.rbd_data_pool_name
+
+            if rbd_pool_name == "":
+                raise ExecutionFailureException(
+                    "Flag '--rbd-data-pool-name' should not be empty"
+                )
+
+            if rbd_metadata_ec_pool_name == "":
+                raise ExecutionFailureException(
+                    "Flag '--rbd-metadata-ec-pool-name' should not be empty"
+                )
+
+            cmd_json = {
+                "prefix": "osd dump", "format": "json"
+            }
+            ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
+            if ret_val != 0 or len(json_out) == 0:
+                raise ExecutionFailureException(
+                    "{}".format(cmd_json['prefix']) + " command failed.\n" +
+                    "Error: {}".format(err_msg if ret_val !=
+                                       0 else self.EMPTY_OUTPUT_LIST)
+                )
+            metadata_pool_exist, pool_exist = False, False
+
+            for key in json_out['pools']:
+                # if erasure_code_profile is empty and pool name exists then it replica pool
+                if key['erasure_code_profile'] == "" and key['pool_name'] == rbd_metadata_ec_pool_name:
+                    metadata_pool_exist = True
+                # if erasure_code_profile is not empty and pool name exists then it is ec pool
+                if key['erasure_code_profile'] and key['pool_name'] == rbd_pool_name:
+                    pool_exist = True
+
+            if not metadata_pool_exist:
+                raise ExecutionFailureException(
+                    "Provided rbd_ec_metadata_pool name, {}, does not exist".format(rbd_metadata_ec_pool_name))
+            if not pool_exist:
+                raise ExecutionFailureException(
+                    "Provided rbd_data_pool name, {}, does not exist".format(rbd_pool_name))
+            return rbd_metadata_ec_pool_name
 
     def validate_rgw_endpoint_tls_cert(self):
         if self._arg_parser.rgw_tls_cert_path:
@@ -458,7 +503,7 @@ class RadosJSON:
         if self._arg_parser.restricted_auth_permission:
             if cephfs_filesystem == "":
                 raise ExecutionFailureException(
-                 "'cephfs_filesystem_name' not found, please set the '--cephfs-filesystem-name' flag")
+                    "'cephfs_filesystem_name' not found, please set the '--cephfs-filesystem-name' flag")
             cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
                         "caps": ["mon", "allow r", "mgr", "allow rw",
@@ -492,9 +537,10 @@ class RadosJSON:
             cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
                         "caps": ["mon", "allow r",
-                        "mgr", "allow rw",
-                        "osd", "allow rw tag cephfs data={}".format(cephfs_filesystem),
-                        "mds", "allow rw"],
+                                 "mgr", "allow rw",
+                                 "osd", "allow rw tag cephfs data={}".format(
+                                     cephfs_filesystem),
+                                 "mds", "allow rw"],
                         "format": "json"}
         else:
             cmd_json = {"prefix": "auth get-or-create",
@@ -518,7 +564,7 @@ class RadosJSON:
         entity = "client.csi-rbd-provisioner"
         if cluster_name:
             entity = "client.csi-rbd-provisioner-{}".format(cluster_name)
-        cmd_json={}
+        cmd_json = {}
         if self._arg_parser.restricted_auth_permission:
             if rbd_pool_name == "":
                 raise ExecutionFailureException(
@@ -597,8 +643,10 @@ class RadosJSON:
                 return
 
         if matching_json_out:
-            self._arg_parser.cephfs_filesystem_name = str(matching_json_out['name'])
-            self._arg_parser.cephfs_metadata_pool_name  = str(matching_json_out['metadata_pool'])
+            self._arg_parser.cephfs_filesystem_name = str(
+                matching_json_out['name'])
+            self._arg_parser.cephfs_metadata_pool_name = str(
+                matching_json_out['metadata_pool'])
 
         if type(matching_json_out['data_pools']) == list:
             # if the user has already provided data-pool-name,
@@ -635,7 +683,7 @@ class RadosJSON:
         entity = "client.csi-rbd-node"
         if cluster_name:
             entity = "client.csi-rbd-node-{}".format(cluster_name)
-        cmd_json={}
+        cmd_json = {}
         if self._arg_parser.restricted_auth_permission:
             if rbd_pool_name == "":
                 raise ExecutionFailureException(
@@ -758,6 +806,7 @@ class RadosJSON:
         self.out_map['MONITORING_ENDPOINT'], \
             self.out_map['MONITORING_ENDPOINT_PORT'] = self.get_active_and_standby_mgrs()
         self.out_map['RBD_POOL_NAME'] = self._arg_parser.rbd_data_pool_name
+        self.out_map['RBD_METADATA_EC_POOL_NAME'] = self.validate_rgw_metadata_ec_pool_name()
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
         if self._arg_parser.rgw_endpoint:
             self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
@@ -811,13 +860,7 @@ class RadosJSON:
                     "userKey": self.out_map['CSI_RBD_NODE_SECRET_SECRET']
                 }
             },
-            {
-                "name": "ceph-rbd",
-                "kind": "StorageClass",
-                "data": {
-                    "pool": self.out_map['RBD_POOL_NAME']
-                }
-            },
+
             {
                 "name": "monitoring-endpoint",
                 "kind": "CephCluster",
@@ -827,6 +870,24 @@ class RadosJSON:
                 }
             }
         ]
+
+        if self.out_map['RBD_METADATA_EC_POOL_NAME']:
+            json_out.append({
+                "name": "ceph-rbd",
+                "kind": "StorageClass",
+                "data": {
+                    "dataPool": self.out_map['RBD_POOL_NAME'],
+                    "pool": self.out_map['RBD_METADATA_EC_POOL_NAME']
+                },
+            })
+        else:
+            json_out.append({
+                "name": "ceph-rbd",
+                "kind": "StorageClass",
+                "data": {
+                    "pool": self.out_map['RBD_POOL_NAME']
+                },
+            })
 
         # if 'ROOK_EXTERNAL_DASHBOARD_LINK' exists, then only add 'rook-ceph-dashboard-link' Secret
         if self.out_map['ROOK_EXTERNAL_DASHBOARD_LINK']:
