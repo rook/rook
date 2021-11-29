@@ -1,12 +1,6 @@
 {{- if .Values.ingress.dashboard.host }}
 ---
-{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1" }}
-apiVersion: networking.k8s.io/v1
-{{ else if .Capabilities.APIVersions.Has "networking.k8s.io/v1beta1" }}
-apiVersion: networking.k8s.io/v1beta1
-{{ else }}
-apiVersion: extensions/v1beta1
-{{ end -}}
+apiVersion: {{ include "capabilities.ingress.apiVersion" . }}
 kind: Ingress
 metadata:
   name: {{ template "clusterName" . }}-dashboard
@@ -20,7 +14,14 @@ spec:
         paths:
           - path: {{ .Values.ingress.dashboard.host.path | default "/" }}
             backend:
-{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1" }}
+{{- if (semverCompare "<1.18-0" (include "capabilities.kubeVersion" .)) }}
+              serviceName: rook-ceph-mgr-dashboard
+              {{- if .Values.cephClusterSpec.dashboard.ssl }}
+              servicePort: https-dashboard
+              {{- else }}
+              servicePort: http-dashboard
+              {{- end }}
+{{- else }}
               service:
                 name: rook-ceph-mgr-dashboard
                 port:
@@ -30,13 +31,6 @@ spec:
                   name: http-dashboard
                   {{- end }}
             pathType: Prefix
-{{- else }}
-              serviceName: rook-ceph-mgr-dashboard
-              {{- if .Values.cephClusterSpec.dashboard.ssl }}
-              servicePort: https-dashboard
-              {{- else }}
-              servicePort: http-dashboard
-              {{- end }}
 {{- end }}
   {{- if .Values.ingress.dashboard.tls }}
   tls: {{- toYaml .Values.ingress.dashboard.tls | nindent 4 }}
