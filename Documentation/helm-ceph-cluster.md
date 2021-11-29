@@ -57,6 +57,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | Parameter              | Description                                                          | Default     |
 | ---------------------- | -------------------------------------------------------------------- | ----------- |
 | `operatorNamespace`    | Namespace of the Rook Operator                                       | `rook-ceph` |
+| `kubeVersion`          | Optional override of the target kubernetes version                   | ``          |
 | `configOverride`       | Cluster ceph.conf override                                           | <empty>     |
 | `toolbox.enabled`      | Enable Ceph debugging pod deployment. See [toolbox](ceph-toolbox.md) | `false`     |
 | `toolbox.tolerations`  | Toolbox tolerations                                                  | `[]`        |
