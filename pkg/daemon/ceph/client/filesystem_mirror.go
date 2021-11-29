@@ -170,8 +170,10 @@ func ImportFSMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluster
 	logger.Infof("importing cephfs bootstrap peer token for filesystem %q", fsName)
 
 	// Build command
-	args := []string{"fs", "snapshot", "mirror", "peer_bootstrap", "import", fsName, token}
+	args := []string{"fs", "snapshot", "mirror", "peer_bootstrap", "import", fsName, strings.TrimSpace(token)}
 	cmd := NewCephCommand(context, clusterInfo, args)
+	cmd.JsonOutput = false
+	cmd.combinedOutput = true
 
 	// Run command
 	output, err := cmd.Run()
