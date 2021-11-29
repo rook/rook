@@ -84,7 +84,8 @@ do.build:
 
 ifeq ($(INCLUDE_CSV_TEMPLATES),true)
 	@$(MAKE) CSV_TEMPLATE_DIR=$(TEMP) generate-csv-templates
-	@$(MAKE) CRD_TEMPLATE_DIR=$(TEMP)/deploy/olm/templates/crds/ get-volume-replication-crds
+	@$(MAKE) get-volume-replication-crds
+	cp $(CACHE_DIR)/crds/* $(TEMP)/deploy/olm/templates/crds/.
 	@cp -r $(TEMP)/deploy/olm/templates $(TEMP)/ceph-csv-templates
 else
 	mkdir $(TEMP)/ceph-csv-templates
@@ -98,6 +99,10 @@ endif
 		$(TEMP);\
 	fi
 	@rm -fr $(TEMP)
+
+# call this before building multiple arches in parallel to prevent parallel build processes from
+# conflicting
+prerequisites: $(OPERATOR_SDK) $(YQv3) get-volume-replication-crds
 
 # generate CSV template files into the directory defined by the env var CSV_TEMPLATE_DIR
 # CSV_TEMPLATE_DIR will be created if it doesn't already exist
@@ -122,13 +127,11 @@ generate-csv-templates: $(OPERATOR_SDK) $(YQv3) ## Generate CSV templates for OL
 	@echo " === Generated CSV templates can be found at $(CSV_TEMPLATE_DIR)/deploy/olm/templates"
 
 get-volume-replication-crds:
-	@if [[ -z "$(CRD_TEMPLATE_DIR)" ]]; then echo "CRD_TEMPLATE_DIR is not set"; exit 1; fi
-	@if [[ ! -d "$(CACHE_DIR)/crds" ]]; then\
+	if [[ ! -d "$(CACHE_DIR)/crds" ]]; then\
 		mkdir -p $(CACHE_DIR)/crds;\
 		curl -L $(VOL_REPL_URL)/$(VOLUME_REPLICATION_CRD) -o $(CACHE_DIR)/crds/$(VOLUME_REPLICATION_CRD);\
 		curl -L $(VOL_REPL_URL)/$(VOLUME_REPLICATION_CLASS_CRD) -o $(CACHE_DIR)/crds/$(VOLUME_REPLICATION_CLASS_CRD);\
 	fi
-	@cp $(CACHE_DIR)/crds/* $(CRD_TEMPLATE_DIR)
 
 $(YQv3):
 	@echo === installing yq $(YQv3_VERSION) $(REAL_HOST_PLATFORM)

@@ -30,7 +30,9 @@ ceph.%:
 	@$(MAKE) -C ceph PLATFORM=$*
 
 do.build: ceph.$(PLATFORM) ;
-build.all: $(foreach p,$(PLATFORMS), ceph.$(p)) ; ## Build images for all platforms.
+build.all: ## Build images for all platforms.
+	$(MAKE) -C ceph prerequisites
+	$(MAKE) $(foreach p,$(PLATFORMS), ceph.$(p)) ;
 
 # ====================================================================================
 # Help
