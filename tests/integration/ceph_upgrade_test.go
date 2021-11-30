@@ -83,7 +83,7 @@ func (s *UpgradeSuite) SetupSuite() {
 		UsePVC:            false,
 		Mons:              1,
 		SkipOSDCreation:   false,
-		RookVersion:       installer.Version1_6,
+		RookVersion:       installer.Version1_7,
 		CephVersion:       installer.OctopusVersion,
 	}
 
@@ -118,7 +118,7 @@ func (s *UpgradeSuite) TestUpgradeRookToMaster() {
 	//
 	// Upgrade Rook from v1.6 to master
 	//
-	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_6)
+	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_7)
 	s.gatherLogs(s.settings.OperatorNamespace, "_before_master_upgrade")
 	s.upgradeToMaster()
 
@@ -127,7 +127,7 @@ func (s *UpgradeSuite) TestUpgradeRookToMaster() {
 	err := s.installer.WaitForToolbox(s.namespace)
 	assert.NoError(s.T(), err)
 
-	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_6)
+	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_7)
 	newFile := "post-upgrade-1_6-to-master-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
@@ -139,7 +139,7 @@ func (s *UpgradeSuite) TestUpgradeRookToMaster() {
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
 	assert.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
 
-	logger.Infof("Verified upgrade from %s to master", installer.Version1_6)
+	logger.Infof("Verified upgrade from %s to master", installer.Version1_7)
 
 	//
 	// Upgrade from octopus to pacific
@@ -263,7 +263,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(objectStoreName, objectUserID, me
 	require.True(s.T(), created)
 
 	// verify that we're actually running the right pre-upgrade image
-	s.verifyOperatorImage(installer.Version1_6)
+	s.verifyOperatorImage(installer.Version1_7)
 
 	assert.NoError(s.T(), s.k8sh.WriteToPod("", rbdPodName, preFilename, message))
 	assert.NoError(s.T(), s.k8sh.ReadFromPod("", rbdPodName, preFilename, message))
