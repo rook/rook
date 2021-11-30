@@ -33,7 +33,8 @@ If an admin wants to set up multisite on a Rook Ceph cluster, the admin should c
 1. A [zone](/Documentation/ceph-object-multisite-crd.md#object-zone-settings)
 1. An [object-store](/Documentation/ceph-object-store-crd.md#zone-settings) with the `zone` section
 
-object-multisite.yaml in the [examples](/cluster/examples/kubernetes/ceph/) directory can be used to create the multisite CRDs.
+object-multisite.yaml in the [examples](/deploy/examples/) directory can be used to create the multisite CRDs.
+
 ```console
 kubectl create -f object-multisite.yaml
 ```
@@ -169,7 +170,8 @@ Once the admin knows the endpoint and the secret for the keys has been created, 
 1. A [CephObjectZone](/design/ceph/object/zone.md) referring to the CephObjectZoneGroup created above.
 1. A [CephObjectStore](/design/ceph/object/store.md) referring to the new CephObjectZone resource.
 
-object-multisite-pull-realm.yaml (with changes) in the [examples](/cluster/examples/kubernetes/ceph/) directory can be used to create the multisite CRDs.
+object-multisite-pull-realm.yaml (with changes) in the [examples](/deploy/examples/) directory can be used to create the multisite CRDs.
+
 ```console
 kubectl create -f object-multisite-pull-realm.yaml
 ```

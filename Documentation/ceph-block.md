@@ -95,7 +95,7 @@ provisioner value should be "my-namespace.rbd.csi.ceph.com".
 Create the storage class.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/storageclass.yaml
+kubectl create -f deploy/examples/csi/rbd/storageclass.yaml
 ```
 
 > **NOTE**: As [specified by Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain), when using the `Retain` reclaim policy, any Ceph RBD image that is backed by a `PersistentVolume` will continue to exist even after the `PersistentVolume` has been deleted. These Ceph RBD images will need to be cleaned up manually using `rbd rm`.
@@ -105,7 +105,7 @@ kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/storageclass.yaml
 We create a sample app to consume the block storage provisioned by Rook with the classic wordpress and mysql apps.
 Both of these apps will make use of block volumes provisioned by Rook.
 
-Start mysql and wordpress from the `cluster/examples/kubernetes` folder:
+Start mysql and wordpress from the `deploy/examples` folder:
 
 ```console
 kubectl create -f mysql.yaml
@@ -175,5 +175,10 @@ The OSDs must be located on different nodes, because the [`failureDomain`](ceph-
 ### Erasure Coded CSI Driver
 
 The erasure coded pool must be set as the `dataPool` parameter in
-[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName
-}}/cluster/examples/kubernetes/ceph/csi/rbd/storage-class-ec.yaml) It is used for the data of the RBD images.
+[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/csi/rbd/storage-class-ec.yaml) It is used for the data of the RBD images.
+
+### Erasure Coded Flex Driver
+
+The erasure coded pool must be set as the `dataBlockPool` parameter in
+[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/flex/storage-class-ec.yaml). It is used for
+the data of the RBD images.

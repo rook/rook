@@ -23,7 +23,7 @@ run arbitrary Ceph commands.
 Launch the rook-ceph-tools pod:
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/toolbox.yaml
+kubectl create -f deploy/examples/toolbox.yaml
 ```
 
 Wait for the toolbox pod to download its container and get to the `running` state:
@@ -63,7 +63,7 @@ In this example, the `ceph status` command is executed when the job is created.
 Create the toolbox job:
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/toolbox-job.yaml
+kubectl create -f deploy/examples/toolbox-job.yaml
 ```
 
 After the job completes, see the results of the script:

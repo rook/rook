@@ -49,7 +49,7 @@ To deploy from a local build from your development environment:
 1. Install the helm chart:
 
 ```console
-cd cluster/charts/rook-ceph
+cd deploy/charts/rook-ceph
 helm install --create-namespace --namespace rook-ceph rook-ceph .
 ```
 
@@ -163,4 +163,4 @@ Alternatively, a yaml file that specifies the values for the above parameters (`
 helm install --namespace rook-ceph rook-ceph rook-release/rook-ceph -f values.yaml
 ```
 
-For example settings, see [values.yaml](https://github.com/rook/rook/tree/{{ branchName }}/cluster/charts/rook-ceph/values.yaml)
+For example settings, see [values.yaml](https://github.com/rook/rook/tree/{{ branchName }}/deploy/charts/rook-ceph/values.yaml)

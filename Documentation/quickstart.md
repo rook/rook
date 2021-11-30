@@ -31,11 +31,11 @@ In order to configure the Ceph storage cluster, at least one of these local stor
 
 ## TL;DR
 
-A simple Rook cluster can be created with the following kubectl commands and [example manifests](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph).
+A simple Rook cluster can be created with the following kubectl commands and [example manifests](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples).
 
 ```console
 $ git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd rook/cluster/examples/kubernetes/ceph
+cd rook/deploy/examples
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 kubectl create -f cluster.yaml
 ```
@@ -44,10 +44,10 @@ After the cluster is running, you can create [block, object, or file](#storage) 
 
 ## Deploy the Rook Operator
 
-The first step is to deploy the Rook operator. Check that you are using the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph) that correspond to your release of Rook. For more options, see the [examples documentation](ceph-examples.md).
+The first step is to deploy the Rook operator. Check that you are using the [example yaml files](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples) that correspond to your release of Rook. For more options, see the [examples documentation](ceph-examples.md).
 
 ```console
-cd cluster/examples/kubernetes/ceph
+cd deploy/examples
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 
 # verify the rook-ceph-operator is in the `Running` state before proceeding
@@ -57,7 +57,7 @@ kubectl -n rook-ceph get pod
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 
 Before you start the operator in production, there are some settings that you may want to consider:
-1. Consider if you want to enable certain Rook features that are disabled by default. See the [operator.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator.yaml) for these and other advanced settings.
+1. Consider if you want to enable certain Rook features that are disabled by default. See the [operator.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/operator.yaml) for these and other advanced settings.
    1. Device discovery: Rook will watch for new devices to configure if the `ROOK_ENABLE_DISCOVERY_DAEMON` setting is enabled, commonly used in bare metal clusters.
    2. Node affinity and tolerations: The CSI driver by default will run on any node in the cluster. To configure the CSI driver affinity, several settings are available.
 
@@ -68,9 +68,10 @@ If you wish to deploy into a namespace other than the default `rook-ceph`, see t
 
 The Rook documentation is focused around starting Rook in a production environment. Examples are also
 provided to relax some settings for test environments. When creating the cluster later in this guide, consider these example cluster manifests:
-- [cluster.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml): Cluster settings for a production cluster running on bare metal. Requires at least three worker nodes.
-- [cluster-on-pvc.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster-on-pvc.yaml): Cluster settings for a production cluster running in a dynamic cloud environment.
-- [cluster-test.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster-test.yaml): Cluster settings for a test environment such as minikube.
+
+- [cluster.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/cluster.yaml): Cluster settings for a production cluster running on bare metal. Requires at least three worker nodes.
+- [cluster-on-pvc.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/cluster-on-pvc.yaml): Cluster settings for a production cluster running in a dynamic cloud environment.
+- [cluster-test.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/cluster-test.yaml): Cluster settings for a test environment such as minikube.
 
 See the [Ceph examples](ceph-examples.md) for more details.
 

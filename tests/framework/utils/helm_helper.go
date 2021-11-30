@@ -18,10 +18,11 @@ package utils
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"os"
 	"path"
 	"path/filepath"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/util/exec"
@@ -86,7 +87,7 @@ func (h *HelmHelper) InstallLocalRookHelmChart(namespace, chart string, values m
 	if err != nil {
 		return errors.Wrap(err, "failed to find rook root")
 	}
-	chartDir := path.Join(rootDir, fmt.Sprintf("cluster/charts/%s/", chart))
+	chartDir := path.Join(rootDir, fmt.Sprintf("deploy/charts/%s/", chart))
 	cmdArgs := []string{"install", "--create-namespace", chart, chartDir}
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, "--namespace", namespace)

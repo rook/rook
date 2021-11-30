@@ -33,20 +33,20 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh replace_ceph_image \
-          "cluster/examples/kubernetes/ceph/cluster-test.yaml" "${{ inputs.ceph-image }}"
+          "deploy/examples/cluster-test.yaml" "${{ inputs.ceph-image }}"
 
     - name: deploy first cluster rook
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh deploy_first_rook_cluster
-        kubectl create -f cluster/examples/kubernetes/ceph/object-multisite-test.yaml
+        kubectl create -f deploy/examples/object-multisite-test.yaml
         # wait for multisite store to be created
         tests/scripts/github-action-helper.sh wait_for_rgw rook-ceph
 
     - name: prep second cluster pull realm config
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        cd cluster/examples/kubernetes/ceph/
+        cd deploy/examples/
         IP_ADDR=$(kubectl -n rook-ceph get svc rook-ceph-rgw-multisite-store -o jsonpath="{.spec.clusterIP}")
         yq w -i -d1 object-multisite-pull-realm-test.yaml spec.pull.endpoint http://${IP_ADDR}:80
         BASE64_ACCESS_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.access-key}")
@@ -58,7 +58,7 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh deploy_second_rook_cluster
-        kubectl create -f cluster/examples/kubernetes/ceph/object-multisite-pull-realm-test.yaml
+        kubectl create -f deploy/examples/object-multisite-pull-realm-test.yaml
         # wait for realms to be pulled and zone-b-multisite-store to be created
         tests/scripts/github-action-helper.sh wait_for_rgw rook-ceph-secondary
 

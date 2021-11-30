@@ -39,7 +39,7 @@ From the root of your locally cloned Rook repo, go the monitoring directory:
 
 ```console
 $ git clone --single-branch --branch {{ branchName }} https://github.com/rook/rook.git
-cd rook/cluster/examples/kubernetes/ceph/monitoring
+cd rook/deploy/examples/monitoring
 ```
 
 Create the service monitor as well as the Prometheus server pod and service:
@@ -100,7 +100,7 @@ To enable the Ceph Prometheus alerts follow these steps:
 1. Create the RBAC rules to enable monitoring.
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/monitoring/rbac.yaml
+kubectl create -f deploy/examples/monitoring/rbac.yaml
 ```
 
 2. Make following changes to your CephCluster object (e.g., `cluster.yaml`).
@@ -151,7 +151,7 @@ with each update or upgrade. This should be done at the same time you update Roo
 like `common.yaml`.
 
 ```console
-kubectl apply -f cluster/examples/kubernetes/ceph/monitoring/rbac.yaml
+kubectl apply -f deploy/examples/monitoring/rbac.yaml
 ```
 
 > This is updated automatically if you are upgrading via the helm chart

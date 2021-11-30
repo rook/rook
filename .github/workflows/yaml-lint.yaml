@@ -28,4 +28,4 @@ jobs:
         run: pip install yamllint
 
       - name: Lint YAML files
-        run: yamllint -c .github/workflows/.yamllint cluster/examples/kubernetes/ --no-warnings
+        run: yamllint -c .github/workflows/.yamllint deploy/examples/ --no-warnings

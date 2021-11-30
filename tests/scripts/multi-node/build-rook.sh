@@ -7,7 +7,7 @@ set -e
 #############
 
 rook_git_root=$(git rev-parse --show-toplevel)
-rook_kube_templates_dir="$rook_git_root/cluster/examples/kubernetes/ceph/"
+rook_kube_templates_dir="$rook_git_root/deploy/examples/"
 
 
 #############

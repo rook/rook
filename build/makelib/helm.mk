@@ -16,7 +16,7 @@
 HELM_CHARTS ?= rook-ceph rook-ceph-cluster
 HELM_BASE_URL ?= https://charts.rook.io
 HELM_S3_BUCKET ?= rook.chart
-HELM_CHARTS_DIR ?= $(ROOT_DIR)/cluster/charts
+HELM_CHARTS_DIR ?= $(ROOT_DIR)/deploy/charts
 HELM_OUTPUT_DIR ?= $(OUTPUT_DIR)/charts
 
 HELM_HOME := $(abspath $(CACHE_DIR)/helm)

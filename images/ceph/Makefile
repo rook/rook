@@ -29,7 +29,7 @@ OPERATOR_SDK_VERSION = v0.17.1
 # TODO: update to yq v4 - v3 end of life in Aug 2021 ; v4 removes the 'yq delete' cmd and changes syntax
 YQ_VERSION = 3.3.0
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
-MANIFESTS_DIR=../../cluster/examples/kubernetes/ceph
+MANIFESTS_DIR=../../deploy/examples
 
 TEMP := $(shell mktemp -d)
 
@@ -80,12 +80,12 @@ do.build:
 	@cp -r $(MANIFESTS_DIR)/monitoring $(TEMP)/ceph-monitoring
 	@mkdir -p $(TEMP)/rook-external/test-data
 	@cp $(MANIFESTS_DIR)/create-external-cluster-resources.* $(TEMP)/rook-external/
-	@cp $(MANIFESTS_DIR)/test-data/ceph-status-out $(TEMP)/rook-external/test-data/
+	@cp ../../tests/ceph-status-out $(TEMP)/rook-external/test-data/
 
 ifeq ($(INCLUDE_CSV_TEMPLATES),true)
 	@$(MAKE) CSV_TEMPLATE_DIR=$(TEMP) generate-csv-templates
-	@$(MAKE) CRD_TEMPLATE_DIR=$(TEMP)/cluster/olm/ceph/templates/crds/ get-volume-replication-crds
-	@cp -r $(TEMP)/cluster/olm/ceph/templates $(TEMP)/ceph-csv-templates
+	@$(MAKE) CRD_TEMPLATE_DIR=$(TEMP)/deploy/olm/templates/crds/ get-volume-replication-crds
+	@cp -r $(TEMP)/deploy/olm/templates $(TEMP)/ceph-csv-templates
 else
 	mkdir $(TEMP)/ceph-csv-templates
 endif
@@ -107,19 +107,19 @@ generate-csv-templates: $(OPERATOR_SDK) $(YQ) ## Generate CSV templates for OLM 
 	@# then, generate or copy all prerequisites into CSV_TEMPLATE_DIR (e.g., CRDs)
 	@# finally, generate the templates in-place using CSV_TEMPLATE_DIR as a staging dir
 	@mkdir -p $(CSV_TEMPLATE_DIR)
-	@cp -a ../../cluster $(CSV_TEMPLATE_DIR)/cluster
+	@cp -a ../../deploy $(CSV_TEMPLATE_DIR)/deploy
 	@set -eE;\
 	BEFORE_GEN_CRD_SIZE=$$(wc -l < $(MANIFESTS_DIR)/crds.yaml);\
 	$(MAKE) -C ../.. NO_OB_OBC_VOL_GEN=true MAX_DESC_LEN=0 BUILD_CRDS_INTO_DIR=$(CSV_TEMPLATE_DIR) crds;\
-	AFTER_GEN_CRD_SIZE=$$(wc -l < $(CSV_TEMPLATE_DIR)/cluster/examples/kubernetes/ceph/crds.yaml);\
+	AFTER_GEN_CRD_SIZE=$$(wc -l < $(CSV_TEMPLATE_DIR)/deploy/examples/crds.yaml);\
 	if [ "$$BEFORE_GEN_CRD_SIZE" -le "$$AFTER_GEN_CRD_SIZE" ]; then\
 		echo "the new crd file must be smaller since the description fields were stripped!";\
 		echo "length before $$BEFORE_GEN_CRD_SIZE";\
 		echo "length after $$AFTER_GEN_CRD_SIZE";\
 		exit 1;\
 	fi
-	@OLM_CATALOG_DIR=$(CSV_TEMPLATE_DIR)/cluster/olm/ceph ../../cluster/olm/ceph/generate-rook-csv-templates.sh
-	@echo " === Generated CSV templates can be found at $(CSV_TEMPLATE_DIR)/cluster/olm/ceph/templates"
+	@OLM_CATALOG_DIR=$(CSV_TEMPLATE_DIR)/deploy/olm ../../deploy/olm/generate-rook-csv-templates.sh
+	@echo " === Generated CSV templates can be found at $(CSV_TEMPLATE_DIR)/deploy/olm/templates"
 
 get-volume-replication-crds:
 	@if [[ -z "$(CRD_TEMPLATE_DIR)" ]]; then echo "CRD_TEMPLATE_DIR is not set"; exit 1; fi
@@ -146,10 +146,10 @@ $(OPERATOR_SDK):
 
 csv: $(OPERATOR_SDK) $(YQ) ## Generate a CSV file for OLM.
 	@echo Generating CSV manifests
-	@cd ../.. && cluster/olm/ceph/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
+	@cd ../.. && deploy/olm/generate-rook-csv.sh $(CSV_VERSION) $(CSV_PLATFORM) $(ROOK_OP_VERSION)
 
 csv-clean: $(OPERATOR_SDK) $(YQ) ## Remove existing OLM files.
-	@rm -fr ../../cluster/olm/ceph/deploy/* ../../cluster/olm/ceph/templates/*
+	@rm -fr ../../deploy/olm/deploy/* ../../deploy/olm/templates/*
 
 # reading from a file and outputting to the same file can have undefined results, so use this intermediate
 IMAGE_TMP="/tmp/rook-ceph-image-list"

@@ -12,7 +12,7 @@ if [ -f "Dockerfile" ]; then
     cd ../../
 fi
 
-: "${OLM_CATALOG_DIR:=cluster/olm/ceph}"
+: "${OLM_CATALOG_DIR:=deploy/olm}"
 DEPLOY_DIR="$OLM_CATALOG_DIR/deploy"
 CRDS_DIR="$DEPLOY_DIR/crds"
 
@@ -28,7 +28,7 @@ function generate_template() {
     rm -rf $csv_manifest_path
 
     # v9999.9999.9999 is just a placeholder. operator-sdk requires valid semver here.
-    (cluster/olm/ceph/generate-rook-csv.sh "9999.9999.9999" $provider "{{.RookOperatorImage}}")
+    (deploy/olm/generate-rook-csv.sh "9999.9999.9999" $provider "{{.RookOperatorImage}}")
     mv $tmp_csv_gen_file $csv_template_file
 
     # replace the placeholder with the templated value

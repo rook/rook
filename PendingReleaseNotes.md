@@ -12,6 +12,9 @@ v1.8...
   you will need to convert them to csi volumes. See the flex conversion tool.
 - Min supported version of K8s is now 1.16. If running on an older version of K8s it is recommended
   to update to a newer version before updating to Rook v1.8.
+- Directory structure of the YAML examples has changed. Files are now in `deploy/examples` and subdirectories.
+
+### Ceph
 
 ## Features
 

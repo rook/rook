@@ -45,7 +45,7 @@ This will help you manage namespaces more easily, but you should still make sure
 configured to your liking.
 
 ```sh
-cd cluster/examples/kubernetes/ceph
+cd deploy/examples
 
 export ROOK_OPERATOR_NAMESPACE="rook-ceph"
 export ROOK_CLUSTER_NAMESPACE="rook-ceph"
@@ -68,7 +68,7 @@ kubectl apply -f common.yaml -f operator.yaml -f cluster.yaml # add other files 
 If you wish to create a new CephCluster in a different namespace than `rook-ceph` while using a single operator to manage both clusters execute the following:
 
 ```sh
-cd cluster/examples/kubernetes/ceph
+cd deploy/examples
 
 NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
 ```

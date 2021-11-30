@@ -25,7 +25,7 @@ for more info.
 ### Volume Cloning
 
 In
-[pvc-clone](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/rbd/pvc-clone.yaml),
+[pvc-clone](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/rbd/pvc-clone.yaml),
 `dataSource` should be the name of the `PVC` which is already created by RBD
 CSI driver. The `dataSource` kind should be the `PersistentVolumeClaim` and also storageclass
 should be same as the source `PVC`.
@@ -33,7 +33,7 @@ should be same as the source `PVC`.
 Create a new PVC Clone from the PVC
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-clone.yaml
+kubectl create -f deploy/examples/csi/rbd/pvc-clone.yaml
 ```
 
 ### Verify RBD volume Clone PVC Creation
@@ -53,7 +53,7 @@ kubectl get pvc
 To clean your cluster of the resources created by this example, run the following:
 
 ```console
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-clone.yaml
+kubectl delete -f deploy/examples/csi/rbd/pvc-clone.yaml
 ```
 
 ## CephFS Volume Cloning
@@ -66,7 +66,7 @@ kubectl delete -f cluster/examples/kubernetes/ceph/csi/rbd/pvc-clone.yaml
 ### Volume Cloning
 
 In
-[pvc-clone](https://github.com/rook/rook/tree/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/pvc-clone.yaml),
+[pvc-clone](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/cephfs/pvc-clone.yaml),
 `dataSource` should be the name of the `PVC` which is already created by CephFS
 CSI driver. The `dataSource` kind should be the `PersistentVolumeClaim` and also storageclass
 should be same as the source `PVC`.
@@ -74,7 +74,7 @@ should be same as the source `PVC`.
 Create a new PVC Clone from the PVC
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/csi/cephfs/pvc-clone.yaml
+kubectl create -f deploy/examples/csi/cephfs/pvc-clone.yaml
 ```
 
 ### Verify CephFS volume Clone PVC Creation
@@ -94,5 +94,5 @@ kubectl get pvc
 To clean your cluster of the resources created by this example, run the following:
 
 ```console
-kubectl delete -f cluster/examples/kubernetes/ceph/csi/cephfs/pvc-clone.yaml
+kubectl delete -f deploy/examples/csi/cephfs/pvc-clone.yaml
 ```

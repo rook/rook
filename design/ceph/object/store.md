@@ -92,7 +92,7 @@ The gateway settings correspond to the RGW service.
 - `port`: The service port where the RGW service will be listening (http)
 - `securePort`: The service port where the RGW service will be listening (https)
 - `instances`: The number of RGW pods that will be started for this object store
-- `placement`: The rgw pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, `podAntiAffinity`, and `topologySpreadConstraints` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/ceph/cluster.yaml).
+- `placement`: The rgw pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, `podAntiAffinity`, and `topologySpreadConstraints` similar to placement defined for daemons configured by the [cluster CRD](/deploy/examples/cluster.yaml).
 
 The RGW service can be configured to listen on both http and https by specifying both `port` and `securePort`.
 

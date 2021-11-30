@@ -541,7 +541,7 @@ A Placement configuration is specified (according to the kubernetes PodSpec) as:
 * `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/)
 * `topologySpreadConstraints`: kubernetes [TopologySpreadConstraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/)
 
-If you use `labelSelector` for `osd` pods, you must write two rules both for `rook-ceph-osd` and `rook-ceph-osd-prepare` like [the example configuration](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/cluster-on-pvc.yaml#L68). It comes from the design that there are these two pods for an OSD. For more detail, see the [osd design doc](https://github.com/rook/rook/blob/master/design/ceph/dedicated-osd-pod.md) and [the related issue](https://github.com/rook/rook/issues/4582).
+If you use `labelSelector` for `osd` pods, you must write two rules both for `rook-ceph-osd` and `rook-ceph-osd-prepare` like [the example configuration](https://github.com/rook/rook/blob/master/deploy/examples/cluster-on-pvc.yaml#L68). It comes from the design that there are these two pods for an OSD. For more detail, see the [osd design doc](https://github.com/rook/rook/blob/master/design/ceph/dedicated-osd-pod.md) and [the related issue](https://github.com/rook/rook/issues/4582).
 
 The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect the full Ceph version used by the given `cephVersion.image`. The placement from the `mon` section is used for the Job except for the `PodAntiAffinity` field.
 
@@ -1279,7 +1279,7 @@ The features available from the external cluster will vary depending on the vers
 #### Pre-requisites
 
 In order to configure an external Ceph cluster with Rook, we need to inject some information in order to connect to that cluster.
-You can use the `cluster/examples/kubernetes/ceph/import-external-cluster.sh` script to achieve that.
+You can use the `deploy/examples/import-external-cluster.sh` script to achieve that.
 The script will look for the following populated environment variables:
 
 * `NAMESPACE`: the namespace where the configmap and secrets should be injected
@@ -1308,14 +1308,14 @@ If the Ceph admin key is not provided, the following script needs to be executed
 On that machine, run:
 
 ```sh
-. cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh
+. deploy/examples/create-external-cluster-resources.sh
 ```
 
 The script will source all the necessary environment variables for you. It assumes the namespace name is `rook-ceph-external`.
 This can be changed by running the script like (assuming namespace name is `foo` this time):
 
 ```sh
-ns=foo . cluster/examples/kubernetes/ceph/create-external-cluster-resources.sh
+ns=foo . deploy/examples/create-external-cluster-resources.sh
 ```
 
 When done you can execute: `import-external-cluster.sh` to inject them in your Kubernetes cluster.
@@ -1342,12 +1342,12 @@ In this example, you can simply export RGW_POOL_PREFIX before executing the scri
 export RGW_POOL_PREFIX=my-store
 ```
 
-The script will automatically create users and keys with the lowest possible privileges and populate the necessary environment variables for `cluster/examples/kubernetes/ceph/import-external-cluster.sh` to work correctly.
+The script will automatically create users and keys with the lowest possible privileges and populate the necessary environment variables for `deploy/examples/import-external-cluster.sh` to work correctly.
 
 Finally, you can simply execute the script like this from a machine that has access to your Kubernetes cluster:
 
 ```console
-bash cluster/examples/kubernetes/ceph/import-external-cluster.sh
+bash deploy/examples/import-external-cluster.sh
 ```
 
 #### CephCluster example (consumer)
@@ -1380,7 +1380,7 @@ Additionally, you now need to inject `common-external.yaml` too.
 You can now create it like this:
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/cluster-external.yaml
+kubectl create -f deploy/examples/cluster-external.yaml
 ```
 
 If the previous section has not been completed, the Rook Operator will still acknowledge the CR creation but will wait forever to receive connection information.

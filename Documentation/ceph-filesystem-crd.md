@@ -65,7 +65,7 @@ spec:
     #    memory: "1024Mi"
 ```
 
-(These definitions can also be found in the [`filesystem.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/filesystem.yaml) file)
+(These definitions can also be found in the [`filesystem.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/filesystem.yaml) file)
 
 ### Erasure Coded
 
@@ -94,8 +94,8 @@ spec:
     activeStandby: true
 ```
 
-(These definitions can also be found in the [`filesystem-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/filesystem-ec.yaml) file.
-Also see an example in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/csi/cephfs/storageclass-ec.yaml) for how to configure the volume.)
+(These definitions can also be found in the [`filesystem-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/filesystem-ec.yaml) file.
+Also see an example in the [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/csi/cephfs/storageclass-ec.yaml) for how to configure the volume.)
 
 ### Mirroring
 
@@ -211,7 +211,7 @@ The metadata server settings correspond to the MDS daemon settings.
     * `duration`:
 * `annotations`: Key value pair list of annotations to add.
 * `labels`: Key value pair list of labels to add.
-* `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml).
+* `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/cluster.yaml).
 * `resources`: Set resource requests/limits for the Filesystem MDS Pod(s), see [MDS Resources Configuration Settings](#mds-resources-configuration-settings)
 * `priorityClassName`: Set priority class name for the Filesystem MDS Pod(s)
 

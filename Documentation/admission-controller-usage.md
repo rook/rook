@@ -19,13 +19,14 @@ This script will help us achieve the following tasks
 2. Creates ValidatingWebhookConfig and fills the CA bundle with the appropriate value from the cluster.
 
 Run the following commands:
+
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/crds.yaml -f cluster/examples/kubernetes/ceph/common.yaml
+kubectl create -f deploy/examples/crds.yaml -f deploy/examples/common.yaml
 tests/scripts/deploy_admission_controller.sh
 ```
 Now that the Secrets have been deployed, we can deploy the operator:
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/operator.yaml
+kubectl create -f deploy/examples/operator.yaml
 ```
 
 At this point the operator will start the admission controller Deployment automatically and the Webhook will start intercepting requests for Rook resources.

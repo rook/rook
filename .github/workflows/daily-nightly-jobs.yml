@@ -58,12 +58,12 @@ jobs:
           # Use the official build images for the nightly arm tests instead of rebuilding
           export USE_LOCAL_BUILD=false
           # removing liveness probes since the env is slow and the probe is killing the daemons
-          yq write -d1 -i cluster/examples/kubernetes/ceph/cluster-test.yaml "spec.healthCheck.livenessProbe.mon.disabled" true
-          yq write -d1 -i cluster/examples/kubernetes/ceph/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
-          yq write -d1 -i cluster/examples/kubernetes/ceph/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
+          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mon.disabled" true
+          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
+          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
           tests/scripts/github-action-helper.sh deploy_cluster
           # there are no package for arm64 nfs-ganesha
-          kubectl delete -f cluster/examples/kubernetes/ceph/nfs-test.yaml
+          kubectl delete -f deploy/examples/nfs-test.yaml
 
       - name: wait for prepare pod
         run: timeout 900 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done' || kubectl -n rook-ceph get all && kubectl logs -n rook-ceph deploy/rook-ceph-operator

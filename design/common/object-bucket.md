@@ -2,9 +2,10 @@
 
 ## Overview
 
-An object store bucket is a container holding immutable objects. The Rook-Ceph [operator](https://github.com/yard-turkey/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml) creates a controller which automates the provisioning of new and existing buckets.
+An object store bucket is a container holding immutable objects. The Rook-Ceph [operator](https://github.com/yard-turkey/rook/blob/master/deploy/examples/operator.yaml) creates a controller which automates the provisioning of new and existing buckets.
 
 A user requests bucket storage by creating an _ObjectBucketClaim_ (OBC). Upon detecting a new OBC, the Rook-Ceph bucket provisioner does the following:
+
 - creates a new bucket and grants user-level access (greenfield), or
 - grants user-level access to an existing bucket (brownfield), and
 - creates a Kubernetes Secret in the same namespace as the OBC
@@ -20,14 +21,14 @@ We welcome contributions! In the meantime, features that are not yet implemented
 
 - A Rook storage cluster must be configured and running in Kubernetes. In this example, it is assumed the cluster is in the `rook` namespace.
 - The following resources, or equivalent, need to be created:
-  - [crd](/cluster/examples/kubernetes/ceph/crds.yaml)
-  - [common](/cluster/examples/kubernetes/ceph/common.yaml)
-  - [operator](/cluster/examples/kubernetes/ceph/operator.yaml)
-  - [cluster](/cluster/examples/kubernetes/ceph/cluster-test.yaml)
-  - [object](/cluster/examples/kubernetes/ceph/object-test.yaml)
-  - [user](/cluster/examples/kubernetes/ceph/object-user.yaml)
-  - [storageclass](/cluster/examples/kubernetes/ceph/storageclass-bucket-retain.yaml)
-  - [claim](/cluster/examples/kubernetes/ceph/object-bucket-claim-retain.yaml)
+  - [crd](/deploy/examples/crds.yaml)
+  - [common](/deploy/examples/common.yaml)
+  - [operator](/deploy/examples/operator.yaml)
+  - [cluster](/deploy/examples/cluster-test.yaml)
+  - [object](/deploy/examples/object-test.yaml)
+  - [user](/deploy/examples/object-user.yaml)
+  - [storageclass](/deploy/examples/storageclass-bucket-retain.yaml)
+  - [claim](/deploy/examples/object-bucket-claim-retain.yaml)
 
 
 ## Object Store Bucket Walkthrough
@@ -114,7 +115,7 @@ The gateway settings correspond to the RGW service.
 - `securePort`: The service port where the RGW service will be listening (https)
 - `instances`: The number of RGW pods that will be started for this object store (ignored if allNodes=true)
 - `allNodes`: Whether all nodes in the cluster should run RGW as a daemonset
-- `placement`: The rgw pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/ceph/cluster.yaml).
+- `placement`: The rgw pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/deploy/examples/cluster.yaml).
 
 The RGW service can be configured to listen on both http and https by specifying both `port` and `securePort`.
 

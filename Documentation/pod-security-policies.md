@@ -12,7 +12,7 @@ please review this document. By default, Kubernetes clusters do not have PSPs en
 be able to skip this document.
 
 If you are configuring Ceph on OpenShift, the Ceph walkthrough will configure the PSPs as well
-when you start the operator with [operator-openshift.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/operator-openshift.yaml).
+when you start the operator with [operator-openshift.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/operator-openshift.yaml).
 
 Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate that is bound to ClusterRole `cluster-admin`.
 
@@ -23,7 +23,7 @@ using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-secur
 for the different `ServiceAccounts` Rook uses to start the Rook Storage Pods.
 
 Security policies will differ for different backends. See Ceph's Pod Security Policies set up in
-[common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/common.yaml)
+[common.yaml](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/common.yaml)
 for an example of how this is done in practice.
 
 ### PodSecurityPolicy

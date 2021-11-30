@@ -16,7 +16,7 @@ If your pod dies, your mount will die with it.
 To test mounting your Ceph volumes, start a pod with the necessary mounts. An example is provided in the examples test directory:
 
 ```console
-kubectl create -f cluster/examples/kubernetes/ceph/direct-mount.yaml
+kubectl create -f deploy/examples/direct-mount.yaml
 ```
 
 After the pod is started, connect to it like this:

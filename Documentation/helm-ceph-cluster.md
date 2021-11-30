@@ -33,7 +33,7 @@ Rook currently publishes builds of this chart to the `release` and `master` chan
 **Before installing, review the values.yaml to confirm if the default settings need to be updated.**
 * If the operator was installed in a namespace other than `rook-ceph`, the namespace
   must be set in the `operatorNamespace` variable.
-* Set the desired settings in the `cephClusterSpec`. The [defaults](https://github.com/rook/rook/tree/{{ branchName }}/cluster/charts/rook-ceph-cluster/values.yaml)
+* Set the desired settings in the `cephClusterSpec`. The [defaults](https://github.com/rook/rook/tree/{{ branchName }}/deploy/charts/rook-ceph-cluster/values.yaml)
   are only an example and not likely to apply to your cluster.
 * The `monitoring` section should be removed from the `cephClusterSpec`, as it is specified separately in the helm settings.
 * The default values for `cephBlockPools`, `cephFileSystems`, and `CephObjectStores` will create one of each, and their corresponding storage classes.
@@ -143,7 +143,7 @@ chart to start managing the cluster:
 To deploy from a local build from your development environment:
 
 ```console
-cd cluster/charts/rook-ceph-cluster
+cd deploy/charts/rook-ceph-cluster
 helm install --create-namespace --namespace rook-ceph rook-ceph-cluster -f values-override.yaml .
 ```
 
