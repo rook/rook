@@ -61,8 +61,8 @@ func NewCephManifests(settings *TestCephSettings) CephManifests {
 	switch settings.RookVersion {
 	case LocalBuildTag:
 		return &CephManifestsMaster{settings}
-	case Version1_6:
-		return &CephManifestsV1_6{settings}
+	case Version1_7:
+		return &CephManifestsPreviousVersion{settings, &CephManifestsMaster{settings}}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", settings.RookVersion))
 }
@@ -105,7 +105,7 @@ func (m *CephManifestsMaster) GetToolbox() string {
 //**********************************************************************************
 //**********************************************************************************
 // After a release, copy the methods below this separator into the versioned file
-// such as ceph_manifests_v1.6.go. Methods above this separator do not need to be
+// such as ceph_manifests_previous.go. Methods above this separator do not need to be
 // copied since the versioned implementation will load them directly from github.
 //**********************************************************************************
 //**********************************************************************************
