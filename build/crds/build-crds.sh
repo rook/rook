@@ -36,6 +36,11 @@ OLM_CATALOG_DIR="${DESTINATION_ROOT}/deploy/olm/deploy/crds"
 CEPH_CRDS_FILE_PATH="${DESTINATION_ROOT}/deploy/examples/crds.yaml"
 CEPH_HELM_CRDS_FILE_PATH="${DESTINATION_ROOT}/deploy/charts/rook-ceph/templates/resources.yaml"
 
+if [[ "$($YQ_BIN_PATH --version)" != "yq (https://github.com/mikefarah/yq/) version 4."* ]]; then
+  echo "yq must be version 4.x"
+  exit 1
+fi
+
 #############
 # FUNCTIONS #
 #############
@@ -50,7 +55,7 @@ generating_crds_v1() {
   echo "Generating ceph crds"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
   # the csv upgrade is failing on the volumeClaimTemplate.metadata.annotations.crushDeviceClass unless we preserve the annotations as an unknown field
-  $YQ_BIN_PATH w -i "${OLM_CATALOG_DIR}"/ceph.rook.io_cephclusters.yaml spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.properties.annotations.x-kubernetes-preserve-unknown-fields true
+  $YQ_BIN_PATH eval --inplace '.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.properties.annotations.x-kubernetes-preserve-unknown-fields = true' "${OLM_CATALOG_DIR}"/ceph.rook.io_cephclusters.yaml
 }
 
 generating_main_crd() {
@@ -70,8 +75,9 @@ build_helm_resources() {
     # add header
     echo "{{- if .Values.crds.enabled }}"
 
-    # Add helm annotations to all CRDS and skip the first 4 lines of crds.yaml
-    "$YQ_BIN_PATH" w -d'*' "$CEPH_CRDS_FILE_PATH" "metadata.annotations[helm.sh/resource-policy]" keep | tail -n +5
+    # Add helm annotations to all CRDS, remove empty lines in the output
+    # skip the comment lines of crds.yaml as well as the yaml doc header
+    "$YQ_BIN_PATH" eval-all '.metadata.annotations["helm.sh/resource-policy"] = "keep"' "$CEPH_CRDS_FILE_PATH" | tail -n +6
 
     # DO NOT REMOVE the empty line, it is necessary
     echo ""
@@ -91,11 +97,7 @@ fi
 
 generating_main_crd
 
-for crd in "$OLM_CATALOG_DIR/"*.yaml; do
-  echo "---" >> "$CEPH_CRDS_FILE_PATH" # yq doesn't output doc separators
-  # Process each intermediate CRD file with yq to enforce consistent formatting in the final product
-  # regardless of whether yq was used in previous steps to alter CRD intermediate files.
-  $YQ_BIN_PATH read "$crd" >> "$CEPH_CRDS_FILE_PATH"
-done
+echo "---" >> "$CEPH_CRDS_FILE_PATH" # yq doesn't output the first doc separator
+$YQ_BIN_PATH eval-all '.' "$OLM_CATALOG_DIR/"*.yaml >> "$CEPH_CRDS_FILE_PATH"
 
 build_helm_resources

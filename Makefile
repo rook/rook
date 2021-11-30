@@ -111,7 +111,7 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
-build.common: build.version helm.build mod.check
+build.common: build.version helm.build mod.check crds
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) -C images/ceph list-image
@@ -183,7 +183,7 @@ crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
 
-gen-rbac: $(HELM) ## generate RBAC from Helm charts
+gen-rbac: $(HELM) $(YQ) ## generate RBAC from Helm charts
 	HELM=$(HELM) ./build/rbac/get-helm-rbac.sh
 
 .PHONY: all build.common cross.build.parallel

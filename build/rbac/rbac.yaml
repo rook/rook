@@ -1,76 +1,77 @@
+---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-csi-nodeplugin
 rules:
-  - apiGroups: ['']
-    resources: [nodes]
-    verbs: [get, list, update]
-  - apiGroups: ['']
-    resources: [namespaces]
-    verbs: [get, list]
-  - apiGroups: ['']
-    resources: [persistentvolumes]
-    verbs: [get, list, watch, update]
-  - apiGroups: [storage.k8s.io]
-    resources: [volumeattachments]
-    verbs: [get, list, watch, update]
-  - apiGroups: ['']
-    resources: [configmaps]
-    verbs: [get, list]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "update"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: cephfs-external-provisioner-runner
 rules:
-  - apiGroups: ['']
-    resources: [secrets]
-    verbs: [get, list]
-  - apiGroups: ['']
-    resources: [persistentvolumes]
-    verbs: [get, list, watch, create, delete, update, patch]
-  - apiGroups: ['']
-    resources: [persistentvolumeclaims]
-    verbs: [get, list, watch, update]
-  - apiGroups: [storage.k8s.io]
-    resources: [storageclasses]
-    verbs: [get, list, watch]
-  - apiGroups: ['']
-    resources: [events]
-    verbs: [list, watch, create, update, patch]
-  - apiGroups: [storage.k8s.io]
-    resources: [volumeattachments]
-    verbs: [get, list, watch, update, patch]
-  - apiGroups: [storage.k8s.io]
-    resources: [volumeattachments/status]
-    verbs: [patch]
-  - apiGroups: ['']
-    resources: [nodes]
-    verbs: [get, list, watch]
-  - apiGroups: ['']
-    resources: [persistentvolumeclaims/status]
-    verbs: [update, patch]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshots]
-    verbs: [get, list, watch, patch]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshotcontents]
-    verbs: [create, get, list, watch, update, delete]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshotclasses]
-    verbs: [get, list, watch]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshotcontents/status]
-    verbs: [update]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshots/status]
-    verbs: [update]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents/status"]
+    verbs: ["update"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots/status"]
+    verbs: ["update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: psp:rook
+  name: 'psp:rook'
   labels:
     operator: rook
     storage-backend: ceph
@@ -89,93 +90,93 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-nodeplugin
 rules:
-  - apiGroups: ['']
-    resources: [secrets]
-    verbs: [get, list]
-  - apiGroups: ['']
-    resources: [nodes]
-    verbs: [get, list, update]
-  - apiGroups: ['']
-    resources: [namespaces]
-    verbs: [get, list]
-  - apiGroups: ['']
-    resources: [persistentvolumes]
-    verbs: [get, list, watch, update]
-  - apiGroups: [storage.k8s.io]
-    resources: [volumeattachments]
-    verbs: [get, list, watch, update]
-  - apiGroups: ['']
-    resources: [configmaps]
-    verbs: [get, list]
-  - apiGroups: ['']
-    resources: [serviceaccounts]
-    verbs: [get]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "update"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-external-provisioner-runner
 rules:
-  - apiGroups: ['']
-    resources: [secrets]
-    verbs: [get, list, watch]
-  - apiGroups: ['']
-    resources: [persistentvolumes]
-    verbs: [get, list, watch, create, delete, update, patch]
-  - apiGroups: ['']
-    resources: [persistentvolumeclaims]
-    verbs: [get, list, watch, update]
-  - apiGroups: [storage.k8s.io]
-    resources: [volumeattachments]
-    verbs: [get, list, watch, update, patch]
-  - apiGroups: [storage.k8s.io]
-    resources: [volumeattachments/status]
-    verbs: [patch]
-  - apiGroups: ['']
-    resources: [nodes]
-    verbs: [get, list, watch]
-  - apiGroups: [storage.k8s.io]
-    resources: [storageclasses]
-    verbs: [get, list, watch]
-  - apiGroups: ['']
-    resources: [events]
-    verbs: [list, watch, create, update, patch]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshots]
-    verbs: [get, list, watch, patch]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshotcontents]
-    verbs: [create, get, list, watch, update, delete]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshotclasses]
-    verbs: [get, list, watch]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshotcontents/status]
-    verbs: [update]
-  - apiGroups: [snapshot.storage.k8s.io]
-    resources: [volumesnapshots/status]
-    verbs: [update]
-  - apiGroups: ['']
-    resources: [persistentvolumeclaims/status]
-    verbs: [update, patch]
-  - apiGroups: ['']
-    resources: [configmaps]
-    verbs: [get]
-  - apiGroups: [replication.storage.openshift.io]
-    resources: [volumereplications, volumereplicationclasses]
-    verbs: [create, delete, get, list, patch, update, watch]
-  - apiGroups: [replication.storage.openshift.io]
-    resources: [volumereplications/finalizers]
-    verbs: [update]
-  - apiGroups: [replication.storage.openshift.io]
-    resources: [volumereplications/status]
-    verbs: [get, patch, update]
-  - apiGroups: [replication.storage.openshift.io]
-    resources: [volumereplicationclasses/status]
-    verbs: [get]
-  - apiGroups: ['']
-    resources: [serviceaccounts]
-    verbs: [get]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents/status"]
+    verbs: ["update"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots/status"]
+    verbs: ["update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplications", "volumereplicationclasses"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplications/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplications/status"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplicationclasses/status"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1
@@ -187,7 +188,7 @@ metadata:
     storage-backend: ceph
 rules:
   - apiGroups:
-      - ''
+      - ""
       - apps
       - extensions
     resources:
@@ -219,28 +220,28 @@ metadata:
     storage-backend: ceph
 rules:
   - apiGroups:
-      - ''
+      - ""
     resources:
-  # Pod access is needed for fencing
+      # Pod access is needed for fencing
       - pods
-  # Node access is needed for determining nodes where mons should run
+      # Node access is needed for determining nodes where mons should run
       - nodes
       - nodes/proxy
       - services
-  # Rook watches secrets which it uses to configure access to external resources.
-  # e.g., external Ceph cluster; TLS certificates for the admission controller or object store
+      # Rook watches secrets which it uses to configure access to external resources.
+      # e.g., external Ceph cluster; TLS certificates for the admission controller or object store
       - secrets
-  # Rook watches for changes to the rook-operator-config configmap
+      # Rook watches for changes to the rook-operator-config configmap
       - configmaps
     verbs:
       - get
       - list
       - watch
   - apiGroups:
-      - ''
+      - ""
     resources:
       - events
-  # PVs and PVCs are managed by the Rook provisioner
+      # PVs and PVCs are managed by the Rook provisioner
       - persistentvolumes
       - persistentvolumeclaims
       - endpoints
@@ -275,27 +276,27 @@ rules:
   - apiGroups:
       - ceph.rook.io
     resources:
-      - '*'
+      - "*"
     verbs:
-      - '*'
+      - "*"
   - apiGroups:
       - rook.io
     resources:
-      - '*'
+      - "*"
     verbs:
-      - '*'
+      - "*"
   - apiGroups:
       - policy
       - apps
       - extensions
     resources:
-  # This is for the clusterdisruption controller
+      # This is for the clusterdisruption controller
       - poddisruptionbudgets
-  # This is for both clusterdisruption and nodedrain controllers
+      # This is for both clusterdisruption and nodedrain controllers
       - deployments
       - replicasets
     verbs:
-      - '*'
+      - "*"
   - apiGroups:
       - healthchecking.openshift.io
     resources:
@@ -344,7 +345,7 @@ metadata:
     storage-backend: ceph
 rules:
   - apiGroups:
-      - ''
+      - ""
     resources:
       - configmaps
       - nodes
@@ -355,7 +356,7 @@ rules:
       - list
       - watch
   - apiGroups:
-      - ''
+      - ""
     resources:
       - events
     verbs:
@@ -380,7 +381,7 @@ metadata:
   name: rook-ceph-mgr-system
 rules:
   - apiGroups:
-      - ''
+      - ""
     resources:
       - configmaps
     verbs:
@@ -399,8 +400,8 @@ metadata:
     operator: rook
     storage-backend: ceph
 rules:
-  - apiGroups: ['']
-    resources: [secrets, configmaps]
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps"]
     verbs:
       # OBC controller creates secrets and configmaps containing information for users about how to
       # connect to object buckets. It deletes them when an OBC is deleted.
@@ -408,14 +409,14 @@ rules:
       - create
       - update
       - delete
-  - apiGroups: [storage.k8s.io]
-    resources: [storageclasses]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
     verbs:
       # OBC controller gets parameters from the OBC's storageclass
       # Rook gets additional parameters from the OBC's storageclass
       - get
-  - apiGroups: [objectbucket.io]
-    resources: [objectbucketclaims]
+  - apiGroups: ["objectbucket.io"]
+    resources: ["objectbucketclaims"]
     verbs:
       # OBC controller needs to list/watch OBCs and get latest version of a reconciled OBC
       - list
@@ -425,8 +426,8 @@ rules:
       # information outside of the status subresource
       - update
       # OBC controller does not delete OBCs; users do this
-  - apiGroups: [objectbucket.io]
-    resources: [objectbuckets]
+  - apiGroups: ["objectbucket.io"]
+    resources: ["objectbuckets"]
     verbs:
       # OBC controller needs to list/watch OBs and get latest version of a reconciled OB
       - list
@@ -437,8 +438,8 @@ rules:
       - create
       - update
       - delete
-  - apiGroups: [objectbucket.io]
-    resources: [objectbucketclaims/status, objectbuckets/status]
+  - apiGroups: ["objectbucket.io"]
+    resources: ["objectbucketclaims/status", "objectbuckets/status"]
     verbs:
       # OBC controller updates OBC and OB statuses
       - update
@@ -449,7 +450,7 @@ metadata:
   name: rook-ceph-osd
 rules:
   - apiGroups:
-      - ''
+      - ""
     resources:
       - nodes
     verbs:
@@ -468,12 +469,12 @@ rules:
   # However, some Kubernetes APIs involve a "subresource", such as the logs for a pod. [...]
   # To represent this in an RBAC role, use a slash to delimit the resource and subresource.
   # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
-  - apiGroups: ['']
-    resources: [pods, pods/log]
-    verbs: [get, list]
-  - apiGroups: ['']
-    resources: [pods/exec]
-    verbs: [create]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -612,7 +613,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: psp:rook
+  name: 'psp:rook'
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
@@ -625,7 +626,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: psp:rook
+  name: 'psp:rook'
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-plugin-sa
@@ -638,7 +639,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: psp:rook
+  name: 'psp:rook'
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
@@ -651,7 +652,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: psp:rook
+  name: 'psp:rook'
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-plugin-sa
@@ -664,7 +665,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: psp:rook
+  name: 'psp:rook'
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
@@ -685,8 +686,8 @@ kind: PodSecurityPolicy
 metadata:
   name: 00-rook-privileged
   annotations:
-    seccomp.security.alpha.kubernetes.io/allowedProfileNames: runtime/default
-    seccomp.security.alpha.kubernetes.io/defaultProfileName: runtime/default
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: 'runtime/default'
 spec:
   privileged: true
   allowedCapabilities:
@@ -753,15 +754,15 @@ metadata:
   name: cephfs-external-provisioner-cfg
   namespace: rook-ceph # namespace:operator
 rules:
-  - apiGroups: ['']
-    resources: [endpoints]
-    verbs: [get, watch, list, delete, update, create]
-  - apiGroups: ['']
-    resources: [configmaps]
-    verbs: [get, list, create, delete]
-  - apiGroups: [coordination.k8s.io]
-    resources: [leases]
-    verbs: [get, watch, list, delete, update, create]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -769,15 +770,15 @@ metadata:
   name: rbd-external-provisioner-cfg
   namespace: rook-ceph # namespace:operator
 rules:
-  - apiGroups: ['']
-    resources: [endpoints]
-    verbs: [get, watch, list, delete, update, create]
-  - apiGroups: ['']
-    resources: [configmaps]
-    verbs: [get, list, watch, create, delete, update]
-  - apiGroups: [coordination.k8s.io]
-    resources: [leases]
-    verbs: [get, watch, list, delete, update, create]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "delete", "update"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -786,7 +787,7 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups:
-      - ''
+      - ""
     resources:
       - pods
       - configmaps
@@ -806,7 +807,7 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups:
-      - ''
+      - ""
     resources:
       - pods
       - services
@@ -832,9 +833,9 @@ rules:
   - apiGroups:
       - ceph.rook.io
     resources:
-      - '*'
+      - "*"
     verbs:
-      - '*'
+      - "*"
   - apiGroups:
       - apps
     resources:
@@ -856,12 +857,12 @@ metadata:
   name: rook-ceph-osd
   namespace: rook-ceph # namespace:cluster
 rules:
-  - apiGroups: ['']
-    resources: [configmaps]
-    verbs: [get, list, watch, create, update, delete]
-  - apiGroups: [ceph.rook.io]
-    resources: [cephclusters, cephclusters/finalizers]
-    verbs: [get, list, create, update, delete]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: ["ceph.rook.io"]
+    resources: ["cephclusters", "cephclusters/finalizers"]
+    verbs: ["get", "list", "create", "update", "delete"]
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -869,18 +870,18 @@ metadata:
   name: rook-ceph-purge-osd
   namespace: rook-ceph # namespace:cluster
 rules:
-  - apiGroups: ['']
-    resources: [configmaps]
-    verbs: [get]
-  - apiGroups: [apps]
-    resources: [deployments]
-    verbs: [get, delete]
-  - apiGroups: [batch]
-    resources: [jobs]
-    verbs: [get, list, delete]
-  - apiGroups: ['']
-    resources: [persistentvolumeclaims]
-    verbs: [get, update, delete]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "update", "delete"]
 ---
 # Allow the operator to manage resources in its own namespace
 apiVersion: rbac.authorization.k8s.io/v1
@@ -893,7 +894,7 @@ metadata:
     storage-backend: ceph
 rules:
   - apiGroups:
-      - ''
+      - ""
     resources:
       - pods
       - configmaps

@@ -199,8 +199,7 @@ $(GOJUNIT):
 	@$(GOHOST) clean -modcache
 
 export CONTROLLER_GEN=$(TOOLS_HOST_DIR)/controller-gen-$(CONTROLLER_GEN_VERSION)
-export YQ=$(TOOLS_HOST_DIR)/yq-v3
-$(CONTROLLER_GEN) $(YQ):
+$(CONTROLLER_GEN):
 	{ \
 		set -e ;\
 		mkdir -p $(TOOLS_HOST_DIR) ;\
@@ -213,11 +212,17 @@ $(CONTROLLER_GEN) $(YQ):
 		echo === installing controller-gen ;\
 		go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION);\
 		mv $$CONTROLLER_GEN_TMP_DIR/controller-gen $(CONTROLLER_GEN) ;\
-		echo === installing yq ;\
-		go get github.com/mikefarah/yq/v3;\
-		mv $$CONTROLLER_GEN_TMP_DIR/yq $(YQ) ;\
 		rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
+
+YQ_VERSION = v4.14.2
+YQ := $(TOOLS_HOST_DIR)/yq-$(YQ_VERSION)
+export YQ
+$(YQ):
+	@echo === installing yq $(YQ_VERSION) $(REAL_HOST_PLATFORM)
+	@mkdir -p $(TOOLS_HOST_DIR)
+	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQ)
+	@chmod +x $(YQ)
 
 export CODE_GENERATOR_VERSION=0.20.0
 export CODE_GENERATOR=$(TOOLS_HOST_DIR)/code-generator-$(CODE_GENERATOR_VERSION)

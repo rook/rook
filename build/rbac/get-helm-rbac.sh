@@ -8,6 +8,6 @@ pushd "$SCRIPT_DIR"
 
 ${HELM} template ../../deploy/charts/rook-ceph \
                   --namespace rook-ceph \
-                  --set crds.enabled=false | ./keep-rbac-yaml.py > rbac.yaml
+                  --set crds.enabled=false | ./keep-rbac-yaml.sh > rbac.yaml
 
 popd

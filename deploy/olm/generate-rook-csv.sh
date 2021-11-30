@@ -13,7 +13,7 @@ PACKAGE_FILE="$OLM_CATALOG_DIR/assemble/rook-ceph.package.yaml"
 SUPPORTED_PLATFORMS='k8s|ocp|okd'
 
 operator_sdk="${OPERATOR_SDK:-operator-sdk}"
-yq="${YQ:-yq}"
+yq="${YQv3:-yq}"
 
 # Default CSI to true
 : "${OLM_INCLUDE_CEPHFS_CSI:=true}"
@@ -32,6 +32,11 @@ fi
 if ! command -v "$yq" >/dev/null && [ ! -f "$yq" ]; then
     echo "yq is not installed"
     echo "follow instructions here: https://github.com/mikefarah/yq#install"
+    exit 1
+fi
+
+if [[ "$("$yq" --version)" != "yq version 3."* ]]; then
+    echo "yq must be version 3" >/dev/stderr
     exit 1
 fi
 
