@@ -136,6 +136,44 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
+  # release-1.8 branch
+  - name: automerge backport release-1.8
+    conditions:
+      - author=mergify[bot]
+      - base=release-1.8
+      - label!=do-not-merge
+      - 'status-success=DCO'
+      - 'check-success=canary'
+      - 'check-success=unittests'
+      - 'check-success=golangci-lint'
+      - 'check-success=codegen'
+      - 'check-success=lint'
+      - 'check-success=modcheck'
+      - 'check-success=pvc'
+      - 'check-success=pvc-db'
+      - 'check-success=pvc-db-wal'
+      - 'check-success=encryption-pvc'
+      - 'check-success=encryption-pvc-db'
+      - 'check-success=encryption-pvc-db-wal'
+      - 'check-success=encryption-pvc-kms-vault-token-auth'
+      - 'check-success=encryption-pvc-kms-vault-k8s-auth'
+      - 'check-success=lvm-pvc'
+      - 'check-success=multi-cluster-mirroring'
+      - 'check-success=rgw-multisite-testing'
+      - 'check-success=TestCephSmokeSuite (v1.16.15)'
+      - 'check-success=TestCephSmokeSuite (v1.22.2)'
+      - 'check-success=TestCephHelmSuite (v1.16.15)'
+      - 'check-success=TestCephHelmSuite (v1.22.2)'
+      - 'check-success=TestCephMultiClusterDeploySuite (v1.22.2)'
+      - 'check-success=TestCephUpgradeSuite (v1.16.15)'
+      - 'check-success=TestCephUpgradeSuite (v1.22.2)'
+    actions:
+      merge:
+        method: merge
+        strict: false
+      dismiss_reviews: {}
+      delete_head_branch: {}
+
   # release-1.6 branch
   - actions:
       backport:
@@ -153,3 +191,12 @@ pull_request_rules:
     conditions:
       - label=backport-release-1.7
     name: backport release-1.7
+
+  # release-1.8 branch
+  - actions:
+      backport:
+        branches:
+          - release-1.8
+    conditions:
+      - label=backport-release-1.8
+    name: backport release-1.8
