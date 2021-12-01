@@ -22,5 +22,11 @@ parameters:
 {{ toYaml $blockpool.storageClass.parameters | indent 2 }}
 reclaimPolicy: {{ default "Delete" $blockpool.storageClass.reclaimPolicy }}
 allowVolumeExpansion: {{ default "true" $blockpool.storageClass.allowVolumeExpansion }}
+{{- if $blockpool.storageClass.mountOptions }}
+mountOptions:
+  {{- range $blockpool.storageClass.mountOptions }}
+  - {{ . }}
+  {{- end }}
+{{- end }}
 {{ end }}
 {{ end }}
