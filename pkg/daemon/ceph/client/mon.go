@@ -64,6 +64,7 @@ type MonDump struct {
 	FSID             string         `json:"fsid"`
 	Mons             []MonDumpEntry `json:"mons"`
 	Quorum           []int          `json:"quorum"`
+	TiebreakerMon    string         `json:"tiebreaker_mon"`
 }
 
 type MonDumpEntry struct {
@@ -141,7 +142,7 @@ func SetMonStretchTiebreaker(context *clusterd.Context, clusterInfo *ClusterInfo
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
 			// TODO: Get a more distinctive error from ceph so we don't have to compare the error message
 			if strings.Contains(string(buf), "stretch mode is already engaged") {
-				logger.Infof("stretch mode is already enabled")
+				logger.Info("stretch mode is already enabled")
 				return nil
 			}
 			return errors.Wrapf(err, "stretch mode failed to be enabled. %s", string(buf))
