@@ -79,9 +79,10 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 
 	var osdIDs []int
 	var err error
-	if !shouldCheckOkToStopFunc(c.cluster.context, c.cluster.clusterInfo) {
+	if c.cluster.spec.SkipUpgradeChecks || !shouldCheckOkToStopFunc(c.cluster.context, c.cluster.clusterInfo) {
 		// If we should not check ok-to-stop, then only process one OSD at a time. There are likely
 		// less than 3 OSDs in the cluster or the cluster is on a single node. E.g., in CI :wink:.
+		logger.Infof("skipping osd checks for ok-to-stop")
 		osdIDs = []int{osdIDQuery}
 	} else {
 		osdIDs, err = cephclient.OSDOkToStop(c.cluster.context, c.cluster.clusterInfo, osdIDQuery, maxUpdatesInParallel)
