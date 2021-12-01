@@ -72,7 +72,7 @@ class DummyRados(object):
         self.dummy_host_ip_map = {}
 
     def _init_cmd_output_map(self):
-        json_file_name = 'test-data/ceph-status-out'
+        json_file_name = '../../tests/ceph-status-out'
         script_dir = path.abspath(path.dirname(__file__))
         ceph_status_str = ""
         with open(path.join(script_dir, json_file_name), 'r') as json_file:
