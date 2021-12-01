@@ -10,6 +10,7 @@ ASSEMBLE_FILE_K8S="$OLM_CATALOG_DIR/assemble/metadata-k8s.yaml"
 ASSEMBLE_FILE_OCP="$OLM_CATALOG_DIR/assemble/metadata-ocp.yaml"
 ASSEMBLE_FILE_OKD="$OLM_CATALOG_DIR/assemble/metadata-okd.yaml"
 PACKAGE_FILE="$OLM_CATALOG_DIR/assemble/rook-ceph.package.yaml"
+CRDS_FILE="deploy/examples/crds.yaml"
 SUPPORTED_PLATFORMS='k8s|ocp|okd'
 
 operator_sdk="${OPERATOR_SDK:-operator-sdk}"
@@ -260,6 +261,17 @@ function generate_package() {
 function apply_rook_op_img(){
     "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.containerImage "$ROOK_OP_VERSION"
     "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" spec.install.spec.deployments[0].spec.template.spec.containers[0].image "$ROOK_OP_VERSION"
+}
+
+function validate_crds() {
+    crds=$(awk '/Kind:/ {print $2}' $CRDS_FILE | grep -vE "ObjectBucketList|ObjectBucketClaimList" | sed 's/List//' | sort)
+    csv_crds=$(awk '/kind:/ {print $3}' "$CSV_FILE_NAME" | sort)
+    if [ "$crds" != "$csv_crds" ]; then
+        echo "CRDs in $CSV_FILE_NAME do not match CRDs in $CRDS_FILE, see the diff below"
+        echo ""
+        diff <(echo "$crds") <(echo "$csv_crds")
+        exit 1
+    fi
 }
 
 ########
