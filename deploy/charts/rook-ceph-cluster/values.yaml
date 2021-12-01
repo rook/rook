@@ -329,6 +329,7 @@ cephBlockPools:
       isDefault: true
       reclaimPolicy: Delete
       allowVolumeExpansion: true
+      mountOptions: []
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-block.md#provision-storage for available configuration
       parameters:
         # (optional) mapOptions is a comma-separated list of map options.
@@ -381,6 +382,7 @@ cephFileSystems:
       name: ceph-filesystem
       reclaimPolicy: Delete
       allowVolumeExpansion: true
+      mountOptions: []
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem.md#provision-storage for available configuration
       parameters:
         # The secrets contain Ceph admin credentials.

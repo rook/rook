@@ -23,5 +23,11 @@ parameters:
 {{ toYaml $filesystem.storageClass.parameters | indent 2 }}
 reclaimPolicy: {{ default "Delete" $filesystem.storageClass.reclaimPolicy }}
 allowVolumeExpansion: {{ default "true" $filesystem.storageClass.allowVolumeExpansion }}
+{{- if $filesystem.storageClass.mountOptions }}
+mountOptions:
+  {{- range $filesystem.storageClass.mountOptions }}
+  - {{ . }}
+  {{- end }}
+{{- end }}
 {{ end }}
 {{ end }}
