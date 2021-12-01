@@ -20,7 +20,10 @@ ARG TINI_VERSION
 
 # Run tini as PID 1 and avoid signal handling issues
 RUN curl --fail -sSL -o /tini https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} && \
-    chmod +x /tini
+    chmod +x /tini && \
+    curl -LJO https://github.com/ceph/persistent-volume-migrator/releases/download/v0.1.0-alpha/pv-migrator && \
+    install pv-migrator /usr/local/bin/pv-migrator && \
+    rm -f pv-migrator
 
 COPY rook rookflex toolbox.sh set-ceph-debug-level /usr/local/bin/
 COPY ceph-csi /etc/ceph-csi
