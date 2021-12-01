@@ -462,6 +462,63 @@ func TestMonFoundInQuorum(t *testing.T) {
 	assert.False(t, monFoundInQuorum("d", response))
 }
 
+func TestConfigureArbiter(t *testing.T) {
+	c := &Cluster{spec: cephv1.ClusterSpec{
+		Mon: cephv1.MonSpec{
+			StretchCluster: &cephv1.StretchClusterSpec{
+				Zones: []cephv1.StretchClusterZoneSpec{
+					{Name: "a", Arbiter: true},
+					{Name: "b"},
+					{Name: "c"},
+				},
+			},
+		},
+	}}
+	c.arbiterMon = "arb"
+	currentArbiter := c.arbiterMon
+	setNewTiebreaker := false
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			if args[0] == "mon" {
+				if args[1] == "dump" {
+					return fmt.Sprintf(`{"tiebreaker_mon": "%s", "stretch_mode": true}`, currentArbiter), nil
+				}
+				if args[1] == "set_new_tiebreaker" {
+					assert.Equal(t, c.arbiterMon, args[2])
+					setNewTiebreaker = true
+					return "", nil
+				}
+			}
+			return "", fmt.Errorf("unrecognized output file command: %s %v", command, args)
+		},
+	}
+	c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor}
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(5)
+
+	t.Run("no arbiter failover for old ceph version", func(t *testing.T) {
+		c.arbiterMon = "changed"
+		c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
+		err := c.ConfigureArbiter()
+		assert.NoError(t, err)
+		assert.False(t, setNewTiebreaker)
+	})
+	t.Run("stretch mode already configured - new", func(t *testing.T) {
+		c.arbiterMon = currentArbiter
+		c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
+		err := c.ConfigureArbiter()
+		assert.NoError(t, err)
+		assert.False(t, setNewTiebreaker)
+	})
+	t.Run("tiebreaker changed", func(t *testing.T) {
+		c.arbiterMon = "changed"
+		c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
+		err := c.ConfigureArbiter()
+		assert.NoError(t, err)
+		assert.True(t, setNewTiebreaker)
+	})
+}
+
 func TestFindAvailableZoneForStretchedMon(t *testing.T) {
 	c := &Cluster{spec: cephv1.ClusterSpec{
 		Mon: cephv1.MonSpec{

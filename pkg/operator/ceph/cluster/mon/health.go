@@ -453,9 +453,7 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// remove the failed mon from a local list of the existing mons for finding a stretch zone
 	existingMons := c.clusterInfoToMonConfig(name)
-	// Cache the name of the current arbiter in case it is updated during the failover
-	// This allows a simple check for updating the arbiter later in this method
-	currentArbiter := c.arbiterMon
+
 	zone, err := c.findAvailableZoneIfStretched(existingMons)
 	if err != nil {
 		return errors.Wrap(err, "failed to find available stretch zone")
@@ -494,10 +492,9 @@ func (c *Cluster) failoverMon(name string) error {
 	}
 
 	// Assign to a zone if a stretch cluster
-	if c.spec.IsStretchCluster() && name == currentArbiter {
+	if c.spec.IsStretchCluster() {
 		// Update the arbiter mon for the stretch cluster if it changed
-		failingOver := true
-		if err := c.ConfigureArbiter(failingOver); err != nil {
+		if err := c.ConfigureArbiter(); err != nil {
 			return errors.Wrap(err, "failed to configure stretch arbiter")
 		}
 	}
