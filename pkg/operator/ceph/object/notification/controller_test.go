@@ -43,30 +43,58 @@ import (
 )
 
 var (
-	testTopicName        = "topic-a"
-	testNotificationName = "notification-a"
-	testNamespace        = "rook-ceph"
-	testStoreName        = "test-store"
-	testARN              = "arn:aws:sns:" + testStoreName + "::" + testTopicName
-	testBucketName       = "my-bucket"
-	testSCName           = "my-storage-class"
+	testTopicName            = "topic-a"
+	testNotificationName     = "notification"
+	testNamespace            = "rook-ceph"
+	testStoreName            = "test-store"
+	testARN                  = "arn:aws:sns:" + testStoreName + "::" + testTopicName
+	testBucketName           = "my-bucket"
+	testSCName               = "my-storage-class"
+	deleteBucketName         = "delete"
+	noChangeBucketName       = "nochange"
+	multipleCreateBucketName = "multi-create"
+	multipleDeleteBucketName = "multi-delete"
+	multipleBothBucketName   = "multi-both"
 )
 
-var createWasInvoked bool
+var getWasInvoked bool
+var createdNotifications []string
+var deletedNotifications []string
 
+func resetValues() {
+	getWasInvoked = false
+	createdNotifications = nil
+	deletedNotifications = nil
+
+}
 func mockCleanup() {
-	createWasInvoked = false
+	resetValues()
 	createNotificationFunc = createNotification
-	deleteAllNotificationsFunc = deleteAllNotifications
+	getAllNotificationsFunc = getAllRGWNotifications
+	deleteNotificationFunc = deleteNotification
 }
 
 func mockSetup() {
-	createWasInvoked = false
 	createNotificationFunc = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, topicARN string, notification *cephv1.CephBucketNotification) error {
-		createWasInvoked = true
+		createdNotifications = append(createdNotifications, notification.Name)
 		return nil
 	}
-	deleteAllNotificationsFunc = func(p provisioner, bucket *bktv1alpha1.ObjectBucket) error {
+	getAllNotificationsFunc = func(p provisioner, bucket *bktv1alpha1.ObjectBucket) ([]string, error) {
+		getWasInvoked = true
+		if bucket.Name == deleteBucketName {
+			return []string{deleteBucketName + testNotificationName}, nil
+		}
+		if bucket.Name == noChangeBucketName {
+			return []string{testNotificationName}, nil
+		}
+		if bucket.Name == multipleDeleteBucketName || bucket.Name == multipleBothBucketName {
+			return []string{multipleDeleteBucketName + testNotificationName + "-1",
+				multipleDeleteBucketName + testNotificationName + "-2"}, nil
+		}
+		return nil, nil
+	}
+	deleteNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, notificationId string) error {
+		deletedNotifications = append(deletedNotifications, notificationId)
 		return nil
 	}
 }
@@ -181,7 +209,7 @@ func TestCephBucketNotificationController(t *testing.T) {
 		// notification configuration is set
 		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
-		assert.False(t, createWasInvoked)
+		assert.Equal(t, 0, len(createdNotifications))
 	})
 
 	t.Run("create notification and topic configuration when there is no cluster", func(t *testing.T) {
@@ -201,7 +229,7 @@ func TestCephBucketNotificationController(t *testing.T) {
 		// notification configuration is set
 		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
-		assert.False(t, createWasInvoked)
+		assert.Equal(t, 0, len(createdNotifications))
 	})
 
 	t.Run("create notification and topic configuration cluster is not ready", func(t *testing.T) {
@@ -222,7 +250,7 @@ func TestCephBucketNotificationController(t *testing.T) {
 		// notification configuration is set
 		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
-		assert.False(t, createWasInvoked)
+		assert.Equal(t, 0, len(createdNotifications))
 	})
 
 	t.Run("create notification and topic configuration when topic is not yet provisioned", func(t *testing.T) {
@@ -245,7 +273,7 @@ func TestCephBucketNotificationController(t *testing.T) {
 		// notification configuration is set
 		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
-		assert.False(t, createWasInvoked)
+		assert.Equal(t, 0, len(createdNotifications))
 	})
 
 	t.Run("create notification and topic configuration", func(t *testing.T) {
@@ -268,7 +296,7 @@ func TestCephBucketNotificationController(t *testing.T) {
 		// notification configuration is set
 		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
-		assert.False(t, createWasInvoked)
+		assert.Equal(t, 0, len(createdNotifications))
 	})
 }
 
@@ -404,7 +432,7 @@ func TestCephBucketNotificationControllerWithOBC(t *testing.T) {
 		// notification configuration is set
 		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
-		assert.False(t, createWasInvoked)
+		assert.Equal(t, 0, len(createdNotifications))
 	})
 
 	t.Run("provision notification when OB exists", func(t *testing.T) {
@@ -448,7 +476,7 @@ func TestCephBucketNotificationControllerWithOBC(t *testing.T) {
 		// notification configuration is set
 		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
-		assert.True(t, createWasInvoked)
+		assert.Equal(t, 1, len(createdNotifications))
 	})
 }
 

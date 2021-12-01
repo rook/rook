@@ -66,13 +66,16 @@ func (s *DeleteBucketNotificationRequestInput) Validate() error {
 
 const opDeleteBucketNotification = "DeleteBucketNotification"
 
-func DeleteBucketNotificationRequest(c *s3.S3, input *DeleteBucketNotificationRequestInput) *request.Request {
+func DeleteBucketNotificationRequest(c *s3.S3, input *DeleteBucketNotificationRequestInput, notificationId string) *request.Request {
 	op := &request.Operation{
 		Name:       opDeleteBucketNotification,
 		HTTPMethod: http.MethodDelete,
 		HTTPPath:   "/{Bucket}?notification",
 	}
 
+	if len(notificationId) > 0 {
+		op.HTTPPath = "/{Bucket}?notification=" + notificationId
+	}
 	if input == nil {
 		input = &DeleteBucketNotificationRequestInput{}
 	}
@@ -80,7 +83,7 @@ func DeleteBucketNotificationRequest(c *s3.S3, input *DeleteBucketNotificationRe
 	return c.NewRequest(op, input, nil)
 }
 
-func DeleteBucketNotification(c *s3.S3, input *DeleteBucketNotificationRequestInput) error {
-	req := DeleteBucketNotificationRequest(c, input)
+func DeleteBucketNotification(c *s3.S3, input *DeleteBucketNotificationRequestInput, notificationId string) error {
+	req := DeleteBucketNotificationRequest(c, input, notificationId)
 	return req.Send()
 }
