@@ -153,6 +153,16 @@ spec:
         version: v1
         displayName: Ceph Object Store Zone
         description: Represents a Ceph Object Store Zone.
+      - kind: CephBucketNotification
+        name: cephbucketnotifications.ceph.rook.io
+        version: v1
+        displayName: Ceph Bucket Notification
+        description: Represents a Ceph Bucket Notification.
+      - kind: CephBucketTopic
+        name: cephbuckettopics.ceph.rook.io
+        version: v1
+        displayName: Ceph Bucket Topic
+        description: Represents a Ceph Bucket Topic.
   displayName: Rook-Ceph
   description: |
 
