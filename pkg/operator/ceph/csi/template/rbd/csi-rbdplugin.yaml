@@ -106,6 +106,11 @@ spec:
               mountPath: /tmp/csi/keys
             - name: host-run-mount
               mountPath: /run/mount
+            {{ if .EnablePluginSelinuxHostMount }}
+            - name: etc-selinux
+              mountPath: /etc/selinux
+              readOnly: true
+            {{ end }}
         - name: liveness-prometheus
           securityContext:
             privileged: true
@@ -176,3 +181,8 @@ spec:
         - name: host-run-mount
           hostPath:
             path: /run/mount
+        {{ if .EnablePluginSelinuxHostMount }}
+        - name: etc-selinux
+          hostPath:
+            path: /etc/selinux
+        {{ end }}

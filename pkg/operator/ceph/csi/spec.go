@@ -51,6 +51,7 @@ type Param struct {
 	PluginPriorityClassName        string
 	ProvisionerPriorityClassName   string
 	VolumeReplicationImage         string
+	EnablePluginSelinuxHostMount   bool
 	EnableCSIHostNetwork           bool
 	EnableOMAPGenerator            bool
 	EnableRBDSnapshotter           bool
@@ -314,6 +315,10 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		tp.RBDPluginUpdateStrategy = onDelete
 	} else {
 		tp.RBDPluginUpdateStrategy = rollingUpdate
+	}
+
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT", "false"), "true") {
+		tp.EnablePluginSelinuxHostMount = true
 	}
 
 	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)

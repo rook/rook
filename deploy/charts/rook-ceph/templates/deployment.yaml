@@ -89,6 +89,8 @@ spec:
           value: {{ .Values.csi.enableOMAPGenerator | quote }}
         - name: CSI_ENABLE_VOLUME_REPLICATION
           value: {{ .Values.csi.volumeReplication.enabled | quote }}
+        - name: CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT
+          value: {{ .Values.csi.enablePluginSelinuxHostMount | quote }}
 {{- if .Values.csi.enableCSIHostNetwork }}
         - name: CSI_ENABLE_HOST_NETWORK
           value: {{ .Values.csi.enableCSIHostNetwork | quote }}

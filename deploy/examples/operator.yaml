@@ -72,6 +72,10 @@ data:
 
   # (Optional) Allow starting unsupported ceph-csi image
   ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: "false"
+
+  # (Optional) control the host mount of /etc/selinux for csi plugin pods.
+  CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT: "false"
+
   # The default version of CSI supported by Rook will be started. To change the version
   # of the CSI driver to something other than what is officially supported, change
   # these images to the desired release of the CSI driver.
