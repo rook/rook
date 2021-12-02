@@ -36,7 +36,8 @@ spec:
     replicated:
       size: 3
   dataPools:
-    - replicated:
+    - name: replicated
+      replicated:
         size: 3
   preserveFilesystemOnDelete: true
   metadataServer:
@@ -98,7 +99,7 @@ parameters:
 
   # Ceph pool into which the volume shall be created
   # Required for provisionVolume: "true"
-  pool: myfs-data0
+  pool: myfs-replicated
 
   # The secrets contain Ceph admin credentials. These are generated automatically by the operator
   # in the same namespace as the cluster.

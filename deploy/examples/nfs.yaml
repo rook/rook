@@ -10,7 +10,7 @@ spec:
     # In this example the data pool for the "myfs" filesystem is used.
     # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
     # Note that this has nothing to do with where exported file systems or object stores live.
-    pool: myfs-data0
+    pool: myfs-replicated
     # RADOS namespace where NFS client recovery data is stored in the pool.
     namespace: nfs-ns
 

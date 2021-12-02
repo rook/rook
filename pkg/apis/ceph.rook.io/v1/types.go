@@ -639,6 +639,14 @@ type PoolSpec struct {
 	Quotas QuotaSpec `json:"quotas,omitempty"`
 }
 
+// NamedPoolSpec represents the named ceph pool spec
+type NamedPoolSpec struct {
+	// Name of the pool
+	Name string `json:"name,omitempty"`
+	// PoolSpec represents the spec of ceph pool
+	PoolSpec `json:",inline"`
+}
+
 // MirrorHealthCheckSpec represents the health specification of a Ceph Storage Pool mirror
 type MirrorHealthCheckSpec struct {
 	// +optional
@@ -964,9 +972,9 @@ type FilesystemSpec struct {
 	// +nullable
 	MetadataPool PoolSpec `json:"metadataPool"`
 
-	// The data pool settings
+	// The data pool settings, with optional predefined pool name.
 	// +nullable
-	DataPools []PoolSpec `json:"dataPools"`
+	DataPools []NamedPoolSpec `json:"dataPools"`
 
 	// Preserve pools on filesystem deletion
 	// +optional

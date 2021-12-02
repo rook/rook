@@ -22,7 +22,8 @@ spec:
     - replicated:
         size: 3
     # You need at least three `bluestore` OSDs on different nodes for this config to work
-    - erasureCoded:
+    - name: erasurecoded
+      erasureCoded:
         dataChunks: 2
         codingChunks: 1
       # Inline compression mode for the data pool
