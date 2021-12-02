@@ -14,7 +14,7 @@ The tool [persistent-volume-migrator](https://github.com/ceph/persistent-volume-
 
 ## Migration Preparation
 
-1. Rook v1.7.8 is required. If you have a previous version of Rook running, follow the [upgrade guide](https://rook.io/docs/rook/v1.7/ceph-upgrade.html) to upgrade from previous releases until on v1.7.8.
+1. Rook v1.7.9 is required. If you have a previous version of Rook running, follow the [upgrade guide](https://rook.io/docs/rook/v1.7/ceph-upgrade.html) to upgrade from previous releases until on v1.7.9.
 2. Enable the CSI driver if not already enabled. See the [operator settings](https://github.com/rook/rook/blob/release-1.7/cluster/examples/kubernetes/ceph/operator.yaml#L29-L32) such as `ROOK_CSI_ENABLE_RBD`.
 3. Confirm the Rook-Ceph cluster is healthy (`ceph status` shows `health: OK`)
 4. Create the CSI storage class to which you want to migrate
