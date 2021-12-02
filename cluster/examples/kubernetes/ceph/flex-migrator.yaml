@@ -95,8 +95,6 @@ subjects:
     name: rook-ceph-migrator
     namespace: rook-ceph # namespace:cluster
 ---
-# source https://github.com/rook/rook
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
