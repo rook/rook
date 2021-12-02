@@ -25,7 +25,8 @@ spec:
       #target_size_ratio: ".5"
   # The list of data pool specs. Can use replication or erasure coding.
   dataPools:
-    - failureDomain: host
+    - name: replicated
+      failureDomain: host
       replicated:
         size: 3
         # Disallow setting pool with replica 1, this could lead to data loss without recovery.

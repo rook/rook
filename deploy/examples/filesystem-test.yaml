@@ -14,7 +14,8 @@ spec:
       size: 1
       requireSafeReplicaSize: false
   dataPools:
-    - failureDomain: osd
+    - name: replicated
+      failureDomain: osd
       replicated:
         size: 1
         requireSafeReplicaSize: false
