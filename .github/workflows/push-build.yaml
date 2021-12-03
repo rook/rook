@@ -22,6 +22,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
        # docker/setup-qemu action installs QEMU static binaries, which are used to run builders for architectures other than the host.
       - name: set up QEMU
         uses: docker/setup-qemu-action@master
@@ -56,3 +60,8 @@ jobs:
           GITHUB_REF: $ {{ env.GITHUB_REF }}
         run: |
           tests/scripts/build-release.sh
+
+      - name: setup tmate session for debugging
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60
