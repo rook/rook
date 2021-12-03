@@ -52,6 +52,28 @@ func TestTruncateNodeName(t *testing.T) {
 	}
 }
 
+func TestTruncateJobName(t *testing.T) {
+	// An entry's key is the result. The first value in the []string is the format and the second is the nodeName
+	tests := map[string][]string{
+		"rook-ceph-osd-prepare-k8s01": { // 27 chars
+			"rook-ceph-osd-prepare-%s", // 22 chars (without format)
+			"k8s01",                    // 5 chars
+		},
+		"rook-ceph-osd-prepare-k8s-worker-500.this.is.a.not.so": { // 53 chars
+			"rook-ceph-osd-prepare-%s",        // 22 chars (without format)
+			"k8s-worker-500.this.is.a.not.so", // 31 chars
+		},
+		// 54 chars, but ok that it is longer than 53 since it ends in an alphanumeric char
+		"rook-ceph-osd-prepare-4d2c3e33ccd2764180d42c20dce1d66a": {
+			"rook-ceph-osd-prepare-%s",         // 22 chars (without format)
+			"k8s-worker-ends-with-a-long-name", // 32 chars
+		},
+	}
+	for result, params := range tests {
+		assert.Equal(t, result, TruncateNodeNameForJob(params[0], params[1]))
+	}
+}
+
 func TestValidateLabelValue(t *testing.T) {
 	// The key is the result, and the value is the input.
 	tests := map[string]string{

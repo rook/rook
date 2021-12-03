@@ -55,7 +55,7 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k8sutil.TruncateNodeName(prepareAppNameFmt, osdProps.crushHostname),
+			Name:      k8sutil.TruncateNodeNameForJob(prepareAppNameFmt, osdProps.crushHostname),
 			Namespace: c.clusterInfo.Namespace,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     prepareAppName,
