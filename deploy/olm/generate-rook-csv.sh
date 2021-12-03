@@ -89,15 +89,12 @@ YQ_CMD_MERGE=($yq merge --inplace --append -P )
 YQ_CMD_WRITE=($yq write --inplace -P )
 OPERATOR_YAML_FILE_K8S="deploy/examples/operator.yaml"
 OPERATOR_YAML_FILE_OCP="deploy/examples/operator-openshift.yaml"
-COMMON_YAML_FILE="deploy/examples/common.yaml"
 CSV_PATH="$OLM_CATALOG_DIR/deploy/olm-catalog/${PLATFORM}/${VERSION}"
 CSV_BUNDLE_PATH="${CSV_PATH}/manifests"
 CSV_FILE_NAME="$CSV_BUNDLE_PATH/ceph.clusterserviceversion.yaml"
 OP_SDK_CMD=($operator_sdk generate csv --output-dir="deploy/olm-catalog/${PLATFORM}/${VERSION}" --csv-version)
 OLM_OPERATOR_YAML_FILE="$OLM_CATALOG_DIR/deploy/operator.yaml"
-OLM_ROLE_YAML_FILE="$OLM_CATALOG_DIR/deploy/role.yaml"
-OLM_ROLE_BINDING_YAML_FILE="$OLM_CATALOG_DIR/deploy/role_binding.yaml"
-OLM_SERVICE_ACCOUNT_YAML_FILE="$OLM_CATALOG_DIR/deploy/service_account.yaml"
+OLM_RBAC_YAML_FILE="$OLM_CATALOG_DIR/deploy/rbac.yaml"
 CEPH_EXTERNAL_SCRIPT_FILE="deploy/examples/create-external-cluster-resources.py"
 
 if [[ -d "$CSV_BUNDLE_PATH" ]]; then
@@ -163,54 +160,6 @@ function generate_operator_yaml() {
     fi
 
     sed -n '/^# OLM: BEGIN OPERATOR DEPLOYMENT$/,/# OLM: END OPERATOR DEPLOYMENT$/p' "$operator_file" > "$OLM_OPERATOR_YAML_FILE"
-}
-
-function generate_role_yaml() {
-    sed -n '/^# OLM: BEGIN OPERATOR ROLE$/,/# OLM: END OPERATOR ROLE$/p' "$COMMON_YAML_FILE" > "$OLM_ROLE_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CLUSTER ROLE$/,/# OLM: END CLUSTER ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
-
-    if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
-        sed -n '/^# OLM: BEGIN CSI CEPHFS ROLE$/,/# OLM: END CSI CEPHFS ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
-        sed -n '/^# OLM: BEGIN CSI CEPHFS CLUSTER ROLE$/,/# OLM: END CSI CEPHFS CLUSTER ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
-    fi
-    if [ "$OLM_INCLUDE_RBD_CSI" = true ]; then
-        sed -n '/^# OLM: BEGIN CSI RBD ROLE$/,/# OLM: END CSI RBD ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
-        sed -n '/^# OLM: BEGIN CSI RBD CLUSTER ROLE$/,/# OLM: END CSI RBD CLUSTER ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
-    fi
-    if [ "$OLM_INCLUDE_REPORTER" = true ] ; then
-        sed -n '/^# OLM: BEGIN CMD REPORTER ROLE$/,/# OLM: END CMD REPORTER ROLE$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_YAML_FILE"
-    fi
-}
-
-function generate_role_binding_yaml() {
-    sed -n '/^# OLM: BEGIN OPERATOR ROLEBINDING$/,/# OLM: END OPERATOR ROLEBINDING$/p' "$COMMON_YAML_FILE" > "$OLM_ROLE_BINDING_YAML_FILE"
-    sed -n '/^# OLM: BEGIN CLUSTER ROLEBINDING$/,/# OLM: END CLUSTER ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
-    if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
-        sed -n '/^# OLM: BEGIN CSI CEPHFS ROLEBINDING$/,/# OLM: END CSI CEPHFS ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
-        sed -n '/^# OLM: BEGIN CSI CEPHFS CLUSTER ROLEBINDING$/,/# OLM: END CSI CEPHFS CLUSTER ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
-    fi
-    if [ "$OLM_INCLUDE_RBD_CSI" = true ]; then
-        sed -n '/^# OLM: BEGIN CSI RBD ROLEBINDING$/,/# OLM: END CSI RBD ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
-        sed -n '/^# OLM: BEGIN CSI RBD CLUSTER ROLEBINDING$/,/# OLM: END CSI RBD CLUSTER ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
-    fi
-    if [ "$OLM_INCLUDE_REPORTER" = true ] ; then
-        sed -n '/^# OLM: BEGIN CMD REPORTER ROLEBINDING$/,/# OLM: END CMD REPORTER ROLEBINDING$/p' "$COMMON_YAML_FILE" >> "$OLM_ROLE_BINDING_YAML_FILE"
-    fi
-}
-
-function generate_service_account_yaml() {
-    sed -n '/^# OLM: BEGIN SERVICE ACCOUNT SYSTEM$/,/# OLM: END SERVICE ACCOUNT SYSTEM$/p' "$COMMON_YAML_FILE" > "$OLM_SERVICE_ACCOUNT_YAML_FILE"
-    sed -n '/^# OLM: BEGIN SERVICE ACCOUNT OSD$/,/# OLM: END SERVICE ACCOUNT OSD$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
-    sed -n '/^# OLM: BEGIN SERVICE ACCOUNT MGR$/,/# OLM: END SERVICE ACCOUNT MGR$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
-    if [ "$OLM_INCLUDE_CEPHFS_CSI" = true ]; then
-        sed -n '/^# OLM: BEGIN CSI CEPHFS SERVICE ACCOUNT$/,/# OLM: END CSI CEPHFS SERVICE ACCOUNT$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
-    fi
-    if [ "$OLM_INCLUDE_RBD_CSI" = true ]; then
-        sed -n '/^# OLM: BEGIN CSI RBD SERVICE ACCOUNT$/,/# OLM: END CSI RBD SERVICE ACCOUNT$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
-    fi
-    if [ "$OLM_INCLUDE_REPORTER" = true ] ; then
-        sed -n '/^# OLM: BEGIN CMD REPORTER SERVICE ACCOUNT$/,/# OLM: END CMD REPORTER SERVICE ACCOUNT$/p' "$COMMON_YAML_FILE" >> "$OLM_SERVICE_ACCOUNT_YAML_FILE"
-    fi
 }
 
 function hack_csv() {
@@ -279,9 +228,15 @@ function validate_crds() {
 ########
 create_directories
 generate_operator_yaml "$@"
-generate_role_yaml
-generate_role_binding_yaml
-generate_service_account_yaml
+
+# Do not include Pod Security Policy (PSP) resources for CSV generation since OLM uses
+# Security Context Constraints (SCC).
+export DO_NOT_INCLUDE_POD_SECURITY_POLICY_RESOURCES=true
+./build/rbac/get-helm-rbac.sh > "$OLM_RBAC_YAML_FILE"
+
+# TODO: do we need separate clusterrole/clusterrolebinding/role/rolebinding/servicaccount files, or
+# can these just stay in rbac.yaml? If they need to be separate, we can do that here with YQ.
+
 generate_csv "$@"
 hack_csv
 if [ -z "${OLM_SKIP_PKG_FILE_GEN}" ]; then
