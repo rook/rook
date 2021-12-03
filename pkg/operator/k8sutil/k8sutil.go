@@ -85,6 +85,17 @@ func Hash(s string) string {
 	return hex.EncodeToString(h[:16])
 }
 
+// TruncateNodeNameForJob hashes the nodeName in case it would case the name to be longer than 63 characters
+// and avoids for a K8s 1.22 bug in the job pod name generation. If the job name contains a . or - in a certain
+// position, the pod will fail to create.
+func TruncateNodeNameForJob(format, nodeName string) string {
+	// In k8s 1.22, the job name is truncated an additional 10 characters which can cause an issue
+	// in the generated pod name if it then ends in a non-alphanumeric character. In that case,
+	// we more aggressively generate a hashed job name.
+	jobNameShortenLength := 10
+	return truncateNodeName(format, nodeName, validation.DNS1035LabelMaxLength-jobNameShortenLength)
+}
+
 // TruncateNodeName hashes the nodeName in case it would case the name to be longer than 63 characters
 // WARNING If your format and nodeName as a hash, are longer than 63 chars it won't be truncated!
 // Your format alone should only be 31 chars at max because of MD5 hash being 32 chars.
@@ -94,7 +105,12 @@ func Hash(s string) string {
 // Do **NOT** edit this function in a way that would change its output as it needs to
 // provide consistent mappings from string to hash across versions of rook.
 func TruncateNodeName(format, nodeName string) string {
-	if len(nodeName)+len(fmt.Sprintf(format, "")) > validation.DNS1035LabelMaxLength {
+	return truncateNodeName(format, nodeName, validation.DNS1035LabelMaxLength)
+}
+
+// truncateNodeName takes the max length desired for a string and hashes the value if needed to shorten it.
+func truncateNodeName(format, nodeName string, maxLength int) string {
+	if len(nodeName)+len(fmt.Sprintf(format, "")) > maxLength {
 		hashed := Hash(nodeName)
 		logger.Infof("format and nodeName longer than %d chars, nodeName %s will be %s", validation.DNS1035LabelMaxLength, nodeName, hashed)
 		nodeName = hashed
