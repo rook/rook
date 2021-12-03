@@ -5,7 +5,7 @@ set -ex
 # FUNCTIONS #
 #############
 
-MAKE='build/run make --debug=v --output-sync'
+MAKE='make --debug=v --output-sync'
 
 function  build() {
     $MAKE build.all
