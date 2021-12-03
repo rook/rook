@@ -45,6 +45,7 @@ type TestCephSettings struct {
 	SkipCleanupPolicy           bool
 	DirectMountToolbox          bool
 	EnableVolumeReplication     bool
+	ChangeHostName              bool
 	RookVersion                 string
 	CephVersion                 cephv1.CephVersionSpec
 }
