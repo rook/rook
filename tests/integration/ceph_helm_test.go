@@ -72,6 +72,7 @@ func (h *HelmSuite) SetupSuite() {
 		SkipOSDCreation:           false,
 		EnableAdmissionController: false,
 		EnableDiscovery:           true,
+		ChangeHostName:            true,
 		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.OctopusVersion,
 	}
@@ -91,7 +92,7 @@ func (h *HelmSuite) AfterTest(suiteName, testName string) {
 // Test to make sure all rook components are installed and Running
 func (h *HelmSuite) TestARookInstallViaHelm() {
 	checkIfRookClusterIsInstalled(h.Suite, h.k8shelper, h.settings.Namespace, h.settings.Namespace, 1)
- 	checkIfRookClusterHasHealthyIngress(h.Suite, h.k8shelper, h.settings.Namespace)
+	checkIfRookClusterHasHealthyIngress(h.Suite, h.k8shelper, h.settings.Namespace)
 }
 
 // Test BlockCreation on Rook that was installed via Helm

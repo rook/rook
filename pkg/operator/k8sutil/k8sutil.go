@@ -112,7 +112,7 @@ func TruncateNodeName(format, nodeName string) string {
 func truncateNodeName(format, nodeName string, maxLength int) string {
 	if len(nodeName)+len(fmt.Sprintf(format, "")) > maxLength {
 		hashed := Hash(nodeName)
-		logger.Infof("format and nodeName longer than %d chars, nodeName %s will be %s", validation.DNS1035LabelMaxLength, nodeName, hashed)
+		logger.Infof("format and nodeName longer than %d chars, nodeName %s will be %s", maxLength, nodeName, hashed)
 		nodeName = hashed
 	}
 	return fmt.Sprintf(format, nodeName)

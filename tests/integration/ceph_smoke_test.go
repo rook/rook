@@ -94,6 +94,7 @@ func (s *SmokeSuite) SetupSuite() {
 		EnableAdmissionController: true,
 		UseCrashPruner:            true,
 		EnableVolumeReplication:   true,
+		ChangeHostName:            true,
 		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.ReturnCephVersion(),
 	}
