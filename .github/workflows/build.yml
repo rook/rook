@@ -54,6 +54,10 @@ jobs:
       working-directory: /Users/runner/go/src/github.com/rook/rook
       run: tests/scripts/validate_modified_files.sh crd
 
+    - name: run csv-ceph
+      working-directory: /Users/runner/go/src/github.com/rook/rook
+      run: make csv-clean && GOPATH=$(go env GOPATH) make csv-ceph CSV_VERSION=9999.9999.9999 CSV_PLATFORM=ocp ROOK_OP_VERSION='{{.RookOperatorImage}}'
+
     - name: run gen-rbac
       working-directory: /Users/runner/go/src/github.com/rook/rook
       run: GOPATH=$(go env GOPATH) make gen-rbac
@@ -92,6 +96,9 @@ jobs:
     - name: build.all rook with go ${{ matrix.go-version }}
       run: |
         tests/scripts/github-action-helper.sh build_rook_all
+
+    - name: run csv-ceph
+      run: make csv-clean && GOPATH=$(go env GOPATH) make csv-ceph CSV_VERSION=9999.9999.9999 CSV_PLATFORM=ocp ROOK_OP_VERSION='{{.RookOperatorImage}}'
 
     - name: setup tmate session for debugging
       if: failure()
