@@ -43,7 +43,7 @@ const (
 func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool) map[string]string {
 	// Mons have a service for each mon, so the additional pod data is relevant for its services
 	// Use pod labels to keep "mon: id" for legacy
-	labels := controller.CephDaemonAppLabels(AppName, c.Namespace, "mon", monConfig.DaemonName, includeNewLabels)
+	labels := controller.CephDaemonAppLabels(AppName, c.Namespace, config.MonType, monConfig.DaemonName, c.ClusterInfo.NamespacedName().Name, "cephclusters.ceph.rook.io", includeNewLabels)
 	// Add "mon_cluster: <namespace>" for legacy
 	labels[monClusterAttr] = c.Namespace
 	if canary {

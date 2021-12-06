@@ -519,7 +519,7 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 		addTestDeployment(clientset, "non-rook-deployment", namespace, map[string]string{})
 
 		// mon.a in this namespace
-		l := controller.CephDaemonAppLabels("rook-ceph-mon", namespace, "mon", "a", true)
+		l := controller.CephDaemonAppLabels("rook-ceph-mon", namespace, "mon", "a", "rook-ceph-operator", "cephclusters.ceph.rook.io", true)
 		addTestDeployment(clientset, "rook-ceph-mon-a", namespace, l)
 
 		// osd.1 and 3 in another namespace (another Rook cluster)

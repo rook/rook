@@ -248,7 +248,7 @@ func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
 }
 
 func getLabels(n *cephv1.CephNFS, name string, includeNewLabels bool) map[string]string {
-	labels := controller.CephDaemonAppLabels(AppName, n.Namespace, "nfs", name, includeNewLabels)
+	labels := controller.CephDaemonAppLabels(AppName, n.Namespace, "nfs", n.Name+"-"+name, n.Name, "cephnfses.ceph.rook.io", includeNewLabels)
 	labels["ceph_nfs"] = n.Name
 	labels["instance"] = name
 	return labels
