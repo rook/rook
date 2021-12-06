@@ -18,7 +18,7 @@ We welcome feedback and opening issues!
 
 ## Supported Versions
 
-This guide is for upgrading from **Rook v1.6.x to Rook v1.7.x**.
+This guide is for upgrading from **Rook v1.7.x to Rook v1.8.x**.
 
 Please refer to the upgrade guides from previous releases for supported upgrade paths.
 Rook upgrades are only supported between official releases. Upgrades to and from `master` are not
@@ -27,6 +27,7 @@ supported.
 For a guide to upgrade previous versions of Rook, please refer to the version of documentation for
 those releases.
 
+* [Upgrade 1.6 to 1.7](https://rook.io/docs/rook/v1.7/ceph-upgrade.html)
 * [Upgrade 1.5 to 1.6](https://rook.io/docs/rook/v1.6/ceph-upgrade.html)
 * [Upgrade 1.4 to 1.5](https://rook.io/docs/rook/v1.5/ceph-upgrade.html)
 * [Upgrade 1.3 to 1.4](https://rook.io/docs/rook/v1.4/ceph-upgrade.html)
@@ -38,6 +39,23 @@ those releases.
 * [Upgrade 0.7 to 0.8](https://rook.io/docs/rook/v0.8/upgrade.html)
 * [Upgrade 0.6 to 0.7](https://rook.io/docs/rook/v0.7/upgrade.html)
 * [Upgrade 0.5 to 0.6](https://rook.io/docs/rook/v0.6/upgrade.html)
+
+## Breaking changes in this release
+
+* The minimum Kubernetes version has changed to v1.16. You must update to at least Kubernetes version
+  v1.16 before upgrading Rook from v1.7 to v1.8.
+
+* Rook v1.8 no longer supports Ceph Nautilus (14.2.x). Nautilus users must
+  [upgrade Ceph](#ceph-version-upgrades) to Octopus (15.2.x) or Pacific (16.2.x) before upgrading to
+  Rook v1.8.
+
+* Rook's FlexVolume driver has been deprecated and removed in Rook v1.8. FlexVolume users must
+  migrate Rook-Ceph block storage PVCs to CSI before upgrading. A migration tool has been created
+  and is documented [here](https://rook.io/docs/rook/v1.7/flex-to-csi-migration.html).
+
+* The location of example manifests has changed to reduce the amount of user typing needed and to be
+  easier to discover for new Rook users. `cluster/examples/kubernetes/ceph` manifests can now be
+  found in `deploy/examples`.
 
 ## Considerations
 
@@ -53,12 +71,12 @@ With this upgrade guide, there are a few notes to consider:
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
 another are as simple as updating the common resources and the image of the Rook operator. For
-example, when Rook v1.7.1 is released, the process of updating from v1.7.0 is as simple as running
+example, when Rook v1.8.1 is released, the process of updating from v1.8.0 is as simple as running
 the following:
 
-First get the latest common resources manifests that contain the latest changes for Rook v1.7.
+First get the latest common resources manifests that contain the latest changes for Rook v1.8.
 ```sh
-git clone --single-branch --depth=1 --branch v1.7.1 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.8.1 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -66,10 +84,10 @@ If you have deployed the Rook Operator or the Ceph cluster into a different name
 `rook-ceph`, see the [Update common resources and CRDs](#1-update-common-resources-and-crds)
 section for instructions on how to change the default namespaces in `common.yaml`.
 
-Then apply the latest changes from v1.7 and update the Rook Operator image.
+Then apply the latest changes from v1.8 and update the Rook Operator image.
 ```console
 kubectl apply -f common.yaml -f crds.yaml
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.7.1
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.8.1
 ```
 
 As exemplified above, it is a good practice to update Rook-Ceph common resources from the example
@@ -90,7 +108,7 @@ Helm will **not** update the Ceph version. See [Ceph Version Upgrades](#ceph-ver
 instructions on updating the Ceph version.
 
 
-## Upgrading from v1.6 to v1.7
+## Upgrading from v1.7 to v1.8
 
 **Rook releases from master are expressly unsupported.** It is strongly recommended that you use
 [official releases](https://github.com/rook/rook/releases) of Rook. Unreleased versions from the
@@ -205,7 +223,7 @@ details on the health of the system, such as `ceph osd status`. See the
 Rook will prevent the upgrade of the Ceph daemons if the health is in a `HEALTH_ERR` state.
 If you desired to proceed with the upgrade anyway, you will need to set either
 `skipUpgradeChecks: true` or `continueUpgradeAfterChecksEvenIfNotHealthy: true`
-as described in the [cluster CR settings](https://rook.github.io/docs/rook/v1.7/ceph-cluster-crd.html#cluster-settings).
+as described in the [cluster CR settings](https://rook.github.io/docs/rook/v1.8/ceph-cluster-crd.html#cluster-settings).
 
 ### **Container Versions**
 
@@ -248,9 +266,9 @@ Any pod that is using a Rook volume should also remain healthy:
 
 ## Rook Operator Upgrade Process
 
-In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.6.8` to
-the version `v1.7.0`. This upgrade should work from any official patch release of Rook v1.6 to any
-official patch release of v1.7.
+In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.7.8` to
+the version `v1.8.0`. This upgrade should work from any official patch release of Rook v1.7 to any
+official patch release of v1.8.
 
 **Rook release from `master` are expressly unsupported.** It is strongly recommended that you use
 [official releases](https://github.com/rook/rook/releases) of Rook. Unreleased versions from the
@@ -269,12 +287,12 @@ Let's get started!
 
 > Automatically updated if you are upgrading via the helm chart
 
-First apply updates to Rook-Ceph common resources. This includes slightly modified privileges (RBAC)
-needed by the Operator. Also update the Custom Resource Definitions (CRDs).
+First apply updates to Rook-Ceph common resources. This includes modified privileges (RBAC) needed
+by the Operator. Also update the Custom Resource Definitions (CRDs).
 
 Get the latest common resources manifests that contain the latest changes.
 ```sh
-git clone --single-branch --depth=1 --branch v1.7.0 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.8.0 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -316,11 +334,11 @@ details.
 
 > Automatically updated if you are upgrading via the helm chart
 
-The largest portion of the upgrade is triggered when the operator's image is updated to `v1.7.x`.
+The largest portion of the upgrade is triggered when the operator's image is updated to `v1.8.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```sh
-kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.7.0
+kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.8.0
 ```
 
 ### **4. Wait for the upgrade to complete**
@@ -336,18 +354,18 @@ watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=
 ```
 
 As an example, this cluster is midway through updating the OSDs. When all deployments report `1/1/1`
-availability and `rook-version=v1.7.0`, the Ceph cluster's core components are fully updated.
+availability and `rook-version=v1.8.0`, the Ceph cluster's core components are fully updated.
 
 >```
 >Every 2.0s: kubectl -n rook-ceph get deployment -o j...
 >
->rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.7.0
->rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.7.0
->rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.7.0
->rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.7.0
->rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.7.0
->rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.6.8
->rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.6.8
+>rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.8.0
+>rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.8.0
+>rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.8.0
+>rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.8.0
+>rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.8.0
+>rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.7.8
+>rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.7.8
 >```
 
 An easy check to see if the upgrade is totally finished is to check that there is only one
@@ -356,55 +374,27 @@ An easy check to see if the upgrade is totally finished is to check that there i
 ```console
 # kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
-  rook-version=v1.6.8
-  rook-version=v1.7.0
+  rook-version=v1.7.8
+  rook-version=v1.8.0
 This cluster is finished:
-  rook-version=v1.7.0
+  rook-version=v1.8.0
 ```
 
 ### **5. Verify the updated cluster**
 
-At this point, your Rook operator should be running version `rook/ceph:v1.7.0`.
+At this point, your Rook operator should be running version `rook/ceph:v1.8.0`.
 
 Verify the Ceph cluster's health using the [health verification section](#health-verification).
-
-### **6. Update CephRBDMirror and CephBlockPool configs**
-
-If you are not using a `CephRBDMirror` in your Rook cluster, you may disregard this section.
-
-Otherwise, please note that the location of the `CephRBDMirror` `spec.peers` config has moved to
-`CephBlockPool` `spec.mirroring.peers` in Rook v1.7. This change allows each pool to have its own
-peer and enables pools to re-use an existing peer secret if it points to the same cluster peer.
-
-You may wish to see the [CephBlockPool spec Documentation](ceph-pool-crd.md#spec) for the latest
-configuration advice.
-
-The pre-existing config location in `CephRBDMirror` `spec.peers` will continue to be supported, but
-users are still encouraged to migrate this setting from `CephRBDMirror` to relevant `CephBlockPool`
-resources.
-
-To migrate the setting, follow these steps:
-1. Stop the Rook-Ceph operator by downscaling the Deployment to zero replicas.
-   ```sh
-   kubectl -n $ROOK_OPERATOR_NAMESPACE scale deployment rook-ceph-operator --replicas=0
-   ```
-2. Copy the `spec.peers` config from `CephRBDMirror` to every `CephBlockPool` in your cluster that
-   has mirroring enabled.
-3. Remove the `peers` spec from the `CephRBDMirror` resource.
-4. Resume the Rook-Ceph operator by scaling the Deployment back to one replica.
-   ```sh
-   kubectl -n $ROOK_OPERATOR_NAMESPACE scale deployment rook-ceph-operator --replicas=1
-   ```
 
 
 ## Ceph Version Upgrades
 
-Rook v1.7 supports the following Ceph versions:
- - Ceph Pacific 16.2.0 or newer
- - Ceph Octopus v15.2.0 or newer
+Rook v1.8 supports the following Ceph versions:
+- Ceph Pacific 16.2.0 or newer
+- Ceph Octopus v15.2.0 or newer
 
-These are the only supported versions of Ceph. Rook v1.8 no longer supports Ceph Nautilus
-(14.2.x), and users will have to upgrade Ceph to Octopus (15.2.x) or Pacific (16.2.x) before upgrading to Rook v1.8.
+These are the only supported versions of Ceph. Rook v1.8 no longer supports Ceph Nautilus (14.2.x).
+Nautilus users must upgrade Ceph to Octopus (15.2.x) or Pacific (16.2.x) before upgrading to Rook v1.8.
 
 > **IMPORTANT: When an update is requested, the operator will check Ceph's status, if it is in `HEALTH_ERR` it will refuse to do the upgrade.**
 
@@ -416,7 +406,7 @@ updated we wait for things to settle (monitors to be in a quorum, PGs to be clea
 MDSes, etc.), then only when the condition is met we move to the next daemon. We repeat this process
 until all the daemons have been updated.
 
-### Disable `bluestore_fsck_quick_fix_on_mount`
+### **Disable `bluestore_fsck_quick_fix_on_mount`**
 > **WARNING: There is a notice from Ceph for users upgrading to Ceph Pacific v16.2.6 or lower from
 > an earlier major version of Ceph. If you are upgrading to Ceph Pacific (v16), please upgrade to
 > v16.2.7 or higher if possible.**
@@ -458,6 +448,9 @@ It's best to run `ceph config-key dump` again to verify references to
 
 See for more information, see here: https://github.com/rook/rook/issues/9185
 
+### **Important consideration for CephNFS users**
+Users of CephNFS need to take additional steps to upgrade Ceph versions. Please see the
+[NFS documentation](ceph-nfs-crd.md) for full details.
 
 ### **Ceph images**
 
