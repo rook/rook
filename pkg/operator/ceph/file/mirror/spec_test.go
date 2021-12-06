@@ -90,10 +90,10 @@ func TestPodSpec(t *testing.T) {
 
 	// Deployment should have Ceph labels
 	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-		config.FilesystemMirrorType, userID, AppName, "ns")
+		config.FilesystemMirrorType, userID, AppName, "ns", "fs-mirror", "cephfilesystemmirrors.ceph.rook.io", "ceph-fs-mirror")
 
 	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.FilesystemMirrorType, userID, AppName, "ns", "quay.io/ceph/ceph:v16",
 		"200", "100", "600", "300", /* resources */
-		"my-priority-class")
+		"my-priority-class", "fs-mirror", "cephfilesystemmirrors.ceph.rook.io", "ceph-fs-mirror")
 }

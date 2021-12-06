@@ -68,7 +68,7 @@ func TestPodSpec(t *testing.T) {
 
 		// Deployment should have Ceph labels
 		test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-			config.MgrType, "a", AppName, "ns")
+			config.MgrType, "a", AppName, "ns", "test", "cephclusters.ceph.rook.io", "ceph-mgr")
 
 		podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
 		podTemplate.Spec().Containers().RequireAdditionalEnvVars(
@@ -76,7 +76,7 @@ func TestPodSpec(t *testing.T) {
 			"ROOK_CEPH_CLUSTER_CRD_NAME")
 		podTemplate.RunFullSuite(config.MgrType, "a", AppName, "ns", "quay.io/ceph/ceph:myceph",
 			"200", "100", "500", "250", /* resources */
-			"my-priority-class")
+			"my-priority-class", "test", "cephclusters.ceph.rook.io", "ceph-mgr")
 		assert.Equal(t, 2, len(d.Spec.Template.Annotations))
 		assert.Equal(t, 1, len(d.Spec.Template.Spec.Containers))
 		assert.Equal(t, 5, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))

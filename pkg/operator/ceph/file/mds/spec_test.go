@@ -92,12 +92,12 @@ func TestPodSpecs(t *testing.T) {
 
 	// Deployment should have Ceph labels
 	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-		config.MdsType, "myfs-a", "rook-ceph-mds", "ns")
+		config.MdsType, "myfs-a", "rook-ceph-mds", "ns", "myfs", "cephfilesystems.ceph.rook.io", "ceph-mds")
 
 	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.MdsType, "myfs-a", "rook-ceph-mds", "ns", "quay.io/ceph/ceph:testversion",
 		"500", "250", "4337", "2169", /* resources */
-		"my-priority-class")
+		"my-priority-class", "myfs", "cephfilesystems.ceph.rook.io", "ceph-mds")
 
 	// assert --public-addr is appended to args
 	assert.Contains(t, d.Spec.Template.Spec.Containers[0].Args,

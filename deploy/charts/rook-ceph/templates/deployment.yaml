@@ -5,7 +5,7 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
@@ -15,7 +15,7 @@ spec:
     metadata:
       labels:
         app: rook-ceph-operator
-        chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 {{- if .Values.annotations }}
       annotations:
 {{ toYaml .Values.annotations | indent 8 }}

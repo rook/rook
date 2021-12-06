@@ -12,6 +12,7 @@ metadata:
     operator: rook
     storage-backend: ceph
     i-am-a-new-label: delete-me
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{ include "library.imagePullSecrets" . }}
 ---
 # Service account for Ceph mgrs
@@ -23,6 +24,7 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{ include "library.imagePullSecrets" . }}
 ---
 # Service account for the job that reports the Ceph version in an image
@@ -34,6 +36,7 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{ include "library.imagePullSecrets" . }}
 ---
 # Service account for job that purges OSDs from a Rook-Ceph cluster
