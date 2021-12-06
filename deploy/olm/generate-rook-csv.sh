@@ -118,8 +118,9 @@ function cleanup() {
 function generate_csv(){
     pushd "$OLM_CATALOG_DIR" &> /dev/null
     "${OP_SDK_CMD[@]}" "$VERSION"
-    mv "$CSV_BUNDLE_PATH/olm.clusterserviceversion.yaml" "$CSV_FILE_NAME"
     popd &> /dev/null
+
+    mv "$CSV_BUNDLE_PATH/olm.clusterserviceversion.yaml" "$CSV_FILE_NAME"
 
     # cleanup to get the expected state before merging the real data from assembles
     "${YQ_CMD_DELETE[@]}" "$CSV_FILE_NAME" 'spec.icon[*]'
