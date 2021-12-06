@@ -8,6 +8,11 @@ metadata:
   name: rook-ceph-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
 rules:
+  # this is needed for rook's "key-management" CLI to fetch the vault token from the secret when
+  # validating the connection details
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list", "watch", "create", "update", "delete"]
@@ -86,6 +91,7 @@ rules:
       - update
       - delete
 ---
+# Aspects of ceph osd purge job that require access to the cluster namespace
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
