@@ -3,6 +3,11 @@ set -eEuox pipefail
 
 : "${HELM:=helm}"
 
+if ! command -v "$HELM" &>/dev/null; then
+  echo "Helm not found. Please install it: https://helm.sh/docs/intro/install/"
+  exit 1
+fi
+
 # Whether to include Pod Security Policy (PSP) related resources in the RBAC output.
 # Empty string means DO include PSP resources. Any other value means do NOT include PSP resources.
 : "${DO_NOT_INCLUDE_POD_SECURITY_POLICY_RESOURCES:=""}"
