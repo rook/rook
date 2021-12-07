@@ -95,30 +95,48 @@ If you modified the demo settings, additional cleanup is up to you for devices, 
 Disks on nodes used by Rook for osds can be reset to a usable state with the following methods:
 
 ```console
-#!/usr/bin/env bash
-DISK="/dev/sdb"
+set -o nounset
+set -o errexit
+set -o xtrace
 
-# Zap the disk to a fresh, usable state (zap-all is important, b/c MBR has to be clean)
 
-# You will have to run this step for all disks.
-sgdisk --zap-all $DISK
+DISKS="$@"
 
-# Clean hdds with dd
-dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct,dsync
+for DISK in ${DISKS};do
+        echo "Wiping ${DISK}..."
+        DISK_NAME=$(echo ${DISK} | sed {'s,/dev/,,g'})
+        DISK_MAPPER_NAME=$(sudo lsblk -r | grep ${DISK_NAME} -A 1 | grep ceph-- | awk {'print $1'})
+        DISK_DEV_NAME=$(echo ${DISK_MAPPER_NAME} | awk -F '-osd--block' {'print $1'} | sed {'s/--/-/g'})
+        IS_HDD_FLAG=$(cat /sys/block/$(echo ${DISK_NAME} | sed -e 's/[0-9]//')/queue/rotational)
+        # Zap the disk to a fresh, usable state (zap-all is important, b/c MBR has to be clean)
 
-# Clean disks such as ssd with blkdiscard instead of dd
-blkdiscard $DISK
+        # You will have to run this step for all disks.
+        sgdisk --zap-all $DISK
 
-# These steps only have to be run once on each node
-# If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
-ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
+        if [ ${IS_HDD_FLAG} == 1 ];then
+                # Clean hdds with dd
+                dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct,dsync
+        else
+                # Clean disks such as ssd with blkdiscard instead of dd
+                blkdiscard $DISK
+        fi
 
-# ceph-volume setup can leave ceph-<UUID> directories in /dev and /dev/mapper (unnecessary clutter)
-rm -rf /dev/ceph-*
-rm -rf /dev/mapper/ceph--*
+        if [ ! -z ${DISK_MAPPER_NAME} ];then
+                # If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
+                echo /dev/mapper/${DISK_MAPPER_NAME} | xargs -I% -- dmsetup remove %
 
-# Inform the OS of partition table changes
-partprobe $DISK
+                # ceph-volume setup can leave ceph-<UUID> directories in /dev and /dev/mapper (unnecessary clutter)
+                rm -rf /dev/${DISK_DEV_NAME}
+                rm -rf /dev/mapper/${DISK_MAPPER_NAME}
+        fi
+
+        ## FIXME Inelegant way to check if disk is a partition assumes naming scheme
+        # Inform the OS of partition table changes
+        if [ $(echo ${DISK_NAME} | sed -e 's/[0-9]//') == ${DISK_NAME} ];then
+                partprobe $DISK
+        fi
+        echo "${DISK} wiped"
+done
 ```
 
 ## Troubleshooting
