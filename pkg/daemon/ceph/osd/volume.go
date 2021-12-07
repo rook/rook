@@ -278,10 +278,10 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	err := os.MkdirAll(cvLogDir, 0750)
 	if err != nil {
 		logger.Errorf("failed to create ceph-volume log directory %q, continue with default %q. %v", cvLogDir, cephLogDir, err)
-		baseArgs = []string{"-oL", cephVolumeCmd, cephVolumeMode, "prepare", "--bluestore"}
+		baseArgs = []string{"-oL", cephVolumeCmd, cephVolumeMode, "prepare", "--bluestore", "--no-tmpfs"}
 	} else {
 		// Always force Bluestore!
-		baseArgs = []string{"-oL", cephVolumeCmd, "--log-path", cvLogDir, cephVolumeMode, "prepare", "--bluestore"}
+		baseArgs = []string{"-oL", cephVolumeCmd, "--log-path", cvLogDir, cephVolumeMode, "prepare", "--bluestore", "--no-tmpfs"}
 	}
 
 	var metadataArg, walArg []string

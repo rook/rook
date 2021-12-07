@@ -55,6 +55,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
+				c.makeChconInitContainer(mgrConfig),
 				c.makeChownInitContainer(mgrConfig),
 			},
 			Containers: []v1.Container{
@@ -65,6 +66,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			Volumes:            volumes,
 			HostNetwork:        c.spec.Network.IsHost(),
 			PriorityClassName:  cephv1.GetMgrPriorityClassName(c.spec.PriorityClassNames),
+			SecurityContext:    controller.GetPodSecurityContext(),
 		},
 	}
 	cephv1.GetMgrPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec.Spec)
@@ -140,7 +142,14 @@ func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
 		c.spec.CephVersion.Image,
 		controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 		cephv1.GetMgrResources(c.spec.Resources),
-		controller.PodSecurityContext(),
+	)
+}
+func (c *Cluster) makeChconInitContainer(mgrConfig *mgrConfig) v1.Container {
+	return controller.ChconCephDataDirsInitContainer(
+		*mgrConfig.DataPathMap,
+		c.spec.CephVersion.Image,
+		controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		cephv1.GetMgrResources(c.spec.Resources),
 	)
 }
 
@@ -182,10 +191,9 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			controller.DaemonEnvVars(c.spec.CephVersion.Image),
 			c.cephMgrOrchestratorModuleEnvs()...,
 		),
-		Resources:       cephv1.GetMgrResources(c.spec.Resources),
-		SecurityContext: controller.PodSecurityContext(),
-		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MgrType, mgrConfig.DaemonID),
-		WorkingDir:      config.VarLogCephDir,
+		Resources:     cephv1.GetMgrResources(c.spec.Resources),
+		LivenessProbe: controller.GenerateLivenessProbeExecDaemon(config.MgrType, mgrConfig.DaemonID),
+		WorkingDir:    config.VarLogCephDir,
 	}
 
 	// If the liveness probe is enabled

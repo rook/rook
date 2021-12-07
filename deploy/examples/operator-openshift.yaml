@@ -9,6 +9,36 @@
 kind: SecurityContextConstraints
 apiVersion: security.openshift.io/v1
 metadata:
+  name: rook-ceph-operator
+allowPrivilegedContainer: false
+allowHostDirVolumePlugin: true
+allowHostPID: false
+allowHostNetwork: false
+allowHostPorts: false
+allowHostIPC: false
+priority:
+allowedCapabilities: []
+readOnlyRootFilesystem: false
+requiredDropCapabilities: ["all"]
+defaultAddCapabilities: []
+runAsUser:
+  type: MustRunAs
+  uid: 2016
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+volumes:
+users:
+  # A user needs to be added for each rook service account.
+  # This assumes running in the default sample "rook-ceph" namespace.
+  # If other namespaces or service accounts are configured, they need to be updated here.
+  - system:serviceaccount:rook-ceph:rook-ceph-system # serviceaccount:namespace:operator
+---
+# scc for the Rook and Ceph daemons
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
   name: rook-ceph
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
@@ -17,18 +47,20 @@ allowHostPID: false
 allowHostNetwork: false
 # set to true if running rook with the provider as host
 allowHostPorts: false
-priority:
-allowedCapabilities: ["MKNOD"]
 allowHostIPC: true
+priority:
 readOnlyRootFilesystem: false
 requiredDropCapabilities: []
 defaultAddCapabilities: []
+allowedCapabilities: ["MKNOD"]
 runAsUser:
-  type: RunAsAny
-seLinuxContext:
   type: MustRunAs
+  uid: 167
 fsGroup:
   type: MustRunAs
+  ranges:
+    - min: 167
+      max: 167
 supplementalGroups:
   type: RunAsAny
 volumes:
@@ -43,7 +75,6 @@ users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
   # If other namespaces or service accounts are configured, they need to be updated here.
-  - system:serviceaccount:rook-ceph:rook-ceph-system # serviceaccount:namespace:operator
   - system:serviceaccount:rook-ceph:default # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-mgr # serviceaccount:namespace:cluster
   - system:serviceaccount:rook-ceph:rook-ceph-osd # serviceaccount:namespace:cluster

@@ -96,6 +96,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	}
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
+			c.makeChconInitContainer(rgwConfig),
 			c.makeChownInitContainer(rgwConfig),
 		},
 		Containers:    []v1.Container{rgwDaemonContainer},
@@ -106,6 +107,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		),
 		HostNetwork:       c.clusterSpec.Network.IsHost(),
 		PriorityClassName: c.store.Spec.Gateway.PriorityClassName,
+		SecurityContext:   controller.GetPodSecurityContext(),
 	}
 
 	// If the log collector is enabled we add the side-car container
@@ -212,10 +214,11 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 		Args: []string{
 			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
 		},
-		Image:           c.clusterSpec.CephVersion.Image,
-		VolumeMounts:    volumeMounts,
-		Resources:       c.store.Spec.Gateway.Resources,
-		SecurityContext: controller.PodSecurityContext(),
+		Image:        c.clusterSpec.CephVersion.Image,
+		VolumeMounts: volumeMounts,
+		Resources:    c.store.Spec.Gateway.Resources,
+		// TODO: can we remove this? And let the container run unprivileged?
+		SecurityContext: controller.ContainerSecurityContext(),
 	}
 }
 
@@ -240,8 +243,9 @@ func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig) v1.Contain
 		Image: c.clusterSpec.CephVersion.Image,
 		VolumeMounts: append(
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), srcVaultVolMount, tmpVaultMount),
-		Resources:       c.store.Spec.Gateway.Resources,
-		SecurityContext: controller.PodSecurityContext(),
+		Resources: c.store.Spec.Gateway.Resources,
+		// TODO: can we remove this? And let the container run unprivileged?
+		SecurityContext: controller.ContainerSecurityContext(),
 	}
 }
 
@@ -251,7 +255,15 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 		c.clusterSpec.CephVersion.Image,
 		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 		c.store.Spec.Gateway.Resources,
-		controller.PodSecurityContext(),
+	)
+}
+
+func (c *clusterConfig) makeChconInitContainer(rgwConfig *rgwConfig) v1.Container {
+	return controller.ChconCephDataDirsInitContainer(
+		*c.DataPathMap,
+		c.clusterSpec.CephVersion.Image,
+		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+		c.store.Spec.Gateway.Resources,
 	)
 }
 
@@ -278,12 +290,11 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
-		Resources:       c.store.Spec.Gateway.Resources,
-		LivenessProbe:   c.defaultLivenessProbe(),
-		ReadinessProbe:  c.defaultReadinessProbe(),
-		SecurityContext: controller.PodSecurityContext(),
-		WorkingDir:      cephconfig.VarLogCephDir,
+		Env:            controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
+		Resources:      c.store.Spec.Gateway.Resources,
+		LivenessProbe:  c.defaultLivenessProbe(),
+		ReadinessProbe: c.defaultReadinessProbe(),
+		WorkingDir:     cephconfig.VarLogCephDir,
 	}
 
 	// If the liveness probe is enabled

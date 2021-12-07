@@ -27,6 +27,7 @@ import (
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -292,27 +293,38 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		}
 	}
 
-	// run privileged always since we always mount /dev
-	privileged := true
-	runAsUser := int64(0)
-	runAsNonRoot := false
-	readOnlyRootFilesystem := false
-
 	osdProvisionContainer := v1.Container{
-		Command:      []string{path.Join(rookBinariesMountPath, "rook")},
-		Args:         []string{"ceph", "osd", "provision"},
-		Name:         "provision",
-		Image:        c.spec.CephVersion.Image,
-		VolumeMounts: volumeMounts,
-		Env:          envVars,
-		SecurityContext: &v1.SecurityContext{
-			Privileged:             &privileged,
-			RunAsUser:              &runAsUser,
-			RunAsNonRoot:           &runAsNonRoot,
-			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
-		},
-		Resources: cephv1.GetPrepareOSDResources(c.spec.Resources),
+		Command:         []string{path.Join(rookBinariesMountPath, "rook")},
+		Args:            []string{"ceph", "osd", "provision"},
+		Name:            "provision",
+		Image:           c.spec.CephVersion.Image,
+		VolumeMounts:    volumeMounts,
+		Env:             envVars,
+		SecurityContext: c.getSecurityContext(),
+		Resources:       cephv1.GetPrepareOSDResources(c.spec.Resources),
 	}
 
 	return osdProvisionContainer, nil
+}
+
+func (c *Cluster) getSecurityContext() *v1.SecurityContext {
+	privileged := true
+	runAsNonRoot := false
+	runAsUser := int64(0)
+	readOnlyRootFilesystem := false
+
+	// Ceph 16.2.8 understands an environment variable CEPH_VOLUME_SKIP_NEEDS_ROOT that will skip an
+	// internal check for the root user.
+	// See: https://tracker.ceph.com/issues/53511
+	if c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Extra: 8}) {
+		runAsNonRoot = true
+		runAsUser = cephv1.CephUserID
+	}
+
+	return &v1.SecurityContext{
+		Privileged:             &privileged,
+		RunAsUser:              &runAsUser,
+		RunAsNonRoot:           &runAsNonRoot,
+		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+	}
 }

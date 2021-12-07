@@ -312,12 +312,6 @@ func DaemonFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec, daemonID
 	flags := append(
 		config.DefaultFlags(cluster.FSID, keyring.VolumeMount().KeyringFilePath()),
 		config.NewFlag("id", daemonID),
-		// Ceph daemons in Rook will run as 'ceph' instead of 'root'
-		// If we run on a version of Ceph does not these flags it will simply ignore them
-		//run ceph daemon process under the 'ceph' user
-		config.NewFlag("setuser", "ceph"),
-		// run ceph daemon process under the 'ceph' group
-		config.NewFlag("setgroup", "ceph"),
 	)
 	flags = append(flags, NetworkBindingFlags(cluster, spec)...)
 
@@ -445,12 +439,14 @@ func CheckPodMemory(name string, resources v1.ResourceRequirements, cephPodMinim
 // completing. It can take an arbitrarily long time for a pod restart to successfully chown the
 // directory. This is a race condition for all daemons; therefore, do this in an init container.
 // See more discussion here: https://github.com/rook/rook/pull/3594#discussion_r312279176
+// We must use a privileged container to chown from 'root' to 'ceph' user because the hostPath
+// volume plugin mounts with the same permission as kubelet, which most of the time is 'root'
+// Additionally, HostPath volumes do not support FsGroup, so we must chown directories
 func ChownCephDataDirsInitContainer(
 	dpm config.DataPathMap,
 	containerImage string,
 	volumeMounts []v1.VolumeMount,
 	resources v1.ResourceRequirements,
-	securityContext *v1.SecurityContext,
 ) v1.Container {
 	args := make([]string, 0, 5)
 	args = append(args,
@@ -459,6 +455,7 @@ func ChownCephDataDirsInitContainer(
 		"ceph:ceph",
 		config.VarLogCephDir,
 		config.VarLibCephCrashDir,
+		config.EtcLogRotateCeph,
 	)
 	if dpm.ContainerDataDir != "" {
 		args = append(args, dpm.ContainerDataDir)
@@ -470,7 +467,64 @@ func ChownCephDataDirsInitContainer(
 		Image:           containerImage,
 		VolumeMounts:    volumeMounts,
 		Resources:       resources,
-		SecurityContext: securityContext,
+		SecurityContext: ContainerSecurityContext(),
+	}
+}
+
+// ChconCephDataDirsInitContainer relabel the Ceph directories with a "container_file_t" role. Since
+// the crash, log and some data directories are using HostPath volumes, we need to relabel them
+// since they inherit the label from the host. If we don't we will get permissions denied errors
+// like so:
+//
+// type=AVC msg=audit(1638279560.308:6868): avc:  denied  { create } for  pid=452513 comm="ceph-mon"
+// name="kv_backend.tmp" scontext=system_u:system_r:container_t:s0:c20,c25
+// tcontext=system_u:object_r:container_var_lib_t:s0 tclass=file permissive=0
+//
+// which essentially means that the container can't write to the crash and log directories because
+// they are labeled with "container_var_lib_t" (coming from the host) and the container runs with a
+// label "container_t", like all containers.
+//
+// Also, the container runtime does not have permission to change those labels so using a
+// SecurityContext with a specific SeLinux label (SELinuxOptions) type won't work because of the
+// HostPath volume type.
+//
+// We might remove this once we have https://github.com/kubernetes/enhancements/pull/1621 implemented
+func ChconCephDataDirsInitContainer(
+	dpm config.DataPathMap,
+	containerImage string,
+	volumeMounts []v1.VolumeMount,
+	resources v1.ResourceRequirements,
+) v1.Container {
+	args := make([]string, 0, 5)
+	args = append(args,
+		"--verbose",
+		"--recursive",
+		"system_u:object_r:container_file_t:s0",
+		config.VarLogCephDir,
+		config.VarLibCephCrashDir,
+	)
+	if dpm.ContainerDataDir != "" {
+		args = append(args, dpm.ContainerDataDir)
+	}
+	return v1.Container{
+		Name:            "chcon-container-data-dir",
+		Command:         []string{"chcon"},
+		Args:            args,
+		Image:           containerImage,
+		VolumeMounts:    volumeMounts,
+		Resources:       resources,
+		SecurityContext: ContainerSecurityContext(),
+	}
+}
+
+func GetPodSecurityContext() *v1.PodSecurityContext {
+	runAsNonRoot := true
+
+	return &v1.PodSecurityContext{
+		RunAsUser:    &cephv1.CephUserID,
+		RunAsGroup:   &cephv1.CephUserID,
+		FSGroup:      &cephv1.CephUserID,
+		RunAsNonRoot: &runAsNonRoot,
 	}
 }
 
@@ -606,8 +660,8 @@ func HostPathRequiresPrivileged() bool {
 	return os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true"
 }
 
-// PodSecurityContext detects if the pod needs privileges to run
-func PodSecurityContext() *v1.SecurityContext {
+// ContainerSecurityContext detects if the pod needs privileges to run
+func ContainerSecurityContext() *v1.SecurityContext {
 	privileged := HostPathRequiresPrivileged()
 
 	return &v1.SecurityContext{
@@ -627,9 +681,15 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 			"-c", // Command to run
 			fmt.Sprintf(cronLogRotate, daemonID, c.LogCollector.Periodicity),
 		},
-		Image:           c.CephVersion.Image,
-		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), ""),
-		SecurityContext: PodSecurityContext(),
+		Image:        c.CephVersion.Image,
+		VolumeMounts: DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), ""),
+		// We still need this otherwise we get a permission denied
+		//
+		// + sed -i 's|*.log|ceph-mon.a.log|' /etc/logrotate.d/ceph
+		// sed: couldn't open temporary file /etc/logrotate.d/sedypxwuy: Permission denied
+		//
+		// We might just need to chown /etc/logrotate.d/ceph
+		SecurityContext: ContainerSecurityContext(),
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 		// We need a TTY for the bash job control (enabled by -m)
 		TTY: true,

@@ -24,7 +24,7 @@ import (
 
 func TestNewSecurityContextConstraints(t *testing.T) {
 	name := "rook-ceph"
-	scc := NewSecurityContextConstraints(name, name)
-	assert.True(t, scc.AllowPrivilegedContainer)
-	assert.Equal(t, name, scc.Name)
+	scc := NewSecurityContextConstraints(name)
+	assert.True(t, scc[1].AllowPrivilegedContainer)
+	assert.Equal(t, name, scc[1].Name)
 }

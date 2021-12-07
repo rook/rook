@@ -171,8 +171,14 @@ func (c *Cluster) makeDeploymentPVC(m *monConfig, canary bool) (*corev1.Persiste
 
 func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, error) {
 	logger.Debugf("monConfig: %+v", monConfig)
+
 	podSpec := corev1.PodSpec{
 		InitContainers: []corev1.Container{
+			// This init container is a must-have when running on a HostPath volume type regardless
+			// if it comes from the PVC or not. This type of volume does not support FsGroup.
+			// We might never be able to remove this since we have a HostPath volume for logs and
+			// crashes. It's unlikely that we will ever use PVC for this.
+			c.makeChconInitContainer(monConfig),
 			c.makeChownInitContainer(monConfig),
 			c.makeMonFSInitContainer(monConfig),
 		},
@@ -185,6 +191,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:       c.spec.Network.IsHost(),
 		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
+		SecurityContext:   controller.GetPodSecurityContext(),
 	}
 
 	// If the log collector is enabled we add the side-car container
@@ -241,7 +248,15 @@ func (c *Cluster) makeChownInitContainer(monConfig *monConfig) corev1.Container 
 		c.spec.CephVersion.Image,
 		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		cephv1.GetMonResources(c.spec.Resources),
-		controller.PodSecurityContext(),
+	)
+}
+
+func (c *Cluster) makeChconInitContainer(monConfig *monConfig) corev1.Container {
+	return controller.ChconCephDataDirsInitContainer(
+		*monConfig.DataPathMap,
+		c.spec.CephVersion.Image,
+		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		cephv1.GetMonResources(c.spec.Resources),
 	)
 }
 
@@ -258,9 +273,8 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) corev1.Container 
 			config.NewFlag("public-addr", monConfig.PublicIP),
 			"--mkfs",
 		),
-		Image:           c.spec.CephVersion.Image,
-		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
-		SecurityContext: controller.PodSecurityContext(),
+		Image:        c.spec.CephVersion.Image,
+		VolumeMounts: controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		// filesystem creation does not require ports to be exposed
 		Env:       controller.DaemonEnvVars(c.spec.CephVersion.Image),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
@@ -298,9 +312,8 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 			// We want to avoid potential startup time issue if the store is big
 			config.NewFlag("setuser-match-path", path.Join(monConfig.DataPathMap.ContainerDataDir, "store.db")),
 		),
-		Image:           c.spec.CephVersion.Image,
-		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
-		SecurityContext: controller.PodSecurityContext(),
+		Image:        c.spec.CephVersion.Image,
+		VolumeMounts: controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          "tcp-msgr1",

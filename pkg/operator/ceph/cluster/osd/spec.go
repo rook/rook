@@ -526,8 +526,14 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			c.spec.CephVersion.Image,
 			volumeMounts,
 			osdProps.resources,
-			securityContext,
-		))
+		),
+		controller.ChconCephDataDirsInitContainer(
+			opconfig.DataPathMap{ContainerDataDir: dataPath},
+			c.spec.CephVersion.Image,
+			volumeMounts,
+			osdProps.resources,
+		),
+	)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -544,20 +550,23 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			InitContainers:     initContainers,
 			Containers: []v1.Container{
 				{
-					Command:         command,
-					Args:            args,
-					Name:            "osd",
-					Image:           c.spec.CephVersion.Image,
-					VolumeMounts:    volumeMounts,
-					Env:             envVars,
-					Resources:       osdProps.resources,
-					SecurityContext: securityContext,
-					LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
-					WorkingDir:      opconfig.VarLogCephDir,
+					Command:      command,
+					Args:         args,
+					Name:         "osd",
+					Image:        c.spec.CephVersion.Image,
+					VolumeMounts: volumeMounts,
+					Env:          envVars,
+					Resources:    osdProps.resources,
+					SecurityContext: &v1.SecurityContext{
+						Privileged: &privileged,
+					},
+					LivenessProbe: controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
+					WorkingDir:    opconfig.VarLogCephDir,
 				},
 			},
-			Volumes:       volumes,
-			SchedulerName: osdProps.schedulerName,
+			Volumes:         volumes,
+			SchedulerName:   osdProps.schedulerName,
+			SecurityContext: controller.GetPodSecurityContext(),
 		},
 	}
 
@@ -856,7 +865,8 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 			"-c",
 			fmt.Sprintf(openEncryptedBlock, c.clusterInfo.FSID, pvcName, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), encryptionDMName(pvcName, cryptBlockType), encryptionDMPath(pvcName, cryptBlockType)),
 		},
-		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
+		VolumeMounts: []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
+		// TODO: try to use CAPS instead of privileged, CAP_SYS_ADMIN?
 		SecurityContext: PrivilegedContext(),
 		Resources:       resources,
 	}
@@ -1110,7 +1120,8 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 				DevicePath: osdDataBlockPath,
 			},
 		},
-		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
+		VolumeMounts: []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
+		// TODO: try to use CAPS instead of privileged, CAP_SYS_ADMIN?
 		SecurityContext: PrivilegedContext(),
 		Resources:       osdProps.resources,
 	}
@@ -1137,8 +1148,9 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 		Command: []string{
 			"ceph-bluestore-tool",
 		},
-		Args:            []string{"bluefs-bdev-expand", "--path", osdDataPath},
-		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
+		Args:         []string{"bluefs-bdev-expand", "--path", osdDataPath},
+		VolumeMounts: []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
+		// TODO: try to use CAPS instead of privileged, CAP_SYS_ADMIN?
 		SecurityContext: PrivilegedContext(),
 		Resources:       osdProps.resources,
 	}
@@ -1164,8 +1176,9 @@ func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps 
 		Command: []string{
 			"cryptsetup",
 		},
-		Args:            []string{"--verbose", "resize", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
-		VolumeMounts:    volMount,
+		Args:         []string{"--verbose", "resize", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
+		VolumeMounts: volMount,
+		// TODO: try to use CAPS instead of privileged, CAP_SYS_ADMIN?
 		SecurityContext: PrivilegedContext(),
 		Resources:       osdProps.resources,
 	}
@@ -1194,8 +1207,9 @@ func (c *Cluster) getEncryptedStatusPVCInitContainer(mountPath string, osdProps 
 		Command: []string{
 			"cryptsetup",
 		},
-		Args:            []string{"--verbose", "status", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
-		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		Args:         []string{"--verbose", "status", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
+		VolumeMounts: []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
+		// TODO: try to use CAPS instead of privileged, CAP_SYS_ADMIN?
 		SecurityContext: PrivilegedContext(),
 		Resources:       osdProps.resources,
 	}

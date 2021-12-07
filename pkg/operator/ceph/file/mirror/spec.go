@@ -37,6 +37,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
+				r.makeChconInitContainer(daemonConfig, fsMirror),
 				r.makeChownInitContainer(daemonConfig, fsMirror),
 			},
 			Containers: []v1.Container{
@@ -46,6 +47,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName: fsMirror.Spec.PriorityClassName,
+			SecurityContext:   controller.GetPodSecurityContext(),
 		},
 	}
 
@@ -100,7 +102,15 @@ func (r *ReconcileFilesystemMirror) makeChownInitContainer(daemonConfig *daemonC
 		r.cephClusterSpec.CephVersion.Image,
 		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		fsMirror.Spec.Resources,
-		controller.PodSecurityContext(),
+	)
+}
+
+func (r *ReconcileFilesystemMirror) makeChconInitContainer(daemonConfig *daemonConfig, fsMirror *cephv1.CephFilesystemMirror) v1.Container {
+	return controller.ChconCephDataDirsInitContainer(
+		*daemonConfig.DataPathMap,
+		r.cephClusterSpec.CephVersion.Image,
+		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		fsMirror.Spec.Resources,
 	)
 }
 
@@ -115,11 +125,10 @@ func (r *ReconcileFilesystemMirror) makeFsMirroringDaemonContainer(daemonConfig 
 			"--foreground",
 			"--name="+user,
 		),
-		Image:           r.cephClusterSpec.CephVersion.Image,
-		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
-		Resources:       fsMirror.Spec.Resources,
-		SecurityContext: controller.PodSecurityContext(),
+		Image:        r.cephClusterSpec.CephVersion.Image,
+		VolumeMounts: controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		Env:          controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
+		Resources:    fsMirror.Spec.Resources,
 		// TODO:
 		// LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.fsMirrorType, daemonConfig.DaemonID),
 	}

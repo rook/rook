@@ -108,15 +108,17 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 				NodeSelector: nodeSelector,
 				InitContainers: []corev1.Container{
 					getCrashDirInitContainer(cephCluster),
+					getCrashChconInitContainer(cephCluster),
 					getCrashChownInitContainer(cephCluster),
 				},
 				Containers: []corev1.Container{
 					getCrashDaemonContainer(cephCluster, *cephVersion),
 				},
-				Tolerations:   tolerations,
-				RestartPolicy: corev1.RestartPolicyAlways,
-				HostNetwork:   cephCluster.Spec.Network.IsHost(),
-				Volumes:       volumes,
+				Tolerations:     tolerations,
+				RestartPolicy:   corev1.RestartPolicyAlways,
+				HostNetwork:     cephCluster.Spec.Network.IsHost(),
+				Volumes:         volumes,
+				SecurityContext: controller.GetPodSecurityContext(),
 			},
 		}
 
@@ -208,18 +210,15 @@ func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 	crashPostedDir := path.Join(dataPathMap.ContainerCrashDir(), "posted")
 
 	container := corev1.Container{
-		Name: "make-container-crash-dir",
-		Command: []string{
-			"mkdir",
-			"-p",
-		},
+		Name:    "make-container-crash-dir",
+		Command: []string{"mkdir"},
 		Args: []string{
+			"-p",
 			crashPostedDir,
 		},
-		Image:           cephCluster.Spec.CephVersion.Image,
-		SecurityContext: controller.PodSecurityContext(),
-		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		VolumeMounts:    controller.DaemonVolumeMounts(dataPathMap, ""),
+		Image:        cephCluster.Spec.CephVersion.Image,
+		Resources:    cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
+		VolumeMounts: controller.DaemonVolumeMounts(dataPathMap, ""),
 	}
 	return container
 }
@@ -232,7 +231,17 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 		cephCluster.Spec.CephVersion.Image,
 		controller.DaemonVolumeMounts(dataPathMap, ""),
 		cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		controller.PodSecurityContext(),
+	)
+}
+
+func getCrashChconInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
+	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
+
+	return controller.ChconCephDataDirsInitContainer(
+		*dataPathMap,
+		cephCluster.Spec.CephVersion.Image,
+		controller.DaemonVolumeMounts(dataPathMap, ""),
+		cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
 	)
 }
 
@@ -249,11 +258,10 @@ func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver
 		Command: []string{
 			"ceph-crash",
 		},
-		Image:           cephImage,
-		Env:             envVars,
-		VolumeMounts:    volumeMounts,
-		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		SecurityContext: controller.PodSecurityContext(),
+		Image:        cephImage,
+		Env:          envVars,
+		VolumeMounts: volumeMounts,
+		Resources:    cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
 	}
 
 	return container
@@ -278,11 +286,10 @@ func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion cephver.
 		Args: []string{
 			fmt.Sprintf("%d", cephCluster.Spec.CrashCollector.DaysToRetain),
 		},
-		Image:           cephImage,
-		Env:             envVars,
-		VolumeMounts:    volumeMounts,
-		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		SecurityContext: controller.PodSecurityContext(),
+		Image:        cephImage,
+		Env:          envVars,
+		VolumeMounts: volumeMounts,
+		Resources:    cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
 	}
 
 	return container

@@ -217,9 +217,10 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 			nfsConfigMount,
 			dbusMount,
 		},
-		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
-		Resources:       nfs.Spec.Server.Resources,
-		SecurityContext: controller.PodSecurityContext(),
+		Env:       controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
+		Resources: nfs.Spec.Server.Resources,
+		// TODO: can we remove this? And let the container run unprivileged?
+		SecurityContext: controller.ContainerSecurityContext(),
 	}
 }
 

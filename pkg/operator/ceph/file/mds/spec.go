@@ -54,6 +54,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
+				c.makeChconInitContainer(mdsConfig),
 				c.makeChownInitContainer(mdsConfig),
 			},
 			Containers: []v1.Container{
@@ -63,6 +64,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.
 			Volumes:           controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 			HostNetwork:       c.clusterSpec.Network.IsHost(),
 			PriorityClassName: c.fs.Spec.MetadataServer.PriorityClassName,
+			SecurityContext:   controller.GetPodSecurityContext(),
 		},
 	}
 
@@ -121,7 +123,15 @@ func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
 		c.clusterSpec.CephVersion.Image,
 		controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		c.fs.Spec.MetadataServer.Resources,
-		controller.PodSecurityContext(),
+	)
+}
+
+func (c *Cluster) makeChconInitContainer(mdsConfig *mdsConfig) v1.Container {
+	return controller.ChconCephDataDirsInitContainer(
+		*mdsConfig.DataPathMap,
+		c.clusterSpec.CephVersion.Image,
+		controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+		c.fs.Spec.MetadataServer.Resources,
 	)
 }
 
@@ -141,14 +151,13 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Command: []string{
 			"ceph-mds",
 		},
-		Args:            args,
-		Image:           c.clusterSpec.CephVersion.Image,
-		VolumeMounts:    controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
-		Env:             append(controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image), k8sutil.PodIPEnvVar(podIPEnvVar)),
-		Resources:       c.fs.Spec.MetadataServer.Resources,
-		SecurityContext: controller.PodSecurityContext(),
-		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
-		WorkingDir:      config.VarLogCephDir,
+		Args:          args,
+		Image:         c.clusterSpec.CephVersion.Image,
+		VolumeMounts:  controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
+		Env:           append(controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image), k8sutil.PodIPEnvVar(podIPEnvVar)),
+		Resources:     c.fs.Spec.MetadataServer.Resources,
+		LivenessProbe: controller.GenerateLivenessProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
+		WorkingDir:    config.VarLogCephDir,
 	}
 
 	return container

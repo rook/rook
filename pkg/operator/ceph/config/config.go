@@ -63,6 +63,9 @@ const (
 
 	// CephGroup is the Linux Ceph groupname
 	CephGroup = "ceph"
+
+	// EtcLogRotateCephDir defines Ceph logrotate directory.
+	EtcLogRotateCeph = "/etc/logrotate.d/ceph"
 )
 
 var (

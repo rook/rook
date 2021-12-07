@@ -197,6 +197,9 @@ func cephVolumeEnvVar() []v1.EnvVar {
 		// LVM will avoid interaction with udev.
 		// LVM will manage the relevant nodes in /dev directly.
 		{Name: "DM_DISABLE_UDEV", Value: "1"},
+		// CEPH_VOLUME_SKIP_NEEDS_ROOT indicates to ceph-volume to not look if the process is
+		// running as root and then fail otherwise
+		{Name: "CEPH_VOLUME_SKIP_NEEDS_ROOT", Value: "1"},
 	}
 }
 

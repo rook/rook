@@ -36,6 +36,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
+				r.makeChconInitContainer(daemonConfig, rbdMirror),
 				r.makeChownInitContainer(daemonConfig, rbdMirror),
 			},
 			Containers: []v1.Container{
@@ -45,6 +46,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName: rbdMirror.Spec.PriorityClassName,
+			SecurityContext:   controller.GetPodSecurityContext(),
 		},
 	}
 
@@ -99,7 +101,15 @@ func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConf
 		r.cephClusterSpec.CephVersion.Image,
 		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		rbdMirror.Spec.Resources,
-		controller.PodSecurityContext(),
+	)
+}
+
+func (r *ReconcileCephRBDMirror) makeChconInitContainer(daemonConfig *daemonConfig, rbdMirror *cephv1.CephRBDMirror) v1.Container {
+	return controller.ChconCephDataDirsInitContainer(
+		*daemonConfig.DataPathMap,
+		r.cephClusterSpec.CephVersion.Image,
+		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		rbdMirror.Spec.Resources,
 	)
 }
 
@@ -114,12 +124,11 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 			"--foreground",
 			"--name="+fullDaemonName(daemonConfig.DaemonID),
 		),
-		Image:           r.cephClusterSpec.CephVersion.Image,
-		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
-		Resources:       rbdMirror.Spec.Resources,
-		SecurityContext: controller.PodSecurityContext(),
-		WorkingDir:      config.VarLogCephDir,
+		Image:        r.cephClusterSpec.CephVersion.Image,
+		VolumeMounts: controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		Env:          controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
+		Resources:    rbdMirror.Spec.Resources,
+		WorkingDir:   config.VarLogCephDir,
 		// TODO:
 		// Not implemented at this point since the socket name is '/run/ceph/ceph-client.rbd-mirror.a.1.94362516231272.asok'
 		// Also the command to run will be:
