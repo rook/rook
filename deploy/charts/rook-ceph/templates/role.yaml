@@ -39,18 +39,6 @@ rules:
   - update
   - delete
 - apiGroups:
-  - monitoring.coreos.com
-  resources:
-  - servicemonitors
-  - prometheusrules
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
-- apiGroups:
   - batch
   resources:
   - cronjobs

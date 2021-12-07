@@ -11,7 +11,6 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
-    i-am-a-new-label: delete-me
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{ include "library.imagePullSecrets" . }}
 ---
