@@ -920,7 +920,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, sett
 		k8shelper:       k8shelp,
 		helmHelper:      utils.NewHelmHelper(testHelmPath()),
 		k8sVersion:      version.String(),
-		changeHostnames: k8shelp.VersionAtLeast("v1.18.0"),
+		changeHostnames: settings.ChangeHostName,
 		T:               t,
 	}
 	flag.Parse()
