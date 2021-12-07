@@ -33,7 +33,6 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi/peermap"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,9 +40,7 @@ import (
 )
 
 const (
-	controllerName      = "rook-ceph-operator-csi-controller"
-	multusDaemonSetName = "csi-multus"
-	multusFinalizer     = "multus.ceph.rook.io"
+	controllerName = "rook-ceph-operator-csi-controller"
 )
 
 // ReconcileCSI reconciles a ceph-csi driver
@@ -91,13 +88,6 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 	if err != nil {
 		return err
 	}
-
-	err = c.Watch(&source.Kind{
-		Type: &apps.DaemonSet{TypeMeta: metav1.TypeMeta{Kind: "DaemonSet", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController())
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -142,14 +132,9 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	}
 
 	if !cluster.DeletionTimestamp.IsZero() {
-		if cluster.Spec.Network.IsMultus() {
-			err = r.teardownCSINetwork(cluster)
-			if err != nil {
-				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to clean up multus interfaces")
-			}
-			if err := opcontroller.RemoveFinalizerWithName(r.opManagerContext, r.client, &cluster, multusFinalizer); err != nil {
-				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to remove multus finalizer")
-			}
+		err = r.teardownCSINetwork(cluster)
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to clean up csi network")
 		}
 		logger.Debug("ceph cluster is being deleted, no need to reconcile the csi driver")
 		return reconcile.Result{}, nil
@@ -214,7 +199,11 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to validate CSI parameters")
 	}
 
-	if !CSIEnabled() {
+	if CSIEnabled() {
+		if err := r.setupCSINetwork(cluster); err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure network for csi")
+		}
+	} else {
 		logger.Debug("CSI not enabled")
 	}
 
