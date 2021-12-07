@@ -88,10 +88,8 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 
 	ds := &apps.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: discoverDaemonsetName,
-			Labels: map[string]string{
-				"app": discoverDaemonsetName,
-			},
+			Name:   discoverDaemonsetName,
+			Labels: getLabels(),
 		},
 		Spec: apps.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -104,9 +102,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": discoverDaemonsetName,
-					},
+					Labels: getLabels(),
 				},
 				Spec: v1.PodSpec{
 					ServiceAccountName: securityAccount,
@@ -239,6 +235,13 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 	}
 	return nil
 
+}
+
+func getLabels() map[string]string {
+	labels := make(map[string]string)
+	k8sutil.AddRecommendedLabels(labels, "rook-discover", "rook-ceph-operator", "rook-discover", "rook-discover")
+	labels["app"] = discoverDaemonsetName
+	return labels
 }
 
 func getEnvVar(varName string, defaultValue string) string {

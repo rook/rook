@@ -17,6 +17,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"os"
 	"strings"
 )
 
@@ -44,4 +45,16 @@ func ParseStringToLabels(in string) map[string]string {
 	}
 
 	return labels
+}
+
+// AddRecommendedLabels adds the labels to the resources created by rook
+// The labels added are name, instance,etc
+func AddRecommendedLabels(labels map[string]string, appName, parentName, resourceKind, resourceInstance string) {
+	labels["app.kubernetes.io/name"] = appName
+	labels["app.kubernetes.io/instance"] = resourceInstance
+	labels["app.kubernetes.io/component"] = resourceKind
+	labels["app.kubernetes.io/part-of"] = parentName
+	labels["app.kubernetes.io/managed-by"] = "rook-ceph-operator"
+	labels["app.kubernetes.io/created-by"] = "rook-ceph-operator"
+	labels["rook.io/operator-namespace"] = os.Getenv(PodNamespaceEnvVar)
 }

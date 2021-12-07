@@ -33,7 +33,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      daemonConfig.ResourceName,
 			Namespace: fsMirror.Namespace,
-			Labels:    controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, true),
+			Labels:    controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, fsMirror.Name, "cephfilesystemmirrors.ceph.rook.io", true),
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
@@ -76,8 +76,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Name:        daemonConfig.ResourceName,
 			Namespace:   fsMirror.Namespace,
 			Annotations: fsMirror.Spec.Annotations,
-			Labels:      controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, true),
-		},
+			Labels:      controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, fsMirror.Name, "cephfilesystemmirrors.ceph.rook.io", true)},
 		Spec: apps.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podSpec.Labels,

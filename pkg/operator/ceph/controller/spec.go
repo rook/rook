@@ -388,15 +388,18 @@ func AppLabels(appName, namespace string) map[string]string {
 }
 
 // CephDaemonAppLabels returns pod labels common to all Rook-Ceph pods which may be useful for admins.
-// App name is the name of the application: e.g., 'rook-ceph-mon', 'rook-ceph-mgr', etc.
+// App name is the name of the application: e.g., 'rook-ceph-mon', 'rook-ceph-mgr', etc
 // Daemon type is the Ceph daemon type: "mon", "mgr", "osd", "mds", "rgw"
 // Daemon ID is the ID portion of the Ceph daemon name: "a" for "mon.a"; "c" for "mds.c"
-func CephDaemonAppLabels(appName, namespace, daemonType, daemonID string, includeNewLabels bool) map[string]string {
+// ParentName is the resource metadata.name: "rook-ceph", "my-cluster", etc
+// ResourceKind is the CR type: "CephCluster", "CephFilesystem", etc
+func CephDaemonAppLabels(appName, namespace, daemonType, daemonID, parentName, resourceKind string, includeNewLabels bool) map[string]string {
 	labels := AppLabels(appName, namespace)
 
 	// New labels cannot be applied to match selectors during upgrade
 	if includeNewLabels {
 		labels[daemonTypeLabel] = daemonType
+		k8sutil.AddRecommendedLabels(labels, "ceph-"+daemonType, parentName, resourceKind, daemonID)
 	}
 	labels[DaemonIDLabel] = daemonID
 	// Also report the daemon id keyed by its daemon type: "mon: a", "mds: c", etc.

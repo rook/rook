@@ -10,6 +10,7 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
