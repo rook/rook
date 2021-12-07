@@ -8,6 +8,7 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - ""

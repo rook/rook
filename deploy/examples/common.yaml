@@ -84,6 +84,13 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: "psp:rook"
+  labels:
+    operator: rook
+    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: rook-ceph
+    app.kubernetes.io/component: ceph-csi
+    app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
       - policy
@@ -98,6 +105,13 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rbd-csi-nodeplugin
+  labels:
+    operator: rook
+    storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: rook-ceph
+    app.kubernetes.io/component: ceph-csi
+    app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -195,6 +209,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: rook-ceph
+    app.kubernetes.io/component: ceph-csi
+    app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
       - ""
@@ -227,6 +245,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: rook-ceph
+    app.kubernetes.io/component: ceph-csi
+    app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
       - ""
@@ -352,6 +374,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: rook-ceph
+    app.kubernetes.io/component: ceph-csi
+    app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups:
       - ""
@@ -408,6 +434,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: rook-ceph
+    app.kubernetes.io/component: ceph-csi
+    app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   - apiGroups: [""]
     resources: ["secrets", "configmaps"]
@@ -473,6 +503,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: rook-ceph
+    app.kubernetes.io/component: ceph-csi
+    app.kubernetes.io/part-of: rook-ceph-operator
 rules:
   # Most resources are represented by a string representation of their name, such as "pods", just as it appears in the URL for the relevant API endpoint.
   # However, some Kubernetes APIs involve a "subresource", such as the logs for a pod. [...]
@@ -545,6 +579,10 @@ metadata:
   labels:
     operator: rook
     storage-backend: ceph
+    app.kubernetes.io/name: rook-ceph
+    app.kubernetes.io/instance: rook-ceph
+    app.kubernetes.io/component: ceph-csi
+    app.kubernetes.io/part-of: rook-ceph-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

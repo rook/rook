@@ -37,10 +37,10 @@ func NewPodTemplateSpecTester(t *testing.T, template *v1.PodTemplateSpec) *PodTe
 // AssertLabelsContainCephRequirements asserts that the PodTemplateSpec under test contains labels
 // which all Ceph pods should have.
 func (pt *PodTemplateSpecTester) AssertLabelsContainCephRequirements(
-	daemonType, daemonID, appName, namespace string,
+	daemonType, daemonID, appName, namespace, parentName, resourceKind, appBinaryName string,
 ) {
 	AssertLabelsContainCephRequirements(pt.t, pt.template.ObjectMeta.Labels,
-		daemonType, daemonID, appName, namespace)
+		daemonType, daemonID, appName, namespace, parentName, resourceKind, appBinaryName)
 }
 
 // RunFullSuite runs all assertion tests for the PodTemplateSpec under test and its sub-resources.
@@ -48,8 +48,8 @@ func (pt *PodTemplateSpecTester) RunFullSuite(
 	daemonType, daemonID, appName, namespace, cephImage,
 	cpuResourceLimit, cpuResourceRequest,
 	memoryResourceLimit, memoryResourceRequest string,
-	priorityClassName string,
+	priorityClassName, parentName, resourceKind, appBinaryName string,
 ) {
-	pt.AssertLabelsContainCephRequirements(daemonType, daemonID, appName, namespace)
+	pt.AssertLabelsContainCephRequirements(daemonType, daemonID, appName, namespace, parentName, resourceKind, appBinaryName)
 	pt.Spec().RunFullSuite(daemonType, daemonID, cephImage, cpuResourceLimit, cpuResourceRequest, memoryResourceLimit, memoryResourceRequest, priorityClassName)
 }

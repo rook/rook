@@ -82,12 +82,12 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 
 	// Deployment should have Ceph labels
 	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,
-		config.MonType, monID, AppName, "ns")
+		config.MonType, monID, AppName, "ns", "default", "cephclusters.ceph.rook.io", "ceph-mon")
 
 	podTemplate := test.NewPodTemplateSpecTester(t, &d.Spec.Template)
 	podTemplate.RunFullSuite(config.MonType, monID, AppName, "ns", "quay.io/ceph/ceph:myceph",
 		"200", "100", "1337", "500", /* resources */
-		"my-priority-class")
+		"my-priority-class", "default", "cephclusters.ceph.rook.io", "ceph-mon")
 }
 
 func TestDeploymentPVCSpec(t *testing.T) {

@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 )
 
@@ -47,7 +48,7 @@ func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClas
 
 func (c *Cluster) getOSDLabels(osd OSDInfo, failureDomainValue string, portable bool) map[string]string {
 	stringID := fmt.Sprintf("%d", osd.ID)
-	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, "osd", stringID, true)
+	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, config.OsdType, stringID, c.clusterInfo.NamespacedName().Name, "cephclusters.ceph.rook.io", true)
 	labels[OsdIdLabelKey] = stringID
 	labels[FailureDomainKey] = failureDomainValue
 	labels[portableKey] = strconv.FormatBool(portable)
