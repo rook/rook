@@ -104,9 +104,8 @@ Also update optional resources like Prometheus monitoring noted more fully in th
 If you have installed Rook via the Helm chart, Helm will handle some details of the upgrade for you.
 The upgrade steps in this guide will clarify if Helm manages the step for you.
 
-Helm will **not** update the Ceph version. See [Ceph Version Upgrades](#ceph-version-upgrades) for
-instructions on updating the Ceph version.
-
+The `rook-ceph` helm chart upgrade performs the Rook upgrade.
+The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](#ceph-version-upgrades) if the Ceph image is updated.
 
 ## Upgrading from v1.7 to v1.8
 
