@@ -49,12 +49,12 @@ type CephStoragePoolDetails struct {
 	Number                 int     `json:"pool_id"`
 	Size                   uint    `json:"size"`
 	ErasureCodeProfile     string  `json:"erasure_code_profile"`
-	FailureDomain          string  `json:"failureDomain"`
 	CrushRoot              string  `json:"crushRoot"`
 	DeviceClass            string  `json:"deviceClass"`
 	CompressionMode        string  `json:"compression_mode"`
 	TargetSizeRatio        float64 `json:"target_size_ratio,omitempty"`
 	RequireSafeReplicaSize bool    `json:"requireSafeReplicaSize,omitempty"`
+	CrushRule              string  `json:"crush_rule"`
 }
 
 type CephStoragePoolStats struct {
@@ -128,7 +128,6 @@ func GetPoolDetails(context *clusterd.Context, clusterInfo *ClusterInfo, name st
 }
 
 func ParsePoolDetails(in []byte) (CephStoragePoolDetails, error) {
-
 	// The response for osd pool get when passing var=all is actually malformed JSON similar to:
 	// {"pool":"rbd","size":1}{"pool":"rbd","min_size":2}...
 	// Note the multiple top level entities, one for each property returned.  To workaround this,
@@ -372,6 +371,9 @@ func CreateECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, poo
 }
 
 func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, poolName string, pool cephv1.PoolSpec, pgCount, appName string) error {
+	// If it's a replicated pool, ensure the failure domain is desired
+	checkFailureDomain := false
+
 	// The crush rule name is the same as the pool unless we have a stretch cluster.
 	crushRuleName := poolName
 	if clusterSpec.IsStretchCluster() {
@@ -394,6 +396,7 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 			}
 		} else {
 			// create a crush rule for a replicated pool, if a failure domain is specified
+			checkFailureDomain = true
 			if err := createReplicationCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool); err != nil {
 				return errors.Wrapf(err, "failed to create replicated crush rule %q", crushRuleName)
 			}
@@ -421,6 +424,83 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 	}
 
 	logger.Infof("creating replicated pool %s succeeded", poolName)
+
+	if checkFailureDomain {
+		if err = ensureFailureDomain(context, clusterInfo, clusterSpec, poolName, pool); err != nil {
+			return nil
+		}
+	}
+	return nil
+}
+
+func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, poolName string, pool cephv1.PoolSpec) error {
+	if pool.FailureDomain == "" {
+		logger.Debugf("skipping check for failure domain on pool %q as it is not specified", poolName)
+		return nil
+	}
+
+	logger.Debugf("checking that pool %q has the failure domain %q", poolName, pool.FailureDomain)
+	details, err := GetPoolDetails(context, clusterInfo, poolName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get pool %q details", poolName)
+	}
+
+	// Find the failure domain for the current crush rule
+	rule, err := getCrushRule(context, clusterInfo, details.CrushRule)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get crush rule %q", details.CrushRule)
+	}
+	currentFailureDomain := extractFailureDomain(rule)
+	if currentFailureDomain == pool.FailureDomain {
+		logger.Debugf("pool %q has the expected failure domain %q", poolName, pool.FailureDomain)
+		return nil
+	}
+	if currentFailureDomain == "" {
+		logger.Warningf("failure domain not found for crush rule %q, proceeding to create a new crush rule", details.CrushRule)
+	}
+
+	// Use a crush rule name that is unique to the desired failure domain
+	crushRuleName := fmt.Sprintf("%s_%s", poolName, pool.FailureDomain)
+	logger.Infof("updating pool %q failure domain from %q to %q with new crush rule %q", poolName, currentFailureDomain, pool.FailureDomain, crushRuleName)
+	logger.Infof("crush rule %q will no longer be used by pool %q", details.CrushRule, poolName)
+
+	// Create a new crush rule for the expected failure domain
+	if err := createReplicationCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool); err != nil {
+		return errors.Wrapf(err, "failed to create replicated crush rule %q", crushRuleName)
+	}
+
+	// Update the crush rule on the pool
+	if err := setCrushRule(context, clusterInfo, poolName, crushRuleName); err != nil {
+		return errors.Wrapf(err, "failed to set crush rule on pool %q", poolName)
+	}
+
+	logger.Infof("Successfully updated pool %q failure domain to %q", poolName, pool.FailureDomain)
+	return nil
+}
+
+func extractFailureDomain(rule ruleSpec) string {
+	// find the failure domain in the crush rule, which is the first step where the
+	// "type" property is set
+	for i, step := range rule.Steps {
+		if step.Type != "" {
+			return step.Type
+		}
+		// We expect the rule to be found by the second step, or else it is a more
+		// complex rule that would not be supported for updating the failure domain
+		if i == 1 {
+			break
+		}
+	}
+	return ""
+}
+
+func setCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, crushRule string) error {
+	args := []string{"osd", "pool", "set", poolName, "crush_rule", crushRule}
+
+	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to set crush rule %q", crushRule)
+	}
 	return nil
 }
 

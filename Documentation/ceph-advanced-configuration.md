@@ -20,7 +20,6 @@ storage cluster.
 * [OSD CRUSH Settings](#osd-crush-settings)
 * [OSD Dedicated Network](#osd-dedicated-network)
 * [Phantom OSD Removal](#phantom-osd-removal)
-* [Change Failure Domain](#change-failure-domain)
 * [Auto Expansion of OSDs](#auto-expansion-of-osds)
 
 ## Prerequisites
@@ -431,55 +430,6 @@ To recheck that the Phantom OSD was removed, re-run the following command and ch
 ```console
 ceph osd tree
 ```
-
-## Change Failure Domain
-
-In Rook, it is now possible to indicate how the default CRUSH failure domain rule must be configured in order to ensure that replicas or erasure code shards are separated across hosts, and a single host failure does not affect availability. For instance, this is an example manifest of a block pool named `replicapool` configured with a `failureDomain` set to `osd`:
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephBlockPool
-metadata:
-  name: replicapool
-  namespace: rook
-spec:
-  # The failure domain will spread the replicas of the data across different failure zones
-  failureDomain: osd
-  ...
-```
-
-However, due to several reasons, we may need to change such failure domain to its other value: `host`. Unfortunately, changing it directly in the YAML manifest is not currently handled by Rook, so we need to perform the change directly using Ceph commands using the Rook tools pod, for instance:
-
-```console
-ceph osd pool get replicapool crush_rule
-```
-
->```
->crush_rule: replicapool
->```
-
-```console
-ceph osd crush rule create-replicated replicapool_host_rule default host
-```
-
-Notice that the suffix `host_rule` in the name of the rule is just for clearness about the type of rule we are creating here, and can be anything else as long as it is different from the existing one. Once the new rule has been created, we simply apply it to our block pool:
-
-```console
-ceph osd pool set replicapool crush_rule replicapool_host_rule
-```
-
-And validate that it has been actually applied properly:
-
-```console
-ceph osd pool get replicapool crush_rule
-```
->```
-> crush_rule: replicapool_host_rule
->```
-
-If the cluster's health was `HEALTH_OK` when we performed this change, immediately, the new rule is applied to the cluster transparently without service disruption.
-
-Exactly the same approach can be used to change from `host` back to `osd`.
 
 ## Auto Expansion of OSDs
 
