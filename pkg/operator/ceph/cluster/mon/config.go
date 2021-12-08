@@ -57,6 +57,10 @@ const (
 	externalConnectionRetry = 60 * time.Second
 )
 
+var (
+	ClusterInfoNoClusterNoSecret = errors.New("not expected to create new cluster info and did not find existing secret")
+)
+
 func (c *Cluster) genMonSharedKeyring() string {
 	return fmt.Sprintf(
 		keyringTemplate,
@@ -96,7 +100,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon secrets")
 		}
 		if ownerInfo == nil {
-			return nil, maxMonID, monMapping, errors.New("not expected to create new cluster info and did not find existing secret")
+			return nil, maxMonID, monMapping, ClusterInfoNoClusterNoSecret
 		}
 
 		clusterInfo, err = createNamedClusterInfo(clusterdContext, namespace)
