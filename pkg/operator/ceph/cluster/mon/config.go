@@ -104,7 +104,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 
 		clusterInfo, err = createNamedClusterInfo(clusterdContext, namespace)
 		if err != nil {
-			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create mon secrets")
+			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create initial cluster info")
 		}
 		clusterInfo.Context = context
 
@@ -155,7 +155,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	if clusterInfo.CephCred.Secret == adminSecretNameKey {
 		secret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(context, OperatorCreds, metav1.GetOptions{})
 		if err != nil {
-			return clusterInfo, maxMonID, monMapping, err
+			return nil, maxMonID, monMapping, err
 		}
 		// Populate external credential
 		clusterInfo.CephCred.Username = string(secret.Data["userID"])
@@ -163,7 +163,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	}
 
 	if err := ValidateCephCSIConnectionSecrets(clusterdContext, namespace); err != nil {
-		return clusterInfo, maxMonID, monMapping, err
+		return nil, maxMonID, monMapping, err
 	}
 
 	return clusterInfo, maxMonID, monMapping, nil
