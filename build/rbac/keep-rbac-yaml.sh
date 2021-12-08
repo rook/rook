@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -eEuo pipefail
+# setting locate `LC_ALL=C` because different OS do files sorting differently, 
+# so setting a common behaviour, `C` sorting order is based on the byte values,
+# Reference: https://blog.zhimingwang.org/macos-lc_collate-hunt
+LC_ALL=C
 
 # READS FROM STDIN
 # WRITES TO STDOUT
