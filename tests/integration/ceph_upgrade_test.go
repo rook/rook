@@ -116,7 +116,7 @@ func (s *UpgradeSuite) TestUpgradeRookToMaster() {
 	}()
 
 	//
-	// Upgrade Rook from v1.6 to master
+	// Upgrade Rook from v1.7 to master
 	//
 	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_7)
 	s.gatherLogs(s.settings.OperatorNamespace, "_before_master_upgrade")
@@ -128,7 +128,7 @@ func (s *UpgradeSuite) TestUpgradeRookToMaster() {
 	assert.NoError(s.T(), err)
 
 	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_7)
-	newFile := "post-upgrade-1_6-to-master-file"
+	newFile := "post-upgrade-1_7-to-master-file"
 	s.verifyFilesAfterUpgrade(filesystemName, newFile, message, rbdFilesToRead, cephfsFilesToRead)
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
@@ -421,6 +421,5 @@ func (s *UpgradeSuite) upgradeToMaster() {
 	require.NoError(s.T(),
 		s.k8sh.SetDeploymentVersion(s.settings.OperatorNamespace, operatorContainer, operatorContainer, installer.LocalBuildTag))
 
-	require.NoError(s.T(),
-		s.k8sh.SetDeploymentVersion(s.settings.Namespace, "rook-ceph-tools", "rook-ceph-tools", installer.LocalBuildTag))
+	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", m.GetToolbox()))
 }
