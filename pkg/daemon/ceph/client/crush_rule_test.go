@@ -32,7 +32,7 @@ func TestBuildStretchClusterCrushRule(t *testing.T) {
 	err := json.Unmarshal([]byte(testCrushMap), &crushMap)
 	assert.NoError(t, err)
 
-	pool := &cephv1.PoolSpec{
+	pool := cephv1.PoolSpec{
 		FailureDomain: "datacenter",
 		CrushRoot:     cephv1.DefaultCRUSHRoot,
 		Replicated: cephv1.ReplicatedSpec{
@@ -40,19 +40,19 @@ func TestBuildStretchClusterCrushRule(t *testing.T) {
 		},
 	}
 
-	rule := buildTwoStepCrushRule(crushMap, "stretched", *pool)
+	rule := buildTwoStepCrushRule(crushMap, "stretched", pool)
 	assert.Equal(t, 2, rule.ID)
 }
 
 func TestBuildCrushSteps(t *testing.T) {
-	pool := &cephv1.PoolSpec{
+	pool := cephv1.PoolSpec{
 		FailureDomain: "datacenter",
 		CrushRoot:     cephv1.DefaultCRUSHRoot,
 		Replicated: cephv1.ReplicatedSpec{
 			ReplicasPerFailureDomain: 2,
 		},
 	}
-	steps := buildTwoStepCrushSteps(*pool)
+	steps := buildTwoStepCrushSteps(pool)
 	assert.Equal(t, 4, len(steps))
 	assert.Equal(t, cephv1.DefaultCRUSHRoot, steps[0].ItemName)
 	assert.Equal(t, "datacenter", steps[1].Type)

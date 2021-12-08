@@ -14,3 +14,15 @@ spec:
     active: 1
     # The logging levels: NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG |NIV_FULL_DEBUG |NB_LOG_LEVEL
     logLevel: NIV_INFO
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: builtin-nfs
+  namespace: rook-ceph # namespace:cluster
+spec:
+  name: .nfs
+  failureDomain: host
+  replicated:
+    size: 1
+    requireSafeReplicaSize: false

@@ -33,7 +33,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: PoolSpec represents the spec of ceph pool
+              description: NamedBlockPoolSpec allows a block pool to be created with a non-default name. This is more specific than the NamedPoolSpec so we get schema validation on the allowed pool names that can be specified.
               properties:
                 compressionMode:
                   description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
@@ -113,6 +113,12 @@ spec:
                         type: object
                       type: array
                   type: object
+                name:
+                  description: The desired name of the pool if different from the CephBlockPool CR name.
+                  enum:
+                    - device_health_metrics
+                    - .nfs
+                  type: string
                 parameters:
                   additionalProperties:
                     type: string

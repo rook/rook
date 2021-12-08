@@ -110,9 +110,13 @@ func (m *CephManifestsPreviousVersion) GetFilesystem(name string, activeCount in
 	return m.latest.GetFilesystem(name, activeCount)
 }
 
-// GetFilesystem returns the manifest to create a Rook Ceph NFS resource with the given config.
-func (m *CephManifestsPreviousVersion) GetNFS(name, pool string, count int) string {
-	return m.latest.GetNFS(name, pool, count)
+// GetNFS returns the manifest to create a Rook Ceph NFS resource with the given config.
+func (m *CephManifestsPreviousVersion) GetNFS(name string, count int) string {
+	return m.latest.GetNFS(name, count)
+}
+
+func (m *CephManifestsPreviousVersion) GetNFSPool() string {
+	return m.latest.GetNFSPool()
 }
 
 func (m *CephManifestsPreviousVersion) GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string {

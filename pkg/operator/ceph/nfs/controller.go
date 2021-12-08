@@ -279,10 +279,10 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, errors.Wrapf(err, "invalid ceph nfs %q arguments", cephNFS.Name)
 	}
 
-	// Always create the default pool
-	err = r.createDefaultNFSRADOSPool(cephNFS)
+	// Check for the existence of the .nfs pool
+	err = r.configureNFSPool(cephNFS)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create default pool %q", cephNFS.Spec.RADOS.Pool)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to configure nfs pool %q", cephNFS.Spec.RADOS.Pool)
 	}
 
 	// CREATE/UPDATE
