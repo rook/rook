@@ -17,6 +17,10 @@ spec:
       size: 3
   # The list of data pool specs
   dataPools:
+    # For erasure coded pools, we have to create a replicated pool as the default
+    # data pool and an erasure-coded pool as a secondary pool.
+    - replicated:
+        size: 3
     # You need at least three `bluestore` OSDs on different nodes for this config to work
     - erasureCoded:
         dataChunks: 2
