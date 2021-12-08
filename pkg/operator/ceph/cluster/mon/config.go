@@ -101,7 +101,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, namespace string
 
 		clusterInfo, err = createNamedClusterInfo(clusterdContext, namespace)
 		if err != nil {
-			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create mon secrets")
+			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create initial cluster info")
 		}
 
 		err = createClusterAccessSecret(clusterdContext.Clientset, namespace, clusterInfo, ownerInfo)
