@@ -28,23 +28,15 @@ metadata:
   name: my-nfs
   namespace: rook-ceph
 spec:
-  # For Ceph v16, use the block here.
-  # rados settings aren't necessary in Ceph Versions equal to or greater than Pacific 16.2.7
+  # For Ceph v15, the rados block is required. It is ignored for Ceph v16.
   rados:
-    poolConfig:
-      failureDomain: host
-      replicated:
-        size: 3
-
-  # For Ceph v15, use the block here.
-  # rados:
-  #   # RADOS pool where NFS configs are stored.
-  #   # In this example the data pool for the "myfs" filesystem is used.
-  #   # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
-  #   # Note that this has nothing to do with where exported file systems or object stores live.
-  #   pool: myfs-data0
-  #   # RADOS namespace where NFS client recovery data is stored in the pool.
-  #   namespace: nfs-ns
+    # RADOS pool where NFS configs are stored.
+    # In this example the data pool for the "myfs" filesystem is used.
+    # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
+    # Note that this has nothing to do with where exported file systems or object stores live.
+    pool: myfs-data0
+    # RADOS namespace where NFS client recovery data is stored in the pool.
+    namespace: nfs-ns
 
   # Settings for the NFS server
   server:

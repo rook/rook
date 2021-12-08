@@ -293,14 +293,17 @@ func validateGanesha(context *clusterd.Context, clusterInfo *cephclient.ClusterI
 // create and enable default RADOS pool
 func (r *ReconcileCephNFS) createDefaultNFSRADOSPool(n *cephv1.CephNFS) error {
 	poolName := n.Spec.RADOS.Pool
-	// Settings are not always declared and CreateReplicatedPoolForApp does not accept a pointer for
-	// the pool spec
-	if n.Spec.RADOS.PoolConfig == nil {
-		n.Spec.RADOS.PoolConfig = &cephv1.PoolSpec{}
-	}
-	err := cephclient.CreateReplicatedPoolForApp(r.context, r.clusterInfo, r.cephClusterSpec, poolName, *n.Spec.RADOS.PoolConfig, cephclient.DefaultPGCount, "nfs")
+
+	args := []string{"osd", "pool", "create", poolName}
+	output, err := cephclient.NewCephCommand(r.context, r.clusterInfo, args).Run()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to create default NFS pool %q. %s", poolName, string(output))
+	}
+
+	args = []string{"osd", "pool", "application", "enable", poolName, "nfs", "--yes-i-really-mean-it"}
+	_, err = cephclient.NewCephCommand(r.context, r.clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to enable application 'nfs' on pool %q", poolName)
 	}
 
 	return nil
