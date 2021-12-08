@@ -168,7 +168,11 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 
 	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.OpManagerCtx, cluster.Namespace)
 	if err != nil {
-		logger.Infof("clusterInfo not yet found, must be a new cluster")
+		if errors.Is(err, mon.ClusterInfoNoClusterNoSecret) {
+			logger.Info("clusterInfo not yet found, must be a new cluster.")
+		} else {
+			return errors.Wrap(err, "failed to load cluster info")
+		}
 	} else {
 		clusterInfo.OwnerInfo = cluster.ownerInfo
 		clusterInfo.SetName(c.namespacedName.Name)
