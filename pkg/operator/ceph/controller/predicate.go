@@ -19,6 +19,7 @@ package controller
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"strings"
 	"syscall"
 
@@ -374,9 +375,8 @@ func WatchControllerPredicate() predicate.Funcs {
 					logger.Debugf("object %q matched on update but %q label is set, doing nothing", objNew.Name, DoNotReconcileLabelName)
 					return false
 				}
-				diff := cmp.Diff(objOld.Labels, objNew.Labels, resourceQtyComparer)
-				if diff != "" {
-					logger.Infof("CR labels has changed for %q. diff=%s", objNew.Name, diff)
+				if !reflect.DeepEqual(objOld.Labels, objNew.Labels) {
+					logger.Infof("CR labels has changed for %q", objNew.Name)
 					return true
 				} else if objOld.Spec.ObjectBucketName != objNew.Spec.ObjectBucketName {
 					logger.Infof("CR %q bucket name changed from %q to %q", objNew.Name, objOld.Spec.ObjectBucketName, objNew.Spec.ObjectBucketName)

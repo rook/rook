@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package topic to manage a rook bucket notification topic.
+// Package topic to manage a rook bucket topics.
 package topic
 
 import (
@@ -190,26 +190,30 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 }
 
 func (r *ReconcileBucketTopic) createCephBucketTopic(topic *cephv1.CephBucketTopic) (topicARN *string, err error) {
-	provisioner := Provisioner{
-		Client:           r.client,
-		Context:          r.context,
-		ClusterInfo:      r.clusterInfo,
-		ClusterSpec:      r.clusterSpec,
-		opManagerContext: r.opManagerContext,
-	}
-	topicARN, err = provisioner.Create(topic)
+	topicARN, err = createTopicFunc(
+		provisioner{
+			client:           r.client,
+			context:          r.context,
+			clusterInfo:      r.clusterInfo,
+			clusterSpec:      r.clusterSpec,
+			opManagerContext: r.opManagerContext,
+		},
+		topic,
+	)
 	return
 }
 
 func (r *ReconcileBucketTopic) deleteCephBucketTopic(topic *cephv1.CephBucketTopic) error {
-	provisioner := Provisioner{
-		Client:           r.client,
-		Context:          r.context,
-		ClusterInfo:      r.clusterInfo,
-		ClusterSpec:      r.clusterSpec,
-		opManagerContext: r.opManagerContext,
-	}
-	return provisioner.Delete(topic)
+	return deleteTopicFunc(
+		provisioner{
+			client:           r.client,
+			context:          r.context,
+			clusterInfo:      r.clusterInfo,
+			clusterSpec:      r.clusterSpec,
+			opManagerContext: r.opManagerContext,
+		},
+		topic,
+	)
 }
 
 func (r *ReconcileBucketTopic) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {

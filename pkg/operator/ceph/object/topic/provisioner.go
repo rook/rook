@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package topic to manage a rook bucket notification topic.
+// Package topic to manage a rook bucket topics.
 package topic
 
 import (
@@ -47,27 +47,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Provisioner struct {
-	Client           client.Client
-	Context          *clusterd.Context
-	ClusterInfo      *cephclient.ClusterInfo
-	ClusterSpec      *cephv1.ClusterSpec
+type provisioner struct {
+	client           client.Client
+	context          *clusterd.Context
+	clusterInfo      *cephclient.ClusterInfo
+	clusterSpec      *cephv1.ClusterSpec
 	opManagerContext context.Context
 }
 
-func (p *Provisioner) createSession(objectStoreName types.NamespacedName) (*awssession.Session, error) {
-	objStore, err := p.Context.RookClientset.CephV1().CephObjectStores(objectStoreName.Namespace).Get(p.opManagerContext, objectStoreName.Name, metav1.GetOptions{})
+// A new client type is needed here since topic management is part of AWS's Simple Notification Service (SNS) and not part of S3
+func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.SNS, error) {
+	objStore, err := p.context.RookClientset.CephV1().CephObjectStores(objectStoreName.Namespace).Get(p.opManagerContext, objectStoreName.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get CephObjectStore %v", objectStoreName)
 	}
 
-	objContext, err := object.NewMultisiteContext(p.Context, p.ClusterInfo, objStore)
+	objContext, err := object.NewMultisiteContext(p.context, p.clusterInfo, objStore)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get object context for CephObjectStore %v", objectStoreName)
 	}
 
 	// CephClusterSpec is needed for GetAdminOPSUserCredentials()
-	objContext.CephClusterSpec = *p.ClusterSpec
+	objContext.CephClusterSpec = *p.clusterSpec
 	accessKey, secretKey, err := object.GetAdminOPSUserCredentials(objContext, &objStore.Spec)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get Ceph RGW admin ops user credentials")
@@ -109,12 +110,7 @@ func (p *Provisioner) createSession(objectStoreName types.NamespacedName) (*awss
 		*sess.Config.Region,
 		tlsEnabled,
 	)
-	return sess, nil
-}
-
-// A new client type is needed here since topic management is part of AWS's Simple Notification Service (SNS) and not part of S3
-func createSNSClient(sess *awssession.Session) (snsClient *sns.SNS) {
-	snsClient = sns.New(sess)
+	snsClient := sns.New(sess)
 	// This is a hack to workaround the following RGW issue: https://tracker.ceph.com/issues/50039
 	// note that using: "github.com/aws/aws-sdk-go/private/signer/v2"
 	// * would add the signature to the query and not the header
@@ -142,16 +138,14 @@ func createSNSClient(sess *awssession.Session) (snsClient *sns.SNS) {
 			}
 		},
 	})
-	return
+	return snsClient, nil
 }
 
-func (p *Provisioner) Create(topic *cephv1.CephBucketTopic) (*string, error) {
-	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
+// Allow overriding this function for unit tests
+var createTopicFunc = createTopic
 
-	session, err := p.createSession(types.NamespacedName{Name: topic.Spec.ObjectStoreName, Namespace: topic.Spec.ObjectStoreNamespace})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create session for CephBucketTopic %q provisioning", nsName)
-	}
+func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) {
+	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
 
 	attr := make(map[string]*string)
 
@@ -184,7 +178,11 @@ func (p *Provisioner) Create(topic *cephv1.CephBucketTopic) (*string, error) {
 		attr["verify-ssl"] = &verifySSL
 	}
 
-	topicOutput, err := createSNSClient(session).CreateTopic(&sns.CreateTopicInput{
+	snsClient, err := createSNSClient(p, types.NamespacedName{Name: topic.Spec.ObjectStoreName, Namespace: topic.Spec.ObjectStoreNamespace})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create SNS client for CephBucketTopic %q provisioning", nsName)
+	}
+	topicOutput, err := snsClient.CreateTopic(&sns.CreateTopicInput{
 		Name:       &topic.Name,
 		Attributes: attr,
 	})
@@ -198,7 +196,10 @@ func (p *Provisioner) Create(topic *cephv1.CephBucketTopic) (*string, error) {
 	return topicOutput.TopicArn, nil
 }
 
-func (p *Provisioner) Delete(topic *cephv1.CephBucketTopic) error {
+// Allow overriding this function for unit tests
+var deleteTopicFunc = deleteTopic
+
+func deleteTopic(p provisioner, topic *cephv1.CephBucketTopic) error {
 	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
 	logger.Infof("deleting CephBucketTopic %q", nsName)
 
@@ -207,12 +208,12 @@ func (p *Provisioner) Delete(topic *cephv1.CephBucketTopic) error {
 		return nil
 	}
 
-	session, err := p.createSession(types.NamespacedName{Name: topic.Spec.ObjectStoreName, Namespace: topic.Spec.ObjectStoreNamespace})
+	snsClient, err := createSNSClient(p, types.NamespacedName{Name: topic.Spec.ObjectStoreName, Namespace: topic.Spec.ObjectStoreNamespace})
 	if err != nil {
-		return errors.Wrapf(err, "failed to create session for CephBucketTopic %q deletion", nsName)
+		return errors.Wrapf(err, "failed to create SNS client for CephBucketTopic %q deletion", nsName)
 	}
 
-	_, err = createSNSClient(session).DeleteTopic(&sns.DeleteTopicInput{TopicArn: topic.Status.ARN})
+	_, err = snsClient.DeleteTopic(&sns.DeleteTopicInput{TopicArn: topic.Status.ARN})
 
 	if err != nil {
 		if err.(awserr.Error).Code() != sns.ErrCodeNotFoundException {
@@ -226,23 +227,26 @@ func (p *Provisioner) Delete(topic *cephv1.CephBucketTopic) error {
 	return nil
 }
 
-func GetARN(topic *cephv1.CephBucketTopic) (string, error) {
-	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
-	if topic.Status == nil || topic.Status.ARN == nil {
-		return "", errors.Errorf("no ARN in topic. CephBucketTopic %q was not provisioned yet", nsName)
+func GetProvisioned(cl client.Client, ctx context.Context, topicName types.NamespacedName) (*cephv1.CephBucketTopic, error) {
+	bucketTopic := &cephv1.CephBucketTopic{}
+	if err := cl.Get(ctx, topicName, bucketTopic); err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve CephBucketTopic %q", topicName)
 	}
-	topicARN := *topic.Status.ARN
+	if bucketTopic.Status == nil || bucketTopic.Status.ARN == nil {
+		return nil, errors.Errorf("no ARN in topic. CephBucketTopic %q was not provisioned yet", topicName)
+	}
+	topicARN := *bucketTopic.Status.ARN
 	parsedTopicARN, err := arn.Parse(topicARN)
 	if err != nil {
-		return topicARN, errors.Wrapf(err, "failed to parse CephBucketTopic %q ARN %q", nsName, topicARN)
+		return nil, errors.Wrapf(err, "failed to parse CephBucketTopic %q ARN %q", topicName, topicARN)
 	}
 	if strings.ToLower(parsedTopicARN.Service) != "sns" {
-		return topicARN, errors.Errorf("CephBucketTopic %q ARN %q must have 'sns' service", nsName, topicARN)
+		return nil, errors.Errorf("CephBucketTopic %q ARN %q must have 'sns' service", topicName, topicARN)
 	}
 	if parsedTopicARN.Resource == "" {
-		return topicARN, errors.Errorf("CephBucketTopic %q is missing a topic inside ARN %q", nsName, topicARN)
+		return nil, errors.Errorf("CephBucketTopic %q is missing a topic inside ARN %q", topicName, topicARN)
 	}
-	logger.Debugf("CephBucketTopic %q found with valid ARN %q", nsName, topicARN)
+	logger.Debugf("CephBucketTopic %q found with valid ARN %q", topicName, topicARN)
 
-	return topicARN, nil
+	return bucketTopic, nil
 }
