@@ -5,7 +5,7 @@ inputs:
     description: GITHUB_TOKEN from the calling workflow
     required: true
   ceph-image:
-    description: Ceph image to use for the workflow (e.g., quay.io/ceph/ceph:v16.2.5)
+    description: Ceph image to use for the workflow (e.g., quay.io/ceph/ceph:v16.2.7)
     required: false
 
 runs:
