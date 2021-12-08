@@ -111,7 +111,7 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
-build.common: build.version helm.build mod.check crds
+build.common: build.version helm.build mod.check crds gen-rbac
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) -C images/ceph list-image
@@ -185,7 +185,7 @@ crds: $(CONTROLLER_GEN) $(YQ)
 
 gen-rbac: $(HELM) $(YQ) ## generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
-	HELM=$(HELM) ./build/rbac/get-helm-rbac.sh > build/rbac/rbac.yaml
+	HELM=$(HELM) ./build/rbac/gen-common.sh
 
 .PHONY: all build.common cross.build.parallel
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
