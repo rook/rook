@@ -10,8 +10,6 @@ spec:
       failureDomain: osd
       replicated:
         size: 1
-    # RADOS namespace where NFS client recovery data is stored in the pool.
-    namespace: nfs-ns
   # Settings for the NFS server
   server:
     # the number of active NFS servers

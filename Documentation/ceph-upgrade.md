@@ -449,7 +449,7 @@ See for more information, see here: https://github.com/rook/rook/issues/9185
 
 ### **Important consideration for CephNFS users**
 Users of CephNFS need to take additional steps to upgrade Ceph versions. Please see the
-[NFS documentation](ceph-nfs-crd.md) for full details.
+[NFS documentation](ceph-nfs-crd.md#upgrading-from-ceph-v15-to-v16) for full details.
 
 ### **Ceph images**
 
