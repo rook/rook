@@ -3,7 +3,7 @@
  k8s.gcr.io/sig-storage/csi-provisioner:v3.0.0
  k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
  k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.0
- quay.io/ceph/ceph:v16.2.6
+ quay.io/ceph/ceph:v16.2.7
  quay.io/cephcsi/cephcsi:v3.4.0
  quay.io/csiaddons/volumereplication-operator:v0.1.0
  rook/ceph:master
