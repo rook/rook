@@ -1818,11 +1818,6 @@ type GaneshaRADOSSpec struct {
 	// +optional
 	Pool string `json:"pool,omitempty"`
 
-	// PoolConfig is the RADOS pool where Ganesha data is stored.
-	// +nullable
-	// +optional
-	PoolConfig *PoolSpec `json:"poolConfig,omitempty"`
-
 	// Namespace is the RADOS namespace where NFS client recovery data is stored.
 	Namespace string `json:"namespace"`
 }
