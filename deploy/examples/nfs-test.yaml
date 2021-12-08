@@ -4,12 +4,10 @@ metadata:
   name: my-nfs
   namespace: rook-ceph # namespace:cluster
 spec:
-  # rados settings aren't necessary in Ceph Versions equal to or greater than Pacific 16.2.7
+  # this setting is ignored for Ceph v16+
   rados:
-    poolConfig:
-      failureDomain: osd
-      replicated:
-        size: 1
+    pool: myfs-data0
+    namespace: nfs-ns
   # Settings for the NFS server
   server:
     # the number of active NFS servers
