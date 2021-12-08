@@ -104,17 +104,17 @@ func CreateRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 }
 
 // enablePoolMirroring turns on mirroring on that pool by specifying the mirroring type
-func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.PoolSpec, poolName string) error {
-	logger.Infof("enabling mirroring type %q for pool %q", pool.Mirroring.Mode, poolName)
+func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
+	logger.Infof("enabling mirroring type %q for pool %q", pool.Mirroring.Mode, pool.Name)
 
 	// Build command
-	args := []string{"mirror", "pool", "enable", poolName, pool.Mirroring.Mode}
+	args := []string{"mirror", "pool", "enable", pool.Name, pool.Mirroring.Mode}
 	cmd := NewRBDCommand(context, clusterInfo, args)
 
 	// Run command
 	output, err := cmd.Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to enable mirroring type %q for pool %q. %s", pool.Mirroring.Mode, poolName, output)
+		return errors.Wrapf(err, "failed to enable mirroring type %q for pool %q. %s", pool.Mirroring.Mode, pool.Name, output)
 	}
 
 	return nil
@@ -246,17 +246,17 @@ func removeSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo,
 	return nil
 }
 
-func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolSpec cephv1.PoolSpec, poolName string) error {
+func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
 	logger.Info("resetting current snapshot schedules")
 	// Reset any existing schedules
-	err := removeSnapshotSchedules(context, clusterInfo, poolSpec, poolName)
+	err := removeSnapshotSchedules(context, clusterInfo, pool)
 	if err != nil {
 		logger.Errorf("failed to remove snapshot schedules. %v", err)
 	}
 
 	// Enable all the snap schedules
-	for _, snapSchedule := range poolSpec.Mirroring.SnapshotSchedules {
-		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, poolName)
+	for _, snapSchedule := range pool.Mirroring.SnapshotSchedules {
+		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, pool.Name)
 		if err != nil {
 			return errors.Wrap(err, "failed to enable snapshot schedule")
 		}
@@ -266,16 +266,16 @@ func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo
 }
 
 // removeSnapshotSchedules removes all the existing snapshot schedules
-func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolSpec cephv1.PoolSpec, poolName string) error {
+func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
 	// Get the list of existing snapshot schedule
-	existingSnapshotSchedules, err := listSnapshotSchedules(context, clusterInfo, poolName)
+	existingSnapshotSchedules, err := listSnapshotSchedules(context, clusterInfo, pool.Name)
 	if err != nil {
 		return errors.Wrap(err, "failed to list snapshot schedule(s)")
 	}
 
 	// Remove each schedule
 	for _, existingSnapshotSchedule := range existingSnapshotSchedules {
-		err := removeSnapshotSchedule(context, clusterInfo, existingSnapshotSchedule, poolName)
+		err := removeSnapshotSchedule(context, clusterInfo, existingSnapshotSchedule, pool.Name)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove snapshot schedule %v", existingSnapshotSchedule)
 		}

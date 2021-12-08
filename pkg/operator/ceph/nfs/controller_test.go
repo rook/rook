@@ -183,7 +183,7 @@ func TestCephNFSController(t *testing.T) {
 				if args[0] == "auth" && args[1] == "get-or-create-key" {
 					return nfsCephAuthGetOrCreateKey, nil
 				}
-				if args[0] == "osd" && args[1] == "pool" && args[2] == "create" {
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
 					return "", nil
 				}
 				if args[0] == "osd" && args[1] == "crush" && args[2] == "rule" {
