@@ -755,7 +755,7 @@ jobs:
       run: |
         kubectl -n rook-ceph get cephfilesystem myfs -o yaml
         # the check is not super ideal since 'mirroring_failed' is only displayed when there is a failure but not when it's working...
-        timeout 60 sh -c 'while [ "$(kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs snapshot mirror daemon status myfs|jq -r '.[0].filesystems[0]'|grep -c "mirroring_failed")" -eq 1 ]; do echo "waiting for filesystem to be mirrored" && sleep 1; done'
+        timeout 60 sh -c 'while [ "$(kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs snapshot mirror daemon status|jq -r '.[0].filesystems[0]'|grep -c "mirroring_failed")" -eq 1 ]; do echo "waiting for filesystem to be mirrored" && sleep 1; done'
 
     - name: collect common logs
       if: always()
