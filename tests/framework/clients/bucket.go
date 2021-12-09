@@ -20,7 +20,9 @@ import (
 	b64 "encoding/base64"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/service/s3"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
+	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 )
@@ -145,4 +147,34 @@ func (b *BucketOperation) CheckOBMaxObject(obcName, maxobject string) bool {
 	obName, _ := b.k8sh.GetResource("obc", obcName, "--output", "jsonpath={.spec.objectBucketName}")
 	fetchMaxObject, _ := b.k8sh.GetResource("ob", obName, "--output", "jsonpath={.spec.endpoint.additionalConfig.maxObjects}")
 	return maxobject == fetchMaxObject
+}
+
+// Checks the bucket notifications set on RGW backend bucket
+func (b *BucketOperation) CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, s3endpoint string) bool {
+	var s3client *rgw.S3Agent
+	s3AccessKey, _ := b.GetAccessKey(obcName)
+	s3SecretKey, _ := b.GetSecretKey(obcName)
+
+	//TODO : add TLS check
+	s3client, err := rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", true, nil)
+	if err != nil {
+		logger.Errorf("S3 client creation failed with error %v", err)
+		return false
+	}
+
+	notifications, err := s3client.Client.GetBucketNotificationConfiguration(&s3.GetBucketNotificationConfigurationRequest{
+		Bucket: &bucketname,
+	})
+	if err != nil {
+		logger.Infof("failed to fetch bucket notifications configuration due to %v", err)
+		return false
+	}
+	logger.Infof("%d bucket notifications found in: %+v", len(notifications.TopicConfigurations), notifications)
+	for _, notification := range notifications.TopicConfigurations {
+		if *notification.Id == notificationName {
+			return true
+		}
+		logger.Infof("bucket notifications name mismatch %q != %q", *notification.Id, notificationName)
+	}
+	return false
 }
