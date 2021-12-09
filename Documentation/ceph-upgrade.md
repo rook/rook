@@ -340,6 +340,24 @@ When the operator is updated, it will proceed to update all of the Ceph daemons.
 kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.8.0
 ```
 
+#### Admission controller
+If you use the optional [Admission controller](admission-controller-usage.md), there are additional
+updates during this step. The admission controller has been integrated inside the operator
+instead of a separate deployment. This means that the webhook server certificates are now stored in
+the operator, and the operator manifest must be updated to use the one provided in
+`deploy/examples/operator.yaml`. If you are using Helm to manage the deployment, this is handled
+automatically.
+
+When updating the operator deployment with the latest example from Rook, there is risk of
+overwriting changes if you have customized the operator deployment or to the
+`rook-ceph-operator-config` ConfigMap. We suggest that you remove the ConfigMap from `operator.yaml`
+before moving on. Additionally, we encourage you to diff the current deployment and the latest one
+to be sure any changes you may have made don't get overwritten. Required changes include the
+`webhook-cert` volume/mount and `https-webhook` port, though there are some smaller changes as well.
+
+Once you are sure any custom modifications to your operator deployment won't be overwritten, apply
+the new `operator.yaml` with `kubectl apply -f deploy/examples/operator.yaml`.
+
 ### **4. Wait for the upgrade to complete**
 
 Watch now in amazement as the Ceph mons, mgrs, OSDs, rbd-mirrors, MDSes and RGWs are terminated and
