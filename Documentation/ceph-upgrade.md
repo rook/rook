@@ -337,7 +337,7 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```sh
-kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.8.0
+kubectl apply -f operator.yaml
 ```
 
 ### **4. Wait for the upgrade to complete**
