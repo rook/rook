@@ -216,6 +216,7 @@ function deploy_cluster() {
   kubectl create -f rbdmirror.yaml
   kubectl create -f filesystem-mirror.yaml
   kubectl create -f nfs-test.yaml
+  kubectl create -f subvolumegroup.yaml
   deploy_manifest_with_local_build toolbox.yaml
 }
 

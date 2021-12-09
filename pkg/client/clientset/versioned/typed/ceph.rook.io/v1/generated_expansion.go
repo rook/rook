@@ -32,6 +32,8 @@ type CephFilesystemExpansion interface{}
 
 type CephFilesystemMirrorExpansion interface{}
 
+type CephFilesystemSubVolumeGroupExpansion interface{}
+
 type CephNFSExpansion interface{}
 
 type CephObjectRealmExpansion interface{}

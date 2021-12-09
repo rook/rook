@@ -46,6 +46,7 @@ var (
 		"CephClientList",
 		"CephBucketTopic",
 		"CephBucketNotification",
+		"CephFilesystemSubVolumeGroup",
 	}
 )
 

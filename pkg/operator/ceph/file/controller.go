@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +40,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -69,9 +71,13 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 var currentAndDesiredCephVersion = opcontroller.CurrentAndDesiredCephVersion
 
+// allow this to be overridden for unit tests
+var cephFilesystemDependents = CephFilesystemDependents
+
 // ReconcileCephFilesystem reconciles a CephFilesystem object
 type ReconcileCephFilesystem struct {
 	client           client.Client
+	recorder         record.EventRecorder
 	scheme           *runtime.Scheme
 	context          *clusterd.Context
 	cephClusterSpec  *cephv1.ClusterSpec
@@ -97,6 +103,7 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephFilesystem{
 		client:           mgr.GetClient(),
+		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		fsContexts:       make(map[string]*fsHealth),
@@ -236,6 +243,16 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// DELETE: the CR was deleted
 	if !cephFilesystem.GetDeletionTimestamp().IsZero() {
+		deps, err := cephFilesystemDependents(r.context, r.clusterInfo, cephFilesystem)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if !deps.Empty() {
+			err := reporting.ReportDeletionBlockedDueToDependents(logger, r.client, cephFilesystem, deps)
+			return opcontroller.WaitForRequeueIfFinalizerBlocked, err
+		}
+		reporting.ReportDeletionNotBlockedDueToDependents(logger, r.client, r.recorder, cephFilesystem)
+
 		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, clusterInfo, config.MonType)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
@@ -359,7 +376,8 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		}
 	}
 	if !statusUpdated {
-		// Set Ready status, we are done reconciling
+		// Set Ready status, we are done reconciling$
+		// TODO: set status to Ready **only** if the filesystem is ready
 		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, nil)
 	}
 

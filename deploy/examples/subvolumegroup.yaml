@@ -1,0 +1,9 @@
+---
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystemSubVolumeGroup
+metadata:
+  name: group-a
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # filesystemName is the metadata name of the CephFilesystem CR where the subvolume group will be created
+  filesystemName: myfs

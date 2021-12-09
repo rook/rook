@@ -163,6 +163,11 @@ spec:
         version: v1
         displayName: Ceph Bucket Topic
         description: Represents a Ceph Bucket Topic.
+      - kind: CephFilesystemSubVolumeGroup
+        name: cephfilesystemsubvolumegroups.ceph.rook.io
+        version: v1
+        displayName: Ceph Filesystem SubVolumeGroup
+        description: Represents a Ceph Filesystem SubVolumeGroup.
   displayName: Rook-Ceph
   description: |
 
