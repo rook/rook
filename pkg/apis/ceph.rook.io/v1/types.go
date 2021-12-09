@@ -1096,6 +1096,7 @@ type CephFilesystemStatus struct {
 	// MirroringStatus is the filesystem mirroring status
 	// +optional
 	MirroringStatus *FilesystemMirroringInfoSpec `json:"mirroringStatus,omitempty"`
+	Conditions      []Condition                  `json:"conditions,omitempty"`
 }
 
 // FilesystemMirroringInfo is the status of the pool mirroring
@@ -2301,4 +2302,48 @@ type StorageClassDeviceSet struct {
 	// Whether to encrypt the deviceSet
 	// +optional
 	Encrypted bool `json:"encrypted,omitempty"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephFilesystemSubVolumeGroup represents a Ceph Filesystem SubVolumeGroup
+// +kubebuilder:subresource:status
+type CephFilesystemSubVolumeGroup struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	// Spec represents the specification of a Ceph Filesystem SubVolumeGroup
+	Spec CephFilesystemSubVolumeGroupSpec `json:"spec"`
+	// Status represents the status of a CephFilesystem SubvolumeGroup
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Status *CephFilesystemSubVolumeGroupStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephFilesystemSubVolumeGroup represents a list of Ceph Clients
+type CephFilesystemSubVolumeGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephFilesystemSubVolumeGroup `json:"items"`
+}
+
+// CephFilesystemSubVolumeGroupSpec represents the specification of a Ceph Filesystem SubVolumeGroup
+type CephFilesystemSubVolumeGroupSpec struct {
+	// FilesystemName is the name of Ceph Filesystem SubVolumeGroup volume name. Typically it's the name of
+	// the CephFilesystem CR. If not coming from the CephFilesystem CR, it can be retrieved from the
+	// list of Ceph Filesystem volumes with `ceph fs volume ls`. To learn more about Ceph Filesystem
+	// abstractions see https://docs.ceph.com/en/latest/cephfs/fs-volumes/#fs-volumes-and-subvolumes
+	FilesystemName string `json:"filesystemName"`
+}
+
+// CephFilesystemSubVolumeGroupStatus represents the Status of Ceph Filesystem SubVolumeGroup
+type CephFilesystemSubVolumeGroupStatus struct {
+	// +optional
+	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	// +nullable
+	Info map[string]string `json:"info,omitempty"`
 }

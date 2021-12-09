@@ -74,6 +74,14 @@ type CephFilesystemMirrorListerExpansion interface{}
 // CephFilesystemMirrorNamespaceLister.
 type CephFilesystemMirrorNamespaceListerExpansion interface{}
 
+// CephFilesystemSubVolumeGroupListerExpansion allows custom methods to be added to
+// CephFilesystemSubVolumeGroupLister.
+type CephFilesystemSubVolumeGroupListerExpansion interface{}
+
+// CephFilesystemSubVolumeGroupNamespaceListerExpansion allows custom methods to be added to
+// CephFilesystemSubVolumeGroupNamespaceLister.
+type CephFilesystemSubVolumeGroupNamespaceListerExpansion interface{}
+
 // CephNFSListerExpansion allows custom methods to be added to
 // CephNFSLister.
 type CephNFSListerExpansion interface{}

@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
+	"github.com/rook/rook/pkg/operator/ceph/file/subvolumegroup"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
@@ -106,6 +107,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 	bucket.Add,
 	topic.Add,
 	notification.Add,
+	subvolumegroup.Add,
 }
 
 // AddToManagerOpFunc is a list of functions to add all Controllers to the Manager (entrypoint for
