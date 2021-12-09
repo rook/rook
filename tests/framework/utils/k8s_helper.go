@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	bktclient "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
 	"github.com/pkg/errors"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
@@ -56,6 +57,7 @@ type K8sHelper struct {
 	remoteExecutor   *exec.RemotePodCommandExecutor
 	Clientset        *kubernetes.Clientset
 	RookClientset    *rookclient.Clientset
+	BucketClientset  *bktclient.Clientset
 	RunningInCluster bool
 	T                func() *testing.T
 }
@@ -94,13 +96,17 @@ func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rook clientset. %+v", err)
 	}
+	bucketClientset, err := bktclient.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get lib-bucket-provisioner clientset. %+v", err)
+	}
 
 	remoteExecutor := &exec.RemotePodCommandExecutor{
 		ClientSet:  clientset,
 		RestClient: config,
 	}
 
-	h := &K8sHelper{executor: executor, Clientset: clientset, RookClientset: rookClientset, T: t, remoteExecutor: remoteExecutor}
+	h := &K8sHelper{executor: executor, Clientset: clientset, RookClientset: rookClientset, BucketClientset: bucketClientset, T: t, remoteExecutor: remoteExecutor}
 	if strings.Contains(config.Host, "//10.") {
 		h.RunningInCluster = true
 	}
