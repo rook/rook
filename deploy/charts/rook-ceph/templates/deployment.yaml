@@ -35,6 +35,8 @@ spec:
           name: rook-config
         - mountPath: /etc/ceph
           name: default-config-dir
+        - mountPath: /etc/webhook
+          name: webhook-cert
         env:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: {{ .Values.currentNamespaceOnly | quote }}
@@ -305,4 +307,6 @@ spec:
       - name: rook-config
         emptyDir: {}
       - name: default-config-dir
+        emptyDir: {}
+      - name: webhook-cert
         emptyDir: {}
