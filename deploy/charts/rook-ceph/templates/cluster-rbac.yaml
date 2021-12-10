@@ -26,8 +26,18 @@ roles
 ---
 {{ include "library.cluster.roles" . }}
 
+{{- if .Values.monitoring.enabled }}
+---
+{{ include "library.cluster.monitoring.roles" . }}
+{{- end }}
+
 {{/*
 rolebindings
 */}}
 ---
 {{ include "library.cluster.rolebindings" . }}
+
+{{- if .Values.monitoring.enabled }}
+---
+{{ include "library.cluster.monitoring.rolebindings" . }}
+{{- end }}

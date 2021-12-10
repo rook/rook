@@ -52,6 +52,10 @@ rbacEnable: true
 ##
 pspEnable: true
 
+monitoring:
+  # enabling will create RBAC rules to allow Operator to create ServiceMonitors
+  enabled: true
+
 ## Settings for whether to disable the drivers or other daemons if they are not
 ## needed
 csi:
