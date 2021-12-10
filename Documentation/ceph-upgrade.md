@@ -319,6 +319,12 @@ step to upgrade the Prometheus RBAC resources as well.
 kubectl apply -f deploy/examples/monitoring/rbac.yaml
 ```
 
+If you use the `rook-ceph` operator Helm chart, you should also add `monitoring.enabled` to
+your Helm values with two caveats:
+- this is unnecessary if you deploy monitoring RBAC from `deploy/examples/monitoring/rbac.yaml`
+- this is unnecessary if you use `rook-ceph-cluster` charts exclusively outside of the `rook-ceph`
+  operator namespace.
+
 ### **2. Update Ceph CSI versions**
 
 > Automatically updated if you are upgrading via the helm chart

@@ -4,7 +4,6 @@ These should be scoped to the namespace where the CephCluster is located.
 */}}
 
 {{- define "library.cluster.monitoring.roles" -}}
-# ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
