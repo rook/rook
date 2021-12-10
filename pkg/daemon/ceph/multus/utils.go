@@ -39,15 +39,15 @@ var (
 )
 
 const (
-	ifBase           = "mlink"
-	nsDir            = "/var/run/netns"
-	supportedIPAM    = "whereabouts"
-	holderIpEnv      = "HOLDERIP"
-	multusIpEnv      = "MULTUSIP"
-	multusLinkEnv    = "MULTUSLINK"
-	multusAnnotation = "k8s.v1.cni.cncf.io/networks-status"
-	MultusNamespace  = "NAMESPACE"
-	MultusLabel      = "app=rook-ceph-multus"
+	ifBase             = "mlink"
+	nsDir              = "/var/run/netns"
+	supportedIPAM      = "whereabouts"
+	holderIpEnv        = "HOLDERIP"
+	multusIpEnv        = "MULTUSIP"
+	multusLinkEnv      = "MULTUSLINK"
+	MultusNamespaceEnv = "NAMESPACE"
+	multusAnnotation   = "k8s.v1.cni.cncf.io/networks-status"
+	MultusLabel        = "app=rook-ceph-multus"
 )
 
 type multusConfig struct {

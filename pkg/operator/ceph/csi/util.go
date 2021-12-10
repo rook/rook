@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
-	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -82,20 +81,6 @@ func templateToDeployment(name, templateData string, p templateParam) (*apps.Dep
 		return nil, errors.Wrap(err, "failed to unmarshal deployment template")
 	}
 	return &dep, nil
-}
-
-func templateToJob(name, templateData string, p templateParam) (*batch.Job, error) {
-	var job batch.Job
-	t, err := loadTemplate(name, templateData, p)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load job template")
-	}
-
-	err = yaml.Unmarshal([]byte(t), &job)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal job template")
-	}
-	return &job, nil
 }
 
 func applyResourcesToContainers(opConfig map[string]string, key string, podspec *corev1.PodSpec) {
