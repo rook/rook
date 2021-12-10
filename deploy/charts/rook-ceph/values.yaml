@@ -353,3 +353,8 @@ admissionController:
   #      operator: Exists
   #      effect: NoSchedule
   # nodeAffinity: key1=value1,value2; key2=value3
+
+monitoring:
+  # requires Prometheus to be pre-installed
+  # enabling will also create RBAC rules to allow Operator to create ServiceMonitors
+  enabled: false
