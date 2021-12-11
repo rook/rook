@@ -108,7 +108,7 @@ func TestExpandPVCIfRequired(t *testing.T) {
 
 		desiredPVC.Spec.Resources.Requests[v1.ResourceStorage] = apiresource.MustParse(tc.desiredPVCSize)
 
-		ExpandPVCIfRequired(cl, desiredPVC, existingPVC)
+		ExpandPVCIfRequired(context.TODO(), cl, desiredPVC, existingPVC)
 
 		// get existing PVC
 		err = cl.Get(context.TODO(), client.ObjectKey{Name: "test", Namespace: "rook-ceph"}, existingPVC)
