@@ -56,7 +56,7 @@ func TestOrchestrationStatus(t *testing.T) {
 
 	// update the status map with some status
 	status := OrchestrationStatus{Status: OrchestrationStatusOrchestrating, Message: "doing work"}
-	UpdateNodeOrPVCStatus(kv, nodeName, status)
+	UpdateNodeOrPVCStatus(ctx, kv, nodeName, status)
 
 	// retrieve the status and verify it
 	statusMap, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).Get(ctx, cmName, metav1.GetOptions{})
@@ -94,7 +94,7 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 					},
 					Status: OrchestrationStatusCompleted,
 				}
-				UpdateNodeOrPVCStatus(c.kv, nodeName, *status)
+				UpdateNodeOrPVCStatus(ctx, c.kv, nodeName, *status)
 
 				// 2) call modify on the fake watcher so a watch event will get triggered
 				s, _ := json.Marshal(status)
