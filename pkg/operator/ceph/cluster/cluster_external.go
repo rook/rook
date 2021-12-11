@@ -213,7 +213,7 @@ func (c *ClusterController) configureExternalClusterMonitoring(context *clusterd
 		return err
 	}
 	logger.Info("creating mgr external monitoring service")
-	_, err = k8sutil.CreateOrUpdateService(context.Clientset, cluster.Namespace, service)
+	_, err = k8sutil.CreateOrUpdateService(cluster.ClusterInfo.Context, context.Clientset, cluster.Namespace, service)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create or update mgr service")
 	}

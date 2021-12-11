@@ -72,7 +72,7 @@ func isSecretPresent(ctx context.Context, context *clusterd.Context) (bool, erro
 	return true, nil
 }
 
-func createWebhookService(context *clusterd.Context) error {
+func createWebhookService(ctx context.Context, context *clusterd.Context) error {
 	webhookService := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      admissionControllerAppName,
@@ -93,7 +93,7 @@ func createWebhookService(context *clusterd.Context) error {
 		},
 	}
 
-	_, err := k8sutil.CreateOrUpdateService(context.Clientset, namespace, &webhookService)
+	_, err := k8sutil.CreateOrUpdateService(ctx, context.Clientset, namespace, &webhookService)
 	if err != nil {
 		return err
 	}

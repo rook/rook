@@ -458,7 +458,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to rbd service %q", rbdService)
 		}
-		_, err = k8sutil.CreateOrUpdateService(r.context.Clientset, r.opConfig.OperatorNamespace, rbdService)
+		_, err = k8sutil.CreateOrUpdateService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, rbdService)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create rbd service %q", rbdService.Name)
 		}
@@ -525,7 +525,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to cephfs service %q", cephfsService)
 		}
-		_, err = k8sutil.CreateOrUpdateService(r.context.Clientset, r.opConfig.OperatorNamespace, cephfsService)
+		_, err = k8sutil.CreateOrUpdateService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, cephfsService)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create cephfs service %q", cephfsService.Name)
 		}
@@ -587,7 +587,7 @@ func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, de
 		succeeded = false
 	}
 
-	err = k8sutil.DeleteService(r.context.Clientset, r.opConfig.OperatorNamespace, service)
+	err = k8sutil.DeleteService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, service)
 	if err != nil {
 		logger.Errorf("failed to delete the %q. %v", service, err)
 		succeeded = false
