@@ -27,8 +27,7 @@ import (
 )
 
 // CreateOrUpdateEndpoint creates a service or updates the service declaratively if it already exists.
-func CreateOrUpdateEndpoint(clientset kubernetes.Interface, namespace string, endpointDefinition *v1.Endpoints) (*v1.Endpoints, error) {
-	ctx := context.TODO()
+func CreateOrUpdateEndpoint(ctx context.Context, clientset kubernetes.Interface, namespace string, endpointDefinition *v1.Endpoints) (*v1.Endpoints, error) {
 	name := endpointDefinition.Name
 	logger.Debugf("creating endpoint %q. %v", name, endpointDefinition.Subsets)
 	ep, err := clientset.CoreV1().Endpoints(namespace).Create(ctx, endpointDefinition, metav1.CreateOptions{})
