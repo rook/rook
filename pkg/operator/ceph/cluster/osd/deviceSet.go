@@ -209,7 +209,7 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 		logger.Infof("OSD PVC %q already exists", existingPVC.Name)
 
 		// Update the PVC in case the size changed
-		k8sutil.ExpandPVCIfRequired(c.context.Client, pvc, existingPVC)
+		k8sutil.ExpandPVCIfRequired(c.clusterInfo.Context, c.context.Client, pvc, existingPVC)
 		return existingPVC, nil
 	}
 
