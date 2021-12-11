@@ -155,7 +155,7 @@ func (cr *CmdReporter) Run(ctx context.Context, timeout time.Duration) (stdout, 
 	delOpts.Wait = true
 	delOpts.ErrorOnTimeout = true
 	// configmap's name will be the same as the app
-	err := k8sutil.DeleteConfigMap(cr.clientset, jobName, namespace, delOpts)
+	err := k8sutil.DeleteConfigMap(ctx, cr.clientset, jobName, namespace, delOpts)
 	if err != nil {
 		return "", "", -1, fmt.Errorf("%s. failed to delete existing results ConfigMap %s. %+v", errMsg, jobName, err)
 	}
@@ -180,7 +180,7 @@ func (cr *CmdReporter) Run(ctx context.Context, timeout time.Duration) (stdout, 
 
 	// just to be explicit: delete idempotently, and don't wait for delete to complete
 	delOpts = &k8sutil.DeleteOptions{MustDelete: false, WaitOptions: k8sutil.WaitOptions{Wait: false}}
-	if err := k8sutil.DeleteConfigMap(cr.clientset, jobName, namespace, delOpts); err != nil {
+	if err := k8sutil.DeleteConfigMap(ctx, cr.clientset, jobName, namespace, delOpts); err != nil {
 		logger.Errorf("continuing after failing to delete ConfigMap %s for job %s; user may need to delete it manually. %+v",
 			jobName, jobName, err)
 	}
