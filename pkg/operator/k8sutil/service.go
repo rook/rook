@@ -28,9 +28,8 @@ import (
 
 // CreateOrUpdateService creates a service or updates the service declaratively if it already exists.
 func CreateOrUpdateService(
-	clientset kubernetes.Interface, namespace string, serviceDefinition *v1.Service,
+	ctx context.Context, clientset kubernetes.Interface, namespace string, serviceDefinition *v1.Service,
 ) (*v1.Service, error) {
-	ctx := context.TODO()
 	name := serviceDefinition.Name
 	logger.Debugf("creating service %s", name)
 
@@ -39,7 +38,7 @@ func CreateOrUpdateService(
 		if !errors.IsAlreadyExists(err) {
 			return nil, fmt.Errorf("failed to create service %s. %+v", name, err)
 		}
-		s, err = UpdateService(clientset, namespace, serviceDefinition)
+		s, err = UpdateService(ctx, clientset, namespace, serviceDefinition)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update service %s. %+v", name, err)
 		}
@@ -52,9 +51,8 @@ func CreateOrUpdateService(
 // UpdateService updates a service declaratively. If the service does not exist this is considered
 // an error condition.
 func UpdateService(
-	clientset kubernetes.Interface, namespace string, serviceDefinition *v1.Service,
+	ctx context.Context, clientset kubernetes.Interface, namespace string, serviceDefinition *v1.Service,
 ) (*v1.Service, error) {
-	ctx := context.TODO()
 	name := serviceDefinition.Name
 	logger.Debugf("updating service %s", name)
 	existing, err := clientset.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -69,8 +67,7 @@ func UpdateService(
 }
 
 // DeleteService deletes a Service and returns the error if any
-func DeleteService(clientset kubernetes.Interface, namespace, name string) error {
-	ctx := context.TODO()
+func DeleteService(ctx context.Context, clientset kubernetes.Interface, namespace, name string) error {
 	err := clientset.CoreV1().Services(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {

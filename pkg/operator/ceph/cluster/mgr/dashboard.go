@@ -62,7 +62,7 @@ func (c *Cluster) configureDashboardService(activeDaemon string) error {
 	}
 	if c.spec.Dashboard.Enabled {
 		// expose the dashboard service
-		if _, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.clusterInfo.Namespace, dashboardService); err != nil {
+		if _, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, dashboardService); err != nil {
 			return errors.Wrap(err, "failed to configure dashboard svc")
 		}
 	} else {
