@@ -170,6 +170,8 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 			// If there was a previous error or if a user removed this resource's finalizer, it's
 			// possible Rook didn't clean up the monitoring routine for this resource. Ensure the
 			// routine is stopped when we see the resource is gone.
+			cephFilesystem.Name = request.Name
+			cephFilesystem.Namespace = request.Namespace
 			r.cancelMirrorMonitoring(cephFilesystem)
 			return reconcile.Result{}, nil
 		}

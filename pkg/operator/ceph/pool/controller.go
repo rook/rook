@@ -151,6 +151,8 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			// If there was a previous error or if a user removed this resource's finalizer, it's
 			// possible Rook didn't clean up the monitoring routine for this resource. Ensure the
 			// routine is stopped when we see the resource is gone.
+			cephBlockPool.Name = request.Name
+			cephBlockPool.Namespace = request.Namespace
 			r.cancelMirrorMonitoring(cephBlockPool)
 			return reconcile.Result{}, nil
 		}
