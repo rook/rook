@@ -17,6 +17,7 @@ storage cluster.
 * [Separate Storage Groups](#separate-storage-groups)
 * [Configuring Pools](#configuring-pools)
 * [Custom ceph.conf Settings](#custom-cephconf-settings)
+* [Custom CSI ceph.conf Settings](#custom-csi-cephconf-settings)
 * [OSD CRUSH Settings](#osd-crush-settings)
 * [OSD Dedicated Network](#osd-dedicated-network)
 * [Phantom OSD Removal](#phantom-osd-removal)
@@ -292,6 +293,36 @@ data:
     osd crush update on start = false
     osd pool default size = 2
 ```
+
+## Custom CSI ceph.conf Settings
+
+> **WARNING**: It is highly recommended to use the default setting that comes with
+> CephCSI and this can only be used when absolutely necessary.
+> The `ceph.conf` should be reset back to default values if/when the configurations are no
+> longer necessary.
+
+If the `csi-ceph-conf-override` ConfigMap is created before the cluster is
+started, the CephCSI pods will automatically pick up the settings. If you
+add the settings to the ConfigMap after the cluster has been initialized,
+you can restart the Rook operator pod and wait for Rook to recreate CSI pods
+to take immediate effect.
+
+After the CSI pods are restarted, the new settings should be in effect.
+
+### Example
+
+In this [Example](https://github.com/rook/rook/tree/{{ branchName }}/deploy/csi-ceph-conf-override.yaml) we
+will set the `rbd_validate_pool` to `false` to skip rbd pool validation.
+
+> **WARNING**: Modify Ceph settings carefully to avoid modifying the default
+> configuration.
+> Changing the settings could result in unexpected results if used incorrectly.
+
+```console
+kubectl create -f csi-ceph-conf-override.yaml
+```
+
+Restart the Rook operator pod and wait for CSI pods to be recreated.
 
 ## OSD CRUSH Settings
 

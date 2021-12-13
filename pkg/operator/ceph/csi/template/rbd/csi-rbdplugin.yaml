@@ -118,6 +118,11 @@ spec:
               mountPath: /etc/selinux
               readOnly: true
             {{ end }}
+            {{ if .MountCustomCephConf }}
+            - name: ceph-config
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+            {{ end }}
         {{ if .EnableCSIAddonsSideCar }}
         - name: csi-addons
           securityContext:
@@ -237,4 +242,12 @@ spec:
         - name: etc-selinux
           hostPath:
             path: /etc/selinux
+        {{ end }}
+        {{ if .MountCustomCephConf }}
+        - name: ceph-config
+          configMap:
+            name: csi-ceph-conf-override
+            items:
+            - key: ceph.conf
+              path: ceph.conf
         {{ end }}

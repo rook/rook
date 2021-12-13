@@ -220,6 +220,11 @@ spec:
               mountPath: /etc/ceph-csi-config/
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
+            {{ if .MountCustomCephConf }}
+            - name: ceph-config
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+            {{ end }}
         - name: liveness-prometheus
           image: {{ .CSIPluginImage }}
           args:
@@ -269,6 +274,14 @@ spec:
                   items:
                     - key: csi-mapping-config-json
                       path: cluster-mapping.json
+        {{ if .MountCustomCephConf }}
+        - name: ceph-config
+          configMap:
+            name: csi-ceph-conf-override
+            items:
+            - key: ceph.conf
+              path: ceph.conf
+        {{ end }}
         - name: keys-tmp-dir
           emptyDir: {
             medium: "Memory"

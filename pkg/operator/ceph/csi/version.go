@@ -35,6 +35,10 @@ var (
 		releasev340,
 		releasev350,
 	}
+
+	// custom ceph.conf is supported in v3.5.0+
+	cephConfSupportedVersion = CephCSIVersion{3, 5, 0}
+
 	// for parsing the output of `cephcsi`
 	versionCSIPattern = regexp.MustCompile(`v(\d+)\.(\d+)\.(\d+)`)
 )
@@ -111,4 +115,14 @@ func extractCephCSIVersion(src string) (*CephCSIVersion, error) {
 	}
 
 	return &CephCSIVersion{major, minor, bugfix}, nil
+}
+
+// SupportsCustomCephConf checks if the detected version supports custom ceph.conf
+func (v *CephCSIVersion) SupportsCustomCephConf() bool {
+	// if AllowUnsupported is set also a csi-image greater than the supported ones are allowed
+	if AllowUnsupported {
+		return true
+	}
+
+	return v.isAtLeast(&cephConfSupportedVersion)
 }
