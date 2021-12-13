@@ -28,8 +28,7 @@ import (
 )
 
 // DeleteConfigMap deletes a ConfigMap.
-func DeleteConfigMap(clientset kubernetes.Interface, cmName, namespace string, opts *DeleteOptions) error {
-	ctx := context.TODO()
+func DeleteConfigMap(ctx context.Context, clientset kubernetes.Interface, cmName, namespace string, opts *DeleteOptions) error {
 	k8sOpts := BaseKubernetesDeleteOptions()
 	delete := func() error { return clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, cmName, *k8sOpts) }
 	verify := func() error {

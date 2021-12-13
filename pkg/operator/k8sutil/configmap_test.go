@@ -51,7 +51,7 @@ func TestDeleteConfigMap(t *testing.T) {
 	opts := &DeleteOptions{}
 	opts.Wait = true
 	opts.ErrorOnTimeout = true
-	err = DeleteConfigMap(k8s, "test-configmap", "test-namespace", opts)
+	err = DeleteConfigMap(ctx, k8s, "test-configmap", "test-namespace", opts)
 	assert.NoError(t, err)
 
 	_, err = k8s.CoreV1().ConfigMaps("test-namespace").Get(ctx, "test-configmap", metav1.GetOptions{})
