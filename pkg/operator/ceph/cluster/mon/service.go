@@ -67,7 +67,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		}
 	}
 
-	s, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.Namespace, svcDef)
+	s, err := k8sutil.CreateOrUpdateService(c.ClusterInfo.Context, c.context.Clientset, c.Namespace, svcDef)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to create service for mon %s", mon.DaemonName)
 	}

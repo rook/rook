@@ -301,7 +301,7 @@ func (c *Cluster) reconcileServices(activeDaemon string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := k8sutil.CreateOrUpdateService(c.context.Clientset, c.clusterInfo.Namespace, service); err != nil {
+	if _, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, service); err != nil {
 		return errors.Wrap(err, "failed to create mgr metrics service")
 	}
 
