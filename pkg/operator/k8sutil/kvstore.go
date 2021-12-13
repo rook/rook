@@ -41,8 +41,7 @@ func NewConfigMapKVStore(namespace string, clientset kubernetes.Interface, owner
 	}
 }
 
-func (kv *ConfigMapKVStore) GetValue(storeName, key string) (string, error) {
-	ctx := context.TODO()
+func (kv *ConfigMapKVStore) GetValue(ctx context.Context, storeName, key string) (string, error) {
 	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(ctx, storeName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -56,12 +55,11 @@ func (kv *ConfigMapKVStore) GetValue(storeName, key string) (string, error) {
 	return val, nil
 }
 
-func (kv *ConfigMapKVStore) SetValue(storeName, key, value string) error {
-	return kv.SetValueWithLabels(storeName, key, value, nil)
+func (kv *ConfigMapKVStore) SetValue(ctx context.Context, storeName, key, value string) error {
+	return kv.SetValueWithLabels(ctx, storeName, key, value, nil)
 }
 
-func (kv *ConfigMapKVStore) SetValueWithLabels(storeName, key, value string, labels map[string]string) error {
-	ctx := context.TODO()
+func (kv *ConfigMapKVStore) SetValueWithLabels(ctx context.Context, storeName, key, value string, labels map[string]string) error {
 	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(ctx, storeName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -99,8 +97,7 @@ func (kv *ConfigMapKVStore) SetValueWithLabels(storeName, key, value string, lab
 	return nil
 }
 
-func (kv *ConfigMapKVStore) GetStore(storeName string) (map[string]string, error) {
-	ctx := context.TODO()
+func (kv *ConfigMapKVStore) GetStore(ctx context.Context, storeName string) (map[string]string, error) {
 	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(ctx, storeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -109,8 +106,7 @@ func (kv *ConfigMapKVStore) GetStore(storeName string) (map[string]string, error
 	return cm.Data, nil
 }
 
-func (kv *ConfigMapKVStore) ClearStore(storeName string) error {
-	ctx := context.TODO()
+func (kv *ConfigMapKVStore) ClearStore(ctx context.Context, storeName string) error {
 	err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Delete(ctx, storeName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		// a real error, return it (we're OK with clearing a store that doesn't exist)
