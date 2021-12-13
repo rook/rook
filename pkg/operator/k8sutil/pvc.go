@@ -26,7 +26,7 @@ import (
 )
 
 // ExpandPVCIfRequired will expand the PVC if requested size is greater than the actual size of existing PVC
-func ExpandPVCIfRequired(client client.Client, desiredPVC *v1.PersistentVolumeClaim, currentPVC *v1.PersistentVolumeClaim) {
+func ExpandPVCIfRequired(ctx context.Context, client client.Client, desiredPVC *v1.PersistentVolumeClaim, currentPVC *v1.PersistentVolumeClaim) {
 	desiredSize, desiredOK := desiredPVC.Spec.Resources.Requests[v1.ResourceStorage]
 	currentSize, currentOK := currentPVC.Spec.Resources.Requests[v1.ResourceStorage]
 	if !desiredOK || !currentOK {
@@ -43,7 +43,7 @@ func ExpandPVCIfRequired(client client.Client, desiredPVC *v1.PersistentVolumeCl
 
 		// get StorageClass
 		storageClass := &storagev1.StorageClass{}
-		err := client.Get(context.TODO(), types.NamespacedName{Name: *(currentPVC.Spec.StorageClassName)}, storageClass)
+		err := client.Get(ctx, types.NamespacedName{Name: *(currentPVC.Spec.StorageClassName)}, storageClass)
 		if err != nil {
 			logger.Errorf("failed to get storageClass %q. %v", *(currentPVC.Spec.StorageClassName), err)
 			return
@@ -56,7 +56,7 @@ func ExpandPVCIfRequired(client client.Client, desiredPVC *v1.PersistentVolumeCl
 
 		currentPVC.Spec.Resources.Requests[v1.ResourceStorage] = desiredSize
 		logger.Infof("updating PVC %q size from %s to %s", currentPVC.Name, currentSize.String(), desiredSize.String())
-		if err = client.Update(context.TODO(), currentPVC); err != nil {
+		if err = client.Update(ctx, currentPVC); err != nil {
 			// log the error, but don't fail the reconcile
 			logger.Errorf("failed to update PVC size. %v", err)
 			return
