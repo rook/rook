@@ -714,7 +714,7 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 	}
 	logger.Debugf("diff between current endpoint and newly generated one: %v \n", cmp.Diff(currentEndpoints, endpoint, cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })))
 
-	_, err = k8sutil.CreateOrUpdateEndpoint(ctx.Clientset, clusterInfo.Namespace, endpoint)
+	_, err = k8sutil.CreateOrUpdateEndpoint(clusterInfo.Context, ctx.Clientset, clusterInfo.Namespace, endpoint)
 	if err != nil {
 		return errors.Wrap(err, "failed to create or update mgr endpoint")
 	}
