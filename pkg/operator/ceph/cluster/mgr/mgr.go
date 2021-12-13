@@ -479,7 +479,7 @@ func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 
 	applyMonitoringLabels(c, serviceMonitor)
 
-	if _, err = k8sutil.CreateOrUpdateServiceMonitor(serviceMonitor); err != nil {
+	if _, err = k8sutil.CreateOrUpdateServiceMonitor(c.clusterInfo.Context, serviceMonitor); err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
 	}
 	return nil
@@ -502,7 +502,7 @@ func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
 		return errors.Wrapf(err, "failed to set owner reference to prometheus rule %q", prometheusRule.Name)
 	}
 	cephv1.GetMonitoringLabels(c.spec.Labels).OverwriteApplyToObjectMeta(&prometheusRule.ObjectMeta)
-	if _, err := k8sutil.CreateOrUpdatePrometheusRule(prometheusRule); err != nil {
+	if _, err := k8sutil.CreateOrUpdatePrometheusRule(c.clusterInfo.Context, prometheusRule); err != nil {
 		return errors.Wrap(err, "prometheus rule could not be deployed")
 	}
 	return nil
