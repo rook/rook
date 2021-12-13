@@ -107,7 +107,7 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 
 	// Create Secret
 	logger.Debugf("store %s-mirror bootstrap token in a Kubernetes Secret %q in namespace %q", daemonType, s.Name, ns)
-	_, err = k8sutil.CreateOrUpdateSecret(ctx.Clientset, s)
+	_, err = k8sutil.CreateOrUpdateSecret(clusterInfo.Context, ctx.Clientset, s)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer %q secret", daemonType, s.Name)
 	}

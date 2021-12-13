@@ -27,8 +27,7 @@ import (
 )
 
 // CreateOrUpdateSecret creates a secret or updates the secret declaratively if it already exists.
-func CreateOrUpdateSecret(clientset kubernetes.Interface, secretDefinition *v1.Secret) (*v1.Secret, error) {
-	ctx := context.TODO()
+func CreateOrUpdateSecret(ctx context.Context, clientset kubernetes.Interface, secretDefinition *v1.Secret) (*v1.Secret, error) {
 	name := secretDefinition.Name
 	logger.Debugf("creating secret %s", name)
 
