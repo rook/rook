@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -97,7 +98,7 @@ func (e *provisionErrors) asMessages() string {
 
 // return name of status ConfigMap
 func (c *Cluster) updateOSDStatus(node string, status OrchestrationStatus) string {
-	return UpdateNodeOrPVCStatus(c.kv, node, status)
+	return UpdateNodeOrPVCStatus(c.clusterInfo.Context, c.kv, node, status)
 }
 
 func statusConfigMapLabels(node string) map[string]string {
@@ -110,13 +111,14 @@ func statusConfigMapLabels(node string) map[string]string {
 
 // UpdateNodeOrPVCStatus updates the status ConfigMap for the OSD on the given node or PVC. It returns the name
 // the ConfigMap used.
-func UpdateNodeOrPVCStatus(kv *k8sutil.ConfigMapKVStore, nodeOrPVC string, status OrchestrationStatus) string {
+func UpdateNodeOrPVCStatus(ctx context.Context, kv *k8sutil.ConfigMapKVStore, nodeOrPVC string, status OrchestrationStatus) string {
 	labels := statusConfigMapLabels(nodeOrPVC)
 
 	// update the status map with the given status now
 	s, _ := json.Marshal(status)
 	cmName := statusConfigMapName(nodeOrPVC)
 	if err := kv.SetValueWithLabels(
+		ctx,
 		cmName,
 		orchestrationStatusKey,
 		string(s),
@@ -131,7 +133,7 @@ func UpdateNodeOrPVCStatus(kv *k8sutil.ConfigMapKVStore, nodeOrPVC string, statu
 func (c *Cluster) handleOrchestrationFailure(errors *provisionErrors, nodeName, message string, args ...interface{}) {
 	errors.addError(message, args...)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
-	UpdateNodeOrPVCStatus(c.kv, nodeName, status)
+	UpdateNodeOrPVCStatus(c.clusterInfo.Context, c.kv, nodeName, status)
 }
 
 func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
@@ -340,7 +342,7 @@ func statusConfigMapName(nodeOrPVCName string) string {
 }
 
 func (c *Cluster) deleteStatusConfigMap(nodeOrPVCName string) {
-	if err := c.kv.ClearStore(statusConfigMapName(nodeOrPVCName)); err != nil {
+	if err := c.kv.ClearStore(c.clusterInfo.Context, statusConfigMapName(nodeOrPVCName)); err != nil {
 		logger.Errorf("failed to remove the status configmap %q. %v", statusConfigMapName(nodeOrPVCName), err)
 	}
 }
