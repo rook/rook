@@ -185,7 +185,7 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 		return
 	}
 	if isPresent {
-		err := createWebhookService(o.context)
+		err := createWebhookService(context, o.context)
 		if err != nil {
 			mgrErrorCh <- errors.Wrap(err, "failed to create admission webhook service")
 			return
