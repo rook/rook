@@ -59,8 +59,7 @@ func GetServiceMonitor(filePath string) (*monitoringv1.ServiceMonitor, error) {
 }
 
 // CreateOrUpdateServiceMonitor creates serviceMonitor object or an error
-func CreateOrUpdateServiceMonitor(serviceMonitorDefinition *monitoringv1.ServiceMonitor) (*monitoringv1.ServiceMonitor, error) {
-	ctx := context.TODO()
+func CreateOrUpdateServiceMonitor(ctx context.Context, serviceMonitorDefinition *monitoringv1.ServiceMonitor) (*monitoringv1.ServiceMonitor, error) {
 	name := serviceMonitorDefinition.GetName()
 	namespace := serviceMonitorDefinition.GetNamespace()
 	logger.Debugf("creating servicemonitor %s", name)
@@ -103,8 +102,7 @@ func GetPrometheusRule(ruleFilePath string) (*monitoringv1.PrometheusRule, error
 }
 
 // CreateOrUpdatePrometheusRule creates a prometheusRule object or an error
-func CreateOrUpdatePrometheusRule(prometheusRule *monitoringv1.PrometheusRule) (*monitoringv1.PrometheusRule, error) {
-	ctx := context.TODO()
+func CreateOrUpdatePrometheusRule(ctx context.Context, prometheusRule *monitoringv1.PrometheusRule) (*monitoringv1.PrometheusRule, error) {
 	name := prometheusRule.GetName()
 	namespace := prometheusRule.GetNamespace()
 	logger.Debugf("creating prometheusRule %s", name)
