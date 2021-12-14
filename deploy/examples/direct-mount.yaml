@@ -19,9 +19,10 @@ spec:
       containers:
         - name: rook-direct-mount
           image: rook/ceph:master
-          command: ["/tini"]
-          args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
+          command: ["/bin/bash"]
+          args: ["-m", "-c", "/usr/local/bin/toolbox.sh"]
           imagePullPolicy: IfNotPresent
+          tty: true
           env:
             - name: ROOK_CEPH_USERNAME
               valueFrom:
