@@ -19,11 +19,17 @@ package cluster
 
 import (
 	"testing"
+	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testop "github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPreClusterStartValidation(t *testing.T) {
@@ -68,4 +74,78 @@ func TestPreClusterStartValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPreMonChecks(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	setSkipSanity := false
+	unsetSkipSanity := false
+	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "config" {
+			if args[1] == "set" {
+				setSkipSanity = true
+				assert.Equal(t, "mon", args[2])
+				assert.Equal(t, "mon_mds_skip_sanity", args[3])
+				assert.Equal(t, "1", args[4])
+				return "", nil
+			}
+			if args[1] == "rm" {
+				unsetSkipSanity = true
+				assert.Equal(t, "mon", args[2])
+				assert.Equal(t, "mon_mds_skip_sanity", args[3])
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	c := cluster{context: context, ClusterInfo: cephclient.AdminTestClusterInfo("cluster")}
+
+	t.Run("no upgrade", func(t *testing.T) {
+		v := cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
+		c.isUpgrade = false
+		err := c.preMonStartupActions(v)
+		assert.NoError(t, err)
+		assert.False(t, setSkipSanity)
+		assert.False(t, unsetSkipSanity)
+	})
+
+	t.Run("upgrade below version", func(t *testing.T) {
+		setSkipSanity = false
+		unsetSkipSanity = false
+		v := cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
+		c.isUpgrade = true
+		err := c.preMonStartupActions(v)
+		assert.NoError(t, err)
+		assert.False(t, setSkipSanity)
+		assert.False(t, unsetSkipSanity)
+	})
+
+	t.Run("upgrade to applicable version", func(t *testing.T) {
+		setSkipSanity = false
+		unsetSkipSanity = false
+		v := cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
+		c.isUpgrade = true
+		err := c.preMonStartupActions(v)
+		assert.NoError(t, err)
+		assert.True(t, setSkipSanity)
+		assert.False(t, unsetSkipSanity)
+
+		// This will be called during the post mon checks
+		err = c.skipMDSSanityChecks(false)
+		assert.NoError(t, err)
+		assert.True(t, unsetSkipSanity)
+	})
+
+	t.Run("upgrade to quincy", func(t *testing.T) {
+		setSkipSanity = false
+		unsetSkipSanity = false
+		v := cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
+		c.isUpgrade = true
+		err := c.preMonStartupActions(v)
+		assert.NoError(t, err)
+		assert.False(t, setSkipSanity)
+		assert.False(t, unsetSkipSanity)
+	})
 }
