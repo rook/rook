@@ -18,10 +18,17 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: rook-direct-mount
+<<<<<<< HEAD
           image: rook/ceph:v1.8.0
           command: ["/tini"]
           args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
+=======
+          image: rook/ceph:master
+          command: ["/bin/bash"]
+          args: ["-m", "-c", "/usr/local/bin/toolbox.sh"]
+>>>>>>> bd3e558c2 (build: updating tini init command in direct mount toolbox)
           imagePullPolicy: IfNotPresent
+          tty: true
           env:
             - name: ROOK_CEPH_USERNAME
               valueFrom:
