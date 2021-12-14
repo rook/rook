@@ -4805,9 +4805,9 @@ spec:
               description: FilesystemSpec represents the spec of a file system
               properties:
                 dataPools:
-                  description: The data pool settings
+                  description: The data pool settings, with optional predefined pool name.
                   items:
-                    description: PoolSpec represents the spec of ceph pool
+                    description: NamedPoolSpec represents the named ceph pool spec
                     properties:
                       compressionMode:
                         description: 'DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force" The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force) Do NOT set a default value for kubebuilder as this will override the Parameters'
@@ -4887,6 +4887,9 @@ spec:
                               type: object
                             type: array
                         type: object
+                      name:
+                        description: Name of the pool
+                        type: string
                       parameters:
                         additionalProperties:
                           type: string
