@@ -6,7 +6,7 @@ metadata:
 spec:
   # this setting is ignored for Ceph v16+
   rados:
-    pool: myfs-data0
+    pool: myfs-replicated
     namespace: nfs-ns
   # Settings for the NFS server
   server:

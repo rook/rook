@@ -134,7 +134,7 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *cephclient.Clust
 		return errors.Wrap(err, "invalid metadata pool")
 	}
 	for _, p := range f.Spec.DataPools {
-		localpoolSpec := p
+		localpoolSpec := p.PoolSpec
 		if err := pool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localpoolSpec); err != nil {
 			return errors.Wrap(err, "Invalid data pool")
 		}
@@ -163,7 +163,7 @@ func SetPoolSize(f *Filesystem, context *clusterd.Context, clusterInfo *cephclie
 	dataPoolNames := generateDataPoolNames(f, spec)
 	for i, pool := range spec.DataPools {
 		poolName := dataPoolNames[i]
-		err := cephclient.CreatePoolWithProfile(context, clusterInfo, clusterSpec, poolName, pool, "")
+		err := cephclient.CreatePoolWithProfile(context, clusterInfo, clusterSpec, poolName, pool.PoolSpec, "")
 		if err != nil {
 			return errors.Wrapf(err, "failed to update datapool  %q", poolName)
 		}
@@ -243,7 +243,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 	for i, pool := range spec.DataPools {
 		poolName := dataPoolNames[i]
 		if _, poolFound := reversedPoolMap[poolName]; !poolFound {
-			err = cephclient.CreatePoolWithProfile(context, clusterInfo, clusterSpec, poolName, pool, "")
+			err = cephclient.CreatePoolWithProfile(context, clusterInfo, clusterSpec, poolName, pool.PoolSpec, "")
 			if err != nil {
 				return errors.Wrapf(err, "failed to create data pool %q", poolName)
 			}
@@ -278,10 +278,16 @@ func downFilesystem(context *clusterd.Context, clusterInfo *cephclient.ClusterIn
 }
 
 // generateDataPoolName generates DataPool name by prefixing the filesystem name to the constant DataPoolSuffix
+// or get predefined name from spec
 func generateDataPoolNames(f *Filesystem, spec cephv1.FilesystemSpec) []string {
 	var dataPoolNames []string
-	for i := range spec.DataPools {
-		poolName := fmt.Sprintf("%s-%s%d", f.Name, dataPoolSuffix, i)
+	for i, pool := range spec.DataPools {
+		poolName := ""
+		if pool.Name == "" {
+			poolName = fmt.Sprintf("%s-%s%d", f.Name, dataPoolSuffix, i)
+		} else {
+			poolName = fmt.Sprintf("%s-%s", f.Name, pool.Name)
+		}
 		dataPoolNames = append(dataPoolNames, poolName)
 	}
 	return dataPoolNames
