@@ -168,6 +168,8 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			// If there was a previous error or if a user removed this resource's finalizer, it's
 			// possible Rook didn't clean up the monitoring routine for this resource. Ensure the
 			// routine is stopped when we see the resource is gone.
+			cephObjectStore.Name = request.Name
+			cephObjectStore.Namespace = request.Namespace
 			r.stopMonitoring(cephObjectStore)
 			return reconcile.Result{}, cephObjectStore, nil
 		}
