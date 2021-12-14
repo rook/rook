@@ -41,6 +41,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apituntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -88,7 +89,7 @@ type ClusterController struct {
 	osdChecker     *osd.OSDHealthMonitor
 	client         client.Client
 	namespacedName types.NamespacedName
-	recorder       *k8sutil.EventReporter
+	recorder       record.EventRecorder
 	OpManagerCtx   context.Context
 }
 
@@ -112,7 +113,7 @@ func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController
 	// add "rook-" prefix to the controller name to make sure it is clear to all reading the events
 	// that they are coming from Rook. The controller name already has context that it is for Ceph
 	// and from the cluster controller.
-	clusterController.recorder = k8sutil.NewEventReporter(mgr.GetEventRecorderFor("rook-" + controllerName))
+	clusterController.recorder = mgr.GetEventRecorderFor("rook-" + controllerName)
 
 	return &ReconcileCephCluster{
 		client:            mgr.GetClient(),

@@ -24,10 +24,10 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/dependents"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -40,7 +40,7 @@ import (
 // error returned by the reconcile.
 // The function is designed to return the appropriate values needed for the controller-runtime
 // framework's Reconcile() method.
-func ReportReconcileResult(logger *capnslog.PackageLogger, recorder *k8sutil.EventReporter,
+func ReportReconcileResult(logger *capnslog.PackageLogger, recorder record.EventRecorder,
 	obj client.Object, reconcileResponse reconcile.Result, err error,
 ) (reconcile.Result, error) {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
@@ -51,7 +51,7 @@ func ReportReconcileResult(logger *capnslog.PackageLogger, recorder *k8sutil.Eve
 		logger.Errorf("failed to reconcile %s %q. %v", kind, nsName, err)
 
 		// 2. event
-		recorder.ReportIfNotPresent(obj, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), err.Error())
+		recorder.Event(obj, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), err.Error())
 
 		if !reconcileResponse.IsZero() {
 			// The framework will requeue immediately if there is an error. If we get an error with
@@ -67,7 +67,7 @@ func ReportReconcileResult(logger *capnslog.PackageLogger, recorder *k8sutil.Eve
 		logger.Debug(successMsg)
 
 		// 2. event
-		recorder.ReportIfNotPresent(obj, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), successMsg)
+		recorder.Event(obj, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), successMsg)
 	}
 
 	return reconcileResponse, err
@@ -116,7 +116,7 @@ func ReportDeletionBlockedDueToDependents(
 // 2. as an event on the object (via the given event recorder)
 // 3. as a condition on the object (added to the object's conditions list given)
 func ReportDeletionNotBlockedDueToDependents(
-	logger *capnslog.PackageLogger, client client.Client, recorder *k8sutil.EventReporter, obj cephv1.StatusConditionGetter,
+	logger *capnslog.PackageLogger, client client.Client, recorder record.EventRecorder, obj cephv1.StatusConditionGetter,
 ) {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	nsName := types.NamespacedName{
@@ -130,7 +130,7 @@ func ReportDeletionNotBlockedDueToDependents(
 	logger.Infof("%s. %s", safeMsg, deletingMsg)
 
 	// 2. event
-	recorder.ReportIfNotPresent(obj, corev1.EventTypeNormal, string(cephv1.DeletingReason), deletingMsg)
+	recorder.Event(obj, corev1.EventTypeNormal, string(cephv1.DeletingReason), deletingMsg)
 
 	// 3. condition
 	unblockedCond := dependents.DeletionBlockedDueToDependentsCondition(false, safeMsg)
