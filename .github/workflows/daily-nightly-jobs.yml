@@ -101,7 +101,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.22.2"
+          kubernetes-version: "1.23.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -135,7 +135,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.22.2"
+          kubernetes-version: "1.23.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -169,7 +169,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.22.2"
+          kubernetes-version: "1.23.0"
 
       - name: TestCephObjectSuite
         run: |
@@ -203,7 +203,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.22.2"
+          kubernetes-version: "1.23.0"
 
       - name: TestCephObjectSuite
         run: |
@@ -237,7 +237,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.22.2"
+          kubernetes-version: "1.23.0"
 
       - name: TestCephUpgradeSuite
         run: |
@@ -271,7 +271,7 @@ jobs:
         uses: ./.github/workflows/integration-test-setup
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.22.2"
+          kubernetes-version: "1.23.0"
 
       - name: TestCephUpgradeSuite
         run: |
