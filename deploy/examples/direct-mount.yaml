@@ -36,6 +36,7 @@ spec:
                   key: ceph-secret
           securityContext:
             privileged: true
+            runAsUser: 0
           volumeMounts:
             - mountPath: /dev
               name: dev
