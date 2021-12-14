@@ -148,6 +148,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `admissionController.tolerations`   | Array of tolerations in YAML format which will be added to admission controller deployment.                                 | <none>                                                    |
 | `admissionController.nodeAffinity`  | The node labels for affinity of the admission controller deployment (***)                                                   | <none>                                                    |
 | `allowMultipleFilesystems`          | **(experimental in  Octopus (v15))** Allows multiple filesystems to be deployed to a Ceph cluster.                          | `false`                                                   |
+| `monitoring.enabled`                | Create necessary RBAC rules for Rook to integrate with Prometheus monitoring in the operator namespace. Requires Prometheus to be pre-installed. | `false` |
 
 &ast; &ast; &ast; `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 
