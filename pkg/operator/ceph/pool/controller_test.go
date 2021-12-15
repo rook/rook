@@ -45,35 +45,82 @@ import (
 )
 
 func TestCreatePool(t *testing.T) {
+	p := &cephv1.NamedPoolSpec{}
+	enabledMetricsApp := false
 	clusterInfo := client.AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
-			if command == "ceph" && args[1] == "erasure-code-profile" {
-				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
+			if command == "ceph" {
+				if args[1] == "erasure-code-profile" {
+					return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
+				}
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "application" {
+					assert.Equal(t, "enable", args[3])
+					if args[5] != "rbd" {
+						enabledMetricsApp = true
+						assert.Equal(t, "device_health_metrics", args[4])
+						assert.Equal(t, "mgr_devicehealth", args[5])
+					}
+				}
 			}
 			if command == "rbd" {
-				assert.Equal(t, []string{"pool", "init", "mypool"}, args[0:3])
+				assert.Equal(t, []string{"pool", "init", p.Name}, args[0:3])
 			}
 			return "", nil
 		},
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.Replicated.RequireSafeReplicaSize = false
-
 	clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{Config: map[string]string{cephclient.CrushRootConfigKey: "cluster-crush-root"}}}
-	err := createPool(context, clusterInfo, clusterSpec, p)
-	assert.Nil(t, err)
 
-	// succeed with EC
-	p.Spec.Replicated.Size = 0
-	p.Spec.ErasureCoded.CodingChunks = 1
-	p.Spec.ErasureCoded.DataChunks = 2
-	err = createPool(context, clusterInfo, clusterSpec, p)
-	assert.Nil(t, err)
+	t.Run("replicated pool", func(t *testing.T) {
+		p.Name = "replicapool"
+		p.Replicated.Size = 1
+		p.Replicated.RequireSafeReplicaSize = false
+		err := createPool(context, clusterInfo, clusterSpec, p)
+		assert.Nil(t, err)
+		assert.False(t, enabledMetricsApp)
+	})
+
+	t.Run("built-in metrics pool", func(t *testing.T) {
+		p.Name = "device_health_metrics"
+		err := createPool(context, clusterInfo, clusterSpec, p)
+		assert.Nil(t, err)
+		assert.True(t, enabledMetricsApp)
+	})
+
+	t.Run("ec pool", func(t *testing.T) {
+		p.Name = "ecpool"
+		p.Replicated.Size = 0
+		p.ErasureCoded.CodingChunks = 1
+		p.ErasureCoded.DataChunks = 2
+		err := createPool(context, clusterInfo, clusterSpec, p)
+		assert.Nil(t, err)
+	})
+}
+
+func TestCephPoolName(t *testing.T) {
+	t.Run("spec not set", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "metapool"}}
+		name := getCephName(p)
+		assert.Equal(t, "metapool", name)
+	})
+	t.Run("same name already set", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "metapool"}, Spec: cephv1.NamedBlockPoolSpec{Name: "metapool"}}
+		name := getCephName(p)
+		assert.Equal(t, "metapool", name)
+	})
+	t.Run("override device metrics", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "device-metrics"}, Spec: cephv1.NamedBlockPoolSpec{Name: "device_health_metrics"}}
+		name := getCephName(p)
+		assert.Equal(t, "device_health_metrics", name)
+	})
+	t.Run("override nfs", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "default-nfs"}, Spec: cephv1.NamedBlockPoolSpec{Name: ".nfs"}}
+		name := getCephName(p)
+		assert.Equal(t, ".nfs", name)
+	})
 }
 
 func TestDeletePool(t *testing.T) {
@@ -105,18 +152,18 @@ func TestDeletePool(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 
 	// delete a pool that exists
-	p := &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+	p := &cephv1.NamedPoolSpec{Name: "mypool"}
 	err := deletePool(context, clusterInfo, p)
 	assert.Nil(t, err)
 
 	// succeed even if the pool doesn't exist
-	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "otherpool", Namespace: clusterInfo.Namespace}}
+	p = &cephv1.NamedPoolSpec{Name: "otherpool"}
 	err = deletePool(context, clusterInfo, p)
 	assert.Nil(t, err)
 
 	// fail if images/snapshosts exist in the pool
 	failOnDelete = true
-	p = &cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+	p = &cephv1.NamedPoolSpec{Name: "mypool"}
 	err = deletePool(context, clusterInfo, p)
 	assert.NotNil(t, err)
 }
@@ -141,16 +188,18 @@ func TestCephBlockPoolController(t *testing.T) {
 			Namespace: namespace,
 			UID:       types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
 		},
-		Spec: cephv1.PoolSpec{
-			Replicated: cephv1.ReplicatedSpec{
-				Size: replicas,
-			},
-			Mirroring: cephv1.MirroringSpec{
-				Peers: &cephv1.MirroringPeerSpec{},
-			},
-			StatusCheck: cephv1.MirrorHealthCheckSpec{
-				Mirror: cephv1.HealthCheckSpec{
-					Disabled: true,
+		Spec: cephv1.NamedBlockPoolSpec{
+			PoolSpec: cephv1.PoolSpec{
+				Replicated: cephv1.ReplicatedSpec{
+					Size: replicas,
+				},
+				Mirroring: cephv1.MirroringSpec{
+					Peers: &cephv1.MirroringPeerSpec{},
+				},
+				StatusCheck: cephv1.MirrorHealthCheckSpec{
+					Mirror: cephv1.HealthCheckSpec{
+						Disabled: true,
+					},
 				},
 			},
 		},
@@ -517,9 +566,11 @@ func TestConfigureRBDStats(t *testing.T) {
 			Name:      "my-pool-without-rbd-stats",
 			Namespace: namespace,
 		},
-		Spec: cephv1.PoolSpec{
-			Replicated: cephv1.ReplicatedSpec{
-				Size: 3,
+		Spec: cephv1.NamedBlockPoolSpec{
+			PoolSpec: cephv1.PoolSpec{
+				Replicated: cephv1.ReplicatedSpec{
+					Size: 3,
+				},
 			},
 		},
 	}

@@ -279,7 +279,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 func testNFSDaemons(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
 	name := "my-nfs"
-	err := helper.NFSClient.Create(settings.Namespace, name, filesystemName+"-data0", 2)
+	err := helper.NFSClient.Create(settings.Namespace, name, 2)
 	require.Nil(s.T(), err)
 
 	err = helper.NFSClient.Delete(settings.Namespace, name)

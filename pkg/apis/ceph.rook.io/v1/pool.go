@@ -53,14 +53,14 @@ func (p *ReplicatedSpec) IsTargetRatioEnabled() bool {
 func (p *CephBlockPool) ValidateCreate() error {
 	logger.Infof("validate create cephblockpool %v", p)
 
-	err := validatePoolSpec(p.Spec)
+	err := validatePoolSpec(p.Spec.ToNamedPoolSpec())
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func validatePoolSpec(ps PoolSpec) error {
+func validatePoolSpec(ps NamedPoolSpec) error {
 	// Checks if either ErasureCoded or Replicated fields are set
 	if ps.ErasureCoded.CodingChunks <= 0 && ps.ErasureCoded.DataChunks <= 0 && ps.Replicated.TargetSizeRatio <= 0 && ps.Replicated.Size <= 0 {
 		return errors.New("invalid create: either of erasurecoded or replicated fields should be set")
@@ -86,10 +86,17 @@ func validatePoolSpec(ps PoolSpec) error {
 	return nil
 }
 
+func (p *NamedBlockPoolSpec) ToNamedPoolSpec() NamedPoolSpec {
+	return NamedPoolSpec{
+		Name:     p.Name,
+		PoolSpec: p.PoolSpec,
+	}
+}
+
 func (p *CephBlockPool) ValidateUpdate(old runtime.Object) error {
 	logger.Info("validate update cephblockpool")
 	ocbp := old.(*CephBlockPool)
-	err := validatePoolSpec(p.Spec)
+	err := validatePoolSpec(p.Spec.ToNamedPoolSpec())
 	if err != nil {
 		return err
 	}

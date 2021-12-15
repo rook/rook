@@ -154,27 +154,29 @@ func ParsePoolDetails(in []byte) (CephStoragePoolDetails, error) {
 	return poolDetails, nil
 }
 
-func CreatePoolWithProfile(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, poolName string, pool cephv1.PoolSpec, appName string) error {
+func CreatePoolWithProfile(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, appName string) error {
+	if pool.Name == "" {
+		return errors.New("pool name must be specified")
+	}
 	if pool.IsReplicated() {
-		return CreateReplicatedPoolForApp(context, clusterInfo, clusterSpec, poolName, pool, DefaultPGCount, appName)
+		return CreateReplicatedPoolForApp(context, clusterInfo, clusterSpec, pool, DefaultPGCount, appName)
 	}
 
 	if !pool.IsErasureCoded() {
 		// neither a replicated or EC pool
-		return fmt.Errorf("pool %q type is not defined as replicated or erasure coded", poolName)
+		return errors.Errorf("pool %q type is not defined as replicated or erasure coded", pool.Name)
 	}
 
 	// create a new erasure code profile for the new pool
-	ecProfileName := GetErasureCodeProfileForPool(poolName)
-	if err := CreateErasureCodeProfile(context, clusterInfo, ecProfileName, pool); err != nil {
-		return errors.Wrapf(err, "failed to create erasure code profile for pool %q", poolName)
+	ecProfileName := GetErasureCodeProfileForPool(pool.Name)
+	if err := CreateErasureCodeProfile(context, clusterInfo, ecProfileName, pool.PoolSpec); err != nil {
+		return errors.Wrapf(err, "failed to create erasure code profile for pool %q", pool.Name)
 	}
 
 	// If the pool is not a replicated pool, then the only other option is an erasure coded pool.
 	return CreateECPoolForApp(
 		context,
 		clusterInfo,
-		poolName,
 		ecProfileName,
 		pool,
 		DefaultPGCount,
@@ -241,7 +243,7 @@ func givePoolAppTag(context *clusterd.Context, clusterInfo *ClusterInfo, poolNam
 	return nil
 }
 
-func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.PoolSpec, poolName, appName string) error {
+func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec, appName string) error {
 	if len(pool.Parameters) == 0 {
 		pool.Parameters = make(map[string]string)
 	}
@@ -256,58 +258,58 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 
 	// Apply properties
 	for propName, propValue := range pool.Parameters {
-		err := SetPoolProperty(context, clusterInfo, poolName, propName, propValue)
+		err := SetPoolProperty(context, clusterInfo, pool.Name, propName, propValue)
 		if err != nil {
-			logger.Errorf("failed to set property %q to pool %q to %q. %v", propName, poolName, propValue, err)
+			logger.Errorf("failed to set property %q to pool %q to %q. %v", propName, pool.Name, propValue, err)
 		}
 	}
 
 	// ensure that the newly created pool gets an application tag
 	if appName != "" {
-		err := givePoolAppTag(context, clusterInfo, poolName, appName)
+		err := givePoolAppTag(context, clusterInfo, pool.Name, appName)
 		if err != nil {
-			return errors.Wrapf(err, "failed to tag pool %q for application %q", poolName, appName)
+			return errors.Wrapf(err, "failed to tag pool %q for application %q", pool.Name, appName)
 		}
 	}
 
 	// If the pool is mirrored, let's enable mirroring
 	// we don't need to check if the pool is erasure coded or not, mirroring will still work, it will simply be slow
 	if pool.Mirroring.Enabled {
-		err := enablePoolMirroring(context, clusterInfo, pool, poolName)
+		err := enablePoolMirroring(context, clusterInfo, pool)
 		if err != nil {
-			return errors.Wrapf(err, "failed to enable mirroring for pool %q", poolName)
+			return errors.Wrapf(err, "failed to enable mirroring for pool %q", pool.Name)
 		}
 
 		// Schedule snapshots
 		if pool.Mirroring.SnapshotSchedulesEnabled() && clusterInfo.CephVersion.IsAtLeastOctopus() {
-			err = enableSnapshotSchedules(context, clusterInfo, pool, poolName)
+			err = enableSnapshotSchedules(context, clusterInfo, pool)
 			if err != nil {
-				return errors.Wrapf(err, "failed to enable snapshot scheduling for pool %q", poolName)
+				return errors.Wrapf(err, "failed to enable snapshot scheduling for pool %q", pool.Name)
 			}
 		}
 	} else {
 		if pool.Mirroring.Mode == "pool" {
 			// Remove storage cluster peers
-			mirrorInfo, err := GetPoolMirroringInfo(context, clusterInfo, poolName)
+			mirrorInfo, err := GetPoolMirroringInfo(context, clusterInfo, pool.Name)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get mirroring info for the pool %q", poolName)
+				return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool.Name)
 			}
 			for _, peer := range mirrorInfo.Peers {
 				if peer.UUID != "" {
-					err := removeClusterPeer(context, clusterInfo, poolName, peer.UUID)
+					err := removeClusterPeer(context, clusterInfo, pool.Name, peer.UUID)
 					if err != nil {
-						return errors.Wrapf(err, "failed to remove cluster peer with UUID %q for the pool %q", peer.UUID, poolName)
+						return errors.Wrapf(err, "failed to remove cluster peer with UUID %q for the pool %q", peer.UUID, pool.Name)
 					}
 				}
 			}
 
 			// Disable mirroring
-			err = disablePoolMirroring(context, clusterInfo, poolName)
+			err = disablePoolMirroring(context, clusterInfo, pool.Name)
 			if err != nil {
-				return errors.Wrapf(err, "failed to disable mirroring for pool %q", poolName)
+				return errors.Wrapf(err, "failed to disable mirroring for pool %q", pool.Name)
 			}
 		} else if pool.Mirroring.Mode == "image" {
-			logger.Warningf("manually disable mirroring on images in the pool %q", poolName)
+			logger.Warningf("manually disable mirroring on images in the pool %q", pool.Name)
 		}
 	}
 
@@ -317,28 +319,28 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 		maxBytesQuota, err := resource.ParseQuantity(*pool.Quotas.MaxSize)
 		if err != nil {
 			if err == resource.ErrFormatWrong {
-				return errors.Wrapf(err, "maxSize quota incorrectly formatted for pool %q, valid units include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei", poolName)
+				return errors.Wrapf(err, "maxSize quota incorrectly formatted for pool %q, valid units include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei", pool.Name)
 			}
-			return errors.Wrapf(err, "failed setting quota for pool %q, maxSize quota parse error", poolName)
+			return errors.Wrapf(err, "failed setting quota for pool %q, maxSize quota parse error", pool.Name)
 		}
 		// set max_bytes quota, 0 value disables quota
-		err = setPoolQuota(context, clusterInfo, poolName, "max_bytes", strconv.FormatInt(maxBytesQuota.Value(), 10))
+		err = setPoolQuota(context, clusterInfo, pool.Name, "max_bytes", strconv.FormatInt(maxBytesQuota.Value(), 10))
 		if err != nil {
-			return errors.Wrapf(err, "failed to set max_bytes quota for pool %q", poolName)
+			return errors.Wrapf(err, "failed to set max_bytes quota for pool %q", pool.Name)
 		}
 	} else if pool.Quotas.MaxBytes != nil {
 		// set max_bytes quota, 0 value disables quota
-		err := setPoolQuota(context, clusterInfo, poolName, "max_bytes", strconv.FormatUint(*pool.Quotas.MaxBytes, 10))
+		err := setPoolQuota(context, clusterInfo, pool.Name, "max_bytes", strconv.FormatUint(*pool.Quotas.MaxBytes, 10))
 		if err != nil {
-			return errors.Wrapf(err, "failed to set max_bytes quota for pool %q", poolName)
+			return errors.Wrapf(err, "failed to set max_bytes quota for pool %q", pool.Name)
 		}
 	}
 	// set max_objects quota
 	if pool.Quotas.MaxObjects != nil {
 		// set max_objects quota, 0 value disables quota
-		err := setPoolQuota(context, clusterInfo, poolName, "max_objects", strconv.FormatUint(*pool.Quotas.MaxObjects, 10))
+		err := setPoolQuota(context, clusterInfo, pool.Name, "max_objects", strconv.FormatUint(*pool.Quotas.MaxObjects, 10))
 		if err != nil {
-			return errors.Wrapf(err, "failed to set max_objects quota for pool %q", poolName)
+			return errors.Wrapf(err, "failed to set max_objects quota for pool %q", pool.Name)
 		}
 	}
 
@@ -349,33 +351,33 @@ func GetErasureCodeProfileForPool(baseName string) string {
 	return fmt.Sprintf("%s_ecprofile", baseName)
 }
 
-func CreateECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, ecProfileName string, pool cephv1.PoolSpec, pgCount, appName string, enableECOverwrite bool) error {
-	args := []string{"osd", "pool", "create", poolName, pgCount, "erasure", ecProfileName}
+func CreateECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecProfileName string, pool cephv1.NamedPoolSpec, pgCount, appName string, enableECOverwrite bool) error {
+	args := []string{"osd", "pool", "create", pool.Name, pgCount, "erasure", ecProfileName}
 	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create EC pool %s. %s", poolName, string(output))
+		return errors.Wrapf(err, "failed to create EC pool %s. %s", pool.Name, string(output))
 	}
 
 	if enableECOverwrite {
-		if err = SetPoolProperty(context, clusterInfo, poolName, "allow_ec_overwrites", "true"); err != nil {
-			return errors.Wrapf(err, "failed to allow EC overwrite for pool %s", poolName)
+		if err = SetPoolProperty(context, clusterInfo, pool.Name, "allow_ec_overwrites", "true"); err != nil {
+			return errors.Wrapf(err, "failed to allow EC overwrite for pool %s", pool.Name)
 		}
 	}
 
-	if err = setCommonPoolProperties(context, clusterInfo, pool, poolName, appName); err != nil {
+	if err = setCommonPoolProperties(context, clusterInfo, pool, appName); err != nil {
 		return err
 	}
 
-	logger.Infof("creating EC pool %s succeeded", poolName)
+	logger.Infof("creating EC pool %s succeeded", pool.Name)
 	return nil
 }
 
-func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, poolName string, pool cephv1.PoolSpec, pgCount, appName string) error {
+func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount, appName string) error {
 	// If it's a replicated pool, ensure the failure domain is desired
 	checkFailureDomain := false
 
 	// The crush rule name is the same as the pool unless we have a stretch cluster.
-	crushRuleName := poolName
+	crushRuleName := pool.Name
 	if clusterSpec.IsStretchCluster() {
 		// A stretch cluster enforces using the same crush rule for all pools.
 		// The stretch cluster rule is created initially by the operator when the stretch cluster is configured
@@ -383,14 +385,14 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 		crushRuleName = defaultStretchCrushRuleName
 	} else if pool.IsHybridStoragePool() {
 		// Create hybrid crush rule
-		err := createHybridCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool)
+		err := createHybridCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool.PoolSpec)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create hybrid crush rule %q", crushRuleName)
 		}
 	} else {
 		if pool.Replicated.ReplicasPerFailureDomain > 1 {
 			// Create a two-step CRUSH rule for pools other than stretch clusters
-			err := createStretchCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool)
+			err := createStretchCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool.PoolSpec)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create two-step crush rule %q", crushRuleName)
 			}
@@ -403,46 +405,46 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 		}
 	}
 
-	args := []string{"osd", "pool", "create", poolName, pgCount, "replicated", crushRuleName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
+	args := []string{"osd", "pool", "create", pool.Name, pgCount, "replicated", crushRuleName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
 	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create replicated pool %s. %s", poolName, string(output))
+		return errors.Wrapf(err, "failed to create replicated pool %s. %s", pool.Name, string(output))
 	}
 
 	if !clusterSpec.IsStretchCluster() {
 		// the pool is type replicated, set the size for the pool now that it's been created
 		// Only set the size if not 0, otherwise ceph will fail to set size to 0
 		if pool.Replicated.Size > 0 {
-			if err := SetPoolReplicatedSizeProperty(context, clusterInfo, poolName, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
-				return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", poolName, pool.Replicated.Size)
+			if err := SetPoolReplicatedSizeProperty(context, clusterInfo, pool.Name, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
+				return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", pool.Name, pool.Replicated.Size)
 			}
 		}
 	}
 
-	if err = setCommonPoolProperties(context, clusterInfo, pool, poolName, appName); err != nil {
+	if err = setCommonPoolProperties(context, clusterInfo, pool, appName); err != nil {
 		return err
 	}
 
-	logger.Infof("creating replicated pool %s succeeded", poolName)
+	logger.Infof("creating replicated pool %s succeeded", pool.Name)
 
 	if checkFailureDomain {
-		if err = ensureFailureDomain(context, clusterInfo, clusterSpec, poolName, pool); err != nil {
+		if err = ensureFailureDomain(context, clusterInfo, clusterSpec, pool); err != nil {
 			return nil
 		}
 	}
 	return nil
 }
 
-func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, poolName string, pool cephv1.PoolSpec) error {
+func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
 	if pool.FailureDomain == "" {
-		logger.Debugf("skipping check for failure domain on pool %q as it is not specified", poolName)
+		logger.Debugf("skipping check for failure domain on pool %q as it is not specified", pool.Name)
 		return nil
 	}
 
-	logger.Debugf("checking that pool %q has the failure domain %q", poolName, pool.FailureDomain)
-	details, err := GetPoolDetails(context, clusterInfo, poolName)
+	logger.Debugf("checking that pool %q has the failure domain %q", pool.Name, pool.FailureDomain)
+	details, err := GetPoolDetails(context, clusterInfo, pool.Name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get pool %q details", poolName)
+		return errors.Wrapf(err, "failed to get pool %q details", pool.Name)
 	}
 
 	// Find the failure domain for the current crush rule
@@ -452,7 +454,7 @@ func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 	}
 	currentFailureDomain := extractFailureDomain(rule)
 	if currentFailureDomain == pool.FailureDomain {
-		logger.Debugf("pool %q has the expected failure domain %q", poolName, pool.FailureDomain)
+		logger.Debugf("pool %q has the expected failure domain %q", pool.Name, pool.FailureDomain)
 		return nil
 	}
 	if currentFailureDomain == "" {
@@ -460,9 +462,9 @@ func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 	}
 
 	// Use a crush rule name that is unique to the desired failure domain
-	crushRuleName := fmt.Sprintf("%s_%s", poolName, pool.FailureDomain)
-	logger.Infof("updating pool %q failure domain from %q to %q with new crush rule %q", poolName, currentFailureDomain, pool.FailureDomain, crushRuleName)
-	logger.Infof("crush rule %q will no longer be used by pool %q", details.CrushRule, poolName)
+	crushRuleName := fmt.Sprintf("%s_%s", pool.Name, pool.FailureDomain)
+	logger.Infof("updating pool %q failure domain from %q to %q with new crush rule %q", pool.Name, currentFailureDomain, pool.FailureDomain, crushRuleName)
+	logger.Infof("crush rule %q will no longer be used by pool %q", details.CrushRule, pool.Name)
 
 	// Create a new crush rule for the expected failure domain
 	if err := createReplicationCrushRule(context, clusterInfo, clusterSpec, crushRuleName, pool); err != nil {
@@ -470,11 +472,11 @@ func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 	}
 
 	// Update the crush rule on the pool
-	if err := setCrushRule(context, clusterInfo, poolName, crushRuleName); err != nil {
-		return errors.Wrapf(err, "failed to set crush rule on pool %q", poolName)
+	if err := setCrushRule(context, clusterInfo, pool.Name, crushRuleName); err != nil {
+		return errors.Wrapf(err, "failed to set crush rule on pool %q", pool.Name)
 	}
 
-	logger.Infof("Successfully updated pool %q failure domain to %q", poolName, pool.FailureDomain)
+	logger.Infof("Successfully updated pool %q failure domain to %q", pool.Name, pool.FailureDomain)
 	return nil
 }
 
@@ -631,7 +633,7 @@ func updateCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo, ruleset
 	return nil
 }
 
-func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, ruleName string, pool cephv1.PoolSpec) error {
+func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, ruleName string, pool cephv1.NamedPoolSpec) error {
 	failureDomain := pool.FailureDomain
 	if failureDomain == "" {
 		failureDomain = cephv1.DefaultFailureDomain

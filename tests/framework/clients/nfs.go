@@ -39,10 +39,15 @@ func CreateNFSOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests
 }
 
 // Create creates a filesystem in Rook
-func (n *NFSOperation) Create(namespace, name, pool string, daemonCount int) error {
+func (n *NFSOperation) Create(namespace, name string, daemonCount int) error {
+
+	logger.Infof("creating the NFS pool")
+	if err := n.k8sh.ResourceOperation("apply", n.manifests.GetNFSPool()); err != nil {
+		return err
+	}
 
 	logger.Infof("creating the NFS daemons via CRD")
-	if err := n.k8sh.ResourceOperation("apply", n.manifests.GetNFS(name, pool, daemonCount)); err != nil {
+	if err := n.k8sh.ResourceOperation("apply", n.manifests.GetNFS(name, daemonCount)); err != nil {
 		return err
 	}
 
@@ -62,6 +67,12 @@ func (n *NFSOperation) Delete(namespace, name string) error {
 	options := &metav1.DeleteOptions{}
 	logger.Infof("Deleting nfs %s in namespace %s", name, namespace)
 	err := n.k8sh.RookClientset.CephV1().CephNFSes(namespace).Delete(ctx, name, *options)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	logger.Infof("Deleting .nfs pool in namespace %s", namespace)
+	err = n.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Delete(ctx, "dot-nfs", *options)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}

@@ -58,22 +58,26 @@ func TestCreateRBDMirrorBootstrapPeer(t *testing.T) {
 	assert.Equal(t, bootstrapPeerToken, string(token))
 }
 func TestEnablePoolMirroring(t *testing.T) {
-	pool := "pool-test"
-	poolSpec := cephv1.PoolSpec{Mirroring: cephv1.MirroringSpec{Mode: "image"}}
+	pool := cephv1.NamedPoolSpec{
+		Name: "pool-test",
+		PoolSpec: cephv1.PoolSpec{
+			Mirroring: cephv1.MirroringSpec{Mode: "image"},
+		},
+	}
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "enable", args[2])
-			assert.Equal(t, pool, args[3])
-			assert.Equal(t, poolSpec.Mirroring.Mode, args[4])
+			assert.Equal(t, pool.Name, args[3])
+			assert.Equal(t, pool.Mirroring.Mode, args[4])
 			return "", nil
 		}
 		return "", errors.New("unknown command")
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	err := enablePoolMirroring(context, AdminTestClusterInfo("mycluster"), poolSpec, pool)
+	err := enablePoolMirroring(context, AdminTestClusterInfo("mycluster"), pool)
 	assert.NoError(t, err)
 }
 
@@ -279,7 +283,6 @@ func TestRemoveSnapshotSchedule(t *testing.T) {
 }
 
 func TestRemoveSnapshotSchedules(t *testing.T) {
-	pool := "pool-test"
 	interval := "24h"
 	startTime := "14:00:00-05:00"
 	executor := &exectest.MockExecutor{}
@@ -297,8 +300,17 @@ func TestRemoveSnapshotSchedules(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	poolSpec := &cephv1.PoolSpec{Mirroring: cephv1.MirroringSpec{SnapshotSchedules: []cephv1.SnapshotScheduleSpec{{Interval: interval, StartTime: startTime}}}}
-	err := removeSnapshotSchedules(context, AdminTestClusterInfo("mycluster"), *poolSpec, pool)
+	pool := cephv1.NamedPoolSpec{
+		Name: "pool-test",
+		PoolSpec: cephv1.PoolSpec{
+			Mirroring: cephv1.MirroringSpec{
+				SnapshotSchedules: []cephv1.SnapshotScheduleSpec{
+					{Interval: interval, StartTime: startTime},
+				},
+			},
+		},
+	}
+	err := removeSnapshotSchedules(context, AdminTestClusterInfo("mycluster"), pool)
 	assert.NoError(t, err)
 }
 

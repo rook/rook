@@ -197,6 +197,11 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
 * `deviceClass`: Sets up the CRUSH rule for the pool to distribute data only on the specified device class. If left empty or unspecified, the pool will use the cluster's default CRUSH root, which usually distributes data over all OSDs, regardless of their class.
 * `crushRoot`: The root in the crush map to be used by the pool. If left empty or unspecified, the default root will be used. Creating a crush hierarchy for the OSDs currently requires the Rook toolbox to run the Ceph tools described [here](http://docs.ceph.com/docs/master/rados/operations/crush-map/#modifying-the-crush-map).
 * `enableRBDStats`: Enables collecting RBD per-image IO statistics by enabling dynamic OSD performance counters. Defaults to false. For more info see the [ceph documentation](https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics).
+* `name`: The name of Ceph pools is based on the `metadata.name` of the CephBlockPool CR. Some built-in Ceph pools
+  require names that are incompatible with K8s resource names. These special pools can be configured
+  by setting this `name` to override the name of the Ceph pool that is created instead of using the `metadata.name` for the pool.
+  Two pool names are supported: `device_health_metrics` and `.nfs`. See the example
+  [device health metrics pool](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/pool-device-health-metrics.yaml).
 
 * `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values) listed to the given pool
   * `target_size_ratio:` gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)

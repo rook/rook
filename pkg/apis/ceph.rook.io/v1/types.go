@@ -565,7 +565,7 @@ type CrashCollectorSpec struct {
 type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              PoolSpec `json:"spec"`
+	Spec              NamedBlockPoolSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Status *CephBlockPoolStatus `json:"status,omitempty"`
 }
@@ -637,6 +637,18 @@ type PoolSpec struct {
 	// +optional
 	// +nullable
 	Quotas QuotaSpec `json:"quotas,omitempty"`
+}
+
+// NamedBlockPoolSpec allows a block pool to be created with a non-default name.
+// This is more specific than the NamedPoolSpec so we get schema validation on the
+// allowed pool names that can be specified.
+type NamedBlockPoolSpec struct {
+	// The desired name of the pool if different from the CephBlockPool CR name.
+	// +kubebuilder:validation:Enum=device_health_metrics;.nfs
+	// +optional
+	Name string `json:"name,omitempty"`
+	// The core pool configuration
+	PoolSpec `json:",inline"`
 }
 
 // NamedPoolSpec represents the named ceph pool spec

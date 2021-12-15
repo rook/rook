@@ -42,9 +42,11 @@ func TestObjectChanged(t *testing.T) {
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: cephv1.PoolSpec{
-			Replicated: cephv1.ReplicatedSpec{
-				Size: oldReplicas,
+		Spec: cephv1.NamedBlockPoolSpec{
+			PoolSpec: cephv1.PoolSpec{
+				Replicated: cephv1.ReplicatedSpec{
+					Size: oldReplicas,
+				},
 			},
 		},
 		Status: &cephv1.CephBlockPoolStatus{
@@ -57,9 +59,11 @@ func TestObjectChanged(t *testing.T) {
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: cephv1.PoolSpec{
-			Replicated: cephv1.ReplicatedSpec{
-				Size: oldReplicas,
+		Spec: cephv1.NamedBlockPoolSpec{
+			PoolSpec: cephv1.PoolSpec{
+				Replicated: cephv1.ReplicatedSpec{
+					Size: oldReplicas,
+				},
 			},
 		},
 		Status: &cephv1.CephBlockPoolStatus{

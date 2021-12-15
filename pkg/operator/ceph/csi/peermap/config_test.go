@@ -204,11 +204,13 @@ var fakeSinglePeerCephBlockPool = cephv1.CephBlockPool{
 		Name:      "mirrorPool1",
 		Namespace: ns,
 	},
-	Spec: cephv1.PoolSpec{
-		Mirroring: cephv1.MirroringSpec{
-			Peers: &cephv1.MirroringPeerSpec{
-				SecretNames: []string{
-					"peer1Secret",
+	Spec: cephv1.NamedBlockPoolSpec{
+		PoolSpec: cephv1.PoolSpec{
+			Mirroring: cephv1.MirroringSpec{
+				Peers: &cephv1.MirroringPeerSpec{
+					SecretNames: []string{
+						"peer1Secret",
+					},
 				},
 			},
 		},
@@ -220,13 +222,15 @@ var fakeMultiPeerCephBlockPool = cephv1.CephBlockPool{
 		Name:      "mirrorPool1",
 		Namespace: ns,
 	},
-	Spec: cephv1.PoolSpec{
-		Mirroring: cephv1.MirroringSpec{
-			Peers: &cephv1.MirroringPeerSpec{
-				SecretNames: []string{
-					"peer1Secret",
-					"peer2Secret",
-					"peer3Secret",
+	Spec: cephv1.NamedBlockPoolSpec{
+		PoolSpec: cephv1.PoolSpec{
+			Mirroring: cephv1.MirroringSpec{
+				Peers: &cephv1.MirroringPeerSpec{
+					SecretNames: []string{
+						"peer1Secret",
+						"peer2Secret",
+						"peer3Secret",
+					},
 				},
 			},
 		},
