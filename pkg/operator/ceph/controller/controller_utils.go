@@ -133,7 +133,7 @@ func IsReadyToReconcile(ctx context.Context, c client.Client, namespacedName typ
 
 	// If the cluster has a cleanup policy to destroy the cluster and it has been marked for deletion, treat it as if it does not exist
 	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.DeletionTimestamp.IsZero() {
-		logger.Infof("%q: CephCluster %q has a destructive cleanup policy, allowing resources to be deleted", controllerName, namespacedName)
+		logger.Infof("%q: CephCluster has a destructive cleanup policy, allowing %q to be deleted", controllerName, namespacedName)
 		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 	}
 

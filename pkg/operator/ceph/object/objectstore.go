@@ -782,22 +782,25 @@ func createSimilarPools(ctx *Context, pools []string, clusterSpec *cephv1.Cluste
 	return nil
 }
 
-func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv1.PoolSpec, pgCount, ecProfileName, pool string) error {
+func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv1.PoolSpec, pgCount, ecProfileName, requestedName string) error {
 	// create the pool if it doesn't exist yet
-	name := poolName(ctx.Name, pool)
-	if poolDetails, err := cephclient.GetPoolDetails(ctx.Context, ctx.clusterInfo, name); err != nil {
+	pool := cephv1.NamedPoolSpec{
+		Name:     poolName(ctx.Name, requestedName),
+		PoolSpec: poolSpec,
+	}
+	if poolDetails, err := cephclient.GetPoolDetails(ctx.Context, ctx.clusterInfo, pool.Name); err != nil {
 		// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
 		// to create a replicated pool.
 		var err error
 		if poolSpec.IsErasureCoded() {
 			// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
 			// created with that property disabled to avoid unnecessary performance impact.
-			err = cephclient.CreateECPoolForApp(ctx.Context, ctx.clusterInfo, name, ecProfileName, poolSpec, pgCount, AppName, false /* enableECOverwrite */)
+			err = cephclient.CreateECPoolForApp(ctx.Context, ctx.clusterInfo, ecProfileName, pool, pgCount, AppName, false /* enableECOverwrite */)
 		} else {
-			err = cephclient.CreateReplicatedPoolForApp(ctx.Context, ctx.clusterInfo, clusterSpec, name, poolSpec, pgCount, AppName)
+			err = cephclient.CreateReplicatedPoolForApp(ctx.Context, ctx.clusterInfo, clusterSpec, pool, pgCount, AppName)
 		}
 		if err != nil {
-			return errors.Wrapf(err, "failed to create pool %s for object store %s.", name, ctx.Name)
+			return errors.Wrapf(err, "failed to create pool %s for object store %s.", pool.Name, ctx.Name)
 		}
 	} else {
 		// pools already exist
@@ -813,8 +816,8 @@ func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv
 	}
 	// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count
 	if pgCount != cephclient.DefaultPGCount {
-		if err := cephclient.SetPoolProperty(ctx.Context, ctx.clusterInfo, name, "pg_num_min", pgCount); err != nil {
-			return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", name, pgCount)
+		if err := cephclient.SetPoolProperty(ctx.Context, ctx.clusterInfo, pool.Name, "pg_num_min", pgCount); err != nil {
+			return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", pool.Name, pgCount)
 		}
 	}
 

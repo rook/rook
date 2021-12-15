@@ -51,3 +51,15 @@ spec:
         timeout: 600s
   disruptionManagement:
     managePodBudgets: true
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: device-health-metrics
+  namespace: rook-ceph # namespace:cluster
+spec:
+  name: device_health_metrics
+  failureDomain: host
+  replicated:
+    size: 1
+    requireSafeReplicaSize: false

@@ -39,7 +39,8 @@ type CephManifests interface {
 	GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string
 	GetFileStorageSnapshotClass(snapshotClassName, reclaimPolicy string) string
 	GetFilesystem(name string, activeCount int) string
-	GetNFS(name, pool string, daemonCount int) string
+	GetNFS(name string, daemonCount int) string
+	GetNFSPool() string
 	GetRBDMirror(name string, daemonCount int) string
 	GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string
 	GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string
@@ -354,7 +355,7 @@ spec:
 }
 
 // GetFilesystem returns the manifest to create a Rook Ceph NFS resource with the given config.
-func (m *CephManifestsMaster) GetNFS(name, pool string, count int) string {
+func (m *CephManifestsMaster) GetNFS(name string, count int) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephNFS
 metadata:
@@ -362,10 +363,24 @@ metadata:
   namespace: ` + m.settings.Namespace + `
 spec:
   rados:
-    pool: ` + pool + `
+    pool: .nfs
     namespace: nfs-ns
   server:
     active: ` + strconv.Itoa(count)
+}
+
+// GetFilesystem returns the manifest to create a Rook Ceph NFS resource with the given config.
+func (m *CephManifestsMaster) GetNFSPool() string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: dot-nfs
+  namespace: ` + m.settings.Namespace + `
+spec:
+  name: .nfs
+  replicated:
+    size: 1
+    requireSafeReplicaSize: false`
 }
 
 func (m *CephManifestsMaster) GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string {

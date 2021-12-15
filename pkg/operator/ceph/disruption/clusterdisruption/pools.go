@@ -46,7 +46,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	}
 	poolCount += len(cephBlockPoolList.Items)
 	for _, cephBlockPool := range cephBlockPoolList.Items {
-		poolSpecs = append(poolSpecs, cephBlockPool.Spec)
+		poolSpecs = append(poolSpecs, cephBlockPool.Spec.PoolSpec)
 	}
 
 	cephFilesystemList := &cephv1.CephFilesystemList{}
