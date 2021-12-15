@@ -89,7 +89,7 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		// We only test if the type is 'disk', this is a property reported by lsblk
 		// and means it's a parent block device
 		if disk.Type == sys.DiskType {
-			deviceChild, err := sys.ListDevicesChild(executor, d)
+			deviceChild, err := sys.ListDevicesChild(executor, fmt.Sprintf("/dev/%s", d))
 			if err != nil {
 				logger.Warningf("failed to detect child devices for device %q, assuming they are none. %v", d, err)
 			}
