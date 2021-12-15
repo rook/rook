@@ -190,6 +190,13 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 		}
 		osdProps.storeConfig.DeviceClass = volume.CrushDeviceClass
 
+		// Skip OSD prepare if deployment already exists for the PVC
+		// Also skip the encryption work part to avoid overriding the existing encryption key
+		if existingDeployments.Has(dataSource.ClaimName) {
+			logger.Infof("skipping OSD prepare job creation for PVC %q because OSD daemon using the PVC already exists", osdProps.crushHostname)
+			continue
+		}
+
 		if osdProps.encrypted {
 			// If the deviceSet template has "encrypted" but the Ceph version is not compatible
 			if !c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinOctopusCephVersion) {
@@ -221,18 +228,14 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 			}
 
 			// Generate and store the encrypted key in whatever KMS is configured
+			// The PutSecret() call for each backend verifies whether the key is present already so
+			// no risk of overwriting an existing key.
 			err = kmsConfig.PutSecret(osdProps.pvc.ClaimName, key)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to store secret. %v", err)
 				errs.addError(errMsg)
 				continue
 			}
-		}
-
-		// Skip OSD prepare if deployment already exists for the PVC
-		if existingDeployments.Has(dataSource.ClaimName) {
-			logger.Debugf("skipping OSD prepare job creation for PVC %q because OSD daemon using the PVC already exists", osdProps.crushHostname)
-			continue
 		}
 
 		// Update the orchestration status of this pvc to the starting state

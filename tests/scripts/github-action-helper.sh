@@ -250,7 +250,7 @@ function wait_for_prepare_pod() {
 function wait_for_ceph_to_be_ready() {
   DAEMONS=$1
   OSD_COUNT=$2
-  mkdir test
+  mkdir -p test
   tests/scripts/validate_cluster.sh "$DAEMONS" "$OSD_COUNT"
   kubectl -n rook-ceph get pods
 }
