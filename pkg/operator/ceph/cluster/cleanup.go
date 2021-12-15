@@ -127,9 +127,7 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 	// See https://tracker.ceph.com/issues/53511
 	// Also, it's hard to catch the ceph version since the cluster is being deleted so not
 	// implementing a version check and simply always run this as root
-	rootUserID := int64(0)
-	securityContext := osd.PrivilegedContext()
-	securityContext.RunAsUser = &rootUserID
+	securityContext := controller.PrivilegedContext(true)
 
 	return v1.Container{
 		Name:            "host-cleanup",

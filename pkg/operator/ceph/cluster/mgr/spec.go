@@ -228,11 +228,12 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 	}
 
 	return v1.Container{
-		Args:      []string{"ceph", "mgr", "watch-active"},
-		Name:      "watch-active",
-		Image:     c.rookVersion,
-		Env:       envVars,
-		Resources: cephv1.GetMgrSidecarResources(c.spec.Resources),
+		Args:            []string{"ceph", "mgr", "watch-active"},
+		Name:            "watch-active",
+		Image:           c.rookVersion,
+		Env:             envVars,
+		Resources:       cephv1.GetMgrSidecarResources(c.spec.Resources),
+		SecurityContext: controller.PrivilegedContext(true),
 	}
 }
 
