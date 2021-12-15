@@ -39,6 +39,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -150,6 +151,12 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
+			// If there was a previous error or if a user removed this resource's finalizer, it's
+			// possible Rook didn't clean up the monitoring routine for this resource. Ensure the
+			// routine is stopped when we see the resource is gone.
+			cephBlockPool.Name = request.Name
+			cephBlockPool.Namespace = request.Namespace
+			r.cancelMirrorMonitoring(cephBlockPool)
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -177,6 +184,9 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// If not, we should wait for it to be ready
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephBlockPool.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// don't leak the health checker routine if we are force-deleting
+			r.cancelMirrorMonitoring(cephBlockPool)
+
 			// Remove finalizer
 			err = opcontroller.RemoveFinalizer(r.client, cephBlockPool)
 			if err != nil {
@@ -199,7 +209,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 	// Initialize the channel for this pool
 	// This allows us to track multiple CephBlockPool in the same namespace
-	blockPoolChannelKey := fmt.Sprintf("%s-%s", cephBlockPool.Namespace, cephBlockPool.Name)
+	blockPoolChannelKey := blockPoolChannelKeyName(cephBlockPool)
 	_, poolChannelExists := r.blockPoolChannels[blockPoolChannelKey]
 	if !poolChannelExists {
 		r.blockPoolChannels[blockPoolChannelKey] = &blockPoolHealth{
@@ -212,9 +222,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
 		// If the ceph block pool is still in the map, we must remove it during CR deletion
 		// We must remove it first otherwise the checker will panic since the status/info will be nil
-		if poolChannelExists {
-			r.cancelMirrorMonitoring(blockPoolChannelKey)
-		}
+		r.cancelMirrorMonitoring(cephBlockPool)
 
 		logger.Infof("deleting pool %q", cephBlockPool.Name)
 		err := deletePool(r.context, clusterInfo, cephBlockPool)
@@ -328,7 +336,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		// Stop monitoring the mirroring status of this pool
 		if poolChannelExists && r.blockPoolChannels[blockPoolChannelKey].monitoringRunning {
-			r.cancelMirrorMonitoring(blockPoolChannelKey)
+			r.cancelMirrorMonitoring(cephBlockPool)
 			// Reset the MirrorHealthCheckSpec
 			checker.updateStatusMirroring(nil, nil, nil, "")
 		}
@@ -417,10 +425,20 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 	return nil
 }
 
-func (r *ReconcileCephBlockPool) cancelMirrorMonitoring(cephBlockPoolName string) {
-	// Close the channel to stop the mirroring status
-	close(r.blockPoolChannels[cephBlockPoolName].stopChan)
+func blockPoolChannelKeyName(p *cephv1.CephBlockPool) string {
+	return types.NamespacedName{Namespace: p.Namespace, Name: p.Name}.String()
+}
 
-	// Remove ceph block pool from the map
-	delete(r.blockPoolChannels, cephBlockPoolName)
+// cancel mirror monitoring. This is a noop if monitoring is not running.
+func (r *ReconcileCephBlockPool) cancelMirrorMonitoring(cephBlockPool *cephv1.CephBlockPool) {
+	channelKey := blockPoolChannelKeyName(cephBlockPool)
+
+	_, poolContextExists := r.blockPoolChannels[channelKey]
+	if poolContextExists {
+		// Close the channel to stop the mirroring status
+		close(r.blockPoolChannels[channelKey].stopChan)
+
+		// Remove ceph block pool from the map
+		delete(r.blockPoolChannels, channelKey)
+	}
 }
