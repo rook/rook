@@ -765,7 +765,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,
 		VolumeMounts:    volMounts,
-		SecurityContext: PrivilegedContext(),
+		SecurityContext: controller.PrivilegedContext(true),
 		Env:             envVars,
 		Resources:       osdProps.resources,
 	}
@@ -857,7 +857,7 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 			fmt.Sprintf(openEncryptedBlock, c.clusterInfo.FSID, pvcName, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), encryptionDMName(pvcName, cryptBlockType), encryptionDMPath(pvcName, cryptBlockType)),
 		},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
-		SecurityContext: PrivilegedContext(),
+		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       resources,
 	}
 }
@@ -1111,7 +1111,7 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 			},
 		},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
-		SecurityContext: PrivilegedContext(),
+		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,
 	}
 
@@ -1139,7 +1139,7 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 		},
 		Args:            []string{"bluefs-bdev-expand", "--path", osdDataPath},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
-		SecurityContext: PrivilegedContext(),
+		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,
 	}
 }
@@ -1166,7 +1166,7 @@ func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps 
 		},
 		Args:            []string{"--verbose", "resize", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
 		VolumeMounts:    volMount,
-		SecurityContext: PrivilegedContext(),
+		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,
 	}
 }
@@ -1196,7 +1196,7 @@ func (c *Cluster) getEncryptedStatusPVCInitContainer(mountPath string, osdProps 
 		},
 		Args:            []string{"--verbose", "status", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
-		SecurityContext: PrivilegedContext(),
+		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,
 	}
 }

@@ -66,6 +66,7 @@ func init() {
 // Start the mgr daemon sidecar
 func runMgrSidecar(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
+	clusterInfo.Context = cmd.Context()
 
 	context := createContext()
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
