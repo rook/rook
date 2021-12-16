@@ -6,4 +6,4 @@
  quay.io/ceph/ceph:v16.2.7
  quay.io/cephcsi/cephcsi:v3.4.0
  quay.io/csiaddons/volumereplication-operator:v0.1.0
- rook/ceph:v1.8.0
+ rook/ceph:v1.8.1
