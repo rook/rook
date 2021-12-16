@@ -718,6 +718,7 @@ spec:
   allowedCapabilities:
     # required by CSI
     - SYS_ADMIN
+    - MKNOD
   fsGroup:
     rule: RunAsAny
   # runAsUser, supplementalGroups - Rook needs to run some pods as root
