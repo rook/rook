@@ -89,7 +89,7 @@ function use_local_disk_for_integration_test() {
 }
 
 function create_partitions_for_osds() {
-  tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
+  tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 3
   sudo lsblk
 }
 

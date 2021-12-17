@@ -52,7 +52,7 @@ function create_block_partition {
   if [ "$osd_count" -eq 1 ]; then
     sudo sgdisk --largest-new=0 --change-name=0:'block' --mbrtogpt -- "$DISK"
     elif [ "$osd_count" -gt 1 ]; then
-    SIZE=6144M
+    SIZE=4096M
     for osd in $(seq 1 "$osd_count"); do
       echo "$osd"
       create_partition osd-"$osd"
