@@ -37,6 +37,11 @@ to further technologies (such as LDAP authentication).
 
 * Support for APIs beside S3 and Swift.
 
+* Interaction of Swift with OBCs is out of scope of this document.  If
+  you need to access a bucket created by OBC via Swift you need to
+  create a separate `cephobjectstoreuser`, configure its access rights
+  to the bucket and use those credentials.
+
 * Support for authentication technologies other than Keystone (e.g. LDAP)
 
 * Exposing options that disable security features (e.g. TLS verification)
