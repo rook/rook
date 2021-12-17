@@ -138,6 +138,10 @@ There are several common causes for the mons failing to form quorum:
   for cleaning the previous cluster.
 * A firewall may be blocking the ports required for the Ceph mons to form quorum. Ensure ports 6789 and 3300 are enabled.
   See the [Ceph networking guide](https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/) for more details.
+* There may be MTU mismatch between different networking components. Some networks may be more
+  susceptible to mismatch than others. If Kubernetes CNI or hosts enable jumbo frames (MTU 9000),
+  Ceph will use large packets to maximize network bandwidth. If other parts of the networking chain
+  don't support jumbo frames, this could result in lost or rejected packets unexpectedly.
 
 #### Operator fails to connect to the mon
 
