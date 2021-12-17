@@ -99,7 +99,8 @@ type it maps naturally to the Ceph RGW configuration.
 The following constraints must be fulfilled by the secret:
 * `OS_AUTH_TYPE` must be `password` or omitted.
 * `OS_USER_DOMAIN_NAME` must equal `OS_PROJECT_DOMAIN_NAME`.
-* All other openrc variables (e.g. API version and endpoint) are ignored.
+* All openrc variables not in the example above (e.g. API version and
+  Keystone endpoint) are ignored.
 
 ### Swift integration
 
