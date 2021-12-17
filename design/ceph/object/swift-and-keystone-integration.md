@@ -117,6 +117,63 @@ gateway:
   swiftVersioningEnabled: false
 ```
 
+The access to the Swift API is granted by creating a subuser of an RGW
+user. While commonly the access is granted via projects
+mapped from Keystone, explicit creation of subusers is supported by
+extending the `cephobjectstoreuser` resource with a new section
+`spec.subUsers`:
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: my-user
+  namespace: rook-ceph
+spec:
+  store: my-store
+  displayName: my-display-name
+  quotas:
+    maxBuckets: 100
+    maxSize: 10G
+    maxObjects: 10000
+  capabilities:
+    user: "*"
+    bucket: "*"
+  subUsers:
+  - name: swift
+    access: full
+```
+
+The subusers are not mapped to a separate CR for the
+following reasons:
+
+* The full subuser names are prefixed with the username like
+  `my-user:subusername`, so being unique within the CR guarantees
+  global uniqueness.
+
+  Unlike `radosgw-admin` the subuser name in the CRD must be provided
+  *without the prefix* (radosgw-admin allows both, to omit or include
+  the prefix).
+
+* The subuser abstraction is very simple – only a name and an access
+  level can be configured, so a separate resource would not be
+  appropriate complexity wise.
+
+Like the S3 access keys for the users, the swift keys created for the
+sub-users are automatically injected into Secret objects. The
+credentials for the subusers are mapped to separate secrets, in the
+case of the example the following secret will be created:
+```yaml
+apiVersion:
+kind: Secret
+metadata:
+  name: rook-ceph-object-subuser-my-store-my-user:swift
+  namespace: rook-ceph
+data:
+  SWIFT_USER: my-user:swift
+  SWIFT_SECRET_KEY: $KEY
+```
+
+
 ### Risks and Mitigation
 
 As long as the Object Store CRD changes are well thought out the
