@@ -17,19 +17,22 @@ limitations under the License.
 package csi
 
 import (
+	"context"
 	"regexp"
 
 	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // predicateController is the predicate function to trigger reconcile on operator configuration cm change
-func predicateController() predicate.Funcs {
+func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			// if the operator configuration file is created we want to reconcile
@@ -41,6 +44,10 @@ func predicateController() predicate.Funcs {
 
 			// If a Ceph Cluster is created we want to reconcile the csi driver
 			if cephCluster, ok := e.Object.(*cephv1.CephCluster); ok {
+				// If there are more than one ceph cluster in the same namespace do not reconcile
+				if controller.DuplicateCephClusters(ctx, c, e.Object, false) {
+					return false
+				}
 				// This allows us to avoid a double reconcile of the CSI controller if this is not
 				// the first generation of the CephCluster. So only return true if this is the very
 				// first instance of the CephCluster

@@ -140,7 +140,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 			},
 		},
 		&handler.EnqueueRequestForObject{},
-		watchControllerPredicate())
+		watchControllerPredicate(opManagerContext, mgr.GetClient()))
 	if err != nil {
 		return err
 	}

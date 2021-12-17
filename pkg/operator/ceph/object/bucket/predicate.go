@@ -17,9 +17,12 @@ limitations under the License.
 package bucket
 
 import (
+	"context"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -27,7 +30,7 @@ import (
 const rookOBCWatchOperatorNamespace = "ROOK_OBC_WATCH_OPERATOR_NAMESPACE"
 
 // predicateController is the predicate function to trigger reconcile on operator configuration cm change
-func predicateController() predicate.Funcs {
+func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			// if the operator configuration file is created we want to reconcile
@@ -39,8 +42,8 @@ func predicateController() predicate.Funcs {
 
 			// If a Ceph Cluster is created we want to reconcile the bucket provisioner
 			if _, ok := e.Object.(*cephv1.CephCluster); ok {
-				// Always return true, so when the controller starts we reconcile too. We don't get
-				return true
+				// If there are more than one ceph cluster in the same namespace do not reconcile
+				return !controller.DuplicateCephClusters(ctx, c, e.Object, false)
 			}
 
 			return false
