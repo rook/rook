@@ -68,6 +68,11 @@ auth:
     serviceUserSecret: rgw-service-user
 ```
 
+The certificate to verify the Keystone endpoint can't be explicitly
+configured in Ceph RGW, the system configuration of the pod is used,
+you can add to the system certificate store via the
+`gateway.caBundleRef` setting of the object store CRD.
+
 The credentials for the Keystone service account used by Ceph RGW are
 supplied in a Secret that contains a mapping of OpenStack openrc
 environment variables. Only password authentication to Keystone is
