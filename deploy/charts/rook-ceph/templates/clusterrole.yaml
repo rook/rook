@@ -288,6 +288,11 @@ rules:
     verbs:
       # OBC controller updates OBC and OB statuses
       - update
+  - apiGroups: ["objectbucket.io"]
+    resources: ["objectbucketclaims/finalizers", "objectbuckets/finalizers"]
+    verbs:
+      # OBC controller updates OBC and OB finalizers
+      - update
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
