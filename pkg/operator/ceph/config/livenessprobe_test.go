@@ -62,13 +62,101 @@ func configLivenessProbeHelper(t *testing.T, keyType cephv1.KeyType) {
 		args args
 		want v1.Container
 	}{
-		{"probe-enabled", args{keyType, container, cephv1.CephClusterHealthCheckSpec{}}, container},
-		{"probe-disabled", args{keyType, container, cephv1.CephClusterHealthCheckSpec{LivenessProbe: l}}, v1.Container{}},
+		{string(keyType) + "_probe-enabled", args{keyType, container, cephv1.CephClusterHealthCheckSpec{}}, container},
+		{string(keyType) + "_probe-disabled", args{keyType, container, cephv1.CephClusterHealthCheckSpec{LivenessProbe: l}}, v1.Container{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ConfigureLivenessProbe(tt.args.daemon, tt.args.container, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ConfigureLivenessProbe() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfigureStartupProbe(t *testing.T) {
+	keyTypes := []cephv1.KeyType{
+		cephv1.KeyMds,
+		cephv1.KeyMon,
+		cephv1.KeyMgr,
+		cephv1.KeyOSD,
+	}
+
+	for _, keyType := range keyTypes {
+		configStartupProbeHelper(t, keyType)
+	}
+
+	t.Run("integration check: configured probes should override values", func(t *testing.T) {
+		defaultProbe := &v1.Probe{
+			Handler: v1.Handler{
+				HTTPGet: &v1.HTTPGetAction{
+					Path: "/",
+					Port: intstr.FromInt(8443),
+				},
+			},
+		}
+		userProbe := &v1.Probe{
+			Handler: v1.Handler{
+				HTTPGet: &v1.HTTPGetAction{
+					Path: "/custom/path",
+					Port: intstr.FromInt(8080),
+				},
+			},
+			InitialDelaySeconds: 999,
+			TimeoutSeconds:      888,
+			PeriodSeconds:       777,
+			SuccessThreshold:    666,
+			FailureThreshold:    555,
+		}
+
+		healthCheckSpec := cephv1.CephClusterHealthCheckSpec{
+			StartupProbe: map[cephv1.KeyType]*cephv1.ProbeSpec{
+				cephv1.KeyMon: {
+					Disabled: false,
+					Probe:    userProbe,
+				},
+			},
+		}
+
+		container := v1.Container{StartupProbe: defaultProbe}
+
+		got := ConfigureStartupProbe(cephv1.KeyMon, container, healthCheckSpec)
+		// the resultant container's startup probe should have been overridden, but the handler
+		// should always be the rook-given default
+		expectedProbe := *userProbe
+		expectedProbe.Handler = defaultProbe.Handler
+		assert.Equal(t, &expectedProbe, got.StartupProbe)
+	})
+}
+
+func configStartupProbeHelper(t *testing.T, keyType cephv1.KeyType) {
+	p := &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path: "/",
+				Port: intstr.FromInt(8080),
+			},
+		},
+	}
+	container := v1.Container{StartupProbe: p}
+	l := map[cephv1.KeyType]*cephv1.ProbeSpec{keyType: {Disabled: true}}
+	type args struct {
+		daemon      cephv1.KeyType
+		container   v1.Container
+		healthCheck cephv1.CephClusterHealthCheckSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want v1.Container
+	}{
+		{string(keyType) + "_probe-enabled", args{keyType, container, cephv1.CephClusterHealthCheckSpec{}}, container},
+		{string(keyType) + "_probe-disabled", args{keyType, container, cephv1.CephClusterHealthCheckSpec{StartupProbe: l}}, v1.Container{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ConfigureStartupProbe(tt.args.daemon, tt.args.container, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ConfigureStartupProbe() = %v, want %v", got, tt.want)
 			}
 		})
 	}

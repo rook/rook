@@ -158,12 +158,11 @@ func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedCommand, probe.Handler.Exec.Command)
-	// it's an OSD the delay must be 45
-	assert.Equal(t, initialDelaySecondsOSDDaemon, probe.InitialDelaySeconds)
+	assert.Equal(t, livenessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
 
 	// test with a mon so the delay should be 10
 	probe = GenerateLivenessProbeExecDaemon(config.MonType, "a")
-	assert.Equal(t, initialDelaySecondsNonOSDDaemon, probe.InitialDelaySeconds)
+	assert.Equal(t, livenessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
 }
 
 func TestDaemonFlags(t *testing.T) {
