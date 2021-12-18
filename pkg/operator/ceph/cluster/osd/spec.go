@@ -552,6 +552,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					Env:             envVars,
 					Resources:       osdProps.resources,
 					SecurityContext: securityContext,
+					StartupProbe:    controller.GenerateStartupProbeExecDaemon(opconfig.OsdType, osdID),
 					LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
 					WorkingDir:      opconfig.VarLogCephDir,
 				},
@@ -571,7 +572,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		podTemplateSpec.Spec.Containers = append(podTemplateSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-osd.%s", osdID), c.clusterInfo.Namespace, c.spec))
 	}
 
-	// If the liveness probe is enabled
+	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureStartupProbe(cephv1.KeyOSD, podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck)
 	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureLivenessProbe(cephv1.KeyOSD, podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck)
 
 	if c.spec.Network.IsHost() {

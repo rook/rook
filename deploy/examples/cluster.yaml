@@ -265,8 +265,16 @@ spec:
       status:
         disabled: false
         interval: 60s
-    # Change pod liveness probe, it works for all mon,mgr,osd daemons
+    # Change pod liveness probe timing or threshold values. Works for all mon,mgr,osd daemons.
     livenessProbe:
+      mon:
+        disabled: false
+      mgr:
+        disabled: false
+      osd:
+        disabled: false
+    # Change pod startup probe timing or threshold values. Works for all mon,mgr,osd daemons.
+    startupProbe:
       mon:
         disabled: false
       mgr:

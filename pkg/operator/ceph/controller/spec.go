@@ -43,18 +43,19 @@ import (
 const (
 	// ConfigInitContainerName is the name which is given to the config initialization container
 	// in all Ceph pods.
-	ConfigInitContainerName               = "config-init"
-	logVolumeName                         = "rook-ceph-log"
-	volumeMountSubPath                    = "data"
-	crashVolumeName                       = "rook-ceph-crash"
-	daemonSocketDir                       = "/run/ceph"
-	initialDelaySecondsNonOSDDaemon int32 = 10
-	initialDelaySecondsOSDDaemon    int32 = 45
-	logCollector                          = "log-collector"
-	DaemonIDLabel                         = "ceph_daemon_id"
-	daemonTypeLabel                       = "ceph_daemon_type"
-	ExternalMgrAppName                    = "rook-ceph-mgr-external"
-	ServiceExternalMetricName             = "http-external-metrics"
+	ConfigInitContainerName                 = "config-init"
+	logVolumeName                           = "rook-ceph-log"
+	volumeMountSubPath                      = "data"
+	crashVolumeName                         = "rook-ceph-crash"
+	daemonSocketDir                         = "/run/ceph"
+	livenessProbeInitialDelaySeconds  int32 = 10
+	startupProbeFailuresDaemonDefault int32 = 6 // multiply by 10 = effective startup timeout
+	startupProbeFailuresDaemonOSD     int32 = 9 // multiply by 10 = effective startup timeout
+	logCollector                            = "log-collector"
+	DaemonIDLabel                           = "ceph_daemon_id"
+	daemonTypeLabel                         = "ceph_daemon_type"
+	ExternalMgrAppName                      = "rook-ceph-mgr-external"
+	ServiceExternalMetricName               = "http-external-metrics"
 )
 
 type daemonConfig struct {
@@ -554,13 +555,10 @@ func StoredLogAndCrashVolumeMount(varLogCephDir, varLibCephCrashDir string) []v1
 	}
 }
 
-// GenerateLivenessProbeExecDaemon makes sure a daemon has a socket and that it can be called and returns 0
+// GenerateLivenessProbeExecDaemon generates a liveness probe that makes sure a daemon has a socket,
+// that it can be called, and that it returns 0
 func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 	confDaemon := getDaemonConfig(daemonType, daemonID)
-	initialDelaySeconds := initialDelaySecondsNonOSDDaemon
-	if daemonType == config.OsdType {
-		initialDelaySeconds = initialDelaySecondsOSDDaemon
-	}
 
 	return &v1.Probe{
 		Handler: v1.Handler{
@@ -579,8 +577,28 @@ func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 				},
 			},
 		},
-		InitialDelaySeconds: initialDelaySeconds,
+		InitialDelaySeconds: livenessProbeInitialDelaySeconds,
 	}
+}
+
+// GenerateStartupProbeExecDaemon generates a startup probe that makes sure a daemon has a socket,
+// that it can be called, and that it returns 0
+func GenerateStartupProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
+	// startup probe is the same as the liveness probe, but with modified thresholds
+	probe := GenerateLivenessProbeExecDaemon(daemonType, daemonID)
+
+	// these are hardcoded to 10 so that the failure threshold can be easily multiplied by 10 to
+	// give the effective startup timeout
+	probe.InitialDelaySeconds = 10
+	probe.PeriodSeconds = 10
+
+	if daemonType == config.OsdType {
+		probe.FailureThreshold = startupProbeFailuresDaemonOSD
+	} else {
+		probe.FailureThreshold = startupProbeFailuresDaemonDefault
+	}
+
+	return probe
 }
 
 func getDaemonConfig(daemonType, daemonID string) *daemonConfig {

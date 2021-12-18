@@ -108,6 +108,8 @@ spec:
       disabled: false
       interval: 60s
     # Configure the pod probes for the rgw daemon
+    startupProbe:
+      disabled: false
     livenessProbe:
       disabled: false
     readinessProbe:

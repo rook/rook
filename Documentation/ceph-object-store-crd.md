@@ -163,6 +163,12 @@ Rook-Ceph will be default monitor the state of the object store endpoints.
 The following CRD settings are available:
 
 * `healthCheck`: main object store health monitoring section
+  * `bucket`: Rook checks that the object store is usable regularly. This is explained in more
+    detail below. Use this config to disable or change the interval at which Rook verifies the
+    object store connectivity.
+  * `startupProbe`: Disable, or override timing and threshold values of the object gateway startup probe.
+  * `livenessProbe`: Disable, or override timing and threshold values of the object gateway liveness probe.
+  * `readinessProbe`: Disable, or override timing and threshold values of the object gateway readiness probe.
 
 Here is a complete example:
 
@@ -171,6 +177,16 @@ healthCheck:
   bucket:
     disabled: false
     interval: 60s
+  startupProbe:
+    disabled: false
+  livenessProbe:
+    disabled: false
+    periodSeconds: 5
+    failureThreshold: 4
+  readinessProbe:
+    disabled: false
+    periodSeconds: 5
+    failureThreshold: 2
 ```
 
 The endpoint health check procedure is the following:
