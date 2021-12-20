@@ -349,7 +349,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			scheme:              s,
 			context:             c,
 			objectStoreContexts: make(map[string]*objectStoreHealth),
-			recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
+			recorder:            record.NewFakeRecorder(5),
 			opManagerContext:    context.TODO(),
 		}
 
@@ -684,7 +684,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		scheme:              s,
 		context:             c,
 		objectStoreContexts: make(map[string]*objectStoreHealth),
-		recorder:            k8sutil.NewEventReporter(record.NewFakeRecorder(5)),
+		recorder:            record.NewFakeRecorder(5),
 		opManagerContext:    ctx,
 	}
 

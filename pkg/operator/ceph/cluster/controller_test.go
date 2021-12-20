@@ -24,7 +24,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -82,7 +81,7 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 		// create the cluster controller and tell it that the cluster has been deleted
 		controller := NewClusterController(clusterdCtx, "")
 		fakeRecorder := record.NewFakeRecorder(5)
-		controller.recorder = k8sutil.NewEventReporter(fakeRecorder)
+		controller.recorder = fakeRecorder
 
 		// Create a fake client to mock API calls
 		// Make sure it has the fake CephCluster that is to be deleted in it
