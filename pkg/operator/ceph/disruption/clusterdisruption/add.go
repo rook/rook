@@ -60,7 +60,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 
 	cephClusterPredicate := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			logger.Info("create event from ceph cluster CR")
+			logger.Debug("create event from ceph cluster CR")
 			return true
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {

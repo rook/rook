@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"reflect"
@@ -698,4 +699,39 @@ func IsDoNotReconcile(labels map[string]string) bool {
 func ReloadManager() {
 	p, _ := os.FindProcess(os.Getpid())
 	_ = p.Signal(syscall.SIGHUP)
+}
+
+// DuplicateCephClusters determine whether a similar object exists in the same namespace
+// mainly used for the CephCluster which we only support a single instance per namespace
+func DuplicateCephClusters(ctx context.Context, c client.Client, object client.Object, log bool) bool {
+	objectType, ok := object.(*cephv1.CephCluster)
+	if !ok {
+		logger.Errorf("expected type CephCluster but found %T", objectType)
+		return false
+	}
+
+	cephClusterList := &cephv1.CephClusterList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(object.GetNamespace()),
+	}
+	err := c.List(ctx, cephClusterList, listOpts...)
+	if err != nil {
+		logger.Errorf("failed to list ceph clusters, assuming there is none, not reconciling. %v", err)
+		return true
+	}
+
+	// This check is needed when the operator is down and a cluster was created
+	if len(cephClusterList.Items) > 1 {
+		// Since multiple predicate are using this function we don't want all of them to log the
+		// same message, so one predicate can log and the other cannot
+		if log {
+			logger.Errorf("found more than one ceph cluster in namespace %q. not reconciling. only one ceph cluster per namespace.", object.GetNamespace())
+			for _, cluster := range cephClusterList.Items {
+				logger.Errorf("found ceph cluster %q in namespace %q", cluster.Name, cluster.Namespace)
+			}
+		}
+		return true
+	}
+
+	return false
 }
