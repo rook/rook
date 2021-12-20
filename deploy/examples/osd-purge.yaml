@@ -21,6 +21,9 @@ metadata:
     app: rook-ceph-purge-osd
 spec:
   template:
+    metadata:
+      labels:
+        app: rook-ceph-purge-osd
     spec:
       serviceAccountName: rook-ceph-purge-osd
       containers:
