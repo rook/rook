@@ -18,6 +18,8 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
+
 	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -105,9 +107,12 @@ func isHotPlugCM(obj runtime.Object) bool {
 	return false
 }
 
-func watchControllerPredicate() predicate.Funcs {
+func watchControllerPredicate(ctx context.Context, c client.Client) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
+			if controller.DuplicateCephClusters(ctx, c, e.Object, true) {
+				return false
+			}
 			logger.Debug("create event from a CR")
 			return true
 		},
@@ -116,6 +121,13 @@ func watchControllerPredicate() predicate.Funcs {
 			return true
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
+			// We still need to check on update event since the user must delete the additional CR
+			// Until this is done, the user can still update the CR and the operator will reconcile
+			// This should not happen
+			if controller.DuplicateCephClusters(ctx, c, e.ObjectOld, true) {
+				return false
+			}
+
 			// resource.Quantity has non-exportable fields, so we use its comparator method
 			resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
 
