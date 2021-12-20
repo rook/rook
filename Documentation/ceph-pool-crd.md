@@ -35,6 +35,10 @@ spec:
 Hybrid storage is a combination of two different storage tiers. For example, SSD and HDD.
 This helps to improve the read performance of cluster by placing, say, 1st copy of data on the higher performance tier (SSD or NVME) and remaining replicated copies on lower cost tier (HDDs).
 
+**WARNING** Hybrid storage pools are likely to suffer from lower availability if a node goes down. The data across the two
+tiers may actually end up on the same node, instead of being spread across unique nodes (or failure domains) as expected.
+Instead of using hybrid pools, consider configuring [primary affinity](https://docs.ceph.com/en/latest/rados/operations/crush-map/#primary-affinity) from the toolbox.
+
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
