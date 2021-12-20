@@ -181,7 +181,7 @@ to update the CephBlockPool CRD.
 ```bash
 [cluster-1]$ kubectl -n rook-ceph patch cephblockpool mirroredpool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["rbd-primary-site-secret"]}}}}'
 ```
-## Create VolmeReplication CRDs
+## Create VolumeReplication CRDs
 
 Volume Replication Operator follows controller pattern and provides extended
 APIs for storage disaster recovery. The extended APIs are provided via Custom
