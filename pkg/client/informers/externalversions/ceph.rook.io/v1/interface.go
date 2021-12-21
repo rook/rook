@@ -38,6 +38,8 @@ type Interface interface {
 	CephFilesystems() CephFilesystemInformer
 	// CephFilesystemMirrors returns a CephFilesystemMirrorInformer.
 	CephFilesystemMirrors() CephFilesystemMirrorInformer
+	// CephFilesystemSubVolumeGroups returns a CephFilesystemSubVolumeGroupInformer.
+	CephFilesystemSubVolumeGroups() CephFilesystemSubVolumeGroupInformer
 	// CephNFSes returns a CephNFSInformer.
 	CephNFSes() CephNFSInformer
 	// CephObjectRealms returns a CephObjectRealmInformer.
@@ -98,6 +100,11 @@ func (v *version) CephFilesystems() CephFilesystemInformer {
 // CephFilesystemMirrors returns a CephFilesystemMirrorInformer.
 func (v *version) CephFilesystemMirrors() CephFilesystemMirrorInformer {
 	return &cephFilesystemMirrorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephFilesystemSubVolumeGroups returns a CephFilesystemSubVolumeGroupInformer.
+func (v *version) CephFilesystemSubVolumeGroups() CephFilesystemSubVolumeGroupInformer {
+	return &cephFilesystemSubVolumeGroupInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // CephNFSes returns a CephNFSInformer.

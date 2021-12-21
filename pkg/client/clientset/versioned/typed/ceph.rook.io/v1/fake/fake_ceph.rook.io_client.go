@@ -56,6 +56,10 @@ func (c *FakeCephV1) CephFilesystemMirrors(namespace string) v1.CephFilesystemMi
 	return &FakeCephFilesystemMirrors{c, namespace}
 }
 
+func (c *FakeCephV1) CephFilesystemSubVolumeGroups(namespace string) v1.CephFilesystemSubVolumeGroupInterface {
+	return &FakeCephFilesystemSubVolumeGroups{c, namespace}
+}
+
 func (c *FakeCephV1) CephNFSes(namespace string) v1.CephNFSInterface {
 	return &FakeCephNFSes{c, namespace}
 }
