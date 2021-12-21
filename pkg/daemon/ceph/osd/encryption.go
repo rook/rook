@@ -98,6 +98,7 @@ func setLUKSLabelAndSubsystem(context *clusterd.Context, clusterInfo *cephclient
 	label := fmt.Sprintf("pvc_name=%s", pvcName)
 
 	logger.Infof("setting LUKS subsystem to %q and label to %q to disk %q", subsystem, label, disk)
+	// 48 characters limit for both label and subsystem
 	args := []string{"config", disk, "--subsystem", subsystem, "--label", label}
 	output, err := context.Executor.ExecuteCommandWithCombinedOutput(cryptsetupBinary, args...)
 	if err != nil {
