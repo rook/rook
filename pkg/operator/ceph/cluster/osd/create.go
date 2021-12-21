@@ -218,7 +218,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 
 			// We could set an env var in the Operator or a global var instead of the API call?
 			// Hopefully, the API is cheap and we can always retrieve the token if it has changed...
-			if c.spec.Security.KeyManagementService.IsTokenAuthEnabled() {
+			if c.spec.Security.KeyManagementService.IsTokenAuthEnabled() && c.spec.Security.KeyManagementService.IsVaultKMS() {
 				err := kms.SetTokenToEnvVar(c.context, c.spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, c.clusterInfo.Namespace)
 				if err != nil {
 					errMsg := fmt.Sprintf("failed to fetch kms token secret %q. %v", c.spec.Security.KeyManagementService.TokenSecretName, err)

@@ -436,13 +436,15 @@ func TestDefaultReadinessProbe(t *testing.T) {
 }
 
 func TestCheckRGWKMS(t *testing.T) {
+	ctx := context.TODO()
 	setupTest := func() *clusterConfig {
 		context := &clusterd.Context{Clientset: test.New(t, 3)}
 		store := simpleStore()
 		store.Spec.Security = &cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}
 		return &clusterConfig{
-			context: context,
-			store:   store,
+			context:     context,
+			store:       store,
+			clusterInfo: &client.ClusterInfo{Context: ctx},
 		}
 	}
 	configureKMS := func(c *clusterConfig) {
@@ -458,7 +460,7 @@ func TestCheckRGWKMS(t *testing.T) {
 				"token": []byte("myt-otkenbenvqrev"),
 			},
 		}
-		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(ctx, s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 	}
 
