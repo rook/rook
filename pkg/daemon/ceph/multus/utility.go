@@ -13,11 +13,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package multus
 
-func Teardown() error {
-	logger.Info("cleaning up multus link from host network namespace")
+import (
+	"github.com/coreos/pkg/capnslog"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+)
 
-	return nil
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "multus")
+
+const (
+	multusAnnotation    = "k8s.v1.cni.cncf.io/networks"
+	networksAnnotation  = "k8s.v1.cni.cncf.io/networks-status"
+	migrationAnnotation = "multus-migration"
+)
+
+// k8s utility
+func SetupK8sClient() (*kubernetes.Clientset, error) {
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+	// creates the clientset
+	return kubernetes.NewForConfig(config)
 }

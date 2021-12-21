@@ -13,43 +13,59 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package multus
 
 import (
-	"github.com/containernetworking/plugins/pkg/ns"
+	"context"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
-func Setup(multusPods *corev1.PodList) error {
-	// Get all IPs of pods with app: rook-ceph-multus
-	// Look for namespace on node that has interface with the given pod IP
-	// Migrate all interfaces not named eth0 or lo.
-	logger.Info("starting multus interface migration")
+const (
+	ifBase = "mlink"
+)
 
-	var podIPs []string
-	for _, pod := range multusPods.Items {
-		podIPs = append(podIPs, pod.Status.PodIP)
+func DetermineNewLinkName(interfaces []net.Interface) (string, error) {
+	var newLinkName string
+
+	linkNumber := -1
+	for _, iface := range interfaces {
+		if idStrs := strings.Split(iface.Name, ifBase); len(idStrs) > 1 {
+			id, err := strconv.Atoi(idStrs[1])
+			if err != nil {
+				return newLinkName, errors.Wrap(err, "failed to convert string to integer")
+			}
+			if id > linkNumber {
+				linkNumber = id
+			}
+		}
 	}
+	linkNumber += 1
 
-	holderNS, err := determineHolderNS(podIPs)
+	newLinkName = fmt.Sprintf("%s%d", ifBase, linkNumber)
+	fmt.Printf("new multus link name determined: %q\n", newLinkName)
+
+	return newLinkName, nil
+}
+
+func AnnotateController(k8sClient *kubernetes.Clientset, controllerName, controllerNamespace, migratedLinkName string) error {
+	pod, err := k8sClient.CoreV1().Pods(controllerNamespace).Get(context.TODO(), controllerName, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrap(err, "failed to determine the holder network namespace id")
+		return errors.Wrap(err, "failed to get controller pod")
 	}
 
-	hostNS, err := ns.GetCurrentNS()
+	pod.ObjectMeta.Annotations["multus-migration"] = migratedLinkName
+
+	_, err = k8sClient.CoreV1().Pods(controllerNamespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
 	if err != nil {
-		return errors.Wrap(err, "failed to get the host network namespace")
+		return errors.Wrap(err, "failed to update controller pod")
 	}
-
-	logger.Info("ok, here I am")
-	err = migrateInterfaces(hostNS, holderNS)
-	if err != nil {
-		return errors.Wrap(err, "failed to migrate multus interfaces to the host network namespace")
-	}
-
-	logger.Info("interface migration complete!")
 
 	return nil
 }

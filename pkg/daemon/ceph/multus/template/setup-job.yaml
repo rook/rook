@@ -1,25 +1,28 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "multus-migration-{{ .MultusNodeName }}"
-  namespace: {{ .Namespace }}
+  name: "setup-{{ .ControllerName }}"
+  namespace: {{ .ControllerNamespace }}
 spec:
   backoffLimit: 0
   template:
     metadata:
-      name: multus-migration
+      name: "setup-{{ .ControllerName }}"
+      namespace: {{ .ControllerNamespace }}
     spec:
       containers:
-      - name: multus-migration
-        image: {{ .MultusImage }}
+      - name: setup-job
+        image: {{ .ControllerImage }}
         args: ["ceph", "multus-setup"]
         env:
-        - name: HOLDERIP
-          value: "{{ .MultusPodIP }}"
-        - name: MULTUSIP
-          value: "{{ .MultusIP }}"
-        - name: MULTUSLINK
-          value: "{{ .MultusLink }}"
+          - name: HOLDER_IP
+            value: {{ .ControllerIP }}
+          - name: MULTUS_IFACE
+            value: {{ .MultusInterface }}
+          - name: CONTROLLER_NAME
+            value: {{ .ControllerName }}
+          - name: CONTROLLER_NAMESPACE
+            value: {{ .ControllerNamespace }}
         securityContext:
           privileged: true
           capabilities:
@@ -31,11 +34,11 @@ spec:
         volumeMounts:
           - name: netns
             mountPath: /var/run/netns
-      serviceAccount: rook-csi-multus
-      nodeName: "{{ .MultusNodeName }}"
+      nodeName: {{ .NodeName }}
       hostNetwork: true
       volumes:
         - name: netns
           hostPath:
             path: /var/run/netns
       restartPolicy: Never
+      serviceAccount: rook-csi-multus

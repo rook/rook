@@ -23,3 +23,12 @@ spec:
       - name: multus-hostnet
         image: {{ .MultusImage }}
         args: ["ceph", "multus-hostnet"]
+        env:
+          - name: CONTROLLER_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: CONTROLLER_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
