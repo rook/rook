@@ -71,6 +71,11 @@ jobs:
         # copy the test file
         # execute the test file
 
+    - name: wait for the subvolumegroup to be created
+      run: |
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
+
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
 
