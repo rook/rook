@@ -866,7 +866,7 @@ func (c *Cluster) generateVaultGetKEK(osdProps osdProperties) v1.Container {
 	keyName := osdProps.pvc.ClaimName
 	keyPath := encryptionKeyPath()
 	envVars := c.getConfigEnvVars(osdProps, "")
-	envVars = append(envVars, kms.VaultConfigToEnvVar(c.spec)...)
+	envVars = append(envVars, kms.ConfigToEnvVar(c.spec)...)
 
 	return v1.Container{
 		Name:    blockEncryptionKMSGetKEKInitContainer,

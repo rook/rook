@@ -526,7 +526,7 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 	kmsConfig := kms.NewConfig(c.context, &currentCluster.Spec, c.clusterMap[currentCluster.Namespace].ClusterInfo)
 
 	// If token auth is used by the KMS we set it as an env variable
-	if currentCluster.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
+	if currentCluster.Spec.Security.KeyManagementService.IsTokenAuthEnabled() && currentCluster.Spec.Security.KeyManagementService.IsVaultKMS() {
 		err := kms.SetTokenToEnvVar(c.context, currentCluster.Spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, currentCluster.Namespace)
 		if err != nil {
 			return errors.Wrapf(err, "failed to fetch kms token secret %q", currentCluster.Spec.Security.KeyManagementService.TokenSecretName)

@@ -73,7 +73,7 @@ func startSecret() *kms.Config {
 	}
 
 	// Validate connection details
-	err = kms.ValidateConnectionDetails(context, &cephCluster.Spec.Security, namespace)
+	err = kms.ValidateConnectionDetails(ctx, context, &cephCluster.Spec.Security, namespace)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrap(err, "failed to validate kms connection details"))
 	}

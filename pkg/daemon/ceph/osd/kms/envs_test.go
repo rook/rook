@@ -23,38 +23,58 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
 
 func TestVaultTLSEnvVarFromSecret(t *testing.T) {
-	// No TLS
-	spec := cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{TokenSecretName: "vault-token", ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200"}}}}
-	envVars := VaultConfigToEnvVar(spec)
-	areEnvVarsSorted := sort.SliceIsSorted(envVars, func(i, j int) bool {
-		return envVars[i].Name < envVars[j].Name
+	t.Run("vault - no tls", func(t *testing.T) {
+		spec := cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+			TokenSecretName:   "vault-token",
+			ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200"}}},
+		}
+		envVars := ConfigToEnvVar(spec)
+		areEnvVarsSorted := sort.SliceIsSorted(envVars, func(i, j int) bool {
+			return envVars[i].Name < envVars[j].Name
+		})
+		assert.True(t, areEnvVarsSorted)
+		assert.Equal(t, 4, len(envVars))
+		assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "vault"})
+		assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_ADDR", Value: "http://1.1.1.1:8200"})
+		assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_TOKEN", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Key: "token"}}})
+		assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_BACKEND_PATH", Value: "secret/"})
 	})
-	assert.True(t, areEnvVarsSorted)
-	assert.Equal(t, 4, len(envVars))
-	assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "vault"})
-	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_ADDR", Value: "http://1.1.1.1:8200"})
-	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_TOKEN", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Key: "token"}}})
-	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_BACKEND_PATH", Value: "secret/"})
-
-	// TLS
-	spec = cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{TokenSecretName: "vault-token", ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200", "VAULT_CACERT": "vault-ca-cert-secret"}}}}
-	envVars = VaultConfigToEnvVar(spec)
-	areEnvVarsSorted = sort.SliceIsSorted(envVars, func(i, j int) bool {
-		return envVars[i].Name < envVars[j].Name
+	t.Run("vault tls", func(t *testing.T) {
+		spec := cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+			TokenSecretName:   "vault-token",
+			ConnectionDetails: map[string]string{"KMS_PROVIDER": "vault", "VAULT_ADDR": "http://1.1.1.1:8200", "VAULT_CACERT": "vault-ca-cert-secret"}}},
+		}
+		envVars := ConfigToEnvVar(spec)
+		areEnvVarsSorted := sort.SliceIsSorted(envVars, func(i, j int) bool {
+			return envVars[i].Name < envVars[j].Name
+		})
+		assert.True(t, areEnvVarsSorted)
+		assert.Equal(t, 5, len(envVars))
+		assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "vault"})
+		assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_ADDR", Value: "http://1.1.1.1:8200"})
+		assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_CACERT", Value: "/etc/vault/vault.ca"})
+		assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_TOKEN", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Key: "token"}}})
 	})
-	assert.True(t, areEnvVarsSorted)
-	assert.Equal(t, 5, len(envVars))
-	assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "vault"})
-	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_ADDR", Value: "http://1.1.1.1:8200"})
-	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_CACERT", Value: "/etc/vault/vault.ca"})
-	assert.Contains(t, envVars, v1.EnvVar{Name: "VAULT_TOKEN", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "vault-token"}, Key: "token"}}})
-
+	t.Run("ibm kp", func(t *testing.T) {
+		spec := cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
+			TokenSecretName:   "ibm-kp-token",
+			ConnectionDetails: map[string]string{"KMS_PROVIDER": "ibm-kp", "IBM_INSTANCE_ID": "1"}}},
+		}
+		envVars := ConfigToEnvVar(spec)
+		areEnvVarsSorted := sort.SliceIsSorted(envVars, func(i, j int) bool {
+			return envVars[i].Name < envVars[j].Name
+		})
+		assert.True(t, areEnvVarsSorted)
+		assert.Equal(t, 3, len(envVars))
+		assert.Contains(t, envVars, v1.EnvVar{Name: "KMS_PROVIDER", Value: "ibm-kp"})
+		assert.Contains(t, envVars, v1.EnvVar{Name: "IBM_INSTANCE_ID", Value: "1"})
+		assert.Contains(t, envVars, v1.EnvVar{Name: "IBM_SERVICE_API_KEY", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "ibm-kp-token"}, Key: "IBM_SERVICE_API_KEY"}}})
+	})
 }
 
 func TestConfigEnvsToMapString(t *testing.T) {
@@ -80,7 +100,7 @@ func TestConfigEnvsToMapString(t *testing.T) {
 	envs = ConfigEnvsToMapString()
 	assert.Equal(t, 3, len(envs))
 	assert.True(t, envs["KMS_PROVIDER"] == "vault")
-	clusterSpec := &rookv1.ClusterSpec{Security: rookv1.SecuritySpec{KeyManagementService: rookv1.KeyManagementServiceSpec{ConnectionDetails: envs}}}
+	clusterSpec := &cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: envs}}}
 	assert.True(t, clusterSpec.Security.KeyManagementService.IsEnabled())
 }
 
@@ -114,7 +134,7 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := VaultConfigToEnvVar(tt.args.spec); !reflect.DeepEqual(got, tt.want) {
+			if got := ConfigToEnvVar(tt.args.spec); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("VaultConfigToEnvVar() = %v, want %v", got, tt.want)
 			}
 		})
