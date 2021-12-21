@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -166,9 +167,38 @@ var createNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, t
 }
 
 // Allow overriding this function for unit tests
-var deleteAllNotificationsFunc = deleteAllNotifications
+var getAllNotificationsFunc = getAllRGWNotifications
 
-var deleteAllNotifications = func(p provisioner, bucket *bktv1alpha1.ObjectBucket) error {
+var getAllRGWNotifications = func(p provisioner, ob *bktv1alpha1.ObjectBucket) ([]string, error) {
+	bucketName := ob.Spec.Endpoint.BucketName
+	ownerName := ob.Spec.AdditionalState[bucket.CephUser]
+	s3Agent, err := newS3Agent(p)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create S3 agent for CephBucketNotification provisioning for bucket %q", bucketName)
+	}
+	nc, err := s3Agent.Client.GetBucketNotificationConfiguration(&s3.GetBucketNotificationConfigurationRequest{
+		Bucket:              &bucketName,
+		ExpectedBucketOwner: &ownerName,
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get BucketNotification from bucket %q", bucketName)
+	}
+
+	notificationList := make([]string, 0)
+	if nc != nil {
+		for _, tc := range nc.TopicConfigurations {
+			notificationList = append(notificationList, *tc.Id)
+		}
+	}
+	logger.Debugf("Bucket Notifications %q was listed for bucket %q", notificationList, bucketName)
+
+	return notificationList, nil
+}
+
+// Allow overriding this function for unit tests
+var deleteNotificationFunc = deleteNotification
+
+var deleteNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, notificationId string) error {
 	bucketName := types.NamespacedName{Namespace: bucket.Namespace, Name: bucket.Name}
 	s3Agent, err := newS3Agent(p)
 	if err != nil {
@@ -176,11 +206,11 @@ var deleteAllNotifications = func(p provisioner, bucket *bktv1alpha1.ObjectBucke
 	}
 	if err := DeleteBucketNotification(s3Agent.Client, &DeleteBucketNotificationRequestInput{
 		Bucket: &bucket.Spec.Endpoint.BucketName,
-	}); err != nil {
-		return errors.Wrapf(err, "failed to delete all bucket notifications from bucket %q", bucketName)
+	}, notificationId); err != nil {
+		return errors.Wrapf(err, "failed to delete bucket notification %q from bucket %q", notificationId, bucketName)
 	}
 
-	logger.Infof("all bucket notifications deleted from bucket %q", bucketName)
+	logger.Debugf("bucket notification %q deleted from bucket %q", notificationId, bucketName)
 
 	return nil
 }
