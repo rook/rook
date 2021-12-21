@@ -521,6 +521,7 @@ spec:
   endpoint:
     http:
       uri: http://` + httpEndpointService + `
+      sendCloudEvents: false
   objectStoreName: ` + storeName + `
   objectStoreNamespace: ` + m.settings.Namespace
 }

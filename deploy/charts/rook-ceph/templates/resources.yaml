@@ -561,6 +561,9 @@ spec:
                         disableVerifySSL:
                           description: Indicate whether the server certificate is validated by the client or not
                           type: boolean
+                        sendCloudEvents:
+                          description: 'Send the notifications with the CloudEvents header: https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md Supported for Ceph Quincy (v17) or newer.'
+                          type: boolean
                         uri:
                           description: The URI of the HTTP endpoint to push notification to
                           minLength: 1

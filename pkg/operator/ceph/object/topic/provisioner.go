@@ -20,6 +20,7 @@ package topic
 import (
 	"context"
 	"crypto/hmac"
+
 	// #nosec G505 sha1 is needed for v2 signatures
 	"crypto/sha1"
 	"encoding/base64"
@@ -42,6 +43,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -141,13 +143,9 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 	return snsClient, nil
 }
 
-// Allow overriding this function for unit tests
-var createTopicFunc = createTopic
-
-func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) {
-	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
-
+func createTopicAttributes(topic *cephv1.CephBucketTopic, cephVersion version.CephVersion) map[string]*string {
 	attr := make(map[string]*string)
+	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
 
 	attr["OpaqueData"] = &topic.Spec.OpaqueData
 	persistent := strconv.FormatBool(topic.Spec.Persistent)
@@ -167,6 +165,12 @@ func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) 
 		attr["push-endpoint"] = &topic.Spec.Endpoint.HTTP.URI
 		verifySSL = strconv.FormatBool(!topic.Spec.Endpoint.HTTP.DisableVerifySSL)
 		attr["verify-ssl"] = &verifySSL
+		if cephVersion.IsAtLeast(version.Quincy) {
+			cloudEvents := strconv.FormatBool(topic.Spec.Endpoint.HTTP.SendCloudEvents)
+			attr["cloudevents"] = &cloudEvents
+		} else if topic.Spec.Endpoint.HTTP.SendCloudEvents {
+			logger.Warning("HTTP CloudEvents endpoint supported for Ceph Quincy (v17) or newer")
+		}
 	}
 	if topic.Spec.Endpoint.Kafka != nil {
 		logger.Infof("creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.Kafka.URI)
@@ -178,13 +182,22 @@ func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) 
 		attr["verify-ssl"] = &verifySSL
 	}
 
+	return attr
+}
+
+// Allow overriding this function for unit tests
+var createTopicFunc = createTopic
+
+func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) {
+	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
+
 	snsClient, err := createSNSClient(p, types.NamespacedName{Name: topic.Spec.ObjectStoreName, Namespace: topic.Spec.ObjectStoreNamespace})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create SNS client for CephBucketTopic %q provisioning", nsName)
 	}
 	topicOutput, err := snsClient.CreateTopic(&sns.CreateTopicInput{
 		Name:       &topic.Name,
-		Attributes: attr,
+		Attributes: createTopicAttributes(topic, p.clusterInfo.CephVersion),
 	})
 
 	if err != nil {
