@@ -511,6 +511,10 @@ func (r *ReconcileCephCluster) removeFinalizer(client client.Client, name types.
 }
 
 func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1.CephCluster) error {
+	// At the point, the CephCluster has been deleted and the context cancelled, so we need to use a
+	// new context here
+	// So do NOT use another context
+	ctx := context.TODO()
 	// If the operator was stopped and we enter this code, the map is empty
 	if _, ok := c.clusterMap[currentCluster.Namespace]; !ok {
 		c.clusterMap[currentCluster.Namespace] = &cluster{ClusterInfo: &cephclient.ClusterInfo{Namespace: currentCluster.Namespace}}
@@ -526,10 +530,19 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 	kmsConfig := kms.NewConfig(c.context, &currentCluster.Spec, c.clusterMap[currentCluster.Namespace].ClusterInfo)
 
 	// If token auth is used by the KMS we set it as an env variable
-	if currentCluster.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
-		err := kms.SetTokenToEnvVar(c.context, currentCluster.Spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, currentCluster.Namespace)
+	if currentCluster.Spec.Security.KeyManagementService.IsTokenAuthEnabled() && currentCluster.Spec.Security.KeyManagementService.IsVaultKMS() {
+		err := kms.SetTokenToEnvVar(ctx, c.context, currentCluster.Spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, currentCluster.Namespace)
 		if err != nil {
 			return errors.Wrapf(err, "failed to fetch kms token secret %q", currentCluster.Spec.Security.KeyManagementService.TokenSecretName)
+		}
+	}
+
+	// We need to fetch the IBM_KP_SERVICE_API_KEY value
+	if currentCluster.Spec.Security.KeyManagementService.IsIBMKeyProtectKMS() {
+		// This will validate the connection details again and will add the IBM_KP_SERVICE_API_KEY to the spec
+		err = kms.ValidateConnectionDetails(ctx, c.context, &currentCluster.Spec.Security, currentCluster.Namespace)
+		if err != nil {
+			return errors.Wrap(err, "failed to validate kms connection details to delete the secret")
 		}
 	}
 

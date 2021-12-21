@@ -254,13 +254,13 @@ func Test_configTLS(t *testing.T) {
 	})
 }
 
-func Test_buildKeyContext(t *testing.T) {
+func Test_buildVaultKeyContext(t *testing.T) {
 	t.Run("no vault namespace, return empty map and assignment is possible", func(t *testing.T) {
 		config := map[string]string{
 			"KMS_PROVIDER": "vault",
 			"VAULT_ADDR":   "1.1.1.1",
 		}
-		context := buildKeyContext(config)
+		context := buildVaultKeyContext(config)
 		assert.Len(t, context, 0)
 		context["foo"] = "bar"
 	})
@@ -271,7 +271,7 @@ func Test_buildKeyContext(t *testing.T) {
 			"VAULT_ADDR":      "1.1.1.1",
 			"VAULT_NAMESPACE": "vault-namespace",
 		}
-		context := buildKeyContext(config)
+		context := buildVaultKeyContext(config)
 		assert.Len(t, context, 1)
 		context["foo"] = "bar"
 		assert.Len(t, context, 2)

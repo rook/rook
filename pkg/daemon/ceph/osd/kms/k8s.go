@@ -41,13 +41,13 @@ const (
 
 // storeSecretInKubernetes stores the dmcrypt key in a Kubernetes Secret
 func (c *Config) storeSecretInKubernetes(pvcName, key string) error {
-	s, err := generateOSDEncryptedKeySecret(pvcName, key, c.clusterInfo)
+	s, err := generateOSDEncryptedKeySecret(pvcName, key, c.ClusterInfo)
 	if err != nil {
 		return err
 	}
 
 	// Create the Kubernetes Secret
-	_, err = c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Create(c.clusterInfo.Context, s, metav1.CreateOptions{})
+	_, err = c.context.Clientset.CoreV1().Secrets(c.ClusterInfo.Namespace).Create(c.ClusterInfo.Context, s, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to save ceph osd encryption key as a secret for pvc %q", pvcName)
 	}

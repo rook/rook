@@ -73,7 +73,7 @@ func startSecret() *kms.Config {
 	}
 
 	// Validate connection details
-	err = kms.ValidateConnectionDetails(context, &cephCluster.Spec.Security, namespace)
+	err = kms.ValidateConnectionDetails(ctx, context, &cephCluster.Spec.Security, namespace)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrap(err, "failed to validate kms connection details"))
 	}
@@ -93,9 +93,14 @@ func cliGetSecret() *cobra.Command {
 }
 
 func getSecret(cmd *cobra.Command, args []string) {
+	// Initialize the context
+	ctx, cancel := signal.NotifyContext(context.Background(), operator.ShutdownSignals...)
+	defer cancel()
+
 	secretName := args[0]
 	secretPath := args[1]
 	keyManagementService := startSecret()
+	keyManagementService.ClusterInfo.Context = ctx
 
 	// Fetch the secret
 	s, err := keyManagementService.GetSecret(secretName)
