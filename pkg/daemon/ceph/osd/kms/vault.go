@@ -222,7 +222,7 @@ func get(v secrets.Secrets, secretName string, keyContext map[string]string) (st
 	return s[secretName].(string), nil
 }
 
-func delete(v secrets.Secrets, secretName string, keyContext map[string]string) error {
+func deleteSecret(v secrets.Secrets, secretName string, keyContext map[string]string) error {
 	// #nosec G104 Write the encryption key in Vault
 	err := v.DeleteSecret(secretName, keyContext)
 	if err != nil {
@@ -232,7 +232,7 @@ func delete(v secrets.Secrets, secretName string, keyContext map[string]string) 
 	return nil
 }
 
-func buildKeyContext(config map[string]string) map[string]string {
+func buildVaultKeyContext(config map[string]string) map[string]string {
 	// Key context is just the Vault namespace, available in the enterprise version only
 	keyContext := map[string]string{secrets.KeyVaultNamespace: config[api.EnvVaultNamespace]}
 	vaultNamespace, ok := config[api.EnvVaultNamespace]
@@ -245,7 +245,7 @@ func buildKeyContext(config map[string]string) map[string]string {
 
 // IsVault determines whether the configured KMS is Vault
 func (c *Config) IsVault() bool {
-	return c.Provider == "vault"
+	return c.Provider == secrets.TypeVault
 }
 
 func validateVaultConnectionDetails(clusterdContext *clusterd.Context, ns string, kmsConfig map[string]string) error {

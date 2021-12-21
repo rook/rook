@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
@@ -867,7 +866,7 @@ func (c *Cluster) generateVaultGetKEK(osdProps osdProperties) v1.Container {
 	keyName := osdProps.pvc.ClaimName
 	keyPath := encryptionKeyPath()
 	envVars := c.getConfigEnvVars(osdProps, "")
-	envVars = append(envVars, kms.VaultConfigToEnvVar(c.spec)...)
+	envVars = append(envVars, kms.ConfigToEnvVar(c.spec)...)
 
 	return v1.Container{
 		Name:    blockEncryptionKMSGetKEKInitContainer,
@@ -889,24 +888,21 @@ func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(mountPath string, os
 
 	// If a KMS is enabled we need to add an init container to fetch the KEK
 	if c.spec.Security.KeyManagementService.IsEnabled() {
-		kmsProvider := kms.GetParam(c.spec.Security.KeyManagementService.ConnectionDetails, kms.Provider)
-		// Get Vault KEK from KMS container
-		if kmsProvider == secrets.TypeVault {
-			getKEKFromKMSContainer := c.generateVaultGetKEK(osdProps)
+		getKEKFromKMSContainer := c.generateVaultGetKEK(osdProps)
 
-			// Volume mount to store the encrypted key
-			_, volMount := c.getEncryptionVolume(osdProps)
-			getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, volMount)
+		// Volume mount to store the encrypted key
+		_, volMount := c.getEncryptionVolume(osdProps)
+		getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, volMount)
 
+		if c.spec.Security.KeyManagementService.IsVaultKMS() {
 			// Now let's see if there is a TLS config we need to mount as well
 			if c.spec.Security.KeyManagementService.IsTLSEnabled() {
 				_, vaultVolMount := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
 				getKEKFromKMSContainer.VolumeMounts = append(getKEKFromKMSContainer.VolumeMounts, vaultVolMount)
 			}
-
-			// Add the container to the list of containers
-			containers = append(containers, getKEKFromKMSContainer)
 		}
+		// Add the container to the list of containers
+		containers = append(containers, getKEKFromKMSContainer)
 	}
 
 	// Main block container
