@@ -302,8 +302,15 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			// Allow further inspection of that device before skipping it
 			if device.Filesystem == "crypto_LUKS" && agent.pvcBacked {
 				if isCephEncryptedBlock(context, agent.clusterInfo.FSID, device.Name) {
-					logger.Infof("encrypted disk %q is an OSD part of this cluster, considering it", device.Name)
+					logger.Infof("encrypted disk %q is an OSD part of this cluster, skipping it", device.Name)
+				} else {
+					logger.Infof("encrypted disk %q is unknown, skipping it", device.Name)
 				}
+				// We must skip so that the device is not marked as available, but will later be
+				// picked up by the GetCephVolumeRawOSDs() call.
+				// This handles the case where the OSD deployment has been removed and the prepare
+				// job kicks in again to re-deploy the OSD.
+				continue
 			} else {
 				logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
 				continue

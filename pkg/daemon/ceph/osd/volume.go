@@ -171,22 +171,22 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 				osds = append(osds, rawOsds...)
 			}
 
-			return osds, nil
-		}
+		} else {
+			// Non-PVC case
+			// List existing OSD(s) configured with ceph-volume lvm mode
+			lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, lvPath, false, false)
+			if err != nil {
+				logger.Infof("failed to get devices already provisioned by ceph-volume. %v", err)
+			}
+			osds = append(osds, lvmOsds...)
 
-		// List existing OSD(s) configured with ceph-volume lvm mode
-		lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, lvPath, false, false)
-		if err != nil {
-			logger.Infof("failed to get devices already provisioned by ceph-volume. %v", err)
+			// List existing OSD(s) configured with ceph-volume raw mode
+			rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, "", "", false, false)
+			if err != nil {
+				logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
+			}
+			osds = appendOSDInfo(osds, rawOsds)
 		}
-		osds = append(osds, lvmOsds...)
-
-		// List existing OSD(s) configured with ceph-volume raw mode
-		rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, "", "", false, false)
-		if err != nil {
-			logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
-		}
-		osds = appendOSDInfo(osds, rawOsds)
 
 		return osds, nil
 	}
@@ -960,6 +960,68 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	// it can be the one passed from the function's call or discovered by the c-v list command
 	var blockPath string
 
+	// If block is passed, check if it's an encrypted device, this is needed to get the correct
+	// device path and populate the OSDInfo for that OSD
+	// When the device is passed, this means we entered the case where no devices were found
+	// available, this indicates OSD have been prepared already.
+	// However, there is a scenario where we run the prepare job again and this is when the OSD
+	// deployment is removed. The operator will reconcile upon deletion of the OSD deployment thus
+	// re-running the prepare job to re-hydrate the OSDInfo.
+	//
+	// isCephEncryptedBlock() returns false if the disk is not a LUKS device with:
+	// Device /dev/sdc is not a valid LUKS device.
+	if isCephEncryptedBlock(context, cephfsid, block) {
+		childDevice, err := sys.ListDevicesChild(context.Executor, block)
+		if err != nil {
+			return nil, err
+		}
+
+		var encryptedBlock string
+		// Find the encrypted block as part of the output
+		// Most of the time we get 2 devices, the parent and the child but we don't want to guess
+		// which one is the child by looking at the index, instead the iterate over the list
+		// Our encrypted device **always** have "-dmcrypt" in the name.
+		for _, device := range childDevice {
+			if strings.Contains(device, "-dmcrypt") {
+				encryptedBlock = device
+				break
+			}
+		}
+		if encryptedBlock == "" {
+			// The encrypted block is not opened, this is an extreme corner case
+			// The OSD deployment has been removed manually AND the node rebooted
+			// So we need to re-open the block to re-hydrate the OSDInfo.
+			//
+			// Handling this case would mean, writing the encryption key on a temporary file, then call
+			// luksOpen to open the encrypted block and then call ceph-volume to list against the opened
+			// encrypted block.
+			// We don't implement this, yet and return an error.
+			return nil, errors.Errorf("failed to find the encrypted block device for %q, not opened?", block)
+		}
+
+		// If we have one child device, it should be the encrypted block but still verifying it
+		isDeviceEncrypted, err := sys.IsDeviceEncrypted(context.Executor, encryptedBlock)
+		if err != nil {
+			return nil, err
+		}
+
+		// All good, now we set the right disk for ceph-volume to list against
+		// The ceph-volume will look like:
+		// [root@bde85e6b23ec /]# ceph-volume raw list /dev/mapper/ocs-deviceset-thin-1-data-0hmfgp-block-dmcrypt
+		// {
+		//     "4": {
+		//         "ceph_fsid": "fea59c09-2d35-4096-bc46-edb0fd39ab86",
+		//         "device": "/dev/mapper/ocs-deviceset-thin-1-data-0hmfgp-block-dmcrypt",
+		//         "osd_id": 4,
+		//         "osd_uuid": "fcff2062-e653-4d42-84e5-e8de639bed4b",
+		//         "type": "bluestore"
+		//     }
+		// }
+		if isDeviceEncrypted {
+			block = encryptedBlock
+		}
+	}
+
 	args := []string{cvMode, "list", block, "--format", "json"}
 	if block == "" {
 		setDevicePathFromList = true
@@ -1038,12 +1100,17 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 		// If this is an encrypted OSD
 		if os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName) != "" {
-			// // Set subsystem and label for recovery and detection
+			// If label and subsystem are not set on the encrypted block let's set it
+			// They will be set if the OSD deployment has been removed manually and the prepare job
+			// runs again.
 			// We use /mnt/<pvc_name> since LUKS label/subsystem must be applied on the main block device, not the resulting encrypted dm
 			mainBlock := fmt.Sprintf("/mnt/%s", os.Getenv(oposd.PVCNameEnvVarName))
-			err = setLUKSLabelAndSubsystem(context, clusterInfo, mainBlock)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to set subsystem and label to encrypted device %q for osd %d", mainBlock, osdID)
+			if !isCephEncryptedBlock(context, cephfsid, mainBlock) {
+				// Set subsystem and label for recovery and detection
+				err = setLUKSLabelAndSubsystem(context, clusterInfo, mainBlock)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to set subsystem and label to encrypted device %q for osd %d", mainBlock, osdID)
+				}
 			}
 
 			// Close encrypted device

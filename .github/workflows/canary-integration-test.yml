@@ -294,6 +294,11 @@ jobs:
         kubectl -n rook-ceph get secrets
         sudo lsblk
 
+    - name: test osd deployment removal and re-hydration
+      run: |
+        kubectl -n rook-ceph delete deploy/rook-ceph-osd-0
+        tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+
     - name: collect common logs
       if: always()
       uses: ./.github/workflows/collect-logs
@@ -622,7 +627,7 @@ jobs:
 
     - name: wait for ceph cluster 1 to be ready
       run: |
-        mkdir test
+        mkdir -p test
         tests/scripts/validate_cluster.sh osd 1
         kubectl -n rook-ceph get pods
 
