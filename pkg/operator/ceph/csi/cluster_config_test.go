@@ -19,71 +19,142 @@ package csi
 import (
 	"testing"
 
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUpdateCsiClusterConfig(t *testing.T) {
-	// initialize an empty list & add a simple mons list
-	mons := map[string]*cephclient.MonInfo{
-		"foo": {Name: "foo", Endpoint: "1.2.3.4:5000"},
+	csiClusterConfigEntry := CsiClusterConfigEntry{
+		Monitors: []string{"1.2.3.4:5000"},
 	}
-	s, err := updateCsiClusterConfig("[]", "alpha", mons)
-	assert.NoError(t, err)
-	assert.Equal(t, s,
-		`[{"clusterID":"alpha","monitors":["1.2.3.4:5000"]}]`)
-
-	// add a 2nd mon to the current cluster
-	mons["bar"] = &cephclient.MonInfo{
-		Name: "bar", Endpoint: "10.11.12.13:5000"}
-	s, err = updateCsiClusterConfig(s, "alpha", mons)
-	assert.NoError(t, err)
-	cc, err := parseCsiClusterConfig(s)
-	assert.NoError(t, err)
-	assert.Equal(t, len(cc), 1)
-	assert.Equal(t, cc[0].ClusterID, "alpha")
-	assert.Contains(t, cc[0].Monitors, "1.2.3.4:5000")
-	assert.Contains(t, cc[0].Monitors, "10.11.12.13:5000")
-	assert.Equal(t, len(cc[0].Monitors), 2)
-
-	// add a 2nd cluster with 3 mons
-	mons2 := map[string]*cephclient.MonInfo{
-		"flim": {Name: "flim", Endpoint: "20.1.1.1:5000"},
-		"flam": {Name: "flam", Endpoint: "20.1.1.2:5000"},
-		"blam": {Name: "blam", Endpoint: "20.1.1.3:5000"},
+	csiClusterConfigEntry2 := CsiClusterConfigEntry{
+		Monitors: []string{"20.1.1.1:5000", "20.1.1.2:5000", "20.1.1.3:5000"},
 	}
-	s, err = updateCsiClusterConfig(s, "beta", mons2)
-	assert.NoError(t, err)
-	cc, err = parseCsiClusterConfig(s)
-	assert.NoError(t, err)
-	assert.Equal(t, len(cc), 2)
-	assert.Equal(t, cc[0].ClusterID, "alpha")
-	assert.Contains(t, cc[0].Monitors, "1.2.3.4:5000")
-	assert.Contains(t, cc[0].Monitors, "10.11.12.13:5000")
-	assert.Equal(t, len(cc[0].Monitors), 2)
-	assert.Equal(t, cc[1].ClusterID, "beta")
-	assert.Contains(t, cc[1].Monitors, "20.1.1.1:5000")
-	assert.Contains(t, cc[1].Monitors, "20.1.1.2:5000")
-	assert.Contains(t, cc[1].Monitors, "20.1.1.3:5000")
-	assert.Equal(t, len(cc[1].Monitors), 3)
+	csiClusterConfigEntry3 := CsiClusterConfigEntry{
+		Monitors: []string{"10.1.1.1:5000", "10.1.1.2:5000", "10.1.1.3:5000"},
+		CephFS: &CsiCephFSSpec{
+			SubvolumeGroup: "mygroup",
+		},
+	}
+	var s string
+	var err error
 
-	// remove a mon from the 2nd cluster
-	delete(mons2, "blam")
-	s, err = updateCsiClusterConfig(s, "beta", mons2)
-	assert.NoError(t, err)
-	cc, err = parseCsiClusterConfig(s)
-	assert.NoError(t, err)
-	assert.Equal(t, len(cc), 2)
-	assert.Equal(t, cc[0].ClusterID, "alpha")
-	assert.Contains(t, cc[0].Monitors, "1.2.3.4:5000")
-	assert.Contains(t, cc[0].Monitors, "10.11.12.13:5000")
-	assert.Equal(t, len(cc[0].Monitors), 2)
-	assert.Equal(t, cc[1].ClusterID, "beta")
-	assert.Contains(t, cc[1].Monitors, "20.1.1.1:5000")
-	assert.Contains(t, cc[1].Monitors, "20.1.1.2:5000")
-	assert.Equal(t, len(cc[1].Monitors), 2)
+	t.Run("add a simple mons list", func(t *testing.T) {
+		s, err = updateCsiClusterConfig("[]", "alpha", &csiClusterConfigEntry)
+		assert.NoError(t, err)
+		assert.Equal(t, s,
+			`[{"clusterID":"alpha","monitors":["1.2.3.4:5000"]}]`)
+	})
 
-	// does it return error on garbage input?
-	_, err = updateCsiClusterConfig("qqq", "beta", mons2)
-	assert.Error(t, err)
+	t.Run("add a 2nd mon to the current cluster", func(t *testing.T) {
+		csiClusterConfigEntry.Monitors = append(csiClusterConfigEntry.Monitors, "10.11.12.13:5000")
+		s, err = updateCsiClusterConfig(s, "alpha", &csiClusterConfigEntry)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(s)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cc))
+		assert.Equal(t, "alpha", cc[0].ClusterID)
+		assert.Contains(t, cc[0].Monitors, "1.2.3.4:5000")
+		assert.Contains(t, cc[0].Monitors, "10.11.12.13:5000")
+		assert.Equal(t, 2, len(cc[0].Monitors))
+	})
+
+	t.Run("add a 2nd cluster with 3 mons", func(t *testing.T) {
+		s, err = updateCsiClusterConfig(s, "beta", &csiClusterConfigEntry2)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(s)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(cc))
+		assert.Equal(t, "alpha", cc[0].ClusterID)
+		assert.Contains(t, cc[0].Monitors, "1.2.3.4:5000")
+		assert.Contains(t, cc[0].Monitors, "10.11.12.13:5000")
+		assert.Equal(t, 2, len(cc[0].Monitors))
+		assert.Equal(t, "beta", cc[1].ClusterID)
+		assert.Contains(t, cc[1].Monitors, "20.1.1.1:5000")
+		assert.Contains(t, cc[1].Monitors, "20.1.1.2:5000")
+		assert.Contains(t, cc[1].Monitors, "20.1.1.3:5000")
+		assert.Equal(t, 3, len(cc[1].Monitors))
+	})
+
+	t.Run("remove a mon from the 2nd cluster", func(t *testing.T) {
+		i := 2
+		// Remove last element of the slice
+		csiClusterConfigEntry2.Monitors = append(csiClusterConfigEntry2.Monitors[:i], csiClusterConfigEntry2.Monitors[i+1:]...)
+		s, err = updateCsiClusterConfig(s, "beta", &csiClusterConfigEntry2)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(s)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(cc))
+		assert.Equal(t, "alpha", cc[0].ClusterID)
+		assert.Contains(t, cc[0].Monitors, "1.2.3.4:5000")
+		assert.Contains(t, cc[0].Monitors, "10.11.12.13:5000")
+		assert.Equal(t, 2, len(cc[0].Monitors))
+		assert.Equal(t, "beta", cc[1].ClusterID)
+		assert.Contains(t, cc[1].Monitors, "20.1.1.1:5000")
+		assert.Contains(t, cc[1].Monitors, "20.1.1.2:5000")
+		assert.Equal(t, 2, len(cc[1].Monitors))
+	})
+
+	t.Run("add a 3rd cluster with subvolumegroup", func(t *testing.T) {
+		s, err = updateCsiClusterConfig(s, "baba", &csiClusterConfigEntry3)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(s)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(cc))
+		assert.Equal(t, "alpha", cc[0].ClusterID)
+		assert.Equal(t, 2, len(cc[0].Monitors))
+		assert.Equal(t, "beta", cc[1].ClusterID)
+		assert.Equal(t, "baba", cc[2].ClusterID)
+		assert.Equal(t, "10.1.1.1:5000", cc[2].Monitors[0])
+		assert.Equal(t, 3, len(cc[2].Monitors))
+		assert.Equal(t, "mygroup", cc[2].CephFS.SubvolumeGroup)
+
+	})
+
+	t.Run("add a 4th mon to the 3rd cluster and subvolumegroup is preserved", func(t *testing.T) {
+		csiClusterConfigEntry3.Monitors = append(csiClusterConfigEntry3.Monitors, "10.11.12.13:5000")
+		s, err = updateCsiClusterConfig(s, "baba", &csiClusterConfigEntry3)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(s)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(cc))
+		assert.Equal(t, 4, len(cc[2].Monitors))
+		assert.Equal(t, "mygroup", cc[2].CephFS.SubvolumeGroup)
+	})
+
+	t.Run("remove subvolumegroup", func(t *testing.T) {
+		csiClusterConfigEntry3.CephFS.SubvolumeGroup = ""
+		s, err = updateCsiClusterConfig(s, "baba", nil)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(s)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(cc)) // we only have 2 clusters now
+	})
+
+	t.Run("add subvolumegroup and mons after", func(t *testing.T) {
+		csiClusterConfigEntry4 := CsiClusterConfigEntry{
+			CephFS: &CsiCephFSSpec{
+				SubvolumeGroup: "mygroup2",
+			},
+		}
+		s, err = updateCsiClusterConfig(s, "quatre", &csiClusterConfigEntry4)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(s)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(cc), cc)
+		assert.Equal(t, 0, len(cc[2].Monitors))
+		assert.Equal(t, "mygroup2", cc[2].CephFS.SubvolumeGroup, cc)
+
+		csiClusterConfigEntry4.Monitors = []string{"10.1.1.1:5000", "10.1.1.2:5000", "10.1.1.3:5000"}
+		s, err = updateCsiClusterConfig(s, "quatre", &csiClusterConfigEntry4)
+		assert.NoError(t, err)
+		cc, err = parseCsiClusterConfig(s)
+		assert.NoError(t, err)
+		assert.Equal(t, "mygroup2", cc[2].CephFS.SubvolumeGroup)
+		assert.Equal(t, 3, len(cc[2].Monitors))
+	})
+
+	t.Run("does it return error on garbage input?", func(t *testing.T) {
+		_, err = updateCsiClusterConfig("qqq", "beta", &csiClusterConfigEntry2)
+		assert.Error(t, err)
+	})
 }

@@ -40,7 +40,9 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -175,7 +177,16 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		logger.Debugf("deleting subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 		err := r.deleteSubVolumeGroup(cephFilesystemSubVolumeGroup)
 		if err != nil {
+			if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+				logger.Info(opcontroller.OperatorNotInitializedMessage)
+				return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+			}
 			return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
+		}
+
+		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), r.clusterInfo, nil)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
 
 		// Remove finalizer
@@ -218,6 +229,20 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 	}
 
+	// Update CSI config map
+	// If the mon endpoints change, the mon health check go routine will take care of updating the
+	// config map, so no special care is needed in this controller
+	csiClusterConfigEntry := csi.CsiClusterConfigEntry{
+		Monitors: csi.MonEndpoints(r.clusterInfo.Monitors),
+		CephFS: &csi.CsiCephFSSpec{
+			SubvolumeGroup: cephFilesystemSubVolumeGroup.Name,
+		},
+	}
+	err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), r.clusterInfo, &csiClusterConfigEntry)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
+	}
+
 	// Success! Let's update the status
 	r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady)
 
@@ -241,11 +266,16 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) createOrUpdateSubVolumeGroup(cep
 // Delete the ceph filesystem subvolume group
 func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) error {
 	logger.Infof("deleting ceph filesystem subvolume group object %q", cephFilesystemSubVolumeGroup.Name)
-	if err := cephclient.DeleteCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Name, cephFilesystemSubVolumeGroup.Spec.FilesystemName); err != nil {
+	if err := cephclient.DeleteCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name); err != nil {
 		code, ok := exec.ExitStatus(err)
+		// If the subvolumegroup does not exit, we should not return an error
+		if ok && code == int(syscall.ENOENT) {
+			logger.Debugf("ceph filesystem subvolume group %q do not exist", cephFilesystemSubVolumeGroup.Name)
+			return nil
+		}
 		// If the subvolumegroup has subvolumes the command will fail with:
 		// Error ENOTEMPTY: error in rmdir /volumes/csi
-		if ok && code == int(syscall.ENOTEMPTY) {
+		if ok && (code == int(syscall.ENOTEMPTY)) {
 			return errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q, remove the subvolumes first", cephFilesystemSubVolumeGroup.Name)
 		}
 
@@ -272,9 +302,15 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(client client.Clien
 	}
 
 	cephFilesystemSubVolumeGroup.Status.Phase = status
+	cephFilesystemSubVolumeGroup.Status.Info = map[string]string{"clusterID": buildClusterID(cephFilesystemSubVolumeGroup)}
 	if err := reporting.UpdateStatus(client, cephFilesystemSubVolumeGroup); err != nil {
 		logger.Errorf("failed to set ceph ceph filesystem subvolume group %q status to %q. %v", name, status, err)
 		return
 	}
 	logger.Debugf("ceph ceph filesystem subvolume group %q status updated to %q", name, status)
+}
+
+func buildClusterID(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) string {
+	clusterID := fmt.Sprintf("%s-%s-file-%s", cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
+	return k8sutil.Hash(clusterID)
 }

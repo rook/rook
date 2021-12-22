@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os/exec"
 	"path"
-	"sync"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -67,7 +66,7 @@ type clusterHealth struct {
 	internalCancel context.CancelFunc
 }
 
-func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync.Mutex, ownerInfo *k8sutil.OwnerInfo) *cluster {
+func newCluster(c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo) *cluster {
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
@@ -79,7 +78,7 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, csiMutex *sync
 		namespacedName:     types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
 		monitoringRoutines: make(map[string]*clusterHealth),
 		ownerInfo:          ownerInfo,
-		mons:               mon.New(context, c.Namespace, c.Spec, ownerInfo, csiMutex),
+		mons:               mon.New(context, c.Namespace, c.Spec, ownerInfo),
 	}
 }
 
