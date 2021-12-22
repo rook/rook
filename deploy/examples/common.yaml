@@ -786,6 +786,7 @@ spec:
   allowedCapabilities:
     # required by CSI
     - SYS_ADMIN
+    - NET_ADMIN
     - MKNOD
   fsGroup:
     rule: RunAsAny
@@ -1029,6 +1030,19 @@ rules:
     verbs:
       - delete
 ---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-csi-multus
+  namespace: rook-ceph
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "update"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "delete"]
+---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -1225,6 +1239,20 @@ subjects:
     name: rook-ceph-system
     namespace: rook-ceph # namespace:operator
 ---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-csi-multus
+  namespace: rook-ceph # namespace:operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-csi-multus
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-multus
+    namespace: rook-ceph # namespace:operator
+---
 # Service account for the job that reports the Ceph version in an image
 apiVersion: v1
 kind: ServiceAccount
@@ -1304,6 +1332,15 @@ metadata:
 # imagePullSecrets:
 #   - name: my-registry-secret
 ---
+# Service account for multus actions related to the csi
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-multus
+  namespace: rook-ceph
+# imagePullSecrets:
+#   - name: my-registry-secret
+---
 # Service account for the RBD CSI driver
 apiVersion: v1
 kind: ServiceAccount
@@ -1321,42 +1358,3 @@ metadata:
   namespace: rook-ceph # namespace:operator
 # imagePullSecrets:
 #   - name: my-registry-secret
----
-# This service account is used to set up multus connectivity.
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-csi-multus
-  namespace: rook-ceph # namespace:operator
-  labels:
-    operator: rook
-    storage-backend: ceph
-# imagePullSecrets:
-#   - name: my-registry-secret
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-csi-multus
-  namespace: rook-ceph # namespace:operator
-rules:
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "update"]
-  - apiGroups: ["batch"]
-    resources: ["jobs"]
-    verbs: ["create", "get", "delete"]
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-csi-multus
-  namespace: rook-ceph # namespace:operator
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-csi-multus
-subjects:
-  - kind: ServiceAccount
-    name: rook-csi-multus
-    namespace: rook-ceph # namespace:operator
