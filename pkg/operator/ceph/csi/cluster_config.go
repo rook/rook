@@ -33,15 +33,22 @@ import (
 )
 
 var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-csi")
+	logger      = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-csi")
+	configMutex sync.Mutex
 )
 
-type csiClusterConfigEntry struct {
-	ClusterID string   `json:"clusterID"`
-	Monitors  []string `json:"monitors"`
+type CsiClusterConfigEntry struct {
+	ClusterID      string         `json:"clusterID"`
+	Monitors       []string       `json:"monitors"`
+	CephFS         *CsiCephFSSpec `json:"cephFS,omitempty"`
+	RadosNamespace string         `json:"radosNamespace,omitempty"`
 }
 
-type csiClusterConfig []csiClusterConfigEntry
+type CsiCephFSSpec struct {
+	SubvolumeGroup string `json:"subvolumeGroup,omitempty"`
+}
+
+type csiClusterConfig []CsiClusterConfigEntry
 
 // FormatCsiClusterConfig returns a json-formatted string containing
 // the cluster-to-mon mapping required to configure ceph csi.
@@ -79,7 +86,7 @@ func formatCsiClusterConfig(cc csiClusterConfig) (string, error) {
 	return string(ccJson), nil
 }
 
-func monEndpoints(mons map[string]*cephclient.MonInfo) []string {
+func MonEndpoints(mons map[string]*cephclient.MonInfo) []string {
 	endpoints := make([]string, 0)
 	for _, m := range mons {
 		endpoints = append(endpoints, m.Endpoint)
@@ -89,32 +96,59 @@ func monEndpoints(mons map[string]*cephclient.MonInfo) []string {
 
 // updateCsiClusterConfig returns a json-formatted string containing
 // the cluster-to-mon mapping required to configure ceph csi.
-func updateCsiClusterConfig(
-	curr, clusterKey string, mons map[string]*cephclient.MonInfo) (string, error) {
-
+func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *CsiClusterConfigEntry) (string, error) {
 	var (
 		cc     csiClusterConfig
-		centry csiClusterConfigEntry
+		centry CsiClusterConfigEntry
 		found  bool
 	)
+
 	cc, err := parseCsiClusterConfig(curr)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse current csi cluster config")
 	}
 
+	// Regardless of which controllers call updateCsiClusterConfig(), the values will be preserved since
+	// a lock is acquired for the update operation. So concurrent updates (rare event) will block and
+	// wait for the other update to complete. Monitors and Subvolumegroup will be updated
+	// independently and won't collide.
 	for i, centry := range cc {
 		if centry.ClusterID == clusterKey {
-			centry.Monitors = monEndpoints(mons)
+			// If the new entry is nil, this means the entry is being deleted so remove it from the list
+			if newCsiClusterConfigEntry == nil {
+				cc = append(cc[:i], cc[i+1:]...)
+				found = true
+				break
+			}
+			centry.Monitors = newCsiClusterConfigEntry.Monitors
+			if newCsiClusterConfigEntry.CephFS != nil && newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" {
+				centry.CephFS = newCsiClusterConfigEntry.CephFS
+			}
+			if newCsiClusterConfigEntry.RadosNamespace != "" {
+				centry.RadosNamespace = newCsiClusterConfigEntry.RadosNamespace
+			}
 			found = true
 			cc[i] = centry
 			break
 		}
 	}
 	if !found {
-		centry.ClusterID = clusterKey
-		centry.Monitors = monEndpoints(mons)
-		cc = append(cc, centry)
+		// If it's the first time we create the cluster, the entry does not exist, so the removal
+		// will fail with a dangling pointer
+		if newCsiClusterConfigEntry != nil {
+			centry.ClusterID = clusterKey
+			centry.Monitors = newCsiClusterConfigEntry.Monitors
+			// Add a condition not to fill with empty values
+			if newCsiClusterConfigEntry.CephFS != nil && newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" {
+				centry.CephFS = newCsiClusterConfigEntry.CephFS
+			}
+			if newCsiClusterConfigEntry.RadosNamespace != "" {
+				centry.RadosNamespace = newCsiClusterConfigEntry.RadosNamespace
+			}
+			cc = append(cc, centry)
+		}
 	}
+
 	return formatCsiClusterConfig(cc)
 }
 
@@ -155,24 +189,24 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerI
 // value that is provided to ceph-csi uses in the storage class.
 // The locker l is typically a mutex and is used to prevent the config
 // map from being updated for multiple clusters simultaneously.
-func SaveClusterConfig(
-	clientset kubernetes.Interface, clusterNamespace string,
-	clusterInfo *cephclient.ClusterInfo, l sync.Locker) error {
+func SaveClusterConfig(clientset kubernetes.Interface, clusterNamespace string, clusterInfo *cephclient.ClusterInfo, newCsiClusterConfigEntry *CsiClusterConfigEntry) error {
 	if !CSIEnabled() {
+		logger.Debug("skipping csi config update because csi is not enabled")
 		return nil
 	}
-	l.Lock()
-	defer l.Unlock()
+
+	configMutex.Lock()
+	defer configMutex.Unlock()
+
 	// csi is deployed into the same namespace as the operator
 	csiNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	if csiNamespace == "" {
-		return errors.Errorf("namespace value missing for %s", k8sutil.PodNamespaceEnvVar)
+		return errors.Errorf("namespace value missing for %q", k8sutil.PodNamespaceEnvVar)
 	}
-	logger.Debugf("Using %+v for CSI ConfigMap Namespace", csiNamespace)
+	logger.Debugf("using %q for csi configmap namespace", csiNamespace)
 
 	// fetch current ConfigMap contents
-	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(clusterInfo.Context,
-		ConfigName, metav1.GetOptions{})
+	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(clusterInfo.Context, ConfigName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current csi config map")
 	}
@@ -182,8 +216,8 @@ func SaveClusterConfig(
 	if currData == "" {
 		currData = "[]"
 	}
-	newData, err := updateCsiClusterConfig(
-		currData, clusterNamespace, clusterInfo.Monitors)
+
+	newData, err := updateCsiClusterConfig(currData, clusterNamespace, newCsiClusterConfigEntry)
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi config map data")
 	}
@@ -191,7 +225,7 @@ func SaveClusterConfig(
 
 	// update ConfigMap with new contents
 	if _, err := clientset.CoreV1().ConfigMaps(csiNamespace).Update(clusterInfo.Context, configMap, metav1.UpdateOptions{}); err != nil {
-		return errors.Wrapf(err, "failed to update csi config map")
+		return errors.Wrap(err, "failed to update csi config map")
 	}
 
 	return nil

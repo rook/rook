@@ -17,7 +17,6 @@ limitations under the License.
 package mon
 
 import (
-	"sync"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -48,7 +47,6 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		"ns",
 		cephv1.ClusterSpec{},
 		ownerInfo,
-		&sync.Mutex{},
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:myceph"}
@@ -98,7 +96,6 @@ func TestDeploymentPVCSpec(t *testing.T) {
 		"ns",
 		cephv1.ClusterSpec{},
 		ownerInfo,
-		&sync.Mutex{},
 	)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:myceph"}
@@ -158,7 +155,6 @@ func testRequiredDuringScheduling(t *testing.T, hostNetwork, allowMultiplePerNod
 		"ns",
 		cephv1.ClusterSpec{},
 		&k8sutil.OwnerInfo{},
-		&sync.Mutex{},
 	)
 
 	c.spec.Network.HostNetwork = hostNetwork

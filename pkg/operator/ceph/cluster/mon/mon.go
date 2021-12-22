@@ -120,7 +120,6 @@ type Cluster struct {
 	monTimeoutList     map[string]time.Time
 	mapping            *Mapping
 	ownerInfo          *k8sutil.OwnerInfo
-	csiConfigMutex     *sync.Mutex
 	isUpgrade          bool
 	arbiterMon         string
 }
@@ -164,7 +163,7 @@ type SchedulingResult struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, ownerInfo *k8sutil.OwnerInfo, csiConfigMutex *sync.Mutex) *Cluster {
+func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, ownerInfo *k8sutil.OwnerInfo) *Cluster {
 	return &Cluster{
 		context:        context,
 		spec:           spec,
@@ -175,8 +174,7 @@ func New(context *clusterd.Context, namespace string, spec cephv1.ClusterSpec, o
 		mapping: &Mapping{
 			Schedule: map[string]*MonScheduleInfo{},
 		},
-		ownerInfo:      ownerInfo,
-		csiConfigMutex: csiConfigMutex,
+		ownerInfo: ownerInfo,
 	}
 }
 
@@ -1042,7 +1040,7 @@ func (c *Cluster) saveMonConfig() error {
 		return errors.Wrap(err, "failed to write connection config for new mons")
 	}
 
-	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, c.csiConfigMutex); err != nil {
+	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, &csi.CsiClusterConfigEntry{Monitors: csi.MonEndpoints(c.ClusterInfo.Monitors)}); err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
 
