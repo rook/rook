@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
-	"github.com/rook/rook/pkg/operator/ceph/pool"
+	cephpool "github.com/rook/rook/pkg/operator/ceph/pool"
 )
 
 const (
@@ -132,12 +132,12 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *cephclient.Clust
 	if len(f.Spec.DataPools) == 0 {
 		return nil
 	}
-	if err := pool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &f.Spec.MetadataPool); err != nil {
+	if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &f.Spec.MetadataPool); err != nil {
 		return errors.Wrap(err, "invalid metadata pool")
 	}
 	for _, p := range f.Spec.DataPools {
 		localpoolSpec := p.PoolSpec
-		if err := pool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localpoolSpec); err != nil {
+		if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localpoolSpec); err != nil {
 			return errors.Wrap(err, "Invalid data pool")
 		}
 	}
