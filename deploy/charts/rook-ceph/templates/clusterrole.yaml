@@ -83,10 +83,12 @@ rules:
 - apiGroups:
   - ""
   resources:
+  # Rook creates events for its custom resources
   - events
-  # PVs and PVCs are managed by the Rook provisioner
+  # Rook creates PVs and PVCs for OSDs managed by the Rook provisioner
   - persistentvolumes
   - persistentvolumeclaims
+  # Rook creates endpoints for mgr and object store access
   - endpoints
   verbs:
   - get
@@ -116,18 +118,71 @@ rules:
   - create
   - update
   - delete
-- apiGroups:
-  - ceph.rook.io
+# The Rook operator must be able to watch all ceph.rook.io resources to reconcile them.
+- apiGroups: ["ceph.rook.io"]
   resources:
-  - "*"
+  - cephclients
+  - cephclusters
+  - cephblockpools
+  - cephfilesystems
+  - cephnfses
+  - cephobjectstores
+  - cephobjectstoreusers
+  - cephobjectrealms
+  - cephobjectzonegroups
+  - cephobjectzones
+  - cephbuckettopics
+  - cephbucketnotifications
+  - cephrbdmirrors
+  - cephfilesystemmirrors
+  - cephfilesystemsubvolumegroups
   verbs:
-  - "*"
-- apiGroups:
-  - rook.io
+  - get
+  - list
+  - watch
+  # Ideally the update permission is not required, but Rook needs it to add finalizers to resources.
+  - update
+# Rook must have update access to status subresources for its custom resources.
+- apiGroups: ["ceph.rook.io"]
   resources:
-  - "*"
-  verbs:
-  - "*"
+  - cephclients/status
+  - cephclusters/status
+  - cephblockpools/status
+  - cephfilesystems/status
+  - cephnfses/status
+  - cephobjectstores/status
+  - cephobjectstoreusers/status
+  - cephobjectrealms/status
+  - cephobjectzonegroups/status
+  - cephobjectzones/status
+  - cephbuckettopics/status
+  - cephbucketnotifications/status
+  - cephrbdmirrors/status
+  - cephfilesystemmirrors/status
+  - cephfilesystemsubvolumegroups/status
+  verbs: ["update"]
+# The "*/finalizers" permission may need to be strictly given for K8s clusters where
+# OwnerReferencesPermissionEnforcement is enabled so that Rook can set blockOwnerDeletion on
+# resources owned by Rook CRs (e.g., a Secret owned by an OSD Deployment). See more:
+# https://kubernetes.io/docs/reference/access-authn-authz/_print/#ownerreferencespermissionenforcement
+- apiGroups: ["ceph.rook.io"]
+  resources:
+  - cephclients/finalizers
+  - cephclusters/finalizers
+  - cephblockpools/finalizers
+  - cephfilesystems/finalizers
+  - cephnfses/finalizers
+  - cephobjectstores/finalizers
+  - cephobjectstoreusers/finalizers
+  - cephobjectrealms/finalizers
+  - cephobjectzonegroups/finalizers
+  - cephobjectzones/finalizers
+  - cephbuckettopics/finalizers
+  - cephbucketnotifications/finalizers
+  - cephrbdmirrors/finalizers
+  - cephfilesystemmirrors/finalizers
+  - cephfilesystemsubvolumegroups/finalizers
+  verbs: ["update"]
 - apiGroups:
   - policy
   - apps
@@ -139,7 +194,13 @@ rules:
   - deployments
   - replicasets
   verbs:
-  - "*"
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+  - deletecollection
 - apiGroups:
   - healthchecking.openshift.io
   resources:
@@ -289,9 +350,11 @@ rules:
       # OBC controller updates OBC and OB statuses
       - update
   - apiGroups: ["objectbucket.io"]
+    # This does not strictly allow the OBC/OB controllers to update finalizers. That is handled by
+    # the direct "update" permissions above. Instead, this allows Rook's controller to create
+    # resources which are owned by OBs/OBCs and where blockOwnerDeletion is set.
     resources: ["objectbucketclaims/finalizers", "objectbuckets/finalizers"]
     verbs:
-      # OBC controller updates OBC and OB finalizers
       - update
 ---
 kind: ClusterRole
