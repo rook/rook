@@ -1214,13 +1214,6 @@ metadata:
   name: rook-csi-cephfs-provisioner-sa
   namespace: rook-ceph # namespace:operator
 ---
-# Service account for multus actions related to the csi
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: rook-csi-multus
-  namespace: rook-ceph
----
 # Service account for the RBD CSI driver
 apiVersion: v1
 kind: ServiceAccount
@@ -1234,3 +1227,37 @@ kind: ServiceAccount
 metadata:
   name: rook-csi-rbd-provisioner-sa
   namespace: rook-ceph # namespace:operator
+---
+# Service account for multus actions related to the csi
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-multus
+  namespace: rook-ceph
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-csi-multus
+  namespace: rook-ceph # namespace:operator
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "update"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "delete"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-csi-multus
+  namespace: rook-ceph # namespace:operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-csi-multus
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-multus
+    namespace: rook-ceph # namespace:operator
