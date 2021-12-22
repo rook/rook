@@ -183,11 +183,11 @@ func ConfigureInterface(hostNS ns.NetNS, linkName string, conf netConfig) error 
 		if err != nil {
 			return errors.Wrap(err, "failed to get interface on host namespace")
 		}
-		for _, addr := range conf.Addrs {
+		for i := range conf.Addrs {
 			// The IP address label must be changed to the new interface name
 			// for the AddrAdd call to succeed.
-			addr.Label = linkName
-			if err := netlink.AddrAdd(link, &addr); err != nil {
+			conf.Addrs[i].Label = linkName
+			if err := netlink.AddrAdd(link, &conf.Addrs[i]); err != nil {
 				return errors.Wrap(err, "failed to configure ip address on interface")
 			}
 		}
