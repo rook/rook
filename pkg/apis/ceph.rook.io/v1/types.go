@@ -416,6 +416,8 @@ const (
 	ReconcileSucceeded ConditionReason = "ReconcileSucceeded"
 	// ReconcileFailed represents when a resource reconciliation failed.
 	ReconcileFailed ConditionReason = "ReconcileFailed"
+	// ReconcileStarted represents when a resource reconciliation started.
+	ReconcileStarted ConditionReason = "ReconcileStarted"
 
 	// DeletingReason represents when Rook has detected a resource object should be deleted.
 	DeletingReason ConditionReason = "Deleting"
