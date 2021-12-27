@@ -19,6 +19,7 @@ The following tools are need on the host:
 * make
 * golang
 * rsync (if you're using the build container on mac)
+* helm
 
 ## Build
 
