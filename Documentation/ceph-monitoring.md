@@ -202,13 +202,13 @@ kind: CephCluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph
-[...]
+  [...]
 spec:
-[...]
-labels:
-  monitoring:
-    prometheus: k8s
-[...]
+  [...]
+  labels:
+    monitoring:
+      prometheus: k8s
+  [...]
 ```
 
 ### Horizontal Pod Scaling using Kubernetes Event-driven Autoscaling (KEDA)
