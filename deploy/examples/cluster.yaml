@@ -211,6 +211,7 @@ spec:
 #    mon: rook-ceph-mon-priority-class
 #    osd: rook-ceph-osd-priority-class
 #    mgr: rook-ceph-mgr-priority-class
+#    crashcollector: rook-ceph-crashcollector-priority-class
   storage: # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: true
