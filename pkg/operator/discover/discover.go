@@ -30,6 +30,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 
@@ -79,7 +80,6 @@ func (d *Discover) Start(ctx context.Context, namespace, discoverImage, security
 }
 
 func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, discoverImage, securityAccount string, useCephVolume bool) error {
-	privileged := true
 	discovery_parameters := []string{"discover",
 		"--discover-interval", getEnvVar(discoverIntervalEnv, defaultDiscoverInterval)}
 	if useCephVolume {
@@ -108,12 +108,10 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 					ServiceAccountName: securityAccount,
 					Containers: []v1.Container{
 						{
-							Name:  discoverDaemonsetName,
-							Image: discoverImage,
-							Args:  discovery_parameters,
-							SecurityContext: &v1.SecurityContext{
-								Privileged: &privileged,
-							},
+							Name:            discoverDaemonsetName,
+							Image:           discoverImage,
+							Args:            discovery_parameters,
+							SecurityContext: controller.PrivilegedContext(true),
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "dev",
