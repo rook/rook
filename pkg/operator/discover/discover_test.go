@@ -79,6 +79,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	assert.Equal(t, "mysa", agentDS.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, "my-priority-class", agentDS.Spec.Template.Spec.PriorityClassName)
 	assert.True(t, *agentDS.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
+	assert.Equal(t, int64(0), *agentDS.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser)
 	volumes := agentDS.Spec.Template.Spec.Volumes
 	assert.Equal(t, 3, len(volumes))
 	volumeMounts := agentDS.Spec.Template.Spec.Containers[0].VolumeMounts
