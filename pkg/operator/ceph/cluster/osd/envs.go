@@ -18,6 +18,7 @@ package osd
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
@@ -232,4 +233,21 @@ func getTcmallocMaxTotalThreadCacheBytesFromFile() string {
 	}
 
 	return iniCephEnvConfigFile.Section("").Key(tcmallocMaxTotalThreadCacheBytesEnv).String()
+}
+
+func parseExtraEnvVars(vars string) []v1.EnvVar {
+	extraVars := strings.Split(vars, ";")
+	var envVars []v1.EnvVar
+	for _, extraVar := range extraVars {
+		endNameIndex := strings.Index(extraVar, "=")
+		if endNameIndex < 0 {
+			logger.Infof("Invalid extra var: %s", extraVar)
+			continue
+		}
+		name := extraVar[:endNameIndex]
+		val := extraVar[endNameIndex+1:]
+		envVars = append(envVars, v1.EnvVar{Name: name, Value: val})
+	}
+	logger.Infof("additional osd env args: %v", envVars)
+	return envVars
 }

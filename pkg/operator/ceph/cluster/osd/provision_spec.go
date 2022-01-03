@@ -17,6 +17,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -229,6 +230,11 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 
 	if osdProps.metadataDevice != "" {
 		envVars = append(envVars, metadataDeviceEnvVar(osdProps.metadataDevice))
+	}
+	if extraEnvVarsValue, err := k8sutil.GetOperatorSetting(context.TODO(), c.context.Clientset, controller.OperatorSettingConfigMapName, "OSD_EXTRA_ENV_VARS", ""); err != nil {
+		logger.Warningf("failed to get extra env vars for osd prepare. %v", err)
+	} else if extraEnvVarsValue != "" {
+		envVars = append(envVars, parseExtraEnvVars(extraEnvVarsValue)...)
 	}
 
 	volumeMounts := append(controller.CephVolumeMounts(provisionConfig.DataPathMap, true), []v1.VolumeMount{

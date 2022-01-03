@@ -18,6 +18,7 @@ limitations under the License.
 package osd
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -513,6 +514,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// Raw mode on PVC needs this path so that OSD's metadata files can be chown after 'ceph-bluestore-tool' ran
 	if osd.CVMode == "raw" && osdProps.onPVC() {
 		dataPath = activateOSDMountPath + osdID
+	}
+
+	// Inject extra envrinoment variables.
+	if extraEnvVarsValue, err := k8sutil.GetOperatorSetting(context.TODO(), c.context.Clientset, controller.OperatorSettingConfigMapName, "OSD_EXTRA_ENV_VARS", ""); err != nil {
+		logger.Warningf("failed to get extra env vars for osd. %v", err)
+	} else if extraEnvVarsValue != "" {
+		envVars = append(envVars, parseExtraEnvVars(extraEnvVarsValue)...)
 	}
 
 	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD

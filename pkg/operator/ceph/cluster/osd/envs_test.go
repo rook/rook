@@ -92,3 +92,10 @@ func TestGetTcmallocMaxTotalThreadCacheBytes(t *testing.T) {
 	v = getTcmallocMaxTotalThreadCacheBytes("")
 	assert.Equal(t, "134217728", v.Value)
 }
+
+func TestParseExtraEnv(t *testing.T) {
+	vars := parseExtraEnvVars("foo=bar=0")
+	assert.Equal(t, 1, len(vars))
+	assert.Equal(t, "foo", vars[0].Name)
+	assert.Equal(t, "bar=0", vars[0].Value)
+}
