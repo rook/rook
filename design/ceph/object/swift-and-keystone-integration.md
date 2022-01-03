@@ -26,14 +26,16 @@ to further technologies (such as LDAP authentication).
 ### Non-Goals
 
 * Support for Keystone API versions below v3. API version v2 has long
-  been deprecated [has been removed in
-  Queens](https://docs.openstack.org/keystone/latest/contributor/http-api.html)
-  which was release in 2018 and is now in extended maintenance mode
+  been deprecated and [has been removed in the "queens" version of
+  Keystone](https://docs.openstack.org/keystone/xena/contributor/http-api.html)
+  which was released in 2018 and is now in extended maintenance mode
   (which means it gets no more points releases and only sporadic bug
   fixes/security fixes).
 
 * Authenticating Ceph RGW to Keystone via admin token – Only
   authentication via an OpenStack service account will be supported.
+  This is a deliberate choice as [admin tokens should not be used in production environments](
+  https://docs.openstack.org/keystone/rocky/admin/identity-bootstrap.html#using-a-shared-secret).
 
 * Support for APIs beside S3 and Swift.
 
@@ -53,20 +55,35 @@ settings.
 
 ### Keystone integration
 
-A new section `auth:` is added to the Object Store CRD. To configure
-the keystone integration:
+A new optional section `auth.keystone` is added to the Object Store
+CRD to configure the keystone integration:
 
 ```yaml
 auth:
   keystone:
-    url: https://keystone:5000/
-    acceptedRoles: ["_member_", "service", "admin"]
-    apiVersion: 3
-    implicitTenants: swift
-    tokenCacheSize: 1000
-    revocationInterval: 1200
-    serviceUserSecret: rgw-service-user
+    url: https://keystone:5000/                     [*, r]
+    acceptedRoles: ["_member_", "service", "admin"] [*, r]
+    apiVersion: 3                                   [1, *]
+    implicitTenants: swift                          [*]
+    tokenCacheSize: 1000                            [*]
+    revocationInterval: 1200                        [*]
+    serviceUserSecretName: rgw-service-user         [2, r]
 ```
+Annotations:
+* `[1]` Only support for Keystone API version 3 is specified in this
+  design document. Although RGW supports it, Keystone API v2 is
+  deliberately left out.
+* `[2]` The name of the secret containing the credentials for the
+  service user account used by RGW. It has to be in the same namespace
+  as the object store resource.
+* `[*]` These options map directly to [RGW configuration
+  options](https://docs.ceph.com/en/octopus/radosgw/config-ref/#keystone-settings),
+  the corresponding RGW option is formed by prefixing it with
+  `rgw_keystone_` and replacing upper case letters by their lower case
+  letter followed by an underscore. E.g. `tokenCacheSize` maps to
+  `rgw_keystone_token_cache_size`.
+* `[r]` These settings are required in the `keystone` section if
+  present.
 
 The certificate to verify the Keystone endpoint can't be explicitly
 configured in Ceph RGW, the system configuration of the pod is used,
@@ -74,9 +91,11 @@ you can add to the system certificate store via the
 `gateway.caBundleRef` setting of the object store CRD.
 
 The credentials for the Keystone service account used by Ceph RGW are
-supplied in a Secret that contains a mapping of OpenStack openrc
-environment variables. Only password authentication to Keystone is
-supported. Example:
+supplied in a Secret that contains a mapping of OpenStack [openrc
+environment variables](https://docs.openstack.org/python-openstackclient/xena/cli/man/openstack.html#environment-variables).
+`password` is the only authentication type that is supported, this is
+a limitation of RGW which does not support other Keystone authentication
+types. Example:
 
 ```yaml
 apiVersion: v1
@@ -98,9 +117,21 @@ type it maps naturally to the Ceph RGW configuration.
 
 The following constraints must be fulfilled by the secret:
 * `OS_AUTH_TYPE` must be `password` or omitted.
-* `OS_USER_DOMAIN_NAME` must equal `OS_PROJECT_DOMAIN_NAME`.
-* All openrc variables not in the example above (e.g. API version and
-  Keystone endpoint) are ignored.
+* `OS_USER_DOMAIN_NAME` must equal `OS_PROJECT_DOMAIN_NAME`. This is a
+  restriction of Ceph RGW, which does not support configuring separate
+  domains for the user and project.
+* All openrc variables not in the example above are ignored. The API
+  version (`OS_IDENTITY_API_VERSION`) is assumed to be `3` and
+  Keystone endpoint `OS_AUTH_URL` is taken from the
+  `keystone.apiVersion` configuration in the object store resource.
+
+The mapping to
+[RGW configuration options](https://docs.ceph.com/en/octopus/radosgw/config-ref/#keystone-settings)
+is done as follows:
+* `OS_USERNAME` -> `rgw_keystone_admin_user`
+* `OS_PROJECT_NAME` -> `rgw_keystone_admin_project`
+* `OS_PROJECT_DOMAIN_NAME`, `OS_USER_DOMAIN_NAME` -> `rgw_keystone_admin_domain`
+* `OS_PASSWORD` -> `rgw_keystone_admin_password`
 
 ### Swift integration
 
@@ -121,7 +152,7 @@ gateway:
 The access to the Swift API is granted by creating a subuser of an RGW
 user. While commonly the access is granted via projects
 mapped from Keystone, explicit creation of subusers is supported by
-extending the `cephobjectstoreuser` resource with a new section
+extending the `cephobjectstoreuser` resource with a new optional section
 `spec.subUsers`:
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -140,9 +171,22 @@ spec:
     user: "*"
     bucket: "*"
   subUsers:
-  - name: swift
-    access: full
+  - name: swift  [1]
+    access: full [2]
 ```
+
+Annotations:
+* `[1]` This is the name of the subuser without the `username:` prefix
+  (see below for more explanation). The `name` must be unique within
+  the `subUsers` list.
+
+* `[2]` The possible values are: `read`, `write`, `readwrite`,
+  `full`. These values take their meanings from the possible values of
+  the `--access-level` option of `radosgw-admin subuser create`, as
+  documented in the [radosgw admin guide](
+  https://docs.ceph.com/en/octopus/radosgw/admin/#create-a-subuser).
+
+* `name` and `access` are required for each item in `subUsers`.
 
 The subusers are not mapped to a separate CR for the
 following reasons:
@@ -159,21 +203,29 @@ following reasons:
   level can be configured, so a separate resource would not be
   appropriate complexity wise.
 
-Like the S3 access keys for the users, the swift keys created for the
-sub-users are automatically injected into Secret objects. The
+Like for the S3 access keys for the users, the swift keys created for the
+sub-users will be automatically injected into Secret objects. The
 credentials for the subusers are mapped to separate secrets, in the
 case of the example the following secret will be created:
 ```yaml
 apiVersion:
 kind: Secret
 metadata:
-  name: rook-ceph-object-subuser-my-store-my-user:swift
+  name: rook-ceph-object-subuser-my-store-my-user:swift [1]
   namespace: rook-ceph
 data:
-  SWIFT_USER: my-user:swift
-  SWIFT_SECRET_KEY: $KEY
+  SWIFT_USER: my-user:swift                             [2]
+  SWIFT_SECRET_KEY: $KEY                                [3]
 ```
-
+Annotations:
+* `[1]` The name is constructed by joining the following elements with dashes
+  (compare [the corresponding name of the secret for the object store users](
+  https://github.com/rook/rook/blob/376ca62f8ad07540d9ddffe9dc0ee53f4ac35e29/pkg/operator/ceph/object/user/controller.go#L416)):
+      - the literal `rook-ceph-object-subuser`
+      - the name of the object store resource
+      - the full name of the subuser (including the `username:`-prefix).
+* `[2]` The full name of the subuser (including the `username:`-prefix).
+* `[3]` The generated swift access secret.
 
 ### Risks and Mitigation
 
@@ -197,7 +249,8 @@ overall risk is minimal.
 
 ## Drawbacks
 
-* As shown in #4754 keystone can be integrated via config override so
+* As shown in [#4754](https://github.com/rook/rook/issues/4754)
+  keystone can be integrated via config override so
   it is not strictly necessary to support configuring it via the
   Object Store CRD. Adding it to the CRD complicates things with
   minor gain.
@@ -208,7 +261,7 @@ overall risk is minimal.
   support.
 
 * Keystone support could be configured via Rook config override as shown
-  in #4754.
+  in [#4754](https://github.com/rook/rook/issues/4754).
 
 ## Open Questions
 
