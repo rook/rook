@@ -20,6 +20,9 @@ object store API outside an OpenStack cloud and in the context of an
 OpenStack cloud the Swift API needs to be integrated with the Keystone
 authentication service.
 
+It must be possible to serve S3 and Swift for the same object store
+pool, e.g. by serving S3 and Swift from the same RGW instance.
+
 Any changes to the CRD must be future safe and cleanly allow extension
 to further technologies (such as LDAP authentication).
 
@@ -135,19 +138,34 @@ is done as follows:
 
 ### Swift integration
 
-Swift is configured in the `gateway:` section of the Object Store CRD.
+The currently ignored `gateway.type` option is deprecated and from now on
+explicitly ignored by rook.
 
-The currently unused `type:` argument may now take the values `swift`
-or `s3`.
+The other `gateway` settings are kept as they are: They do not directly
+relate to Swift or S3 but are common configuration of RGW.
 
-The following new settings are available to properly configure Swift:
+The Swift API is enabled and configured via a new `protocols` section:
 ```yaml
-gateway:
-  type: swift
-  swiftAccountInUrl: true
-  swiftUrlPrefix: /swifter
-  swiftVersioningEnabled: false
+protocols:
+  swift:                      [1]
+    accountInUrl: true        [*]
+    urlPrefix: /example       [*]
+    versioningEnabled: false  [*]
+  s3:
+    enabled: false            [2]
 ```
+Annotations:
+* `[1]` Swift will be enabled, if `protocols.swift` is present.
+* `[2]` This defaults to `true` (even if `protocols.s3` is not present
+  in the CRD). This maintains backwards compatibility – by default S3
+  is enabled.
+* `[*]` These options map directly to [RGW configuration
+  options](https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings),
+  the corresponding RGW option is formed by prefixing it with
+  `rgw_swift_` and replacing upper case letters by their lower case
+  letter followed by an underscore. E.g. `urlPrefix` maps to
+  `rgw_swift_url_prefix`. They are optional. If not given, the defaults
+  of the corresponding RGW option apply.
 
 The access to the Swift API is granted by creating a subuser of an RGW
 user. While commonly the access is granted via projects
