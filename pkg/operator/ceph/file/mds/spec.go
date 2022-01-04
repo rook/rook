@@ -44,6 +44,7 @@ const (
 func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.Deployment, error) {
 
 	mdsContainer := c.makeMdsDaemonContainer(mdsConfig)
+	mdsContainer = config.ConfigureStartupProbe(cephv1.KeyMds, mdsContainer, c.clusterSpec.HealthCheck)
 	mdsContainer = config.ConfigureLivenessProbe(cephv1.KeyMds, mdsContainer, c.clusterSpec.HealthCheck)
 
 	podSpec := v1.PodTemplateSpec{
@@ -147,6 +148,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Env:             append(controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image), k8sutil.PodIPEnvVar(podIPEnvVar)),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: controller.PodSecurityContext(),
+		StartupProbe:    controller.GenerateStartupProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
 		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
 		WorkingDir:      config.VarLogCephDir,
 	}

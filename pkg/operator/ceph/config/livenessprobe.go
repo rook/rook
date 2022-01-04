@@ -51,6 +51,32 @@ func ConfigureLivenessProbe(daemon cephv1.KeyType, container v1.Container, healt
 	return container
 }
 
+// ConfigureStartupProbe returns the desired startup probe for a given daemon
+func ConfigureStartupProbe(daemon cephv1.KeyType, container v1.Container, healthCheck cephv1.CephClusterHealthCheckSpec) v1.Container {
+	// Map of functions
+	probeFnMap := map[cephv1.KeyType]fn{
+		cephv1.KeyMon: cephv1.GetMonStartupProbe,
+		cephv1.KeyMgr: cephv1.GetMgrStartupProbe,
+		cephv1.KeyOSD: cephv1.GetOSDStartupProbe,
+		cephv1.KeyMds: cephv1.GetMdsStartupProbe,
+	}
+
+	if _, ok := healthCheck.StartupProbe[daemon]; ok {
+		if healthCheck.StartupProbe[daemon].Disabled {
+			container.StartupProbe = nil
+		} else {
+			probe := probeFnMap[daemon](healthCheck)
+			// If the spec value is not empty, let's apply it along with default when some fields are not specified
+			if probe != nil {
+				// Set the startup probe on the container to overwrite the default probe created by Rook
+				container.StartupProbe = GetProbeWithDefaults(probe, container.StartupProbe)
+			}
+		}
+	}
+
+	return container
+}
+
 func GetProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
 	newProbe := *desiredProbe
 

@@ -281,12 +281,15 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		),
 		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources:       c.store.Spec.Gateway.Resources,
+		StartupProbe:    c.defaultStartupProbe(),
 		LivenessProbe:   c.defaultLivenessProbe(),
 		ReadinessProbe:  c.defaultReadinessProbe(),
 		SecurityContext: controller.PodSecurityContext(),
 		WorkingDir:      cephconfig.VarLogCephDir,
 	}
 
+	// If the startup probe is enabled
+	configureStartupProbe(&container, c.store.Spec.HealthCheck)
 	// If the liveness probe is enabled
 	configureLivenessProbe(&container, c.store.Spec.HealthCheck)
 	// If the readiness probe is enabled
@@ -377,6 +380,21 @@ func configureReadinessProbe(container *v1.Container, healthCheck cephv1.BucketH
 	}
 }
 
+func configureStartupProbe(container *v1.Container, healthCheck cephv1.BucketHealthCheckSpec) {
+	if ok := healthCheck.StartupProbe; ok != nil {
+		if !healthCheck.StartupProbe.Disabled {
+			probe := healthCheck.StartupProbe.Probe
+			// If the spec value is empty, let's use a default
+			if probe != nil {
+				// Set the startup probe on the container to overwrite the default probe created by Rook
+				container.StartupProbe = cephconfig.GetProbeWithDefaults(probe, container.StartupProbe)
+			}
+		} else {
+			container.StartupProbe = nil
+		}
+	}
+}
+
 func (c *clusterConfig) defaultLivenessProbe() *v1.Probe {
 	return &v1.Probe{
 		Handler: v1.Handler{
@@ -398,6 +416,21 @@ func (c *clusterConfig) defaultReadinessProbe() *v1.Probe {
 			},
 		},
 		InitialDelaySeconds: 10,
+	}
+}
+
+func (c *clusterConfig) defaultStartupProbe() *v1.Probe {
+	return &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path:   readinessProbePath,
+				Port:   c.generateProbePort(),
+				Scheme: c.generateReadinessProbeScheme(),
+			},
+		},
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		FailureThreshold:    18,
 	}
 }
 

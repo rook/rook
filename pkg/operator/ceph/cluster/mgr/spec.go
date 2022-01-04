@@ -184,11 +184,12 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		),
 		Resources:       cephv1.GetMgrResources(c.spec.Resources),
 		SecurityContext: controller.PodSecurityContext(),
+		StartupProbe:    controller.GenerateStartupProbeExecDaemon(config.MgrType, mgrConfig.DaemonID),
 		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MgrType, mgrConfig.DaemonID),
 		WorkingDir:      config.VarLogCephDir,
 	}
 
-	// If the liveness probe is enabled
+	container = config.ConfigureStartupProbe(cephv1.KeyMgr, container, c.spec.HealthCheck)
 	container = config.ConfigureLivenessProbe(cephv1.KeyMgr, container, c.spec.HealthCheck)
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr

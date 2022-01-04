@@ -110,6 +110,11 @@ func (in *BucketHealthCheckSpec) DeepCopyInto(out *BucketHealthCheckSpec) {
 		*out = new(ProbeSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.StartupProbe != nil {
+		in, out := &in.StartupProbe, &out.StartupProbe
+		*out = new(ProbeSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -574,6 +579,21 @@ func (in *CephClusterHealthCheckSpec) DeepCopyInto(out *CephClusterHealthCheckSp
 	in.DaemonHealth.DeepCopyInto(&out.DaemonHealth)
 	if in.LivenessProbe != nil {
 		in, out := &in.LivenessProbe, &out.LivenessProbe
+		*out = make(map[KeyType]*ProbeSpec, len(*in))
+		for key, val := range *in {
+			var outVal *ProbeSpec
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = new(ProbeSpec)
+				(*in).DeepCopyInto(*out)
+			}
+			(*out)[key] = outVal
+		}
+	}
+	if in.StartupProbe != nil {
+		in, out := &in.StartupProbe, &out.StartupProbe
 		*out = make(map[KeyType]*ProbeSpec, len(*in))
 		for key, val := range *in {
 			var outVal *ProbeSpec
