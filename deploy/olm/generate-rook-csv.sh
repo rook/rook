@@ -130,10 +130,10 @@ function generate_csv(){
 
     "${YQ_CMD_MERGE_OVERWRITE[@]}" "$CSV_FILE_NAME" "$ASSEMBLE_FILE_COMMON"
     "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.externalClusterScript "$(base64 <$CEPH_EXTERNAL_SCRIPT_FILE)"
+    "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.name "rook-ceph.v${VERSION}"
 
     if [[ "$PLATFORM" == "k8s" ]]; then
         "${YQ_CMD_MERGE_OVERWRITE[@]}" "$CSV_FILE_NAME" "$ASSEMBLE_FILE_K8S"
-        "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.name "rook-ceph.v${VERSION}"
         "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" spec.displayName "Rook-Ceph"
         "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
     fi
@@ -144,7 +144,6 @@ function generate_csv(){
 
     if [[ "$PLATFORM" == "okd" ]]; then
         "${YQ_CMD_MERGE[@]}" "$CSV_FILE_NAME" "$ASSEMBLE_FILE_OKD"
-        "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.name "rook-ceph.v${VERSION}"
         "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" spec.displayName "Rook-Ceph"
         "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.createdAt "$(date +"%Y-%m-%dT%H-%M-%SZ")"
     fi
