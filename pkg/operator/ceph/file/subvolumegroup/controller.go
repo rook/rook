@@ -245,8 +245,8 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesys
 		code, ok := exec.ExitStatus(err)
 		// If the subvolumegroup has subvolumes the command will fail with:
 		// Error ENOTEMPTY: error in rmdir /volumes/csi
-		if ok && code != int(syscall.ENOTEMPTY) {
-			return errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q, remove the subvolumes first.", cephFilesystemSubVolumeGroup.Name)
+		if ok && code == int(syscall.ENOTEMPTY) {
+			return errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q, remove the subvolumes first", cephFilesystemSubVolumeGroup.Name)
 		}
 
 		return errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
