@@ -59,9 +59,12 @@ type CephClusterHealthCheckSpec struct {
 	// +optional
 	// +nullable
 	DaemonHealth DaemonHealthSpec `json:"daemonHealth,omitempty"`
-	// LivenessProbe allows to change the livenessprobe configuration for a given daemon
+	// LivenessProbe allows changing the livenessProbe configuration for a given daemon
 	// +optional
 	LivenessProbe map[KeyType]*ProbeSpec `json:"livenessProbe,omitempty"`
+	// StartupProbe allows changing the startupProbe configuration for a given daemon
+	// +optional
+	StartupProbe map[KeyType]*ProbeSpec `json:"startupProbe,omitempty"`
 }
 
 // DaemonHealthSpec is a daemon health check
@@ -1309,6 +1312,8 @@ type BucketHealthCheckSpec struct {
 	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
 	// +optional
 	ReadinessProbe *ProbeSpec `json:"readinessProbe,omitempty"`
+	// +optional
+	StartupProbe *ProbeSpec `json:"startupProbe,omitempty"`
 }
 
 // HealthCheckSpec represents the health check of an object store bucket

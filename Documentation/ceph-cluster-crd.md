@@ -617,8 +617,9 @@ Currently three health checks are implemented:
 * `osd`: health check on the ceph osds
 * `status`: ceph health status check, periodically check the Ceph health state and reflects it in the CephCluster CR status field.
 
-The liveness probe of each daemon can also be controlled via `livenessProbe`, the setting is valid for `mon`, `mgr` and `osd`.
-Here is a complete example for both `daemonHealth` and `livenessProbe`:
+The liveness probe and startup probe of each daemon can also be controlled via `livenessProbe` and
+`startupProbe` respectively. The settings are valid for `mon`, `mgr` and `osd`.
+Here is a complete example for both `daemonHealth`, `livenessProbe`, and `startupProbe`:
 
 ```yaml
 healthCheck:
@@ -639,21 +640,34 @@ healthCheck:
       disabled: false
     osd:
       disabled: false
+  startupProbe:
+    mon:
+      disabled: false
+    mgr:
+      disabled: false
+    osd:
+      disabled: false
 ```
 
-The probe itself can also be overridden, refer to the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-a-liveness-command).
+The probe's timing values and thresholds (but not the probe itself) can also be overridden.
+For more info, refer to the
+[Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-a-liveness-command).
 
 For example, you could change the `mgr` probe by applying:
 
 ```yaml
 healthCheck:
+  startupProbe:
+    mgr:
+      disabled: false
+      probe:
+        initialDelaySeconds: 3
+        periodSeconds: 3
+        failureThreshold: 30
   livenessProbe:
     mgr:
       disabled: false
       probe:
-        httpGet:
-          path: /
-          port: 9283
         initialDelaySeconds: 3
         periodSeconds: 3
 ```

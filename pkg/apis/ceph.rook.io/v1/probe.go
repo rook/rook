@@ -20,6 +20,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+/*
+ * Liveness probes
+ */
+
 // GetMonLivenessProbe returns the liveness probe for the MON service
 func GetMonLivenessProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
 	return l.LivenessProbe[ResourcesKeyMon].Probe
@@ -38,4 +42,28 @@ func GetOSDLivenessProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
 // GetMdsLivenessProbe returns the liveness probe for the MDS service
 func GetMdsLivenessProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
 	return l.LivenessProbe[ResourcesKeyMDS].Probe
+}
+
+/*
+ * Startup probes
+ */
+
+// GetMonStartupProbe returns the startup probe for the MON service
+func GetMonStartupProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
+	return l.StartupProbe[ResourcesKeyMon].Probe
+}
+
+// GetMgrStartupProbe returns the startup probe for the MGR service
+func GetMgrStartupProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
+	return l.StartupProbe[ResourcesKeyMgr].Probe
+}
+
+// GetOSDStartupProbe returns the startup probe for the OSD service
+func GetOSDStartupProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
+	return l.StartupProbe[ResourcesKeyOSD].Probe
+}
+
+// GetMdsStartupProbe returns the startup probe for the MDS service
+func GetMdsStartupProbe(l CephClusterHealthCheckSpec) *corev1.Probe {
+	return l.StartupProbe[ResourcesKeyMDS].Probe
 }
