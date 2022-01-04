@@ -75,7 +75,7 @@ endif
 
 # REAL_HOST_PLATFORM is used to determine the correct url to download the various binary tools from and it does not use
 # HOST_PLATFORM which is used to build the program.
-REAL_HOST_PLATFORM=$(shell go env GOHOSTOS)_$(GOHOSTARCH)
+REAL_HOST_PLATFORM := $(shell go env GOHOSTOS)_$(GOHOSTARCH)
 
 # set the version number. you should not need to do this
 # for the majority of scenarios.
