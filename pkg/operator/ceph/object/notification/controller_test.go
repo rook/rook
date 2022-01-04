@@ -20,7 +20,9 @@ package notification
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
@@ -38,6 +40,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -55,11 +58,21 @@ var (
 	multipleCreateBucketName = "multi-create"
 	multipleDeleteBucketName = "multi-delete"
 	multipleBothBucketName   = "multi-both"
+	startEvent               = string(cephv1.ReconcileStarted)
+	finishedEvent            = string(cephv1.ReconcileSucceeded)
+	failedEvent              = string(cephv1.ReconcileFailed)
 )
 
-var getWasInvoked bool
-var createdNotifications []string
-var deletedNotifications []string
+// global variables used inside mockSetup
+var (
+	testCtx              = context.TODO()
+	testContext          *clusterd.Context
+	testScheme           = scheme.Scheme
+	testRecorder         = record.NewFakeRecorder(256)
+	getWasInvoked        = false
+	createdNotifications []string
+	deletedNotifications []string
+)
 
 func resetValues() {
 	getWasInvoked = false
@@ -74,7 +87,52 @@ func mockCleanup() {
 	deleteNotificationFunc = deleteNotification
 }
 
-func mockSetup() {
+func mockSetup(t *testing.T) {
+	// set log level
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+
+	// create clients
+	testContext = &clusterd.Context{
+		Executor:      &exectest.MockExecutor{},
+		RookClientset: rookclient.NewSimpleClientset(),
+		Clientset:     test.New(t, 3),
+	}
+
+	// create scheme
+	testScheme.AddKnownTypes(
+		cephv1.SchemeGroupVersion,
+		&cephv1.CephBucketNotification{},
+		&cephv1.CephBucketNotificationList{},
+		&cephv1.CephBucketTopic{},
+		&cephv1.CephBucketTopicList{},
+		&cephv1.CephCluster{},
+		&cephv1.CephClusterList{},
+		&bktv1alpha1.ObjectBucketClaim{},
+		&bktv1alpha1.ObjectBucketClaimList{},
+		&bktv1alpha1.ObjectBucket{},
+		&bktv1alpha1.ObjectBucketList{},
+	)
+
+	// create secrets
+	secrets := map[string][]byte{
+		"fsid":         []byte("name"),
+		"mon-secret":   []byte("monsecret"),
+		"admin-secret": []byte("adminsecret"),
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon",
+			Namespace: testNamespace,
+		},
+		Data: secrets,
+		Type: k8sutil.RookType,
+	}
+
+	_, err := testContext.Clientset.CoreV1().Secrets(testNamespace).Create(testCtx, secret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// test mocks
 	createNotificationFunc = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, topicARN string, notification *cephv1.CephBucketNotification) error {
 		createdNotifications = append(createdNotifications, notification.Name)
 		return nil
@@ -99,12 +157,55 @@ func mockSetup() {
 	}
 }
 
+func testReconciler(objects []runtime.Object, notificationName string) (reconcile.Result, error) {
+	defer func() { testRecorder.Events <- "END" }()
+	cl := fake.NewClientBuilder().WithScheme(testScheme).WithRuntimeObjects(objects...).Build()
+	r := &ReconcileNotifications{client: cl, context: testContext, opManagerContext: testCtx, recorder: testRecorder}
+	testRequest := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      notificationName,
+			Namespace: testNamespace,
+		},
+	}
+	return r.Reconcile(testCtx, testRequest)
+}
+
+func testOBCLabelReconciler(objects []runtime.Object, bucketName string) (reconcile.Result, error) {
+	defer func() { testRecorder.Events <- "END" }()
+	cl := fake.NewClientBuilder().WithScheme(testScheme).WithRuntimeObjects(objects...).Build()
+	r := &ReconcileOBCLabels{client: cl, context: testContext, opManagerContext: testCtx, recorder: testRecorder}
+	testRequest := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      bucketName,
+			Namespace: testNamespace,
+		},
+	}
+	return r.Reconcile(testCtx, testRequest)
+}
+
+func verifyEvents(t *testing.T, expectedEvents []string) {
+	expectedEvents = append(expectedEvents, "END")
+	for _, expectedEvent := range expectedEvents {
+		select {
+		case event := <-testRecorder.Events:
+			if expectedEvent != "END" {
+				splitEvent := strings.Split(event, " ")
+				// the event message must have at least 3 parts
+				assert.GreaterOrEqual(t, len(splitEvent), 3)
+				// the type of event (2nd part) must match
+				assert.Equal(t, splitEvent[1], expectedEvent)
+			} else {
+				assert.Equal(t, expectedEvent, event)
+			}
+		case <-time.After(1 * time.Second):
+			assert.Failf(t, "missing event", "missing event: \"%s\"", expectedEvent)
+		}
+	}
+}
+
 func TestCephBucketNotificationController(t *testing.T) {
-	mockSetup()
+	mockSetup(t)
 	defer mockCleanup()
-	ctx := context.TODO()
-	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
 	bucketTopic := &cephv1.CephBucketTopic{
 		ObjectMeta: metav1.ObjectMeta{
@@ -149,48 +250,6 @@ func TestCephBucketNotificationController(t *testing.T) {
 			},
 		},
 	}
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      testNotificationName,
-			Namespace: testNamespace,
-		},
-	}
-
-	s := scheme.Scheme
-	s.AddKnownTypes(
-		cephv1.SchemeGroupVersion,
-		&cephv1.CephBucketNotification{},
-		&cephv1.CephBucketNotificationList{},
-		&cephv1.CephBucketTopic{},
-		&cephv1.CephBucketTopicList{},
-		&cephv1.CephCluster{},
-		&cephv1.CephClusterList{},
-		&bktv1alpha1.ObjectBucketClaim{},
-		&bktv1alpha1.ObjectBucketClaimList{},
-	)
-
-	c := &clusterd.Context{
-		Executor:      &exectest.MockExecutor{},
-		RookClientset: rookclient.NewSimpleClientset(),
-		Clientset:     test.New(t, 3),
-	}
-
-	secrets := map[string][]byte{
-		"fsid":         []byte("name"),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-mon",
-			Namespace: testNamespace,
-		},
-		Data: secrets,
-		Type: k8sutil.RookType,
-	}
-
-	_, err := c.Clientset.CoreV1().Secrets(testNamespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
 
 	t.Run("create notification configuration without a topic", func(t *testing.T) {
 		// Objects to track in the fake client.
@@ -198,18 +257,13 @@ func TestCephBucketNotificationController(t *testing.T) {
 			bucketNotification,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileNotifications{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testReconciler(objects, testNotificationName)
 		// provisioning requeued because the topic is not configured
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
-		// notification configuration is set
-		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
 		assert.Equal(t, 0, len(createdNotifications))
+		verifyEvents(t, []string{startEvent, failedEvent})
 	})
 
 	t.Run("create notification and topic configuration when there is no cluster", func(t *testing.T) {
@@ -218,18 +272,13 @@ func TestCephBucketNotificationController(t *testing.T) {
 			bucketTopic,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileNotifications{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testReconciler(objects, testNotificationName)
 		// provisioning requeued because the cluster does not exist
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
-		// notification configuration is set
-		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
 		assert.Equal(t, 0, len(createdNotifications))
+		verifyEvents(t, []string{startEvent, failedEvent})
 	})
 
 	t.Run("create notification and topic configuration cluster is not ready", func(t *testing.T) {
@@ -239,18 +288,13 @@ func TestCephBucketNotificationController(t *testing.T) {
 			cephCluster,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileNotifications{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testReconciler(objects, testNotificationName)
 		// provisioning requeued because the cluster is not ready
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
-		// notification configuration is set
-		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
 		assert.NoError(t, err, bucketNotification)
 		assert.Equal(t, 0, len(createdNotifications))
+		verifyEvents(t, []string{startEvent, failedEvent})
 	})
 
 	t.Run("create notification and topic configuration when topic is not yet provisioned", func(t *testing.T) {
@@ -262,18 +306,12 @@ func TestCephBucketNotificationController(t *testing.T) {
 			cephCluster,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileNotifications{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testReconciler(objects, testNotificationName)
 		// provisioning requeued because the topic is not provisioned on the RGW
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
-		// notification configuration is set
-		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
-		assert.NoError(t, err, bucketNotification)
 		assert.Equal(t, 0, len(createdNotifications))
+		verifyEvents(t, []string{startEvent, failedEvent})
 	})
 
 	t.Run("create notification and topic configuration", func(t *testing.T) {
@@ -286,26 +324,17 @@ func TestCephBucketNotificationController(t *testing.T) {
 			cephCluster,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileNotifications{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testReconciler(objects, testNotificationName)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-		// notification configuration is set
-		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
-		assert.NoError(t, err, bucketNotification)
 		assert.Equal(t, 0, len(createdNotifications))
+		verifyEvents(t, []string{startEvent, finishedEvent})
 	})
 }
 
 func TestCephBucketNotificationControllerWithOBC(t *testing.T) {
-	mockSetup()
+	mockSetup(t)
 	defer mockCleanup()
-	ctx := context.TODO()
-	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
 	bucketTopic := &cephv1.CephBucketTopic{
 		ObjectMeta: metav1.ObjectMeta{
@@ -369,50 +398,6 @@ func TestCephBucketNotificationControllerWithOBC(t *testing.T) {
 			Phase: bktv1alpha1.ObjectBucketClaimStatusPhasePending,
 		},
 	}
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      testNotificationName,
-			Namespace: testNamespace,
-		},
-	}
-
-	s := scheme.Scheme
-	s.AddKnownTypes(
-		cephv1.SchemeGroupVersion,
-		&cephv1.CephBucketNotification{},
-		&cephv1.CephBucketNotificationList{},
-		&cephv1.CephBucketTopic{},
-		&cephv1.CephBucketTopicList{},
-		&cephv1.CephCluster{},
-		&cephv1.CephClusterList{},
-		&bktv1alpha1.ObjectBucketClaim{},
-		&bktv1alpha1.ObjectBucketClaimList{},
-		&bktv1alpha1.ObjectBucket{},
-		&bktv1alpha1.ObjectBucketList{},
-	)
-
-	c := &clusterd.Context{
-		Executor:      &exectest.MockExecutor{},
-		RookClientset: rookclient.NewSimpleClientset(),
-		Clientset:     test.New(t, 3),
-	}
-
-	secrets := map[string][]byte{
-		"fsid":         []byte("name"),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-mon",
-			Namespace: testNamespace,
-		},
-		Data: secrets,
-		Type: k8sutil.RookType,
-	}
-
-	_, err := c.Clientset.CoreV1().Secrets(testNamespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
 
 	t.Run("provision notification when OBC exists but no OB", func(t *testing.T) {
 		objects := []runtime.Object{
@@ -422,17 +407,11 @@ func TestCephBucketNotificationControllerWithOBC(t *testing.T) {
 			obc,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileNotifications{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testReconciler(objects, testNotificationName)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
-		// notification configuration is set
-		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
-		assert.NoError(t, err, bucketNotification)
 		assert.Equal(t, 0, len(createdNotifications))
+		verifyEvents(t, []string{startEvent, failedEvent})
 	})
 
 	t.Run("provision notification when OB exists", func(t *testing.T) {
@@ -466,17 +445,11 @@ func TestCephBucketNotificationControllerWithOBC(t *testing.T) {
 			ob,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileNotifications{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testReconciler(objects, testNotificationName)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
-		// notification configuration is set
-		err = r.client.Get(ctx, types.NamespacedName{Name: testNotificationName, Namespace: testNamespace}, bucketNotification)
-		assert.NoError(t, err, bucketNotification)
 		assert.Equal(t, 1, len(createdNotifications))
+		verifyEvents(t, []string{startEvent, finishedEvent})
 	})
 }
 

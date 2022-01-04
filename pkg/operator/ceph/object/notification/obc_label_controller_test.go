@@ -18,29 +18,17 @@ limitations under the License.
 package notification
 
 import (
-	"context"
-	"os"
 	"testing"
 
-	"github.com/coreos/pkg/capnslog"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
-	"github.com/rook/rook/pkg/operator/test"
 
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func createOBResources(name string) (*bktv1alpha1.ObjectBucketClaim, *bktv1alpha1.ObjectBucket) {
@@ -107,11 +95,8 @@ func setNotificationLabels(labelList []string) map[string]string {
 }
 
 func TestCephBucketNotificationOBCLabelController(t *testing.T) {
-	mockSetup()
+	mockSetup(t)
 	defer mockCleanup()
-	ctx := context.TODO()
-	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
-	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
 	bucketTopic := &cephv1.CephBucketTopic{
 		ObjectMeta: metav1.ObjectMeta{
@@ -146,53 +131,8 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 		},
 	}
 
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      testBucketName,
-			Namespace: testNamespace,
-		},
-	}
-
-	s := scheme.Scheme
-	s.AddKnownTypes(
-		cephv1.SchemeGroupVersion,
-		&cephv1.CephBucketNotification{},
-		&cephv1.CephBucketNotificationList{},
-		&cephv1.CephBucketTopic{},
-		&cephv1.CephBucketTopicList{},
-		&cephv1.CephCluster{},
-		&cephv1.CephClusterList{},
-		&bktv1alpha1.ObjectBucketClaim{},
-		&bktv1alpha1.ObjectBucketClaimList{},
-		&bktv1alpha1.ObjectBucket{},
-		&bktv1alpha1.ObjectBucketList{},
-	)
-
-	c := &clusterd.Context{
-		Executor:      &exectest.MockExecutor{},
-		RookClientset: rookclient.NewSimpleClientset(),
-		Clientset:     test.New(t, 3),
-	}
-
-	secrets := map[string][]byte{
-		"fsid":         []byte("name"),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rook-ceph-mon",
-			Namespace: testNamespace,
-		},
-		Data: secrets,
-		Type: k8sutil.RookType,
-	}
-
 	obc, ob := createOBResources(testBucketName)
 	obc.Labels = setNotificationLabels([]string{testNotificationName})
-
-	_, err := c.Clientset.CoreV1().Secrets(testNamespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
 
 	t.Run("provision OBC with notification label with no ob", func(t *testing.T) {
 		resetValues()
@@ -201,16 +141,13 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 			obc,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testOBCLabelReconciler(objects, testBucketName)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
 		assert.False(t, getWasInvoked)
 		assert.Equal(t, 0, len(createdNotifications))
 		assert.Equal(t, 0, len(deletedNotifications))
+		verifyEvents(t, []string{})
 	})
 
 	t.Run("provision OBC with notification label with not ready ob", func(t *testing.T) {
@@ -221,16 +158,13 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 			ob,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testOBCLabelReconciler(objects, testBucketName)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
 		assert.False(t, getWasInvoked)
 		assert.Equal(t, 0, len(createdNotifications))
 		assert.Equal(t, 0, len(deletedNotifications))
+		verifyEvents(t, []string{})
 	})
 
 	obc.Spec.ObjectBucketName = testBucketName
@@ -244,16 +178,13 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 			ob,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
-		assert.NoError(t, err)
+		res, err := testOBCLabelReconciler(objects, testBucketName)
+		assert.Error(t, err)
 		assert.True(t, res.Requeue)
 		assert.True(t, getWasInvoked)
 		assert.Equal(t, 0, len(createdNotifications))
 		assert.Equal(t, 0, len(deletedNotifications))
+		verifyEvents(t, []string{startEvent, failedEvent})
 	})
 
 	bucketNotification := createBucketNotification(testNotificationName)
@@ -266,16 +197,13 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 			bucketNotification,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
-		assert.NoError(t, err)
+		res, err := testOBCLabelReconciler(objects, testBucketName)
+		assert.Error(t, err)
 		assert.True(t, res.Requeue)
 		assert.True(t, getWasInvoked)
 		assert.Equal(t, 0, len(createdNotifications))
 		assert.Equal(t, 0, len(deletedNotifications))
+		verifyEvents(t, []string{startEvent, failedEvent})
 	})
 
 	t.Run("provision OBC with notification label", func(t *testing.T) {
@@ -288,11 +216,7 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 			bucketTopic,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testOBCLabelReconciler(objects, testBucketName)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 		assert.True(t, getWasInvoked)
@@ -307,7 +231,6 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 		noChangeOBC.Labels = setNotificationLabels([]string{testNotificationName})
 		noChangeOBC.Spec.ObjectBucketName = noChangeBucketName
 		noChangeOBC.Status.Phase = bktv1alpha1.ObjectBucketClaimStatusPhaseBound
-		req.NamespacedName.Name = noChangeBucketName
 		objects := []runtime.Object{
 			cephCluster,
 			noChangeOBC,
@@ -316,11 +239,7 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 			bucketTopic,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testOBCLabelReconciler(objects, noChangeBucketName)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 		assert.True(t, getWasInvoked)
@@ -335,18 +254,13 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 		deleteOBC.Spec.GenerateBucketName = deleteBucketName
 		deleteOBC.Spec.ObjectBucketName = deleteBucketName
 		deleteOBC.Status.Phase = bktv1alpha1.ObjectBucketClaimStatusPhaseBound
-		req.NamespacedName.Name = deleteBucketName
 		objects := []runtime.Object{
 			cephCluster,
 			deleteOBC,
 			deleteOB,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testOBCLabelReconciler(objects, deleteBucketName)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 		assert.True(t, getWasInvoked)
@@ -364,7 +278,6 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 		multipleCreateOBC.Status.Phase = bktv1alpha1.ObjectBucketClaimStatusPhaseBound
 		bucketNotification1 := createBucketNotification(testNotificationName + "-1")
 		bucketNotification2 := createBucketNotification(testNotificationName + "-2")
-		req.NamespacedName.Name = multipleCreateBucketName
 
 		objects := []runtime.Object{
 			cephCluster,
@@ -375,11 +288,7 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 			bucketTopic,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testOBCLabelReconciler(objects, multipleCreateBucketName)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 		assert.True(t, getWasInvoked)
@@ -394,18 +303,13 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 		multipleDeleteOBC.Spec.GenerateBucketName = multipleDeleteBucketName
 		multipleDeleteOBC.Spec.ObjectBucketName = multipleDeleteBucketName
 		multipleDeleteOBC.Status.Phase = bktv1alpha1.ObjectBucketClaimStatusPhaseBound
-		req.NamespacedName.Name = multipleDeleteBucketName
 		objects := []runtime.Object{
 			cephCluster,
 			multipleDeleteOBC,
 			multipleDeleteOB,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testOBCLabelReconciler(objects, multipleDeleteBucketName)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 		assert.True(t, getWasInvoked)
@@ -422,7 +326,6 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 		multipleBothOBC.Status.Phase = bktv1alpha1.ObjectBucketClaimStatusPhaseBound
 		bucketNotification1 := createBucketNotification(testNotificationName + "-1")
 		bucketNotification2 := createBucketNotification(testNotificationName + "-2")
-		req.NamespacedName.Name = multipleBothBucketName
 
 		objects := []runtime.Object{
 			cephCluster,
@@ -433,11 +336,7 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 			bucketTopic,
 		}
 
-		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-
-		r := &ReconcileOBCLabels{client: cl, context: c, opManagerContext: ctx}
-
-		res, err := r.Reconcile(ctx, req)
+		res, err := testOBCLabelReconciler(objects, multipleBothBucketName)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 		assert.True(t, getWasInvoked)
@@ -446,5 +345,6 @@ func TestCephBucketNotificationOBCLabelController(t *testing.T) {
 		assert.Equal(t, 2, len(deletedNotifications))
 		assert.ElementsMatch(t, deletedNotifications,
 			[]string{multipleDeleteBucketName + testNotificationName + "-1", multipleDeleteBucketName + testNotificationName + "-2"})
+		verifyEvents(t, []string{startEvent, finishedEvent})
 	})
 }
