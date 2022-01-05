@@ -222,7 +222,12 @@ For more details on the mons and when to choose a number other than `3`, see the
   * [Storage Class Device Sets](#storage-class-device-sets)
   * `onlyApplyOSDPlacement`: Whether the placement specific for OSDs is merged with the `all` placement. If `false`, the OSD placement will be merged with the `all` placement. If true, the `OSD placement will be applied` and the `all` placement will be ignored. The placement for OSDs is computed from several different places depending on the type of OSD:
     - For non-PVCs: `placement.all` and `placement.osd`
+<<<<<<< HEAD
     - For PVCs: `placement.all` and inside the storageClassDeviceSet from the `placement` or `preparePlacement`
+=======
+    - For PVCs: `placement.all` and inside the storageClassDeviceSets from the `placement` or `preparePlacement`
+* `disruptionManagement`: The section for configuring management of daemon disruptions
+>>>>>>> 0b0c8da55 (docs: add section for `disruptionManagement`)
   * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
   * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
   * `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
@@ -240,10 +245,17 @@ These are general purpose Ceph container with all necessary daemons and dependen
 
 | TAG                  | MEANING                                                   |
 | -------------------- | --------------------------------------------------------- |
+<<<<<<< HEAD
 | vRELNUM              | Latest release in this series (e.g., *v14* = Nautilus)    |
 | vRELNUM.Y            | Latest stable release in this stable series (e.g., v14.2) |
 | vRELNUM.Y.Z          | A specific release (e.g., v14.2.5)                        |
 | vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v14.2.5-20191203)                 |
+=======
+| vRELNUM              | Latest release in this series (e.g., *v15* = Octopus)     |
+| vRELNUM.Y            | Latest stable release in this stable series (e.g., v15.2) |
+| vRELNUM.Y.Z          | A specific release (e.g., v15.2.5)                        |
+| vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v15.2.11-20200419)                |
+>>>>>>> 0b0c8da55 (docs: add section for `disruptionManagement`)
 
 A specific will contain a specific release of Ceph as well as security fixes from the Operating System.
 
