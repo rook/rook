@@ -76,12 +76,19 @@ jobs:
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
     
+    - name: test external script with restricted_auth_permission flag and without having cephfs_filesystem flag
+      run: |
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        # create `radosNamespace1` rados-namespace for `replicapool` rbd data-pool
+        kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosNamespace1
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosNamespace1 --cluster-name rookStorage --restricted-auth-permission true
+
     - name: test external script with restricted_auth_permission flag
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-        # create `rados` rados-namespace for `replicapool` rbd data-pool
+        # create `radosNamespace` rados-namespace for `replicapool` rbd data-pool
         kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosNamespace
-        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py  --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage --restricted-auth-permission true
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage --restricted-auth-permission true
 
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
