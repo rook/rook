@@ -142,11 +142,13 @@ security:
     connectionDetails:
         KMS_PROVIDER: vault
         VAULT_ADDR: https://vault.default.svc.cluster.local:8200
-        VAULT_BACKEND_PATH: rook/ver1
+        VAULT_BACKEND_PATH: rook
         VAULT_SECRET_ENGINE: kv
         VAULT_AUTH_METHOD: kubernetes
         VAULT_AUTH_KUBERNETES_ROLE: rook-ceph
 ```
+
+Note that the `VAULT_ADDR` value above assumes that Vault is accessible within the cluster itself on the default port (8200). If running elsewhere, please update the URL accordingly.
 
 ### General Vault configuration
 
