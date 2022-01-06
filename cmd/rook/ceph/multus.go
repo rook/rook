@@ -87,7 +87,7 @@ func multusJobController(cmd *cobra.Command, args []string) error {
 	var controllerPod *corev1.Pod
 	err = wait.Poll(time.Second, 20*time.Second, func() (bool, error) {
 		var err error
-		controllerPod, err = k8sClient.CoreV1().Pods(controllerNamespace).Get(context.TODO(), controllerName, metav1.GetOptions{})
+		controllerPod, err = k8sClient.CoreV1().Pods(controllerNamespace).Get(context.Background(), controllerName, metav1.GetOptions{})
 		if err != nil {
 			if k8sErrors.IsNotFound(err) {
 				logger.Infof("Controller: %s in namespace %s not found. retrying...\n", controllerName, controllerNamespace)
@@ -114,7 +114,7 @@ func multusJobController(cmd *cobra.Command, args []string) error {
 
 	// The setup job will have annotated the controller pod with the migrated interface.
 	// This data is needed when removing the interface.
-	controllerPod, err = k8sClient.CoreV1().Pods(controllerNamespace).Get(context.TODO(), controllerName, metav1.GetOptions{})
+	controllerPod, err = k8sClient.CoreV1().Pods(controllerNamespace).Get(context.Background(), controllerName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to get controller data")
 	}

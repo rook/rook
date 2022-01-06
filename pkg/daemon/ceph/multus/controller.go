@@ -40,12 +40,12 @@ func RunSetupJob(clientset *kubernetes.Clientset, params JobParameters) error {
 		return errors.Wrap(err, "failed to create job template")
 	}
 
-	err = runReplaceableJob(context.TODO(), clientset, pJob)
+	err = runReplaceableJob(context.Background(), clientset, pJob)
 	if err != nil {
 		return errors.Wrap(err, "failed to run job")
 	}
 
-	err = WaitForJobCompletion(context.TODO(), clientset, pJob, time.Minute)
+	err = WaitForJobCompletion(context.Background(), clientset, pJob, time.Minute)
 	if err != nil {
 		return errors.Wrap(err, "failed to complete job")
 	}
@@ -59,7 +59,7 @@ func RunTeardownJob(clientset *kubernetes.Clientset, params JobParameters) error
 		return errors.Wrap(err, "failed to create job from template")
 	}
 
-	err = runReplaceableJob(context.TODO(), clientset, pJob)
+	err = runReplaceableJob(context.Background(), clientset, pJob)
 	if err != nil {
 		return errors.Wrap(err, "failed to run job")
 	}
