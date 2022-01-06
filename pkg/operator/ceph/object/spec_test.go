@@ -333,6 +333,56 @@ func TestDefaultLivenessProbe(t *testing.T) {
 	assert.Equal(t, desiredProbe, p)
 }
 
+func TestDefaultStartupProbe(t *testing.T) {
+	store := simpleStore()
+	c := &clusterConfig{
+		store: store,
+		clusterSpec: &cephv1.ClusterSpec{
+			Network: cephv1.NetworkSpec{
+				HostNetwork: false,
+			},
+		},
+	}
+
+	desiredProbe := &v1.Probe{
+		Handler: v1.Handler{
+			TCPSocket: &v1.TCPSocketAction{
+				Port: intstr.FromInt(8080),
+			},
+		},
+		InitialDelaySeconds: 10,
+		PeriodSeconds:       10,
+		FailureThreshold:    18,
+	}
+	// No SSL - HostNetwork is disabled - using internal port
+	p := c.defaultStartupProbe()
+	assert.Equal(t, desiredProbe, p)
+
+	// No SSL - HostNetwork is enabled
+	c.store.Spec.Gateway.Port = 123
+	c.store.Spec.Gateway.SecurePort = 0
+	c.clusterSpec.Network.HostNetwork = true
+	p = c.defaultStartupProbe()
+	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(123)
+	assert.Equal(t, desiredProbe, p)
+
+	// SSL - HostNetwork is enabled
+	c.store.Spec.Gateway.Port = 0
+	c.store.Spec.Gateway.SecurePort = 321
+	c.store.Spec.Gateway.SSLCertificateRef = "foo"
+	p = c.defaultStartupProbe()
+	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(321)
+	assert.Equal(t, desiredProbe, p)
+
+	// Both Non-SSL and SSL are enabled
+	// livenessProbe just on Non-SSL
+	c.store.Spec.Gateway.Port = 123
+	c.store.Spec.Gateway.SecurePort = 321
+	p = c.defaultStartupProbe()
+	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(123)
+	assert.Equal(t, desiredProbe, p)
+}
+
 func TestDefaultReadinessProbe(t *testing.T) {
 	store := simpleStore()
 	c := &clusterConfig{
