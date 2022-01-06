@@ -78,24 +78,21 @@ Nothing to do in particular since they don't use any service IPs.
 
 ### CSI pods
 
-The CSI pods will run in the node's host network namespace.
+When deploying a CephCluster resource configured to use multus networks, a multus-connected network interface will be added to the host network namespace for all nodes that will run CSI plugin pods.
 
-When deploying a CephCluster resource configured to use multus networks, a multus-connected network interface will be added to the host network namespace of all nodes that will run CSI plugin pods.
+The Rook Ceph CSI controller creates a daemonset configured to use the public network specified for the Ceph cluster. This daemonset runs on all the nodes that will have CSI pods. Its pods will be referred to as the holder pods, and are responsible for the interface migration. Its process starts a setup job on the node that migrates the holder pod's multus interface to the host network namespace. Once the setup job completes, the holder pod idles to hold the IP address from the multus IPAM. When the holder pod terminates, it runs a teardown job to remove the migrated interface.
 
-Before deploying the CSI pods, the rook operator will first create a daemonset whose pods will run on the same nodes as the CSI pods, and is configured to use the multus network that will serve as the public network in the Ceph cluster. The pods from this daemonset will be referred to as the holder pods. These pods sleep indefinitely and are present only to hold the IP address from the multus IPAM. If these pods ever went down, the IPAM would consider the IP address free and reuse them, which could lead to IP address collisions. To avoid this, the daemonset is configured to be part of the system-node-critical priority class, and has an onDelete upgrade policy.
+The setup and teardown jobs run privileged pods, with SYS_ADMIN and NET_ADMIN capabilities, on the host network namespace, and with access to the /var/run/netns directory.
 
-Once the pods from the holder daemonset are up and running, the Rook operator deploys jobs in parallel on each node to migrate the multus interface from the holder pod's network namespace into the host network namespace. These jobs run privileged pods, with SYS_ADMIN and NET_ADMIN capabilities, on the host network namespace, and with access to the /var/run/netns directory.
+If an error occurs during the setup job, the job will clean up after itself, and the holder pod will restart. The holder pod will receive a fresh interface from multus, and try the migration again.
 
-The job is provided with the holder pod's pod IP, the multus IP to migrate, and the multus link to migrate. The multus IP is first used to check if the migration has already occurred. The job will return if it finds that the multus IP is already in use by an interface in the host network namespace. Prior to interface migration, the pod determines an available name for the new interface in the host network namespace. The migrated interfaces take on the name of "mlink#" in the host network namespace, starting with mlink0. The job uses the pod IP to find the holder pod's network namespace. The job then goes into the holder network namespace to rename the network interface and move it to the host network namespace. Moving namespaces causes the interface to lose its network configuration. The job therefore reconfigures the moved interface with its original IP configuration, and sets the link up. Before exiting, the job checks to ensure that the new interface is present on the host network namespace.
+Restarting the node will cause the multus interface in the host namespace to go away. The holder pod will once again have the interface, which will be remigrated via the setup job.
 
-If an error occurs during the migration job, the migration job will clean up after itself. The operator will then log the error, delete the multus holder pod from the node, and continue with the setup. The holder pod is deleted so that the daemonset can bring up a new pod on the node with a fresh multus IP configuration. This cleanup puts the node back in a state where the migration job can be tried again, which the controller will do in a future reconcile loop. Logging and continuing in the current loop allows the nodes that migrated successfully to contiune with the CSI setup.
+When a new node is added, a holder pod is added to it on behalf of the daemonset, and the migration process above occurs. 
 
-Restarting the node will cause the multus interface in the host namespace to go away. The holder pod will once again have the interface, and will be remigrated once the job runs again on the node.
+The holder pod, the setup job, and the teardown job require a service account with the permissions to interact with pods and jobs. The rook-csi-multus service account was created to fulfill this need.
 
-The deployment of the migration and teardown steps requires a service account with the proper permissions to deploy it. The rook-ceph-csi SecurityContextConstraints already has the needed permissions, so the rook-ceph-multus service account was added to list of accounts allowed to use these constraints.
-
-When the CephCluster that uses the multus networks is deleted, the teardown job runs on all the nodes with migrated interfaces. This puts the nodes back to the state they were in before the CephCluster was deployed, and helps ensure new multus-enabled CephClusters can be deployed in the namespace without error. 
-
+The holder daemonset is deleted when the CephCluster is marked for deletion. The termination of the holder pods trigger the teardown jobs to run, removing the multus interfaces from the host network namespaces of the nodes. 
 
 ## Accepted proposal
 
