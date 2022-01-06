@@ -841,6 +841,9 @@ spec:
     # Ceph mgr Prometheus Metrics
     - min: 9283
       max: 9283
+    # port for CSIAddons
+    - min: 9061
+      max: 9079
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -861,6 +864,16 @@ rules:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+  name: rbd-csi-nodeplugin
+  namespace: rook-ceph # namespace:operator
+rules:
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["csiaddonsnodes"]
+    verbs: ["create"]
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
   name: rbd-external-provisioner-cfg
   namespace: rook-ceph # namespace:operator
 rules:
@@ -873,6 +886,9 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["csiaddonsnodes"]
+    verbs: ["create"]
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1041,6 +1057,20 @@ subjects:
 roleRef:
   kind: Role
   name: cephfs-external-provisioner-cfg
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-nodeplugin-role-cfg
+  namespace: rook-ceph # namespace:operator
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-rbd-plugin-sa
+    namespace: rook-ceph # namespace:operator
+roleRef:
+  kind: Role
+  name: rbd-csi-nodeplugin
   apiGroup: rbac.authorization.k8s.io
 ---
 kind: RoleBinding

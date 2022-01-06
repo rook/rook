@@ -61,6 +61,18 @@ rules:
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
 ---
+{{- if .Values.csi.csiAddons }}
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rbd-csi-nodeplugin
+  namespace: {{ .Release.Namespace }} # namespace:operator
+rules:
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["csiaddonsnodes"]
+    verbs: ["create"]
+---
+{{- end }}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -76,4 +88,9 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
+  {{- if .Values.csi.csiAddons }}
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["csiaddonsnodes"]
+    verbs: ["create"]
+  {{- end }}
 {{- end }}

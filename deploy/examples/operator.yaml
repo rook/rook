@@ -321,6 +321,7 @@ data:
   # Configure CSI RBD grpc and liveness metrics port
   # CSI_RBD_GRPC_METRICS_PORT: "9090"
   # CSI_RBD_LIVENESS_METRICS_PORT: "9080"
+  # CSIADDONS_PORT: "9070"
 
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
@@ -335,6 +336,9 @@ data:
   # See https://rook.io/docs/rook/latest/ceph-csi-drivers.html#rbd-mirroring
   CSI_ENABLE_VOLUME_REPLICATION: "false"
   # CSI_VOLUME_REPLICATION_IMAGE: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
+  # Enable the csi addons sidecar.
+  CSI_ENABLE_CSIADDONS: "false"
+  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.1.0"
 ---
 # OLM: BEGIN OPERATOR DEPLOYMENT
 apiVersion: apps/v1
