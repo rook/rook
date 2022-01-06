@@ -6,14 +6,13 @@ metadata:
 spec:
   selector:
     matchLabels:
-      name: {{ .MultusName }}
+      app: {{ .MultusLabel }}
   updateStrategy:
     type: OnDelete
   template:
     metadata:
       labels:
-        name: {{ .MultusName }}
-        app: rook-ceph-multus
+        app: {{ .MultusLabel }}
       annotations:
         k8s.v1.cni.cncf.io/networks: {{ .MultusNetworkName }}
     spec:
