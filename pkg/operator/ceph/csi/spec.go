@@ -417,7 +417,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset %q", rbdPlugin.Name)
 		}
 		if multusApplied {
-			cephfsPlugin.Spec.Template.Spec.HostNetwork = true
+			rbdPlugin.Spec.Template.Spec.HostNetwork = true
 		}
 		err = k8sutil.CreateOrUpdateDaemonSet(r.opManagerContext, csiRBDPlugin, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
 		if err != nil {
