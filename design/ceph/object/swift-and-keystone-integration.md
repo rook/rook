@@ -283,31 +283,3 @@ overall risk is minimal.
   in [#4754](https://github.com/rook/rook/issues/4754).
 
 ## Open Questions
-
-### How to support multiple APIs in one Gateway
-
-Having a single Ceph RGW deployment serve both S3 and Swift is both
-possible and often desirable for interoperability reasons. The current
-structure of the Object Store CRD makes it difficult to represent the
-configuration for this cleanly.
-
-Possible Solutions:
-
-* Run a second object store resource. The question is then how to use
-  the same pools (since the pools are derived from the resource name
-  which must be unique)
-
-* Simply allow a list in the type argument (but keep allowing strings
-  for backwards compatibility). The drawback here is that the gateway
-  config will then be cluttered by the config options pertaining to
-  different API types.
-
-* Break compatibility with the existing CRD and split up the
-  `gateway:` configuration.
-
-* Keep only the common things in `gateway:` and add an own config
-  section for s3 and swift (those could be subsections of `gateway:`
-  or of new section, e.g. `apis:`). The `type:` option seems to be currently
-  ignored anyway. The config values are then merged from the
-  `gateway:`, the `s3:` and the `swift:` sections, with the values in
-  the specific sections taking precedence.
