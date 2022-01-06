@@ -94,6 +94,7 @@ func (r *ReconcileCSI) setParams() error {
 	CSIParam.SnapshotterImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_SNAPSHOTTER_IMAGE", DefaultSnapshotterImage)
 	CSIParam.KubeletDirPath = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_KUBELET_DIR_PATH", DefaultKubeletDirPath)
 	CSIParam.VolumeReplicationImage = k8sutil.GetValue(r.opConfig.Parameters, "CSI_VOLUME_REPLICATION_IMAGE", DefaultVolumeReplicationImage)
+	CSIParam.CSIAddonsImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSIADDONS_IMAGE", DefaultCSIAddonsImage)
 	csiCephFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPHFS_POD_LABELS", "")
 	CSIParam.CSICephFSPodLabels = k8sutil.ParseStringToLabels(csiCephFSPodLabels)
 	csiRBDPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_RBD_POD_LABELS", "")
