@@ -1,5 +1,4 @@
 ---
-title: swift-and-keystone
 target-version: release-X.X
 ---
 
