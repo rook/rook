@@ -1,5 +1,5 @@
 ---
-target-version: release-X.X
+target-version: release-1.9
 ---
 
 # Swift and Keystone Integration
