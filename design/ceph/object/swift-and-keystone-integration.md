@@ -11,7 +11,7 @@ target-version: release-X.X
 The goal of this proposal is to allow configuring the Swift API and
 the Keystone integration of Ceph RGW natively via the Object Store
 CRD, which allows native integration of the Rook operated Ceph RGW into
-OpenStack Clouds.
+OpenStack clouds.
 
 Both changes are bundled together as one proposal because they will
 typically deployed together. It is unlikely to encounter a Swift
@@ -90,9 +90,9 @@ Annotations:
   present.
 
 The certificate to verify the Keystone endpoint can't be explicitly
-configured in Ceph RGW, the system configuration of the pod is used,
-you can add to the system certificate store via the
-`gateway.caBundleRef` setting of the object store CRD.
+configured in Ceph RGW. Instead, the system configuration of the pod
+running RGW is used. You can add to the system certificate store via
+the `gateway.caBundleRef` setting of the object store resource.
 
 The credentials for the Keystone service account used by Ceph RGW are
 supplied in a Secret that contains a mapping of OpenStack [openrc
