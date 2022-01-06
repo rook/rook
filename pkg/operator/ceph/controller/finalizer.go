@@ -75,8 +75,8 @@ func AddFinalizerIfNotPresent(ctx context.Context, client client.Client, obj cli
 
 // AddFinalizerWithNameIfNotPresent adds a finalizer on an object to avoid instant deletion
 // of the object without finalizing it.
-func AddFinalizerWithNameIfNotPresent(client client.Client, obj client.Object, finalizer string) error {
-	err := client.Get(context.TODO(), types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj)
+func AddFinalizerWithNameIfNotPresent(ctx context.Context, client client.Client, obj client.Object, finalizer string) error {
+	err := client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj)
 	if err != nil {
 		return errors.Wrap(err, "failed to get the latest version of the object")
 	}
@@ -91,7 +91,7 @@ func AddFinalizerWithNameIfNotPresent(client client.Client, obj client.Object, f
 		accessor.SetFinalizers(append(accessor.GetFinalizers(), finalizer))
 
 		// Update CR with finalizer
-		if err := client.Update(context.TODO(), obj); err != nil {
+		if err := client.Update(ctx, obj); err != nil {
 			return errors.Wrapf(err, "failed to add finalizer %q on %q", finalizer, accessor.GetName())
 		}
 	}

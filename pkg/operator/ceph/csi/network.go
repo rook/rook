@@ -30,7 +30,7 @@ func (r *ReconcileCSI) setupCSINetwork(cephCluster cephv1.CephCluster) error {
 		return nil
 	}
 
-	if err := opcontroller.AddFinalizerWithNameIfNotPresent(r.client, &cephCluster, multusFinalizer); err != nil {
+	if err := opcontroller.AddFinalizerWithNameIfNotPresent(r.opManagerContext, r.client, &cephCluster, multusFinalizer); err != nil {
 		return errors.Wrap(err, "failed to add multus finalizer")
 	}
 
