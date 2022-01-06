@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package multus
 
 import (
@@ -55,14 +56,14 @@ func DetermineNewLinkName(interfaces []net.Interface) (string, error) {
 }
 
 func AnnotateController(k8sClient *kubernetes.Clientset, controllerName, controllerNamespace, migratedLinkName string) error {
-	pod, err := k8sClient.CoreV1().Pods(controllerNamespace).Get(context.TODO(), controllerName, metav1.GetOptions{})
+	pod, err := k8sClient.CoreV1().Pods(controllerNamespace).Get(context.Background(), controllerName, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to get controller pod")
 	}
 
 	pod.ObjectMeta.Annotations["multus-migration"] = migratedLinkName
 
-	_, err = k8sClient.CoreV1().Pods(controllerNamespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
+	_, err = k8sClient.CoreV1().Pods(controllerNamespace).Update(context.Background(), pod, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to update controller pod")
 	}

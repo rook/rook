@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package multus
 
 import (
@@ -23,14 +24,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
-// This is part of multus utility
 type multusNetConfiguration struct {
 	NetworkName   string   `json:"name"`
 	InterfaceName string   `json:"interface"`
 	Ips           []string `json:"ips"`
 }
 
-// This is a multus utility
 func getMultusConfs(pod *corev1.Pod) ([]multusNetConfiguration, error) {
 	var multusConfs []multusNetConfiguration
 	if val, ok := pod.ObjectMeta.Annotations[networksAnnotation]; ok {
@@ -43,9 +42,7 @@ func getMultusConfs(pod *corev1.Pod) ([]multusNetConfiguration, error) {
 	return multusConfs, errors.Errorf("failed to find multus annotation for pod %q in namespace %q", pod.ObjectMeta.Name, pod.ObjectMeta.Namespace)
 }
 
-// This is a multus utility
 func findMultusInterfaceName(multusConfs []multusNetConfiguration, multusName, multusNamespace string) (string, error) {
-
 	// The network name includes its namespace.
 	multusNetwork := fmt.Sprintf("%s/%s", multusNamespace, multusName)
 

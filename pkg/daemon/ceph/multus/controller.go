@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package multus
 
 import (
@@ -24,7 +25,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// controller utility
 var (
 	//go:embed template/setup-job.yaml
 	setupJobTemplate string
@@ -33,7 +33,6 @@ var (
 	teardownJobTemplate string
 )
 
-// controller utility
 func RunSetupJob(clientset *kubernetes.Clientset, params JobParameters) error {
 	pJob, err := templateToJob("setup-job", setupJobTemplate, params)
 	if err != nil {
@@ -52,7 +51,6 @@ func RunSetupJob(clientset *kubernetes.Clientset, params JobParameters) error {
 	return nil
 }
 
-// controller utility
 func RunTeardownJob(clientset *kubernetes.Clientset, params JobParameters) error {
 	pJob, err := templateToJob("teardown-job", teardownJobTemplate, params)
 	if err != nil {
