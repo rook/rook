@@ -45,10 +45,6 @@ var (
 )
 
 func TestCephObjectSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
-		t.Skip()
-	}
-
 	s := new(ObjectSuite)
 	defer func(s *ObjectSuite) {
 		HandlePanics(recover(), s.TearDownSuite, s.T)

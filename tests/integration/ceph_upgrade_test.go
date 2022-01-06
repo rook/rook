@@ -52,10 +52,6 @@ const (
 // - One mon in the cluster
 // ************************************************
 func TestCephUpgradeSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
-		t.Skip()
-	}
-
 	s := new(UpgradeSuite)
 	defer func(s *UpgradeSuite) {
 		HandlePanics(recover(), s.TearDownSuite, s.T)

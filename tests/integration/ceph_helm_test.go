@@ -41,10 +41,6 @@ import (
 // - Create the object store via the CRD
 // ***************************************************
 func TestCephHelmSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
-		t.Skip()
-	}
-
 	s := new(HelmSuite)
 	defer func(s *HelmSuite) {
 		HandlePanics(recover(), s.TearDownSuite, s.T)

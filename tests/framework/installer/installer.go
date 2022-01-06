@@ -45,21 +45,6 @@ var (
 	deleteFromStdinArgs = append(deleteArgs, "-")
 )
 
-func SkipTestSuite(name string) bool {
-	testsToRun := testStorageProvider()
-	if testsToRun == "" {
-		// run all test suites
-		return false
-	}
-	if strings.EqualFold(testsToRun, name) {
-		// this suite was requested
-		return false
-	}
-
-	logger.Infof("skipping test suite since only %s should be tested rather than %s", testsToRun, name)
-	return true
-}
-
 func SystemNamespace(namespace string) string {
 	if utils.IsPlatformOpenShift() {
 		logger.Infof("For openshift execution used system namespace: %s", namespace)

@@ -47,10 +47,6 @@ const (
 // Ceph orchestrator ls
 // **************************************************
 func TestCephMgrSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
-		t.Skip()
-	}
-
 	s := new(CephMgrSuite)
 	defer func(s *CephMgrSuite) {
 		HandlePanics(recover(), s.TearDownSuite, s.T)
@@ -123,7 +119,7 @@ func (s *CephMgrSuite) executeWithRetry(command []string, maxRetries int) (strin
 	for {
 		err, output := s.installer.Execute("ceph", orchestratorCommand, s.namespace)
 		tries++
-		if err != nil  {
+		if err != nil {
 			if maxRetries == 1 {
 				return output, err
 			}

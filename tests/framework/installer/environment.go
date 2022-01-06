@@ -30,17 +30,6 @@ func TestLogCollectionLevel() string {
 	return getEnvVarWithDefault("TEST_LOG_COLLECTION_LEVEL", "")
 }
 
-// testStorageProvider gets the storage provider for which tests should be run
-func testStorageProvider() string {
-	return getEnvVarWithDefault("STORAGE_PROVIDER_TESTS", "")
-}
-
-// TestIsOfficialBuild gets the storage provider for which tests should be run
-func TestIsOfficialBuild() bool {
-	// PRs will set this to "false", but the official build will not set it, so we compare against "false"
-	return getEnvVarWithDefault("TEST_IS_OFFICIAL_BUILD", "") != "false"
-}
-
 func StorageClassName() string {
 	return getEnvVarWithDefault("TEST_STORAGE_CLASS", "")
 }
