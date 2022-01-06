@@ -19,23 +19,25 @@ object store API outside an OpenStack cloud and in the context of an
 OpenStack cloud the Swift API needs to be integrated with the Keystone
 authentication service.
 
+The Keystone integration must support the current [OpenStack Identity
+API version 3](https://docs.openstack.org/api-ref/identity/v3/).
+
 It must be possible to serve S3 and Swift for the same object store
-pool, e.g. by serving S3 and Swift from the same RGW instance.
+pool.
 
 Any changes to the CRD must be future safe and cleanly allow extension
 to further technologies (such as LDAP authentication).
 
 ### Non-Goals
 
-* Support for Keystone API versions below v3. API version v2 has long
+* Support for OpenStack Identity API versions below v3. API version v2 has long
   been deprecated and [has been removed in the "queens" version of
   Keystone](https://docs.openstack.org/keystone/xena/contributor/http-api.html)
   which was released in 2018 and is now in extended maintenance mode
   (which means it gets no more points releases and only sporadic bug
   fixes/security fixes).
 
-* Authenticating Ceph RGW to Keystone via admin token – Only
-  authentication via an OpenStack service account will be supported.
+* Authenticating Ceph RGW to Keystone via admin token (a.k.a. shared secret).
   This is a deliberate choice as [admin tokens should not be used in production environments](
   https://docs.openstack.org/keystone/rocky/admin/identity-bootstrap.html#using-a-shared-secret).
 
@@ -72,9 +74,9 @@ auth:
     serviceUserSecretName: rgw-service-user         [2, r]
 ```
 Annotations:
-* `[1]` Only support for Keystone API version 3 is specified in this
-  design document. Although RGW supports it, Keystone API v2 is
-  deliberately left out.
+* `[1]` Only support for OpenStack Identity API version 3 is specified
+  in this design document. Although RGW supports it, OpenStack
+  Identity API v2 is deliberately left out.
 * `[2]` The name of the secret containing the credentials for the
   service user account used by RGW. It has to be in the same namespace
   as the object store resource.
