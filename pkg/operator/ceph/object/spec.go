@@ -420,18 +420,10 @@ func (c *clusterConfig) defaultReadinessProbe() *v1.Probe {
 }
 
 func (c *clusterConfig) defaultStartupProbe() *v1.Probe {
-	return &v1.Probe{
-		Handler: v1.Handler{
-			HTTPGet: &v1.HTTPGetAction{
-				Path:   readinessProbePath,
-				Port:   c.generateProbePort(),
-				Scheme: c.generateReadinessProbeScheme(),
-			},
-		},
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       10,
-		FailureThreshold:    18,
-	}
+	probe := c.defaultLivenessProbe()
+	probe.PeriodSeconds = 10
+	probe.FailureThreshold = 18
+	return probe
 }
 
 func (c *clusterConfig) generateReadinessProbeScheme() v1.URIScheme {
