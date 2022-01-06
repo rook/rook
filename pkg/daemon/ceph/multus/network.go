@@ -177,35 +177,36 @@ func MigrateInterface(holderNS, hostNS ns.NetNS, multusLinkName, newLinkName str
 	return nil
 }
 
-func ConfigureInterface(hostNS ns.NetNS, linkName string, conf netConfig) error {
-	err := hostNS.Do(func(ns.NetNS) error {
-		link, err := netlink.LinkByName(linkName)
-		if err != nil {
-			return errors.Wrap(err, "failed to get interface on host namespace")
-		}
-		for i := range conf.Addrs {
-			// The IP address label must be changed to the new interface name
-			// for the AddrAdd call to succeed.
-			conf.Addrs[i].Label = linkName
-			if err := netlink.AddrAdd(link, &conf.Addrs[i]); err != nil {
-				return errors.Wrap(err, "failed to configure ip address on interface")
-			}
-		}
-
-		//for _, route := range conf.Routes {
-		//	if err := netlink.RouteAdd(&route); err != nil {
-		//		return errors.Wrap(err, "failed to configure route")
-		//	}
-		//}
-
-		if err := netlink.LinkSetUp(link); err != nil {
-			return errors.Wrap(err, "failed to set link up")
-		}
-		return nil
-	})
-
+func ConfigureInterface(linkName string, conf netConfig) error {
+	link, err := netlink.LinkByName(linkName)
 	if err != nil {
-		return errors.Wrap(err, "failed to configure multus interface on host namespace")
+		return errors.Wrap(err, "failed to get interface on host namespace")
+	}
+	for i := range conf.Addrs {
+		// The IP address label must be changed to the new interface name
+		// for the AddrAdd call to succeed.
+		conf.Addrs[i].Label = linkName
+		if err := netlink.AddrAdd(link, &conf.Addrs[i]); err != nil {
+			return errors.Wrap(err, "failed to configure ip address on interface")
+		}
+	}
+
+	if err := netlink.LinkSetUp(link); err != nil {
+		return errors.Wrap(err, "failed to set link up")
+	}
+
+	return nil
+}
+
+func DeleteInterface(linkName string) error {
+	link, err := netlink.LinkByName(linkName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get multus network interface")
+	}
+
+	err = netlink.LinkDel(link)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete multus network interface")
 	}
 	return nil
 }

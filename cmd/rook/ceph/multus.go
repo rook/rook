@@ -30,7 +30,6 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/multus"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
-	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -201,8 +200,13 @@ func multusSetup(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "failed to migrate multus interface")
 	}
 
-	err = multus.ConfigureInterface(hostNS, newLinkName, netConfig)
+	err = multus.ConfigureInterface(newLinkName, netConfig)
 	if err != nil {
+		logger.Errorf("failed to configure migrated interface: %v", err)
+		err2 := multus.DeleteInterface(newLinkName)
+		if err2 != nil {
+			return errors.Wrap(err2, "failed to delete interface")
+		}
 		return errors.Wrap(err, "failed to configure migrated interface")
 	}
 
@@ -219,14 +223,10 @@ func multusTeardown(cmd *cobra.Command, args []string) error {
 		return errors.New("MIGRATED_IFACE environment variable not found")
 	}
 
-	link, err := netlink.LinkByName(iface)
+	err := multus.DeleteInterface(iface)
 	if err != nil {
-		return errors.Wrap(err, "failed to get multus network interface")
+		return errors.Wrap(err, "failed to delete interface")
 	}
 
-	err = netlink.LinkDel(link)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete multus network interface")
-	}
 	return nil
 }
