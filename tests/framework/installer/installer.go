@@ -18,7 +18,6 @@ package installer
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"

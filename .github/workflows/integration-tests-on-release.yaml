@@ -155,14 +155,56 @@ jobs:
       run: |
         tests/scripts/github-action-helper.sh collect_udev_logs_in_background
         export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-        go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeRookToMaster github.com/rook/rook/tests/integration
+        go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
 
     - name: collect common logs
       if: always()
       run: |
         export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-        export CLUSTER_NAMESPACE="upgrade-ns"
-        export OPERATOR_NAMESPACE="upgrade-ns-system"
+        export CLUSTER_NAMESPACE="upgrade"
+        export OPERATOR_NAMESPACE="upgrade-system"
+        tests/scripts/collect-logs.sh
+
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
+        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+
+  TestHelmUpgradeSuite:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions : ['v1.19.16','v1.21.7', 'v1.23.0']
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: setup cluster resources
+      uses: ./.github/workflows/integration-test-setup
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        kubernetes-version: ${{ matrix.kubernetes-versions }}
+
+    - name: TestHelmUpgradeSuite
+      run: |
+        tests/scripts/github-action-helper.sh create_helm_tag
+        tests/scripts/helm.sh up
+
+        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+        go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
+
+    - name: collect common logs
+      if: always()
+      run: |
+        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+        export CLUSTER_NAMESPACE="upgrade"
+        export OPERATOR_NAMESPACE="upgrade-system"
         tests/scripts/collect-logs.sh
 
     - name: Artifact

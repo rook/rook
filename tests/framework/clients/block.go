@@ -62,14 +62,11 @@ func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 
 }
 
-func (b *BlockOperation) CreateStorageClassAndPVC(pvcNamespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
+func (b *BlockOperation) CreatePoolAndStorageClass(pvcNamespace, poolName, storageClassName, reclaimPolicy string) error {
 	if err := b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockPool(poolName, "1")); err != nil {
 		return err
 	}
-	if err := b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClass(poolName, storageClassName, reclaimPolicy)); err != nil {
-		return err
-	}
-	return b.k8sClient.ResourceOperation("apply", installer.GetPVC(blockName, pvcNamespace, storageClassName, mode, "1M"))
+	return b.k8sClient.ResourceOperation("apply", b.manifests.GetBlockStorageClass(poolName, storageClassName, reclaimPolicy))
 }
 
 func (b *BlockOperation) CreatePVC(namespace, claimName, storageClassName, mode, size string) error {
