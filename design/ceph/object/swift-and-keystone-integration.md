@@ -25,6 +25,9 @@ API version 3](https://docs.openstack.org/api-ref/identity/v3/).
 It must be possible to serve S3 and Swift for the same object store
 pool.
 
+It must be possible to [obtain S3 credentials via OpenStack](
+https://docs.ceph.com/en/octopus/radosgw/keystone/#keystone-integration-with-the-s3-api).
+
 Any changes to the CRD must be future safe and cleanly allow extension
 to further technologies (such as LDAP authentication).
 
@@ -154,12 +157,17 @@ protocols:
     versioningEnabled: false  [*]
   s3:
     enabled: false            [2]
+    authUseKeystone: true     [3]
 ```
 Annotations:
 * `[1]` Swift will be enabled, if `protocols.swift` is present.
 * `[2]` This defaults to `true` (even if `protocols.s3` is not present
   in the CRD). This maintains backwards compatibility – by default S3
   is enabled.
+* `[3]` This option maps directly to the `rgw_s3_auth_use_keystone` option.
+  Enabling it allows generating S3 credentials via an OpenStack API call, see the
+  [docs](https://docs.ceph.com/en/octopus/radosgw/keystone/#keystone-integration-with-the-s3-api).
+   If not given, the defaults of the corresponding RGW option apply.
 * `[*]` These options map directly to [RGW configuration
   options](https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings),
   the corresponding RGW option is formed by prefixing it with
