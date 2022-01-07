@@ -90,7 +90,7 @@ func multusJobController(cmd *cobra.Command, args []string) error {
 		controllerPod, err = k8sClient.CoreV1().Pods(controllerNamespace).Get(context.Background(), controllerName, metav1.GetOptions{})
 		if err != nil {
 			if k8sErrors.IsNotFound(err) {
-				logger.Infof("Controller: %s in namespace %s not found. retrying...\n", controllerName, controllerNamespace)
+				logger.Infof("Controller: %q in namespace %q not found. retrying...\n", controllerName, controllerNamespace)
 				return false, nil
 			} else {
 				return true, err
@@ -125,7 +125,7 @@ func multusJobController(cmd *cobra.Command, args []string) error {
 
 	<-signalChan
 	logger.Info("Running teardown job")
-	logger.Infof("Removing multus interface %s", jobParams.MigratedInterface)
+	logger.Infof("Removing multus interface %q", jobParams.MigratedInterface)
 	err = multus.RunTeardownJob(k8sClient, jobParams)
 	if err != nil {
 		logger.Errorf("failed to run teardown job: %v", err)
@@ -150,7 +150,7 @@ func multusSetup(cmd *cobra.Command, args []string) error {
 	if !found {
 		return errors.New("MULTUS_IFACE environment variable not found")
 	}
-	logger.Infof("The multus interface to migrate is: %s", multusLinkName)
+	logger.Infof("The multus interface to migrate is: %q", multusLinkName)
 
 	controllerName, found := os.LookupEnv("CONTROLLER_NAME")
 	if !found {

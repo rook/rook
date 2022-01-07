@@ -111,7 +111,7 @@ func runReplaceableJob(ctx context.Context, clientset kubernetes.Interface, job 
 		// delete the job that already exists from a previous run
 		err = clientset.BatchV1().Jobs(existingJob.Namespace).Delete(ctx, existingJob.Name, metav1.DeleteOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to remove existing job %s. %v", job.Name, err)
+			return fmt.Errorf("failed to remove existing job %q. %v", job.Name, err)
 		}
 		// Wait for delete to complete before continuing
 		err = wait.Poll(time.Second, 20*time.Second, func() (bool, error) {
@@ -137,7 +137,7 @@ func WaitForJobCompletion(ctx context.Context, clientset kubernetes.Interface, j
 	return wait.Poll(5*time.Second, timeout, func() (bool, error) {
 		job, err := clientset.BatchV1().Jobs(job.Namespace).Get(ctx, job.Name, metav1.GetOptions{})
 		if err != nil {
-			return false, fmt.Errorf("failed to detect job %s. %+v", job.Name, err)
+			return false, fmt.Errorf("failed to detect job %q. %+v", job.Name, err)
 		}
 
 		// if the job is still running, allow it to continue to completion
@@ -145,7 +145,7 @@ func WaitForJobCompletion(ctx context.Context, clientset kubernetes.Interface, j
 			return false, nil
 		}
 		if job.Status.Failed > 0 {
-			return false, fmt.Errorf("job %s failed", job.Name)
+			return false, fmt.Errorf("job %q failed", job.Name)
 		}
 		if job.Status.Succeeded > 0 {
 			return true, nil
