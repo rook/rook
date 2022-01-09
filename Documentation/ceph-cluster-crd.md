@@ -516,13 +516,15 @@ Annotations and Labels can be specified so that the Rook components will have th
 
 You can set annotations / labels for Rook components for the list of key value pairs:
 
-* `all`: Set annotations / labels for all components
+* `all`: Set annotations / labels for all components except `clusterMetadata`.
 * `mgr`: Set annotations / labels for MGRs
 * `mon`: Set annotations / labels for mons
 * `osd`: Set annotations / labels for OSDs
 * `prepareosd`: Set annotations / labels for OSD Prepare Jobs
 * `monitoring`: Set annotations / labels for service monitor
 * `crashcollector`: Set annotations / labels for crash collectors
+* `clusterMetadata`: Set annotations  only to `rook-ceph-mon-endpoints` configmap and the  `rook-ceph-mon` and `rook-ceph-admin-keyring` secrets. These annotations will not be merged with the `all` annotations. The common usage is for backing up these critical resources with `kubed`.
+Note the clusterMetadata annotation will not be merged with the `all` annotation.
 When other keys are set, `all` will be merged together with the specific component.
 
 ### Placement Configuration Settings

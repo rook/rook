@@ -19,7 +19,11 @@ package keyring
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -48,7 +52,34 @@ func (s *SecretStore) Admin() *AdminStore {
 }
 
 // CreateOrUpdate creates or updates the admin keyring secret with cluster information.
-func (a *AdminStore) CreateOrUpdate(c *cephclient.ClusterInfo) error {
+func (a *AdminStore) CreateOrUpdate(c *cephclient.ClusterInfo, context *clusterd.Context, annotation v1.AnnotationsSpec) error {
 	keyring := fmt.Sprintf(adminKeyringTemplate, c.CephCred.Secret)
-	return a.secretStore.CreateOrUpdate(adminKeyringResourceName, keyring)
+	err := a.secretStore.CreateOrUpdate(adminKeyringResourceName, keyring)
+	if err != nil {
+		return err
+	}
+	err = ApplyClusterMetadataToSecret(c, keyringSecretName(adminKeyringResourceName), context, annotation)
+	if err != nil {
+		return errors.Errorf("failed to update admin secrets. %v", err)
+	}
+
+	return nil
+}
+
+func ApplyClusterMetadataToSecret(c *cephclient.ClusterInfo, secretName string, context *clusterd.Context, annotation v1.AnnotationsSpec) error {
+	// Get secret to update annotation
+	secret, err := context.Clientset.CoreV1().Secrets(c.Namespace).Get(c.Context, secretName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get %s secrets", secretName)
+	}
+	// We would need to reset the annotations back to empty, then reapply the annotations this is because the in some rook-ceph-mon secret is retrieved
+	// and then updated, instead of a new secret being generated.
+	secret.Annotations = map[string]string{}
+	v1.GetClusterMetadataAnnotations(annotation).ApplyToObjectMeta(&secret.ObjectMeta)
+
+	_, err = context.Clientset.CoreV1().Secrets(c.Namespace).Update(c.Context, secret, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to update %s secret.", secretName)
+	}
+	return nil
 }

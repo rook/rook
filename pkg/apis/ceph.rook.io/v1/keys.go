@@ -17,14 +17,15 @@ limitations under the License.
 package v1
 
 const (
-	KeyAll                    = "all"
-	KeyMds            KeyType = "mds"
-	KeyMon            KeyType = "mon"
-	KeyMonArbiter     KeyType = "arbiter"
-	KeyMgr            KeyType = "mgr"
-	KeyOSDPrepare     KeyType = "prepareosd"
-	KeyOSD            KeyType = "osd"
-	KeyCleanup        KeyType = "cleanup"
-	KeyMonitoring     KeyType = "monitoring"
-	KeyCrashCollector KeyType = "crashcollector"
+	KeyAll                     = "all"
+	KeyMds             KeyType = "mds"
+	KeyMon             KeyType = "mon"
+	KeyMonArbiter      KeyType = "arbiter"
+	KeyMgr             KeyType = "mgr"
+	KeyOSDPrepare      KeyType = "prepareosd"
+	KeyOSD             KeyType = "osd"
+	KeyCleanup         KeyType = "cleanup"
+	KeyMonitoring      KeyType = "monitoring"
+	KeyCrashCollector  KeyType = "crashcollector"
+	KeyClusterMetadata KeyType = "clusterMetadata"
 )
