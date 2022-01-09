@@ -181,10 +181,20 @@ func TestStartMonPods(t *testing.T) {
 	assert.NoError(t, err)
 	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
+	c.spec.Annotations = cephv1.AnnotationsSpec{
+		cephv1.KeyClusterMetadata: cephv1.Annotations{
+			"key": "value",
+		},
+	}
 
 	// start a basic cluster
 	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
 	assert.NoError(t, err)
+
+	// test annotations
+	secret, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(c.ClusterInfo.Context, AppName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{"key": "value"}, secret.Annotations)
 
 	validateStart(t, c)
 
@@ -263,7 +273,7 @@ func validateStart(t *testing.T, c *Cluster) {
 func TestPersistMons(t *testing.T) {
 	clientset := test.New(t, 1)
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{}, ownerInfo, &sync.Mutex{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", cephv1.ClusterSpec{Annotations: cephv1.AnnotationsSpec{cephv1.KeyClusterMetadata: cephv1.Annotations{"key": "value"}}}, ownerInfo, &sync.Mutex{})
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 
 	// Persist mon a
@@ -273,6 +283,7 @@ func TestPersistMons(t *testing.T) {
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "a=1.2.3.1:6789", cm.Data[EndpointDataKey])
+	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
 
 	// Persist mon b, and remove mon a for simply testing the configmap is updated
 	c.ClusterInfo.Monitors["b"] = &cephclient.MonInfo{Name: "b", Endpoint: "4.5.6.7:3300"}
