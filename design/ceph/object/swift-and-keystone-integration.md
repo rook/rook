@@ -250,7 +250,7 @@ case of the example the following secret will be created:
 apiVersion:
 kind: Secret
 metadata:
-  name: rook-ceph-object-subuser-my-store-my-user:swift [1]
+  name: rook-ceph-object-subuser-my-store-my-user-swift [1]
   namespace: rook-ceph
 data:
   SWIFT_USER: my-user:swift                             [2]
@@ -262,7 +262,8 @@ Annotations:
   https://github.com/rook/rook/blob/376ca62f8ad07540d9ddffe9dc0ee53f4ac35e29/pkg/operator/ceph/object/user/controller.go#L416)):
       - the literal `rook-ceph-object-subuser`
       - the name of the object store resource
-      - the full name of the subuser (including the `username:`-prefix).
+      - the name of the user
+      - the name of the subuser (without `username:`-prefix)
 * `[2]` The full name of the subuser (including the `username:`-prefix).
 * `[3]` The generated swift access secret.
 
@@ -285,6 +286,21 @@ overall risk is minimal.
 
 * Ceph RGW allows to disable TLS verification when querying Keystone,
   we deliberately choose not to expose this config option to the user.
+
+* The mapping from store, username and subuser-name to the name of the
+  secret with the credentials is not injective. This means that the
+  subusers of two different users may map to the same secret
+  (e.g. `user:a-b` and `user-a:b`).
+
+  This is potentially a vector for leaks of credentials to
+  unauthorized entities. A simple workaround is to avoid dashes in the
+  names of users and subuser managed by the CephObjectStoreUser CR.
+
+  Documenting the problem is deemed sufficient since a similar
+  problem already exists for the secret created for the users (in that
+  case for users from different object stores, e.g. the secret for
+  user `foo` in `my-store` collides with the one for user `store-foo`
+  in `my`).
 
 ## Drawbacks
 
