@@ -70,17 +70,13 @@ auth:
   keystone:
     url: https://keystone:5000/                     [*, r]
     acceptedRoles: ["_member_", "service", "admin"] [*, r]
-    apiVersion: 3                                   [1, *]
     implicitTenants: swift                          [*]
     tokenCacheSize: 1000                            [*]
     revocationInterval: 1200                        [*]
-    serviceUserSecretName: rgw-service-user         [2, r]
+    serviceUserSecretName: rgw-service-user         [1, r]
 ```
 Annotations:
-* `[1]` Only support for OpenStack Identity API version 3 is specified
-  in this design document. Although RGW supports it, OpenStack
-  Identity API v2 is deliberately left out.
-* `[2]` The name of the secret containing the credentials for the
+* `[1]` The name of the secret containing the credentials for the
   service user account used by RGW. It has to be in the same namespace
   as the object store resource.
 * `[*]` These options map directly to [RGW configuration
@@ -91,6 +87,11 @@ Annotations:
   `rgw_keystone_token_cache_size`.
 * `[r]` These settings are required in the `keystone` section if
   present.
+
+The `rgw_keystone_api_version` option is not exposed to the user, as
+only version 3 of the OpenStack Identity API is supported for now. If
+a newer version of the Openstack Identity should be released at some
+point, it will be easy to extend the CR to accommodate it.
 
 The certificate to verify the Keystone endpoint can't be explicitly
 configured in Ceph RGW. Instead, the system configuration of the pod
