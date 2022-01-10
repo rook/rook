@@ -21,9 +21,9 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
@@ -44,8 +44,13 @@ const (
 func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.Deployment, error) {
 
 	mdsContainer := c.makeMdsDaemonContainer(mdsConfig)
-	mdsContainer = config.ConfigureStartupProbe(cephv1.KeyMds, mdsContainer, c.clusterSpec.HealthCheck)
-	mdsContainer = config.ConfigureLivenessProbe(cephv1.KeyMds, mdsContainer, c.clusterSpec.HealthCheck)
+<<<<<<< HEAD
+	cephconfig.ConfigureStartupProbe(mdsContainer, c.fs.Spec.StatusCheck.StartupProbe)
+	cephconfig.ConfigureLivenessProbe(mdsContainer, c.fs.Spec.StatusCheck.LivenessProbe)
+=======
+	mdsContainer = cephconfig.ConfigureStartupProbe(mdsContainer, c.fs.Spec.MetadataServer.StartupProbe)
+	mdsContainer = cephconfig.ConfigureLivenessProbe(mdsContainer, c.fs.Spec.MetadataServer.LivenessProbe)
+>>>>>>> d9d19f9f9 (fsdfsd)
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{

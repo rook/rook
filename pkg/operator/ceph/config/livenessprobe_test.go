@@ -67,7 +67,7 @@ func configLivenessProbeHelper(t *testing.T, keyType cephv1.KeyType) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ConfigureLivenessProbe(tt.args.daemon, tt.args.container, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
+			if got := ConfigureLivenessProbe(tt.args.container, tt.args.healthCheck.LivenessProbe[tt.args.daemon]); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ConfigureLivenessProbe() = %v, want %v", got, tt.want)
 			}
 		})
@@ -120,7 +120,7 @@ func TestConfigureStartupProbe(t *testing.T) {
 
 		container := v1.Container{StartupProbe: defaultProbe}
 
-		got := ConfigureStartupProbe(cephv1.KeyMon, container, healthCheckSpec)
+		got := ConfigureStartupProbe(container, healthCheckSpec.StartupProbe[cephv1.KeyMon])
 		// the resultant container's startup probe should have been overridden, but the handler
 		// should always be the rook-given default
 		expectedProbe := *userProbe
@@ -155,7 +155,7 @@ func configStartupProbeHelper(t *testing.T, keyType cephv1.KeyType) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ConfigureStartupProbe(tt.args.daemon, tt.args.container, tt.args.healthCheck); !reflect.DeepEqual(got, tt.want) {
+			if got := ConfigureStartupProbe(tt.args.container, tt.args.healthCheck.StartupProbe[tt.args.daemon]); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ConfigureStartupProbe() = %v, want %v", got, tt.want)
 			}
 		})

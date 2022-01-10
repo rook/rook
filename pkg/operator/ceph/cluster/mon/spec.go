@@ -327,8 +327,8 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		}
 	}
 
-	container = config.ConfigureStartupProbe(cephv1.KeyMon, container, c.spec.HealthCheck)
-	container = config.ConfigureLivenessProbe(cephv1.KeyMon, container, c.spec.HealthCheck)
+	container = config.ConfigureStartupProbe(container, c.spec.HealthCheck.StartupProbe[cephv1.KeyMon])
+	container = config.ConfigureLivenessProbe(container, c.spec.HealthCheck.LivenessProbe[cephv1.KeyMon])
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
 	if !c.spec.Network.IsHost() {

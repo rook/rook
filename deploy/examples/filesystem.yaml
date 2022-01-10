@@ -88,12 +88,12 @@ spec:
               # Use <topologyKey: topology.kubernetes.io/zone>  in k8s cluster is v1.17 or upper
               topologyKey: topology.kubernetes.io/zone
     # A key/value list of annotations
-    annotations:
+    # annotations:
     #  key: value
     # A key/value list of labels
-    labels:
+    # labels:
     #  key: value
-    resources:
+    # resources:
     # The requests and limits set here, allow the filesystem MDS Pod(s) to use half of one CPU core and 1 gigabyte of memory
     #  limits:
     #    cpu: "500m"
@@ -102,6 +102,10 @@ spec:
     #    cpu: "500m"
     #    memory: "1024Mi"
     # priorityClassName: my-priority-class
+    livenessProbe:
+      disabled: false
+    startupProbe:
+      disabled: false
   # Filesystem mirroring settings
   # mirroring:
     # enabled: true

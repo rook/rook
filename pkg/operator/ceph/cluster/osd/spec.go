@@ -573,8 +573,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		podTemplateSpec.Spec.Containers = append(podTemplateSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-osd.%s", osdID), c.clusterInfo.Namespace, c.spec))
 	}
 
-	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureStartupProbe(cephv1.KeyOSD, podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck)
-	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureLivenessProbe(cephv1.KeyOSD, podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck)
+	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureStartupProbe(podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck.StartupProbe[cephv1.KeyOSD])
+	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureLivenessProbe(podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck.LivenessProbe[cephv1.KeyOSD])
 
 	if c.spec.Network.IsHost() {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet

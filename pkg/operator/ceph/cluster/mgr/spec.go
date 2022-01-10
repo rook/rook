@@ -189,8 +189,8 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		WorkingDir:      config.VarLogCephDir,
 	}
 
-	container = config.ConfigureStartupProbe(cephv1.KeyMgr, container, c.spec.HealthCheck)
-	container = config.ConfigureLivenessProbe(cephv1.KeyMgr, container, c.spec.HealthCheck)
+	container = config.ConfigureStartupProbe(container, c.spec.HealthCheck.StartupProbe[cephv1.KeyMgr])
+	container = config.ConfigureLivenessProbe(container, c.spec.HealthCheck.LivenessProbe[cephv1.KeyMgr])
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
 	if !c.spec.Network.IsHost() {

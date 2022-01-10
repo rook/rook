@@ -2387,6 +2387,16 @@ func (in *MetadataServerSpec) DeepCopyInto(out *MetadataServerSpec) {
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
+	if in.LivenessProbe != nil {
+		in, out := &in.LivenessProbe, &out.LivenessProbe
+		*out = new(ProbeSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.StartupProbe != nil {
+		in, out := &in.StartupProbe, &out.StartupProbe
+		*out = new(ProbeSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
