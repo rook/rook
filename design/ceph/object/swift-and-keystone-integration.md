@@ -216,6 +216,17 @@ Annotations:
 
 * `name` and `access` are required for each item in `subUsers`.
 
+When changing the subuser-configuration in the CR, this is reflected
+on the RGW side:
+* Subsers are deleted and created to match the list of subusers in the
+  resource.
+* If the access level for an existing user is changed no new
+  credentials are created, but the existing credentials are kept.
+* If a subuser is deleted the corresponding credential secret is
+  deleted as well.
+* Changing only the order of the subuser list does not trigger a
+  reconcile.
+
 The subusers are not mapped to a separate CR for the
 following reasons:
 
