@@ -68,25 +68,25 @@ CRD to configure the keystone integration:
 ```yaml
 auth:
   keystone:
-    url: https://keystone:5000/                     [*, r]
-    acceptedRoles: ["_member_", "service", "admin"] [*, r]
-    implicitTenants: swift                          [*]
-    tokenCacheSize: 1000                            [*]
-    revocationInterval: 1200                        [*]
-    serviceUserSecretName: rgw-service-user         [1, r]
+    url: https://keystone:5000/                     [1, 2]
+    acceptedRoles: ["_member_", "service", "admin"] [1, 2]
+    implicitTenants: swift                          [1]
+    tokenCacheSize: 1000                            [1]
+    revocationInterval: 1200                        [1]
+    serviceUserSecretName: rgw-service-user         [3, 2]
 ```
 Annotations:
-* `[1]` The name of the secret containing the credentials for the
-  service user account used by RGW. It has to be in the same namespace
-  as the object store resource.
-* `[*]` These options map directly to [RGW configuration
+* `[1]` These options map directly to [RGW configuration
   options](https://docs.ceph.com/en/octopus/radosgw/config-ref/#keystone-settings),
   the corresponding RGW option is formed by prefixing it with
   `rgw_keystone_` and replacing upper case letters by their lower case
   letter followed by an underscore. E.g. `tokenCacheSize` maps to
   `rgw_keystone_token_cache_size`.
-* `[r]` These settings are required in the `keystone` section if
+* `[2]` These settings are required in the `keystone` section if
   present.
+* `[1]` The name of the secret containing the credentials for the
+  service user account used by RGW. It has to be in the same namespace
+  as the object store resource.
 
 The `rgw_keystone_api_version` option is not exposed to the user, as
 only version 3 of the OpenStack Identity API is supported for now. If
@@ -153,9 +153,9 @@ The Swift API is enabled and configured via a new `protocols` section:
 ```yaml
 protocols:
   swift:                      [1]
-    accountInUrl: true        [*]
-    urlPrefix: /example       [*]
-    versioningEnabled: false  [*]
+    accountInUrl: true        [4]
+    urlPrefix: /example       [4]
+    versioningEnabled: false  [4]
   s3:
     enabled: false            [2]
     authUseKeystone: true     [3]
@@ -169,7 +169,7 @@ Annotations:
   Enabling it allows generating S3 credentials via an OpenStack API call, see the
   [docs](https://docs.ceph.com/en/octopus/radosgw/keystone/#keystone-integration-with-the-s3-api).
    If not given, the defaults of the corresponding RGW option apply.
-* `[*]` These options map directly to [RGW configuration
+* `[4]` These options map directly to [RGW configuration
   options](https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings),
   the corresponding RGW option is formed by prefixing it with
   `rgw_swift_` and replacing upper case letters by their lower case
