@@ -10,10 +10,10 @@ require (
 	github.com/go-ini/ini v1.51.1
 	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v1.1.2
-	github.com/hashicorp/vault v1.8.2
+	github.com/hashicorp/vault v1.8.5
 	github.com/hashicorp/vault-plugin-secrets-kv v0.9.0
 	github.com/hashicorp/vault/api v1.1.2-0.20210713235431-1fc8af4c041f
-	github.com/hashicorp/vault/sdk v0.2.2-0.20210825150427-9b1f4d486f5d
+	github.com/hashicorp/vault/sdk v0.2.2-0.20211101151547-6654f4b913f9
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220105185820-c1da9586e05b
 	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec
@@ -26,6 +26,7 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
+	github.com/tencentcloud/tencentcloud-sdk-go v3.0.171+incompatible // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/ini.v1 v1.57.0
 	gopkg.in/yaml.v2 v2.4.0
