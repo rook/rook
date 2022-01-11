@@ -55,7 +55,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: {{ .Release.Namespace }} # namespace:cluster
+    namespace: {{ .Values.operatorNamespace | default .Release.Namespace }} # namespace:operator
 ---
 # Allow creation of monitoring resources in the mgr
 kind: RoleBinding
