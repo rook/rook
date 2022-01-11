@@ -102,18 +102,79 @@ metadata:
   labels:
     aws-s3/object [1]
 provisioner: rook-ceph.ceph.rook.io/bucket [2]
-parameters: [3]
+parameters:
   objectStoreName: my-store
   objectStoreNamespace: rook-ceph
-  region: us-west-1
+  region: us-west-1 [3]
   bucketName: ceph-bucket [4]
 reclaimPolicy: Delete [5]
 ```
 1. `label`(optional) here associates this `StorageClass` to a specific provisioner.
 1. `provisioner` responsible for handling `OBCs` referencing this `StorageClass`.
-1. **all** `parameter` required.
+1. `region`(optional) defines the region in which the bucket should be created. For RGW, this maps to [zonegroup](https://docs.ceph.com/en/latest/radosgw/multisite/#zone-groups) of the server. If user does not define `region`, Rook will fill this value accordingly. Please check example at the end of the doc.
 1. `bucketName` is required for access to existing buckets but is omitted when provisioning new buckets.
 Unlike greenfield provisioning, the brownfield bucket name appears in the `StorageClass`, not the `OBC`.
 1. rook-ceph provisioner decides how to treat the `reclaimPolicy` when an `OBC` is deleted for the bucket. See explanation as [specified in Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain)
 + _Delete_ = physically delete the bucket.
 + _Retain_ = do not physically delete the bucket.
+
+##### Example: Custom Region
+If user is providing the `region` value other than `us-east-1` then additional CRDs for zonegroup/zone/realm need to be created. For example, here user is providing `region` value as `us-west-1`. So make sure following [multisite related CRDs](ceph-object-multisite-crd.md) are defined as well. The Rook Operator will create required `zonegroup` for RGW server.
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-ceph-delete-bucket
+provisioner: rook-ceph.ceph.rook.io/bucket
+reclaimPolicy: Delete
+parameters:
+   objectStoreName: my-store
+   objectStoreNamespace: rook-ceph
+   region: us-west-1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: us-west-realm
+  namespace: rook-ceph
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: us-west-1
+  namespace: rook-ceph
+spec:
+  realm: us-west-realm
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: us-west-1a
+  namespace: rook-ceph
+spec:
+  zoneGroup: us-west-1
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+    parameters:
+      compression_mode: none
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: us-west-1a
+```
