@@ -105,13 +105,14 @@ provisioner: rook-ceph.ceph.rook.io/bucket [2]
 parameters: [3]
   objectStoreName: my-store
   objectStoreNamespace: rook-ceph
-  region: us-west-1
-  bucketName: ceph-bucket [4]
-reclaimPolicy: Delete [5]
+  region: us-west-1 [4]
+  bucketName: ceph-bucket [5]
+reclaimPolicy: Delete [6]
 ```
 1. `label`(optional) here associates this `StorageClass` to a specific provisioner.
 1. `provisioner` responsible for handling `OBCs` referencing this `StorageClass`.
 1. **all** `parameter` required.
+1. `region` defines the region in which the bucket should be created. For Rook, this is CephObjectZoneGroup (if applicable) of the related CephObjectStore; So if you need to define region other than `us-east-1` create `CephObjectZoneGroup` accordingly. Please refer to [Ceph's documentation](https://docs.ceph.com/en/latest/radosgw/multisite/#zone-groups) for more details. 
 1. `bucketName` is required for access to existing buckets but is omitted when provisioning new buckets.
 Unlike greenfield provisioning, the brownfield bucket name appears in the `StorageClass`, not the `OBC`.
 1. rook-ceph provisioner decides how to treat the `reclaimPolicy` when an `OBC` is deleted for the bucket. See explanation as [specified in Kubernetes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#retain)
