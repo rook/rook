@@ -67,7 +67,7 @@ func startSecret() *kms.Config {
 	context := rook.NewContext()
 
 	// Fetch the CephCluster for the KMS details
-	cephCluster, err := context.RookClientset.CephV1().CephClusters(namespace).Get(ctx, namespace, metav1.GetOptions{})
+	cephCluster, err := context.RookClientset.CephV1().CephClusters(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		rook.TerminateFatal(errors.Wrapf(err, "failed to get ceph cluster in namespace %q", namespace))
 	}
