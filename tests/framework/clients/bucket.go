@@ -150,18 +150,22 @@ func (b *BucketOperation) CheckOBMaxObject(obcName, maxobject string) bool {
 }
 
 // Checks the bucket notifications set on RGW backend bucket
-func (b *BucketOperation) CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, s3endpoint string) bool {
+func (b *BucketOperation) CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName string, helper *TestClient, tlsEnabled bool) bool {
 	var s3client *rgw.S3Agent
-	s3AccessKey, _ := b.GetAccessKey(obcName)
-	s3SecretKey, _ := b.GetSecretKey(obcName)
-
-	//TODO : add TLS check
-	s3client, err := rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", true, nil)
+	var err error
+	s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
+	s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
+	s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
+	if tlsEnabled {
+		s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", true)
+	} else {
+		s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", true, nil)
+	}
 	if err != nil {
-		logger.Errorf("S3 client creation failed with error %v", err)
+		logger.Infof("failed to s3client due to %v", err)
 		return false
 	}
-
+	logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 	notifications, err := s3client.Client.GetBucketNotificationConfiguration(&s3.GetBucketNotificationConfigurationRequest{
 		Bucket: &bucketname,
 	})

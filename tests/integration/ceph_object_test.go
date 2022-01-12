@@ -153,6 +153,10 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
+
+	bucketNotificationTestStoreName := "bucket-notification-" + storeName
+	createCephObjectStore(s.T(), helper, k8sh, namespace, bucketNotificationTestStoreName, 1, tlsEnable)
+	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
 }
 
 func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
@@ -160,6 +164,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	t := s.T()
 
+	logger.Infof("Testing Object Operations on %s", storeName)
 	t.Run("create CephObjectStoreUser", func(t *testing.T) {
 		createCephObjectUser(s, helper, k8sh, namespace, storeName, userid, true, true)
 		i := 0
@@ -358,7 +363,8 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		assert.True(t, k8sh.CheckPodCountAndState("rook-ceph-mgr", namespace, 1, "Running"))
 	})
 
-	t.Run("CephObjectStore should delete now that dependents are gone", func(t *testing.T) {
+	// tests are complete, now delete the objectstore
+	s.T().Run("CephObjectStore should delete now that dependents are gone", func(t *testing.T) {
 		// wait initially since it will almost never detect on the first try without this.
 		time.Sleep(3 * time.Second)
 

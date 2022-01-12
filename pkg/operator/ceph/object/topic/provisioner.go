@@ -88,7 +88,10 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 	}
 	tlsEnabled := objStore.Spec.IsTLSEnabled()
 	if tlsEnabled {
-		tlsCert := objContext.Context.KubeConfig.CertData
+		tlsCert, _, err := object.GetTlsCaCert(objContext, &objStore.Spec)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get TLS certificate for the object store")
+		}
 		if len(tlsCert) > 0 {
 			client.Transport = object.BuildTransportTLS(tlsCert, false)
 		}
@@ -101,6 +104,7 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 			WithEndpoint(objContext.Endpoint).
 			WithMaxRetries(3).
 			WithDisableSSL(!tlsEnabled).
+			WithHTTPClient(&client).
 			WithLogLevel(logLevel),
 	)
 	if err != nil {
