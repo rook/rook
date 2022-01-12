@@ -271,10 +271,15 @@ func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	assert.Equal(s.T(), 0, len(initBlockImages), "there should not already be any images in the pool")
 
 	logger.Infof("step 1: Create block storage")
-	err := helper.BlockClient.CreateStorageClassAndPVC(defaultNamespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
+	err := helper.BlockClient.CreatePoolAndStorageClass(defaultNamespace, poolName, storageClassName, "Delete")
 	require.NoError(s.T(), err)
+	err = helper.BlockClient.CreatePVC(defaultNamespace, blockName, storageClassName, "ReadWriteOnce", "1M")
+	require.NoError(s.T(), err)
+
 	require.NoError(s.T(), retryBlockImageCountCheck(helper, clusterInfo, 1), "Make sure a new block is created")
-	err = helper.BlockClient.CreateStorageClassAndPVC(defaultNamespace, poolNameRetained, storageClassNameRetained, "Retain", blockNameRetained, "ReadWriteOnce")
+	err = helper.BlockClient.CreatePoolAndStorageClass(defaultNamespace, poolNameRetained, storageClassNameRetained, "Retain")
+	require.NoError(s.T(), err)
+	err = helper.BlockClient.CreatePVC(defaultNamespace, blockNameRetained, storageClassNameRetained, "ReadWriteOnce", "1M")
 	require.NoError(s.T(), err)
 	require.NoError(s.T(), retryBlockImageCountCheck(helper, clusterInfo, 2), "Make sure another new block is created")
 	logger.Infof("Block Storage created successfully")
@@ -411,7 +416,7 @@ func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	blockName := "test-block-claim-lite"
 	podName := "test-pod-lite"
 	defer blockTestDataCleanUp(helper, k8sh, s, clusterInfo, poolName, storageClassName, blockName, podName, true)
-	setupBlockLite(helper, k8sh, s, clusterInfo, poolName, storageClassName, blockName, podName)
+	setupBlockLite(helper, k8sh, s, clusterInfo, poolName, storageClassName, blockName)
 	if !skipSnapshotTest(k8sh) {
 		blockCSISnapshotTest(helper, k8sh, s, storageClassName, settings.Namespace)
 	}
@@ -422,7 +427,7 @@ func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 }
 
 func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo,
-	poolName, storageClassName, blockName, podName string) {
+	poolName, storageClassName, blockName string) {
 
 	// Check initial number of blocks
 	initialBlocks, err := helper.BlockClient.ListAllImages(clusterInfo)
@@ -432,18 +437,22 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 	logger.Infof("step : Create Pool,StorageClass and PVC")
 
-	err = helper.BlockClient.CreateStorageClassAndPVC(defaultNamespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
+	err = helper.BlockClient.CreatePoolAndStorageClass(defaultNamespace, poolName, storageClassName, "Delete")
 	require.NoError(s.T(), err)
 
+	createAndWaitForPVC(helper, k8sh, s, clusterInfo, storageClassName, blockName)
+}
+
+func createAndWaitForPVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo,
+	storageClassName, blockName string) {
+	err := helper.BlockClient.CreatePVC(defaultNamespace, blockName, storageClassName, "ReadWriteOnce", "1M")
+	require.NoError(s.T(), err)
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockName))
 
 	// Make sure new block is created
 	b, err := helper.BlockClient.ListAllImages(clusterInfo)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), 1, len(b), "Make sure new block image is created")
-	poolExists, err := helper.PoolClient.CephPoolExists(clusterInfo.Namespace, poolName)
-	assert.NoError(s.T(), err)
-	assert.True(s.T(), poolExists)
 }
 
 func deleteBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo, poolName, storageClassName, blockName string, requireBlockImagesRemoved bool) {

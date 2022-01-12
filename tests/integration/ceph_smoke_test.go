@@ -61,10 +61,6 @@ import (
 // - Quota limit wrt no of objects
 // ************************************************
 func TestCephSmokeSuite(t *testing.T) {
-	if installer.SkipTestSuite(installer.CephTestSuite) {
-		t.Skip()
-	}
-
 	s := new(SmokeSuite)
 	defer func(s *SmokeSuite) {
 		HandlePanics(recover(), s.TearDownSuite, s.T)
