@@ -23,26 +23,20 @@ import (
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (s *ObjectSuite) TestBucketNotifications() {
+func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
 	if utils.IsPlatformOpenShift() {
 		s.T().Skip("bucket notification tests skipped on openshift")
 	}
 
-	objectStoreServicePrefix = objectStoreServicePrefixUniq
 	bucketNotificationLabelPrefix := "bucket-notification-"
-	storeName := "test-store-bucket-notification"
-	tlsEnable := false
-	namespace := s.settings.Namespace
 	obcNamespace := "default"
-	helper := s.helper
-	k8sh := s.k8sh
-	logger.Infof("Running on Rook Cluster %s", namespace)
-	createCephObjectStore(s.T(), helper, k8sh, namespace, storeName, 3, tlsEnable)
 
 	ctx := context.TODO()
 	clusterInfo := client.AdminTestClusterInfo(namespace)
@@ -57,7 +51,7 @@ func (s *ObjectSuite) TestBucketNotifications() {
 	notificationName := "my-notification"
 	topicName := "my-topic"
 	httpEndpointService := "my-notification-sink"
-	s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
+	logger.Infof("Testing Bucket Notifications on %s", storeName)
 
 	t.Run("create CephBucketTopic", func(t *testing.T) {
 		err := helper.TopicClient.CreateTopic(topicName, storeName, httpEndpointService)
@@ -111,7 +105,7 @@ func (s *ObjectSuite) TestBucketNotifications() {
 
 	t.Run("check CephBucketNotification created for bucket", func(t *testing.T) {
 		notificationPresent := utils.Retry(12, 2*time.Second, "notification is created for bucket", func() bool {
-			return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, s3endpoint)
+			return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, helper, objectStore.Spec.IsTLSEnabled())
 		})
 		assert.True(t, notificationPresent)
 		logger.Info("CephBucketNotification created successfully on bucket")
@@ -127,7 +121,7 @@ func (s *ObjectSuite) TestBucketNotifications() {
 		notificationPresent := utils.Retry(12, 2*time.Second, "notification is created for bucket", func() bool {
 			// TODO : add api to fetch all the notification from backend to see if it is unaffected
 			t.Skipped()
-			return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, s3endpoint)
+			return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, helper, objectStore.Spec.IsTLSEnabled())
 		})
 		assert.True(t, notificationPresent)
 	})
@@ -142,7 +136,7 @@ func (s *ObjectSuite) TestBucketNotifications() {
 		notificationPresent := utils.Retry(12, 2*time.Second, "notification is created for bucket", func() bool {
 			// TODO : add api to fetch all the notification from backend to see if it is unaffected
 			t.Skipped()
-			return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, s3endpoint)
+			return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, helper, objectStore.Spec.IsTLSEnabled())
 		})
 		assert.True(t, notificationPresent)
 	})
@@ -158,7 +152,7 @@ func (s *ObjectSuite) TestBucketNotifications() {
 		// check whether existing bucket notification uneffected
 		var notificationPresent bool
 		for i := 0; i < 4; i++ {
-			notificationPresent = helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, s3endpoint)
+			notificationPresent = helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, notificationName, helper, objectStore.Spec.IsTLSEnabled())
 			if !notificationPresent {
 				break
 			}
@@ -196,7 +190,7 @@ func (s *ObjectSuite) TestBucketNotifications() {
 		t.Run("new-notification should be configured for bucket", func(t *testing.T) {
 			// check whether bucket notification added
 			notificationPresent := utils.Retry(12, 2*time.Second, "notification is created for bucket", func() bool {
-				return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, newNotificationName, s3endpoint)
+				return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, obcName, bucketname, newNotificationName, helper, objectStore.Spec.IsTLSEnabled())
 			})
 			assert.True(t, notificationPresent)
 		})
@@ -269,7 +263,7 @@ func (s *ObjectSuite) TestBucketNotifications() {
 		t.Run("notification should be configured after creating the topic", func(t *testing.T) {
 			// check whether bucket notification added, should pass since topic got created
 			notificationPresent := utils.Retry(12, 2*time.Second, "notification is created for bucket", func() bool {
-				return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, reverseOBCName, reverseBucketName, reverseNotificationName, s3endpoint)
+				return helper.BucketClient.CheckBucketNotificationSetonRGW(namespace, storeName, reverseOBCName, reverseBucketName, reverseNotificationName, helper, objectStore.Spec.IsTLSEnabled())
 			})
 			assert.True(t, notificationPresent)
 		})
