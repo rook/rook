@@ -97,7 +97,19 @@ fi
 
 generating_main_crd
 
+# Linux doesn't guarantee file ordering, so we must sort the output to make sure it's deterministic.
+# In order to handle file paths with spaces in the yq command below, it's easiest to read the
+# file names into an array.
+# Set locale `LC_ALL=C` because different OSes have different sort behavior;
+# `C` sorting order is based on the byte values,
+# Reference: https://blog.zhimingwang.org/macos-lc_collate-hunt
+LC_ALL=C
+CRD_FILES=()
+while read -r line; do
+  CRD_FILES+=("$line")
+done < <(find "$OLM_CATALOG_DIR" -type f -name '*.yaml' | sort)
+
 echo "---" >> "$CEPH_CRDS_FILE_PATH" # yq doesn't output the first doc separator
-$YQ_BIN_PATH eval-all '.' "$OLM_CATALOG_DIR/"*.yaml >> "$CEPH_CRDS_FILE_PATH"
+$YQ_BIN_PATH eval-all '.' "${CRD_FILES[@]}" >> "$CEPH_CRDS_FILE_PATH"
 
 build_helm_resources
