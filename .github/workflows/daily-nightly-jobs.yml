@@ -316,3 +316,24 @@ jobs:
       with:
         name: rgw-multisite-testing-ceph-${{ matrix.ceph-image-tag }}
         path: test
+
+  encryption-pvc-kms-ibm-kp:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: run Encryption KMS IBM Key Protect
+      uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        ibm-instance-id: ${{ secrets.IBM_KP_INSTANCE_ID }}
+        ibm-service-api-key: ${{ secrets.IBM_KP_SERVICE_API_KEY }}
+
+    - name: upload test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: encryption-pvc-kms-ibm-kp
+        path: test

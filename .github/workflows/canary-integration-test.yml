@@ -75,7 +75,7 @@ jobs:
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
-    
+
     - name: test external script with restricted_auth_permission flag and without having cephfs_filesystem flag
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
@@ -817,6 +817,32 @@ jobs:
       if: always()
       with:
         name: rgw-multisite-testing
+        path: test
+
+    - name: setup tmate session for debugging when event is PR
+      if: failure() && github.event_name == 'pull_request'
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 60
+
+  encryption-pvc-kms-ibm-kp:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: run Encryption KMS IBM Key Protect
+      uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
+      with:
+        ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
+        ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: upload test result
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: encryption-pvc-kms-ibm-kp
         path: test
 
     - name: setup tmate session for debugging when event is PR

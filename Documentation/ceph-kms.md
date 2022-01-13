@@ -20,6 +20,8 @@ The `security` section contains settings related to encryption of the cluster.
 Supported KMS providers:
 
 * [Vault](#vault)
+* [IBM Key Protect](#ibm-kp)
+
 ## Vault
 
 Rook supports storing OSD encryption keys in [HashiCorp Vault KMS](https://www.vaultproject.io/).
@@ -225,3 +227,54 @@ data:
 
 Note: if you are using self-signed certificates (not known/approved by a proper CA) you must pass `VAULT_SKIP_VERIFY: true`.
 Communications will remain encrypted but the validity of the certificate will not be verified.
+
+## IBM Key Protect
+
+Rook supports storing OSD encryption keys in [IBM Key
+Protect](https://www.ibm.com/cloud/key-protect). The current implementation stores OSD encryption
+keys as [Standard Keys](https://cloud.ibm.com/docs/key-protect?topic=key-protect-envelope-encryption#key-types) using the [Bring Your Own
+Key](https://cloud.ibm.com/docs/key-protect?topic=key-protect-importing-keys) (BYOK) method. This
+means that the Key Protect instance policy must have Standard Imported Key enabled.
+
+### Configuration
+
+First, you need to [provision the Key Protect service](https://cloud.ibm.com/docs/key-protect?topic=key-protect-provision) on the IBM Cloud. Once
+completed, [retrieve the instance ID](https://cloud.ibm.com/docs/key-protect?topic=key-protect-retrieve-instance-ID&interface=ui).
+Make a record of it; we need it in the CRD.
+
+On the IBM Cloud, the user must create a Service ID, then assign an Access Policy to this service.
+Ultimately, a Service API Key needs to be generated. All the steps are summarized in the [official
+documentation](https://www.ibm.com/docs/en/cloud-private/3.2.0?topic=dg-creating-service-id-by-using-cloud-private-management-console).
+
+The Service ID must be granted access to the Key Protect Service. Once the Service API Key is
+generated, store it in a Kubernetes Secret.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ibm-kp-svc-api-key
+  namespace: rook-ceph
+data:
+  IBM_KP_SERVICE_API_KEY: <service API Key>
+```
+
+In order for Rook to connect to IBM Key Protect, you must configure the following in your `CephCluster` template:
+
+```yaml
+security:
+  kms:
+    # name of the k8s config map containing all the kms connection details
+    connectionDetails:
+      KMS_PROVIDER: ibm-kp
+      IBM_KP_INSTANCE_ID: <instance ID that was retrieved in the first paragraph>
+    # name of the k8s secret containing the service API Key
+    tokenSecretName: ibm-kp-svc-api-key
+```
+
+More options are supported such as:
+
+* `IBM_BASE_URL`: the base URL of the Key Protect instance, depending on your
+  [region](https://cloud.ibm.com/docs/key-protect?topic=key-protect-regions). Defaults to `https://us-south.kms.cloud.ibm.com`.
+* `IBM_TOKEN_URL`: the URL of the Key Protect instance to retrieve the token. Defaults to
+  `https://iam.cloud.ibm.com/oidc/token`. Only needed for private instances.

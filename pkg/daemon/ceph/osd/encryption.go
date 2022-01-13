@@ -63,27 +63,47 @@ func dmsetupVersion(context *clusterd.Context) error {
 
 func setKEKinEnv(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
 	// KMS details are passed by the Operator as env variables in the pod
-	// The token if any is mounted in the provisioner pod as an env variable so the secrets lib will pick it up
-	kmsConfig := kms.NewConfig(context, &v1.ClusterSpec{Security: v1.SecuritySpec{KeyManagementService: v1.KeyManagementServiceSpec{ConnectionDetails: kms.ConfigEnvsToMapString()}}}, clusterInfo)
-	if kmsConfig.IsVault() {
-		// Fetch the KEK
-		kek, err := kmsConfig.GetSecret(os.Getenv(oposd.PVCNameEnvVarName))
-		if err != nil {
-			return errors.Wrapf(err, "failed to retrieve key encryption key from %q kms", kmsConfig.Provider)
-		}
+	// The token if any is mounted in the provisioner pod as an env variable so the secrets lib will
+	// pick it up
+	clusterSpec := &v1.ClusterSpec{Security: v1.SecuritySpec{KeyManagementService: v1.KeyManagementServiceSpec{ConnectionDetails: kms.ConfigEnvsToMapString()}}}
 
-		if kek == "" {
-			return errors.New("key encryption key is empty")
-		}
-
-		// Set the KEK as an env variable for ceph-volume
-		err = os.Setenv(oposd.CephVolumeEncryptedKeyEnvVarName, kek)
-		if err != nil {
-			return errors.Wrap(err, "failed to set key encryption key env variable for ceph-volume")
-		}
-
-		logger.Debug("successfully set vault env variables")
+	// If KMS is not enabled this code does not need to run since we attach the KEK value from the
+	// Kubernetes Secret in the provision pod spec (mounted as an environment variable)
+	if !clusterSpec.Security.KeyManagementService.IsEnabled() {
+		logger.Debug("cluster-wide encryption is enabled with kubernetes secrets and the kek is attached to the provision env spec")
+		return nil
 	}
+
+	// The ibm key protect library does not read any environment variables, so we must set the
+	// service api key (coming from the secret mounted as environment variable) in the KMS
+	// connection details. These details are used to build the client connection
+	if clusterSpec.Security.KeyManagementService.IsIBMKeyProtectKMS() {
+		ibmServiceApiKey := os.Getenv(kms.IbmKeyProtectServiceApiKey)
+		if ibmServiceApiKey == "" {
+			return errors.Errorf("ibm key protect %q environment variable is not set", kms.IbmKeyProtectServiceApiKey)
+		}
+		clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.IbmKeyProtectServiceApiKey] = ibmServiceApiKey
+	}
+
+	kmsConfig := kms.NewConfig(context, clusterSpec, clusterInfo)
+
+	// Fetch the KEK
+	kek, err := kmsConfig.GetSecret(os.Getenv(oposd.PVCNameEnvVarName))
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve key encryption key from %q kms", kmsConfig.Provider)
+	}
+
+	if kek == "" {
+		return errors.New("key encryption key is empty")
+	}
+
+	// Set the KEK as an env variable for ceph-volume
+	err = os.Setenv(oposd.CephVolumeEncryptedKeyEnvVarName, kek)
+	if err != nil {
+		return errors.Wrap(err, "failed to set key encryption key env variable for ceph-volume")
+	}
+
+	logger.Debug("successfully set vault env variables")
 
 	return nil
 }
