@@ -93,12 +93,12 @@ class DummyRados(object):
         self.cmd_output_map[self.cmd_names['mgr services']
                             ] = '''{"dashboard":"https://ceph-dashboard:8443/","prometheus":"http://ceph-dashboard-db:9283/"}'''
         self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "profile rbd", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd","osd":"profile rbd"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "profile rbd", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd","osd":"profile rbd"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs *=*"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner-openshift-storage", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner-openshift-storage","key":"BQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=*"}}]'''
-        self.cmd_output_map['''{"caps": ["mon", "allow r", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=myfs"], "entity": "client.csi-cephfs-provisioner-openshift-storage-myfs", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner-openshift-storage-myfs","key":"CQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r","osd":"allow rw tag cephfs metadata=myfs"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "profile rbd, allow command 'osd blocklist'", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd, allow command 'osd blocklist'","osd":"profile rbd"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "profile rbd, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "profile rbd"], "entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-rbd-provisioner","key":"AQBNgrNe1geyKxAA8ekViRdE+hss5OweYBkwNg==","caps":{"mgr":"allow rw","mon":"profile rbd, allow command 'osd blocklist'","osd":"profile rbd"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs *=*"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=*"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner-openshift-storage", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner-openshift-storage","key":"BQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=*"}}]'''
+        self.cmd_output_map['''{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=myfs"], "entity": "client.csi-cephfs-provisioner-openshift-storage-myfs", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.csi-cephfs-provisioner-openshift-storage-myfs","key":"CQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=myfs"}}]'''
         self.cmd_output_map['''{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
         self.cmd_output_map['''{"format": "json", "prefix": "mgr services"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
         self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
@@ -525,20 +525,23 @@ class RadosJSON:
                 entity = "client.csi-cephfs-provisioner-{}".format(cluster_name)
                 cmd_json = {"prefix": "auth get-or-create",
                             "entity": entity,
-                            "caps": ["mon", "allow r", "mgr", "allow rw",
-                                    "osd", "allow rw tag cephfs metadata=*"],
+                            "caps": ["mon", "allow r, allow command 'osd blocklist'", 
+                                     "mgr", "allow rw",
+                                     "osd", "allow rw tag cephfs metadata=*"],
                             "format": "json"}
             else:
                 entity = "client.csi-cephfs-provisioner-{}-{}".format(cluster_name,cephfs_filesystem)
                 cmd_json = {"prefix": "auth get-or-create",
                             "entity": entity,
-                            "caps": ["mon", "allow r", "mgr", "allow rw",
-                                    "osd", "allow rw tag cephfs metadata={}".format(cephfs_filesystem)],
+                            "caps": ["mon", "allow r, allow command 'osd blocklist'",
+                                     "mgr", "allow rw",
+                                     "osd", "allow rw tag cephfs metadata={}".format(cephfs_filesystem)],
                             "format": "json"}
         else:
             cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
-                        "caps": ["mon", "allow r", "mgr", "allow rw",
+                        "caps": ["mon", "allow r, allow command 'osd blocklist'",
+                                 "mgr", "allow rw",
                                  "osd", "allow rw tag cephfs metadata=*"],
                         "format": "json"}
         if self._arg_parser.dry_run:
@@ -564,25 +567,25 @@ class RadosJSON:
                 entity = "client.csi-cephfs-node-{}".format(cluster_name)
                 cmd_json = {"prefix": "auth get-or-create",
                             "entity": entity,
-                            "caps": ["mon", "allow r",
-                                    "mgr", "allow rw",
-                                    "osd", "allow rw tag cephfs *=*",
-                                    "mds", "allow rw"],
+                            "caps": ["mon", "allow r, allow command 'osd blocklist'",
+                                     "mgr", "allow rw",
+                                     "osd", "allow rw tag cephfs *=*",
+                                     "mds", "allow rw"],
                             "format": "json"}
             else:
                 entity = "client.csi-cephfs-node-{}-{}".format(cluster_name,cephfs_filesystem)
                 cmd_json = {"prefix": "auth get-or-create",
                             "entity": entity,
-                            "caps": ["mon", "allow r",
-                                    "mgr", "allow rw",
-                                    "osd", "allow rw tag cephfs data={}".format(
+                            "caps": ["mon", "allow r, allow command 'osd blocklist'",
+                                     "mgr", "allow rw",
+                                     "osd", "allow rw tag cephfs data={}".format(
                                         cephfs_filesystem),
-                                    "mds", "allow rw"],
+                                     "mds", "allow rw"],
                             "format": "json"}
         else:
             cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
-                        "caps": ["mon", "allow r",
+                        "caps": ["mon", "allow r, allow command 'osd blocklist'",
                                  "mgr", "allow rw",
                                  "osd", "allow rw tag cephfs *=*",
                                  "mds", "allow rw"],
@@ -610,14 +613,14 @@ class RadosJSON:
             entity = "client.csi-rbd-provisioner-{}-{}-{}".format(cluster_name,rbd_pool_name,rados_namespace)
             cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
-                        "caps": ["mon", "profile rbd",
+                        "caps": ["mon", "profile rbd, allow command 'osd blocklist'",
                                  "mgr", "allow rw",
                                  "osd", "profile rbd pool={}".format(rbd_pool_name)],
                         "format": "json"}
         else:
             cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
-                        "caps": ["mon", "profile rbd",
+                        "caps": ["mon", "profile rbd, allow command 'osd blocklist'",
                                  "mgr", "allow rw",
                                  "osd", "profile rbd"],
                         "format": "json"}
@@ -733,13 +736,13 @@ class RadosJSON:
             entity = "client.csi-rbd-node-{}-{}-{}".format(cluster_name,rbd_pool_name,rados_namespace)
             cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
-                        "caps": ["mon", "profile rbd",
+                        "caps": ["mon", "profile rbd, allow command 'osd blocklist'",
                                  "osd", "profile rbd pool={}".format(rbd_pool_name)],
                         "format": "json"}
         else:
             cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
-                        "caps": ["mon", "profile rbd",
+                        "caps": ["mon", "profile rbd, allow command 'osd blocklist'",
                                  "osd", "profile rbd"],
                         "format": "json"}
         if self._arg_parser.dry_run:

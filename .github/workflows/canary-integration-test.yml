@@ -57,6 +57,13 @@ jobs:
         kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
         kubectl -n rook-ceph cp tests/ceph-status-out $toolbox:/etc/ceph/test-data/
         kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
+        # remove the existing client auth that will be re-created by external script
+        kubectl -n rook-ceph exec $toolbox -- ceph auth del client.csi-cephfs-node
+        kubectl -n rook-ceph exec $toolbox -- ceph auth del client.csi-cephfs-provisioner
+        kubectl -n rook-ceph exec $toolbox -- ceph auth del client.csi-rbd-node
+        kubectl -n rook-ceph exec $toolbox -- ceph auth del client.csi-rbd-provisioner
+        # print existing client auth
+        kubectl -n rook-ceph exec $toolbox -- ceph auth ls
         timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
 
     - name: dry run external script create-external-cluster-resources.py
