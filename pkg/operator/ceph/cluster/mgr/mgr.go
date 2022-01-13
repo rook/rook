@@ -312,6 +312,32 @@ func (c *Cluster) reconcileServices(activeDaemon string) error {
 		}
 	}
 
+	return c.updateServiceSelectors(activeDaemon)
+}
+
+// Make a best effort to update the services that have been labeled for being updated
+// when the mgr has changed. They might be services for node ports, ingress, etc
+func (c *Cluster) updateServiceSelectors(activeDaemon string) error {
+	selector := metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"}
+	services, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).List(c.clusterInfo.Context, selector)
+	if err != nil {
+		return errors.Wrap(err, "failed to query mgr services to update")
+	}
+	for i, service := range services.Items {
+		// Update the selector on the service to point to the active mgr
+		if service.Spec.Selector[controller.DaemonIDLabel] == activeDaemon {
+			logger.Infof("no need to update service %q", service.Name)
+			continue
+		}
+		// Update the service to point to the new active mgr
+		service.Spec.Selector[controller.DaemonIDLabel] = activeDaemon
+		logger.Infof("updating selector on mgr service %q to active mgr %q", service.Name, activeDaemon)
+		if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, &services.Items[i], metav1.UpdateOptions{}); err != nil {
+			logger.Errorf("failed to update service %q. %v", service.Name, err)
+		} else {
+			logger.Infof("service %q successfully updated to active mgr %q", service.Name, activeDaemon)
+		}
+	}
 	return nil
 }
 
