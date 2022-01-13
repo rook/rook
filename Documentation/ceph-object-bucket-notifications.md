@@ -52,18 +52,19 @@ spec:
 #     uri: http://my-notification-endpoint:8080/my-topic
 #     uri: https://my-notification-endpoint:8443
       disableVerifySSL: true [9]
-#   amqp: [10]
+      sendCloudEvents: false [10]
+#   amqp: [11]
 #     uri: amqp://my-rabbitmq-service:5672
 #     uri: amqp://my-rabbitmq-service:5672/vhost1
 #     uri: amqps://user@password:my-rabbitmq-service:5672
-#     disableVerifySSL: true [11]
-#     ackLevel: broker [12]
-#     exchange: my-exchange [13]
-#   kafka: [14]
+#     disableVerifySSL: true [12]
+#     ackLevel: broker [13]
+#     exchange: my-exchange [14]
+#   kafka: [15]
 #     uri: kafka://my-kafka-service:9092
-#     disableVerifySSL: true [15]
-#     ackLevel: broker [16]
-#     useSSL: false [17]
+#     disableVerifySSL: true [16]
+#     ackLevel: broker [17]
+#     useSSL: false [18]
 
 ```
 1. `name` of the `CephBucketTopic`
@@ -84,6 +85,7 @@ spec:
    - user/password may only be provided if HTTPS is used with the RGW. If not, topic creation request will be rejected
    - vhost defaults to: “/”
 1. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the AMQP server in case AMQPS is used ("false" by default)
+1. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). Supported for Ceph Quincy (v17) or newer ("false" by default)
 1. `ackLevel` (optional) indicates what kind of ack the RGW is waiting for after sending the notifications:
    - “none”: message is considered “delivered” if sent to broker
    - “broker”: message is considered “delivered” if acked by broker (default)

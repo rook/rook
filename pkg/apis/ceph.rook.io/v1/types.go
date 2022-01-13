@@ -1688,6 +1688,10 @@ type HTTPEndpointSpec struct {
 	// Indicate whether the server certificate is validated by the client or not
 	// +optional
 	DisableVerifySSL bool `json:"disableVerifySSL,omitempty"`
+	// Send the notifications with the CloudEvents header: https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md
+	// Supported for Ceph Quincy (v17) or newer.
+	// +optional
+	SendCloudEvents bool `json:"sendCloudEvents,omitempty"`
 }
 
 // AMQPEndpointSpec represent the spec of an AMQP endpoint of a Bucket Topic

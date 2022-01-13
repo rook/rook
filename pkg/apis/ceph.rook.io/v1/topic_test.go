@@ -35,6 +35,7 @@ func TestValidateHTTPTopicSpec(t *testing.T) {
 				HTTP: &HTTPEndpointSpec{
 					URI:              "http://myserver:9999",
 					DisableVerifySSL: false,
+					SendCloudEvents:  false,
 				},
 			},
 		},
