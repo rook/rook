@@ -255,6 +255,7 @@ metadata:
 data:
   SWIFT_USER: my-user:swift                             [2]
   SWIFT_SECRET_KEY: $KEY                                [3]
+  SWIFT_AUTH_ENDPOINT: https://rgw.example:6000/auth    [4]
 ```
 Annotations:
 * `[1]` The name is constructed by joining the following elements with dashes
@@ -266,6 +267,7 @@ Annotations:
       - the name of the subuser (without `username:`-prefix)
 * `[2]` The full name of the subuser (including the `username:`-prefix).
 * `[3]` The generated swift access secret.
+* `[4]` The API endpoint for [swift auth](https://docs.ceph.com/en/octopus/radosgw/swift/auth/#auth-get).
 
 ### Risks and Mitigation
 
