@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 set -eEuo pipefail
-# setting locate `LC_ALL=C` because different OS do files sorting differently, 
-# so setting a common behaviour, `C` sorting order is based on the byte values,
-# Reference: https://blog.zhimingwang.org/macos-lc_collate-hunt
-LC_ALL=C
 
 # READS FROM STDIN
 # WRITES TO STDOUT
@@ -39,14 +35,26 @@ sed '/^# Source: /d' | # helm adds '# Source: <file>' comments atop of each yaml
 $YQ eval --split-exp '.kind + " " + .metadata.name + " "' - # split into files by <kind> <name> .yaml
 # outputting the filenames with spaces after kind and name keeps the same sorting from before
 
+# Linux doesn't guarantee file ordering, so sort the files to make sure order is deterministic.
+# And in order to handle file paths with spaces, it's easiest to read the file names into an array.
+# Set locale `LC_ALL=C` because different OSes have different sort behavior;
+# `C` sorting order is based on the byte values,
+# Reference: https://blog.zhimingwang.org/macos-lc_collate-hunt
+LC_ALL=C
+RBAC_FILES=()
+while read -r line; do
+  RBAC_FILES+=("$line")
+done < <(find . -type f -name '*.yml' | sort)
+
 # For debugging, output the resource kinds and names we processed and the number we are keeping
-for file in *.yml; do
-  echo "${file%.yml}" >/dev/stderr
+for file in "${RBAC_FILES[@]}"; do
+  # basename to get rid of the leading './' which find adds; %.yml to remove the .yml suffix
+  basename "${file%.yml}" >/dev/stderr
 done
 # shellcheck disable=SC2012 # we know filenames are alphanumeric from being k8s resources
-echo "Number of RBAC resources: $(ls "${temp_dir}" | wc -l)" >/dev/stderr
+echo "Number of RBAC resources: ${#RBAC_FILES[@]}" >/dev/stderr
 
-$YQ eval-all '.' ./*.yml | # output all files, now sorted by Kind and Name by the fs
+$YQ eval-all '.' "${RBAC_FILES[@]}" | # output all files, now sorted by Kind and Name by the fs
 sed '/^$/d' # remove empty lines caused by yq's display of header/footer comments
 
 rm -rf "${temp_dir}"
