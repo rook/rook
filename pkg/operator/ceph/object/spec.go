@@ -61,9 +61,19 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 		return nil, err
 	}
 	replicas := int32(1)
-	// On Pacific, we can use the same keyring and have dedicated rgw instances reflected in the service map
+	strategy := apps.DeploymentStrategy{
+		Type: apps.RecreateDeploymentStrategyType,
+	}
 	if c.clusterInfo.CephVersion.IsAtLeastPacific() {
+		// On Pacific, we can use the same keyring and have dedicated rgw instances reflected in the service map
 		replicas = c.store.Spec.Gateway.Instances
+
+		// On Pacific, rgw gateway deployments rolling update
+		strategy.Type = apps.RollingUpdateDeploymentStrategyType
+		strategy.RollingUpdate = &apps.RollingUpdateDeployment{
+			MaxUnavailable: &intstr.IntOrString{IntVal: int32(1)},
+			MaxSurge:       &intstr.IntOrString{IntVal: int32(0)},
+		}
 	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -77,9 +87,7 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 			},
 			Template: pod,
 			Replicas: &replicas,
-			Strategy: apps.DeploymentStrategy{
-				Type: apps.RecreateDeploymentStrategyType,
-			},
+			Strategy: strategy,
 		},
 	}
 	k8sutil.AddRookVersionLabelToDeployment(d)
