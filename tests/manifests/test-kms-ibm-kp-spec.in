@@ -1,0 +1,7 @@
+spec:
+  security:
+    kms:
+      connectionDetails:
+        KMS_PROVIDER: ibm-kp
+        IBM_KP_INSTANCE_ID: $IBM_KP_INSTANCE_ID
+      tokenSecretName: rook-ibm-kp-token

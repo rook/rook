@@ -568,7 +568,7 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 
 func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 	if c.store.Spec.Security != nil && c.store.Spec.Security.KeyManagementService.IsEnabled() {
-		err := kms.ValidateConnectionDetails(c.context, c.store.Spec.Security, c.store.Namespace)
+		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, c.store.Spec.Security, c.store.Namespace)
 		if err != nil {
 			return false, err
 		}
