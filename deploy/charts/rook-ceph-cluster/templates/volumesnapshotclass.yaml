@@ -1,0 +1,48 @@
+{{- $filesystemvsc := .Values.cephFileSystemVolumeSnapshotClass -}}
+{{- $blockpoolvsc := .Values.cephBlockPoolsVolumeSnapshotClass -}}
+
+---
+{{- if default false $filesystemvsc.enabled }}
+{{- if .Capabilities.APIVersions.Has "snapshot.storage.k8s.io/v1" }}
+apiVersion: snapshot.storage.k8s.io/v1
+{{- else  }}
+apiVersion: snapshot.storage.k8s.io/v1beta1
+{{- end }}
+kind: VolumeSnapshotClass
+metadata:
+  name: {{ $filesystemvsc.name }}
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "{{ if default false $filesystemvsc.isDefault }}true{{ else }}false{{ end }}"
+driver: {{ .Values.operatorNamespace }}.cephfs.csi.ceph.com
+parameters:
+  clusterID: {{ .Release.Namespace }}
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: {{ .Release.Namespace }}
+{{- if $filesystemvsc.parameters }}
+{{ toYaml $filesystemvsc.parameters | indent 2 }}
+{{- end }}
+deletionPolicy: {{ default "Delete" $filesystemvsc.deletionPolicy }}
+{{- end }}
+
+---
+{{- if default false $blockpoolvsc.enabled }}
+{{- if .Capabilities.APIVersions.Has "snapshot.storage.k8s.io/v1" }}
+apiVersion: snapshot.storage.k8s.io/v1
+{{- else  }}
+apiVersion: snapshot.storage.k8s.io/v1beta1
+{{- end }}
+kind: VolumeSnapshotClass
+metadata:
+  name: {{ $blockpoolvsc.name }}
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "{{ if default false $blockpoolvsc.isDefault }}true{{ else }}false{{ end }}"
+driver: {{ .Values.operatorNamespace }}.rbd.csi.ceph.com
+parameters:
+  clusterID: {{ .Release.Namespace }}
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: {{ .Release.Namespace }}
+{{- if $blockpoolvsc.parameters }}
+{{ toYaml $blockpoolvsc.parameters | indent 2 }}
+{{- end }}
+deletionPolicy: {{ default "Delete" $blockpoolvsc.deletionPolicy }}
+{{- end }}
