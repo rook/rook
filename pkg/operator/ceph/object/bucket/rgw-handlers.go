@@ -101,6 +101,16 @@ func (p *Provisioner) deleteOBCResource(bucketName string) error {
 		} else if errors.Is(err, admin.ErrNoSuchBucket) {
 			// opinion: "not found" is not an error
 			logger.Infof("bucket %q does not exist", p.bucketName)
+		} else if errors.Is(err, admin.ErrNoSuchKey) {
+			// ceph might return NoSuchKey than NoSuchBucket when the target bucket does not exist.
+			// then we can use GetBucketInfo() to judge the existence of the bucket.
+			// see: https://github.com/ceph/ceph/pull/44413
+			_, err2 := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: bucketName, PurgeObject: &thePurge})
+			if errors.Is(err2, admin.ErrNoSuchBucket) {
+				logger.Infof("bucket info %q does not exist", p.bucketName)
+			} else {
+				return errors.Wrapf(err, "failed to delete bucket %q (could not get bucket info)", bucketName)
+			}
 		} else {
 			return errors.Wrapf(err, "failed to delete bucket %q", bucketName)
 		}
