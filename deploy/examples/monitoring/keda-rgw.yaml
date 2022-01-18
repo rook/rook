@@ -1,4 +1,4 @@
-apiVersion: keda.k8s.io/v1alpha1
+apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: rgw-scale
@@ -6,14 +6,14 @@ metadata:
 spec:
   scaleTargetRef:
     kind: Deployment
-    deploymentName: rook-ceph-rgw-my-store-a
+    name: rook-ceph-rgw-my-store-a
   minReplicaCount: 1
   maxReplicaCount: 5
   triggers:
     - type: prometheus
       metadata:
-      serverAddress: http://rook-prometheus.rook-ceph.svc:9090
-      metricName: ceph_rgw_put_collector
-      query: |
-        sum(rate(ceph_rgw_put[2m]))
-      threshold: "90"
+        serverAddress: http://rook-prometheus.rook-ceph.svc:9090
+        metricName: ceph_rgw_put_collector
+        query: |
+          sum(rate(ceph_rgw_put[2m]))
+        threshold: "90"
