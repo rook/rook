@@ -268,6 +268,7 @@ csi:
   #cephfsGrpcMetricsPort: 9091
   #cephfsLivenessMetricsPort: 9081
   #rbdGrpcMetricsPort: 9090
+  #csiAddonsPort: 9070
   # Enable Ceph Kernel clients on kernel < 4.17. If your kernel does not support quotas for CephFS
   # you may want to disable this setting. However, this will cause an issue during upgrades
   # with the FUSE client. See the upgrade guide: https://rook.io/docs/rook/v1.2/ceph-upgrade.html
@@ -296,7 +297,10 @@ csi:
   volumeReplication:
     enabled: false
     #image: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
-
+  # Enable the CSIAddons sidecar.
+  csiAddons:
+    enabled: false
+    #image: "quay.io/csiaddons/k8s-sidecar:v0.1.0"
 enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 

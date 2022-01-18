@@ -403,6 +403,7 @@ data:
   # Configure CSI RBD grpc and liveness metrics port
   # CSI_RBD_GRPC_METRICS_PORT: "9090"
   # CSI_RBD_LIVENESS_METRICS_PORT: "9080"
+  # CSIADDONS_PORT: "9070"
 
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
@@ -417,6 +418,9 @@ data:
   # The timeout value (in seconds) of Ceph commands. It should be >= 1. If this variable is not set or is an invalid value, it's default to 15.
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: "15"
   # CSI_VOLUME_REPLICATION_IMAGE: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
+  # Enable the csi addons sidecar.
+  CSI_ENABLE_CSIADDONS: "false"
+  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.1.0"
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
