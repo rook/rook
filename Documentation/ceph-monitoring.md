@@ -213,11 +213,11 @@ spec:
 
 ### Horizontal Pod Scaling using Kubernetes Event-driven Autoscaling (KEDA)
 
-Using metrics exported from the Prometheus service, the horizontal pod scaling can use the custom metrics other than CPU and memory consumption. It can be done with help of Prometheus Scaler provided by the [KEDA](https://keda.sh/docs/2.4/scalers/prometheus/). See the [KEDA deployment guide](https://keda.sh/docs/2.4/deploy/) for details.
+Using metrics exported from the Prometheus service, the horizontal pod scaling can use the custom metrics other than CPU and memory consumption. It can be done with help of Prometheus Scaler provided by the [KEDA](https://keda.sh/docs/2.5/scalers/prometheus/). See the [KEDA deployment guide](https://keda.sh/docs/2.5/deploy/) for details.
 
 Following is an example to autoscale RGW:
 ```YAML
-apiVersion: keda.k8s.io/v1alpha1
+apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
  name: rgw-scale
@@ -225,7 +225,7 @@ metadata:
 spec:
  scaleTargetRef:
    kind: Deployment
-   deploymentName: rook-ceph-rgw-my-store-a # deployment for the autoscaling
+   name: rook-ceph-rgw-my-store-a # deployment for the autoscaling
  minReplicaCount: 1
  maxReplicaCount: 5
  triggers:
