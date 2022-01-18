@@ -76,6 +76,9 @@ spec:
     # Ceph mgr Prometheus Metrics
     - min: 9283
       max: 9283
+    # port for CSIAddons
+    - min: 9061
+      max: 9079
 {{- if .Values.rbacEnable }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

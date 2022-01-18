@@ -127,6 +127,49 @@ spec:
             - name: socket-dir
               mountPath: /csi
         {{ end }}
+        {{ if .EnableCSIAddonsSideCar }}
+        - name: csi-addons
+          image: {{ .CSIAddonsImage }}
+          args :
+            - "--node-id=$(NODE_ID)"
+            - "--v={{ .LogLevel }}"
+            - "--csi-addons-address=$(CSIADDONS_ENDPOINT)"
+            - "--controller-ip=$(POD_IP)"
+            - "--controller-port={{ .CSIAddonsPort }}"
+            - "--pod=$(POD_NAME)"
+            - "--namespace=$(POD_NAMESPACE)"
+            - "--pod-uid=$(POD_UID)"
+            - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/pv/"
+          ports:
+            - containerPort: {{ .CSIAddonsPort }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CSIADDONS_ENDPOINT
+              value: unix:///csi/csi-addons.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        {{ end }}
         - name: csi-rbdplugin
           image: {{ .CSIPluginImage }}
           args :
@@ -140,6 +183,9 @@ spec:
             - "--metricsport={{ .RBDGRPCMetricsPort }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
+            {{ if .EnableCSIAddonsSideCar }}
+            - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:
@@ -155,6 +201,10 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
               value: unix:///csi/csi-provisioner.sock
+            {{ if .EnableCSIAddonsSideCar }}
+            - name: CSIADDONS_ENDPOINT
+              value: unix:///csi/csi-addons.sock
+            {{ end }}
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir

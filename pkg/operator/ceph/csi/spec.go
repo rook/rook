@@ -51,16 +51,19 @@ type Param struct {
 	PluginPriorityClassName        string
 	ProvisionerPriorityClassName   string
 	VolumeReplicationImage         string
+	CSIAddonsImage                 string
 	EnablePluginSelinuxHostMount   bool
 	EnableCSIHostNetwork           bool
 	EnableOMAPGenerator            bool
 	EnableRBDSnapshotter           bool
 	EnableCephFSSnapshotter        bool
 	EnableVolumeReplicationSideCar bool
+	EnableCSIAddonsSideCar         bool
 	LogLevel                       uint8
 	CephFSGRPCMetricsPort          uint16
 	CephFSLivenessMetricsPort      uint16
 	RBDGRPCMetricsPort             uint16
+	CSIAddonsPort                  uint16
 	RBDLivenessMetricsPort         uint16
 	ProvisionerReplicas            int32
 	CSICephFSPodLabels             map[string]string
@@ -105,6 +108,7 @@ var (
 	DefaultSnapshotterImage       = "k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.0"
 	DefaultResizerImage           = "k8s.gcr.io/sig-storage/csi-resizer:v1.3.0"
 	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.1.0"
+	DefaultCSIAddonsImage         = "quay.io/csiaddons/k8s-sidecar:v0.1.0"
 
 	// Local package template path for RBD
 	//go:embed template/rbd/csi-rbdplugin.yaml
@@ -162,6 +166,7 @@ const (
 	DefaultCephFSLivenessMerticsPort uint16 = 9081
 	DefaultRBDGRPCMerticsPort        uint16 = 9090
 	DefaultRBDLivenessMerticsPort    uint16 = 9080
+	DefaultCSIAddonsPort             uint16 = 9070
 
 	detectCSIVersionName = "rook-ceph-csi-detect-version"
 	// default log level for csi containers
@@ -270,6 +275,10 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI RBD GRPC metrics port.")
 	}
+	tp.CSIAddonsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSIADDONS_PORT", DefaultCSIAddonsPort)
+	if err != nil {
+		return errors.Wrap(err, "failed to get CSI Addons port")
+	}
 	tp.RBDLivenessMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
@@ -303,6 +312,11 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	tp.EnableVolumeReplicationSideCar = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_REPLICATION", "false"), "true") {
 		tp.EnableVolumeReplicationSideCar = true
+	}
+
+	tp.EnableCSIAddonsSideCar = false
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CSIADDONS", "false"), "true") {
+		tp.EnableCSIAddonsSideCar = true
 	}
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {

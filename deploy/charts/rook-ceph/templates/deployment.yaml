@@ -91,6 +91,8 @@ spec:
           value: {{ .Values.csi.enableOMAPGenerator | quote }}
         - name: CSI_ENABLE_VOLUME_REPLICATION
           value: {{ .Values.csi.volumeReplication.enabled | quote }}
+        - name: CSI_ENABLE_CSIADDONS
+          value: {{ .Values.csi.csiAddons.enabled | quote }}
         - name: CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT
           value: {{ .Values.csi.enablePluginSelinuxHostMount | quote }}
 {{- if .Values.csi.enableCSIHostNetwork }}
@@ -159,6 +161,16 @@ spec:
 {{- if .Values.csi.volumeReplication.image }}
         - name: CSI_VOLUME_REPLICATION_IMAGE
           value: {{ .Values.csi.volumeReplication.image | quote }}
+{{- end }}
+{{- end }}
+{{- if .Values.csi.csiAddons }}
+{{- if .Values.csi.csiAddons.image }}
+        - name: ROOK_CSIADDONS_IMAGE
+          value: {{ .Values.csi.csiAddons.image | quote }}
+{{- end }}
+{{- if .Values.csi.csiAddonsPort }}
+        - name: CSIADDONS_PORT
+          value: {{ .Values.csi.csiAddonsPort | quote }}
 {{- end }}
 {{- end }}
 {{- if .Values.csi.cephfsPodLabels }}
