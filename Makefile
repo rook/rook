@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Linux doesn't guarantee file ordering, so sort the files to make sure order is deterministic.
+# And in order to handle file paths with spaces, it's easiest to read the file names into an array.
+# Set locale `LC_ALL=C` because different OSes have different sort behavior;
+# `C` sorting order is based on the byte values,
+# Reference: https://blog.zhimingwang.org/macos-lc_collate-hunt
+LC_ALL=C
+export LC_ALL
+
 include build/makelib/common.mk
 include build/makelib/helm.mk
 
