@@ -77,8 +77,8 @@ spec:
     - min: 9283
       max: 9283
     # port for CSIAddons
-    - min: 9061
-      max: 9079
+    - min: 9070
+      max: 9070
 {{- if .Values.rbacEnable }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
