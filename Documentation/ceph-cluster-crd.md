@@ -603,10 +603,11 @@ Priority class names can be specified so that the Rook components will have thos
 
 You can set priority class names for Rook components for the list of key value pairs:
 
-* `all`: Set priority class names for MGRs, Mons, OSDs.
+* `all`: Set priority class names for MGRs, Mons, OSDs, and crashcollectors.
 * `mgr`: Set priority class names for MGRs.
 * `mon`: Set priority class names for Mons.
 * `osd`: Set priority class names for OSDs.
+* `crashcollector`: Set priority class names for crashcollectors.
 
 The specific component keys will act as overrides to `all`.
 

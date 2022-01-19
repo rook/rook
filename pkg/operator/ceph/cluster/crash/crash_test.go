@@ -18,6 +18,7 @@ package crash
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -25,14 +26,18 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	cntrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -104,4 +109,62 @@ func TestCreateOrUpdateCephCron(t *testing.T) {
 	err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: prunerName}, cronV1Beta1)
 	assert.Error(t, err)
 	assert.True(t, kerrors.IsNotFound(err))
+}
+
+func TestCreateOrUpdateCephCrash(t *testing.T) {
+	cephCluster := cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"},
+	}
+	cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+	cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+	cephVersion := &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
+	ctx := context.TODO()
+	context := &clusterd.Context{
+		Clientset:     test.New(t, 1),
+		RookClientset: rookclient.NewSimpleClientset(),
+	}
+
+	s := scheme.Scheme
+	err := appsv1.AddToScheme(s)
+	if err != nil {
+		assert.Fail(t, "failed to build scheme")
+	}
+	r := &ReconcileNode{
+		scheme:  s,
+		client:  fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects().Build(),
+		context: context,
+	}
+
+	node := corev1.Node{}
+	nodeSelector := map[string]string{corev1.LabelHostname: "testnode"}
+	node.SetLabels(nodeSelector)
+	tolerations := []corev1.Toleration{{}}
+	res, err := r.createOrUpdateCephCrash(node, tolerations, cephCluster, cephVersion)
+	assert.NoError(t, err)
+	assert.Equal(t, controllerutil.OperationResult("created"), res)
+	name := k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", AppName), "testnode")
+	deploy := appsv1.Deployment{}
+	err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: name}, &deploy)
+	assert.NoError(t, err)
+	podSpec := deploy.Spec.Template
+	assert.Equal(t, nodeSelector, podSpec.Spec.NodeSelector)
+	assert.Equal(t, "", podSpec.ObjectMeta.Labels["foo"])
+	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
+	assert.Equal(t, false, podSpec.Spec.HostNetwork)
+	assert.Equal(t, "", podSpec.Spec.PriorityClassName)
+
+	cephCluster.Spec.Labels[cephv1.KeyCrashCollector] = map[string]string{"foo": "bar"}
+	cephCluster.Spec.Network.HostNetwork = true
+	cephCluster.Spec.PriorityClassNames[cephv1.KeyCrashCollector] = "test-priority-class"
+	tolerations = []corev1.Toleration{{Key: "key", Operator: "Equal", Value: "value", Effect: "NoSchedule"}}
+	res, err = r.createOrUpdateCephCrash(node, tolerations, cephCluster, cephVersion)
+	assert.NoError(t, err)
+	assert.Equal(t, controllerutil.OperationResult("updated"), res)
+	err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: name}, &deploy)
+	assert.NoError(t, err)
+	podSpec = deploy.Spec.Template
+	assert.Equal(t, "bar", podSpec.ObjectMeta.Labels["foo"])
+	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
+	assert.Equal(t, true, podSpec.Spec.HostNetwork)
+	assert.Equal(t, "test-priority-class", podSpec.Spec.PriorityClassName)
 }

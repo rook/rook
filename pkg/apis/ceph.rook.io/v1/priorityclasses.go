@@ -55,3 +55,11 @@ func GetCleanupPriorityClassName(p PriorityClassNamesSpec) string {
 	}
 	return p[KeyCleanup]
 }
+
+// GetCrashCollectorPriorityClassName returns the priority class name for the crashcollector
+func GetCrashCollectorPriorityClassName(p PriorityClassNamesSpec) string {
+	if _, ok := p[KeyCrashCollector]; !ok {
+		return p.All()
+	}
+	return p[KeyCrashCollector]
+}

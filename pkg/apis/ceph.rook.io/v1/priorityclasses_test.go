@@ -30,6 +30,7 @@ all: all-class
 mgr: mgr-class
 mon: mon-class
 osd: osd-class
+crashcollector: crashcollector-class
 `)
 
 	// convert the raw spec yaml into JSON
@@ -43,10 +44,11 @@ osd: osd-class
 
 	// the unmarshalled priority class names spec should equal the expected spec below
 	expected := PriorityClassNamesSpec{
-		"all": "all-class",
-		"mgr": "mgr-class",
-		"mon": "mon-class",
-		"osd": "osd-class",
+		"all":            "all-class",
+		"mgr":            "mgr-class",
+		"mon":            "mon-class",
+		"osd":            "osd-class",
+		"crashcollector": "crashcollector-class",
 	}
 	assert.Equal(t, expected, priorityClassNames)
 }
