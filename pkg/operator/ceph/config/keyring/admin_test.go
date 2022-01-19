@@ -22,6 +22,7 @@ import (
 	"path"
 	"testing"
 
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -53,13 +54,18 @@ func TestAdminKeyringStore(t *testing.T) {
 
 	// create key
 	clusterInfo.CephCred.Secret = "adminsecretkey"
-	err := k.Admin().CreateOrUpdate(clusterInfo)
+	err := k.Admin().CreateOrUpdate(clusterInfo, ctx, v1.AnnotationsSpec{v1.KeyClusterMetadata: v1.Annotations{"key": "value"}})
 	assert.NoError(t, err)
 	assertKeyringData(fmt.Sprintf(adminKeyringTemplate, "adminsecretkey"))
 
+	// test annotation
+	secret, err := ctx.Clientset.CoreV1().Secrets(clusterInfo.Namespace).Get(clusterInfo.Context, keyringSecretName(adminKeyringResourceName), metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{"key": "value"}, secret.Annotations)
+
 	// update key
 	clusterInfo.CephCred.Secret = "differentsecretkey"
-	err = k.Admin().CreateOrUpdate(clusterInfo)
+	err = k.Admin().CreateOrUpdate(clusterInfo, ctx, v1.AnnotationsSpec{})
 	assert.NoError(t, err)
 	assertKeyringData(fmt.Sprintf(adminKeyringTemplate, "differentsecretkey"))
 }
@@ -74,7 +80,7 @@ func TestAdminVolumeAndMount(t *testing.T) {
 	s := GetSecretStore(ctx, clusterInfo, ownerInfo)
 
 	clusterInfo.CephCred.Secret = "adminsecretkey"
-	err := s.Admin().CreateOrUpdate(clusterInfo)
+	err := s.Admin().CreateOrUpdate(clusterInfo, ctx, v1.AnnotationsSpec{})
 	assert.NoError(t, err)
 
 	v := Volume().Admin()

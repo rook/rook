@@ -57,6 +57,10 @@ func GetCleanupAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyCleanup)
 }
 
+func GetClusterMetadataAnnotations(a AnnotationsSpec) Annotations {
+	return a[KeyClusterMetadata]
+}
+
 func mergeAllAnnotationsWithKey(a AnnotationsSpec, name KeyType) Annotations {
 	all := a.All()
 	if all != nil {

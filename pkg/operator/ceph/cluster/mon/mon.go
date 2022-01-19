@@ -493,6 +493,11 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 		return errors.Wrap(err, "failed to get cluster info")
 	}
 
+	err = keyring.ApplyClusterMetadataToSecret(c.ClusterInfo, AppName, c.context, c.spec.Annotations)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply annotation")
+	}
+
 	c.ClusterInfo.CephVersion = cephVersion
 	c.ClusterInfo.OwnerInfo = c.ownerInfo
 	c.ClusterInfo.Context = context
@@ -509,7 +514,7 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 		return errors.Wrap(err, "failed to save mon keyring secret")
 	}
 	// also store the admin keyring for other daemons that might need it during init
-	if err := k.Admin().CreateOrUpdate(c.ClusterInfo); err != nil {
+	if err := k.Admin().CreateOrUpdate(c.ClusterInfo, c.context, c.spec.Annotations); err != nil {
 		return errors.Wrap(err, "failed to save admin keyring secret")
 	}
 
@@ -1052,6 +1057,8 @@ func (c *Cluster) persistExpectedMonDaemons() error {
 			Finalizers: []string{DisasterProtectionFinalizerName},
 		},
 	}
+	cephv1.GetClusterMetadataAnnotations(c.spec.Annotations).ApplyToObjectMeta(&configMap.ObjectMeta)
+
 	err := c.ownerInfo.SetControllerReference(configMap)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference mon configmap %q", configMap.Name)
