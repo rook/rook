@@ -397,6 +397,22 @@ cephFileSystems:
         # in hyperconverged settings where the volume is mounted on the same node as the osds.
         csi.storage.k8s.io/fstype: ext4
 
+cephFileSystemVolumeSnapshotClass:
+  enabled: false
+  name: ceph-filesystem
+  isDefault: true
+  deletionPolicy: Delete
+  # see https://rook.io/docs/rook/latest/ceph-csi-snapshot.html#cephfs-snapshots for available configuration
+  parameters: {}
+
+cephBlockPoolsVolumeSnapshotClass:
+  enabled: false
+  name: ceph-block
+  isDefault: false
+  deletionPolicy: Delete
+  # see https://rook.io/docs/rook/latest/ceph-csi-snapshot.html#rbd-snapshots for available configuration
+  parameters: {}
+
 cephObjectStores:
   - name: ceph-objectstore
     # see https://github.com/rook/rook/blob/master/Documentation/ceph-object-store-crd.md#object-store-settings for available configuration
