@@ -25,14 +25,16 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // predicateController is the predicate function to trigger reconcile on operator configuration cm change
-func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
+func predicateController(ctx context.Context, c client.Client, opNamespace string) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			// if the operator configuration file is created we want to reconcile
@@ -48,12 +50,24 @@ func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 				if controller.DuplicateCephClusters(ctx, c, e.Object, false) {
 					return false
 				}
+
+				// We still have users that don't use the ConfigMap to configure the
+				// operator/csi and still rely on environment variables from the operator pod's
+				// spec. So we still want to reconcile the controller if the ConfigMap cannot be found.
+				err := c.Get(ctx, types.NamespacedName{Name: opcontroller.OperatorSettingConfigMapName, Namespace: opNamespace}, &v1.ConfigMap{})
+				if err != nil && kerrors.IsNotFound(err) {
+					logger.Debugf("could not find operator configuration ConfigMap, will reconcile the csi controller")
+					return true
+				}
+
 				// This allows us to avoid a double reconcile of the CSI controller if this is not
 				// the first generation of the CephCluster. So only return true if this is the very
 				// first instance of the CephCluster
 				// Corner case is when the cluster is created but the operator is down AND the cm
 				// does not exist... However, these days the operator config map is part of the
 				// operator.yaml so it's probably acceptable?
+				// This does not account for the case where the cephcluster is already deployed and
+				// the upgrade the operator or restart it. However, the CM check above should catch that
 				return cephCluster.Generation == 1
 			}
 
@@ -76,6 +90,11 @@ func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 		},
 
 		DeleteFunc: func(e event.DeleteEvent) bool {
+			// if the operator configuration file is deleted we want to reconcile to apply the
+			// configuration based on environment variables present in the operator's pod spec
+			if cm, ok := e.Object.(*v1.ConfigMap); ok {
+				return cm.Name == opcontroller.OperatorSettingConfigMapName
+			}
 			return false
 		},
 
