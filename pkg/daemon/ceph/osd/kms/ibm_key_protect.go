@@ -18,15 +18,15 @@ package kms
 
 import (
 	kp "github.com/IBM/keyprotect-go-client"
-	"github.com/libopenstorage/secrets"
 	"github.com/pkg/errors"
 )
 
 const (
+	TypeIBM = "ibmkeyprotect"
 	// IbmKeyProtectServiceApiKey is the IBM Key Protect service API key
 	IbmKeyProtectServiceApiKey = "IBM_KP_SERVICE_API_KEY"
 	// IbmKeyProtectInstanceIdKey is the IBM Key Protect instance id
-	IbmKeyProtectInstanceIdKey = "IBM_KP_INSTANCE_ID"
+	IbmKeyProtectInstanceIdKey = "IBM_KP_SERVICE_INSTANCE_ID"
 	// IbmKeyProtectBaseUrlKey is the IBM Key Protect base url
 	IbmKeyProtectBaseUrlKey = "IBM_KP_BASE_URL"
 	// IbmKeyProtectTokenUrlKey is the IBM Key Protect token url
@@ -39,7 +39,7 @@ var (
 	kmsIBMKeyProtectMandatoryConnectionDetails = []string{IbmKeyProtectInstanceIdKey, IbmKeyProtectServiceApiKey}
 	// ErrIbmServiceApiKeyNotSet is returned when IBM_KP_SERVICE_API_KEY is not set
 	ErrIbmServiceApiKeyNotSet = errors.Errorf("%s not set.", IbmKeyProtectServiceApiKey)
-	// ErrIbmInstanceIdKeyNotSet is returned when IBM_KP_INSTANCE_ID is not set
+	// ErrIbmInstanceIdKeyNotSet is returned when IBM_KP_SERVICE_INSTANCE_ID is not set
 	ErrIbmInstanceIdKeyNotSet = errors.Errorf("%s not set.", IbmKeyProtectInstanceIdKey)
 )
 
@@ -83,4 +83,4 @@ func InitKeyProtect(config map[string]string) (*kp.Client, error) {
 }
 
 // IsIBMKeyProtect determines whether the configured KMS is IBM Key Protect
-func (c *Config) IsIBMKeyProtect() bool { return c.Provider == secrets.TypeIBM }
+func (c *Config) IsIBMKeyProtect() bool { return c.Provider == TypeIBM }
