@@ -117,11 +117,11 @@ data:
   # Set to true to enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary
   # in some network configurations where the SDN does not provide access to an external cluster or
   # there is significant drop in read/write performance.
-  # CSI_ENABLE_HOST_NETWORK: "true"
+  CSI_ENABLE_HOST_NETWORK: "false"
 
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
-  # CSI_LOG_LEVEL: "0"
+  CSI_LOG_LEVEL: "3"
 
   # Set replicas for csi provisioner deployment.
   CSI_PROVISIONER_REPLICAS: "2"

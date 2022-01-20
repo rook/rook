@@ -12,6 +12,11 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph # namespace:cluster
 spec:
+  network:
+    provider: multus
+    selectors:
+      public: rook-ceph/public-net
+      cluster: rook-ceph/cluster-net
   dataDirHostPath: /var/lib/rook
   mon:
     # Set the number of mons to be started. Generally recommended to be 3.
@@ -100,7 +105,7 @@ spec:
           topologySpreadConstraints:
             - maxSkew: 1
               # IMPORTANT: If you don't have zone labels, change this to another key such as kubernetes.io/hostname
-              topologyKey: topology.kubernetes.io/zone
+              topologyKey: kubernetes.io/hostname
               whenUnsatisfiable: DoNotSchedule
               labelSelector:
                 matchExpressions:
@@ -120,8 +125,8 @@ spec:
           - metadata:
               name: data
               # if you are looking at giving your OSD a different CRUSH device class than the one detected by Ceph
-              # annotations:
-              #   crushDeviceClass: hybrid
+              annotations:
+                crushDeviceClass: hdd
             spec:
               resources:
                 requests:
@@ -169,12 +174,12 @@ spec:
   #   requests:
   #      cpu: "200m"
   #      memory: "200Mi"
-  disruptionManagement:
-    managePodBudgets: true
-    osdMaintenanceTimeout: 30
-    pgHealthCheckTimeout: 0
-    manageMachineDisruptionBudgets: false
-    machineDisruptionBudgetNamespace: openshift-machine-api
+  # disruptionManagement:
+  #   managePodBudgets: true
+  #   osdMaintenanceTimeout: 30
+  #   pgHealthCheckTimeout: 0
+  #   manageMachineDisruptionBudgets: false
+  #   machineDisruptionBudgetNamespace: openshift-machine-api
   # security oriented settings
   # security:
   # To enable the KMS configuration properly don't forget to uncomment the Secret at the end of the file
