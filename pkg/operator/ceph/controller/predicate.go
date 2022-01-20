@@ -745,6 +745,8 @@ func DuplicateCephClusters(ctx context.Context, c client.Client, object client.O
 		return true
 	}
 
+	logger.Debugf("found %d ceph clusters in namespace %q", len(cephClusterList.Items), object.GetNamespace())
+
 	// This check is needed when the operator is down and a cluster was created
 	if len(cephClusterList.Items) > 1 {
 		// Since multiple predicate are using this function we don't want all of them to log the
