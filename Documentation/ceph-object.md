@@ -285,15 +285,15 @@ metadata:
 spec:
   ports:
   - name: rgw
-    port: 80
+    port: 8080
     protocol: TCP
-    targetPort: 80
+    targetPort: 8080
   selector:
     app: rook-ceph-rgw
     rook_cluster: rook-ceph
     rook_object_store: my-store
   sessionAffinity: None
-  type: NodePort
+  type: LoadBalancer
 ```
 
 Now create the external service.
