@@ -105,6 +105,7 @@ func deleteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreSpec) error
 
 func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStoreSpec) error {
 	// get list of endpoints not including the endpoint of the object-store for the zone
+	// And objContext.Endpoint have endpoint from Status.Info which have value saved in zone.
 	zoneEndpointsList, err := getZoneEndpoints(objContext, objContext.Endpoint)
 	if err != nil {
 		return err
@@ -524,20 +525,26 @@ func createSystemUser(objContext *Context, namespace string) error {
 	return nil
 }
 
-func setMultisite(objContext *Context, store *cephv1.CephObjectStore, serviceIP string) error {
+func setMultisite(objContext *Context, store *cephv1.CephObjectStore) error {
 	logger.Debugf("setting multisite configuration for object-store %v", store.Name)
-	serviceEndpoint := fmt.Sprintf("http://%s:%d", serviceIP, store.Spec.Gateway.Port)
-	if store.Spec.Gateway.SecurePort != 0 {
-		serviceEndpoint = fmt.Sprintf("https://%s:%d", serviceIP, store.Spec.Gateway.SecurePort)
-	}
+	newEndpoint := objContext.Endpoint
 
 	if store.Spec.IsMultisite() {
-		zoneEndpointsList, err := getZoneEndpoints(objContext, serviceEndpoint)
+		if store.Spec.Zone.Endpoint != "" {
+			newEndpoint = store.Spec.Zone.Endpoint
+		}
+		zoneEndpointsList, err := getZoneEndpoints(objContext, "")
 		if err != nil {
 			return err
 		}
-		zoneEndpointsList = append(zoneEndpointsList, serviceEndpoint)
 
+		oldEndpoint := ""
+		if store.Status != nil && store.Status.Info != nil {
+			oldEndpoint = store.Status.Info["endpoint"]
+		}
+
+		// Remove old endpoint of RGW server from zone if it is different and update it with new one
+		zoneEndpointsList = updateZoneEndpointList(zoneEndpointsList, oldEndpoint, newEndpoint)
 		zoneEndpoints := strings.Join(zoneEndpointsList, ",")
 		logger.Debugf("Endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
 		endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
@@ -547,7 +554,7 @@ func setMultisite(objContext *Context, store *cephv1.CephObjectStore, serviceIP 
 			return errors.Wrapf(err, "failed join ceph multisite in zone %q", objContext.Zone)
 		}
 	} else {
-		endpointArg := fmt.Sprintf("--endpoints=%s", serviceEndpoint)
+		endpointArg := fmt.Sprintf("--endpoints=%s", newEndpoint)
 		err := createMultisite(objContext, endpointArg)
 		if err != nil {
 			return errorOrIsNotFound(err, "failed create ceph multisite for object-store %q", objContext.Name)
@@ -999,4 +1006,22 @@ func errorOrIsNotFound(err error, msg string, args ...string) error {
 		return err
 	}
 	return errors.Wrapf(err, msg, args)
+}
+
+// Update the Endpoints in Zone with new details and order of the list does not matter
+// desiredEndpoint is given a higher precedence than undesiredEndpoint; if both are the same,
+// then function keeps it at the end in the resulting list removing from existing list
+// if no desiredEndpoint is given, the undesiredEndpoint is still removed
+// if no undesiredEndpoint is given, the desiredEndpoint is still added
+func updateZoneEndpointList(zoneEndpointsList []string, undesiredEndpoint, desiredEndpoint string) []string {
+	newZoneEndpointsList := []string{}
+	for _, endpoint := range zoneEndpointsList {
+		if undesiredEndpoint != endpoint && desiredEndpoint != endpoint {
+			newZoneEndpointsList = append(newZoneEndpointsList, endpoint)
+		}
+	}
+	if desiredEndpoint != "" {
+		newZoneEndpointsList = append(newZoneEndpointsList, desiredEndpoint)
+	}
+	return newZoneEndpointsList
 }

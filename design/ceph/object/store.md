@@ -113,9 +113,13 @@ This section enables the object store to be part of a specified ceph-object-zone
 
 Specifying this section also ensures that the pool section in the ceph-object-zone is used for the object-store. If pools are specified for the object-store they are neither created nor deleted.
 
+Specifying an endpoint in this section means that the endpoint specified will be added to the zones endpoint list. If an endpoint is not specified the endpoint of the object-store the endpoint will be the Kubernetes clusterIP and the port.
+
 - `name`: name of the [ceph-object-zone](/design/ceph/object/ceph-object-zone.md) the object store is in. This name must be of a ceph-object-zone resource not just of a zone that has been already created.
+- `endpoint`:  if this zone cannot be accessed from other peer Ceph clusters via the ClusterIP Service endpoint created by Rook, you must set this to the externally reachable endpoint. You must also include the port in the definition. For example: "https://my-object-store.my-domain.net:443". In many cases, you should set this to the endpoint of the ingress resource that makes the CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters.
 
 ```yaml
   zone:
     name: "name"
+    endpoint: http://zone.fqdn:8000
 ```

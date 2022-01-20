@@ -19,6 +19,7 @@ package object
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"syscall"
 	"testing"
 	"time"
@@ -95,11 +96,11 @@ func TestReconcileRealm(t *testing.T) {
 	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster"}, storeName)
 	// create the first realm, marked as default
 	store := cephv1.CephObjectStore{}
-	err := setMultisite(objContext, &store, "1.2.3.4")
+	err := setMultisite(objContext, &store)
 	assert.Nil(t, err)
 
 	// create the second realm, not marked as default
-	err = setMultisite(objContext, &store, "2.3.4.5")
+	err = setMultisite(objContext, &store)
 	assert.Nil(t, err)
 }
 
@@ -813,4 +814,103 @@ func TestGetRealmKeyArgs(t *testing.T) {
 		assert.Equal(t, "", access)
 		assert.Equal(t, "", secret)
 	})
+}
+
+func TestUpdateZoneEndpointList(t *testing.T) {
+	type args struct {
+		zoneEndpointList  []string
+		undesiredEndpoint string
+		desiredEndpoint   string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{"all the fields are empty",
+			args{zoneEndpointList: []string{}, undesiredEndpoint: "", desiredEndpoint: ""},
+			[]string{},
+		},
+		{"emptylist - old value exists",
+			args{zoneEndpointList: []string{}, undesiredEndpoint: "http://rgw-endpoint", desiredEndpoint: ""},
+			[]string{},
+		},
+		{"adding new endpoint to emptylist",
+			args{zoneEndpointList: []string{}, undesiredEndpoint: "", desiredEndpoint: "http://rgw-endpoint"},
+			[]string{"http://rgw-endpoint"},
+		},
+		{"emptylist - old and new are same",
+			args{zoneEndpointList: []string{}, undesiredEndpoint: "http://rgw-endpoint", desiredEndpoint: "http://rgw-endpoint"},
+			[]string{"http://rgw-endpoint"},
+		},
+		{"emptylist - old and new value different values",
+			args{zoneEndpointList: []string{}, undesiredEndpoint: "http://old-endpoint", desiredEndpoint: "http://new-endpoint"},
+			[]string{"http://new-endpoint"},
+		},
+		{"adding new endpoint to existing list",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1"}, undesiredEndpoint: "", desiredEndpoint: "http://new-endpoint"},
+			[]string{"http://rgw-endpoint-1", "http://new-endpoint"},
+		},
+		{"removing old endpoint without updating new value",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1"}, undesiredEndpoint: "http://rgw-endpoint-1", desiredEndpoint: ""},
+			[]string{},
+		},
+		{"removing endpoint which is not present in the list without updating new value",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1"}, undesiredEndpoint: "http://rgw-endpoint-2", desiredEndpoint: ""},
+			[]string{"http://rgw-endpoint-1"},
+		},
+		{"no updation or removal from list",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1"}, undesiredEndpoint: "", desiredEndpoint: ""},
+			[]string{"http://rgw-endpoint-1"},
+		},
+		{"updating same endpoint to list",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1"}, undesiredEndpoint: "http://rgw-endpoint-1", desiredEndpoint: "http://rgw-endpoint-1"},
+			[]string{"http://rgw-endpoint-1"},
+		},
+		{"updating same endpoint to list, but no old endpoint",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1"}, undesiredEndpoint: "", desiredEndpoint: "http://rgw-endpoint-1"},
+			[]string{"http://rgw-endpoint-1"},
+		},
+		{"updating same endpoint to list, but have different old endpoint",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-2"}, undesiredEndpoint: "http://rgw-endpoint-1", desiredEndpoint: "http://rgw-endpoint-2"},
+			[]string{"http://rgw-endpoint-2"},
+		},
+		{"updating different endpoint to single endpoint list",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1"}, undesiredEndpoint: "http://rgw-endpoint-1", desiredEndpoint: "http://rgw-endpoint-2"},
+			[]string{"http://rgw-endpoint-2"},
+		},
+		{"updating different endpoint to single endpoint list with non-exisitng old value",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1"}, undesiredEndpoint: "http://rgw-endpoint-2", desiredEndpoint: "http://rgw-endpoint-3"},
+			[]string{"http://rgw-endpoint-1", "http://rgw-endpoint-3"},
+		},
+		{"updating different endpoint to list with two endpoints",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2"}, undesiredEndpoint: "http://rgw-endpoint-2", desiredEndpoint: "http://rgw-endpoint-3"},
+			[]string{"http://rgw-endpoint-1", "http://rgw-endpoint-3"},
+		},
+		{"updating different endpoint to list with two endpoints with non-exisitng old value",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2"}, undesiredEndpoint: "http://rgw-endpoint-3", desiredEndpoint: "http://rgw-endpoint-4"},
+			[]string{"http://rgw-endpoint-1", "http://rgw-endpoint-2", "http://rgw-endpoint-4"},
+		},
+		{"updating different endpoint to list with three endpoints",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2", "http://rgw-endpoint-3"}, undesiredEndpoint: "http://rgw-endpoint-2", desiredEndpoint: "http://rgw-endpoint-4"},
+			[]string{"http://rgw-endpoint-1", "http://rgw-endpoint-3", "http://rgw-endpoint-4"},
+		},
+		{"updating same endpoint to list with three endpoints with non-exisitng old value",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2", "http://rgw-endpoint-3"}, undesiredEndpoint: "http://rgw-endpoint-4", desiredEndpoint: "http://rgw-endpoint-2"},
+			[]string{"http://rgw-endpoint-1", "http://rgw-endpoint-3", "http://rgw-endpoint-2"},
+		},
+		{"updating same endpoint to list with three endpoints with same as old value",
+			args{zoneEndpointList: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2", "http://rgw-endpoint-3"}, undesiredEndpoint: "http://rgw-endpoint-2", desiredEndpoint: "http://rgw-endpoint-2"},
+			[]string{"http://rgw-endpoint-1", "http://rgw-endpoint-3", "http://rgw-endpoint-2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := updateZoneEndpointList(tt.args.zoneEndpointList, tt.args.undesiredEndpoint, tt.args.desiredEndpoint); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("updateZoneEndpointList() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

@@ -68,7 +68,7 @@ const (
 		"api_name": "my-store",
 		"is_master": "true",
 		"endpoints": [
-			":80"
+			"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
 		],
 		"hostnames": [],
 		"hostnames_s3website": [],
@@ -78,7 +78,7 @@ const (
 				"id": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
 				"name": "my-store",
 				"endpoints": [
-					":80"
+					"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
 				],
 				"log_meta": "false",
 				"log_data": "false",
@@ -203,7 +203,7 @@ const (
 		"api_name": "zonegroup-a",
 		"is_master": "true",
 		"endpoints": [
-			":80"
+			"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
 		],
 		"hostnames": [],
 		"hostnames_s3website": [],
@@ -213,7 +213,7 @@ const (
 				"id": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
 				"name": "zone-a",
 				"endpoints": [
-					":80"
+					"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
 				],
 				"log_meta": "false",
 				"log_data": "false",
@@ -489,7 +489,6 @@ func TestCephObjectStoreController(t *testing.T) {
 
 		return r
 	}
-
 	t.Run("error - failed to start health checker", func(t *testing.T) {
 		r := setupEnvironmentWithReadyCephCluster()
 
@@ -509,7 +508,6 @@ func TestCephObjectStoreController(t *testing.T) {
 		// health checker should start up after committing config changes
 		assert.True(t, calledCommitConfigChanges)
 	})
-
 	t.Run("success - object store is running", func(t *testing.T) {
 		r := setupEnvironmentWithReadyCephCluster()
 
@@ -536,6 +534,8 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	zoneName := "zone-a"
 	zoneGroupName := "zonegroup-a"
 	realmName := "realm-a"
+	customEndpoint := "http://custom.fqdn:port"
+	customEndpointStore := "custom-endpoint-store"
 
 	metadataPool := cephv1.PoolSpec{}
 	dataPool := cephv1.PoolSpec{}
@@ -606,28 +606,6 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		Spec: cephv1.ObjectRealmSpec{},
 	}
 
-	objectStore := &cephv1.CephObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      store,
-			Namespace: namespace,
-		},
-		TypeMeta: metav1.TypeMeta{
-			Kind: "CephObjectStore",
-		},
-		Spec: cephv1.ObjectStoreSpec{},
-	}
-
-	objectStore.Spec.Zone.Name = zoneName
-	objectStore.Spec.Gateway.Port = 80
-
-	object := []runtime.Object{
-		objectZone,
-		objectStore,
-		objectZoneGroup,
-		objectRealm,
-		cephCluster,
-	}
-
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "status" {
@@ -681,7 +659,6 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			objectRealm,
 			objectZoneGroup,
 			objectZone,
-			objectStore,
 		),
 		Clientset: clientset,
 	}
@@ -689,74 +666,155 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZone{}, &cephv1.CephObjectZoneList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &cephv1.CephObjectStore{}, &cephv1.CephObjectStoreList{})
+	setupEnviroment := func(objectStoreName string) (*ReconcileCephObjectStore, *cephv1.CephObjectStore, reconcile.Request) {
+		objectStore := &cephv1.CephObjectStore{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      objectStoreName,
+				Namespace: namespace,
+			},
+			TypeMeta: metav1.TypeMeta{
+				Kind: "CephObjectStore",
+			},
+			Spec: cephv1.ObjectStoreSpec{},
+		}
 
-	// Create a fake client to mock API calls.
-	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		objectStore.Spec.Zone.Name = zoneName
+		objectStore.Spec.Gateway.Port = 80
+		if objectStoreName == customEndpointStore {
+			objectStore.Spec.Zone.Endpoint = customEndpoint
 
-	r := &ReconcileCephObjectStore{
-		client:              cl,
-		scheme:              s,
-		context:             c,
-		objectStoreContexts: make(map[string]*objectStoreHealth),
-		recorder:            record.NewFakeRecorder(5),
-		opManagerContext:    ctx,
+		}
+
+		objects := []runtime.Object{
+			objectZone,
+			objectZoneGroup,
+			objectRealm,
+			objectStore,
+			cephCluster,
+		}
+
+		// Create a fake client to mock API calls.
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+
+		r := &ReconcileCephObjectStore{
+			client:              cl,
+			scheme:              s,
+			context:             c,
+			objectStoreContexts: make(map[string]*objectStoreHealth),
+			recorder:            record.NewFakeRecorder(5),
+			opManagerContext:    ctx,
+		}
+
+		_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		if !k8serrors.IsAlreadyExists(err) {
+			_, err = r.context.Clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
+			assert.NoError(t, err)
+		}
+
+		return r, objectStore, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      objectStoreName,
+				Namespace: namespace,
+			},
+		}
+
 	}
-
-	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
-
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      store,
-			Namespace: namespace,
-		},
-	}
-
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
 		return &cephver.Pacific, &cephver.Pacific, nil
 	}
+	t.Run("normal object store", func(t *testing.T) {
+		r, objectStore, req := setupEnviroment(store)
+		t.Run("create an object store", func(t *testing.T) {
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.False(t, res.Requeue)
+			assert.True(t, calledCommitConfigChanges)
+			err = r.client.Get(ctx, req.NamespacedName, objectStore)
+			assert.NoError(t, err)
+			assert.Equal(t, objectStore.Status.Info["endpoint"], BuildDNSEndpoint(BuildDomainName(objectStore.Name, objectStore.Namespace), objectStore.Spec.Gateway.Port, false))
+		})
 
-	t.Run("create an object store", func(t *testing.T) {
-		res, err := r.Reconcile(ctx, req)
-		assert.NoError(t, err)
-		assert.False(t, res.Requeue)
-		assert.True(t, calledCommitConfigChanges)
-		err = r.client.Get(ctx, req.NamespacedName, objectStore)
-		assert.NoError(t, err)
+		t.Run("delete the same store", func(t *testing.T) {
+			calledCommitConfigChanges = false
+
+			// no dependents
+			dependentsChecked := false
+			cephObjectStoreDependentsOrig := cephObjectStoreDependents
+			defer func() { cephObjectStoreDependents = cephObjectStoreDependentsOrig }()
+			cephObjectStoreDependents = func(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, store *cephv1.CephObjectStore, objCtx *Context, opsCtx *AdminOpsContext) (*dependents.DependentList, error) {
+				dependentsChecked = true
+				return &dependents.DependentList{}, nil
+			}
+
+			err := r.client.Get(ctx, req.NamespacedName, objectStore)
+			assert.NoError(t, err)
+			objectStore.DeletionTimestamp = &metav1.Time{
+				Time: time.Now(),
+			}
+			err = r.client.Update(ctx, objectStore)
+			assert.NoError(t, err)
+
+			// have to also track the same objects in the rook clientset
+			r.context.RookClientset = rookfake.NewSimpleClientset(
+				objectRealm,
+				objectZoneGroup,
+				objectZone,
+				objectStore,
+			)
+
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.False(t, res.Requeue)
+			assert.True(t, dependentsChecked)
+			assert.True(t, calledCommitConfigChanges)
+		})
 	})
+	t.Run("object store with custom Endpoint", func(t *testing.T) {
+		r, objectStore, req := setupEnviroment(customEndpointStore)
+		t.Run("create the object store", func(t *testing.T) {
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.False(t, res.Requeue)
+			assert.True(t, calledCommitConfigChanges)
+			err = r.client.Get(ctx, req.NamespacedName, objectStore)
+			assert.NoError(t, err)
+			assert.Equal(t, objectStore.Status.Info["endpoint"], customEndpoint)
+		})
 
-	t.Run("delete the same store", func(t *testing.T) {
-		calledCommitConfigChanges = false
+		t.Run("delete the same store", func(t *testing.T) {
+			calledCommitConfigChanges = false
 
-		// no dependents
-		dependentsChecked := false
-		cephObjectStoreDependentsOrig := cephObjectStoreDependents
-		defer func() { cephObjectStoreDependents = cephObjectStoreDependentsOrig }()
-		cephObjectStoreDependents = func(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, store *cephv1.CephObjectStore, objCtx *Context, opsCtx *AdminOpsContext) (*dependents.DependentList, error) {
-			dependentsChecked = true
-			return &dependents.DependentList{}, nil
-		}
+			// no dependents
+			dependentsChecked := false
+			cephObjectStoreDependentsOrig := cephObjectStoreDependents
+			defer func() { cephObjectStoreDependents = cephObjectStoreDependentsOrig }()
+			cephObjectStoreDependents = func(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, store *cephv1.CephObjectStore, objCtx *Context, opsCtx *AdminOpsContext) (*dependents.DependentList, error) {
+				dependentsChecked = true
+				return &dependents.DependentList{}, nil
+			}
 
-		err = r.client.Get(ctx, req.NamespacedName, objectStore)
-		assert.NoError(t, err)
-		objectStore.DeletionTimestamp = &metav1.Time{
-			Time: time.Now(),
-		}
-		err = r.client.Update(ctx, objectStore)
+			err := r.client.Get(ctx, req.NamespacedName, objectStore)
+			assert.NoError(t, err)
+			objectStore.DeletionTimestamp = &metav1.Time{
+				Time: time.Now(),
+			}
+			err = r.client.Update(ctx, objectStore)
+			assert.NoError(t, err)
 
-		// have to also track the same objects in the rook clientset
-		r.context.RookClientset = rookfake.NewSimpleClientset(
-			objectRealm,
-			objectZoneGroup,
-			objectZone,
-			objectStore,
-		)
+			// have to also track the same objects in the rook clientset
+			r.context.RookClientset = rookfake.NewSimpleClientset(
+				objectRealm,
+				objectZoneGroup,
+				objectZone,
+				objectStore,
+			)
 
-		res, err := r.Reconcile(ctx, req)
-		assert.NoError(t, err)
-		assert.False(t, res.Requeue)
-		assert.True(t, dependentsChecked)
-		assert.True(t, calledCommitConfigChanges)
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.False(t, res.Requeue)
+			assert.True(t, dependentsChecked)
+			assert.True(t, calledCommitConfigChanges)
+		})
 	})
 }
 

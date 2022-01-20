@@ -49,3 +49,4 @@ spec:
     instances: 1
   zone:
     name: zone-a
+    #endpoint: http://zone-a.fqdn

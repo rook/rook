@@ -380,7 +380,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// RECONCILE SERVICE
 		logger.Info("reconciling object store service")
-		_, err = cfg.reconcileService(cephObjectStore)
+		err = cfg.reconcileService(cephObjectStore)
 		if err != nil {
 			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile service", err)
 		}
@@ -420,7 +420,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// RECONCILE SERVICE
 		logger.Debug("reconciling object store service")
-		serviceIP, err := cfg.reconcileService(cephObjectStore)
+		err = cfg.reconcileService(cephObjectStore)
 		if err != nil {
 			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile service", err)
 		}
@@ -440,7 +440,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 		// Reconcile Multisite Creation
 		logger.Infof("setting multisite settings for object store %q", cephObjectStore.Name)
-		err = setMultisite(objContext, cephObjectStore, serviceIP)
+		err = setMultisite(objContext, cephObjectStore)
 		if err != nil && kerrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		} else if err != nil {

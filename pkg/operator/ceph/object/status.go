@@ -113,8 +113,9 @@ func updateStatusBucket(ctx context.Context, client client.Client, name types.Na
 
 func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string {
 	m := make(map[string]string)
-
-	if cephObjectStore.Spec.Gateway.SecurePort != 0 && cephObjectStore.Spec.Gateway.Port != 0 {
+	if cephObjectStore.Spec.IsMultisite() && cephObjectStore.Spec.Zone.Endpoint != "" {
+		m["endpoint"] = cephObjectStore.Spec.Zone.Endpoint
+	} else if cephObjectStore.Spec.Gateway.SecurePort != 0 && cephObjectStore.Spec.Gateway.Port != 0 {
 		m["secureEndpoint"] = BuildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.SecurePort, true)
 		m["endpoint"] = BuildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port, false)
 	} else if cephObjectStore.Spec.Gateway.SecurePort != 0 {
