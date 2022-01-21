@@ -2,7 +2,7 @@ name: Encryption KMS IBM Key Protect
 description: Reusable workflow to test Encryption KMS IBM Key Protect
 inputs:
   ibm-instance-id:
-    description: IBM_KP_INSTANCE_ID from the calling workflow
+    description: IBM_KP_SERVICE_INSTANCE_ID from the calling workflow
     required: true
   ibm-service-api-key:
     description: IBM_KP_SERVICE_API_KEY from the calling workflow
@@ -15,12 +15,12 @@ runs:
   using: "composite"
   steps:
     - name: fail if env no present
-      if: "env.IBM_KP_INSTANCE_ID == '' || env.IBM_KP_SERVICE_API_KEY == ''"
+      if: "env.IBM_KP_SERVICE_INSTANCE_ID == '' || env.IBM_KP_SERVICE_API_KEY == ''"
       env:
-        IBM_KP_INSTANCE_ID: ${{ inputs.ibm-instance-id }}
+        IBM_KP_SERVICE_INSTANCE_ID: ${{ inputs.ibm-instance-id }}
         IBM_KP_SERVICE_API_KEY: ${{ inputs.ibm-service-api-key }}
       shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: echo "IBM_KP_INSTANCE_ID and IBM_KP_SERVICE_API_KEY must be set in the environment" && exit 0
+      run: echo "IBM_KP_SERVICE_INSTANCE_ID and IBM_KP_SERVICE_API_KEY must be set in the environment" && exit 0
 
     - name: setup cluster resources
       uses: ./.github/workflows/setup-cluster-resources
@@ -42,7 +42,7 @@ runs:
     - name: deploy cluster
       shell: bash --noprofile --norc -eo pipefail -x {0}
       env:
-        IBM_KP_INSTANCE_ID: ${{ inputs.ibm-instance-id }}
+        IBM_KP_SERVICE_INSTANCE_ID: ${{ inputs.ibm-instance-id }}
         IBM_KP_SERVICE_API_KEY: ${{ inputs.ibm-service-api-key }}
       run: |
         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml

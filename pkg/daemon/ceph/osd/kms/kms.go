@@ -65,8 +65,8 @@ func NewConfig(context *clusterd.Context, clusterSpec *cephv1.ClusterSpec, clust
 		config.Provider = secrets.TypeK8s
 	case secrets.TypeVault:
 		config.Provider = secrets.TypeVault
-	case secrets.TypeIBM:
-		config.Provider = secrets.TypeIBM
+	case TypeIBM:
+		config.Provider = TypeIBM
 	default:
 		logger.Errorf("unsupported kms type %q", Provider)
 	}
@@ -248,7 +248,7 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 				return errors.Wrap(err, "failed to set vault kms token to an env var")
 			}
 
-		case secrets.TypeIBM:
+		case TypeIBM:
 			for _, config := range kmsIBMKeyProtectMandatoryTokenDetails {
 				v, ok := kmsToken.Data[config]
 				if !ok || len(v) == 0 {
@@ -281,7 +281,7 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 			}
 		}
 
-	case secrets.TypeIBM:
+	case TypeIBM:
 		for _, config := range kmsIBMKeyProtectMandatoryConnectionDetails {
 			if GetParam(securitySpec.KeyManagementService.ConnectionDetails, config) == "" {
 				return errors.Errorf("failed to validate kms config %q. cannot be empty", config)

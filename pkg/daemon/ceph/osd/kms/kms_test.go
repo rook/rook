@@ -58,7 +58,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 	}
 	ibmSecuritySpec := &cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{
 		ConnectionDetails: map[string]string{
-			"KMS_PROVIDER": "ibm-kp",
+			"KMS_PROVIDER": TypeIBM,
 		},
 	}}
 
@@ -183,8 +183,8 @@ func TestValidateConnectionDetails(t *testing.T) {
 		assert.NoError(t, err)
 		err = ValidateConnectionDetails(ctx, context, ibmSecuritySpec, ns)
 		assert.Error(t, err, "")
-		assert.EqualError(t, err, "failed to validate kms config \"IBM_KP_INSTANCE_ID\". cannot be empty")
-		ibmSecuritySpec.KeyManagementService.ConnectionDetails["IBM_KP_INSTANCE_ID"] = "foo"
+		assert.EqualError(t, err, "failed to validate kms config \"IBM_KP_SERVICE_INSTANCE_ID\". cannot be empty")
+		ibmSecuritySpec.KeyManagementService.ConnectionDetails["IBM_KP_SERVICE_INSTANCE_ID"] = "foo"
 	})
 
 	t.Run("ibm kp - success", func(t *testing.T) {
