@@ -80,6 +80,10 @@ To support RBD Mirroring, the [Volume Replication Operator](https://github.com/c
 The Volume Replication Operator is a kubernetes operator that provides common and reusable APIs for storage disaster recovery. It is based on [csi-addons/spec](https://github.com/csi-addons/spec) specification and can be used by any storage provider.
 It follows the controller pattern and provides extended APIs for storage disaster recovery. The extended APIs are provided via Custom Resource Definitions (CRDs).
 
+### Prerequisites
+
+Kubernetes version 1.21 or greater is required.
+
 ### Enable volume replication
 
 1. Install the volume replication CRDs:
@@ -124,5 +128,50 @@ when pod get spawned and destroyed at time of pod delete.
 Refer to [ephemeral-doc](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) for more info.
 Also, See the example manifests for an [RBD ephemeral volume](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/rbd/pod-ephemeral.yaml) and a [CephFS ephemeral volume](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples/csi/cephfs/pod-ephemeral.yaml).
 
-### Prerequisites
-Kubernetes version 1.21 or greater is required.
+## CSI-Addons Controller
+
+The CSI-Addons Controller handles the requests from users to initiate an operation. Users create a CR that the controller inspects, and forwards a request to one or more CSI-Addons side-cars for execution.
+
+### Deploying the controller
+
+Users can deploy the controller by running the following commands:
+
+```bash
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.3.0/deploy/controller/crds.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.3.0/deploy/controller/rbac.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.3.0/deploy/controller/setup-controller.yaml
+```
+
+This creates the required crds and configure permissions.
+
+### Enable the CSI-Addons Sidecar
+
+To use the features provided by the CSI-Addons, the `csi-addons`
+containers need to be deployed in the RBD provisioner and nodeplugin pods,
+which are not enabled by default.
+
+Execute the following command in the cluster to enable the CSI-Addons
+sidecar:
+
+* Update the `rook-ceph-operator-config` configmap and patch the
+ following configurations
+
+```bash
+kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_CSIADDONS": "true"'
+```
+
+* After enabling `CSI_ENABLE_CSIADDONS` in the configmap, a new sidecar container with name `csi-addons`
+ should now start automatically in the RBD CSI provisioner and nodeplugin pods.
+
+> NOTE: Make sure the version of ceph-csi used is v3.5.0+
+
+### CSI-ADDONS Operation
+
+CSI-Addons supports the following operations:
+
+- Reclaim Space
+  - [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#reclaimspacejob)
+  - [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#reclaimspacecronjob)
+  - [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
+- Network Fencing
+  - [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/networkfence.md)
