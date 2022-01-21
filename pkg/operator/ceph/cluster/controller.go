@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -85,7 +84,6 @@ type ClusterController struct {
 	context        *clusterd.Context
 	rookImage      string
 	clusterMap     map[string]*cluster
-	csiConfigMutex *sync.Mutex
 	osdChecker     *osd.OSDHealthMonitor
 	client         client.Client
 	namespacedName types.NamespacedName
@@ -327,10 +325,9 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 // NewClusterController create controller for watching cluster custom resources created
 func NewClusterController(context *clusterd.Context, rookImage string) *ClusterController {
 	return &ClusterController{
-		context:        context,
-		rookImage:      rookImage,
-		clusterMap:     make(map[string]*cluster),
-		csiConfigMutex: &sync.Mutex{},
+		context:    context,
+		rookImage:  rookImage,
+		clusterMap: make(map[string]*cluster),
 	}
 }
 
@@ -343,7 +340,7 @@ func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster,
 	cluster, ok := c.clusterMap[clusterObj.Namespace]
 	if !ok {
 		// It's a new cluster so let's populate the struct
-		cluster = newCluster(clusterObj, c.context, c.csiConfigMutex, ownerInfo)
+		cluster = newCluster(clusterObj, c.context, ownerInfo)
 	}
 	cluster.namespacedName = c.namespacedName
 
