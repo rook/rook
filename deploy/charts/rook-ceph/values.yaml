@@ -300,7 +300,7 @@ csi:
   # Enable the CSIAddons sidecar.
   csiAddons:
     enabled: false
-    #image: "quay.io/csiaddons/k8s-sidecar:v0.1.0"
+    #image: "quay.io/csiaddons/k8s-sidecar:v0.2.1"
 enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 
