@@ -35,7 +35,7 @@ func TestInitKeyProtect(t *testing.T) {
 		config[IbmKeyProtectServiceApiKey] = "foo"
 	})
 
-	t.Run("IBM_KP_INSTANCE_ID not set", func(t *testing.T) {
+	t.Run("IBM_KP_SERVICE_INSTANCE_ID not set", func(t *testing.T) {
 		_, err := InitKeyProtect(config)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrIbmInstanceIdKeyNotSet)

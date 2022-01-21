@@ -266,8 +266,8 @@ security:
   kms:
     # name of the k8s config map containing all the kms connection details
     connectionDetails:
-      KMS_PROVIDER: ibm-kp
-      IBM_KP_INSTANCE_ID: <instance ID that was retrieved in the first paragraph>
+      KMS_PROVIDER: ibmkeyprotect
+      IBM_KP_SERVICE_INSTANCE_ID: <instance ID that was retrieved in the first paragraph>
     # name of the k8s secret containing the service API Key
     tokenSecretName: ibm-kp-svc-api-key
 ```
