@@ -26,6 +26,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -206,15 +207,39 @@ func TestCephClientController(t *testing.T) {
 			client:           cl,
 			scheme:           s,
 			context:          c,
-			opManagerContext: context.TODO(),
+			opManagerContext: ctx,
 		}
+
+		// Enable CSI
+		csi.EnableRBD = true
+		os.Setenv("POD_NAMESPACE", namespace)
+		// Create CSI config map
+		ownerRef := &metav1.OwnerReference{}
+		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
+		err = csi.CreateCsiConfigMap(namespace, c.Clientset, ownerInfo)
+		assert.NoError(t, err)
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 
-		err = r.client.Get(context.TODO(), req.NamespacedName, cephFilesystemSubVolumeGroup)
+		err = r.client.Get(ctx, req.NamespacedName, cephFilesystemSubVolumeGroup)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, cephFilesystemSubVolumeGroup.Status.Phase)
+		assert.NotEmpty(t, cephFilesystemSubVolumeGroup.Status.Info["clusterID"])
+
+		// test that csi configmap is created
+		cm, err := c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
+		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
+		assert.Contains(t, cm.Data[csi.ConfigKey], "group-a")
 	})
+}
+
+func Test_buildClusterID(t *testing.T) {
+	longName := "foooooooooooooooooooooooooooooooooooooooooooo"
+	cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: longName}, Spec: cephv1.CephFilesystemSubVolumeGroupSpec{FilesystemName: "myfs"}}
+	clusterID := buildClusterID(cephFilesystemSubVolumeGroup)
+	assert.Equal(t, "29e92135b7e8c014079b9f9f3566777d", clusterID)
 }

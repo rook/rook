@@ -18,7 +18,6 @@ package mon
 
 import (
 	"context"
-	"sync"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -48,7 +47,7 @@ func createFakeCluster(t *testing.T, cephClusterObj *cephv1.CephCluster, k8sVers
 
 	cl := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects().Build()
 	clientset := test.New(t, 3)
-	c := New(&clusterd.Context{Client: cl, Clientset: clientset}, mockNamespace, cephClusterObj.Spec, ownerInfo, &sync.Mutex{})
+	c := New(&clusterd.Context{Client: cl, Clientset: clientset}, mockNamespace, cephClusterObj.Spec, ownerInfo)
 	test.SetFakeKubernetesVersion(clientset, k8sVersion)
 	return c
 }

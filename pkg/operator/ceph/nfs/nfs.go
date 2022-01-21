@@ -18,7 +18,6 @@ limitations under the License.
 package nfs
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -215,13 +214,7 @@ func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (stri
 		}
 	}
 
-	h := sha256.New()
-	if _, err := h.Write([]byte(fmt.Sprintf("%v", configMap.Data))); err != nil {
-		return "", "", errors.Wrapf(err, "failed to get hash of ganesha config map")
-	}
-	configHash := fmt.Sprintf("%x", h.Sum(nil))
-
-	return configMap.Name, configHash, nil
+	return configMap.Name, k8sutil.Hash(fmt.Sprintf("%v", configMap.Data)), nil
 }
 
 // Down scale the ganesha server
