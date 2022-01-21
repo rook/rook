@@ -132,7 +132,7 @@ spec:
             - "--pod=$(POD_NAME)"
             - "--namespace=$(POD_NAMESPACE)"
             - "--pod-uid=$(POD_UID)"
-            - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/pv/"
+            - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/"
           ports:
             - containerPort: {{ .CSIAddonsPort }}
           env:
