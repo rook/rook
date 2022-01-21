@@ -166,7 +166,12 @@ func (c *CephToolCommand) run() ([]byte, error) {
 	if command == RBDTool {
 		if c.RemoteExecution {
 			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
-			if stderr != "" || err != nil {
+			// err != nil and stderr != "" are both valid errors and may occur independently. Apply
+			// the error message or stderr as needed, then join after to create the returned err.
+			if stderr != "" {
+				logger.Warningf("message reported on stderr from %q command %v: %s", RBDTool, args, stderr)
+			}
+			if err != nil {
 				err = errors.Errorf("%s. %s", err.Error(), stderr)
 			}
 		} else if c.timeout == 0 {
