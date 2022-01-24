@@ -535,4 +535,4 @@ rules:
   - apiGroups: [""]
     resources: ["serviceaccounts"]
     verbs: ["get"]
-{{- end -}}
+{{- end }}

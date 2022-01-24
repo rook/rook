@@ -61,4 +61,4 @@ subjects:
   - kind: ServiceAccount
     name: rook-ceph-cmd-reporter
     namespace: {{ .Release.Namespace }} # namespace:cluster
-{{- end -}}
+{{- end }}
