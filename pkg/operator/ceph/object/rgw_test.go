@@ -18,8 +18,6 @@ package object
 
 import (
 	"context"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -51,8 +49,7 @@ func TestStartRGW(t *testing.T) {
 		},
 	}
 
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
+	configDir := t.TempDir()
 	info := clienttest.CreateTestClusterInfo(1)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
 	store := simpleStore()

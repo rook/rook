@@ -21,8 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path"
 	"reflect"
 	"strings"
@@ -319,12 +317,11 @@ func TestCreateFilesystem(t *testing.T) {
 	ctx := context.TODO()
 	var deploymentsUpdated *[]*apps.Deployment
 	mds.UpdateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
-	configDir, _ := ioutil.TempDir("", "")
+	configDir := t.TempDir()
 	fsName := "myfs"
 	addDataPoolCount := 0
 	createDataPoolCount := 0
 	executor := fsExecutor(t, fsName, configDir, false, &createDataPoolCount, &addDataPoolCount)
-	defer os.RemoveAll(configDir)
 	clientset := testop.New(t, 1)
 	context := &clusterd.Context{
 		Executor:  executor,
@@ -398,13 +395,12 @@ func TestUpgradeFilesystem(t *testing.T) {
 	ctx := context.TODO()
 	var deploymentsUpdated *[]*apps.Deployment
 	mds.UpdateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
-	configDir, _ := ioutil.TempDir("", "")
+	configDir := t.TempDir()
 
 	fsName := "myfs"
 	addDataPoolCount := 0
 	createDataPoolCount := 0
 	executor := fsExecutor(t, fsName, configDir, false, &createDataPoolCount, &addDataPoolCount)
-	defer os.RemoveAll(configDir)
 	clientset := testop.New(t, 1)
 	context := &clusterd.Context{
 		Executor:  executor,
@@ -518,7 +514,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 func TestCreateNopoolFilesystem(t *testing.T) {
 	ctx := context.TODO()
 	clientset := testop.New(t, 3)
-	configDir, _ := ioutil.TempDir("", "")
+	configDir := t.TempDir()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
@@ -530,7 +526,6 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 			return "", errors.New("unknown command error")
 		},
 	}
-	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
