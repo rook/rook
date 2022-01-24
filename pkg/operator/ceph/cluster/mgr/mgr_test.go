@@ -19,7 +19,6 @@ package mgr
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -65,7 +64,7 @@ func TestStartMgr(t *testing.T) {
 	}
 
 	clientset := testop.New(t, 3)
-	configDir, _ := ioutil.TempDir("", "")
+	configDir := t.TempDir()
 	scheme := scheme.Scheme
 	err := policyv1.AddToScheme(scheme)
 	assert.NoError(t, err)
@@ -73,7 +72,6 @@ func TestStartMgr(t *testing.T) {
 	assert.NoError(t, err)
 	cl := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects().Build()
 
-	defer os.RemoveAll(configDir)
 	ctx := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
@@ -257,8 +255,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 		},
 	}
 	clientset := testop.New(t, 3)
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
+	configDir := t.TempDir()
 	ctx := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,

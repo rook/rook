@@ -18,8 +18,6 @@ package client
 
 import (
 	"context"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -66,11 +64,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 func TestGenerateConfigFile(t *testing.T) {
 	ctx := context.TODO()
 	// set up a temporary config directory that will be cleaned up after test
-	configDir, err := ioutil.TempDir("", "TestGenerateConfigFile")
-	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
-	}
-	defer os.RemoveAll(configDir)
+	configDir := t.TempDir()
 
 	// create mocked cluster context and info
 	clientset := test.New(t, 3)
@@ -90,7 +84,7 @@ func TestGenerateConfigFile(t *testing.T) {
 		},
 		Data: data,
 	}
-	_, err = clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+	_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	clusterInfo := &ClusterInfo{

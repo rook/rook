@@ -17,7 +17,6 @@ package osd
 
 import (
 	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 	"testing"
@@ -29,8 +28,7 @@ import (
 )
 
 func TestOSDBootstrap(t *testing.T) {
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
+	configDir := t.TempDir()
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -39,7 +37,6 @@ func TestOSDBootstrap(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
-	defer os.RemoveAll(context.ConfigDir)
 	err := createOSDBootstrapKeyring(context, client.AdminTestClusterInfo("mycluster"), configDir)
 	assert.Nil(t, err)
 

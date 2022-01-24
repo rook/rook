@@ -324,12 +324,8 @@ func TestConfigureCVDevices(t *testing.T) {
 	}()
 
 	originalCephConfigDir := cephConfigDir
-	cephConfigDir, err = ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	cephConfigDir = t.TempDir()
 	defer func() {
-		os.RemoveAll(cephConfigDir)
 		cephConfigDir = originalCephConfigDir
 	}()
 

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -255,9 +254,7 @@ func generateRgwTlsCertSecret(t *testing.T, helper *clients.TestClient, k8sh *ut
 	ctx := context.TODO()
 	root, err := utils.FindRookRoot()
 	require.NoError(t, err, "failed to get rook root")
-	tlscertdir, err := ioutil.TempDir(root, "tlscertdir")
-	require.NoError(t, err, "failed to create directory for TLS certs")
-	defer os.RemoveAll(tlscertdir)
+	tlscertdir := t.TempDir()
 	cmdArgs := utils.CommandArgs{Command: filepath.Join(root, "tests/scripts/generate-tls-config.sh"),
 		CmdArgs: []string{tlscertdir, rgwServiceName, namespace}}
 	cmdOut := utils.ExecuteCommand(cmdArgs)

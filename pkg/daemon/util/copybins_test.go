@@ -58,15 +58,13 @@ func TestCopyBinary(t *testing.T) {
 	// testRootDir/
 	//   bin/
 	//   copy-to-dir/
-	testRootDir, err := ioutil.TempDir("", "rook-cmd-reporter-copy-binaries-test")
-	assert.NoError(t, err)
-	defer os.RemoveAll(testRootDir)
+	testRootDir := t.TempDir()
 	// create a test PATH="testRootDir/bin"
 	envPath := path.Join(testRootDir, "bin")
 	mkdir(envPath)
 	oPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", oPath)
-	err = os.Setenv("PATH", envPath)
+	err := os.Setenv("PATH", envPath)
 	assert.NoError(t, err)
 	// create initial copy-to-dir
 	copyToDir := path.Join(testRootDir, "copy-to-dir")

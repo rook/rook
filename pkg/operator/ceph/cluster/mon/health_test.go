@@ -19,7 +19,6 @@ package mon
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -57,8 +56,7 @@ func TestCheckHealth(t *testing.T) {
 		},
 	}
 	clientset := test.New(t, 1)
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
+	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
@@ -78,7 +76,6 @@ func TestCheckHealth(t *testing.T) {
 	c.spec.Mon.Count = 3
 	logger.Infof("initial mons: %v", c.ClusterInfo.Monitors)
 	c.waitForStart = false
-	defer os.RemoveAll(c.context.ConfigDir)
 
 	c.mapping.Schedule["f"] = &MonScheduleInfo{
 		Name:    "node0",
@@ -190,8 +187,7 @@ func TestSkipMonFailover(t *testing.T) {
 func TestEvictMonOnSameNode(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 1)
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
+	configDir := t.TempDir()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("executing command: %s %+v", command, args)
@@ -298,8 +294,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 		},
 	}
 	clientset := test.New(t, 1)
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
+	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
@@ -309,7 +304,6 @@ func TestCheckHealthNotFound(t *testing.T) {
 	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
-	defer os.RemoveAll(c.context.ConfigDir)
 
 	c.mapping.Schedule["a"] = &MonScheduleInfo{
 		Name: "node0",
@@ -361,8 +355,7 @@ func TestAddRemoveMons(t *testing.T) {
 		},
 	}
 	clientset := test.New(t, 1)
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
+	configDir := t.TempDir()
 	context := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
@@ -373,7 +366,6 @@ func TestAddRemoveMons(t *testing.T) {
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
 	c.maxMonID = 0 // "a" is max mon id
 	c.waitForStart = false
-	defer os.RemoveAll(c.context.ConfigDir)
 
 	// checking the health will increase the mons as desired all in one go
 	err := c.checkHealth(ctx)
