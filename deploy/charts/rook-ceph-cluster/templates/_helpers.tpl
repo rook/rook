@@ -3,14 +3,14 @@ Define the clusterName as defaulting to the release namespace
 */}}
 {{- define "clusterName" -}}
 {{ .Values.clusterName | default .Release.Namespace }}
-{{- end -}}
+{{- end }}
 
 {{/*
 Return the target Kubernetes version.
 */}}
 {{- define "capabilities.kubeVersion" -}}
 {{- default .Capabilities.KubeVersion.Version .Values.kubeVersion -}}
-{{- end -}}
+{{- end }}
 
 {{/*
 Return the appropriate apiVersion for ingress.
@@ -22,5 +22,5 @@ Return the appropriate apiVersion for ingress.
 {{- print "networking.k8s.io/v1beta1" -}}
 {{- else -}}
 {{- print "networking.k8s.io/v1" -}}
-{{- end -}}
-{{- end -}}
+{{- end }}
+{{- end }}
