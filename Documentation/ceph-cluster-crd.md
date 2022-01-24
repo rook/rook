@@ -396,7 +396,7 @@ spec:
   * In Openshift, to use a NetworkAttachmentDefinition (NAD) across namespaces, the NAD must be deployed in the `default` namespace. The NAD is then referenced with the namespace: `default/rook-public-nw`
 
 #### Known issues with multus
-When a CephFS/RBD volume is mounted in a Pod using cephcsi and then the CSI CephFS/RBD plugin is restarted or terminated (e.g. by restarting or deleting its DaemonSet), all operations on the volume become blocked, even after restarting the CSI pods. The only workaround is to restart the node where the cephcsi plugin pod was restarted.
+When a CephFS/RBD volume is mounted in a Pod using Ceph CSI and then the CSI CephFS/RBD plugin is restarted or terminated (e.g. by restarting or deleting its DaemonSet), all operations on the volume become blocked, even after restarting the CSI pods. The only workaround is to restart the node where the Ceph CSI plugin pod was restarted.
 This issue is tracked [here](https://github.com/rook/rook/issues/8085).
 
 #### IPFamily
