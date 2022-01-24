@@ -19,7 +19,6 @@ package notification
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ceph/go-ceph/rgw/admin"
@@ -44,26 +43,14 @@ type provisioner struct {
 	objectStoreName  types.NamespacedName
 }
 
-func getUserCredentials(opManagerContext context.Context, username string, objStore *cephv1.CephObjectStore, objContext *object.Context) (accessKey string, secretKey string, err error) {
+func getUserCredentials(adminOpsCtx *object.AdminOpsContext, opManagerContext context.Context, username string) (accessKey string, secretKey string, err error) {
 	if len(username) == 0 {
 		err = errors.New("no user name provided")
 		return
 	}
 
-	adminAccessKey, adminSecretKey, err := object.GetAdminOPSUserCredentials(objContext, &objStore.Spec)
-	if err != nil {
-		err = errors.Wrapf(err, "failed to get Ceph RGW admin ops user credentials when getting user %q", username)
-		return
-	}
-
-	adminOpsClient, err := admin.New(objContext.Endpoint, adminAccessKey, adminSecretKey, &http.Client{})
-	if err != nil {
-		err = errors.Wrapf(err, "failed to build admin ops API connection to get user %q", username)
-		return
-	}
-
 	var u admin.User
-	u, err = adminOpsClient.GetUser(opManagerContext, admin.User{ID: username})
+	u, err = adminOpsCtx.AdminOpsClient.GetUser(opManagerContext, admin.User{ID: username})
 	if err != nil {
 		err = errors.Wrapf(err, "failed to get ceph user %q", username)
 		return
@@ -88,12 +75,24 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 	// CephClusterSpec is needed for GetAdminOPSUserCredentials()
 	objContext.CephClusterSpec = *p.clusterSpec
 
-	accessKey, secretKey, err := getUserCredentials(p.opManagerContext, p.owner, objStore, objContext)
+	adminOpsCtx, err := object.NewMultisiteAdminOpsContext(objContext, &objStore.Spec)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get admin Ops context for CephObjectStore %q", p.objectStoreName)
+
+	}
+	accessKey, secretKey, err := getUserCredentials(adminOpsCtx, p.opManagerContext, p.owner)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get owner credentials for %q", p.owner)
 	}
+	tlsCert := make([]byte, 0)
+	if objStore.Spec.IsTLSEnabled() {
+		tlsCert, _, err = object.GetTlsCaCert(objContext, &objStore.Spec)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to fetch TLS certificate for the object store")
+		}
+	}
 
-	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, objContext.ZoneGroup, logger.LevelAt(capnslog.DEBUG), objContext.Context.KubeConfig.CertData)
+	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, objContext.ZoneGroup, logger.LevelAt(capnslog.DEBUG), tlsCert)
 }
 
 // TODO: convert all rules without restrictions once the AWS SDK supports that
