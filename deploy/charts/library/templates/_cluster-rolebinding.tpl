@@ -90,4 +90,4 @@ subjects:
   - kind: ServiceAccount
     name: rook-ceph-purge-osd
     namespace: {{ .Release.Namespace }} # namespace:cluster
-{{- end -}}
+{{- end }}

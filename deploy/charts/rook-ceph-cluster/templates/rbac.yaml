@@ -14,7 +14,7 @@ clusterrolebindings
 {{- if .Values.pspEnable }}
 ---
 {{ include "library.cluster.psp.rolebindings" . }}
-{{- end -}}
+{{- end }}
 
 {{/*
 roles
@@ -38,4 +38,4 @@ rolebindings
 {{ include "library.cluster.monitoring.rolebindings" . }}
 {{- end }}
 
-{{- end -}}
+{{- end }}

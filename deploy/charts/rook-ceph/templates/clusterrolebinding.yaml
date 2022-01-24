@@ -99,4 +99,4 @@ roleRef:
   kind: ClusterRole
   name: rbd-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
-{{- end -}}
+{{- end }}

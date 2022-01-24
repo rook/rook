@@ -14,5 +14,5 @@ If the cluster namespace is different from the operator namespace, we want to na
 {{- $clusterNamespace := .Release.Namespace -}}
 {{- if ne $clusterNamespace $operatorNamespace -}}
 {{ printf "-%s" $clusterNamespace }}
-{{- end -}}
-{{- end -}}
+{{- end }}
+{{- end }}
