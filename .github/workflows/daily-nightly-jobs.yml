@@ -324,16 +324,16 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: run Encryption KMS IBM Key Protect
+    - name: run encryption KMS IBM Key Protect
       uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
       if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
       env:
         IBM_KP_SERVICE_INSTANCE_ID: ${{ secrets.IBM_INSTANCE_ID }}
         IBM_KP_SERVICE_API_KEY: ${{ secrets.IBM_SERVICE_API_KEY }}
       with:
+        ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
+        ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        ibm-instance-id: ${{ secrets.IBM_KP_INSTANCE_ID }}
-        ibm-service-api-key: ${{ secrets.IBM_KP_SERVICE_API_KEY }}
 
     - name: upload test result
       uses: actions/upload-artifact@v2
